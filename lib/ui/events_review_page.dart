@@ -29,6 +29,7 @@ import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import '../application/monitoring_scene_review_store.dart';
+import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
 
@@ -127,6 +128,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   DispatchEvent? _selectedEvent;
   final Map<String, GlobalKey> _rowKeys = <String, GlobalKey>{};
   String _lastAutoEnsuredEventId = '';
+  bool _desktopWorkspaceActive = false;
 
   ({String clientId, String siteId})? _governanceScopeForEvents(
     List<DispatchEvent> events,
@@ -234,6 +236,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final hasFocusedFallback =
         requestedSelectedId.isNotEmpty &&
         !widget.events.any((event) => event.eventId == requestedSelectedId);
+    final scopedEventIdsWithFocusedFallback = hasFocusedFallback
+        ? <String>{...scopedEventIds, requestedSelectedId}
+        : scopedEventIds;
     final timelineSource = _timelineWithFocusedFallback(
       baseEvents: widget.events,
       focusedEventId: requestedSelectedId,
@@ -257,7 +262,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               .toList(growable: false);
     final scopedTimelineEvents = _scopedTimelineEvents(
       timeline: timeline,
-      scopedEventIds: scopedEventIds,
+      scopedEventIds: scopedEventIdsWithFocusedFallback,
     );
     final partnerScopeSummary = _partnerScopeSummary(scopedTimelineEvents);
     final tomorrowScopeSummary = _tomorrowPostureScopeSummary(
@@ -270,11 +275,42 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final openGovernanceAction = _openGovernanceActionForEvents(
       scopedTimelineEvents,
     );
-    final scopeFiltered = scopedEventIds.isEmpty
+    final openFocusedFallbackGovernanceAction =
+        !hasFocusedFallback || openGovernanceAction == null
+        ? null
+        : () {
+            openGovernanceAction();
+            if (focusedFallbackScope == null) {
+              _showActionMessage(
+                'Governance opened for the reconstructed review reference.',
+              );
+              return;
+            }
+            _showActionMessage(
+              'Governance opened for ${focusedFallbackScope.clientId}/${focusedFallbackScope.siteId}.',
+            );
+          };
+    final openFocusedFallbackLedgerAction =
+        !hasFocusedFallback || widget.onOpenLedger == null
+        ? null
+        : () {
+            widget.onOpenLedger!(requestedSelectedId);
+            _showActionMessage('Ledger focus opened for $requestedSelectedId.');
+          };
+    final scopeFilteredBase = scopedEventIdsWithFocusedFallback.isEmpty
         ? filtered
         : filtered
-              .where((event) => scopedEventIds.contains(event.eventId.trim()))
+              .where(
+                (event) => scopedEventIdsWithFocusedFallback.contains(
+                  event.eventId.trim(),
+                ),
+              )
               .toList(growable: false);
+    final scopeFiltered = _preserveFocusedEvent(
+      scopeFilteredBase,
+      timeline: timeline,
+      focusedEventId: requestedSelectedId,
+    );
     final providerFiltered = _activeProviderFilter == _providerFilterAll
         ? scopeFiltered
         : scopeFiltered
@@ -284,21 +320,29 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     _activeProviderFilter;
               })
               .toList(growable: false);
-    final identityPolicyOptions = _identityPolicyFilterOptions(
+    final providerFocused = _preserveFocusedEvent(
       providerFiltered,
+      timeline: timeline,
+      focusedEventId: requestedSelectedId,
     );
+    final identityPolicyOptions = _identityPolicyFilterOptions(providerFocused);
     final identityPolicyFiltered =
         _activeIdentityPolicyFilter == _identityPolicyFilterAll
-        ? providerFiltered
-        : providerFiltered
+        ? providerFocused
+        : providerFocused
               .where((event) {
                 if (event is! IntelligenceReceived) return false;
                 return _eventIdentityPolicyFilterLabel(event) ==
                     _activeIdentityPolicyFilter;
               })
               .toList(growable: false);
-    final prioritizedEvents = _prioritizeEventsForScope(
+    final focusedIdentityPolicyFiltered = _preserveFocusedEvent(
       identityPolicyFiltered,
+      timeline: timeline,
+      focusedEventId: requestedSelectedId,
+    );
+    final prioritizedEvents = _prioritizeEventsForScope(
+      focusedIdentityPolicyFiltered,
       shadowScopeSummary: shadowScopeSummary,
     );
     DispatchEvent? requestedSelectedEvent;
@@ -327,7 +371,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ? requestedSelectedEvent
         : prioritizedEvents.first;
     _selectedEvent = selected;
-    if (selected != null && requestedSelectionFound) {
+    final desktopWorkspace = MediaQuery.sizeOf(context).width >= 1240;
+    if (selected != null && requestedSelectionFound && desktopWorkspace) {
       _scheduleEnsureVisible(selected.eventId);
     }
 
@@ -336,761 +381,920 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final latestSequence = timeline.isEmpty
         ? 'N/A'
         : '#${timeline.first.sequence}';
+    final visitScopedEvents = _visitScopedEvents(timeline);
 
-    return OnyxPageScaffold(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1540),
-            child: ListView(
+    Widget buildSurfaceBody({required bool embedScroll}) {
+      final sections = <Widget>[
+        if (hasFocusedFallback) ...[
+          Container(
+            key: const ValueKey('events-focused-fallback-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x223C79BB),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x665FAAFF)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _heroHeader(
-                  visibleEvents: visibleEvents,
-                  totalEvents: totalEvents,
-                  latestSequence: latestSequence,
-                  selected: selected,
-                  openGovernanceAction: openGovernanceAction,
+                Text(
+                  _focusedFallbackBannerText(
+                    requestedSelectedId,
+                    focusedFallbackScope,
+                  ),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF1FB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
+                const SizedBox(height: 6),
+                Text(
+                  _focusedFallbackBannerDetail(
+                    requestedSelectedId,
+                    focusedFallbackScope,
+                  ),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFAFC2DB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _heroActionButton(
+                      key: const ValueKey(
+                        'events-focused-fallback-open-governance',
+                      ),
+                      icon: Icons.verified_user_outlined,
+                      label: 'Open Governance Scope',
+                      accent: const Color(0xFF8FD1FF),
+                      onPressed: openFocusedFallbackGovernanceAction,
+                    ),
+                    _heroActionButton(
+                      key: const ValueKey(
+                        'events-focused-fallback-open-ledger',
+                      ),
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Open Ledger Focus',
+                      accent: const Color(0xFFF1B872),
+                      onPressed: openFocusedFallbackLedgerAction,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (requestedSelectionMissing)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x221F3A5A),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x6635506F)),
+            ),
+            child: Text(
+              'Focused reference $requestedSelectedId is still outside the current filtered stream. Clear the active filters or use the recovery handoffs above to continue review.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF1FB),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        if (partnerScopeSummary != null)
+          Container(
+            key: const ValueKey('events-partner-scope-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x1406B6D4),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x4406B6D4)),
+            ),
+            child: Text(
+              partnerScopeSummary.bannerText,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF1FB),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          )
+        else if (readinessScopeSummary != null)
+          Container(
+            key: const ValueKey('events-readiness-scope-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x1410B981),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x4410B981)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  readinessScopeSummary.bannerText,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF1FB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  readinessScopeSummary.summaryLine,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFAFC2DB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (readinessScopeSummary.focusSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    readinessScopeSummary.focusSummary,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFD9F99D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (readinessScopeSummary.posturalEchoSummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Postural echo: ${readinessScopeSummary.posturalEchoSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF86EFAC),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (readinessScopeSummary.topIntentSummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Top intent: ${readinessScopeSummary.topIntentSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFBBF7D0),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (readinessScopeSummary.hazardSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Hazard lane: ${readinessScopeSummary.hazardSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCA5A5),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (readinessScopeSummary.reviewRefs.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Review refs: ${readinessScopeSummary.reviewRefs.join(', ')}',
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 8),
-                _filterStrip(identityPolicyOptions),
-                if (hasFocusedFallback) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x223C79BB),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x665FAAFF)),
-                    ),
-                    child: Text(
-                      _focusedFallbackBannerText(
-                        requestedSelectedId,
-                        focusedFallbackScope,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _outlineAction(
+                      'COPY READINESS JSON',
+                      actionKey: const ValueKey(
+                        'events-readiness-casefile-json-action',
                       ),
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF1FB),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                      onTap: () =>
+                          _copyReadinessCaseFileJson(readinessScopeSummary),
+                    ),
+                    _outlineAction(
+                      'COPY READINESS CSV',
+                      actionKey: const ValueKey(
+                        'events-readiness-casefile-csv-action',
                       ),
+                      onTap: () =>
+                          _copyReadinessCaseFileCsv(readinessScopeSummary),
+                    ),
+                    if (openGovernanceAction != null)
+                      _outlineAction(
+                        'OPEN GOVERNANCE',
+                        actionKey: const ValueKey(
+                          'events-readiness-open-governance-action',
+                        ),
+                        onTap: openGovernanceAction,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          )
+        else if (tomorrowScopeSummary != null)
+          Container(
+            key: const ValueKey('events-tomorrow-scope-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x14F59E0B),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x44F59E0B)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tomorrowScopeSummary.bannerText,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF1FB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  tomorrowScopeSummary.summaryLine,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFFDE68A),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (tomorrowScopeSummary.focusSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    tomorrowScopeSummary.focusSummary,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFFF7ED),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],
-                if (requestedSelectionMissing) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x221F3A5A),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x6635506F)),
-                    ),
-                    child: Text(
-                      'Focused reference $requestedSelectedId is not in the current event stream yet. Keep this tab open and ingest/poll to auto-link when it arrives.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF1FB),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                if (tomorrowScopeSummary.leadDraftDescription
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    tomorrowScopeSummary.leadDraftDescription,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
-                if (partnerScopeSummary != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    key: const ValueKey('events-partner-scope-banner'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x1406B6D4),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x4406B6D4)),
-                    ),
-                    child: Text(
-                      partnerScopeSummary.bannerText,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF1FB),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                if (tomorrowScopeSummary.learningSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Learning: ${tomorrowScopeSummary.learningSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFFEDD5),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ] else if (readinessScopeSummary != null) ...[
+                ],
+                if (tomorrowScopeSummary.learningMemorySummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    tomorrowScopeSummary.learningMemorySummary,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCD34D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (tomorrowScopeSummary.shadowSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shadow draft: ${tomorrowScopeSummary.shadowSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCD34D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (tomorrowScopeSummary.shadowPostureSummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shadow posture: ${tomorrowScopeSummary.shadowPostureSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFBFDBFE),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (tomorrowScopeSummary.urgencySummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Urgency: ${tomorrowScopeSummary.urgencySummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (tomorrowScopeSummary.promotionPressureSummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Promotion pressure: ${tomorrowScopeSummary.promotionPressureSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (tomorrowScopeSummary.promotionExecutionSummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Promotion execution: ${tomorrowScopeSummary.promotionExecutionSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFFEDD5),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (tomorrowScopeSummary.hazardSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Hazard draft: ${tomorrowScopeSummary.hazardSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCA5A5),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (tomorrowScopeSummary.reviewRefs.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Review refs: ${tomorrowScopeSummary.reviewRefs.join(', ')}',
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (tomorrowScopeSummary.history != null) ...[
                   const SizedBox(height: 8),
                   Container(
-                    key: const ValueKey('events-readiness-scope-banner'),
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0x1410B981),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x4410B981)),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0x44F59E0B)),
+                      color: const Color(0x12000000),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          readinessScopeSummary.bannerText,
+                          tomorrowScopeSummary.history!.headline,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF1FB),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFFDE68A),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
-                          readinessScopeSummary.summaryLine,
+                          tomorrowScopeSummary.history!.summary,
                           style: GoogleFonts.inter(
                             color: const Color(0xFFAFC2DB),
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (readinessScopeSummary.focusSummary
-                            .trim()
-                            .isNotEmpty) ...[
+                        for (final point
+                            in tomorrowScopeSummary.history!.points) ...[
                           const SizedBox(height: 4),
                           Text(
-                            readinessScopeSummary.focusSummary,
+                            '${point.date} • ${point.summaryLine}'
+                            '${point.shadowSummary.isEmpty ? '' : ' • shadow ${point.shadowSummary}'}'
+                            '${point.shadowPostureSummary.isEmpty ? '' : ' • shadow posture ${point.shadowPostureSummary}'}'
+                            '${point.urgencySummary.isEmpty ? '' : ' • urgency ${point.urgencySummary}'}'
+                            '${point.promotionPressureSummary.isEmpty ? '' : ' • promotion ${point.promotionPressureSummary}'}'
+                            '${point.promotionExecutionSummary.isEmpty ? '' : ' • execution ${point.promotionExecutionSummary}'}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFD9F99D),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (readinessScopeSummary.posturalEchoSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Postural echo: ${readinessScopeSummary.posturalEchoSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF86EFAC),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (readinessScopeSummary.topIntentSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Top intent: ${readinessScopeSummary.topIntentSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFBBF7D0),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (readinessScopeSummary.hazardSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Hazard lane: ${readinessScopeSummary.hazardSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFCA5A5),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (readinessScopeSummary.reviewRefs.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Review refs: ${readinessScopeSummary.reviewRefs.join(', ')}',
-                            style: GoogleFonts.robotoMono(
-                              color: const Color(0xFF8FD1FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _outlineAction(
-                              'COPY READINESS JSON',
-                              actionKey: const ValueKey(
-                                'events-readiness-casefile-json-action',
-                              ),
-                              onTap: () => _copyReadinessCaseFileJson(
-                                readinessScopeSummary,
-                              ),
-                            ),
-                            _outlineAction(
-                              'COPY READINESS CSV',
-                              actionKey: const ValueKey(
-                                'events-readiness-casefile-csv-action',
-                              ),
-                              onTap: () => _copyReadinessCaseFileCsv(
-                                readinessScopeSummary,
-                              ),
-                            ),
-                            if (openGovernanceAction != null)
-                              _outlineAction(
-                                'OPEN GOVERNANCE',
-                                actionKey: const ValueKey(
-                                  'events-readiness-open-governance-action',
-                                ),
-                                onTap: openGovernanceAction,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else if (tomorrowScopeSummary != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    key: const ValueKey('events-tomorrow-scope-banner'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x14F59E0B),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x44F59E0B)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tomorrowScopeSummary.bannerText,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF1FB),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          tomorrowScopeSummary.summaryLine,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFFDE68A),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (tomorrowScopeSummary.focusSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            tomorrowScopeSummary.focusSummary,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFFF7ED),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.leadDraftDescription
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            tomorrowScopeSummary.leadDraftDescription,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDE68A),
+                              color: const Color(0xFFEAF1FB),
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
-                        if (tomorrowScopeSummary.learningSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Learning: ${tomorrowScopeSummary.learningSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFFEDD5),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.learningMemorySummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            tomorrowScopeSummary.learningMemorySummary,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFCD34D),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.shadowSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Shadow draft: ${tomorrowScopeSummary.shadowSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFCD34D),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.shadowPostureSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Shadow posture: ${tomorrowScopeSummary.shadowPostureSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFBFDBFE),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.urgencySummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Urgency: ${tomorrowScopeSummary.urgencySummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDE68A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.promotionPressureSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Promotion pressure: ${tomorrowScopeSummary.promotionPressureSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDE68A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.promotionExecutionSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Promotion execution: ${tomorrowScopeSummary.promotionExecutionSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFFEDD5),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.hazardSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Hazard draft: ${tomorrowScopeSummary.hazardSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFCA5A5),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.reviewRefs.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Review refs: ${tomorrowScopeSummary.reviewRefs.join(', ')}',
-                            style: GoogleFonts.robotoMono(
-                              color: const Color(0xFF8FD1FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (tomorrowScopeSummary.history != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0x44F59E0B),
-                              ),
-                              color: const Color(0x12000000),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  tomorrowScopeSummary.history!.headline,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFFDE68A),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  tomorrowScopeSummary.history!.summary,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFAFC2DB),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                for (final point
-                                    in tomorrowScopeSummary
-                                        .history!
-                                        .points) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${point.date} • ${point.summaryLine}'
-                                    '${point.shadowSummary.isEmpty ? '' : ' • shadow ${point.shadowSummary}'}'
-                                    '${point.shadowPostureSummary.isEmpty ? '' : ' • shadow posture ${point.shadowPostureSummary}'}'
-                                    '${point.urgencySummary.isEmpty ? '' : ' • urgency ${point.urgencySummary}'}'
-                                    '${point.promotionPressureSummary.isEmpty ? '' : ' • promotion ${point.promotionPressureSummary}'}'
-                                    '${point.promotionExecutionSummary.isEmpty ? '' : ' • execution ${point.promotionExecutionSummary}'}',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFFEAF1FB),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _outlineAction(
-                              'COPY TOMORROW JSON',
-                              actionKey: const ValueKey(
-                                'events-tomorrow-casefile-json-action',
-                              ),
-                              onTap: () => _copyTomorrowCaseFileJson(
-                                tomorrowScopeSummary,
-                              ),
-                            ),
-                            _outlineAction(
-                              'COPY TOMORROW CSV',
-                              actionKey: const ValueKey(
-                                'events-tomorrow-casefile-csv-action',
-                              ),
-                              onTap: () => _copyTomorrowCaseFileCsv(
-                                tomorrowScopeSummary,
-                              ),
-                            ),
-                            if (openGovernanceAction != null)
-                              _outlineAction(
-                                'OPEN GOVERNANCE',
-                                actionKey: const ValueKey(
-                                  'events-tomorrow-open-governance-action',
-                                ),
-                                onTap: openGovernanceAction,
-                              ),
-                          ],
-                        ),
                       ],
                     ),
                   ),
-                ] else if (syntheticScopeSummary != null) ...[
+                ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _outlineAction(
+                      'COPY TOMORROW JSON',
+                      actionKey: const ValueKey(
+                        'events-tomorrow-casefile-json-action',
+                      ),
+                      onTap: () =>
+                          _copyTomorrowCaseFileJson(tomorrowScopeSummary),
+                    ),
+                    _outlineAction(
+                      'COPY TOMORROW CSV',
+                      actionKey: const ValueKey(
+                        'events-tomorrow-casefile-csv-action',
+                      ),
+                      onTap: () =>
+                          _copyTomorrowCaseFileCsv(tomorrowScopeSummary),
+                    ),
+                    if (openGovernanceAction != null)
+                      _outlineAction(
+                        'OPEN GOVERNANCE',
+                        actionKey: const ValueKey(
+                          'events-tomorrow-open-governance-action',
+                        ),
+                        onTap: openGovernanceAction,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          )
+        else if (syntheticScopeSummary != null)
+          Container(
+            key: const ValueKey('events-synthetic-scope-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x148B5CF6),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x448B5CF6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  syntheticScopeSummary.bannerText,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF1FB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  syntheticScopeSummary.summaryLine,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFAFC2DB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (syntheticScopeSummary.focusSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    syntheticScopeSummary.focusSummary,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFD9F99D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.policySummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Policy: ${syntheticScopeSummary.policySummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE9D5FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.topIntentSummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Top intent: ${syntheticScopeSummary.topIntentSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFC4B5FD),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.hazardSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Hazard rehearsal: ${syntheticScopeSummary.hazardSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE9D5FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.reviewRefs.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Review refs: ${syntheticScopeSummary.reviewRefs.join(', ')}',
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.learningSummary.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Learning: ${syntheticScopeSummary.learningSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFDDD6FE),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.shadowLearningSummary.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shadow learning: ${syntheticScopeSummary.shadowLearningSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFBFDBFE),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.shadowPostureSummary.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shadow posture: ${syntheticScopeSummary.shadowPostureSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFBFDBFE),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary
+                    .shadowValidationSummary
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shadow validation: ${syntheticScopeSummary.shadowValidationSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF93C5FD),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (syntheticScopeSummary
+                      .shadowValidationHistorySummary
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Shadow validation history: ${syntheticScopeSummary.shadowValidationHistorySummary}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFBFDBFE),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+                if (syntheticScopeSummary
+                    .shadowTomorrowUrgencySummary
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shadow tomorrow urgency: ${syntheticScopeSummary.shadowTomorrowUrgencySummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary
+                    .previousShadowTomorrowUrgencySummary
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Previous shadow tomorrow urgency: ${syntheticScopeSummary.previousShadowTomorrowUrgencySummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCD34D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary
+                    .promotionPressureSummary
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Promotion pressure: ${syntheticScopeSummary.promotionPressureSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF86EFAC),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary
+                    .promotionExecutionSummary
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Promotion execution: ${syntheticScopeSummary.promotionExecutionSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF86EFAC),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.learningMemorySummary.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    syntheticScopeSummary.learningMemorySummary,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFC4B5FD),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.shadowMemorySummary.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    syntheticScopeSummary.shadowMemorySummary,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF93C5FD),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.promotionSummary.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Promotion: ${syntheticScopeSummary.promotionSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF86EFAC),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (syntheticScopeSummary
+                      .promotionDecisionSummary
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Decision: ${syntheticScopeSummary.promotionDecisionSummary}',
+                      style: GoogleFonts.inter(
+                        color:
+                            syntheticScopeSummary.promotionDecisionStatus ==
+                                'accepted'
+                            ? const Color(0xFF86EFAC)
+                            : syntheticScopeSummary.promotionDecisionStatus ==
+                                  'rejected'
+                            ? const Color(0xFFFCA5A5)
+                            : const Color(0xFFFDE68A),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _outlineAction(
+                        'ACCEPT PROMOTION',
+                        actionKey: const ValueKey(
+                          'events-synthetic-promotion-accept-action',
+                        ),
+                        onTap: () =>
+                            _acceptSyntheticPromotion(syntheticScopeSummary),
+                      ),
+                      _outlineAction(
+                        'REJECT PROMOTION',
+                        actionKey: const ValueKey(
+                          'events-synthetic-promotion-reject-action',
+                        ),
+                        onTap: () =>
+                            _rejectSyntheticPromotion(syntheticScopeSummary),
+                      ),
+                    ],
+                  ),
+                ],
+                if (syntheticScopeSummary.biasSummary.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Bias: ${syntheticScopeSummary.biasSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary
+                    .shadowPostureBiasSummary
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shadow posture bias: ${syntheticScopeSummary.shadowPostureBiasSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (syntheticScopeSummary.history != null) ...[
                   const SizedBox(height: 8),
                   Container(
-                    key: const ValueKey('events-synthetic-scope-banner'),
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0x148B5CF6),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x448B5CF6)),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0x338B5CF6)),
+                      color: const Color(0x12000000),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          syntheticScopeSummary.bannerText,
+                          syntheticScopeSummary.history!.headline,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF1FB),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFC4B5FD),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
-                          syntheticScopeSummary.summaryLine,
+                          syntheticScopeSummary.history!.summary,
                           style: GoogleFonts.inter(
                             color: const Color(0xFFAFC2DB),
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (syntheticScopeSummary.focusSummary
-                            .trim()
-                            .isNotEmpty) ...[
+                        for (final point
+                            in syntheticScopeSummary.history!.points) ...[
                           const SizedBox(height: 4),
                           Text(
-                            syntheticScopeSummary.focusSummary,
+                            '${point.date} • ${point.summaryLine}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFD9F99D),
+                              color: const Color(0xFFEAF1FB),
                               fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ],
-                        if (syntheticScopeSummary.policySummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Policy: ${syntheticScopeSummary.policySummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFE9D5FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary.topIntentSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Top intent: ${syntheticScopeSummary.topIntentSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFC4B5FD),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary.hazardSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Hazard rehearsal: ${syntheticScopeSummary.hazardSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFE9D5FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary.reviewRefs.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Review refs: ${syntheticScopeSummary.reviewRefs.join(', ')}',
-                            style: GoogleFonts.robotoMono(
-                              color: const Color(0xFF8FD1FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .learningSummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Learning: ${syntheticScopeSummary.learningSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFDDD6FE),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .shadowLearningSummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Shadow learning: ${syntheticScopeSummary.shadowLearningSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFBFDBFE),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .shadowPostureSummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Shadow posture: ${syntheticScopeSummary.shadowPostureSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFBFDBFE),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .shadowValidationSummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Shadow validation: ${syntheticScopeSummary.shadowValidationSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF93C5FD),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          if (syntheticScopeSummary
-                              .shadowValidationHistorySummary
-                              .isNotEmpty) ...[
-                            const SizedBox(height: 4),
+                          if (point.biasSummary.isNotEmpty) ...[
+                            const SizedBox(height: 2),
                             Text(
-                              'Shadow validation history: ${syntheticScopeSummary.shadowValidationHistorySummary}',
+                              point.biasSummary,
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFFDE68A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          if (point.shadowPostureBiasSummary.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Shadow posture bias: ${point.shadowPostureBiasSummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFFDE68A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          if (point.shadowPostureSummary.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Shadow posture: ${point.shadowPostureSummary}',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFFBFDBFE),
                                 fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ],
-                        ],
-                        if (syntheticScopeSummary
-                            .shadowTomorrowUrgencySummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Shadow tomorrow urgency: ${syntheticScopeSummary.shadowTomorrowUrgencySummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDE68A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .previousShadowTomorrowUrgencySummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Previous shadow tomorrow urgency: ${syntheticScopeSummary.previousShadowTomorrowUrgencySummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFCD34D),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .promotionPressureSummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Promotion pressure: ${syntheticScopeSummary.promotionPressureSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF86EFAC),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .promotionExecutionSummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Promotion execution: ${syntheticScopeSummary.promotionExecutionSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF86EFAC),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .learningMemorySummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            syntheticScopeSummary.learningMemorySummary,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFC4B5FD),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .shadowMemorySummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            syntheticScopeSummary.shadowMemorySummary,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF93C5FD),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .promotionSummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Promotion: ${syntheticScopeSummary.promotionSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF86EFAC),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          if (syntheticScopeSummary
-                              .promotionDecisionSummary
-                              .isNotEmpty) ...[
-                            const SizedBox(height: 4),
+                          if (point.shadowValidationSummary.isNotEmpty) ...[
+                            const SizedBox(height: 2),
                             Text(
-                              'Decision: ${syntheticScopeSummary.promotionDecisionSummary}',
+                              'Shadow validation: ${point.shadowValidationSummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF93C5FD),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          if (point
+                              .shadowTomorrowUrgencySummary
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Shadow tomorrow urgency: ${point.shadowTomorrowUrgencySummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFFDE68A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          if (point.promotionPressureSummary.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Promotion pressure: ${point.promotionPressureSummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF86EFAC),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          if (point.promotionExecutionSummary.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Promotion execution: ${point.promotionExecutionSummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF86EFAC),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          if (point.promotionSummary.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Promotion: ${point.promotionSummary}',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF86EFAC),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          if (point.promotionDecisionSummary.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              point.promotionDecisionSummary,
                               style: GoogleFonts.inter(
                                 color:
-                                    syntheticScopeSummary
-                                            .promotionDecisionStatus ==
-                                        'accepted'
+                                    point.promotionDecisionStatus == 'accepted'
                                     ? const Color(0xFF86EFAC)
-                                    : syntheticScopeSummary
-                                              .promotionDecisionStatus ==
+                                    : point.promotionDecisionStatus ==
                                           'rejected'
                                     ? const Color(0xFFFCA5A5)
                                     : const Color(0xFFFDE68A),
@@ -1099,745 +1303,1036 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                               ),
                             ),
                           ],
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _outlineAction(
-                                'ACCEPT PROMOTION',
-                                actionKey: const ValueKey(
-                                  'events-synthetic-promotion-accept-action',
-                                ),
-                                onTap: () => _acceptSyntheticPromotion(
-                                  syntheticScopeSummary,
-                                ),
-                              ),
-                              _outlineAction(
-                                'REJECT PROMOTION',
-                                actionKey: const ValueKey(
-                                  'events-synthetic-promotion-reject-action',
-                                ),
-                                onTap: () => _rejectSyntheticPromotion(
-                                  syntheticScopeSummary,
-                                ),
-                              ),
-                            ],
-                          ),
                         ],
-                        if (syntheticScopeSummary.biasSummary.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Bias: ${syntheticScopeSummary.biasSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDE68A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary
-                            .shadowPostureBiasSummary
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Shadow posture bias: ${syntheticScopeSummary.shadowPostureBiasSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDE68A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (syntheticScopeSummary.history != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0x338B5CF6),
-                              ),
-                              color: const Color(0x12000000),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  syntheticScopeSummary.history!.headline,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFC4B5FD),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  syntheticScopeSummary.history!.summary,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFAFC2DB),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                for (final point
-                                    in syntheticScopeSummary
-                                        .history!
-                                        .points) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${point.date} • ${point.summaryLine}',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFFEAF1FB),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  if (point.biasSummary.isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      point.biasSummary,
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFFDE68A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point
-                                      .shadowPostureBiasSummary
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Shadow posture bias: ${point.shadowPostureBiasSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFFDE68A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point
-                                      .shadowPostureSummary
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Shadow posture: ${point.shadowPostureSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFBFDBFE),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point
-                                      .shadowValidationSummary
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Shadow validation: ${point.shadowValidationSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF93C5FD),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point
-                                      .shadowTomorrowUrgencySummary
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Shadow tomorrow urgency: ${point.shadowTomorrowUrgencySummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFFDE68A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point
-                                      .promotionPressureSummary
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Promotion pressure: ${point.promotionPressureSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF86EFAC),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point
-                                      .promotionExecutionSummary
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Promotion execution: ${point.promotionExecutionSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF86EFAC),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.promotionSummary.isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Promotion: ${point.promotionSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF86EFAC),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point
-                                      .promotionDecisionSummary
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      point.promotionDecisionSummary,
-                                      style: GoogleFonts.inter(
-                                        color:
-                                            point.promotionDecisionStatus ==
-                                                'accepted'
-                                            ? const Color(0xFF86EFAC)
-                                            : point.promotionDecisionStatus ==
-                                                  'rejected'
-                                            ? const Color(0xFFFCA5A5)
-                                            : const Color(0xFFFDE68A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _outlineAction(
-                              'COPY SYNTHETIC JSON',
-                              actionKey: const ValueKey(
-                                'events-synthetic-casefile-json-action',
-                              ),
-                              onTap: () => _copySyntheticCaseFileJson(
-                                syntheticScopeSummary,
-                              ),
-                            ),
-                            _outlineAction(
-                              'COPY SYNTHETIC CSV',
-                              actionKey: const ValueKey(
-                                'events-synthetic-casefile-csv-action',
-                              ),
-                              onTap: () => _copySyntheticCaseFileCsv(
-                                syntheticScopeSummary,
-                              ),
-                            ),
-                            if (openGovernanceAction != null)
-                              _outlineAction(
-                                'OPEN GOVERNANCE',
-                                actionKey: const ValueKey(
-                                  'events-synthetic-open-governance-action',
-                                ),
-                                onTap: openGovernanceAction,
-                              ),
-                          ],
-                        ),
                       ],
-                    ),
-                  ),
-                ] else if (shadowScopeSummary != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    key: const ValueKey('events-shadow-scope-banner'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x141E40AF),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x445B8CFF)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          shadowScopeSummary.bannerText,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF1FB),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          shadowScopeSummary.summaryLine,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFB8D7FF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        if (shadowScopeSummary.focusSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            shadowScopeSummary.focusSummary,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFD9F99D),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (shadowScopeSummary.validationSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Validation: ${shadowScopeSummary.validationSummary}',
-                            style: GoogleFonts.robotoMono(
-                              color: const Color(0xFF8FD1FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (shadowScopeSummary.strengthSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Strength: ${shadowScopeSummary.strengthSummary}',
-                            style: GoogleFonts.robotoMono(
-                              color: const Color(0xFFBFDBFE),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (shadowScopeSummary.tomorrowUrgencySummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Tomorrow urgency: ${shadowScopeSummary.tomorrowUrgencySummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDE68A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (shadowScopeSummary.previousTomorrowUrgencySummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 3),
-                          Text(
-                            'Previous tomorrow urgency: ${shadowScopeSummary.previousTomorrowUrgencySummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFCD34D),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        if (shadowScopeSummary.history != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            shadowScopeSummary.history!.headline,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFD9F99D),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            shadowScopeSummary.history!.summary,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFAFC2DB),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (shadowScopeSummary.history!.strengthSummary
-                              .trim()
-                              .isNotEmpty) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              'Strength drift: ${shadowScopeSummary.history!.strengthSummary}',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFBFDBFE),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                          for (final point
-                              in shadowScopeSummary.history!.points) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              '${point.date} • ${point.summaryLine}',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF8FA8C5),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (point.validationSummary.trim().isNotEmpty)
-                              Text(
-                                'Validation ${point.validationSummary}',
-                                style: GoogleFonts.robotoMono(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            if (point.strengthSummary.trim().isNotEmpty)
-                              Text(
-                                'Strength ${point.strengthSummary}',
-                                style: GoogleFonts.robotoMono(
-                                  color: const Color(0xFFBFDBFE),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            if (point.tomorrowUrgencySummary.trim().isNotEmpty)
-                              Text(
-                                'Tomorrow urgency ${point.tomorrowUrgencySummary}',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFFDE68A),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                          ],
-                        ],
-                        for (final site in shadowScopeSummary.sites) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            '${site.siteId} • ${site.moShadowSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF1FB),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          for (final match in site.moShadowMatches.take(3)) ...[
-                            const SizedBox(height: 3),
-                            Text(
-                              '${match.title} • ${match.matchedIndicators.join(', ')}',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFAFC2DB),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (match.validationStatus.isNotEmpty)
-                              Text(
-                                'Strength ${shadowMoStrengthSummary(match)}',
-                                style: GoogleFonts.robotoMono(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                          ],
-                        ],
-                        if (shadowScopeSummary.reviewRefs.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Review refs: ${shadowScopeSummary.reviewRefs.join(', ')}',
-                            style: GoogleFonts.robotoMono(
-                              color: const Color(0xFF8FD1FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _outlineAction(
-                              'COPY SHADOW JSON',
-                              actionKey: const ValueKey(
-                                'events-shadow-casefile-json-action',
-                              ),
-                              onTap: () =>
-                                  _copyShadowCaseFileJson(shadowScopeSummary),
-                            ),
-                            _outlineAction(
-                              'COPY SHADOW CSV',
-                              actionKey: const ValueKey(
-                                'events-shadow-casefile-csv-action',
-                              ),
-                              onTap: () =>
-                                  _copyShadowCaseFileCsv(shadowScopeSummary),
-                            ),
-                            if (openGovernanceAction != null)
-                              _outlineAction(
-                                'OPEN GOVERNANCE',
-                                actionKey: const ValueKey(
-                                  'events-shadow-open-governance-action',
-                                ),
-                                onTap: openGovernanceAction,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else if (activityScopeSummary != null) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    key: const ValueKey('events-activity-scope-banner'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x1422D3EE),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x4422D3EE)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          activityScopeSummary.bannerText,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF1FB),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          activityScopeSummary.summaryLine,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFAFC2DB),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (activityScopeSummary.topFlaggedIdentitySummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Flagged: ${activityScopeSummary.topFlaggedIdentitySummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDA4AF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (activityScopeSummary.topLongPresenceSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Long presence: ${activityScopeSummary.topLongPresenceSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFDE68A),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (activityScopeSummary.topGuardInteractionSummary
-                            .trim()
-                            .isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Guard note: ${activityScopeSummary.topGuardInteractionSummary}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF93C5FD),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (activityScopeSummary.reviewRefs.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Review refs: ${activityScopeSummary.reviewRefs.join(', ')}',
-                            style: GoogleFonts.robotoMono(
-                              color: const Color(0xFF8FD1FF),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                        if (activityScopeSummary.history != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0x3322D3EE),
-                              ),
-                              color: const Color(0x12000000),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  activityScopeSummary.history!.headline,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF8FD1FF),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  activityScopeSummary.history!.summary,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFAFC2DB),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                for (final point
-                                    in activityScopeSummary
-                                        .history!
-                                        .points) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '${point.date} • ${point.summaryLine}',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFFEAF1FB),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _outlineAction(
-                              'COPY ACTIVITY JSON',
-                              actionKey: const ValueKey(
-                                'events-activity-casefile-json-action',
-                              ),
-                              onTap: () => _copyActivityCaseFileJson(
-                                activityScopeSummary,
-                              ),
-                            ),
-                            _outlineAction(
-                              'COPY ACTIVITY CSV',
-                              actionKey: const ValueKey(
-                                'events-activity-casefile-csv-action',
-                              ),
-                              onTap: () => _copyActivityCaseFileCsv(
-                                activityScopeSummary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ] else if (scopedEventIds.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Container(
-                    key: const ValueKey('events-visit-scope-banner'),
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x1422D3EE),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0x4422D3EE)),
-                    ),
-                    child: Text(
-                      'Visit-scoped review active for ${scopedEventIds.length} linked event${scopedEventIds.length == 1 ? '' : 's'}.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF1FB),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
                     ),
                   ),
                 ],
                 const SizedBox(height: 8),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final stacked = constraints.maxWidth < 1240;
-                    if (stacked) {
-                      return Column(
-                        children: [
-                          _timelinePane(
-                            events: prioritizedEvents,
-                            bounded: false,
-                          ),
-                          const SizedBox(height: 8),
-                          _detailPane(
-                            selected: selected,
-                            bounded: false,
-                            visitScopedEvents: _visitScopedEvents(timeline),
-                          ),
-                        ],
-                      );
-                    }
-                    return SizedBox(
-                      height: 760,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 6,
-                            child: _timelinePane(
-                              events: prioritizedEvents,
-                              bounded: true,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 6,
-                            child: _detailPane(
-                              selected: selected,
-                              bounded: true,
-                              visitScopedEvents: _visitScopedEvents(timeline),
-                            ),
-                          ),
-                        ],
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _outlineAction(
+                      'COPY SYNTHETIC JSON',
+                      actionKey: const ValueKey(
+                        'events-synthetic-casefile-json-action',
                       ),
-                    );
-                  },
+                      onTap: () =>
+                          _copySyntheticCaseFileJson(syntheticScopeSummary),
+                    ),
+                    _outlineAction(
+                      'COPY SYNTHETIC CSV',
+                      actionKey: const ValueKey(
+                        'events-synthetic-casefile-csv-action',
+                      ),
+                      onTap: () =>
+                          _copySyntheticCaseFileCsv(syntheticScopeSummary),
+                    ),
+                    if (openGovernanceAction != null)
+                      _outlineAction(
+                        'OPEN GOVERNANCE',
+                        actionKey: const ValueKey(
+                          'events-synthetic-open-governance-action',
+                        ),
+                        onTap: openGovernanceAction,
+                      ),
+                  ],
                 ),
               ],
             ),
+          )
+        else if (shadowScopeSummary != null)
+          Container(
+            key: const ValueKey('events-shadow-scope-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x141E40AF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x445B8CFF)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  shadowScopeSummary.bannerText,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF1FB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  shadowScopeSummary.summaryLine,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFB8D7FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (shadowScopeSummary.focusSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    shadowScopeSummary.focusSummary,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFD9F99D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (shadowScopeSummary.validationSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Validation: ${shadowScopeSummary.validationSummary}',
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (shadowScopeSummary.strengthSummary.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Strength: ${shadowScopeSummary.strengthSummary}',
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFFBFDBFE),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (shadowScopeSummary.tomorrowUrgencySummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Tomorrow urgency: ${shadowScopeSummary.tomorrowUrgencySummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (shadowScopeSummary.previousTomorrowUrgencySummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    'Previous tomorrow urgency: ${shadowScopeSummary.previousTomorrowUrgencySummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFCD34D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                if (shadowScopeSummary.history != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    shadowScopeSummary.history!.headline,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFD9F99D),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    shadowScopeSummary.history!.summary,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFAFC2DB),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (shadowScopeSummary.history!.strengthSummary
+                      .trim()
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      'Strength drift: ${shadowScopeSummary.history!.strengthSummary}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFBFDBFE),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  for (final point in shadowScopeSummary.history!.points) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      '${point.date} • ${point.summaryLine}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FA8C5),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (point.validationSummary.trim().isNotEmpty)
+                      Text(
+                        'Validation ${point.validationSummary}',
+                        style: GoogleFonts.robotoMono(
+                          color: const Color(0xFF8FD1FF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    if (point.strengthSummary.trim().isNotEmpty)
+                      Text(
+                        'Strength ${point.strengthSummary}',
+                        style: GoogleFonts.robotoMono(
+                          color: const Color(0xFFBFDBFE),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    if (point.tomorrowUrgencySummary.trim().isNotEmpty)
+                      Text(
+                        'Tomorrow urgency ${point.tomorrowUrgencySummary}',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFFDE68A),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                  ],
+                ],
+                for (final site in shadowScopeSummary.sites) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    '${site.siteId} • ${site.moShadowSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF1FB),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  for (final match in site.moShadowMatches.take(3)) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      '${match.title} • ${match.matchedIndicators.join(', ')}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFAFC2DB),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (match.validationStatus.isNotEmpty)
+                      Text(
+                        'Strength ${shadowMoStrengthSummary(match)}',
+                        style: GoogleFonts.robotoMono(
+                          color: const Color(0xFF8FD1FF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                  ],
+                ],
+                if (shadowScopeSummary.reviewRefs.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Review refs: ${shadowScopeSummary.reviewRefs.join(', ')}',
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _outlineAction(
+                      'COPY SHADOW JSON',
+                      actionKey: const ValueKey(
+                        'events-shadow-casefile-json-action',
+                      ),
+                      onTap: () => _copyShadowCaseFileJson(shadowScopeSummary),
+                    ),
+                    _outlineAction(
+                      'COPY SHADOW CSV',
+                      actionKey: const ValueKey(
+                        'events-shadow-casefile-csv-action',
+                      ),
+                      onTap: () => _copyShadowCaseFileCsv(shadowScopeSummary),
+                    ),
+                    if (openGovernanceAction != null)
+                      _outlineAction(
+                        'OPEN GOVERNANCE',
+                        actionKey: const ValueKey(
+                          'events-shadow-open-governance-action',
+                        ),
+                        onTap: openGovernanceAction,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          )
+        else if (activityScopeSummary != null)
+          Container(
+            key: const ValueKey('events-activity-scope-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x1422D3EE),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x4422D3EE)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  activityScopeSummary.bannerText,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF1FB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  activityScopeSummary.summaryLine,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFAFC2DB),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (activityScopeSummary.topFlaggedIdentitySummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Flagged: ${activityScopeSummary.topFlaggedIdentitySummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDA4AF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (activityScopeSummary.topLongPresenceSummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Long presence: ${activityScopeSummary.topLongPresenceSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFFDE68A),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (activityScopeSummary.topGuardInteractionSummary
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Guard note: ${activityScopeSummary.topGuardInteractionSummary}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF93C5FD),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (activityScopeSummary.reviewRefs.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Review refs: ${activityScopeSummary.reviewRefs.join(', ')}',
+                    style: GoogleFonts.robotoMono(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                if (activityScopeSummary.history != null) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0x3322D3EE)),
+                      color: const Color(0x12000000),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activityScopeSummary.history!.headline,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8FD1FF),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          activityScopeSummary.history!.summary,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFAFC2DB),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        for (final point
+                            in activityScopeSummary.history!.points) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            '${point.date} • ${point.summaryLine}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF1FB),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _outlineAction(
+                      'COPY ACTIVITY JSON',
+                      actionKey: const ValueKey(
+                        'events-activity-casefile-json-action',
+                      ),
+                      onTap: () =>
+                          _copyActivityCaseFileJson(activityScopeSummary),
+                    ),
+                    _outlineAction(
+                      'COPY ACTIVITY CSV',
+                      actionKey: const ValueKey(
+                        'events-activity-casefile-csv-action',
+                      ),
+                      onTap: () =>
+                          _copyActivityCaseFileCsv(activityScopeSummary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          )
+        else if (scopedEventIds.isNotEmpty)
+          Container(
+            key: const ValueKey('events-visit-scope-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0x1422D3EE),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x4422D3EE)),
+            ),
+            child: Text(
+              'Visit-scoped review active for ${scopedEventIds.length} linked event${scopedEventIds.length == 1 ? '' : 's'}.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF1FB),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        _reviewCommandWorkspace(
+          identityPolicyOptions: identityPolicyOptions,
+          prioritizedEvents: prioritizedEvents,
+          selected: selected,
+          visitScopedEvents: visitScopedEvents,
+          visibleEvents: visibleEvents,
+          totalEvents: totalEvents,
+          latestSequence: latestSequence,
+          openGovernanceAction: openGovernanceAction,
+          scopedEventCount: scopedEventIds.length,
+        ),
+      ];
+
+      if (!embedScroll) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var index = 0; index < sections.length; index++) ...[
+              if (index > 0) const SizedBox(height: 8),
+              sections[index],
+            ],
+          ],
+        );
+      }
+
+      return ListView.separated(
+        padding: EdgeInsets.zero,
+        itemCount: sections.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 8),
+        itemBuilder: (context, index) => sections[index],
+      );
+    }
+
+    return OnyxPageScaffold(
+      child: LayoutBuilder(
+        builder: (context, viewport) {
+          const contentPadding = EdgeInsets.all(10);
+          final useScrollFallback =
+              isHandsetLayout(context) ||
+              viewport.maxHeight < 720 ||
+              viewport.maxWidth < 980;
+          final boundedDesktopSurface =
+              !useScrollFallback &&
+              viewport.hasBoundedHeight &&
+              viewport.maxHeight.isFinite;
+          final ultrawideSurface = isUltrawideLayout(
+            context,
+            viewportWidth: viewport.maxWidth,
+          );
+          final widescreenSurface = isWidescreenLayout(
+            context,
+            viewportWidth: viewport.maxWidth,
+          );
+          final surfaceMaxWidth = ultrawideSurface
+              ? viewport.maxWidth
+              : widescreenSurface
+              ? viewport.maxWidth * 0.94
+              : 1540.0;
+
+          return OnyxViewportWorkspaceLayout(
+            padding: contentPadding,
+            maxWidth: surfaceMaxWidth,
+            lockToViewport: boundedDesktopSurface,
+            spacing: 8,
+            header: _heroHeader(
+              visibleEvents: visibleEvents,
+              totalEvents: totalEvents,
+              latestSequence: latestSequence,
+              selected: selected,
+              openGovernanceAction: openGovernanceAction,
+            ),
+            body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _reviewCommandWorkspace({
+    required List<String> identityPolicyOptions,
+    required List<DispatchEvent> prioritizedEvents,
+    required DispatchEvent? selected,
+    required List<DispatchEvent> visitScopedEvents,
+    required int visibleEvents,
+    required int totalEvents,
+    required String latestSequence,
+    required VoidCallback? openGovernanceAction,
+    required int scopedEventCount,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final desktopWorkspace = constraints.maxWidth >= 1240;
+        _desktopWorkspaceActive = desktopWorkspace;
+        void focusAiDecisions() {
+          setState(() => _activeFilter = 'AI DECISION');
+        }
+
+        void focusAlarmTriggers() {
+          setState(() => _activeFilter = 'ALARM TRIGGERED');
+        }
+
+        void openGovernanceScope() {
+          if (openGovernanceAction != null) {
+            openGovernanceAction();
+            return;
+          }
+          _showActionMessage(
+            'Governance handoff unlocks once the review lane narrows to a single scope.',
+          );
+        }
+
+        void openLedgerFocus() {
+          if (selected == null) {
+            _showActionMessage(
+              'Select an event before opening a ledger focus.',
+            );
+            return;
+          }
+          logUiAction(
+            'events.workspace_open_ledger',
+            context: {'event_id': selected.eventId},
+          );
+          if (widget.onOpenLedger != null) {
+            widget.onOpenLedger!.call(selected.eventId);
+            return;
+          }
+          _showActionMessage(
+            'Open Sovereign Ledger to inspect ${selected.eventId}.',
+          );
+        }
+
+        if (!desktopWorkspace) {
+          return Column(
+            children: [
+              _filterStrip(identityPolicyOptions),
+              const SizedBox(height: 8),
+              _timelinePane(events: prioritizedEvents, bounded: false),
+              const SizedBox(height: 8),
+              _detailPane(
+                selected: selected,
+                bounded: false,
+                visitScopedEvents: visitScopedEvents,
+              ),
+            ],
+          );
+        }
+
+        final opsRail = _reviewWorkspacePanel(
+          key: const ValueKey('events-workspace-panel-ops'),
+          title: 'Review Ops Rail',
+          subtitle:
+              'Filter the forensic lane, pivot to the right evidence queue, and hand the current scope into governance or ledger review.',
+          expandChild: true,
+          child: SingleChildScrollView(
+            child: _reviewOpsRail(
+              identityPolicyOptions: identityPolicyOptions,
+              selected: selected,
+              visibleEvents: visibleEvents,
+              totalEvents: totalEvents,
+              latestSequence: latestSequence,
+              scopedEventCount: scopedEventCount,
+              onResetFilters: _resetFilters,
+              onFocusAiDecisions: focusAiDecisions,
+              onFocusAlarmTriggers: focusAlarmTriggers,
+              onOpenGovernanceScope: openGovernanceScope,
+              onOpenLedgerFocus: openLedgerFocus,
+            ),
+          ),
+        );
+        final timelineBoard = _reviewWorkspacePanel(
+          key: const ValueKey('events-workspace-panel-timeline'),
+          title: 'Forensic Event Rail',
+          subtitle:
+              'Prioritized event sequence for the active review lane, with selections preserved in place.',
+          expandChild: true,
+          child: _timelinePane(events: prioritizedEvents, bounded: true),
+        );
+        final detailBoard = _reviewWorkspacePanel(
+          key: const ValueKey('events-workspace-panel-detail'),
+          title: 'Selected Event Board',
+          subtitle:
+              'Ledger continuity, scene review context, and export controls for the active event.',
+          expandChild: true,
+          child: _detailPane(
+            selected: selected,
+            bounded: true,
+            visitScopedEvents: visitScopedEvents,
+          ),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _reviewWorkspaceStatusBanner(
+              selected: selected,
+              visibleEvents: visibleEvents,
+              totalEvents: totalEvents,
+              latestSequence: latestSequence,
+              scopedEventCount: scopedEventCount,
+              governanceReady: openGovernanceAction != null,
+              onResetFilters: _resetFilters,
+              onFocusAiDecisions: focusAiDecisions,
+              onFocusAlarmTriggers: focusAlarmTriggers,
+              onOpenGovernanceScope: openGovernanceScope,
+              onOpenLedgerFocus: openLedgerFocus,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 760,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 3, child: opsRail),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 4, child: timelineBoard),
+                  const SizedBox(width: 8),
+                  Expanded(flex: 5, child: detailBoard),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _reviewWorkspacePanel({
+    Key? key,
+    required String title,
+    required String subtitle,
+    required Widget child,
+    bool expandChild = false,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF09111A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1F2B3A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF1FB),
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (expandChild) Expanded(child: child) else child,
+        ],
+      ),
+    );
+  }
+
+  Widget _reviewWorkspaceStatusBanner({
+    required DispatchEvent? selected,
+    required int visibleEvents,
+    required int totalEvents,
+    required String latestSequence,
+    required int scopedEventCount,
+    required bool governanceReady,
+    required VoidCallback onResetFilters,
+    required VoidCallback onFocusAiDecisions,
+    required VoidCallback onFocusAlarmTriggers,
+    required VoidCallback onOpenGovernanceScope,
+    required VoidCallback onOpenLedgerFocus,
+  }) {
+    return Container(
+      key: const ValueKey('events-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF09111A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF1F2B3A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _heroChip('Visible', '$visibleEvents of $totalEvents'),
+              _heroChip('Latest', latestSequence),
+              _heroChip('Selected', selected?.eventId ?? 'none'),
+              _heroChip('Type Filter', _activeFilter),
+              if (_activeSourceFilter != _sourceFilterAll)
+                _heroChip('Source', _activeSourceFilter),
+              if (_activeProviderFilter != _providerFilterAll)
+                _heroChip('Provider', _activeProviderFilter),
+              if (_activeIdentityPolicyFilter != _identityPolicyFilterAll)
+                _heroChip('Policy', _activeIdentityPolicyFilter),
+              if (scopedEventCount > 0)
+                _heroChip('Scoped', '$scopedEventCount linked'),
+              _heroChip(
+                'Governance',
+                governanceReady ? 'scope ready' : 'mixed scope',
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey('events-workspace-banner-reset-filters'),
+                label: 'Reset Review',
+                selected:
+                    _activeFilter == _filterAll &&
+                    _activeSourceFilter == _sourceFilterAll &&
+                    _activeProviderFilter == _providerFilterAll &&
+                    _activeIdentityPolicyFilter == _identityPolicyFilterAll,
+                accent: const Color(0xFF8FD1FF),
+                onTap: onResetFilters,
+              ),
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey(
+                  'events-workspace-banner-focus-ai-decision',
+                ),
+                label: 'AI Decisions',
+                selected: _activeFilter == 'AI DECISION',
+                accent: const Color(0xFF7FD8A5),
+                onTap: onFocusAiDecisions,
+              ),
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey(
+                  'events-workspace-banner-focus-alarm-triggered',
+                ),
+                label: 'Alarm Triggers',
+                selected: _activeFilter == 'ALARM TRIGGERED',
+                accent: const Color(0xFFF1B872),
+                onTap: onFocusAlarmTriggers,
+              ),
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey('events-workspace-banner-open-governance'),
+                label: 'Governance Scope',
+                selected: governanceReady,
+                accent: governanceReady
+                    ? const Color(0xFF22D3EE)
+                    : const Color(0xFF94A3B8),
+                onTap: onOpenGovernanceScope,
+              ),
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey('events-workspace-banner-open-ledger'),
+                label: 'Ledger Focus',
+                selected: selected != null,
+                accent: selected != null
+                    ? const Color(0xFF67E8F9)
+                    : const Color(0xFF94A3B8),
+                onTap: onOpenLedgerFocus,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reviewWorkspaceBannerAction({
+    required Key key,
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.18)
+              : const Color(0xFF102337),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.5)
+                : const Color(0xFF29425F),
           ),
         ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? accent : const Color(0xFFEAF1FB),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _reviewOpsRail({
+    required List<String> identityPolicyOptions,
+    required DispatchEvent? selected,
+    required int visibleEvents,
+    required int totalEvents,
+    required String latestSequence,
+    required int scopedEventCount,
+    required VoidCallback onResetFilters,
+    required VoidCallback onFocusAiDecisions,
+    required VoidCallback onFocusAlarmTriggers,
+    required VoidCallback onOpenGovernanceScope,
+    required VoidCallback onOpenLedgerFocus,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          key: const ValueKey('events-workspace-selection-banner'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF102337),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF29425F)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                selected == null
+                    ? 'No event selected.'
+                    : _eventSummary(selected),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF1FB),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _heroChip('Visible', '$visibleEvents of $totalEvents'),
+                  _heroChip('Latest', latestSequence),
+                  _heroChip('Selected', selected?.eventId ?? 'none'),
+                  _heroChip('Type Filter', _activeFilter),
+                  if (_activeSourceFilter != _sourceFilterAll)
+                    _heroChip('Source', _activeSourceFilter),
+                  if (_activeProviderFilter != _providerFilterAll)
+                    _heroChip('Provider', _activeProviderFilter),
+                  if (_activeIdentityPolicyFilter != _identityPolicyFilterAll)
+                    _heroChip('Policy', _activeIdentityPolicyFilter),
+                  if (scopedEventCount > 0)
+                    _heroChip('Scoped', '$scopedEventCount linked'),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _reviewWorkspaceCommandReceipt(selected: selected),
+        const SizedBox(height: 10),
+        _outlineAction(
+          'RESET REVIEW FILTERS',
+          actionKey: const ValueKey('events-workspace-reset-filters'),
+          onTap: onResetFilters,
+        ),
+        const SizedBox(height: 6),
+        _outlineAction(
+          'FOCUS AI DECISIONS',
+          actionKey: const ValueKey('events-workspace-focus-ai-decision'),
+          onTap: onFocusAiDecisions,
+        ),
+        const SizedBox(height: 6),
+        _outlineAction(
+          'FOCUS ALARM TRIGGERS',
+          actionKey: const ValueKey('events-workspace-focus-alarm-triggered'),
+          onTap: onFocusAlarmTriggers,
+        ),
+        const SizedBox(height: 6),
+        _outlineAction(
+          'OPEN GOVERNANCE SCOPE',
+          actionKey: const ValueKey('events-workspace-open-governance'),
+          onTap: onOpenGovernanceScope,
+        ),
+        const SizedBox(height: 6),
+        _outlineAction(
+          'OPEN LEDGER FOCUS',
+          actionKey: const ValueKey('events-workspace-open-ledger'),
+          onTap: onOpenLedgerFocus,
+        ),
+        const SizedBox(height: 6),
+        _outlineAction(
+          'COPY SELECTED EVENT',
+          actionKey: const ValueKey('events-workspace-copy-selected'),
+          onTap: () {
+            if (selected == null) {
+              _showActionMessage('Select an event before exporting data.');
+              return;
+            }
+            _exportEventData(selected);
+          },
+        ),
+        const SizedBox(height: 10),
+        _filterStrip(identityPolicyOptions),
+      ],
+    );
+  }
+
+  Widget _reviewWorkspaceCommandReceipt({required DispatchEvent? selected}) {
+    final hasFeedback = _lastActionFeedback.trim().isNotEmpty;
+    final headline = hasFeedback
+        ? _lastActionFeedback
+        : 'Forensic workspace ready.';
+    final label = hasFeedback
+        ? 'LATEST COMMAND'
+        : selected == null
+        ? 'FORENSIC LANE'
+        : 'SELECTED EVENT';
+    final detail = hasFeedback
+        ? 'The latest review handoff stays pinned in the ops rail while the timeline and selected-event board remain in place.'
+        : selected == null
+        ? 'Choose an event to keep its ledger continuity, evidence chain, and export actions in view.'
+        : 'Tracking ${selected.eventId} while filters, governance, and ledger pivots stay available in the same workspace.';
+    return Container(
+      key: const ValueKey('events-workspace-command-receipt'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1926),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: hasFeedback
+              ? const Color(0xFF2E6DA4)
+              : const Color(0xFF29425F),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: hasFeedback
+                  ? const Color(0xFF8FD1FF)
+                  : const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            headline,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF1FB),
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9EB4D0),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1849,9 +2344,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required DispatchEvent? selected,
     required VoidCallback? openGovernanceAction,
   }) {
-    final selectedLabel = selected == null
-        ? 'None'
-        : selected.eventId;
+    final selectedLabel = selected == null ? 'None' : selected.eventId;
     final openLedgerAction = selected == null || widget.onOpenLedger == null
         ? null
         : () => widget.onOpenLedger!(selected.eventId);
@@ -1957,11 +2450,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleBlock,
-                const SizedBox(height: 16),
-                actions,
-              ],
+              children: [titleBlock, const SizedBox(height: 16), actions],
             );
           }
           return Row(
@@ -2032,10 +2521,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        textStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
@@ -2082,9 +2568,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return _governanceScopeForEvents(allEvents);
   }
 
-  String _focusedFallbackSummary(
-    ({String clientId, String siteId})? scope,
-  ) {
+  String _focusedFallbackSummary(({String clientId, String siteId})? scope) {
     if (scope == null) {
       return 'Focused event reference awaiting live ingest.';
     }
@@ -2096,9 +2580,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     ({String clientId, String siteId})? scope,
   ) {
     if (scope == null) {
-      return 'Focused placeholder loaded for $focusedEventId. This row will auto-link when live ingest publishes the same event ID.';
+      return 'Requested review reference $focusedEventId was reconstructed in-page so command can continue triage before live ingest catches up.';
     }
-    return 'Scoped placeholder loaded for $focusedEventId on ${scope.clientId}/${scope.siteId}. This row will auto-link when live ingest publishes the same event ID.';
+    return 'Requested review reference $focusedEventId was reconstructed for ${scope.clientId}/${scope.siteId}, keeping the scoped evidence board active while live ingest catches up.';
+  }
+
+  String _focusedFallbackBannerDetail(
+    String focusedEventId,
+    ({String clientId, String siteId})? scope,
+  ) {
+    if (scope == null) {
+      return 'The reconstructed row stays selectable in this review lane so operators can open governance or ledger follow-up immediately.';
+    }
+    return 'The reconstructed row for $focusedEventId now stays inside the scoped lane for ${scope.clientId}/${scope.siteId}, so governance and ledger handoffs can continue without waiting for replay.';
   }
 
   Set<String> _normalizedScopedEventIds(Iterable<String> eventIds) {
@@ -2115,6 +2609,34 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return timeline
         .where((event) => scopedEventIds.contains(event.eventId.trim()))
         .toList(growable: false);
+  }
+
+  List<DispatchEvent> _preserveFocusedEvent(
+    List<DispatchEvent> events, {
+    required List<DispatchEvent> timeline,
+    required String focusedEventId,
+  }) {
+    final normalizedId = focusedEventId.trim();
+    if (normalizedId.isEmpty ||
+        events.any((event) => event.eventId == normalizedId)) {
+      return events;
+    }
+    DispatchEvent? focusedEvent;
+    for (final event in timeline) {
+      if (event.eventId == normalizedId) {
+        focusedEvent = event;
+        break;
+      }
+    }
+    if (focusedEvent == null) {
+      return events;
+    }
+    final next = <DispatchEvent>[
+      focusedEvent,
+      ...events.where((event) => event.eventId != normalizedId),
+    ];
+    next.sort((left, right) => right.sequence.compareTo(left.sequence));
+    return next;
   }
 
   List<DispatchEvent> _prioritizeEventsForScope(
@@ -4041,6 +4563,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return false;
   }
 
+  void _resetFilters() {
+    setState(() {
+      _activeFilter = _filterAll;
+      _activeSourceFilter = _sourceFilterAll;
+      _activeProviderFilter = _providerFilterAll;
+      _activeIdentityPolicyFilter = _identityPolicyFilterAll;
+    });
+  }
+
   Widget _filterStrip(List<String> identityPolicyOptions) {
     final sourceOptions = _sourceFilterOptions();
     final providerOptions = _providerFilterOptions();
@@ -4055,32 +4586,35 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.filter_alt_outlined,
-                color: Color(0xFF7D93B1),
-                size: 16,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'FORENSIC FILTERS:',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF7D93B1),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.7,
-                ),
-              ),
-              const Spacer(),
-              InkWell(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compactHeader = constraints.maxWidth < 330;
+              final title = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.filter_alt_outlined,
+                    color: Color(0xFF7D93B1),
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      'FORENSIC FILTERS:',
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF7D93B1),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.7,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+              final resetAction = InkWell(
                 borderRadius: BorderRadius.circular(6),
-                onTap: () => setState(() {
-                  _activeFilter = _filterAll;
-                  _activeSourceFilter = _sourceFilterAll;
-                  _activeProviderFilter = _providerFilterAll;
-                  _activeIdentityPolicyFilter = _identityPolicyFilterAll;
-                }),
+                onTap: _resetFilters,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
@@ -4111,8 +4645,21 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     ],
                   ),
                 ),
-              ),
-            ],
+              );
+              if (compactHeader) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [title, const SizedBox(height: 8), resetAction],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 8),
+                  resetAction,
+                ],
+              );
+            },
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -4376,6 +4923,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ? null
         : _partnerTrendSummary(partnerScopeDetail);
     final visitStatus = _visitTimelineStatus(visitScopedEvents);
+    final governanceAction = _openGovernanceActionForEvents([selected]);
     final linkedIntelligenceIds = visitScopedEvents
         .whereType<IntelligenceReceived>()
         .map((event) => event.intelligenceId.trim())
@@ -4392,6 +4940,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
           ),
+        ),
+        const SizedBox(height: 8),
+        _selectedEventFocusCard(
+          selected: selected,
+          sceneReview: sceneReview,
+          linkedEventCount: visitScopedEvents.length,
+          onOpenGovernanceScope: governanceAction,
         ),
         if (partnerScopeDetail != null) ...[
           const SizedBox(height: 8),
@@ -4582,67 +5137,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             ),
           ),
         ],
-        const SizedBox(height: 8),
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'EVENT ID',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8EA4C2),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          selected.eventId,
-                          key: const ValueKey('events-selected-event-id'),
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF1FB),
-                            fontSize: 37,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    width: 24,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: const Color(0x1A10B981),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x6610B981)),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              const Divider(color: Color(0x332A374A), height: 1),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: _kvMini('SEQUENCE', '#${selected.sequence}')),
-                  const SizedBox(width: 18),
-                  Expanded(
-                    child: _kvMini(
-                      'TIMESTAMP',
-                      _fullTimestamp(selected.occurredAt),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
         const SizedBox(height: 8),
         _detailCard(
           child: Column(
@@ -4841,6 +5335,206 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _selectedEventFocusCard({
+    required DispatchEvent selected,
+    required MonitoringSceneReviewRecord? sceneReview,
+    required int linkedEventCount,
+    required VoidCallback? onOpenGovernanceScope,
+  }) {
+    final accent = _eventColor(selected);
+    final reviewLabel = sceneReview?.postureLabel;
+    final providerLabel = selected is IntelligenceReceived
+        ? selected.provider
+        : null;
+    void ledgerAction() {
+      logUiAction(
+        'events.focus_card_open_ledger',
+        context: {'event_id': selected.eventId},
+      );
+      if (widget.onOpenLedger != null) {
+        widget.onOpenLedger!.call(selected.eventId);
+        return;
+      }
+      _showActionMessage(
+        'Open Sovereign Ledger to inspect ${selected.eventId}.',
+      );
+    }
+
+    final governanceTap =
+        onOpenGovernanceScope ??
+        () {
+          _showActionMessage(
+            'Open Governance to continue review for ${selected.eventId}.',
+          );
+        };
+
+    return Container(
+      key: const ValueKey('events-selected-focus-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.18), const Color(0xFF101A2B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(Icons.rule_folder_rounded, color: accent, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'EVENT IN FOCUS',
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      selected.eventId,
+                      key: const ValueKey('events-selected-event-id'),
+                      style: GoogleFonts.rajdhani(
+                        color: const Color(0xFFEAF1FB),
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                        height: 0.95,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: accent.withValues(alpha: 0.38)),
+                ),
+                child: Text(
+                  _eventTypeLabel(selected),
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _eventSummary(selected),
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF1FB),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${_eventMetaLine(selected)}  •  ${_fullTimestamp(selected.occurredAt)}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9EB4D0),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _heroChip('Sequence', '#${selected.sequence}'),
+              _heroChip('Linked', '$linkedEventCount'),
+              if (providerLabel != null && providerLabel.trim().isNotEmpty)
+                _heroChip('Provider', providerLabel),
+              if (reviewLabel != null && reviewLabel.trim().isNotEmpty)
+                _heroChip('Review', reviewLabel),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            sceneReview == null
+                ? 'Ledger continuity, export controls, and governance handoff are ready from this event board.'
+                : 'Scene review context is attached, so governance and ledger handoff can move directly from this focused event.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9EB4D0),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey('events-selected-focus-open-governance'),
+                label: 'Governance Scope',
+                selected: onOpenGovernanceScope != null,
+                accent: onOpenGovernanceScope != null
+                    ? const Color(0xFF22D3EE)
+                    : const Color(0xFF94A3B8),
+                onTap: governanceTap,
+              ),
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey('events-selected-focus-open-ledger'),
+                label: 'Ledger Focus',
+                selected: widget.onOpenLedger != null,
+                accent: widget.onOpenLedger != null
+                    ? const Color(0xFFA78BFA)
+                    : const Color(0xFF94A3B8),
+                onTap: ledgerAction,
+              ),
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey('events-selected-focus-copy'),
+                label: 'Copy Event',
+                selected: false,
+                accent: const Color(0xFF8FD1FF),
+                onTap: () => _exportEventData(selected),
+              ),
+              _reviewWorkspaceBannerAction(
+                key: const ValueKey('events-selected-focus-export'),
+                label: 'Export Event',
+                selected: false,
+                accent: const Color(0xFFF1B872),
+                onTap: () => _exportEventData(selected),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -5956,6 +6650,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       setState(() {
         _lastActionFeedback = message;
       });
+    }
+    if (_desktopWorkspaceActive) {
+      return;
     }
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) {

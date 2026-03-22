@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
+import 'package:omnix_dashboard/domain/events/execution_denied.dart';
 import 'package:omnix_dashboard/ui/ledger_page.dart';
 
 import '../fixtures/report_test_receipt.dart';
@@ -178,6 +180,152 @@ void main() {
         find.text(
           'Branding: standard ONYX identity. Legacy receipt. Per-section report configuration was not captured for this generated report. Investigation: routine report review.',
         ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'ledger page switches lanes, verifies integrity, and refocuses the latest report',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final events = <DispatchEvent>[
+        DecisionCreated(
+          eventId: 'DECISION-LEDGER-WORKSPACE-1',
+          sequence: 1,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 15, 5, 45),
+          dispatchId: 'DISPATCH-7781',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GP',
+          siteId: 'SITE-SANDTON',
+        ),
+        ExecutionDenied(
+          eventId: 'EXECUTION-DENIED-LEDGER-WORKSPACE-1',
+          sequence: 2,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 15, 5, 52),
+          dispatchId: 'DISPATCH-7781',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GP',
+          siteId: 'SITE-SANDTON',
+          operatorId: 'OPS-77',
+          reason: 'Escalation requires supervisor approval',
+        ),
+        buildTestReportGenerated(
+          eventId: 'RPT-LEDGER-WORKSPACE-1',
+          sequence: 3,
+          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          month: '2026-03',
+          reportSchemaVersion: 3,
+          primaryBrandLabel: 'VISION Tactical',
+          endorsementLine: 'Powered by ONYX',
+          brandingSourceLabel: 'PARTNER • Alpha',
+          brandingUsesOverride: true,
+          investigationContextKey: 'governance_branding_drift',
+          includeAiDecisionLog: false,
+          includeGuardMetrics: false,
+        ),
+      ];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(1440, 980)),
+            child: LedgerPage(
+              clientId: 'CLIENT-001',
+              supabaseEnabled: false,
+              events: events,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('ledger-workspace-status-banner')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('ledger-workspace-panel-casefile')),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('ledger-workspace-banner-open-continuity')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('ledger-workspace-banner-open-continuity')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('ledger-lane-card-RPT-LEDGER-WORKSPACE-1')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(
+          const ValueKey(
+            'ledger-lane-card-EXECUTION-DENIED-LEDGER-WORKSPACE-1',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('ledger-workspace-banner-open-integrity')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('ledger-workspace-banner-open-integrity')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('ledger-workspace-panel-integrity')),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('ledger-workspace-banner-verify-chain')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('ledger-workspace-banner-verify-chain')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('In-memory evidence ordering VERIFIED'), findsOneWidget);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('ledger-workspace-banner-open-trace')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('ledger-workspace-banner-open-trace')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('ledger-workspace-panel-trace')),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('ledger-workspace-banner-focus-report')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('ledger-workspace-banner-focus-report')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('ledger-lane-card-RPT-LEDGER-WORKSPACE-1')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('ledger-workspace-panel-casefile')),
         findsOneWidget,
       );
     },

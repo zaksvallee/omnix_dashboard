@@ -73,9 +73,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: SitesCommandPage(events: <DispatchEvent>[]),
-      ),
+      const MaterialApp(home: SitesCommandPage(events: <DispatchEvent>[])),
     );
     await tester.pumpAndSettle();
 
@@ -123,26 +121,111 @@ void main() {
     expect(mappedSiteId, isNotNull);
   });
 
-  testWidgets('sites command hero tactical action shows helper dialog fallback', (
+  testWidgets(
+    'sites command hero tactical action shows helper dialog fallback',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        const MaterialApp(home: SitesCommandPage(events: <DispatchEvent>[])),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey('sites-view-tactical-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tactical Link Ready'), findsOneWidget);
+      expect(
+        find.textContaining('watch posture, limited coverage'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('sites command lane filters and workspace tabs change the body', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    String? mappedSiteId;
+    String? rosterSiteName;
+
     await tester.pumpWidget(
-      const MaterialApp(
-        home: SitesCommandPage(events: <DispatchEvent>[]),
+      MaterialApp(
+        home: SitesCommandPage(
+          events: const <DispatchEvent>[],
+          onOpenMapForSite: (siteId, siteName) {
+            mappedSiteId = siteId;
+          },
+          onOpenGuardRoster: (siteId, siteName) {
+            rosterSiteName = siteName;
+          },
+        ),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('sites-view-tactical-button')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Tactical Link Ready'), findsOneWidget);
     expect(
-      find.textContaining('watch posture, limited coverage'),
+      find.byKey(const ValueKey('sites-workspace-status-banner')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('sites-workspace-panel-response')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('sites-workspace-banner-open-watch')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('sites-roster-card-SITE-003')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('sites-roster-card-SITE-001')),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('sites-workspace-banner-open-coverage')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('sites-workspace-panel-coverage')),
+      findsOneWidget,
+    );
+    expect(find.text('COVERAGE GRID'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('sites-workspace-banner-open-tactical')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(mappedSiteId, 'SITE-003');
+
+    await tester.tap(
+      find.byKey(const ValueKey('sites-workspace-banner-open-roster')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(rosterSiteName, 'Blue Ridge Security');
+
+    await tester.tap(
+      find.byKey(const ValueKey('sites-workspace-banner-open-checkpoints')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('sites-workspace-panel-checkpoints')),
+      findsOneWidget,
+    );
+    expect(find.text('CHECKPOINT COMMAND BOARD'), findsOneWidget);
   });
 }

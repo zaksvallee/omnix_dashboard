@@ -82,7 +82,7 @@ class ReportReceiptFilterBanner extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final useStackedLayout =
-              constraints.maxWidth < 420 &&
+              constraints.maxWidth < 760 &&
               (onOpenFocusedReceipt != null || onCopyFocusedReceipt != null);
           if (useStackedLayout) {
             return Column(

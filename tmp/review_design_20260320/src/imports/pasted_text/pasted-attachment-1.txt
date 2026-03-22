@@ -1,0 +1,438 @@
+Design a complete revised UI/UX for a desktop-first security operations platform called ONYX. This is not a simple dashboard. It is a multi-surface command center used for live monitoring, tactical response, dispatch execution, governance/compliance, client communications, evidence review, and reporting. Keep every capability listed below. You may improve hierarchy, interaction design, density, readability, and visual polish, but do not remove workflow depth.
+
+Primary design goal:
+Create a premium, operationally credible, high-trust command platform that feels fast, decisive, and easy to scan under pressure. The UI should be modern, crisp, and information-dense without feeling messy. It must work especially well for operators who spend hours in it.
+
+Design direction:
+Desktop-first, with strong support for laptop and tablet landscape.
+Serious, high-signal, operational look. No generic startup dashboard styling.
+Clear hierarchy between urgent, active, degraded, blocked, review-needed, and complete states.
+Strong typography, chips, badges, timelines, tables, structured cards, drawers, and panels.
+Use color deliberately for operational meaning, not decoration.
+Support light and dark concepts if helpful, but prioritize one polished primary theme first.
+Focus on scanability, triage speed, and confidence.
+
+Deliverables:
+A complete Figma file with:
+App shell and navigation system
+Design system / component library
+All primary pages below
+Key modal / drawer / detail states
+Empty / loading / error / degraded / offline states
+Responsive desktop and laptop behavior
+Interaction notes for major flows
+A small clickable prototype for 3 critical flows:
+Operations -> Tactical -> Dispatches -> Events -> Ledger
+Admin -> Client Comms Audit -> exact lane drill-in
+Live Operations -> Control Inbox -> draft refine / approve / reject
+
+Core app shell requirements:
+Persistent global navigation for these routes:
+Operations
+AI Queue
+Tactical
+Governance
+Clients
+Sites
+Guards
+Dispatches
+Events
+Ledger
+Reports
+Admin
+
+Global shell needs:
+Top-level route navigation
+Context breadcrumbs
+Scope selectors for client / site / incident
+Global search or quick-jump
+Status indicators for integrations and readiness
+Cross-route drilldown continuity
+Persistent notification / alert handling
+Clear visual distinction between global navigation and page-specific tools
+
+Required pages and capabilities:
+
+1. Operations / Live Operations page
+This is the real-time command center.
+Must support:
+Active incident focus
+Selected client/site scope focus
+Client communications snapshot
+Control inbox for pending client reply drafts
+Queue-state chips for:
+Full queue
+High priority
+Exact cue filters like Timing only or Sensitive only
+Header-level high-priority reply indicator
+Queue shape summary with clickable pills by cue type
+Draft cards with cue chips and quick actions
+Draft refine dialog with live-updating review cue
+Learned-lane guidance cues
+Selected lane watch panel
+Active incident comms pulse
+Live status of the lane
+Cross-scope / off-scope items surfacing in inbox
+High-priority filtering, exact-cue filtering, and restore-to-full-queue behavior
+Visible first-run queue hint and resettable tip behavior
+A way to jump from top priority chip directly to control inbox
+Excellent states for:
+No urgent replies
+Urgent timing replies
+Sensitive replies
+Filtered queue
+Degraded queue data
+No selected incident
+Offline / partially connected monitoring
+
+2. AI Queue page
+This is for AI triage and intent ordering.
+Must support:
+Triage queue of AI-generated or AI-ranked items
+Priority ordering
+Confidence / source / action intent views
+Historical synthetic learning labels
+Historical shadow MO labels
+Historical shadow strength labels
+Ability to open scoped events from AI items
+Clear queue filtering and review states
+Strong visual distinction between:
+Needs review
+Safe suggestion
+High-risk suggestion
+Dismissed / archived suggestion
+
+3. Tactical page
+This is the site posture and verification surface.
+Must support:
+Focused client/site scope
+Fleet scope health
+Watch-action drilldowns
+Open fleet scope into Tactical or Dispatches
+Recover fleet watch scope action
+Temporary identity approval management:
+extend approval
+expire approval
+Geofence / posture context
+Site watch state and readiness
+CCTV / video ops readiness and detail
+Capability summary and recent signal summary
+Camera health summary
+Identity / scene review context
+Limited-watch states
+Unavailable-watch states
+Active-watch states
+Strong fleet cards that show:
+status
+watch state
+phase
+recent signal
+reason detail
+actionability
+
+4. Governance page
+This is compliance, readiness, and proof.
+Must support:
+Morning sovereign report
+Historical morning report views
+Report focus by date
+Scope and partner scope filtering
+Scene action focus
+Vehicle exceptions
+Receipt policy exceptions
+Readiness controls
+Blocking vs non-blocking compliance issues
+Partner dispatch progression / SLA / workflow chain
+Open related events and reports from governance items
+Generate morning sovereign report
+Governance views should feel audit-grade, credible, and export-friendly.
+
+5. Clients page
+This is the client-facing confidence and communication lane.
+Must support both:
+Client app / client lane experience
+Controller / operator clients view
+
+Must support:
+Scoped client/site lane view
+Rooms / threads
+Timeline of client communications
+Client notifications
+Dispatch review drafts
+Quick actions
+Pending AI drafts visibility rules
+Learned approval style visibility
+Pinned voice / ONYX mode visibility
+Push sync state
+Push sync history
+Telegram bridge health
+SMS fallback state
+VoIP stage history where relevant
+Backend probe state/history
+Cross-scope routing into the exact client lane
+Manual updates
+Reviewed-draft learning
+Client acknowledgements
+Delivered / queued / draft / blocked states
+This surface needs to feel reassuring and client-safe, but still operationally grounded.
+
+6. Sites page
+This is deployment footprint and zone definition / site operations.
+Must support:
+Site list / site roster
+Map entry point per site
+Open tactical map for site
+Open site settings
+Open guard roster for site
+Site deployment footprint
+Zone / coverage awareness
+Strong support for:
+site cards
+site health
+site watch posture
+quick navigation into deeper operations views
+
+7. Guards page
+This is field force state and sync health.
+Must support:
+Guard roster
+Site filter
+Guard schedule access
+Guard reports by site
+Open client lane for site
+Stage guard VoIP call
+Field-force sync and telemetry health
+Availability / readiness / assignment visibility
+Needs to work as an actual workforce operations surface, not just a directory.
+
+8. Dispatches page
+This is dispatch execution and intake.
+Must support:
+Client / site / region scope
+Focused incident reference
+Dispatch generation
+Live feed ingest
+Radio ops ingest
+CCTV ingest
+Wearable ingest
+News ingest
+Retry/clear radio queue
+Load feed file
+Escalate intelligence
+Live polling start/stop and history
+Stress / soak / benchmark tooling
+Saved filter presets
+Source/action filters
+Pinned / dismissed intelligence
+Selected intelligence
+Telemetry import and reset
+Execution of dispatch
+Open report for dispatch
+Partner dispatch notification flow
+Radio ops readiness and queue health
+Radio intent mix
+Radio ack summary
+Radio failure and manual-action detail
+AI auto all-clear indicator
+Video ops readiness, detail, capability summary, recent signal summary
+Fleet scope health with drilldowns
+Recover fleet watch scope
+Temporary identity approval actions
+Wearable ops readiness/detail
+Morning report history context
+This page is dense and should feel like the operational engine room.
+
+9. Events page
+This is immutable timeline and forensic replay.
+Must support:
+Scoped event timeline
+Selected event
+Source/provider filters
+Selected event deep focus
+Scoped event sets
+Open governance
+Open ledger
+Rich event detail layout
+Timeline browsing
+Forensic / investigation reading mode
+The design should make chronology, provenance, and drill-in extremely easy.
+
+10. Ledger page
+This is evidence chain integrity and sovereign proof.
+Must support:
+Scope by client/site
+Focus reference / incident
+Events-driven evidence chain
+Open scoped events from ledger artifacts
+Scene review context
+Audit-grade visual language
+Needs to feel legally defensible, structured, and precise.
+
+11. Reports page
+This is report generation, preview, and export proof.
+Must support:
+Client/site/partner report scope
+Report shell state
+Request preview
+Morning report history context
+Open governance by scope or partner scope
+Open events from report items
+Report preview states
+Export-ready layouts
+Show that the platform can produce client-grade and compliance-grade outputs.
+
+12. Admin page
+This is demo seeding plus runtime controls, but it is also a serious operator/admin surface.
+Must support:
+Tabs, especially System tab
+Watch-action drilldown persistence
+Open operations/tactical/events/ledger/dispatches/clients/reports from admin
+Identity policy controls
+Temporary identity approval management
+Identity rule audit history and filters
+Monitoring identity rule JSON/config editing
+Radio intent phrase config
+Demo route cue config
+Monitoring identity rules config
+Telegram / client comms audit
+Pending AI draft review
+Learned approval style management
+Pinned voice management
+Promote / demote learned styles
+Tag learned styles
+Suggested tags
+Context-aware tag ordering
+Profile overrides
+Review cues
+Reset live-ops queue tip
+Success/failure/busy feedback for admin actions
+Admin should feel powerful but not chaotic.
+
+Cross-surface client communications requirements:
+This is a major product theme and must be reflected consistently across Admin, Live Operations, and Clients.
+Support:
+Telegram AI drafts
+Structured quick-action replies
+Learned approval style
+Pinned voice / lane voice profile
+Tagging learned styles
+Promote/demote learned styles
+Top learned style and next learned options
+Review cues
+Draft refine / approve / reject
+Cross-scope audit visibility
+Client-lane manual replies
+Push sync pressure
+Telegram blocked state
+SMS fallback
+VoIP stage history
+Need a cohesive system for all of this across surfaces.
+
+Monitoring / watch health requirements:
+The design must support these monitoring states clearly:
+Available watch
+Limited watch
+Unavailable watch
+Limited-watch reason detail
+Examples:
+stale camera feed
+scope fetch failed
+manual verification needed
+degraded connectivity
+There must be:
+fleet summary chips
+limited-watch summary chip
+limited-watch drilldowns
+card-level limited sublabels
+warning-tinted badges for limited mode
+operator recovery action affordances
+
+Queue / draft / urgency language requirements:
+Support visual language for:
+Sensitive
+Timing
+Validation
+Detail
+Formal
+Reassurance
+Concise
+Next step
+Need queue-state chips, queue-shape pills, priority chips, filtered state, restore state, and explanatory microcopy.
+
+State coverage required across the system:
+Loading
+Empty
+No incident selected
+No scoped site selected
+No drafts
+No alerts
+Blocked Telegram
+SMS fallback active
+VoIP staged
+Push sync needs review
+Limited watch
+Unavailable watch
+Backend probe failed
+Backend probe idle
+Evidence/report unavailable
+Integration unconfigured
+Cross-scope context
+Off-scope routed lane
+
+Component system requirements:
+Design reusable components for:
+App shell/nav
+Page headers
+Scope selectors
+Incident headers
+Operational KPI cards
+Fleet health cards
+Watch badges
+Reason sublabels
+Drilldown chips
+Priority chips
+Queue-state chips
+Queue-shape pills
+Draft cards
+Audit cards
+Timeline/event cards
+Evidence rows
+Compliance issue cards
+Dispatch tables/cards
+Client thread items
+Notification cards
+Detail drawers
+Confirmation dialogs
+Refine-draft dialog
+Search/filter bars
+Data tables
+Structured status blocks
+
+Interaction principles:
+Operators should move fluidly between pages without losing context.
+Drilldowns should preserve scope.
+High-priority and degraded states must be visible from a distance.
+Dense information should still feel calm and ordered.
+Cross-surface continuity matters more than decorative novelty.
+Do not make this look like a generic analytics dashboard or a consumer chat app.
+
+Visual tone:
+High-trust command center
+Sophisticated but restrained
+Sharp typography
+Strong contrast
+Clear color semantics
+Subtle motion only where it reinforces hierarchy or workflow
+No playful styling
+No glassmorphism gimmicks
+No excessive rounded-card sameness
+
+Output request:
+Create:
+A polished desktop design system
+All main route pages listed above
+Key states and interactions
+A prototype for the 3 critical flows
+A short rationale page explaining the visual system, hierarchy rules, and how urgent/degraded/client-facing states are encoded
+
+Do not simplify away operational depth. Redesign for clarity and excellence, but preserve the full command-platform capability set.

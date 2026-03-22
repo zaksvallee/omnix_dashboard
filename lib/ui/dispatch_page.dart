@@ -26,6 +26,8 @@ enum _DispatchPriority { p1Critical, p2High, p3Medium }
 
 enum _DispatchStatus { pending, enRoute, onSite, cleared }
 
+enum _DispatchLaneFilter { all, active, pending, cleared }
+
 enum _DispatchFocusState { none, exact, scopeBacked, seeded }
 
 class _DispatchItem {
@@ -123,6 +125,20 @@ class _PartnerTrendSummary {
     required this.currentScoreLabel,
     required this.trendLabel,
     required this.trendReason,
+  });
+}
+
+class _DispatchCommandReceipt {
+  final String label;
+  final String headline;
+  final String detail;
+  final Color accent;
+
+  const _DispatchCommandReceipt({
+    required this.label,
+    required this.headline,
+    required this.detail,
+    required this.accent,
   });
 }
 
@@ -367,11 +383,21 @@ class DispatchPage extends StatefulWidget {
 }
 
 class _DispatchPageState extends State<DispatchPage> {
+  static const _defaultCommandReceipt = _DispatchCommandReceipt(
+    label: 'SYSTEM RAIL',
+    headline: 'Dispatch workspace ready',
+    detail:
+        'Fleet-watch actions, temporary identity updates, and queue feedback stay visible in the system rail.',
+    accent: Color(0xFF8FD1FF),
+  );
   late List<_DispatchItem> _dispatches;
   String? _selectedDispatchId;
   String _resolvedFocusReference = '';
   _DispatchFocusState _focusState = _DispatchFocusState.none;
   VideoFleetWatchActionDrilldown? _activeWatchActionDrilldown;
+  _DispatchLaneFilter _dispatchLaneFilter = _DispatchLaneFilter.all;
+  _DispatchCommandReceipt _commandReceipt = _defaultCommandReceipt;
+  bool _desktopWorkspaceActive = false;
 
   @override
   void initState() {
@@ -444,11 +470,78 @@ class _DispatchPageState extends State<DispatchPage> {
     }
   }
 
+  void _setDispatchLaneFilter(_DispatchLaneFilter value) {
+    if (_dispatchLaneFilter == value) {
+      return;
+    }
+    final previousSelectedDispatchId = _selectedDispatchId;
+    final visibleDispatches = _visibleDispatches(
+      dispatches: _dispatches,
+      filter: value,
+    );
+    final nextSelectedDispatchId = visibleDispatches.isEmpty
+        ? null
+        : visibleDispatches.any(
+            (dispatch) => dispatch.id == _selectedDispatchId,
+          )
+        ? _selectedDispatchId
+        : visibleDispatches.first.id;
+    setState(() {
+      _dispatchLaneFilter = value;
+      _selectedDispatchId = nextSelectedDispatchId;
+    });
+    if (previousSelectedDispatchId != nextSelectedDispatchId) {
+      widget.onSelectedDispatchChanged?.call(nextSelectedDispatchId);
+    }
+  }
+
+  List<_DispatchItem> _visibleDispatches({
+    List<_DispatchItem>? dispatches,
+    _DispatchLaneFilter? filter,
+  }) {
+    final source = dispatches ?? _dispatches;
+    final activeFilter = filter ?? _dispatchLaneFilter;
+    return source
+        .where((dispatch) {
+          return switch (activeFilter) {
+            _DispatchLaneFilter.all => true,
+            _DispatchLaneFilter.active =>
+              dispatch.status == _DispatchStatus.enRoute ||
+                  dispatch.status == _DispatchStatus.onSite,
+            _DispatchLaneFilter.pending =>
+              dispatch.status == _DispatchStatus.pending,
+            _DispatchLaneFilter.cleared =>
+              dispatch.status == _DispatchStatus.cleared,
+          };
+        })
+        .toList(growable: false);
+  }
+
+  int _dispatchCountForFilter(_DispatchLaneFilter filter) {
+    return _visibleDispatches(filter: filter).length;
+  }
+
+  _DispatchItem? _selectedDispatch({List<_DispatchItem>? dispatches}) {
+    final source = dispatches ?? _dispatches;
+    if (source.isEmpty) {
+      return null;
+    }
+    return source.cast<_DispatchItem?>().firstWhere(
+      (dispatch) => dispatch?.id == _selectedDispatchId,
+      orElse: () => source.first,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final fleetPanelKey = GlobalKey();
     final suppressedPanelKey = GlobalKey();
+    final commandActionsKey = GlobalKey();
+    final selectedDispatchBoardKey = GlobalKey();
+    final dispatchQueueKey = GlobalKey();
     final wide = allowEmbeddedPanelScroll(context);
+    final contentPadding = const EdgeInsets.fromLTRB(10, 10, 10, 12);
+    _desktopWorkspaceActive = wide;
     final activeDispatches = _dispatches
         .where(
           (dispatch) =>
@@ -464,7 +557,23 @@ class _DispatchPageState extends State<DispatchPage> {
               dispatch.status == _DispatchStatus.pending,
         )
         .length;
+    final visibleDispatches = _visibleDispatches();
+    final selectedDispatch = visibleDispatches.isEmpty
+        ? null
+        : _selectedDispatch(dispatches: visibleDispatches);
     final suppressedEntries = _suppressedDispatchReviewEntries();
+    void openSection(GlobalKey key) {
+      final targetContext = key.currentContext;
+      if (targetContext == null) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        targetContext,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    }
+
     void openWatchActionDrilldown(VideoFleetWatchActionDrilldown drilldown) {
       if (_activeWatchActionDrilldown == drilldown) {
         _setActiveWatchActionDrilldown(null);
@@ -513,61 +622,726 @@ class _DispatchPageState extends State<DispatchPage> {
       );
     }
 
+    Widget buildWideWorkspace({required bool embedScroll}) {
+      Widget railChild() {
+        if (!embedScroll) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _kpiBand(
+                activeDispatches: activeDispatches,
+                pendingDispatches: pendingDispatches,
+              ),
+              const SizedBox(height: 8),
+              KeyedSubtree(key: commandActionsKey, child: _commandActions()),
+            ],
+          );
+        }
+        return ListView(
+          primary: false,
+          padding: EdgeInsets.zero,
+          children: [
+            _kpiBand(
+              activeDispatches: activeDispatches,
+              pendingDispatches: pendingDispatches,
+            ),
+            const SizedBox(height: 8),
+            KeyedSubtree(key: commandActionsKey, child: _commandActions()),
+          ],
+        );
+      }
+
+      Widget queueChild() {
+        return KeyedSubtree(
+          key: dispatchQueueKey,
+          child: _dispatchQueue(
+            selectedDispatchBoardKey: selectedDispatchBoardKey,
+            embeddedSurface: embedScroll,
+          ),
+        );
+      }
+
+      Widget systemRailChild() {
+        final content = _systemStatusPanel(
+          fleetPanelKey: fleetPanelKey,
+          suppressedPanelKey: suppressedPanelKey,
+          onOpenDispatchBoard: () => openSection(selectedDispatchBoardKey),
+          onOpenCommandActions: () => openSection(commandActionsKey),
+          onOpenFleetWatch: () => openSection(fleetPanelKey),
+          onOpenSuppressedReviews: () => openSection(suppressedPanelKey),
+          suppressedEntries: suppressedEntries,
+          onOpenWatchActionDrilldown: openWatchActionDrilldown,
+          onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
+        );
+        if (!embedScroll) {
+          return content;
+        }
+        return ListView(
+          primary: false,
+          padding: EdgeInsets.zero,
+          children: [content],
+        );
+      }
+
+      final railWidth = embedScroll ? 276.0 : 288.0;
+      final systemRailWidth = embedScroll ? 304.0 : 316.0;
+      final workspaceGap = 6.0;
+
+      final workspaceRow = Row(
+        crossAxisAlignment: embedScroll
+            ? CrossAxisAlignment.stretch
+            : CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: railWidth,
+            child: _dispatchWorkspacePanel(
+              key: const ValueKey('dispatch-workspace-panel-rail'),
+              title: 'Dispatch Rail',
+              subtitle:
+                  'Command posture, KPIs, and launch actions stay pinned on the left.',
+              child: railChild(),
+              flexibleChild: embedScroll,
+            ),
+          ),
+          SizedBox(width: workspaceGap),
+          Expanded(
+            flex: 9,
+            child: _dispatchWorkspacePanel(
+              key: const ValueKey('dispatch-workspace-panel-board'),
+              title: 'Mission Board',
+              subtitle:
+                  'Lane-filtered dispatch queue and the selected mission board stay centered.',
+              child: queueChild(),
+              flexibleChild: embedScroll,
+            ),
+          ),
+          SizedBox(width: workspaceGap),
+          SizedBox(
+            width: systemRailWidth,
+            child: _dispatchWorkspacePanel(
+              key: const ValueKey('dispatch-workspace-panel-context'),
+              title: 'System Rail',
+              subtitle:
+                  'Fleet watch health, suppressed reviews, and command-system posture stay visible.',
+              child: systemRailChild(),
+              flexibleChild: embedScroll,
+            ),
+          ),
+        ],
+      );
+
+      final statusBanner = _dispatchWorkspaceStatusBanner(
+        selectedDispatch: selectedDispatch,
+        activeDispatches: activeDispatches,
+        pendingDispatches: pendingDispatches,
+        onOpenReport:
+            selectedDispatch == null ||
+                widget.onOpenReportForDispatch == null ||
+                selectedDispatch.isSeededPlaceholder
+            ? null
+            : () => widget.onOpenReportForDispatch!.call(selectedDispatch.id),
+        onOpenCommandActions: () => openSection(commandActionsKey),
+        onOpenDispatchBoard: () => openSection(selectedDispatchBoardKey),
+        onOpenSystemStatus: () => openSection(fleetPanelKey),
+        onSetLaneFilter: (_DispatchLaneFilter filter) {
+          _setDispatchLaneFilter(filter);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            openSection(dispatchQueueKey);
+          });
+        },
+      );
+
+      if (!embedScroll) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [statusBanner, const SizedBox(height: 8), workspaceRow],
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          statusBanner,
+          const SizedBox(height: 8),
+          Expanded(child: workspaceRow),
+        ],
+      );
+    }
+
+    Widget buildSurfaceBody({required bool embedScroll}) {
+      if (wide) {
+        return buildWideWorkspace(embedScroll: embedScroll);
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _kpiBand(
+            activeDispatches: activeDispatches,
+            pendingDispatches: pendingDispatches,
+          ),
+          const SizedBox(height: 10),
+          KeyedSubtree(key: commandActionsKey, child: _commandActions()),
+          const SizedBox(height: 10),
+          _dispatchQueue(selectedDispatchBoardKey: selectedDispatchBoardKey),
+          const SizedBox(height: 10),
+          _systemStatusPanel(
+            fleetPanelKey: fleetPanelKey,
+            suppressedPanelKey: suppressedPanelKey,
+            onOpenDispatchBoard: () => openSection(selectedDispatchBoardKey),
+            onOpenCommandActions: () => openSection(commandActionsKey),
+            onOpenFleetWatch: () => openSection(fleetPanelKey),
+            onOpenSuppressedReviews: () => openSection(suppressedPanelKey),
+            suppressedEntries: suppressedEntries,
+            onOpenWatchActionDrilldown: openWatchActionDrilldown,
+            onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
+          ),
+        ],
+      );
+    }
+
     return OnyxPageScaffold(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1500),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _header(),
-                const SizedBox(height: 10),
-                _kpiBand(
-                  activeDispatches: activeDispatches,
-                  pendingDispatches: pendingDispatches,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boundedDesktopSurface =
+              wide &&
+              constraints.hasBoundedHeight &&
+              constraints.maxHeight.isFinite;
+          final surfaceMaxWidth = commandSurfaceMaxWidth(
+            context,
+            compactDesktopWidth: 1760,
+            viewportWidth: constraints.maxWidth,
+            widescreenFillFactor: 0.985,
+          );
+          return OnyxViewportWorkspaceLayout(
+            padding: contentPadding,
+            maxWidth: surfaceMaxWidth,
+            lockToViewport: boundedDesktopSurface,
+            header: _header(),
+            body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _dispatchWorkspaceStatusBanner({
+    required _DispatchItem? selectedDispatch,
+    required int activeDispatches,
+    required int pendingDispatches,
+    required VoidCallback? onOpenReport,
+    required VoidCallback onOpenCommandActions,
+    required VoidCallback onOpenDispatchBoard,
+    required VoidCallback onOpenSystemStatus,
+    required ValueChanged<_DispatchLaneFilter> onSetLaneFilter,
+  }) {
+    final laneLabel = switch (_dispatchLaneFilter) {
+      _DispatchLaneFilter.all => 'All lanes live',
+      _DispatchLaneFilter.active => 'Active lanes in focus',
+      _DispatchLaneFilter.pending => 'Pending lanes in focus',
+      _DispatchLaneFilter.cleared => 'Cleared lanes in focus',
+    };
+    final selectedLabel = selectedDispatch == null
+        ? 'No live dispatch selected'
+        : '${selectedDispatch.id} • ${selectedDispatch.site}';
+    return Container(
+      key: const ValueKey('dispatch-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF101D30), Color(0xFF162740)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF26405C)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: const Color(0x1ADC2626),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0x55EA580C)),
                 ),
-                const SizedBox(height: 10),
-                _commandActions(),
-                const SizedBox(height: 10),
-                wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 7, child: _dispatchQueue()),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 5,
-                            child: _systemStatusPanel(
-                              fleetPanelKey: fleetPanelKey,
-                              suppressedPanelKey: suppressedPanelKey,
-                              suppressedEntries: suppressedEntries,
-                              onOpenWatchActionDrilldown:
-                                  openWatchActionDrilldown,
-                              onOpenLatestWatchActionDetail:
-                                  openLatestWatchActionDetail,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          _dispatchQueue(),
-                          const SizedBox(height: 10),
-                          _systemStatusPanel(
-                            fleetPanelKey: fleetPanelKey,
-                            suppressedPanelKey: suppressedPanelKey,
-                            suppressedEntries: suppressedEntries,
-                            onOpenWatchActionDrilldown:
-                                openWatchActionDrilldown,
-                            onOpenLatestWatchActionDetail:
-                                openLatestWatchActionDetail,
-                          ),
-                        ],
+                child: const Icon(
+                  Icons.route_rounded,
+                  color: Color(0xFFFFD6BF),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'DISPATCH WORKSPACE',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FAFD4),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
                       ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '$selectedLabel while $laneLabel. Active $activeDispatches • Pending $pendingDispatches.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Use the rail to retarget the queue, jump to the mission board, or hand the selected dispatch into reporting without leaving the page.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB4C8E1),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          _dispatchWorkspaceFocusCard(
+            selectedDispatch: selectedDispatch,
+            activeDispatches: activeDispatches,
+            pendingDispatches: pendingDispatches,
+            onOpenReport: onOpenReport,
+            onOpenCommandActions: onOpenCommandActions,
+            onOpenDispatchBoard: onOpenDispatchBoard,
+            onSetLaneFilter: onSetLaneFilter,
+          ),
+          const SizedBox(height: 5),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _workspaceActionChip(
+                key: const ValueKey('dispatch-workspace-filter-active'),
+                label: 'Active lanes',
+                foreground: const Color(0xFF22D3EE),
+                background: const Color(0x1422D3EE),
+                border: const Color(0x6622D3EE),
+                onTap: () => onSetLaneFilter(_DispatchLaneFilter.active),
+              ),
+              _workspaceActionChip(
+                key: const ValueKey('dispatch-workspace-filter-pending'),
+                label: 'Pending lanes',
+                foreground: const Color(0xFFF59E0B),
+                background: const Color(0x1AF59E0B),
+                border: const Color(0x66F59E0B),
+                onTap: () => onSetLaneFilter(_DispatchLaneFilter.pending),
+              ),
+              _workspaceActionChip(
+                key: const ValueKey('dispatch-workspace-filter-cleared'),
+                label: 'Cleared lanes',
+                foreground: const Color(0xFF86EFAC),
+                background: const Color(0x1486EFAC),
+                border: const Color(0x6686EFAC),
+                onTap: () => onSetLaneFilter(_DispatchLaneFilter.cleared),
+              ),
+              _workspaceActionChip(
+                key: const ValueKey('dispatch-workspace-open-board'),
+                label: 'Open mission board',
+                foreground: const Color(0xFF8FD1FF),
+                background: const Color(0x148FD1FF),
+                border: const Color(0x668FD1FF),
+                onTap: onOpenDispatchBoard,
+              ),
+              _workspaceActionChip(
+                key: const ValueKey('dispatch-workspace-open-actions'),
+                label: 'Open command actions',
+                foreground: const Color(0xFFFDE68A),
+                background: const Color(0x14FDE68A),
+                border: const Color(0x66FDE68A),
+                onTap: onOpenCommandActions,
+              ),
+              _workspaceActionChip(
+                key: const ValueKey('dispatch-workspace-open-system'),
+                label: 'Open system rail',
+                foreground: const Color(0xFFD8E8FA),
+                background: const Color(0x143B82F6),
+                border: const Color(0x663B82F6),
+                onTap: onOpenSystemStatus,
+              ),
+              if (onOpenReport != null)
+                _workspaceActionChip(
+                  key: const ValueKey('dispatch-workspace-open-report'),
+                  label: 'Open selected report',
+                  foreground: const Color(0xFFFFD6BF),
+                  background: const Color(0x14EA580C),
+                  border: const Color(0x66EA580C),
+                  onTap: onOpenReport,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dispatchWorkspaceFocusCard({
+    required _DispatchItem? selectedDispatch,
+    required int activeDispatches,
+    required int pendingDispatches,
+    required VoidCallback? onOpenReport,
+    required VoidCallback onOpenCommandActions,
+    required VoidCallback onOpenDispatchBoard,
+    required ValueChanged<_DispatchLaneFilter> onSetLaneFilter,
+  }) {
+    if (selectedDispatch == null) {
+      final clearedDispatches = _dispatchCountForFilter(
+        _DispatchLaneFilter.cleared,
+      );
+      return Container(
+        key: const ValueKey('dispatch-workspace-focus-card'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0x14000000),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x334B6B8F)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'MISSION FOCUS RECOVERY',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFF6C067),
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'No mission is pinned in the board.',
+              style: GoogleFonts.rajdhani(
+                color: const Color(0xFFF4F8FF),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              'Recover the selected board by reopening a populated lane or jump straight into the mission board while the queue retargets.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFD5E1F2),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _heroChip(
+                  label: 'Active',
+                  foreground: const Color(0xFF22D3EE),
+                  background: const Color(0x1422D3EE),
+                  border: const Color(0x6622D3EE),
+                ),
+                _heroChip(
+                  label: 'Pending $pendingDispatches',
+                  foreground: const Color(0xFFF59E0B),
+                  background: const Color(0x1AF59E0B),
+                  border: const Color(0x66F59E0B),
+                ),
+                _heroChip(
+                  label: 'Cleared $clearedDispatches',
+                  foreground: const Color(0xFF86EFAC),
+                  background: const Color(0x1486EFAC),
+                  border: const Color(0x6686EFAC),
+                ),
               ],
             ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _workspaceActionChip(
+                  key: const ValueKey(
+                    'dispatch-workspace-focus-open-all-lanes',
+                  ),
+                  label: 'All lanes',
+                  foreground: const Color(0xFF8FD1FF),
+                  background: const Color(0x148FD1FF),
+                  border: const Color(0x668FD1FF),
+                  onTap: () => onSetLaneFilter(_DispatchLaneFilter.all),
+                ),
+                if (activeDispatches > 0)
+                  _workspaceActionChip(
+                    key: const ValueKey(
+                      'dispatch-workspace-focus-open-active-lanes',
+                    ),
+                    label: 'Active lanes',
+                    foreground: const Color(0xFF22D3EE),
+                    background: const Color(0x1422D3EE),
+                    border: const Color(0x6622D3EE),
+                    onTap: () => onSetLaneFilter(_DispatchLaneFilter.active),
+                  ),
+                if (pendingDispatches > 0)
+                  _workspaceActionChip(
+                    key: const ValueKey(
+                      'dispatch-workspace-focus-open-pending-lanes',
+                    ),
+                    label: 'Pending lanes',
+                    foreground: const Color(0xFFF59E0B),
+                    background: const Color(0x1AF59E0B),
+                    border: const Color(0x66F59E0B),
+                    onTap: () => onSetLaneFilter(_DispatchLaneFilter.pending),
+                  ),
+                _workspaceActionChip(
+                  key: const ValueKey('dispatch-workspace-focus-open-board'),
+                  label: 'Mission board',
+                  foreground: const Color(0xFFD8E8FA),
+                  background: const Color(0x143B82F6),
+                  border: const Color(0x663B82F6),
+                  onTap: onOpenDispatchBoard,
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    final statusStyle = _statusStyle(selectedDispatch.status);
+    final priorityStyle = _priorityStyle(selectedDispatch.priority);
+    final laneForDispatch = switch (selectedDispatch.status) {
+      _DispatchStatus.pending => _DispatchLaneFilter.pending,
+      _DispatchStatus.cleared => _DispatchLaneFilter.cleared,
+      _DispatchStatus.enRoute ||
+      _DispatchStatus.onSite => _DispatchLaneFilter.active,
+    };
+    final laneActionLabel = switch (laneForDispatch) {
+      _DispatchLaneFilter.active => 'Active lane',
+      _DispatchLaneFilter.pending => 'Pending lane',
+      _DispatchLaneFilter.cleared => 'Cleared lane',
+      _DispatchLaneFilter.all => 'All lanes',
+    };
+
+    return Container(
+      key: const ValueKey('dispatch-workspace-focus-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            priorityStyle.color.withValues(alpha: 0.16),
+            const Color(0x12000000),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: priorityStyle.color.withValues(alpha: 0.32)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'MISSION IN FOCUS',
+            style: GoogleFonts.inter(
+              color: priorityStyle.color,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${selectedDispatch.id} • ${selectedDispatch.site}',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFF4F8FF),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            '${selectedDispatch.type} is assigned to ${selectedDispatch.officer} while the mission board and reporting handoff stay one step away.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD5E1F2),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _heroChip(
+                label: statusStyle.label,
+                foreground: statusStyle.chipFg,
+                background: statusStyle.chipBg,
+                border: statusStyle.chipBorder,
+              ),
+              _heroChip(
+                label: priorityStyle.label,
+                foreground: priorityStyle.color,
+                background: priorityStyle.color.withValues(alpha: 0.12),
+                border: priorityStyle.color.withValues(alpha: 0.42),
+              ),
+              _heroChip(
+                label: selectedDispatch.officer,
+                foreground: const Color(0xFFD8E8FA),
+                background: const Color(0x143B82F6),
+                border: const Color(0x663B82F6),
+              ),
+              if (selectedDispatch.eta != null)
+                _heroChip(
+                  label: 'ETA ${selectedDispatch.eta}',
+                  foreground: const Color(0xFF22D3EE),
+                  background: const Color(0x1422D3EE),
+                  border: const Color(0x6622D3EE),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (_dispatchLaneFilter != laneForDispatch)
+                _workspaceActionChip(
+                  key: const ValueKey('dispatch-workspace-focus-open-lane'),
+                  label: laneActionLabel,
+                  foreground: statusStyle.chipFg,
+                  background: statusStyle.chipBg,
+                  border: statusStyle.chipBorder,
+                  onTap: () => onSetLaneFilter(laneForDispatch),
+                ),
+              _workspaceActionChip(
+                key: const ValueKey('dispatch-workspace-focus-open-board'),
+                label: 'Mission board',
+                foreground: const Color(0xFF8FD1FF),
+                background: const Color(0x148FD1FF),
+                border: const Color(0x668FD1FF),
+                onTap: onOpenDispatchBoard,
+              ),
+              _workspaceActionChip(
+                key: const ValueKey('dispatch-workspace-focus-open-actions'),
+                label: 'Command actions',
+                foreground: const Color(0xFFFDE68A),
+                background: const Color(0x14FDE68A),
+                border: const Color(0x66FDE68A),
+                onTap: onOpenCommandActions,
+              ),
+              if (onOpenReport != null)
+                _workspaceActionChip(
+                  key: const ValueKey('dispatch-workspace-focus-open-report'),
+                  label: 'Selected report',
+                  foreground: const Color(0xFFFFD6BF),
+                  background: const Color(0x14EA580C),
+                  border: const Color(0x66EA580C),
+                  onTap: onOpenReport,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dispatchWorkspacePanel({
+    required Key key,
+    required String title,
+    required String subtitle,
+    required Widget child,
+    bool flexibleChild = false,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boundedHeight =
+            constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
+        return Container(
+          key: key,
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFF0B1523),
+            border: Border.all(color: const Color(0xFF203448)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF6C87AD),
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF96AECD),
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 5),
+              if (boundedHeight && flexibleChild)
+                Expanded(child: child)
+              else
+                child,
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _workspaceActionChip({
+    required Key key,
+    required String label,
+    required Color foreground,
+    required Color background,
+    required Color border,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: border),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: foreground,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -586,7 +1360,7 @@ class _DispatchPageState extends State<DispatchPage> {
     final fleetScopeCount = widget.fleetScopeHealth.length;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 980;
+        final compact = constraints.maxWidth < 1120;
         final actionButton = OutlinedButton.icon(
           key: const ValueKey('dispatch-open-report-button'),
           onPressed: !openReportAvailable
@@ -600,7 +1374,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   ? const Color(0xFF4B6B8F)
                   : const Color(0xFF35506F),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -615,15 +1389,15 @@ class _DispatchPageState extends State<DispatchPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 60,
-                height: 60,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFDC2626), Color(0xFFEA580C)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(14),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x33DC2626),
@@ -632,9 +1406,13 @@ class _DispatchPageState extends State<DispatchPage> {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.radio_rounded, size: 30, color: Colors.white),
+                child: const Icon(
+                  Icons.radio_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,26 +1421,28 @@ class _DispatchPageState extends State<DispatchPage> {
                       'DISPATCH COMMAND',
                       style: GoogleFonts.rajdhani(
                         color: const Color(0xFFE9F3FF),
-                        fontSize: 31,
+                        fontSize: compact ? 22 : 23,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       '${widget.clientId} / ${widget.regionId} / ${widget.siteId.trim().isEmpty ? 'all sites' : widget.siteId}',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF8EA4C2),
-                        fontSize: 12.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 4),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         _heroChip(
-                          label: widget.livePolling ? 'Live Poll Active' : 'Live Poll Paused',
+                          label: widget.livePolling
+                              ? 'Live Poll Active'
+                              : 'Live Poll Paused',
                           foreground: widget.livePolling
                               ? const Color(0xFF22D3EE)
                               : const Color(0xFF94A3B8),
@@ -688,7 +1468,8 @@ class _DispatchPageState extends State<DispatchPage> {
                               : const Color(0x6634D399),
                         ),
                         _heroChip(
-                          label: '$fleetScopeCount Fleet Scope${fleetScopeCount == 1 ? '' : 's'}',
+                          label:
+                              '$fleetScopeCount Fleet Scope${fleetScopeCount == 1 ? '' : 's'}',
                           foreground: const Color(0xFF8FD1FF),
                           background: const Color(0x1A8FD1FF),
                           border: const Color(0x668FD1FF),
@@ -696,7 +1477,7 @@ class _DispatchPageState extends State<DispatchPage> {
                       ],
                     ),
                     if (_resolvedFocusReference.trim().isNotEmpty) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       _focusPill(_resolvedFocusReference.trim()),
                     ],
                   ],
@@ -707,10 +1488,10 @@ class _DispatchPageState extends State<DispatchPage> {
         );
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: const Color(0xFF0E1A2B),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFF223244)),
           ),
           child: compact
@@ -718,7 +1499,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [titleBlock]),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 8),
                     actionButton,
                   ],
                 )
@@ -726,7 +1507,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     titleBlock,
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     actionButton,
                   ],
                 ),
@@ -742,7 +1523,7 @@ class _DispatchPageState extends State<DispatchPage> {
     required Color border,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(999),
@@ -752,7 +1533,7 @@ class _DispatchPageState extends State<DispatchPage> {
         label,
         style: GoogleFonts.inter(
           color: foreground,
-          fontSize: 10.5,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -767,7 +1548,7 @@ class _DispatchPageState extends State<DispatchPage> {
       _DispatchFocusState.none => const Color(0xFF9AB1CF),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
@@ -782,7 +1563,7 @@ class _DispatchPageState extends State<DispatchPage> {
         }}: $focusReference',
         style: GoogleFonts.inter(
           color: color,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -836,7 +1617,7 @@ class _DispatchPageState extends State<DispatchPage> {
             children: [
               for (int i = 0; i < cards.length; i++) ...[
                 _kpiCard(cards[i]),
-                if (i != cards.length - 1) const SizedBox(height: 8),
+                if (i != cards.length - 1) const SizedBox(height: 6),
               ],
             ],
           );
@@ -845,7 +1626,7 @@ class _DispatchPageState extends State<DispatchPage> {
           children: [
             for (int i = 0; i < cards.length; i++) ...[
               Expanded(child: _kpiCard(cards[i])),
-              if (i != cards.length - 1) const SizedBox(width: 8),
+              if (i != cards.length - 1) const SizedBox(width: 6),
             ],
           ],
         );
@@ -855,7 +1636,7 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Widget _kpiCard(_KpiCardSpec spec) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(12),
@@ -872,19 +1653,19 @@ class _DispatchPageState extends State<DispatchPage> {
                 spec.label,
                 style: GoogleFonts.inter(
                   color: const Color(0x7FFFFFFF),
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           Text(
             spec.value,
             style: GoogleFonts.rajdhani(
               color: spec.valueColor,
-              fontSize: 34,
+              fontSize: 24,
               height: 0.9,
               fontWeight: FontWeight.w700,
             ),
@@ -897,7 +1678,7 @@ class _DispatchPageState extends State<DispatchPage> {
   Widget _commandActions() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(12),
@@ -915,14 +1696,14 @@ class _DispatchPageState extends State<DispatchPage> {
               letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           FilledButton.icon(
             onPressed: widget.onGenerate,
             icon: const Icon(Icons.auto_awesome_rounded, size: 16),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF2B5E93),
               foregroundColor: const Color(0xFFEAF4FF),
-              minimumSize: const Size.fromHeight(44),
+              minimumSize: const Size.fromHeight(38),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -931,11 +1712,11 @@ class _DispatchPageState extends State<DispatchPage> {
               'Generate Dispatch',
               style: GoogleFonts.inter(
                 fontWeight: FontWeight.w800,
-                fontSize: 14,
+                fontSize: 12,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -988,92 +1769,848 @@ class _DispatchPageState extends State<DispatchPage> {
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFF8FD1FF),
         side: const BorderSide(color: Color(0xFF35506F)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       label: Text(
         label,
-        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700),
+        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
       ),
     );
   }
 
-  Widget _dispatchQueue() {
+  Widget _dispatchQueue({
+    required GlobalKey selectedDispatchBoardKey,
+    bool embeddedSurface = false,
+  }) {
+    final visibleDispatches = _visibleDispatches();
+    final selectedDispatch = visibleDispatches.isEmpty
+        ? null
+        : _selectedDispatch(dispatches: visibleDispatches);
+    final header = LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 420;
+        final title = Text(
+          'ACTIVE DISPATCH QUEUE',
+          style: GoogleFonts.inter(
+            color: const Color(0x7FFFFFFF),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.1,
+          ),
+        );
+        final action = TextButton.icon(
+          onPressed: widget.onGenerate,
+          icon: const Icon(Icons.send_rounded, size: 16),
+          style: TextButton.styleFrom(foregroundColor: const Color(0xFF8FD1FF)),
+          label: Text(
+            'NEW DISPATCH',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 12),
+          ),
+        );
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              title,
+              const SizedBox(height: 4),
+              Text(
+                'Selection-aware lane, partner progression, and report handoff for the active dispatch body.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8EA4C2),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 6),
+              action,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  title,
+                  const SizedBox(height: 4),
+                  Text(
+                    'Selection-aware lane, partner progression, and report handoff for the active dispatch body.',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8EA4C2),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            action,
+          ],
+        );
+      },
+    );
+    final filters = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _queueFilterChip(_DispatchLaneFilter.all, 'All'),
+        _queueFilterChip(_DispatchLaneFilter.active, 'Active'),
+        _queueFilterChip(_DispatchLaneFilter.pending, 'Pending'),
+        _queueFilterChip(_DispatchLaneFilter.cleared, 'Cleared'),
+      ],
+    );
+
+    Widget buildQueueBody() {
+      if (visibleDispatches.isEmpty) {
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0x33000000),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF2A3D58)),
+          ),
+          child: Text(
+            'No dispatches match the current lane filter right now.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        );
+      }
+
+      final queueList = embeddedSurface
+          ? ListView.separated(
+              primary: false,
+              padding: EdgeInsets.zero,
+              itemCount: visibleDispatches.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 6),
+              itemBuilder: (context, index) =>
+                  _dispatchCard(visibleDispatches[index]),
+            )
+          : Column(
+              children: [
+                for (int i = 0; i < visibleDispatches.length; i++) ...[
+                  _dispatchCard(visibleDispatches[i]),
+                  if (i != visibleDispatches.length - 1)
+                    const SizedBox(height: 6),
+                ],
+              ],
+            );
+      final detailBoard = selectedDispatch == null
+          ? const SizedBox.shrink()
+          : embeddedSurface
+          ? ListView(
+              primary: false,
+              padding: EdgeInsets.zero,
+              children: [
+                KeyedSubtree(
+                  key: selectedDispatchBoardKey,
+                  child: _selectedDispatchBoard(selectedDispatch),
+                ),
+              ],
+            )
+          : KeyedSubtree(
+              key: selectedDispatchBoardKey,
+              child: _selectedDispatchBoard(selectedDispatch),
+            );
+
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 1160;
+          if (compact || !embeddedSurface) {
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [detailBoard, const SizedBox(height: 6), queueList],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 6, child: queueList),
+                const SizedBox(width: 6),
+                Expanded(flex: 6, child: detailBoard),
+              ],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 6,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: queueList,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                flex: 6,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: detailBoard,
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 420;
-              final title = Text(
-                'ACTIVE DISPATCH QUEUE',
-                style: GoogleFonts.inter(
-                  color: const Color(0x7FFFFFFF),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.1,
-                ),
-              );
-              final action = TextButton.icon(
-                onPressed: widget.onGenerate,
-                icon: const Icon(Icons.send_rounded, size: 16),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF8FD1FF),
-                ),
-                label: Text(
-                  'NEW DISPATCH',
-                  style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              );
-              if (compact) {
-                return Column(
+          header,
+          const SizedBox(height: 6),
+          filters,
+          const SizedBox(height: 6),
+          if (embeddedSurface)
+            Expanded(child: buildQueueBody())
+          else
+            buildQueueBody(),
+        ],
+      ),
+    );
+  }
+
+  Widget _queueFilterChip(_DispatchLaneFilter filter, String label) {
+    final active = _dispatchLaneFilter == filter;
+    final count = _dispatchCountForFilter(filter);
+    final accent = switch (filter) {
+      _DispatchLaneFilter.all => const Color(0xFF8FD1FF),
+      _DispatchLaneFilter.active => const Color(0xFF22D3EE),
+      _DispatchLaneFilter.pending => const Color(0xFFF59E0B),
+      _DispatchLaneFilter.cleared => const Color(0xFF86EFAC),
+    };
+    return InkWell(
+      key: ValueKey<String>('dispatch-queue-filter-${filter.name}'),
+      onTap: () => _setDispatchLaneFilter(filter),
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: active
+              ? accent.withValues(alpha: 0.16)
+              : const Color(0xFF111826),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: active
+                ? accent.withValues(alpha: 0.85)
+                : accent.withValues(alpha: 0.38),
+          ),
+        ),
+        child: Text(
+          '$label • $count',
+          style: GoogleFonts.inter(
+            color: accent,
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _selectedDispatchBoard(_DispatchItem dispatch) {
+    final statusStyle = _statusStyle(dispatch.status);
+    final priorityStyle = _priorityStyle(dispatch.priority);
+    final partnerProgress = _partnerDispatchProgressSummary(dispatch.id);
+    final partnerTrend = partnerProgress == null
+        ? null
+        : _partnerTrendSummary(partnerProgress);
+    final linkedScope = _linkedFleetScopeForDispatch(dispatch);
+    final linkedFocus = _resolvedFocusReference.trim() == dispatch.id;
+    final openReportAvailable =
+        widget.onOpenReportForDispatch != null && !dispatch.isSeededPlaceholder;
+    final primaryScopeAction =
+        linkedScope != null && linkedScope.hasIncidentContext
+        ? (widget.onOpenFleetDispatchScope ?? widget.onOpenFleetTacticalScope)
+        : null;
+    final waitingAssignment = dispatch.status == _DispatchStatus.pending;
+    final partnerAccepted = partnerProgress
+        ?.firstOccurrenceByStatus[PartnerDispatchStatus.accepted];
+    final partnerOnSite =
+        partnerProgress?.firstOccurrenceByStatus[PartnerDispatchStatus.onSite];
+    final handoffReady = dispatch.status == _DispatchStatus.cleared;
+
+    return Container(
+      key: const ValueKey('dispatch-selected-board'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101722),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [title, const SizedBox(height: 4), action],
-                );
-              }
-              return Row(children: [title, const Spacer(), action]);
-            },
+                  children: [
+                    Text(
+                      'SELECTED DISPATCH',
+                      style: GoogleFonts.inter(
+                        color: const Color(0x7FFFFFFF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      dispatch.id,
+                      style: GoogleFonts.rajdhani(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 26,
+                        height: 0.92,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      dispatch.site,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  _statusChip(dispatch.status),
+                  if (linkedFocus) ...[
+                    const SizedBox(height: 6),
+                    _heroChip(
+                      label: 'Focus Linked',
+                      foreground: const Color(0xFF8FD1FF),
+                      background: const Color(0x1A8FD1FF),
+                      border: const Color(0x668FD1FF),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _dispatchBoardTag(
+                'Priority',
+                priorityStyle.label,
+                priorityStyle.color,
+              ),
+              _dispatchBoardTag('Type', dispatch.type, const Color(0xFF8FD1FF)),
+              _dispatchBoardTag(
+                'Officer',
+                dispatch.officer,
+                waitingAssignment
+                    ? const Color(0xFFFDE68A)
+                    : const Color(0xFF86EFAC),
+              ),
+              _dispatchBoardTag(
+                'Dispatched',
+                dispatch.dispatchTime,
+                const Color(0xFF9AB1CF),
+              ),
+              if (dispatch.eta != null)
+                _dispatchBoardTag(
+                  'ETA',
+                  dispatch.eta!,
+                  const Color(0xFF22D3EE),
+                ),
+              if (dispatch.distance != null)
+                _dispatchBoardTag(
+                  'Distance',
+                  dispatch.distance!,
+                  const Color(0xFF9AB1CF),
+                ),
+            ],
           ),
           const SizedBox(height: 8),
-          if (_dispatches.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: const Color(0x33000000),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF2A3D58)),
-              ),
-              child: Text(
-                'No active dispatches on this lane right now.',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB1CF),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            )
-          else
-            Column(
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C1117),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF23344C)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (int i = 0; i < _dispatches.length; i++) ...[
-                  _dispatchCard(_dispatches[i]),
-                  if (i != _dispatches.length - 1) const SizedBox(height: 8),
+                Text(
+                  'MISSION BOARD',
+                  style: GoogleFonts.inter(
+                    color: const Color(0x7FFFFFFF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  _dispatchNarrative(dispatch, partnerProgress, linkedScope),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFDCE8F8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.45,
+                  ),
+                ),
+                if (partnerTrend != null) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    '${partnerTrend.currentScoreLabel} partner posture • ${partnerTrend.trendLabel.toUpperCase()} over ${partnerTrend.reportDays}d',
+                    style: GoogleFonts.inter(
+                      color: _partnerTrendColor(partnerTrend.trendLabel),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ],
               ],
             ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'RESPONSE RUNWAY',
+            style: GoogleFonts.inter(
+              color: const Color(0x7FFFFFFF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _dispatchBoardRunwayStep(
+            label: 'Dispatch queued',
+            detail: 'Controller created this lane at ${dispatch.dispatchTime}.',
+            accent: const Color(0xFF8FD1FF),
+            complete: true,
+            active: false,
+          ),
+          const SizedBox(height: 5),
+          _dispatchBoardRunwayStep(
+            label: waitingAssignment ? 'Awaiting assignment' : 'Unit assigned',
+            detail: waitingAssignment
+                ? 'Dispatch is waiting for officer commitment on this lane.'
+                : 'Primary responder ${dispatch.officer} owns the current lane.',
+            accent: waitingAssignment
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFF22D3EE),
+            complete: !waitingAssignment,
+            active: waitingAssignment,
+          ),
+          const SizedBox(height: 5),
+          _dispatchBoardRunwayStep(
+            label: partnerOnSite != null
+                ? 'On-site confirmed'
+                : partnerAccepted != null ||
+                      dispatch.status == _DispatchStatus.enRoute
+                ? 'Partner / route tracking'
+                : 'Travel window idle',
+            detail: partnerOnSite != null
+                ? 'Responder reached site at ${_clockLabel(partnerOnSite.toLocal())}.'
+                : partnerAccepted != null
+                ? 'Partner accepted at ${_clockLabel(partnerAccepted.toLocal())}; maintain live tracking.'
+                : dispatch.eta != null
+                ? 'Travel window is still in motion. Current ETA ${dispatch.eta}.'
+                : 'Waiting for travel telemetry or partner progression.',
+            accent: partnerOnSite != null
+                ? const Color(0xFF86EFAC)
+                : const Color(0xFFF59E0B),
+            complete: partnerOnSite != null,
+            active: partnerOnSite == null,
+          ),
+          const SizedBox(height: 5),
+          _dispatchBoardRunwayStep(
+            label: handoffReady
+                ? 'Report handoff ready'
+                : 'Report handoff staged',
+            detail: handoffReady
+                ? 'Dispatch is cleared and report export is ready for review.'
+                : openReportAvailable
+                ? 'Report shell can open now for mid-incident review and receipt prep.'
+                : 'Report handoff will unlock once a live dispatch is available.',
+            accent: handoffReady
+                ? const Color(0xFF86EFAC)
+                : const Color(0xFF8EA4C2),
+            complete: handoffReady,
+            active: !handoffReady && openReportAvailable,
+          ),
+          if (partnerProgress != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'PARTNER PROGRESSION',
+              style: GoogleFonts.inter(
+                color: const Color(0x7FFFFFFF),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final status in PartnerDispatchStatus.values)
+                  _partnerProgressBadge(
+                    dispatchId: dispatch.id,
+                    status: status,
+                    timestamp: partnerProgress.firstOccurrenceByStatus[status],
+                  ),
+              ],
+            ),
+          ],
+          if (linkedScope != null) ...[
+            const SizedBox(height: 6),
+            _dispatchScopeSummaryCard(linkedScope),
+          ],
+          const SizedBox(height: 6),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 460;
+              final primaryButton = FilledButton.icon(
+                onPressed: () => _handleDispatchAction(dispatch),
+                style: FilledButton.styleFrom(
+                  backgroundColor: statusStyle.actionColor.withValues(
+                    alpha: 0.22,
+                  ),
+                  foregroundColor: statusStyle.actionColor,
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: Icon(statusStyle.icon, size: 16),
+                label: Text(
+                  statusStyle.actionLabel,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              );
+              final secondaryButtons = <Widget>[
+                if (openReportAvailable)
+                  _dispatchBoardActionButton(
+                    label: 'Open Report',
+                    icon: Icons.description_rounded,
+                    foreground: const Color(0xFF8FD1FF),
+                    onPressed: () =>
+                        widget.onOpenReportForDispatch!.call(dispatch.id),
+                  ),
+                if (primaryScopeAction != null)
+                  _dispatchBoardActionButton(
+                    label: 'Open Scope',
+                    icon: Icons.center_focus_strong_rounded,
+                    foreground: const Color(0xFFFDE68A),
+                    onPressed: () => primaryScopeAction.call(
+                      linkedScope!.clientId,
+                      linkedScope.siteId,
+                      linkedScope.latestIncidentReference,
+                    ),
+                  ),
+              ];
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    primaryButton,
+                    for (final button in secondaryButtons) ...[
+                      const SizedBox(height: 6),
+                      button,
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: primaryButton),
+                  for (final button in secondaryButtons) ...[
+                    const SizedBox(width: 6),
+                    Expanded(child: button),
+                  ],
+                ],
+              );
+            },
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _dispatchBoardTag(String label, String value, Color accent) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111826),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.48)),
+      ),
+      child: Text(
+        '$label • $value',
+        style: GoogleFonts.inter(
+          color: accent,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _dispatchBoardRunwayStep({
+    required String label,
+    required String detail,
+    required Color accent,
+    required bool complete,
+    required bool active,
+  }) {
+    final icon = complete
+        ? Icons.check_circle_rounded
+        : active
+        ? Icons.radio_button_checked_rounded
+        : Icons.circle_outlined;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: active
+            ? accent.withValues(alpha: 0.12)
+            : const Color(0xFF111826),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: complete || active
+              ? accent.withValues(alpha: 0.65)
+              : const Color(0xFF23344C),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            size: 16,
+            color: complete || active ? accent : const Color(0xFF60748E),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: complete || active
+                        ? const Color(0xFFEAF4FF)
+                        : const Color(0xFF9AB1CF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  detail,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB1CF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _dispatchNarrative(
+    _DispatchItem dispatch,
+    _PartnerDispatchProgressSummary? partnerProgress,
+    VideoFleetScopeHealthView? linkedScope,
+  ) {
+    final parts = <String>[
+      '${dispatch.type} coverage is centered on ${dispatch.site}.',
+    ];
+    switch (dispatch.status) {
+      case _DispatchStatus.pending:
+        parts.add('Lane is staged and waiting for officer assignment.');
+        break;
+      case _DispatchStatus.enRoute:
+        parts.add(
+          dispatch.eta == null
+              ? 'Responder is committed and moving toward the site.'
+              : 'Responder is committed with ${dispatch.eta} remaining.',
+        );
+        break;
+      case _DispatchStatus.onSite:
+        parts.add(
+          'Responder is on-site and the command body is in verification mode.',
+        );
+        break;
+      case _DispatchStatus.cleared:
+        parts.add('Lane is cleared and ready for report handoff.');
+        break;
+    }
+    if (partnerProgress != null) {
+      parts.add(
+        '${partnerProgress.partnerLabel} is ${_partnerDispatchStatusLabel(partnerProgress.latestStatus).toLowerCase()} after ${partnerProgress.declarationCount} progression updates.',
+      );
+    }
+    if (linkedScope != null) {
+      parts.add(
+        '${linkedScope.siteName} watch is ${linkedScope.watchLabel.toLowerCase()} with ${linkedScope.recentEvents} recent ${widget.videoOpsLabel.toLowerCase()} events.',
+      );
+      final latestSummary = linkedScope.latestSummaryText;
+      if (latestSummary != null) {
+        parts.add(latestSummary);
+      }
+    }
+    return parts.join(' ');
+  }
+
+  VideoFleetScopeHealthView? _linkedFleetScopeForDispatch(
+    _DispatchItem dispatch,
+  ) {
+    final dispatchSite = dispatch.site.trim().toLowerCase();
+    if (dispatchSite.isEmpty) {
+      return null;
+    }
+    for (final scope in widget.fleetScopeHealth) {
+      final scopeSiteId = scope.siteId.trim().toLowerCase();
+      final scopeSiteName = scope.siteName.trim().toLowerCase();
+      if (scopeSiteId == dispatchSite || scopeSiteName == dispatchSite) {
+        return scope;
+      }
+    }
+    return null;
+  }
+
+  Widget _dispatchScopeSummaryCard(VideoFleetScopeHealthView scope) {
+    final latestSummary =
+        scope.latestSummaryText ??
+        scope.noteText ??
+        'Fleet scope is linked without additional scene detail yet.';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF23344C)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LINKED ${widget.videoOpsLabel.toUpperCase()} SCOPE',
+            style: GoogleFonts.inter(
+              color: const Color(0x7FFFFFFF),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _dispatchBoardTag(
+                'Site',
+                scope.siteName,
+                const Color(0xFF8FD1FF),
+              ),
+              _dispatchBoardTag(
+                'Status',
+                scope.statusLabel,
+                const Color(0xFF86EFAC),
+              ),
+              _dispatchBoardTag(
+                'Watch',
+                scope.watchLabel,
+                const Color(0xFFFDE68A),
+              ),
+              if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
+                _dispatchBoardTag(
+                  'Camera',
+                  scope.latestCameraLabel!,
+                  const Color(0xFF9AB1CF),
+                ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            latestSummary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFCAD7E8),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dispatchBoardActionButton({
+    required String label,
+    required IconData icon,
+    required Color foreground,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: foreground,
+        side: BorderSide(color: foreground.withValues(alpha: 0.46)),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      icon: Icon(icon, size: 16),
+      label: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -1091,8 +2628,9 @@ class _DispatchPageState extends State<DispatchPage> {
       onTap: () => _setSelectedDispatchId(dispatch.id),
       borderRadius: BorderRadius.circular(10),
       child: Container(
+        key: ValueKey<String>('dispatch-card-${dispatch.id}'),
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: selected ? const Color(0x1A22D3EE) : const Color(0xFF0F1419),
           borderRadius: BorderRadius.circular(10),
@@ -1104,8 +2642,8 @@ class _DispatchPageState extends State<DispatchPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 color: statusStyle.iconBg,
                 borderRadius: BorderRadius.circular(10),
@@ -1113,10 +2651,10 @@ class _DispatchPageState extends State<DispatchPage> {
               child: Icon(
                 statusStyle.icon,
                 color: statusStyle.iconColor,
-                size: 20,
+                size: 16,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1128,7 +2666,7 @@ class _DispatchPageState extends State<DispatchPage> {
                           dispatch.id,
                           style: GoogleFonts.rajdhani(
                             color: const Color(0xFFEAF4FF),
-                            fontSize: 28,
+                            fontSize: 24,
                             height: 0.9,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1170,9 +2708,9 @@ class _DispatchPageState extends State<DispatchPage> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Wrap(
-                    spacing: 10,
+                    spacing: 8,
                     runSpacing: 4,
                     children: [
                       _metaItem('Type', dispatch.type),
@@ -1189,13 +2727,13 @@ class _DispatchPageState extends State<DispatchPage> {
                     ],
                   ),
                   if (selected && partnerProgress != null) ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Container(
                       key: ValueKey<String>(
                         'dispatch-partner-progress-card-${dispatch.id}',
                       ),
                       width: double.infinity,
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0C1117),
                         borderRadius: BorderRadius.circular(10),
@@ -1213,7 +2751,7 @@ class _DispatchPageState extends State<DispatchPage> {
                               letterSpacing: 1.0,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 5),
                           Text(
                             '${partnerProgress.partnerLabel} • Latest ${_partnerDispatchStatusLabel(partnerProgress.latestStatus)} • ${_clockLabel(partnerProgress.latestOccurredAt.toLocal())}',
                             style: GoogleFonts.inter(
@@ -1222,9 +2760,9 @@ class _DispatchPageState extends State<DispatchPage> {
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 5),
                           Wrap(
-                            spacing: 10,
+                            spacing: 8,
                             runSpacing: 4,
                             children: [
                               _metaItem(
@@ -1247,7 +2785,7 @@ class _DispatchPageState extends State<DispatchPage> {
                             ],
                           ),
                           if (partnerTrend != null) ...[
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 5),
                             Text(
                               partnerTrend.trendReason,
                               key: ValueKey<String>(
@@ -1262,10 +2800,10 @@ class _DispatchPageState extends State<DispatchPage> {
                               ),
                             ),
                           ],
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
+                            spacing: 6,
+                            runSpacing: 6,
                             children: [
                               for (final status in PartnerDispatchStatus.values)
                                 _partnerProgressBadge(
@@ -1280,7 +2818,7 @@ class _DispatchPageState extends State<DispatchPage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
@@ -1288,7 +2826,7 @@ class _DispatchPageState extends State<DispatchPage> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: statusStyle.actionColor,
                         side: BorderSide(color: statusStyle.actionColor),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        padding: const EdgeInsets.symmetric(vertical: 9),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -1365,7 +2903,7 @@ class _DispatchPageState extends State<DispatchPage> {
       key: ValueKey<String>(
         'dispatch-partner-progress-$dispatchId-${status.name}',
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: reached ? tone.$2 : const Color(0xFF111822),
         borderRadius: BorderRadius.circular(10),
@@ -1447,6 +2985,10 @@ class _DispatchPageState extends State<DispatchPage> {
   Widget _systemStatusPanel({
     required GlobalKey fleetPanelKey,
     required GlobalKey suppressedPanelKey,
+    required VoidCallback onOpenDispatchBoard,
+    required VoidCallback onOpenCommandActions,
+    required VoidCallback onOpenFleetWatch,
+    required VoidCallback onOpenSuppressedReviews,
     required List<_SuppressedDispatchReviewEntry> suppressedEntries,
     required void Function(VideoFleetWatchActionDrilldown drilldown)
     onOpenWatchActionDrilldown,
@@ -1461,10 +3003,10 @@ class _DispatchPageState extends State<DispatchPage> {
         _activeWatchActionDrilldown == VideoFleetWatchActionDrilldown.escalated;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -1474,13 +3016,15 @@ class _DispatchPageState extends State<DispatchPage> {
             'SYSTEM STATUS',
             style: GoogleFonts.inter(
               color: const Color(0x7FFFFFFF),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
             ),
           ),
+          const SizedBox(height: 5),
+          _dispatchWorkspaceCommandReceipt(),
           if (showEscalatedPrimary && widget.fleetScopeHealth.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             KeyedSubtree(
               key: fleetPanelKey,
               child: _fleetScopePanel(
@@ -1489,7 +3033,7 @@ class _DispatchPageState extends State<DispatchPage> {
               ),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           _statusSection(
             title: 'Transport & Intake',
             pill: _statePill('OPERATIONAL', const Color(0xFF10B981)),
@@ -1505,7 +3049,7 @@ class _DispatchPageState extends State<DispatchPage> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           _statusSection(
             title: 'Communication Systems',
             pill: _statePill(
@@ -1544,7 +3088,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   title: 'Radio Queue Manual',
                   detail: widget.radioQueueManualActionDetail,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
                 _radioQueueActions(),
                 _BulletLine(
                   title:
@@ -1560,7 +3104,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   detail: widget.cctvRecentSignalSummary,
                 ),
                 if (showSuppressedPrimary) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
                   KeyedSubtree(
                     key: suppressedPanelKey,
                     child: _suppressedReviewPanel(suppressedEntries),
@@ -1568,7 +3112,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 ],
                 if (!showEscalatedPrimary &&
                     widget.fleetScopeHealth.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
                   KeyedSubtree(
                     key: fleetPanelKey,
                     child: _fleetScopePanel(
@@ -1579,7 +3123,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   ),
                 ],
                 if (!showSuppressedPrimary && suppressedEntries.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
                   KeyedSubtree(
                     key: suppressedPanelKey,
                     child: _suppressedReviewPanel(suppressedEntries),
@@ -1598,29 +3142,45 @@ class _DispatchPageState extends State<DispatchPage> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           _statusSection(
             title: 'Command Actions',
             child: Column(
               children: [
                 _panelButton(
-                  label: 'BROADCAST TO ALL UNITS',
-                  icon: Icons.radio_rounded,
+                  label: 'PRIME SELECTED DISPATCH',
+                  detail:
+                      'Jump back to the focused dispatch board and action runway.',
+                  icon: Icons.center_focus_strong_rounded,
+                  onPressed: onOpenDispatchBoard,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 _panelButton(
-                  label: 'VIEW FLEET STATUS',
-                  icon: Icons.local_shipping_rounded,
+                  label: suppressedEntries.isNotEmpty
+                      ? 'REVIEW FILTERED WATCH'
+                      : 'OPEN FLEET WATCH',
+                  detail: suppressedEntries.isNotEmpty
+                      ? 'Open the suppressed review lane for held ${widget.videoOpsLabel.toLowerCase()} actions.'
+                      : 'Jump to the fleet watch body and active scope cards.',
+                  icon: suppressedEntries.isNotEmpty
+                      ? Icons.visibility_off_rounded
+                      : Icons.videocam_rounded,
+                  onPressed: suppressedEntries.isNotEmpty
+                      ? onOpenSuppressedReviews
+                      : onOpenFleetWatch,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 _panelButton(
-                  label: 'DISPATCH ANALYTICS',
-                  icon: Icons.analytics_rounded,
+                  label: 'OPEN COMMAND ACTIONS',
+                  detail:
+                      'Return to ingest, generate, and feed controls at the top of the page.',
+                  icon: Icons.rocket_launch_rounded,
+                  onPressed: onOpenCommandActions,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           _statusSection(
             title: 'Response Time Breakdown',
             child: const Column(
@@ -1631,14 +3191,14 @@ class _DispatchPageState extends State<DispatchPage> {
                   width: 0.85,
                   color: Color(0xFF10B981),
                 ),
-                SizedBox(height: 8),
+                SizedBox(height: 5),
                 _BreakdownRow(
                   label: 'P2 High',
                   value: '8.1 min avg',
                   width: 0.65,
                   color: Color(0xFFF59E0B),
                 ),
-                SizedBox(height: 8),
+                SizedBox(height: 5),
                 _BreakdownRow(
                   label: 'P3 Medium',
                   value: '12.4 min avg',
@@ -1646,6 +3206,71 @@ class _DispatchPageState extends State<DispatchPage> {
                   color: Color(0xFF22D3EE),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dispatchWorkspaceCommandReceipt() {
+    final receipt = _commandReceipt;
+    return Container(
+      key: const ValueKey('dispatch-workspace-command-receipt'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.42)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LATEST COMMAND',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: receipt.accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: receipt.accent.withValues(alpha: 0.45)),
+            ),
+            child: Text(
+              receipt.label,
+              style: GoogleFonts.inter(
+                color: receipt.accent,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            receipt.headline,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            receipt.detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
             ),
           ),
         ],
@@ -1678,8 +3303,8 @@ class _DispatchPageState extends State<DispatchPage> {
   Widget _suppressedReviewPanel(List<_SuppressedDispatchReviewEntry> entries) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
         borderRadius: BorderRadius.circular(9),
@@ -1694,7 +3319,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 'Suppressed ${widget.videoOpsLabel} Reviews',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFEAF4FF),
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1706,16 +3331,16 @@ class _DispatchPageState extends State<DispatchPage> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             'Recent ${widget.videoOpsLabel} reviews ONYX held below the client notification threshold while dispatch remained active.',
             style: GoogleFonts.inter(
               color: const Color(0xFF9AB1CF),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           ...entries.asMap().entries.map((entry) {
             final item = entry.value;
             final scope = item.scope;
@@ -1723,9 +3348,9 @@ class _DispatchPageState extends State<DispatchPage> {
             return Container(
               width: double.infinity,
               margin: EdgeInsets.only(
-                bottom: entry.key == entries.length - 1 ? 0 : 8,
+                bottom: entry.key == entries.length - 1 ? 0 : 6,
               ),
-              padding: const EdgeInsets.all(9),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: const Color(0xFF101722),
                 borderRadius: BorderRadius.circular(8),
@@ -1742,7 +3367,7 @@ class _DispatchPageState extends State<DispatchPage> {
                           scope.siteName,
                           style: GoogleFonts.inter(
                             color: const Color(0xFFEAF4FF),
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -1758,7 +3383,7 @@ class _DispatchPageState extends State<DispatchPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
@@ -1783,14 +3408,14 @@ class _DispatchPageState extends State<DispatchPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
                   Text(
                     review.decisionSummary.trim().isEmpty
                         ? 'Suppressed because the activity remained below threshold.'
                         : review.decisionSummary.trim(),
                     style: GoogleFonts.inter(
                       color: const Color(0xFFEAF4FF),
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1799,7 +3424,7 @@ class _DispatchPageState extends State<DispatchPage> {
                     'Scene review: ${review.summary.trim()}',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF9AB1CF),
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -1819,7 +3444,7 @@ class _DispatchPageState extends State<DispatchPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
         borderRadius: BorderRadius.circular(10),
@@ -1835,7 +3460,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 title.toUpperCase(),
                 style: GoogleFonts.inter(
                   color: const Color(0xB3FFFFFF),
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
                 ),
@@ -1845,7 +3470,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     titleWidget,
-                    if (pill != null) ...[const SizedBox(height: 6), pill],
+                    if (pill != null) ...[const SizedBox(height: 5), pill],
                   ],
                 );
               }
@@ -1857,7 +3482,7 @@ class _DispatchPageState extends State<DispatchPage> {
               );
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           child,
         ],
       ),
@@ -1908,6 +3533,14 @@ class _DispatchPageState extends State<DispatchPage> {
           ),
           sections: filteredSections,
           activeWatchActionDrilldown: _activeWatchActionDrilldown,
+          summaryHeader: _fleetSummaryCommandDeck(
+            sections: sections,
+            activeWatchActionDrilldown: _activeWatchActionDrilldown,
+            onFocusDrilldown: onOpenWatchActionDrilldown,
+            onClearFocus: _activeWatchActionDrilldown == null
+                ? null
+                : () => _setActiveWatchActionDrilldown(null),
+          ),
           summaryChildren: _fleetSummaryChips(
             sections: sections,
             onOpenWatchActionDrilldown: onOpenWatchActionDrilldown,
@@ -1929,12 +3562,14 @@ class _DispatchPageState extends State<DispatchPage> {
               )
               .toList(growable: false),
           margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF0C1117),
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: const Color(0x332B425F)),
+            color: const Color(0xFF0E141D),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0x334A5E78)),
           ),
+          cardSpacing: 10,
+          runSpacing: 10,
         ),
       ],
     );
@@ -1960,19 +3595,246 @@ class _DispatchPageState extends State<DispatchPage> {
         : scope.watchWindowStateLabel == 'IN WINDOW'
         ? const Color(0xFF86EFAC)
         : const Color(0xFFFBBF24);
-    final primaryOpenFleetScope = scope.hasIncidentContext
-        ? (widget.onOpenFleetDispatchScope ?? widget.onOpenFleetTacticalScope)
-        : null;
+    final hasDispatchLane =
+        scope.hasIncidentContext && widget.onOpenFleetDispatchScope != null;
+    final hasTacticalLane =
+        scope.hasIncidentContext && widget.onOpenFleetTacticalScope != null;
+    final canRecoverCoverage =
+        scope.hasWatchActivationGap && widget.onRecoverFleetWatchScope != null;
+    final commandAccent = _fleetScopeCommandAccent(scope);
+    final commandHeadline = _fleetScopeCommandHeadline(scope);
+    final commandDetail = _fleetScopeCommandDetail(scope);
+    final primaryActionLabel = canRecoverCoverage
+        ? 'Resync coverage'
+        : hasDispatchLane
+        ? 'Open dispatch'
+        : hasTacticalLane
+        ? 'Open tactical'
+        : 'Latest detail';
+    final primaryActionColor = canRecoverCoverage
+        ? const Color(0xFFFCA5A5)
+        : hasDispatchLane
+        ? const Color(0xFFFDE68A)
+        : hasTacticalLane
+        ? const Color(0xFF67E8F9)
+        : const Color(0xFF8FD1FF);
+
+    void openFleetDetail() {
+      onOpenLatestWatchActionDetail(scope);
+      _showDispatchFeedback(
+        'Focused fleet scope detail for ${scope.siteName}.',
+        label: 'FLEET DETAIL',
+        detail:
+            '${scope.siteName} stays pinned in the watch rail while the latest signal detail opens below it.',
+        accent: const Color(0xFF8FD1FF),
+      );
+    }
+
+    void openFleetDispatch() {
+      if (!hasDispatchLane) {
+        openFleetDetail();
+        return;
+      }
+      widget.onOpenFleetDispatchScope!.call(
+        scope.clientId,
+        scope.siteId,
+        scope.latestIncidentReference,
+      );
+      _showDispatchFeedback(
+        'Opened ${scope.siteName} in dispatch lane.',
+        label: 'DISPATCH HANDOFF',
+        detail:
+            '${scope.siteName} is now foregrounded in the incident-backed dispatch board.',
+        accent: const Color(0xFFFDE68A),
+      );
+    }
+
+    void openFleetTactical() {
+      if (!hasTacticalLane) {
+        openFleetDetail();
+        return;
+      }
+      widget.onOpenFleetTacticalScope!.call(
+        scope.clientId,
+        scope.siteId,
+        scope.latestIncidentReference,
+      );
+      _showDispatchFeedback(
+        'Opened ${scope.siteName} in tactical lane.',
+        label: 'TACTICAL HANDOFF',
+        detail:
+            '${scope.siteName} is now foregrounded in the scoped tactical workspace.',
+        accent: const Color(0xFF67E8F9),
+      );
+    }
+
+    void recoverFleetScope() {
+      if (!canRecoverCoverage) {
+        openFleetDetail();
+        return;
+      }
+      widget.onRecoverFleetWatchScope!.call(scope.clientId, scope.siteId);
+      _showDispatchFeedback(
+        'Triggered coverage resync for ${scope.siteName}.',
+        label: 'COVERAGE RESYNC',
+        detail:
+            '${scope.siteName} has been queued for watch-window recovery from the fleet command card.',
+        accent: const Color(0xFFFCA5A5),
+      );
+    }
+
     return VideoFleetScopeHealthCard(
+      key: ValueKey('dispatch-fleet-scope-card-${scope.siteId}'),
+      headerChild: Container(
+        key: ValueKey('dispatch-fleet-scope-command-${scope.siteId}'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111826),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: commandAccent.withValues(alpha: 0.36)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'FLEET COMMAND',
+                    style: GoogleFonts.inter(
+                      color: commandAccent,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    commandHeadline,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    commandDetail,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFCAD7E8),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: primaryActionColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(
+                  color: primaryActionColor.withValues(alpha: 0.42),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'NEXT MOVE',
+                    style: GoogleFonts.inter(
+                      color: primaryActionColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    primaryActionLabel,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      identityChild: Container(
+        key: ValueKey('dispatch-fleet-scope-identity-${scope.siteId}'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: commandAccent.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: commandAccent.withValues(alpha: 0.22)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'SCOPE IDENTITY',
+              style: GoogleFonts.inter(
+                color: commandAccent,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.7,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _statusBadge(
+                  'Endpoint',
+                  scope.endpointLabel,
+                  const Color(0xFF9AB1CF),
+                ),
+                _statusBadge(
+                  'Last seen',
+                  scope.lastSeenLabel,
+                  _fleetFreshnessColor(scope),
+                ),
+                if ((scope.latestIncidentReference ?? '').trim().isNotEmpty)
+                  _statusBadge(
+                    'Reference',
+                    scope.latestIncidentReference!,
+                    const Color(0xFFFDE68A),
+                  ),
+                if ((scope.latestCameraLabel ?? '').trim().isNotEmpty)
+                  _statusBadge(
+                    'Camera',
+                    scope.latestCameraLabel!,
+                    const Color(0xFF9AB1CF),
+                  ),
+                if (!scope.hasIncidentContext)
+                  _statusBadge('Context', 'Pending', const Color(0xFFFBBF24)),
+              ],
+            ),
+          ],
+        ),
+      ),
+      hideDefaultEndpoint: true,
+      hideDefaultLastSeen: true,
       title: scope.siteName,
       endpointLabel: scope.endpointLabel,
-      lastSeenLabel: scope.lastSeenLabel,
+      lastSeenLabel: ': ${scope.lastSeenLabel}',
       titleStyle: GoogleFonts.inter(
         color: const Color(0xFFEAF4FF),
-        fontSize: 12,
+        fontSize: 13,
         fontWeight: FontWeight.w700,
       ),
-      endpointStyle: GoogleFonts.robotoMono(
+      endpointStyle: GoogleFonts.inter(
         color: const Color(0xFF8EA4C2),
         fontSize: 10,
         fontWeight: FontWeight.w600,
@@ -1997,6 +3859,21 @@ class _DispatchPageState extends State<DispatchPage> {
         fontSize: 11,
         fontWeight: FontWeight.w600,
       ),
+      primaryGroupLabel: 'COMMAND POSTURE',
+      primaryGroupAccent: commandAccent,
+      primaryGroupKey: ValueKey('dispatch-fleet-scope-posture-${scope.siteId}'),
+      contextGroupLabel: 'WATCH CONTEXT',
+      contextGroupAccent: const Color(0xFFFDE68A),
+      contextGroupKey: ValueKey('dispatch-fleet-scope-context-${scope.siteId}'),
+      latestGroupLabel: 'LATEST SIGNAL',
+      latestGroupAccent: const Color(0xFF67E8F9),
+      latestGroupKey: ValueKey('dispatch-fleet-scope-latest-${scope.siteId}'),
+      secondaryGroupLabel: 'LIVE FEED',
+      secondaryGroupAccent: const Color(0xFF8FD1FF),
+      secondaryGroupKey: ValueKey('dispatch-fleet-scope-feed-${scope.siteId}'),
+      actionsGroupLabel: 'COMMAND ACTIONS',
+      actionsGroupAccent: primaryActionColor,
+      actionsGroupKey: ValueKey('dispatch-fleet-scope-actions-${scope.siteId}'),
       primaryChips: [
         if ((scope.operatorOutcomeLabel ?? '').trim().isNotEmpty)
           _statusBadge(
@@ -2042,7 +3919,11 @@ class _DispatchPageState extends State<DispatchPage> {
           scope.freshnessLabel,
           _fleetFreshnessColor(scope),
         ),
-        _statusBadge('6h', '${scope.recentEvents}', const Color(0xFF9AB1CF)),
+        _statusBadge(
+          'Events 6h',
+          '${scope.recentEvents}',
+          const Color(0xFF9AB1CF),
+        ),
       ],
       secondaryChips: [
         if (scope.watchWindowLabel != null)
@@ -2067,36 +3948,33 @@ class _DispatchPageState extends State<DispatchPage> {
           ),
       ],
       actionChildren: [
-        if (widget.onRecoverFleetWatchScope != null &&
-            scope.hasWatchActivationGap)
+        if (canRecoverCoverage)
           _fleetActionButton(
+            key: ValueKey('dispatch-fleet-resync-${scope.siteId}'),
             label: 'Resync',
             color: const Color(0xFFF87171),
-            onPressed: () => widget.onRecoverFleetWatchScope!.call(
-              scope.clientId,
-              scope.siteId,
-            ),
+            onPressed: recoverFleetScope,
           ),
-        if (widget.onOpenFleetTacticalScope != null && scope.hasIncidentContext)
+        if (hasTacticalLane)
           _fleetActionButton(
+            key: ValueKey('dispatch-fleet-tactical-${scope.siteId}'),
             label: 'Tactical',
             color: const Color(0xFF67E8F9),
-            onPressed: () => widget.onOpenFleetTacticalScope!.call(
-              scope.clientId,
-              scope.siteId,
-              scope.latestIncidentReference,
-            ),
+            onPressed: openFleetTactical,
           ),
-        if (widget.onOpenFleetDispatchScope != null && scope.hasIncidentContext)
+        if (hasDispatchLane)
           _fleetActionButton(
+            key: ValueKey('dispatch-fleet-dispatch-${scope.siteId}'),
             label: 'Dispatch',
             color: const Color(0xFFFBBF24),
-            onPressed: () => widget.onOpenFleetDispatchScope!.call(
-              scope.clientId,
-              scope.siteId,
-              scope.latestIncidentReference,
-            ),
+            onPressed: openFleetDispatch,
           ),
+        _fleetActionButton(
+          key: ValueKey('dispatch-fleet-detail-${scope.siteId}'),
+          label: 'Detail',
+          color: const Color(0xFF8FD1FF),
+          onPressed: openFleetDetail,
+        ),
       ],
       statusDetailText: scope.limitedWatchStatusDetailText,
       noteText: scope.noteText,
@@ -2104,21 +3982,297 @@ class _DispatchPageState extends State<DispatchPage> {
         scope,
         _activeWatchActionDrilldown,
       ),
-      onLatestTap: () => onOpenLatestWatchActionDetail(scope),
-      onTap: primaryOpenFleetScope == null
-          ? null
-          : () => primaryOpenFleetScope.call(
-              scope.clientId,
-              scope.siteId,
-              scope.latestIncidentReference,
-            ),
+      onLatestTap: openFleetDetail,
+      onTap: canRecoverCoverage
+          ? recoverFleetScope
+          : hasDispatchLane
+          ? openFleetDispatch
+          : hasTacticalLane
+          ? openFleetTactical
+          : openFleetDetail,
       decoration: BoxDecoration(
-        color: const Color(0xFF101722),
+        color: const Color(0xFF101924),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x333A546E)),
+        border: Border.all(color: const Color(0xFF243345)),
       ),
-      constraints: const BoxConstraints(minWidth: 210, maxWidth: 290),
+      constraints: const BoxConstraints(minWidth: 230, maxWidth: 320),
     );
+  }
+
+  Widget _fleetSummaryCommandDeck({
+    required VideoFleetScopeHealthSections sections,
+    required VideoFleetWatchActionDrilldown? activeWatchActionDrilldown,
+    required void Function(VideoFleetWatchActionDrilldown drilldown)
+    onFocusDrilldown,
+    required VoidCallback? onClearFocus,
+  }) {
+    final recommendedDrilldown = _recommendedFleetSummaryDrilldown(sections);
+    final primaryDrilldown = activeWatchActionDrilldown ?? recommendedDrilldown;
+    final availableDrilldowns = _availableFleetSummaryDrilldowns(sections);
+    final secondaryDrilldowns = availableDrilldowns
+        .where((drilldown) => drilldown != primaryDrilldown)
+        .take(3)
+        .toList(growable: false);
+    final accent = primaryDrilldown?.accentColor ?? const Color(0xFF8FD1FF);
+    final detail = activeWatchActionDrilldown != null
+        ? 'The watch rail is narrowed to ${activeWatchActionDrilldown.focusLabel.toLowerCase()}, so the fleet cards below stay scoped to that operating lane.'
+        : primaryDrilldown != null
+        ? 'Lead the dispatch watch rail through ${primaryDrilldown.focusLabel.toLowerCase()} first, then widen back to the full fleet surface as needed.'
+        : 'All fleet scopes are visible and the system rail can widen across the full watch surface.';
+
+    return Container(
+      key: const ValueKey('dispatch-fleet-summary-command'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111826),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.36)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'FLEET SUMMARY COMMAND',
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      primaryDrilldown?.focusLabel ??
+                          'All fleet scopes visible',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      detail,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFCAD7E8),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: accent.withValues(alpha: 0.42)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'COMMAND MODE',
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      activeWatchActionDrilldown != null
+                          ? 'Focused'
+                          : primaryDrilldown != null
+                          ? 'Recommended'
+                          : 'Overview',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (primaryDrilldown != null &&
+                  activeWatchActionDrilldown == null)
+                _fleetActionButton(
+                  key: const ValueKey('dispatch-fleet-summary-primary-action'),
+                  label: primaryDrilldown.focusLabel,
+                  color: accent,
+                  onPressed: () => onFocusDrilldown(primaryDrilldown),
+                ),
+              for (final drilldown in secondaryDrilldowns)
+                _fleetActionButton(
+                  key: ValueKey('dispatch-fleet-summary-${drilldown.name}'),
+                  label: drilldown.focusLabel,
+                  color: drilldown.accentColor,
+                  onPressed: () => onFocusDrilldown(drilldown),
+                ),
+              if (onClearFocus != null)
+                _fleetActionButton(
+                  key: const ValueKey('dispatch-fleet-summary-clear'),
+                  label: 'Clear focus',
+                  color: const Color(0xFF9AB1CF),
+                  onPressed: onClearFocus,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _fleetScopeCommandAccent(VideoFleetScopeHealthView scope) {
+    if (scope.hasWatchActivationGap) {
+      return const Color(0xFFFCA5A5);
+    }
+    if (scope.identityPolicyChipValue != null) {
+      return identityPolicyAccentColorForScope(scope);
+    }
+    if (scope.escalationCount > 0) {
+      return const Color(0xFFFCA5A5);
+    }
+    if (scope.alertCount > 0) {
+      return const Color(0xFF67E8F9);
+    }
+    if (scope.repeatCount > 0) {
+      return const Color(0xFFFDE68A);
+    }
+    if (scope.latestRiskScore != null) {
+      return _fleetRiskColor(scope.latestRiskScore!);
+    }
+    return _fleetFreshnessColor(scope);
+  }
+
+  String _fleetScopeCommandHeadline(VideoFleetScopeHealthView scope) {
+    if (scope.hasWatchActivationGap) {
+      return 'Coverage resync needed';
+    }
+    if (scope.hasFlaggedIdentityPolicy) {
+      return 'Flagged identity in watch lane';
+    }
+    if (scope.hasTemporaryIdentityPolicy) {
+      return 'Temporary identity live';
+    }
+    if (scope.hasAllowlistedIdentityPolicy) {
+      return 'Allowlisted identity cleared';
+    }
+    if (scope.escalationCount > 0) {
+      return 'Escalation lane active';
+    }
+    if (scope.alertCount > 0) {
+      return 'Alert lane active';
+    }
+    if (scope.repeatCount > 0) {
+      return 'Repeat monitoring lane';
+    }
+    if (scope.hasIncidentContext) {
+      return 'Incident-backed watch scope';
+    }
+    if (scope.hasRecentRecovery) {
+      return 'Recovered watch stabilized';
+    }
+    return 'Monitoring scope ready';
+  }
+
+  String _fleetScopeCommandDetail(VideoFleetScopeHealthView scope) {
+    final candidates = <String?>[
+      scope.latestActionHistoryText,
+      scope.identityMatchText,
+      scope.sceneDecisionText,
+      scope.sceneReviewText,
+      scope.latestSummaryText,
+      scope.latestSuppressedHistoryText,
+      scope.identityPolicyText,
+      scope.clientDecisionText,
+      scope.noteText?.split('\n').first,
+    ];
+    for (final candidate in candidates) {
+      final detail = (candidate ?? '').trim();
+      if (detail.isNotEmpty) {
+        return detail;
+      }
+    }
+    if (scope.hasIncidentContext) {
+      return 'Incident-linked watch context is available for ${scope.siteName}.';
+    }
+    if (scope.hasWatchActivationGap) {
+      return 'The watch window missed its expected start and needs operator recovery.';
+    }
+    return 'Scope telemetry is stable and ready for drill-in.';
+  }
+
+  VideoFleetWatchActionDrilldown? _recommendedFleetSummaryDrilldown(
+    VideoFleetScopeHealthSections sections,
+  ) {
+    for (final drilldown in _availableFleetSummaryDrilldowns(sections)) {
+      return drilldown;
+    }
+    return null;
+  }
+
+  List<VideoFleetWatchActionDrilldown> _availableFleetSummaryDrilldowns(
+    VideoFleetScopeHealthSections sections,
+  ) {
+    const ordered = [
+      VideoFleetWatchActionDrilldown.alerts,
+      VideoFleetWatchActionDrilldown.limited,
+      VideoFleetWatchActionDrilldown.flaggedIdentity,
+      VideoFleetWatchActionDrilldown.temporaryIdentity,
+      VideoFleetWatchActionDrilldown.escalated,
+      VideoFleetWatchActionDrilldown.repeat,
+      VideoFleetWatchActionDrilldown.filtered,
+      VideoFleetWatchActionDrilldown.allowlistedIdentity,
+    ];
+    return ordered
+        .where(
+          (drilldown) => _fleetSummaryDrilldownCount(sections, drilldown) > 0,
+        )
+        .toList(growable: false);
+  }
+
+  int _fleetSummaryDrilldownCount(
+    VideoFleetScopeHealthSections sections,
+    VideoFleetWatchActionDrilldown drilldown,
+  ) {
+    return switch (drilldown) {
+      VideoFleetWatchActionDrilldown.limited => sections.limitedCount,
+      VideoFleetWatchActionDrilldown.alerts => sections.alertActionCount,
+      VideoFleetWatchActionDrilldown.repeat => sections.repeatActionCount,
+      VideoFleetWatchActionDrilldown.escalated =>
+        sections.escalationActionCount,
+      VideoFleetWatchActionDrilldown.filtered => sections.suppressedActionCount,
+      VideoFleetWatchActionDrilldown.flaggedIdentity =>
+        sections.flaggedIdentityCount,
+      VideoFleetWatchActionDrilldown.temporaryIdentity =>
+        sections.temporaryIdentityCount,
+      VideoFleetWatchActionDrilldown.allowlistedIdentity =>
+        sections.allowlistedIdentityCount,
+    };
   }
 
   List<Widget> _fleetSummaryChips({
@@ -2127,146 +4281,186 @@ class _DispatchPageState extends State<DispatchPage> {
     onOpenWatchActionDrilldown,
   }) {
     return [
-      _statusBadge(
+      _fleetSummaryTile(
         'Active',
         '${sections.activeCount}',
-        const Color(0xFF67E8F9),
+        detail: 'Live or limited fleet watch lanes',
+        accent: const Color(0xFF67E8F9),
+        key: const ValueKey('dispatch-fleet-summary-tile-active'),
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Limited',
         '${sections.limitedCount}',
-        const Color(0xFFF59E0B),
+        detail: 'Coverage constrained or degraded',
+        accent: const Color(0xFFF59E0B),
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.limited,
+        key: const ValueKey('dispatch-fleet-summary-tile-limited'),
         onTap: sections.limitedCount > 0
             ? () => onOpenWatchActionDrilldown(
                 VideoFleetWatchActionDrilldown.limited,
               )
             : null,
       ),
-      _statusBadge('Gap', '${sections.gapCount}', const Color(0xFFF87171)),
-      _statusBadge(
+      _fleetSummaryTile(
+        'Gap',
+        '${sections.gapCount}',
+        detail: 'Watch starts missed or delayed',
+        accent: const Color(0xFFF87171),
+        key: const ValueKey('dispatch-fleet-summary-tile-gap'),
+      ),
+      _fleetSummaryTile(
         'High Risk',
         '${sections.highRiskCount}',
-        const Color(0xFFF87171),
+        detail: '70+ risk scopes in rail',
+        accent: const Color(0xFFF87171),
+        key: const ValueKey('dispatch-fleet-summary-tile-high-risk'),
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Recovered 6h',
         '${sections.recoveredCount}',
-        const Color(0xFF86EFAC),
+        detail: 'Recent operator recovery passes',
+        accent: const Color(0xFF86EFAC),
+        key: const ValueKey('dispatch-fleet-summary-tile-recovered'),
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Suppressed',
         '${sections.suppressedCount}',
-        const Color(0xFF9AB1CF),
+        detail: 'Quiet filtered review holds',
+        accent: const Color(0xFF9AB1CF),
+        key: const ValueKey('dispatch-fleet-summary-tile-suppressed'),
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Alerts',
         '${sections.alertActionCount}',
-        const Color(0xFF67E8F9),
+        detail: 'Client alerts sent from rail',
+        accent: const Color(0xFF67E8F9),
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.alerts,
+        key: const ValueKey('dispatch-fleet-summary-tile-alerts'),
         onTap: sections.alertActionCount > 0
             ? () => onOpenWatchActionDrilldown(
                 VideoFleetWatchActionDrilldown.alerts,
               )
             : null,
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Repeat',
         '${sections.repeatActionCount}',
-        const Color(0xFFFDE68A),
+        detail: 'Monitoring loops still repeating',
+        accent: const Color(0xFFFDE68A),
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.repeat,
+        key: const ValueKey('dispatch-fleet-summary-tile-repeat'),
         onTap: sections.repeatActionCount > 0
             ? () => onOpenWatchActionDrilldown(
                 VideoFleetWatchActionDrilldown.repeat,
               )
             : null,
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Escalated',
         '${sections.escalationActionCount}',
-        const Color(0xFFF87171),
+        detail: 'Reviews pushed into escalation',
+        accent: const Color(0xFFF87171),
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.escalated,
+        key: const ValueKey('dispatch-fleet-summary-tile-escalated'),
         onTap: sections.escalationActionCount > 0
             ? () => onOpenWatchActionDrilldown(
                 VideoFleetWatchActionDrilldown.escalated,
               )
             : null,
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Filtered',
         '${sections.suppressedActionCount}',
-        const Color(0xFF9AB1CF),
+        detail: 'Below-threshold review holds',
+        accent: const Color(0xFF9AB1CF),
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.filtered,
+        key: const ValueKey('dispatch-fleet-summary-tile-filtered'),
         onTap: sections.suppressedActionCount > 0
             ? () => onOpenWatchActionDrilldown(
                 VideoFleetWatchActionDrilldown.filtered,
               )
             : null,
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Flagged ID',
         '${sections.flaggedIdentityCount}',
-        VideoFleetWatchActionDrilldown.flaggedIdentity.accentColor,
+        detail: 'Flagged face or plate matches',
+        accent: VideoFleetWatchActionDrilldown.flaggedIdentity.accentColor,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.flaggedIdentity,
+        key: const ValueKey('dispatch-fleet-summary-tile-flagged-id'),
         onTap: sections.flaggedIdentityCount > 0
             ? () => onOpenWatchActionDrilldown(
                 VideoFleetWatchActionDrilldown.flaggedIdentity,
               )
             : null,
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Temporary ID',
         '${sections.temporaryIdentityCount}',
-        temporaryIdentityAccentColorForScopes(widget.fleetScopeHealth),
+        detail: 'One-time approved identities',
+        accent: temporaryIdentityAccentColorForScopes(widget.fleetScopeHealth),
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.temporaryIdentity,
+        key: const ValueKey('dispatch-fleet-summary-tile-temporary-id'),
         onTap: sections.temporaryIdentityCount > 0
             ? () => onOpenWatchActionDrilldown(
                 VideoFleetWatchActionDrilldown.temporaryIdentity,
               )
             : null,
       ),
-      _statusBadge(
+      _fleetSummaryTile(
         'Allowed ID',
         '${sections.allowlistedIdentityCount}',
-        VideoFleetWatchActionDrilldown.allowlistedIdentity.accentColor,
+        detail: 'Allowlisted identity clears',
+        accent: VideoFleetWatchActionDrilldown.allowlistedIdentity.accentColor,
         isActive:
             _activeWatchActionDrilldown ==
             VideoFleetWatchActionDrilldown.allowlistedIdentity,
+        key: const ValueKey('dispatch-fleet-summary-tile-allowed-id'),
         onTap: sections.allowlistedIdentityCount > 0
             ? () => onOpenWatchActionDrilldown(
                 VideoFleetWatchActionDrilldown.allowlistedIdentity,
               )
             : null,
       ),
-      _statusBadge('Stale', '${sections.staleCount}', const Color(0xFFFBBF24)),
-      _statusBadge(
+      _fleetSummaryTile(
+        'Stale',
+        '${sections.staleCount}',
+        detail: 'Feeds aging beyond fresh window',
+        accent: const Color(0xFFFBBF24),
+        key: const ValueKey('dispatch-fleet-summary-tile-stale'),
+      ),
+      _fleetSummaryTile(
         'No Incident',
         '${sections.noIncidentCount}',
-        const Color(0xFF9AB1CF),
+        detail: 'Telemetry without linked incident',
+        accent: const Color(0xFF9AB1CF),
+        key: const ValueKey('dispatch-fleet-summary-tile-no-incident'),
       ),
     ];
   }
 
   Widget _fleetActionButton({
+    Key? key,
     required String label,
     required Color color,
     required VoidCallback onPressed,
   }) {
     return OutlinedButton(
+      key: key,
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         foregroundColor: color,
@@ -2275,6 +4469,97 @@ class _DispatchPageState extends State<DispatchPage> {
         textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
       ),
       child: Text(label),
+    );
+  }
+
+  Widget _fleetSummaryTile(
+    String label,
+    String value, {
+    required String detail,
+    required Color accent,
+    bool isActive = false,
+    VoidCallback? onTap,
+    Key? key,
+  }) {
+    final title = '$label $value';
+    final tile = Container(
+      constraints: const BoxConstraints(minWidth: 150, maxWidth: 188),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: isActive
+            ? accent.withValues(alpha: 0.16)
+            : const Color(0xFF111826),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isActive
+              ? accent.withValues(alpha: 0.6)
+              : accent.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: isActive ? accent : const Color(0xFFEAF4FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ),
+              if (isActive)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: accent.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    'FOCUSED',
+                    style: GoogleFonts.inter(
+                      color: accent,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (onTap == null) {
+      return KeyedSubtree(key: key, child: tile);
+    }
+    return Material(
+      key: key,
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: tile,
+      ),
     );
   }
 
@@ -2406,9 +4691,15 @@ class _DispatchPageState extends State<DispatchPage> {
                     if (!mounted) {
                       return;
                     }
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(message)));
+                    _showDispatchFeedback(
+                      message,
+                      label: 'TEMPORARY ID',
+                      detail:
+                          'The approval extension stays visible in the system rail while the focused watch scope remains selected.',
+                      accent: temporaryIdentityAccentColorForScopes(
+                        widget.fleetScopeHealth,
+                      ),
+                    );
                   },
                   child: Text(
                     'Extend 2h',
@@ -2435,9 +4726,13 @@ class _DispatchPageState extends State<DispatchPage> {
                     if (!mounted) {
                       return;
                     }
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(message)));
+                    _showDispatchFeedback(
+                      message,
+                      label: 'TEMPORARY ID',
+                      detail:
+                          'The approval expiry stays pinned in the system rail while the watch-action focus remains in place.',
+                      accent: const Color(0xFFFCA5A5),
+                    );
                   },
                   child: Text(
                     'Expire now',
@@ -2542,19 +4837,51 @@ class _DispatchPageState extends State<DispatchPage> {
     );
   }
 
-  Widget _panelButton({required String label, required IconData icon}) {
-    return OutlinedButton.icon(
-      onPressed: () => _showSignalSnack(label),
-      icon: Icon(icon, size: 16),
+  Widget _panelButton({
+    required String label,
+    required String detail,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(38),
+        minimumSize: const Size.fromHeight(42),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
         foregroundColor: const Color(0xFF8FD1FF),
         side: const BorderSide(color: Color(0xFF35506F)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
-      label: Text(
-        label,
-        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  detail,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2743,13 +5070,16 @@ class _DispatchPageState extends State<DispatchPage> {
       _dispatches = projected;
       _resolvedFocusReference = focusReference;
       _focusState = focusResolution.state;
-      if (_dispatches.isEmpty) {
+      final visibleDispatches = _visibleDispatches(dispatches: _dispatches);
+      if (_dispatches.isEmpty || visibleDispatches.isEmpty) {
         _selectedDispatchId = null;
       } else if (focusReference.isNotEmpty &&
-          _dispatches.any((dispatch) => dispatch.id == focusReference)) {
+          visibleDispatches.any((dispatch) => dispatch.id == focusReference)) {
         _selectedDispatchId = focusReference;
-      } else if (_dispatches.every((item) => item.id != _selectedDispatchId)) {
-        _selectedDispatchId = _dispatches.first.id;
+      } else if (visibleDispatches.every(
+        (item) => item.id != _selectedDispatchId,
+      )) {
+        _selectedDispatchId = visibleDispatches.first.id;
       }
     }
 
@@ -3353,19 +5683,47 @@ class _DispatchPageState extends State<DispatchPage> {
     return '$hh:$mm';
   }
 
-  void _showSignalSnack(String label) {
+  void _showDispatchFeedback(
+    String message, {
+    String label = 'SYSTEM RAIL',
+    String? detail,
+    Color accent = const Color(0xFF8FD1FF),
+  }) {
+    if (_desktopWorkspaceActive) {
+      setState(() {
+        _commandReceipt = _DispatchCommandReceipt(
+          label: label,
+          headline: message,
+          detail:
+              detail ??
+              'The latest dispatch workflow update stays pinned in the system rail while the mission board remains active.',
+          accent: accent,
+        );
+      });
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: const Color(0xFF0F1419),
         behavior: SnackBarBehavior.floating,
         content: Text(
-          '$label queued',
+          message,
           style: GoogleFonts.inter(
             color: const Color(0xFFEAF4FF),
             fontWeight: FontWeight.w700,
           ),
         ),
       ),
+    );
+  }
+
+  void _showSignalSnack(String label) {
+    _showDispatchFeedback(
+      '$label queued',
+      label: 'MISSION SIGNAL',
+      detail:
+          'The queued mission notice stays visible in the system rail while the selected dispatch board remains in focus.',
+      accent: const Color(0xFFFDE68A),
     );
   }
 }

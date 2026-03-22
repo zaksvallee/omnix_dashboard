@@ -51,7 +51,87 @@ void main() {
 
     expect(find.text('Events & Forensic Timeline'), findsOneWidget);
     expect(find.byKey(const ValueKey('events-overview-grid')), findsOneWidget);
-    expect(find.text('Event Review'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('events-overview-selected-card')),
+      findsOneWidget,
+    );
+    expect(find.text('No case pinned'), findsOneWidget);
+  });
+
+  testWidgets('events page empty state recovers timeline and lane focus', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final olderEventTime = DateTime.now().toUtc().subtract(
+      const Duration(days: 2),
+    );
+    final events = <DispatchEvent>[
+      DecisionCreated(
+        eventId: 'DEC-EMPTY-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: olderEventTime,
+        dispatchId: 'DSP-EMPTY-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 1200)),
+          child: EventsPage(events: events),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('events-empty-state')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('events-empty-detail-recovery')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('events-overview-selected-card')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('events-overview-selected-open-all-time')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('events-overview-selected-open-all-time')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('events-overview-selected-open-all-time')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Event ID DEC-EMPTY-1'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('events-lane-filter-intelligence')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('events-empty-state')), findsOneWidget);
+    expect(
+      find.textContaining('still available outside this lane'),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('events-empty-detail-open-all')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Event ID DEC-EMPTY-1'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('events page ledger action opens helper dialog', (tester) async {
@@ -64,13 +144,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ledger Link Ready'), findsOneWidget);
-    expect(find.textContaining('provenance, evidence continuity'), findsOneWidget);
+    expect(
+      find.textContaining('provenance, evidence continuity'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('events page renders forensic timeline rows', (
-    tester,
-  ) async {
-    final recentBase = DateTime.now().toUtc().subtract(const Duration(hours: 2));
+  testWidgets('events page renders forensic timeline rows', (tester) async {
+    final recentBase = DateTime.now().toUtc().subtract(
+      const Duration(hours: 2),
+    );
     final events = <DispatchEvent>[
       IntelligenceReceived(
         eventId: 'INT-1',
@@ -125,7 +208,14 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(MaterialApp(home: EventsPage(events: events)));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 1200)),
+          child: EventsPage(events: events),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Event Review'), findsOneWidget);
@@ -138,6 +228,207 @@ void main() {
     final rowCard = find.ancestor(of: rowLabel, matching: find.byType(InkWell));
     expect(rowCard, findsWidgets);
     expect(rowLabel, findsOneWidget);
+  });
+
+  testWidgets('events page switches review lanes and linked focus', (
+    tester,
+  ) async {
+    final recentBase = DateTime.now().toUtc().subtract(
+      const Duration(hours: 2),
+    );
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: recentBase,
+        intelligenceId: 'INTEL-001',
+        provider: 'newsapi.org',
+        sourceType: 'news',
+        externalId: 'news-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Armed robbery alert',
+        summary: 'Suspects reported near Sandton gate perimeter.',
+        riskScore: 81,
+        canonicalHash: 'hash-int-1',
+      ),
+      DecisionCreated(
+        eventId: 'DEC-1',
+        sequence: 2,
+        version: 1,
+        occurredAt: recentBase.add(const Duration(minutes: 5)),
+        dispatchId: 'DSP-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+      ),
+      GuardCheckedIn(
+        eventId: 'CHK-1',
+        sequence: 3,
+        version: 1,
+        occurredAt: recentBase.add(const Duration(minutes: 7)),
+        guardId: 'GUARD-001',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+      ),
+      ResponseArrived(
+        eventId: 'ARR-1',
+        sequence: 4,
+        version: 1,
+        occurredAt: recentBase.add(const Duration(minutes: 9)),
+        dispatchId: 'DSP-1',
+        guardId: 'GUARD-001',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+      ),
+    ];
+
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 1200)),
+          child: EventsPage(events: events),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('events-workspace-status-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('events-overview-selected-card')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('events-workspace-banner-open-intelligence')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('events-lane-card-INT-1')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('events-lane-card-ARR-1')), findsNothing);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('events-overview-selected-open-evidence')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('events-overview-selected-open-evidence')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('events-workspace-panel-evidence')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('events-workspace-banner-open-ledger')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ledger Link Ready'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
+
+    final focusRelatedButton = find.byKey(
+      const ValueKey('events-context-focus-related-button'),
+    );
+    await tester.ensureVisible(focusRelatedButton);
+    await tester.pumpAndSettle();
+    await tester.tap(focusRelatedButton);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('events-lane-card-ARR-1')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('events-lane-card-INT-1')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('events-workspace-panel-chain')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('events page context rail recovers chain focus in place', (
+    tester,
+  ) async {
+    final recentBase = DateTime.now().toUtc().subtract(
+      const Duration(hours: 2),
+    );
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-SOLO-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: recentBase,
+        intelligenceId: 'INTEL-SOLO-001',
+        provider: 'newsapi.org',
+        sourceType: 'news',
+        externalId: 'news-solo-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Single forensic lead',
+        summary: 'One isolated lead remains on the board.',
+        riskScore: 77,
+        canonicalHash: 'hash-int-solo-1',
+      ),
+    ];
+
+    await tester.binding.setSurfaceSize(const Size(1440, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 1200)),
+          child: EventsPage(events: events),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('events-context-chain-recovery')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('events-context-chain-review-evidence')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('events-context-chain-review-evidence')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('events-workspace-panel-evidence')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('events-context-chain-open-ledger')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ledger Link Ready'), findsOneWidget);
+    expect(
+      find.textContaining('provenance, evidence continuity'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('events page opens mobile detail drawer without overflow', (
@@ -216,34 +507,35 @@ void main() {
     },
   );
 
-  testWidgets('events page lists legacy report receipts in the forensic timeline', (
-    tester,
-  ) async {
-    final reportEvent = buildTestReportGenerated(
-      eventId: 'RPT-EVT-LEGACY-1',
-      occurredAt: DateTime.now().toUtc().subtract(const Duration(hours: 1)),
-      clientId: 'CLIENT-001',
-      siteId: 'SITE-SANDTON',
-      month: '2026-03',
-      reportSchemaVersion: 1,
-    );
+  testWidgets(
+    'events page lists legacy report receipts in the forensic timeline',
+    (tester) async {
+      final reportEvent = buildTestReportGenerated(
+        eventId: 'RPT-EVT-LEGACY-1',
+        occurredAt: DateTime.now().toUtc().subtract(const Duration(hours: 1)),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        reportSchemaVersion: 1,
+      );
 
-    await tester.binding.setSurfaceSize(const Size(1440, 1200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.binding.setSurfaceSize(const Size(1440, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      MaterialApp(home: EventsPage(events: <DispatchEvent>[reportEvent])),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(home: EventsPage(events: <DispatchEvent>[reportEvent])),
+      );
+      await tester.pumpAndSettle();
 
-    final rowLabel = find.text('Event ID RPT-EVT-LEGACY-1');
-    await tester.scrollUntilVisible(
-      rowLabel,
-      240,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(rowLabel, findsOneWidget);
-  });
+      final rowLabel = find.text('Event ID RPT-EVT-LEGACY-1');
+      await tester.scrollUntilVisible(
+        rowLabel,
+        240,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(rowLabel, findsOneWidget);
+    },
+  );
 
   testWidgets('integrity certificate preview card opens certificate dialog', (
     tester,

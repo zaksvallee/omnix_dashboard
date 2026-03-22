@@ -265,7 +265,11 @@ void main() {
 
       expect(find.text('Client Demo Ready'), findsOneWidget);
 
-      await tester.tap(find.text('Open Reports'));
+      final openReportsButton = find.byKey(
+        const ValueKey('admin-create-success-support-open-reports'),
+      );
+      await tester.ensureVisible(openReportsButton);
+      await tester.tap(openReportsButton);
       await tester.pumpAndSettle();
 
       expect(find.byType(ClientIntelligenceReportsPage), findsOneWidget);
@@ -1487,6 +1491,12 @@ void main() {
         key: const ValueKey('admin-offscope-cross-surface-learn-clients-app'),
         clientId: 'CLIENT-MS-VALLEE',
         siteId: 'WTF-MAIN',
+        initialStoreEventsOverride: <DispatchEvent>[
+          _waterfallDispatchDecision(
+            dispatchId: 'DISP-WTF-LEARN-1',
+            occurredAt: DateTime.utc(2026, 3, 19, 6, 41),
+          ),
+        ],
       );
 
       final reviewButton = find.textContaining(
@@ -1908,5 +1918,21 @@ void main() {
         findsWidgets,
       );
     },
+  );
+}
+
+DecisionCreated _waterfallDispatchDecision({
+  required String dispatchId,
+  required DateTime occurredAt,
+}) {
+  return DecisionCreated(
+    eventId: 'evt-$dispatchId',
+    sequence: 1,
+    version: 1,
+    occurredAt: occurredAt,
+    dispatchId: dispatchId,
+    clientId: 'CLIENT-MS-VALLEE',
+    regionId: 'REGION-GAUTENG',
+    siteId: 'WTF-MAIN',
   );
 }

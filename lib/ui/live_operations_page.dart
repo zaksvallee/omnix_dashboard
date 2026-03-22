@@ -181,6 +181,20 @@ class _LedgerEntry {
   });
 }
 
+class _LiveOpsCommandReceipt {
+  final String label;
+  final String headline;
+  final String detail;
+  final Color accent;
+
+  const _LiveOpsCommandReceipt({
+    required this.label,
+    required this.headline,
+    required this.detail,
+    required this.accent,
+  });
+}
+
 class _GuardVigilance {
   final String callsign;
   final int decayLevel;
@@ -465,6 +479,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     'HARDWARE_FAULT',
   ];
   static bool _queueStateHintSeenThisSession = false;
+  static const _defaultCommandReceipt = _LiveOpsCommandReceipt(
+    label: 'LIVE COMMAND',
+    headline: 'Workspace ready',
+    detail:
+        'Operator feedback, queue actions, and scoped handoffs stay visible in the desktop context rail.',
+    accent: Color(0xFF8FD1FF),
+  );
 
   List<_IncidentRecord> _incidents = const [];
   List<_LedgerEntry> _projectedLedger = const [];
@@ -476,6 +497,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   Set<String> _learnedStyleBusyScopeKeys = <String>{};
   Set<String> _laneVoiceBusyScopeKeys = <String>{};
   final GlobalKey _controlInboxPanelGlobalKey = GlobalKey();
+  final GlobalKey _actionLadderPanelGlobalKey = GlobalKey();
+  final GlobalKey _contextAndVigilancePanelGlobalKey = GlobalKey();
   bool _controlInboxPriorityOnly = false;
   _ControlInboxDraftCueKind? _controlInboxCueOnlyKind;
   late bool _showQueueStateHint;
@@ -483,6 +506,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   String _resolvedFocusReference = '';
   _FocusLinkState _focusLinkState = _FocusLinkState.none;
   _ContextTab _activeTab = _ContextTab.details;
+  String? _focusedVigilanceCallsign;
+  Set<String> _verifiedLedgerEntryIds = <String>{};
+  DateTime? _lastLedgerVerificationAt;
+  _LiveOpsCommandReceipt _commandReceipt = _defaultCommandReceipt;
+  bool _desktopWorkspaceActive = false;
 
   VoidCallback? _openClientLaneAction({
     required String clientId,
@@ -610,7 +638,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   Future<void> _toggleTopBarPriorityFilter() async {
-    if (_controlInboxPriorityOnly && _controlInboxCueOnlyKind == null && mounted) {
+    if (_controlInboxPriorityOnly &&
+        _controlInboxCueOnlyKind == null &&
+        mounted) {
       setState(() {
         _controlInboxPriorityOnly = false;
       });
@@ -667,6 +697,93 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       alignment: 0.04,
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _ensureActionLadderPanelVisible() async {
+    final panelContext = _actionLadderPanelGlobalKey.currentContext;
+    if (panelContext == null) {
+      return;
+    }
+    await Scrollable.ensureVisible(
+      panelContext,
+      alignment: 0.08,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _ensureContextAndVigilancePanelVisible() async {
+    final panelContext = _contextAndVigilancePanelGlobalKey.currentContext;
+    if (panelContext == null) {
+      return;
+    }
+    await Scrollable.ensureVisible(
+      panelContext,
+      alignment: 0.06,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  Future<void> _openPendingActionsRecovery() async {
+    if (_incidents.isNotEmpty) {
+      _focusLeadIncident();
+    }
+    if (mounted) {
+      setState(() {
+        _activeTab = _ContextTab.details;
+        _controlInboxPriorityOnly = false;
+        _controlInboxCueOnlyKind = null;
+      });
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _ensureActionLadderPanelVisible();
+    _showLiveOpsFeedback(
+      'Pending actions recovery opened.',
+      label: 'PENDING ACTIONS',
+      detail:
+          'Live Ops kept the action ladder centered and reset queue-only filters while the control inbox snapshot reconnects.',
+      accent: const Color(0xFFF59E0B),
+    );
+  }
+
+  Future<void> _openClientLaneRecovery(
+    LiveClientCommsSnapshot? snapshot,
+  ) async {
+    _IncidentRecord? linkedIncident;
+    if (snapshot != null) {
+      final clientId = snapshot.clientId.trim();
+      final siteId = snapshot.siteId.trim();
+      for (final incident in _incidents) {
+        if (incident.clientId.trim() == clientId &&
+            incident.siteId.trim() == siteId) {
+          linkedIncident = incident;
+          break;
+        }
+      }
+    }
+    if (linkedIncident != null) {
+      _focusIncidentFromBanner(linkedIncident);
+    } else if (_incidents.isNotEmpty) {
+      _focusLeadIncident();
+    }
+    if (mounted) {
+      setState(() {
+        _activeTab = _ContextTab.voip;
+      });
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _ensureContextAndVigilancePanelVisible();
+    _showLiveOpsFeedback(
+      snapshot == null
+          ? 'Client comms fallback opened in place.'
+          : 'Client lane fallback opened in place.',
+      label: 'ACTIVE LANES',
+      detail: snapshot == null
+          ? 'Live Ops kept the selected incident and VoIP readiness visible while the client lane watch reconnects.'
+          : 'The separate client-lane handoff was unavailable, so the scoped comms posture stayed active in the current workspace.',
+      accent: const Color(0xFF22D3EE),
     );
   }
 
@@ -732,12 +849,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     LiveClientCommsSnapshot snapshot,
   ) {
     final source = (snapshot.latestClientMessage ?? '').trim().toLowerCase();
-    final reply = ((snapshot.latestPendingDraft ?? '').trim().isNotEmpty
-            ? snapshot.latestPendingDraft
-            : snapshot.latestOnyxReply)
-        .toString()
-        .trim()
-        .toLowerCase();
+    final reply =
+        ((snapshot.latestPendingDraft ?? '').trim().isNotEmpty
+                ? snapshot.latestPendingDraft
+                : snapshot.latestOnyxReply)
+            .toString()
+            .trim()
+            .toLowerCase();
     final learnedSignals =
         '${snapshot.clientVoiceProfileLabel.trim().toLowerCase()}\n${snapshot.learnedApprovalStyleExample.trim().toLowerCase()}';
     if (source.contains('eta') || source.contains('arrival')) {
@@ -975,23 +1093,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   ) {
     final sorted = List<LiveControlInboxDraft>.from(drafts);
     sorted.sort((a, b) {
-      final cueCompare = _controlInboxDraftCuePriority(
-        _controlInboxDraftCueKindForSignals(
-          sourceText: a.sourceText,
-          replyText: a.draftText,
-          clientVoiceProfileLabel: a.clientVoiceProfileLabel,
-          usesLearnedApprovalStyle: a.usesLearnedApprovalStyle,
-        ),
-      ).compareTo(
-        _controlInboxDraftCuePriority(
-          _controlInboxDraftCueKindForSignals(
-            sourceText: b.sourceText,
-            replyText: b.draftText,
-            clientVoiceProfileLabel: b.clientVoiceProfileLabel,
-            usesLearnedApprovalStyle: b.usesLearnedApprovalStyle,
-          ),
-        ),
-      );
+      final cueCompare =
+          _controlInboxDraftCuePriority(
+            _controlInboxDraftCueKindForSignals(
+              sourceText: a.sourceText,
+              replyText: a.draftText,
+              clientVoiceProfileLabel: a.clientVoiceProfileLabel,
+              usesLearnedApprovalStyle: a.usesLearnedApprovalStyle,
+            ),
+          ).compareTo(
+            _controlInboxDraftCuePriority(
+              _controlInboxDraftCueKindForSignals(
+                sourceText: b.sourceText,
+                replyText: b.draftText,
+                clientVoiceProfileLabel: b.clientVoiceProfileLabel,
+                usesLearnedApprovalStyle: b.usesLearnedApprovalStyle,
+              ),
+            ),
+          );
       if (cueCompare != 0) {
         return cueCompare;
       }
@@ -1129,10 +1248,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
     final orderedKinds = counts.keys.toList()
       ..sort(
-        (a, b) =>
-            _controlInboxDraftCuePriority(a).compareTo(
-              _controlInboxDraftCuePriority(b),
-            ),
+        (a, b) => _controlInboxDraftCuePriority(
+          a,
+        ).compareTo(_controlInboxDraftCuePriority(b)),
       );
     return orderedKinds
         .map((kind) => (kind, counts[kind] ?? 0))
@@ -1278,17 +1396,42 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 builder: (context, bodyConstraints) {
                   final canUseEmbeddedDesktopLayout =
                       wide && bodyConstraints.maxHeight >= 1040;
-                  return Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1580),
-                      child: canUseEmbeddedDesktopLayout
-                          ? Column(
+                  final ultrawideSurface = isUltrawideLayout(
+                    context,
+                    viewportWidth: bodyConstraints.maxWidth,
+                  );
+                  final widescreenSurface = isWidescreenLayout(
+                    context,
+                    viewportWidth: bodyConstraints.maxWidth,
+                  );
+                  final surfaceMaxWidth = ultrawideSurface
+                      ? bodyConstraints.maxWidth
+                      : widescreenSurface
+                      ? bodyConstraints.maxWidth * 0.94
+                      : 1580.0;
+                  _desktopWorkspaceActive = canUseEmbeddedDesktopLayout;
+                  return OnyxCommandSurface(
+                    compactDesktopWidth: surfaceMaxWidth,
+                    viewportWidth: bodyConstraints.maxWidth,
+                    child: canUseEmbeddedDesktopLayout
+                        ? _desktopWorkspaceShell(
+                            hasScopeFocus: hasScopeFocus,
+                            scopeClientId: scopeClientId,
+                            scopeSiteId: scopeSiteId,
+                            activeIncident: activeIncident,
+                            clientCommsSnapshot: clientCommsSnapshot,
+                            controlInboxSnapshot: controlInboxSnapshot,
+                            ledger: ledger,
+                          )
+                        : SingleChildScrollView(
+                            child: Column(
                               children: [
                                 if (_criticalAlertIncident != null) ...[
                                   _criticalAlertBanner(_criticalAlertIncident!),
                                   const SizedBox(height: 10),
                                 ],
                                 _commandOverviewGrid(
+                                  activeIncident: activeIncident,
                                   clientCommsSnapshot: clientCommsSnapshot,
                                   controlInboxSnapshot: controlInboxSnapshot,
                                 ),
@@ -1316,100 +1459,455 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ),
                                   const SizedBox(height: 10),
                                 ],
-                                Expanded(
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        flex: 3,
-                                        child: _incidentQueuePanel(
-                                          embeddedScroll: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        flex: 5,
-                                        child: _actionLadderPanel(
-                                          activeIncident,
-                                          embeddedScroll: true,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        flex: 4,
-                                        child: _contextAndVigilancePanel(
-                                          activeIncident,
-                                          embeddedScroll: true,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                _incidentQueuePanel(embeddedScroll: false),
+                                const SizedBox(height: 10),
+                                _actionLadderPanel(
+                                  activeIncident,
+                                  embeddedScroll: false,
+                                ),
+                                const SizedBox(height: 10),
+                                _contextAndVigilancePanel(
+                                  activeIncident,
+                                  embeddedScroll: false,
                                 ),
                               ],
-                            )
-                          : SingleChildScrollView(
-                              child: Column(
-                                children: [
-                                  if (_criticalAlertIncident != null) ...[
-                                    _criticalAlertBanner(
-                                      _criticalAlertIncident!,
-                                    ),
-                                    const SizedBox(height: 10),
-                                  ],
-                                  _commandOverviewGrid(
-                                    clientCommsSnapshot: clientCommsSnapshot,
-                                    controlInboxSnapshot: controlInboxSnapshot,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  if (hasScopeFocus) ...[
-                                    _scopeFocusBanner(
-                                      clientId: scopeClientId,
-                                      siteId: scopeSiteId,
-                                    ),
-                                    const SizedBox(height: 10),
-                                  ],
-                                  if (controlInboxSnapshot != null ||
-                                      ledger.isNotEmpty) ...[
-                                    _operationsDecisionDeck(
-                                      controlInboxSnapshot:
-                                          controlInboxSnapshot,
-                                      activeIncident: activeIncident,
-                                      ledger: ledger,
-                                    ),
-                                    const SizedBox(height: 10),
-                                  ],
-                                  if (clientCommsSnapshot != null) ...[
-                                    _clientLaneWatchPanel(
-                                      clientCommsSnapshot,
-                                      activeIncident,
-                                    ),
-                                    const SizedBox(height: 10),
-                                  ],
-                                  _incidentQueuePanel(
-                                    embeddedScroll: false,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _actionLadderPanel(
-                                    activeIncident,
-                                    embeddedScroll: false,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _contextAndVigilancePanel(
-                                    activeIncident,
-                                    embeddedScroll: false,
-                                  ),
-                                ],
-                              ),
                             ),
-                    ),
+                          ),
                   );
                 },
-                ),
               ),
             ),
+          ),
         ],
       ),
+    );
+  }
+
+  Widget _desktopWorkspaceShell({
+    required bool hasScopeFocus,
+    required String scopeClientId,
+    required String scopeSiteId,
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required List<_LedgerEntry> ledger,
+  }) {
+    final criticalAlertIncident = _criticalAlertIncident;
+    final showDecisionDeck = controlInboxSnapshot != null || ledger.isNotEmpty;
+    return Column(
+      children: [
+        _workspaceStatusBanner(
+          hasScopeFocus: hasScopeFocus,
+          scopeClientId: scopeClientId,
+          scopeSiteId: scopeSiteId,
+          activeIncident: activeIncident,
+          clientCommsSnapshot: clientCommsSnapshot,
+          controlInboxSnapshot: controlInboxSnapshot,
+          criticalAlertIncident: criticalAlertIncident,
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: _workspaceShellColumn(
+                  key: const ValueKey('live-operations-workspace-panel-rail'),
+                  title: 'Operations Rail',
+                  subtitle:
+                      'Incident selection, scope posture, and live command counts stay pinned on the left.',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (criticalAlertIncident != null) ...[
+                        _criticalAlertBanner(criticalAlertIncident),
+                        const SizedBox(height: 10),
+                      ],
+                      if (hasScopeFocus) ...[
+                        _scopeFocusBanner(
+                          clientId: scopeClientId,
+                          siteId: scopeSiteId,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      _commandOverviewGrid(
+                        activeIncident: activeIncident,
+                        clientCommsSnapshot: clientCommsSnapshot,
+                        controlInboxSnapshot: controlInboxSnapshot,
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: _incidentQueuePanel(embeddedScroll: true),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 5,
+                child: _workspaceShellColumn(
+                  key: const ValueKey('live-operations-workspace-panel-board'),
+                  title: 'Active Board',
+                  subtitle:
+                      'The selected incident, execution ladder, and operator decision queue stay centered.',
+                  child: Column(
+                    children: [
+                      Expanded(
+                        flex: showDecisionDeck ? 5 : 1,
+                        child: _actionLadderPanel(
+                          activeIncident,
+                          embeddedScroll: true,
+                        ),
+                      ),
+                      if (showDecisionDeck) ...[
+                        const SizedBox(height: 10),
+                        Expanded(
+                          flex: 4,
+                          child: _operationsDecisionDeck(
+                            controlInboxSnapshot: controlInboxSnapshot,
+                            activeIncident: activeIncident,
+                            ledger: ledger,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                flex: 4,
+                child: _workspaceShellColumn(
+                  key: const ValueKey(
+                    'live-operations-workspace-panel-context',
+                  ),
+                  title: 'Context Rail',
+                  subtitle:
+                      'Context tabs, vigilance, and client-lane delivery posture stay visible.',
+                  child: Column(
+                    children: [
+                      if (clientCommsSnapshot != null) ...[
+                        _clientLaneWatchPanel(
+                          clientCommsSnapshot,
+                          activeIncident,
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      _liveOpsCommandReceiptCard(),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: _contextAndVigilancePanel(
+                          activeIncident,
+                          embeddedScroll: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _workspaceStatusBanner({
+    required bool hasScopeFocus,
+    required String scopeClientId,
+    required String scopeSiteId,
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required _IncidentRecord? criticalAlertIncident,
+  }) {
+    final queueLabel = _controlInboxTopBarQueueStateLabel();
+    final contextLabel = _tabLabel(_activeTab);
+    final scopeLabel = hasScopeFocus
+        ? scopeSiteId.isEmpty
+              ? '$scopeClientId/all sites'
+              : '$scopeClientId/$scopeSiteId'
+        : 'Global operations focus';
+    final openClientLaneAction = clientCommsSnapshot == null
+        ? null
+        : _openClientLaneAction(
+            clientId: clientCommsSnapshot.clientId,
+            siteId: clientCommsSnapshot.siteId,
+          );
+    final queueFilterActive =
+        _controlInboxPriorityOnly || _controlInboxCueOnlyKind != null;
+    return Container(
+      key: const ValueKey('live-operations-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF101D30), Color(0xFF162740)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFF26405C)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x22000000), blurRadius: 18, spreadRadius: 1),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0x1A22D3EE),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x3322D3EE)),
+                ),
+                child: const Icon(
+                  Icons.hub_rounded,
+                  color: Color(0xFF8FD1FF),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'LIVE OPERATIONS WORKSPACE',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FAFD4),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      activeIncident == null
+                          ? 'No incident is selected. The rail can pin the lead lane back into the board.'
+                          : '${activeIncident.id} is active in the board while $queueLabel and $contextLabel context stay available without leaving the page.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$scopeLabel • ${_incidents.length} live lane${_incidents.length == 1 ? '' : 's'} in view',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB4C8E1),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                key: const ValueKey('live-operations-workspace-focus-lead'),
+                label: activeIncident == null
+                    ? 'Focus lead lane'
+                    : activeIncident.id,
+                foreground: const Color(0xFFEAF4FF),
+                background: const Color(0x1A22D3EE),
+                border: const Color(0x5522D3EE),
+                leadingIcon: Icons.center_focus_strong_rounded,
+                onTap: _incidents.isEmpty ? null : _focusLeadIncident,
+              ),
+              if (criticalAlertIncident != null)
+                _chip(
+                  key: const ValueKey(
+                    'live-operations-workspace-focus-critical',
+                  ),
+                  label: 'Focus critical',
+                  foreground: const Color(0xFFFFD6D6),
+                  background: const Color(0x1AEF4444),
+                  border: const Color(0x66EF4444),
+                  leadingIcon: Icons.warning_amber_rounded,
+                  onTap: () => _focusIncidentFromBanner(criticalAlertIncident),
+                ),
+              if (controlInboxSnapshot != null)
+                _chip(
+                  key: const ValueKey('live-operations-workspace-toggle-queue'),
+                  label: queueFilterActive ? 'Show all replies' : queueLabel,
+                  foreground: const Color(0xFFFFE4B5),
+                  background: const Color(0x1AF59E0B),
+                  border: const Color(0x66F59E0B),
+                  leadingIcon: Icons.schedule_rounded,
+                  onTap: queueFilterActive
+                      ? _clearControlInboxPriorityOnly
+                      : _toggleControlInboxPriorityOnly,
+                ),
+              _workspaceContextChip(_ContextTab.details),
+              _workspaceContextChip(_ContextTab.voip),
+              _workspaceContextChip(_ContextTab.visual),
+              if (openClientLaneAction != null)
+                _chip(
+                  key: const ValueKey(
+                    'live-operations-workspace-open-client-lane',
+                  ),
+                  label: 'Open client lane',
+                  foreground: const Color(0xFFDCF5FF),
+                  background: const Color(0x1422D3EE),
+                  border: const Color(0x553FAEEB),
+                  leadingIcon: Icons.open_in_new_rounded,
+                  onTap: openClientLaneAction,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _liveOpsCommandReceiptCard() {
+    final receipt = _commandReceipt;
+    return Container(
+      key: const ValueKey('live-operations-command-receipt'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1724),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LATEST COMMAND',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FAFD4),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: receipt.accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: receipt.accent.withValues(alpha: 0.45)),
+            ),
+            child: Text(
+              receipt.label,
+              style: GoogleFonts.inter(
+                color: receipt.accent,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            receipt.headline,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            receipt.detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFB4C8E1),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceContextChip(_ContextTab tab) {
+    final selected = _activeTab == tab;
+    return _chip(
+      key: ValueKey('live-operations-workspace-tab-${tab.name}'),
+      label: _tabLabel(tab),
+      foreground: selected ? const Color(0xFFEAF4FF) : const Color(0xFF9AB1CF),
+      background: selected ? const Color(0x3322D3EE) : const Color(0x14000000),
+      border: selected ? const Color(0x6622D3EE) : const Color(0xFF35506F),
+      leadingIcon: switch (tab) {
+        _ContextTab.details => Icons.article_outlined,
+        _ContextTab.voip => Icons.call_rounded,
+        _ContextTab.visual => Icons.videocam_outlined,
+      },
+      onTap: () {
+        setState(() {
+          _activeTab = tab;
+        });
+      },
+    );
+  }
+
+  Widget _workspaceShellColumn({
+    required Key key,
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boundedHeight =
+            constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
+        return Container(
+          key: key,
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            color: const Color(0xFF0B1523),
+            border: Border.all(color: const Color(0xFF203448)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF6C87AD),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF96AECD),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (boundedHeight) Expanded(child: child) else child,
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -1427,10 +1925,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       builder: (context, constraints) {
         final stack = constraints.maxWidth < 1180;
         final inboxPanel = hasInbox
-            ? _controlInboxPanel(
-                controlInboxSnapshot,
-                compactPreview: !stack,
-              )
+            ? _controlInboxPanel(controlInboxSnapshot, compactPreview: !stack)
             : const SizedBox.shrink();
         final ledgerPanel = hasLedger
             ? _ledgerPanel(ledger, embeddedScroll: false)
@@ -1443,11 +1938,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         }
         if (stack) {
           return Column(
-            children: [
-              inboxPanel,
-              const SizedBox(height: 10),
-              ledgerPanel,
-            ],
+            children: [inboxPanel, const SizedBox(height: 10), ledgerPanel],
           );
         }
         return Row(
@@ -1472,11 +1963,39 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return null;
   }
 
+  void _showLiveOpsFeedback(
+    String message, {
+    String label = 'LIVE COMMAND',
+    String? detail,
+    Color accent = const Color(0xFF8FD1FF),
+  }) {
+    if (_desktopWorkspaceActive && mounted) {
+      setState(() {
+        _commandReceipt = _LiveOpsCommandReceipt(
+          label: label,
+          headline: message,
+          detail:
+              detail ??
+              'The latest live-operations action stays pinned in the context rail while the active incident remains in focus.',
+          accent: accent,
+        );
+      });
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
   int _visibleControlInboxDraftCount(LiveControlInboxSnapshot? snapshot) {
     if (snapshot == null) {
       return 0;
     }
-    final sortedPendingDrafts = _sortedControlInboxDrafts(snapshot.pendingDrafts);
+    final sortedPendingDrafts = _sortedControlInboxDrafts(
+      snapshot.pendingDrafts,
+    );
     if (_controlInboxCueOnlyKind != null) {
       return sortedPendingDrafts.where((draft) {
         final kind = _controlInboxDraftCueKindForSignals(
@@ -1521,6 +2040,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       liveSites.add(snapshotSiteId);
     }
     return liveSites.length;
+  }
+
+  void _focusLeadIncident() {
+    if (_incidents.isEmpty) {
+      return;
+    }
+    final leadIncident = _criticalAlertIncident ?? _incidents.first;
+    if (_activeIncidentId == leadIncident.id) {
+      return;
+    }
+    setState(() {
+      _activeIncidentId = leadIncident.id;
+    });
   }
 
   void _focusIncidentFromBanner(_IncidentRecord incident) {
@@ -1679,6 +2211,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   Widget _commandOverviewGrid({
+    required _IncidentRecord? activeIncident,
     required LiveClientCommsSnapshot? clientCommsSnapshot,
     required LiveControlInboxSnapshot? controlInboxSnapshot,
   }) {
@@ -1698,15 +2231,31 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         : _controlInboxPriorityDraftCount(
             _sortedControlInboxDrafts(controlInboxSnapshot.pendingDrafts),
           );
+    final leadIncident =
+        _criticalAlertIncident ??
+        (_incidents.isEmpty ? null : _incidents.first);
+    final queueFilterActive =
+        _controlInboxPriorityOnly || _controlInboxCueOnlyKind != null;
+    final openClientLaneAction = clientCommsSnapshot == null
+        ? null
+        : _openClientLaneAction(
+            clientId: clientCommsSnapshot.clientId,
+            siteId: clientCommsSnapshot.siteId,
+          );
+    final clientLaneOverviewAction =
+        openClientLaneAction ??
+        () {
+          _openClientLaneRecovery(clientCommsSnapshot);
+        };
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final columnCount = constraints.maxWidth < 940 ? 2 : 4;
         final childAspectRatio = constraints.maxWidth < 520
-            ? 0.82
+            ? 0.64
             : constraints.maxWidth < 940
-            ? 1.12
-            : 1.5;
+            ? 1.02
+            : 1.42;
         return GridView.count(
           key: const ValueKey('live-operations-command-overview'),
           crossAxisCount: columnCount,
@@ -1717,6 +2266,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           physics: const NeverScrollableScrollPhysics(),
           children: [
             _commandOverviewCard(
+              key: const ValueKey(
+                'live-operations-command-card-active-incidents',
+              ),
               icon: Icons.graphic_eq_rounded,
               iconAccent: const Color(0xFFEF4444),
               statusLabel: 'Live',
@@ -1728,25 +2280,68 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   : 'No cleared incidents yet',
               footnoteIcon: Icons.trending_up_rounded,
               footnoteAccent: const Color(0xFF34D399),
+              actionLabel: _incidents.isEmpty
+                  ? 'No live lane'
+                  : activeIncident == null
+                  ? 'Pin lead lane'
+                  : 'Refocus lead lane',
+              actionIcon: Icons.center_focus_strong_rounded,
+              selected:
+                  activeIncident != null &&
+                  leadIncident != null &&
+                  _activeIncidentId == leadIncident.id,
+              onTap: _incidents.isEmpty ? null : _focusLeadIncident,
             ),
             _commandOverviewCard(
+              key: const ValueKey(
+                'live-operations-command-card-pending-actions',
+              ),
               icon: Icons.schedule_rounded,
               iconAccent: const Color(0xFFF59E0B),
               statusLabel: 'Queue',
               statusAccent: const Color(0xFFF59E0B),
               value: '$pendingActionCount',
               title: 'Pending Actions',
-              footnote: highPriorityCount > 0
+              footnote: controlInboxSnapshot == null
+                  ? 'Control inbox sync offline'
+                  : highPriorityCount > 0
                   ? '$highPriorityCount high priority'
                   : 'All queues clear',
-              footnoteIcon: highPriorityCount > 0
+              footnoteIcon: controlInboxSnapshot == null
+                  ? Icons.cloud_off_rounded
+                  : highPriorityCount > 0
                   ? Icons.priority_high_rounded
                   : Icons.check_circle_rounded,
-              footnoteAccent: highPriorityCount > 0
+              footnoteAccent: controlInboxSnapshot == null
+                  ? const Color(0xFF9AB1CF)
+                  : highPriorityCount > 0
                   ? const Color(0xFFF87171)
                   : const Color(0xFF34D399),
+              actionLabel: controlInboxSnapshot == null
+                  ? 'Open action board'
+                  : queueFilterActive
+                  ? 'Show full queue'
+                  : 'Open priority queue',
+              actionIcon: controlInboxSnapshot == null
+                  ? Icons.alt_route_rounded
+                  : queueFilterActive
+                  ? Icons.unfold_more_rounded
+                  : Icons.playlist_add_check_circle_rounded,
+              selected: queueFilterActive,
+              onTap: controlInboxSnapshot == null
+                  ? () {
+                      _openPendingActionsRecovery();
+                    }
+                  : () {
+                      if (queueFilterActive) {
+                        _clearControlInboxPriorityOnly();
+                        return;
+                      }
+                      _jumpToControlInboxPanel();
+                    },
             ),
             _commandOverviewCard(
+              key: const ValueKey('live-operations-command-card-active-lanes'),
               icon: Icons.chat_bubble_outline_rounded,
               iconAccent: const Color(0xFF22D3EE),
               statusLabel: activeLaneCount > 0 ? 'Ready' : 'Idle',
@@ -1766,8 +2361,28 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   : _telegramHealthAccent(
                       clientCommsSnapshot.telegramHealthLabel,
                     ),
+              actionLabel: openClientLaneAction == null
+                  ? clientCommsSnapshot == null
+                        ? 'Open comms fallback'
+                        : 'Open in-page lane watch'
+                  : 'Open client lane',
+              actionIcon: openClientLaneAction == null
+                  ? Icons.route_rounded
+                  : Icons.open_in_new_rounded,
+              selected: openClientLaneAction == null
+                  ? _activeTab == _ContextTab.voip
+                  : clientCommsSnapshot != null &&
+                        activeIncident != null &&
+                        activeIncident.clientId.trim() ==
+                            clientCommsSnapshot.clientId.trim() &&
+                        activeIncident.siteId.trim() ==
+                            clientCommsSnapshot.siteId.trim(),
+              onTap: clientLaneOverviewAction,
             ),
             _commandOverviewCard(
+              key: const ValueKey(
+                'live-operations-command-card-sites-under-watch',
+              ),
               icon: Icons.visibility_rounded,
               iconAccent: const Color(0xFF10B981),
               statusLabel: watchCount > 0 ? 'Active' : 'Idle',
@@ -1781,6 +2396,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               footnoteAccent: watchCount > 0
                   ? const Color(0xFF34D399)
                   : const Color(0xFF9AB1CF),
+              actionLabel: watchCount > 0
+                  ? 'Open visual context'
+                  : 'Visual idle',
+              actionIcon: Icons.videocam_outlined,
+              selected: _activeTab == _ContextTab.visual,
+              onTap: watchCount == 0
+                  ? null
+                  : () {
+                      if ((_activeIncidentId ?? '').isEmpty &&
+                          _incidents.isNotEmpty) {
+                        _focusLeadIncident();
+                      }
+                      setState(() {
+                        _activeTab = _ContextTab.visual;
+                      });
+                    },
             ),
           ],
         );
@@ -1789,6 +2420,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   Widget _commandOverviewCard({
+    Key? key,
     required IconData icon,
     required Color iconAccent,
     required String statusLabel,
@@ -1798,92 +2430,153 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required String footnote,
     required IconData footnoteIcon,
     required Color footnoteAccent,
+    required String actionLabel,
+    required IconData actionIcon,
+    bool selected = false,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+    final interactive = onTap != null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: key,
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF21262D)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF101A28) : const Color(0xFF0D1117),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected
+                  ? iconAccent.withValues(alpha: 0.56)
+                  : interactive
+                  ? const Color(0xFF263342)
+                  : const Color(0xFF21262D),
+            ),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: iconAccent.withValues(alpha: 0.12),
+                      blurRadius: 18,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  color: iconAccent.withValues(alpha: 0.14),
-                  border: Border.all(color: iconAccent.withValues(alpha: 0.32)),
-                ),
-                child: Icon(icon, size: 20, color: iconAccent),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      color: iconAccent.withValues(alpha: 0.14),
+                      border: Border.all(
+                        color: iconAccent.withValues(alpha: 0.32),
+                      ),
+                    ),
+                    child: Icon(icon, size: 20, color: iconAccent),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusAccent.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      statusLabel.toUpperCase(),
+                      style: GoogleFonts.inter(
+                        color: statusAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.9,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusAccent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
+              Text(
+                value,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFF8FBFF),
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  height: 0.95,
                 ),
-                child: Text(
-                  statusLabel.toUpperCase(),
-                  style: GoogleFonts.inter(
-                    color: statusAccent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.9,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title.toUpperCase(),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFB4BDC9),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.9,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(height: 1, color: const Color(0x14FFFFFF)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(footnoteIcon, size: 14, color: footnoteAccent),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      footnote,
+                      style: GoogleFonts.inter(
+                        color: footnoteAccent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(
+                    actionIcon,
+                    size: 14,
+                    color: interactive ? iconAccent : const Color(0xFF5B6F87),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      actionLabel,
+                      style: GoogleFonts.inter(
+                        color: interactive
+                            ? const Color(0xFFE5EFFC)
+                            : const Color(0xFF7E91AA),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: interactive
+                        ? const Color(0xFF9AB9DB)
+                        : const Color(0xFF516173),
+                  ),
+                ],
               ),
             ],
           ),
-          const Spacer(),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFF8FBFF),
-              fontSize: 30,
-              fontWeight: FontWeight.w900,
-              height: 0.95,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title.toUpperCase(),
-            style: GoogleFonts.inter(
-              color: const Color(0xFFB4BDC9),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.9,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            height: 1,
-            color: const Color(0x14FFFFFF),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Icon(footnoteIcon, size: 14, color: footnoteAccent),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  footnote,
-                  style: GoogleFonts.inter(
-                    color: footnoteAccent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1897,7 +2590,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final sortedInboxDrafts = controlInboxSnapshot == null
         ? const <LiveControlInboxDraft>[]
         : _sortedControlInboxDrafts(controlInboxSnapshot.pendingDrafts);
-    final priorityDraftCount = _controlInboxPriorityDraftCount(sortedInboxDrafts);
+    final priorityDraftCount = _controlInboxPriorityDraftCount(
+      sortedInboxDrafts,
+    );
     final filteredReplyCount = _controlInboxCueOnlyKind == null
         ? (_controlInboxPriorityOnly ? priorityDraftCount : 0)
         : _controlInboxCueKindCount(
@@ -2019,7 +2714,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   _chip(
                     key: const ValueKey('top-bar-cue-filter-chip'),
                     label: _controlInboxTopBarFilterLabel(filteredCueKind),
-                    foreground: _controlInboxDraftCueChipAccent(filteredCueKind),
+                    foreground: _controlInboxDraftCueChipAccent(
+                      filteredCueKind,
+                    ),
                     background: _controlInboxDraftCueChipAccent(
                       filteredCueKind,
                     ).withValues(alpha: 0.2),
@@ -2183,8 +2880,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           if (hasFocusReference) ...[
             const SizedBox(width: 8),
             _chip(
-              label:
-                  'Focus ${_focusStateLabel(focusState)}: $focusReference',
+              label: 'Focus ${_focusStateLabel(focusState)}: $focusReference',
               foreground: _focusStateForeground(focusState),
               background: _focusStateBackground(focusState),
               border: _focusStateBorder(focusState),
@@ -2591,7 +3287,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final laneVoiceBusy = _laneVoiceBusyScopeKeys.contains(
       _scopeBusyKey(snapshot.selectedClientId, snapshot.selectedSiteId),
     );
-    final sortedPendingDrafts = _sortedControlInboxDrafts(snapshot.pendingDrafts);
+    final sortedPendingDrafts = _sortedControlInboxDrafts(
+      snapshot.pendingDrafts,
+    );
     final priorityDraftCount = _controlInboxPriorityDraftCount(
       sortedPendingDrafts,
     );
@@ -2599,27 +3297,33 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       sortedPendingDrafts,
     );
     final displayedPendingDrafts = _controlInboxCueOnlyKind != null
-        ? sortedPendingDrafts.where((draft) {
-            final kind = _controlInboxDraftCueKindForSignals(
-              sourceText: draft.sourceText,
-              replyText: draft.draftText,
-              clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
-              usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
-            );
-            return kind == _controlInboxCueOnlyKind;
-          }).toList(growable: false)
+        ? sortedPendingDrafts
+              .where((draft) {
+                final kind = _controlInboxDraftCueKindForSignals(
+                  sourceText: draft.sourceText,
+                  replyText: draft.draftText,
+                  clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+                  usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+                );
+                return kind == _controlInboxCueOnlyKind;
+              })
+              .toList(growable: false)
         : _controlInboxPriorityOnly
-        ? sortedPendingDrafts.where((draft) {
-            final kind = _controlInboxDraftCueKindForSignals(
-              sourceText: draft.sourceText,
-              replyText: draft.draftText,
-              clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
-              usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
-            );
-            return _isControlInboxPriorityCueKind(kind);
-          }).toList(growable: false)
+        ? sortedPendingDrafts
+              .where((draft) {
+                final kind = _controlInboxDraftCueKindForSignals(
+                  sourceText: draft.sourceText,
+                  replyText: draft.draftText,
+                  clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
+                  usesLearnedApprovalStyle: draft.usesLearnedApprovalStyle,
+                );
+                return _isControlInboxPriorityCueKind(kind);
+              })
+              .toList(growable: false)
         : sortedPendingDrafts;
-    final cueSummaryItems = _controlInboxCueSummaryItems(displayedPendingDrafts);
+    final cueSummaryItems = _controlInboxCueSummaryItems(
+      displayedPendingDrafts,
+    );
     final cueSummaryText = _controlInboxCueSummaryText(displayedPendingDrafts);
     final accent = _controlInboxAccent(snapshot);
     final visiblePendingDrafts = compactPreview
@@ -2656,233 +3360,188 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: accent.withValues(alpha: 0.34)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: accent.withValues(alpha: 0.34)),
+                  ),
+                  child: Icon(Icons.inbox_rounded, size: 18, color: accent),
                 ),
-                child: Icon(Icons.inbox_rounded, size: 18, color: accent),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          'CONTROL INBOX',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FAFD4),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.0,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'CONTROL INBOX',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF8FAFD4),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.0,
+                            ),
                           ),
-                        ),
-                        if (priorityDraftCount > 0) ...[
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              key: const ValueKey(
-                                'control-inbox-priority-badge',
-                              ),
-                              borderRadius: BorderRadius.circular(999),
-                              onTap: _toggleControlInboxPriorityOnly,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                          if (priorityDraftCount > 0) ...[
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                key: const ValueKey(
+                                  'control-inbox-priority-badge',
                                 ),
-                                decoration: BoxDecoration(
-                                  color: _controlInboxPriorityOnly
-                                      ? const Color(0x44F59E0B)
-                                      : const Color(0x33F59E0B),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
+                                borderRadius: BorderRadius.circular(999),
+                                onTap: _toggleControlInboxPriorityOnly,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
                                     color: _controlInboxPriorityOnly
-                                        ? const Color(0x99F59E0B)
-                                        : const Color(0x66F59E0B),
+                                        ? const Color(0x44F59E0B)
+                                        : const Color(0x33F59E0B),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color: _controlInboxPriorityOnly
+                                          ? const Color(0x99F59E0B)
+                                          : const Color(0x66F59E0B),
+                                    ),
                                   ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.priority_high_rounded,
-                                      size: 12,
-                                      color: Color(0xFFF59E0B),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      hasSensitivePriorityDraft
-                                          ? (priorityDraftCount == 1
-                                                ? 'Sensitive 1'
-                                                : 'Sensitive $priorityDraftCount')
-                                          : (priorityDraftCount == 1
-                                                ? 'High priority 1'
-                                                : 'High priority $priorityDraftCount'),
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFFFE1A8),
-                                        fontSize: 9.6,
-                                        fontWeight: FontWeight.w800,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.priority_high_rounded,
+                                        size: 12,
+                                        color: Color(0xFFF59E0B),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        hasSensitivePriorityDraft
+                                            ? (priorityDraftCount == 1
+                                                  ? 'Sensitive 1'
+                                                  : 'Sensitive $priorityDraftCount')
+                                            : (priorityDraftCount == 1
+                                                  ? 'High priority 1'
+                                                  : 'High priority $priorityDraftCount'),
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFFFFE1A8),
+                                          fontSize: 9.6,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                        if (_controlInboxPriorityOnly ||
-                            _controlInboxCueOnlyKind != null) ...[
-                          Container(
-                            key: const ValueKey('control-inbox-filtered-chip'),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0x334B6B8F),
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(
-                                color: const Color(0x664B6B8F),
+                          ],
+                          if (_controlInboxPriorityOnly ||
+                              _controlInboxCueOnlyKind != null) ...[
+                            Container(
+                              key: const ValueKey(
+                                'control-inbox-filtered-chip',
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0x334B6B8F),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: const Color(0x664B6B8F),
+                                ),
+                              ),
+                              child: Text(
+                                'Filtered ${displayedPendingDrafts.length}',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFEAF4FF),
+                                  fontSize: 9.6,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
-                            child: Text(
-                              'Filtered ${displayedPendingDrafts.length}',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFEAF4FF),
-                                fontSize: 9.6,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ],
-                        Tooltip(
-                          message: _controlInboxQueueStateTooltip(),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              key: const ValueKey('control-inbox-queue-state-chip'),
-                              borderRadius: BorderRadius.circular(999),
-                              onTap: _cycleControlInboxQueueStateChip,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                          ],
+                          Tooltip(
+                            message: _controlInboxQueueStateTooltip(),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                key: const ValueKey(
+                                  'control-inbox-queue-state-chip',
                                 ),
-                                decoration: BoxDecoration(
-                                  color: _controlInboxTopBarQueueStateBackground(
-                                    hasSensitivePriorityDraft,
+                                borderRadius: BorderRadius.circular(999),
+                                onTap: _cycleControlInboxQueueStateChip,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
                                   ),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: _controlInboxTopBarQueueStateBorder(
-                                      hasSensitivePriorityDraft,
-                                    ),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      _controlInboxTopBarQueueStateIcon(
-                                        hasSensitivePriorityDraft,
-                                      ),
-                                      size: 12,
-                                      color: _controlInboxTopBarQueueStateForeground(
-                                        hasSensitivePriorityDraft,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      _controlInboxTopBarQueueStateLabel(),
-                                      style: GoogleFonts.inter(
-                                        color: _controlInboxTopBarQueueStateForeground(
+                                  decoration: BoxDecoration(
+                                    color:
+                                        _controlInboxTopBarQueueStateBackground(
                                           hasSensitivePriorityDraft,
                                         ),
-                                        fontSize: 9.6,
-                                        fontWeight: FontWeight.w800,
-                                      ),
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(
+                                      color:
+                                          _controlInboxTopBarQueueStateBorder(
+                                            hasSensitivePriorityDraft,
+                                          ),
                                     ),
-                                  ],
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _controlInboxTopBarQueueStateIcon(
+                                          hasSensitivePriorityDraft,
+                                        ),
+                                        size: 12,
+                                        color:
+                                            _controlInboxTopBarQueueStateForeground(
+                                              hasSensitivePriorityDraft,
+                                            ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _controlInboxTopBarQueueStateLabel(),
+                                        style: GoogleFonts.inter(
+                                          color:
+                                              _controlInboxTopBarQueueStateForeground(
+                                                hasSensitivePriorityDraft,
+                                              ),
+                                          fontSize: 9.6,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                        if (!_showQueueStateHint)
-                          TextButton(
-                            key: const ValueKey('control-inbox-show-queue-hint'),
-                            onPressed: () {
-                              setState(() {
-                                _restoreQueueStateHint();
-                              });
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFFBAE6FD),
-                              padding: EdgeInsets.zero,
-                              minimumSize: const Size(0, 0),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              'Show tip again',
-                              style: GoogleFonts.inter(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (_showQueueStateHint) ...[
-                      const SizedBox(height: 8),
-                      Container(
-                        key: const ValueKey('control-inbox-queue-hint'),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0x1438BDF8),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0x5538BDF8)),
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 1),
-                              child: Icon(
-                                Icons.lightbulb_outline_rounded,
-                                size: 14,
-                                color: Color(0xFF7DD3FC),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Tip: tap the queue chip to move between full and high-priority views. Long press it for a quick explanation of the current mode.',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFD9F4FF),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.32,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
+                          if (!_showQueueStateHint)
                             TextButton(
-                              onPressed: _dismissQueueStateHint,
+                              key: const ValueKey(
+                                'control-inbox-show-queue-hint',
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _restoreQueueStateHint();
+                                });
+                              },
                               style: TextButton.styleFrom(
                                 foregroundColor: const Color(0xFFBAE6FD),
                                 padding: EdgeInsets.zero,
@@ -2890,348 +3549,415 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                               ),
                               child: Text(
-                                'Hide tip',
+                                'Show tip again',
                                 style: GoogleFonts.inter(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                        ],
                       ),
-                    ],
-                    const SizedBox(height: 3),
-                    Text(
-                      snapshot.pendingApprovalCount > 0
-                          ? '${snapshot.pendingApprovalCount} client repl${snapshot.pendingApprovalCount == 1 ? 'y' : 'ies'} waiting for operator judgement'
-                          : snapshot.awaitingResponseCount > 0
-                          ? '${snapshot.awaitingResponseCount} live client ask${snapshot.awaitingResponseCount == 1 ? '' : 's'} waiting for response shaping'
-                          : 'No client replies are waiting for approval',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '$selectedScopeLabel • $selectedScopeNarrative',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFB8CCE5),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_openClientLaneAction(
-                    clientId: snapshot.selectedClientId,
-                    siteId: snapshot.selectedSiteId,
-                  ) !=
-                  null) ...[
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  onPressed: _openClientLaneAction(
-                    clientId: snapshot.selectedClientId,
-                    siteId: snapshot.selectedSiteId,
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFEAF4FF),
-                    side: BorderSide(color: accent.withValues(alpha: 0.52)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    minimumSize: const Size(0, 34),
-                  ),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 15),
-                  label: Text(
-                    'Open Client Lane',
-                    style: GoogleFonts.inter(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _commsChip(
-                icon: Icons.verified_user_rounded,
-                label: '${snapshot.pendingApprovalCount} waiting',
-                accent: snapshot.pendingApprovalCount > 0
-                    ? const Color(0xFFF59E0B)
-                    : const Color(0xFF34D399),
-              ),
-              _commsChip(
-                icon: Icons.mark_chat_unread_rounded,
-                label: '${snapshot.awaitingResponseCount} live ask',
-                accent: snapshot.awaitingResponseCount > 0
-                    ? const Color(0xFF22D3EE)
-                    : const Color(0xFF4B6B8F),
-              ),
-              _commsChip(
-                icon: Icons.pin_drop_rounded,
-                label:
-                    '$selectedScopeLabel • ${snapshot.selectedScopePendingCount}',
-                accent: snapshot.selectedScopePendingCount > 0
-                    ? accent
-                    : const Color(0xFF4B6B8F),
-              ),
-              _commsChip(
-                icon: Icons.tune_rounded,
-                label:
-                    'Lane voice ${snapshot.selectedScopeClientVoiceProfileLabel}',
-                accent: const Color(0xFF4B6B8F),
-              ),
-              _commsChip(
-                icon: Icons.telegram_rounded,
-                label: 'Telegram ${snapshot.telegramHealthLabel.toUpperCase()}',
-                accent: _telegramHealthAccent(snapshot.telegramHealthLabel),
-              ),
-              if (snapshot.telegramFallbackActive)
-                _commsChip(
-                  icon: Icons.swap_horiz_rounded,
-                  label: 'Fallback active',
-                  accent: const Color(0xFFF97316),
-                ),
-            ],
-          ),
-          if (cueSummaryItems.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Semantics(
-              label: cueSummaryText,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Queue shape',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFA9BFD9),
-                      fontSize: 10.2,
-                      fontWeight: FontWeight.w700,
-                      height: 1.28,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final item in cueSummaryItems)
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            key: ValueKey(
-                              'control-inbox-summary-pill-${_controlInboxCueSummaryLabel(item.$1)}',
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                            onTap: () => _toggleControlInboxCueOnlyKind(item.$1),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 5,
+                      if (_showQueueStateHint) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          key: const ValueKey('control-inbox-queue-hint'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0x1438BDF8),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0x5538BDF8)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 1),
+                                child: Icon(
+                                  Icons.lightbulb_outline_rounded,
+                                  size: 14,
+                                  color: Color(0xFF7DD3FC),
+                                ),
                               ),
-                              decoration: BoxDecoration(
-                                color: (_controlInboxCueOnlyKind == item.$1
-                                        ? _controlInboxDraftCueChipAccent(item.$1)
-                                        : _controlInboxDraftCueChipAccent(item.$1)
-                                    )
-                                    .withValues(
-                                      alpha: _controlInboxCueOnlyKind == item.$1
-                                          ? 0.26
-                                          : 0.16,
-                                    ),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: _controlInboxDraftCueChipAccent(
-                                    item.$1,
-                                  ).withValues(
-                                    alpha: _controlInboxCueOnlyKind == item.$1
-                                        ? 0.74
-                                        : 0.48,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Tip: tap the queue chip to move between full and high-priority views. Long press it for a quick explanation of the current mode.',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFD9F4FF),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.32,
                                   ),
                                 ),
                               ),
-                              child: Text(
-                                '${item.$2} ${_controlInboxCueSummaryLabel(item.$1)}',
-                                style: GoogleFonts.inter(
-                                  color: _controlInboxDraftCueChipAccent(
-                                    item.$1,
+                              const SizedBox(width: 8),
+                              TextButton(
+                                onPressed: _dismissQueueStateHint,
+                                style: TextButton.styleFrom(
+                                  foregroundColor: const Color(0xFFBAE6FD),
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: const Size(0, 0),
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                child: Text(
+                                  'Hide tip',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
                                   ),
-                                  fontSize: 9.8,
-                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
-                            ),
+                            ],
                           ),
                         ),
+                      ],
+                      const SizedBox(height: 3),
+                      Text(
+                        snapshot.pendingApprovalCount > 0
+                            ? '${snapshot.pendingApprovalCount} client repl${snapshot.pendingApprovalCount == 1 ? 'y' : 'ies'} waiting for operator judgement'
+                            : snapshot.awaitingResponseCount > 0
+                            ? '${snapshot.awaitingResponseCount} live client ask${snapshot.awaitingResponseCount == 1 ? '' : 's'} waiting for response shaping'
+                            : 'No client replies are waiting for approval',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFEAF4FF),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '$selectedScopeLabel • $selectedScopeNarrative',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFB8CCE5),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                      ),
                     ],
                   ),
-                ],
-              ),
-            ),
-            if (_controlInboxCueOnlyKind != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Showing ${_controlInboxCueSummaryLabel(_controlInboxCueOnlyKind!)} only. Tap the same pill again or use Show all replies to return to the full queue.',
-                style: GoogleFonts.inter(
-                  color: _controlInboxDraftCueChipAccent(
-                    _controlInboxCueOnlyKind!,
-                  ),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  height: 1.28,
                 ),
-              ),
-            ] else if (_controlInboxPriorityOnly) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Showing high-priority only. Tap the badge again to return to the full queue.',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFFFE1A8),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  height: 1.28,
-                ),
-              ),
-            ],
-          ],
-          if (widget.onSetLaneVoiceProfileForScope != null &&
-              !compactPreview) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (laneVoiceBusy)
-                  const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Color(0xFF8FD1FF),
+                if (_openClientLaneAction(
+                      clientId: snapshot.selectedClientId,
+                      siteId: snapshot.selectedSiteId,
+                    ) !=
+                    null) ...[
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: _openClientLaneAction(
+                      clientId: snapshot.selectedClientId,
+                      siteId: snapshot.selectedSiteId,
                     ),
-                  ),
-                for (final option in const <(String, String?)>[
-                  ('Auto', null),
-                  ('Concise', 'concise-updates'),
-                  ('Reassuring', 'reassurance-forward'),
-                  ('Validation-heavy', 'validation-heavy'),
-                ])
-                  OutlinedButton(
-                    onPressed: laneVoiceBusy
-                        ? null
-                        : () => _setLaneVoiceProfile(
-                            LiveClientCommsSnapshot(
-                              clientId: snapshot.selectedClientId,
-                              siteId: snapshot.selectedSiteId,
-                              clientVoiceProfileLabel:
-                                  snapshot.selectedScopeClientVoiceProfileLabel,
-                            ),
-                            option.$2,
-                          ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor:
-                          _laneVoiceOptionSelectedForLabel(
-                            snapshot.selectedScopeClientVoiceProfileLabel,
-                            option.$2,
-                          )
-                          ? const Color(0xFFEAF4FF)
-                          : const Color(0xFF9AB1CF),
-                      backgroundColor:
-                          _laneVoiceOptionSelectedForLabel(
-                            snapshot.selectedScopeClientVoiceProfileLabel,
-                            option.$2,
-                          )
-                          ? const Color(0xFF1B3148)
-                          : Colors.transparent,
-                      side: BorderSide(
-                        color:
-                            _laneVoiceOptionSelectedForLabel(
-                              snapshot.selectedScopeClientVoiceProfileLabel,
-                              option.$2,
-                            )
-                            ? const Color(0xFF4B6B8F)
-                            : const Color(0xFF35506F),
-                      ),
+                      foregroundColor: const Color(0xFFEAF4FF),
+                      side: BorderSide(color: accent.withValues(alpha: 0.52)),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 8,
                       ),
+                      minimumSize: const Size(0, 34),
                     ),
-                    child: Text(
-                      option.$1,
+                    icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                    label: Text(
+                      'Open Client Lane',
                       style: GoogleFonts.inter(
-                        fontSize: 10.6,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
+                ],
               ],
             ),
-          ],
-          const SizedBox(height: 10),
-          if (snapshot.pendingDrafts.isEmpty)
-            Text(
-              visibleClientAsks.isEmpty
-                  ? 'The inbox is clear. New client questions and approval drafts will stage here for command.'
-                  : 'Client questions are active even though no reply drafts are waiting yet.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9FB7D5),
-                fontSize: 10.8,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-              ),
-            )
-          else
-            Column(
-              children: visiblePendingDrafts
-                  .map(_controlInboxDraftCard)
-                  .toList(growable: false),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _commsChip(
+                  icon: Icons.verified_user_rounded,
+                  label: '${snapshot.pendingApprovalCount} waiting',
+                  accent: snapshot.pendingApprovalCount > 0
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF34D399),
+                ),
+                _commsChip(
+                  icon: Icons.mark_chat_unread_rounded,
+                  label: '${snapshot.awaitingResponseCount} live ask',
+                  accent: snapshot.awaitingResponseCount > 0
+                      ? const Color(0xFF22D3EE)
+                      : const Color(0xFF4B6B8F),
+                ),
+                _commsChip(
+                  icon: Icons.pin_drop_rounded,
+                  label:
+                      '$selectedScopeLabel • ${snapshot.selectedScopePendingCount}',
+                  accent: snapshot.selectedScopePendingCount > 0
+                      ? accent
+                      : const Color(0xFF4B6B8F),
+                ),
+                _commsChip(
+                  icon: Icons.tune_rounded,
+                  label:
+                      'Lane voice ${snapshot.selectedScopeClientVoiceProfileLabel}',
+                  accent: const Color(0xFF4B6B8F),
+                ),
+                _commsChip(
+                  icon: Icons.telegram_rounded,
+                  label:
+                      'Telegram ${snapshot.telegramHealthLabel.toUpperCase()}',
+                  accent: _telegramHealthAccent(snapshot.telegramHealthLabel),
+                ),
+                if (snapshot.telegramFallbackActive)
+                  _commsChip(
+                    icon: Icons.swap_horiz_rounded,
+                    label: 'Fallback active',
+                    accent: const Color(0xFFF97316),
+                  ),
+              ],
             ),
-          if (visibleClientAsks.isNotEmpty) ...[
-            if (visiblePendingDrafts.isNotEmpty) const SizedBox(height: 4),
-            Text(
-              'LIVE CLIENT ASKS',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8FAFD4),
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.0,
+            if (cueSummaryItems.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Semantics(
+                label: cueSummaryText,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Queue shape',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFA9BFD9),
+                        fontSize: 10.2,
+                        fontWeight: FontWeight.w700,
+                        height: 1.28,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final item in cueSummaryItems)
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              key: ValueKey(
+                                'control-inbox-summary-pill-${_controlInboxCueSummaryLabel(item.$1)}',
+                              ),
+                              borderRadius: BorderRadius.circular(999),
+                              onTap: () =>
+                                  _toggleControlInboxCueOnlyKind(item.$1),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color:
+                                      (_controlInboxCueOnlyKind == item.$1
+                                              ? _controlInboxDraftCueChipAccent(
+                                                  item.$1,
+                                                )
+                                              : _controlInboxDraftCueChipAccent(
+                                                  item.$1,
+                                                ))
+                                          .withValues(
+                                            alpha:
+                                                _controlInboxCueOnlyKind ==
+                                                    item.$1
+                                                ? 0.26
+                                                : 0.16,
+                                          ),
+                                  borderRadius: BorderRadius.circular(999),
+                                  border: Border.all(
+                                    color:
+                                        _controlInboxDraftCueChipAccent(
+                                          item.$1,
+                                        ).withValues(
+                                          alpha:
+                                              _controlInboxCueOnlyKind ==
+                                                  item.$1
+                                              ? 0.74
+                                              : 0.48,
+                                        ),
+                                  ),
+                                ),
+                                child: Text(
+                                  '${item.$2} ${_controlInboxCueSummaryLabel(item.$1)}',
+                                  style: GoogleFonts.inter(
+                                    color: _controlInboxDraftCueChipAccent(
+                                      item.$1,
+                                    ),
+                                    fontSize: 9.8,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Column(
-              children: visibleClientAsks
-                  .map(_controlInboxClientAskCard)
-                  .toList(growable: false),
-            ),
-          ],
-          if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty &&
-              !compactPreview) ...[
-            const SizedBox(height: 8),
-            Text(
-              ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
-                snapshot.telegramHealthDetail!.trim(),
+              if (_controlInboxCueOnlyKind != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Showing ${_controlInboxCueSummaryLabel(_controlInboxCueOnlyKind!)} only. Tap the same pill again or use Show all replies to return to the full queue.',
+                  style: GoogleFonts.inter(
+                    color: _controlInboxDraftCueChipAccent(
+                      _controlInboxCueOnlyKind!,
+                    ),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    height: 1.28,
+                  ),
+                ),
+              ] else if (_controlInboxPriorityOnly) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Showing high-priority only. Tap the badge again to return to the full queue.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFFFE1A8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    height: 1.28,
+                  ),
+                ),
+              ],
+            ],
+            if (widget.onSetLaneVoiceProfileForScope != null &&
+                !compactPreview) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (laneVoiceBusy)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Color(0xFF8FD1FF),
+                      ),
+                    ),
+                  for (final option in const <(String, String?)>[
+                    ('Auto', null),
+                    ('Concise', 'concise-updates'),
+                    ('Reassuring', 'reassurance-forward'),
+                    ('Validation-heavy', 'validation-heavy'),
+                  ])
+                    OutlinedButton(
+                      onPressed: laneVoiceBusy
+                          ? null
+                          : () => _setLaneVoiceProfile(
+                              LiveClientCommsSnapshot(
+                                clientId: snapshot.selectedClientId,
+                                siteId: snapshot.selectedSiteId,
+                                clientVoiceProfileLabel: snapshot
+                                    .selectedScopeClientVoiceProfileLabel,
+                              ),
+                              option.$2,
+                            ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor:
+                            _laneVoiceOptionSelectedForLabel(
+                              snapshot.selectedScopeClientVoiceProfileLabel,
+                              option.$2,
+                            )
+                            ? const Color(0xFFEAF4FF)
+                            : const Color(0xFF9AB1CF),
+                        backgroundColor:
+                            _laneVoiceOptionSelectedForLabel(
+                              snapshot.selectedScopeClientVoiceProfileLabel,
+                              option.$2,
+                            )
+                            ? const Color(0xFF1B3148)
+                            : Colors.transparent,
+                        side: BorderSide(
+                          color:
+                              _laneVoiceOptionSelectedForLabel(
+                                snapshot.selectedScopeClientVoiceProfileLabel,
+                                option.$2,
+                              )
+                              ? const Color(0xFF4B6B8F)
+                              : const Color(0xFF35506F),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                      ),
+                      child: Text(
+                        option.$1,
+                        style: GoogleFonts.inter(
+                          fontSize: 10.6,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8FA7C8),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                height: 1.28,
+            ],
+            const SizedBox(height: 10),
+            if (snapshot.pendingDrafts.isEmpty)
+              Text(
+                visibleClientAsks.isEmpty
+                    ? 'The inbox is clear. New client questions and approval drafts will stage here for command.'
+                    : 'Client questions are active even though no reply drafts are waiting yet.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9FB7D5),
+                  fontSize: 10.8,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              )
+            else
+              Column(
+                children: visiblePendingDrafts
+                    .map(_controlInboxDraftCard)
+                    .toList(growable: false),
               ),
-            ),
-          ],
+            if (visibleClientAsks.isNotEmpty) ...[
+              if (visiblePendingDrafts.isNotEmpty) const SizedBox(height: 4),
+              Text(
+                'LIVE CLIENT ASKS',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FAFD4),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.0,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Column(
+                children: visibleClientAsks
+                    .map(_controlInboxClientAskCard)
+                    .toList(growable: false),
+              ),
+            ],
+            if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty &&
+                !compactPreview) ...[
+              const SizedBox(height: 8),
+              Text(
+                ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(
+                  snapshot.telegramHealthDetail!.trim(),
+                ),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FA7C8),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  height: 1.28,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -3582,6 +4308,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Widget _incidentQueuePanel({required bool embeddedScroll}) {
     final wide = embeddedScroll;
+    final activeIncident = _activeIncident;
+    final criticalIncident = _criticalAlertIncident;
     Widget incidentTile(int index) {
       final incident = _incidents[index];
       final priority = _priorityStyle(incident.priority);
@@ -3633,6 +4361,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ),
           child: InkWell(
             borderRadius: BorderRadius.circular(10),
+            key: ValueKey('live-operations-incident-tile-${incident.id}'),
             onTap: () {
               setState(() {
                 _activeIncidentId = incident.id;
@@ -3767,70 +4496,346 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
     }
 
+    final queueSummaryHeader = Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            color: Color(0xFF10B981),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'Live',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFA3BAD8),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const Spacer(),
+        Text(
+          '${_incidents.where((incident) => incident.priority == _IncidentPriority.p1Critical).length} Critical',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEF4444),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '${_incidents.where((incident) => incident.priority == _IncidentPriority.p2High).length} High',
+          style: GoogleFonts.inter(
+            color: const Color(0xFFF59E0B),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+
+    if (wide) {
+      return _panel(
+        title: 'Incident Queue',
+        subtitle: 'All active incidents, priority sorted',
+        child: ListView(
+          key: const ValueKey('live-operations-incident-queue-scroll-view'),
+          children: [
+            _incidentQueueFocusCard(
+              activeIncident: activeIncident,
+              criticalIncident: criticalIncident,
+            ),
+            const SizedBox(height: 10),
+            queueSummaryHeader,
+            const SizedBox(height: 8),
+            for (var i = 0; i < _incidents.length; i++) ...[
+              incidentTile(i),
+              if (i < _incidents.length - 1) const SizedBox(height: 8),
+            ],
+          ],
+        ),
+      );
+    }
+
     return _panel(
       title: 'Incident Queue',
       subtitle: 'All active incidents, priority sorted',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          queueSummaryHeader,
+          const SizedBox(height: 8),
+          Column(
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF10B981),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Live',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFA3BAD8),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${_incidents.where((incident) => incident.priority == _IncidentPriority.p1Critical).length} Critical',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFEF4444),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '${_incidents.where((incident) => incident.priority == _IncidentPriority.p2High).length} High',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFF59E0B),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              for (var i = 0; i < _incidents.length; i++) ...[
+                incidentTile(i),
+                if (i < _incidents.length - 1) const SizedBox(height: 8),
+              ],
             ],
           ),
-          const SizedBox(height: 8),
-          if (wide)
-            Expanded(
-              child: ListView.separated(
-                itemCount: _incidents.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 8),
-                itemBuilder: (context, index) => incidentTile(index),
-              ),
-            )
-          else
-            Column(
-              children: [
-                for (var i = 0; i < _incidents.length; i++) ...[
-                  incidentTile(i),
-                  if (i < _incidents.length - 1) const SizedBox(height: 8),
-                ],
-              ],
-            ),
         ],
+      ),
+    );
+  }
+
+  Widget _incidentQueueFocusCard({
+    required _IncidentRecord? activeIncident,
+    required _IncidentRecord? criticalIncident,
+  }) {
+    final queueLabel = _controlInboxTopBarQueueStateLabel();
+    final selectedIncident =
+        activeIncident ?? (_incidents.isEmpty ? null : _incidents.first);
+    final priorityStyle = selectedIncident == null
+        ? null
+        : _priorityStyle(selectedIncident.priority);
+    final summary =
+        selectedIncident?.latestSceneReviewSummary?.trim().isNotEmpty == true
+        ? _compactContextLabel(
+            selectedIncident!.latestSceneReviewSummary!.trim(),
+          )
+        : selectedIncident?.latestIntelSummary?.trim().isNotEmpty == true
+        ? _compactContextLabel(selectedIncident!.latestIntelSummary!.trim())
+        : selectedIncident?.latestIntelHeadline?.trim().isNotEmpty == true
+        ? selectedIncident!.latestIntelHeadline!.trim()
+        : selectedIncident == null
+        ? 'The incident rail is standing by. Focus the lead lane, reopen the board, or drive the reply queue without leaving the operations shell.'
+        : '${selectedIncident.site} remains the selected live lane while the board and context rail stay one tap away.';
+    final criticalCount = _incidents
+        .where((incident) => incident.priority == _IncidentPriority.p1Critical)
+        .length;
+
+    return Container(
+      key: const ValueKey('live-operations-incident-focus-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF121E2F), Color(0xFF0C1624)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFF233C56)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x22000000), blurRadius: 18, spreadRadius: 1),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 620;
+          final actionWrap = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                key: const ValueKey(
+                  'live-operations-incident-focus-open-board',
+                ),
+                label: 'Board',
+                foreground: const Color(0xFFEAF4FF),
+                background: const Color(0x1A22D3EE),
+                border: const Color(0x5522D3EE),
+                leadingIcon: Icons.view_compact_alt_outlined,
+                onTap: () => _openIncidentQueueBoardFocus(selectedIncident),
+              ),
+              _chip(
+                key: const ValueKey(
+                  'live-operations-incident-focus-open-details',
+                ),
+                label: 'Details',
+                foreground: _activeTab == _ContextTab.details
+                    ? const Color(0xFFEAF4FF)
+                    : const Color(0xFF9AB1CF),
+                background: _activeTab == _ContextTab.details
+                    ? const Color(0x3322D3EE)
+                    : const Color(0x14000000),
+                border: _activeTab == _ContextTab.details
+                    ? const Color(0x6622D3EE)
+                    : const Color(0xFF35506F),
+                leadingIcon: Icons.article_outlined,
+                onTap: () => _openIncidentQueueContextFocus(
+                  selectedIncident,
+                  _ContextTab.details,
+                ),
+              ),
+              _chip(
+                key: const ValueKey(
+                  'live-operations-incident-focus-open-queue',
+                ),
+                label: 'Queue',
+                foreground: const Color(0xFFFFE4B5),
+                background: const Color(0x1AF59E0B),
+                border: const Color(0x66F59E0B),
+                leadingIcon: Icons.schedule_rounded,
+                onTap: _openIncidentQueueQueueFocus,
+              ),
+              _chip(
+                key: const ValueKey('live-operations-incident-focus-lead'),
+                label: selectedIncident == null
+                    ? 'Lead lane'
+                    : selectedIncident.id,
+                foreground: const Color(0xFFEAF4FF),
+                background: const Color(0x1422D3EE),
+                border: const Color(0x553FAEEB),
+                leadingIcon: Icons.center_focus_strong_rounded,
+                onTap: _incidents.isEmpty ? null : _focusLeadIncident,
+              ),
+              if (criticalIncident != null)
+                _chip(
+                  key: const ValueKey(
+                    'live-operations-incident-focus-focus-critical',
+                  ),
+                  label: 'Critical',
+                  foreground: const Color(0xFFFFD6D6),
+                  background: const Color(0x1AEF4444),
+                  border: const Color(0x66EF4444),
+                  leadingIcon: Icons.warning_amber_rounded,
+                  onTap: () =>
+                      _focusCriticalIncidentFromQueue(criticalIncident),
+                ),
+            ],
+          );
+
+          final summaryColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color:
+                          priorityStyle?.background ?? const Color(0x1422D3EE),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: priorityStyle?.border ?? const Color(0x3322D3EE),
+                      ),
+                    ),
+                    child: Icon(
+                      priorityStyle?.icon ?? Icons.hub_rounded,
+                      color:
+                          priorityStyle?.foreground ?? const Color(0xFF8FD1FF),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'INCIDENT RAIL FOCUS',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8FAFD4),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          selectedIncident == null
+                              ? 'No live lane selected'
+                              : 'Selected lane: ${selectedIncident.id}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF94B0D2),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          selectedIncident?.type ?? 'Operations queue ready',
+                          style: GoogleFonts.rajdhani(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                summary,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFD8E7F7),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _chip(
+                    label:
+                        '${_incidents.length} live lane${_incidents.length == 1 ? '' : 's'}',
+                    foreground: const Color(0xFFEAF4FF),
+                    background: const Color(0x1422D3EE),
+                    border: const Color(0x553FAEEB),
+                    leadingIcon: Icons.hub_rounded,
+                  ),
+                  _chip(
+                    label: '$criticalCount critical',
+                    foreground: const Color(0xFFFFD6D6),
+                    background: const Color(0x1AEF4444),
+                    border: const Color(0x66EF4444),
+                    leadingIcon: Icons.priority_high_rounded,
+                  ),
+                  _chip(
+                    label: queueLabel,
+                    foreground: const Color(0xFFFFE4B5),
+                    background: const Color(0x1AF59E0B),
+                    border: const Color(0x66F59E0B),
+                    leadingIcon: Icons.schedule_rounded,
+                  ),
+                  if (selectedIncident != null)
+                    _chip(
+                      key: const ValueKey(
+                        'live-operations-incident-focus-active-chip',
+                      ),
+                      label:
+                          '${selectedIncident.site} • ${_statusLabel(selectedIncident.status)}',
+                      foreground: _statusChipColor(selectedIncident.status),
+                      background: _statusChipColor(
+                        selectedIncident.status,
+                      ).withValues(alpha: 0.16),
+                      border: _statusChipColor(
+                        selectedIncident.status,
+                      ).withValues(alpha: 0.42),
+                      leadingIcon: Icons.location_on_outlined,
+                    ),
+                ],
+              ),
+            ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [summaryColumn, const SizedBox(height: 12), actionWrap],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 11, child: summaryColumn),
+              const SizedBox(width: 16),
+              Expanded(flex: 8, child: actionWrap),
+            ],
+          );
+        },
       ),
     );
   }
@@ -4008,61 +5013,420 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ],
             ],
           );
-    return _panel(
-      title: 'Action Ladder',
-      subtitle: 'AI execution path with human override control',
-      child: Column(
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stackHeader = constraints.maxWidth < 560;
-              final headline = Text(
-                activeIncident == null
-                    ? 'No incident selected'
-                    : 'Active Incident: ${activeIncident.id}',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF94B0D2),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              );
-              final overrideButton = OutlinedButton.icon(
-                onPressed: activeIncident == null
-                    ? null
-                    : () => _openOverrideDialog(activeIncident),
-                icon: const Icon(Icons.gavel_rounded, size: 16),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0x66EF4444)),
-                  foregroundColor: const Color(0xFFEF4444),
-                  backgroundColor: const Color(0x220F1419),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  textStyle: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                label: const Text('MANUAL OVERRIDE'),
-              );
-              if (stackHeader) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    headline,
-                    const SizedBox(height: 8),
-                    SizedBox(width: double.infinity, child: overrideButton),
-                  ],
-                );
-              }
-              return Row(children: [headline, const Spacer(), overrideButton]);
-            },
-          ),
-          const SizedBox(height: 10),
-          if (wide) Expanded(child: stepsList) else stepsList,
+    return KeyedSubtree(
+      key: _actionLadderPanelGlobalKey,
+      child: _panel(
+        title: 'Action Ladder',
+        subtitle: 'AI execution path with human override control',
+        child: Column(
+          children: [
+            _actionLadderFocusCard(activeIncident, steps),
+            const SizedBox(height: 10),
+            if (wide) Expanded(child: stepsList) else stepsList,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionLadderFocusCard(
+    _IncidentRecord? activeIncident,
+    List<_LadderStep> steps,
+  ) {
+    final priorityStyle = activeIncident == null
+        ? null
+        : _priorityStyle(activeIncident.priority);
+    final statusColor = activeIncident == null
+        ? const Color(0xFF8FAFD4)
+        : _statusChipColor(activeIncident.status);
+    final currentStep = steps.firstWhere(
+      (step) =>
+          step.status == _LadderStepStatus.active ||
+          step.status == _LadderStepStatus.thinking ||
+          step.status == _LadderStepStatus.blocked,
+      orElse: () => steps.isNotEmpty
+          ? steps.first
+          : const _LadderStep(
+              id: 'standby',
+              name: 'Awaiting lead incident',
+              status: _LadderStepStatus.pending,
+            ),
+    );
+    final summary =
+        activeIncident?.latestSceneReviewSummary?.trim().isNotEmpty == true
+        ? activeIncident!.latestSceneReviewSummary!.trim()
+        : activeIncident?.latestIntelSummary?.trim().isNotEmpty == true
+        ? activeIncident!.latestIntelSummary!.trim()
+        : activeIncident?.latestIntelHeadline?.trim().isNotEmpty == true
+        ? activeIncident!.latestIntelHeadline!.trim()
+        : activeIncident == null
+        ? 'Pin the lead incident back into the board to reopen override, queue, and context controls from one surface.'
+        : '${currentStep.name} is driving the current response path while the queue and right-rail context stay available.';
+    final queueLabel = _controlInboxTopBarQueueStateLabel();
+
+    Widget insightPill({
+      required String label,
+      required Color foreground,
+      required Color background,
+      required Color border,
+      IconData? icon,
+      Key? key,
+    }) {
+      return Container(
+        key: key,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(999),
+          color: background,
+          border: Border.all(color: border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 13, color: foreground),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: foreground,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      key: const ValueKey('live-operations-board-focus-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF122033), Color(0xFF0C1624)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFF24405C)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x22000000), blurRadius: 18, spreadRadius: 1),
         ],
       ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 620;
+          final actionWrap = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                key: const ValueKey('live-operations-board-focus-open-queue'),
+                label: 'Queue',
+                foreground: const Color(0xFFFFE4B5),
+                background: const Color(0x1AF59E0B),
+                border: const Color(0x66F59E0B),
+                leadingIcon: Icons.schedule_rounded,
+                onTap: () => _openActionLadderQueueFromBoard(activeIncident),
+              ),
+              _chip(
+                key: const ValueKey('live-operations-board-focus-open-details'),
+                label: 'Details',
+                foreground: _activeTab == _ContextTab.details
+                    ? const Color(0xFFEAF4FF)
+                    : const Color(0xFF9AB1CF),
+                background: _activeTab == _ContextTab.details
+                    ? const Color(0x3322D3EE)
+                    : const Color(0x14000000),
+                border: _activeTab == _ContextTab.details
+                    ? const Color(0x6622D3EE)
+                    : const Color(0xFF35506F),
+                leadingIcon: Icons.article_outlined,
+                onTap: () => _openActionLadderContextFromBoard(
+                  activeIncident,
+                  _ContextTab.details,
+                ),
+              ),
+              _chip(
+                key: const ValueKey('live-operations-board-focus-open-voip'),
+                label: 'VoIP',
+                foreground: _activeTab == _ContextTab.voip
+                    ? const Color(0xFFEAF4FF)
+                    : const Color(0xFF9AB1CF),
+                background: _activeTab == _ContextTab.voip
+                    ? const Color(0x333B82F6)
+                    : const Color(0x14000000),
+                border: _activeTab == _ContextTab.voip
+                    ? const Color(0x663B82F6)
+                    : const Color(0xFF35506F),
+                leadingIcon: Icons.call_rounded,
+                onTap: () => _openActionLadderContextFromBoard(
+                  activeIncident,
+                  _ContextTab.voip,
+                ),
+              ),
+              _chip(
+                key: const ValueKey('live-operations-board-focus-open-visual'),
+                label: 'Visual',
+                foreground: _activeTab == _ContextTab.visual
+                    ? const Color(0xFFEAF4FF)
+                    : const Color(0xFF9AB1CF),
+                background: _activeTab == _ContextTab.visual
+                    ? const Color(0x3310B981)
+                    : const Color(0x14000000),
+                border: _activeTab == _ContextTab.visual
+                    ? const Color(0x6610B981)
+                    : const Color(0xFF35506F),
+                leadingIcon: Icons.videocam_outlined,
+                onTap: () => _openActionLadderContextFromBoard(
+                  activeIncident,
+                  _ContextTab.visual,
+                ),
+              ),
+              _chip(
+                key: const ValueKey('live-operations-board-focus-override'),
+                label: 'Override',
+                foreground: activeIncident == null
+                    ? const Color(0xFF7E93AF)
+                    : const Color(0xFFFFD6D6),
+                background: activeIncident == null
+                    ? const Color(0x14000000)
+                    : const Color(0x1AEF4444),
+                border: activeIncident == null
+                    ? const Color(0xFF35506F)
+                    : const Color(0x66EF4444),
+                leadingIcon: Icons.gavel_rounded,
+                onTap: activeIncident == null
+                    ? null
+                    : () => _openOverrideDialog(activeIncident),
+              ),
+              _chip(
+                key: const ValueKey('live-operations-board-focus-pause'),
+                label: 'Pause',
+                foreground: activeIncident == null
+                    ? const Color(0xFF7E93AF)
+                    : const Color(0xFFBFD1EC),
+                background: activeIncident == null
+                    ? const Color(0x14000000)
+                    : const Color(0x11000000),
+                border: activeIncident == null
+                    ? const Color(0xFF35506F)
+                    : const Color(0x333B82F6),
+                leadingIcon: Icons.pause_circle_outline_rounded,
+                onTap: activeIncident == null
+                    ? null
+                    : () => _pauseAutomation(activeIncident),
+              ),
+            ],
+          );
+
+          final summaryColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: priorityStyle == null
+                          ? const Color(0x1422D3EE)
+                          : priorityStyle.background,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: priorityStyle?.border ?? const Color(0x3322D3EE),
+                      ),
+                    ),
+                    child: Icon(
+                      priorityStyle?.icon ?? Icons.center_focus_strong_rounded,
+                      color:
+                          priorityStyle?.foreground ?? const Color(0xFF8FD1FF),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'ACTION LADDER FOCUS',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8FAFD4),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          activeIncident == null
+                              ? 'No incident selected'
+                              : 'Active Incident: ${activeIncident.id}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF94B0D2),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          activeIncident?.type ?? 'Standby board',
+                          style: GoogleFonts.rajdhani(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                summary,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFD8E7F7),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  if (priorityStyle != null)
+                    insightPill(
+                      label: priorityStyle.label,
+                      foreground: priorityStyle.foreground,
+                      background: priorityStyle.background,
+                      border: priorityStyle.border,
+                      icon: priorityStyle.icon,
+                    ),
+                  insightPill(
+                    label: activeIncident == null
+                        ? 'STANDBY'
+                        : _statusLabel(activeIncident.status),
+                    foreground: statusColor,
+                    background: statusColor.withValues(alpha: 0.16),
+                    border: statusColor.withValues(alpha: 0.42),
+                    icon: activeIncident == null
+                        ? Icons.radio_button_unchecked_rounded
+                        : Icons.fiber_manual_record_rounded,
+                  ),
+                  if (activeIncident != null)
+                    insightPill(
+                      label: activeIncident.site,
+                      foreground: const Color(0xFFDCF5FF),
+                      background: const Color(0x1422D3EE),
+                      border: const Color(0x553FAEEB),
+                      icon: Icons.location_on_outlined,
+                    ),
+                  insightPill(
+                    label: currentStep.name,
+                    foreground: const Color(0xFFBDFBFF),
+                    background: const Color(0x1422D3EE),
+                    border: const Color(0x5522D3EE),
+                    icon: _stepIcon(currentStep.status),
+                  ),
+                  insightPill(
+                    label: queueLabel,
+                    foreground: const Color(0xFFFFE4B5),
+                    background: const Color(0x1AF59E0B),
+                    border: const Color(0x66F59E0B),
+                    icon: Icons.schedule_rounded,
+                  ),
+                  insightPill(
+                    label: _tabLabel(_activeTab),
+                    foreground: const Color(0xFFEAF4FF),
+                    background: const Color(0x333B82F6),
+                    border: const Color(0x663B82F6),
+                    icon: switch (_activeTab) {
+                      _ContextTab.details => Icons.article_outlined,
+                      _ContextTab.voip => Icons.call_rounded,
+                      _ContextTab.visual => Icons.videocam_outlined,
+                    },
+                  ),
+                ],
+              ),
+            ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [summaryColumn, const SizedBox(height: 12), actionWrap],
+            );
+          }
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 11, child: summaryColumn),
+              const SizedBox(width: 16),
+              Expanded(flex: 8, child: actionWrap),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _openActionLadderQueueFromBoard(
+    _IncidentRecord? activeIncident,
+  ) async {
+    if (activeIncident != null && _activeIncidentId != activeIncident.id) {
+      _focusIncidentFromBanner(activeIncident);
+    } else if (activeIncident == null && _incidents.isNotEmpty) {
+      _focusLeadIncident();
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _ensureControlInboxPanelVisible();
+    _showLiveOpsFeedback(
+      activeIncident == null
+          ? 'Control inbox reopened from the ladder.'
+          : 'Control inbox reopened for ${activeIncident.id}.',
+      label: 'ACTION LADDER',
+      detail: activeIncident == null
+          ? 'Live Ops moved the reply queue back into view so a lead incident can be pinned into the board without leaving the shell.'
+          : 'The selected incident stayed pinned while the reply queue and operator review state came forward in the left rail.',
+      accent: const Color(0xFFF59E0B),
+    );
+  }
+
+  Future<void> _openActionLadderContextFromBoard(
+    _IncidentRecord? activeIncident,
+    _ContextTab tab,
+  ) async {
+    if (_activeTab != tab) {
+      setState(() {
+        _activeTab = tab;
+      });
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _ensureContextAndVigilancePanelVisible();
+    final tabLabel = _tabLabel(tab);
+    _showLiveOpsFeedback(
+      activeIncident == null
+          ? '$tabLabel context opened from the ladder.'
+          : '$tabLabel context opened for ${activeIncident.id}.',
+      label: 'ACTION LADDER',
+      detail: activeIncident == null
+          ? 'The right rail stayed inside the current workspace so the next live incident can land without resetting context.'
+          : 'The action ladder kept ${activeIncident.id} active while ${tabLabel.toLowerCase()} context moved forward in the right rail.',
+      accent: switch (tab) {
+        _ContextTab.details => const Color(0xFF22D3EE),
+        _ContextTab.voip => const Color(0xFF3B82F6),
+        _ContextTab.visual => const Color(0xFF10B981),
+      },
     );
   }
 
@@ -4072,82 +5436,388 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }) {
     final wide = embeddedScroll;
     if (!wide) {
-      return Column(
+      return KeyedSubtree(
+        key: _contextAndVigilancePanelGlobalKey,
+        child: Column(
+          children: [
+            _contextRailFocusCard(activeIncident),
+            const SizedBox(height: 10),
+            _panel(
+              title: 'Incident Context',
+              subtitle: 'Details, VoIP handshake, and visual verification',
+              child: Column(
+                children: [
+                  _contextTabs(),
+                  const SizedBox(height: 8),
+                  _activeTab == _ContextTab.details
+                      ? _detailsTab(activeIncident, embeddedScroll: false)
+                      : _activeTab == _ContextTab.voip
+                      ? _voipTab(activeIncident, embeddedScroll: false)
+                      : _visualTab(activeIncident, embeddedScroll: false),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            _panel(
+              title: 'Guard Vigilance',
+              subtitle: 'Decay sparkline tracking and escalation posture',
+              child: _vigilancePanel(embeddedScroll: false),
+            ),
+          ],
+        ),
+      );
+    }
+    return KeyedSubtree(
+      key: _contextAndVigilancePanelGlobalKey,
+      child: Column(
         children: [
-          _panel(
-            title: 'Incident Context',
-            subtitle: 'Details, VoIP handshake, and visual verification',
-            child: Column(
-              children: [
-                _contextTabs(),
-                const SizedBox(height: 8),
-                _activeTab == _ContextTab.details
-                    ? _detailsTab(
-                        activeIncident,
-                        embeddedScroll: false,
-                      )
-                    : _activeTab == _ContextTab.voip
-                    ? _voipTab(
-                        activeIncident,
-                        embeddedScroll: false,
-                      )
-                    : _visualTab(
-                        activeIncident,
-                        embeddedScroll: false,
-                      ),
-              ],
+          _contextRailFocusCard(activeIncident),
+          const SizedBox(height: 10),
+          Expanded(
+            flex: 4,
+            child: _panel(
+              title: 'Incident Context',
+              subtitle: 'Details, VoIP handshake, and visual verification',
+              child: Column(
+                children: [
+                  _contextTabs(),
+                  const SizedBox(height: 8),
+                  Expanded(
+                    child: _activeTab == _ContextTab.details
+                        ? _detailsTab(activeIncident, embeddedScroll: true)
+                        : _activeTab == _ContextTab.voip
+                        ? _voipTab(activeIncident, embeddedScroll: true)
+                        : _visualTab(activeIncident, embeddedScroll: true),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 10),
-          _panel(
-            title: 'Guard Vigilance',
-            subtitle: 'Decay sparkline tracking and escalation posture',
-            child: _vigilancePanel(embeddedScroll: false),
-          ),
-        ],
-      );
-    }
-    return Column(
-      children: [
-        Expanded(
-          flex: 3,
-          child: _panel(
-            title: 'Incident Context',
-            subtitle: 'Details, VoIP handshake, and visual verification',
-            child: Column(
-              children: [
-                _contextTabs(),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: _activeTab == _ContextTab.details
-                      ? _detailsTab(
-                          activeIncident,
-                          embeddedScroll: true,
-                        )
-                      : _activeTab == _ContextTab.voip
-                      ? _voipTab(
-                          activeIncident,
-                          embeddedScroll: true,
-                        )
-                      : _visualTab(
-                          activeIncident,
-                          embeddedScroll: true,
-                        ),
-                ),
-              ],
+          Expanded(
+            flex: 2,
+            child: _panel(
+              title: 'Guard Vigilance',
+              subtitle: 'Decay sparkline tracking and escalation posture',
+              child: _vigilancePanel(embeddedScroll: true),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _contextRailFocusCard(_IncidentRecord? activeIncident) {
+    final focusedGuard = _focusedVigilanceGuard;
+    final queueLabel = _controlInboxTopBarQueueStateLabel();
+    final tabLabel = _tabLabel(_activeTab);
+    final openClientLaneAction = widget.clientCommsSnapshot == null
+        ? null
+        : _openClientLaneAction(
+            clientId: widget.clientCommsSnapshot!.clientId,
+            siteId: widget.clientCommsSnapshot!.siteId,
+          );
+
+    String summary;
+    switch (_activeTab) {
+      case _ContextTab.details:
+        summary = activeIncident == null
+            ? 'Details standby is ready. Reopen the queue, pin the lead lane, or keep guard vigilance visible while the next incident lands.'
+            : ((activeIncident.latestSceneReviewSummary ??
+                          activeIncident.latestIntelSummary ??
+                          activeIncident.latestIntelHeadline)
+                      ?.trim()
+                      .isNotEmpty ==
+                  true)
+            ? _compactContextLabel(
+                (activeIncident.latestSceneReviewSummary ??
+                        activeIncident.latestIntelSummary ??
+                        activeIncident.latestIntelHeadline)!
+                    .trim(),
+              )
+            : 'Incident details, evidence readiness, and client posture remain pinned for ${activeIncident.site}.';
+      case _ContextTab.voip:
+        summary = activeIncident == null
+            ? 'VoIP standby is ready. The right rail can keep the client lane in view while the next transcript comes online.'
+            : 'Live transcript, safe-word posture, and response scripting stay visible for ${activeIncident.id} while the ladder keeps moving.';
+      case _ContextTab.visual:
+        summary = activeIncident == null
+            ? 'Visual standby is ready. Reopen the queue or focus the guard rail while comparison evidence comes online.'
+            : 'Visual comparison stays live for ${activeIncident.id} with a ${_visualMatchScoreForIncident(activeIncident)}% match posture across current evidence.';
+    }
+
+    return Container(
+      key: const ValueKey('live-operations-context-focus-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF132131), Color(0xFF0C1724)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(height: 10),
-        Expanded(
-          flex: 2,
-          child: _panel(
-            title: 'Guard Vigilance',
-            subtitle: 'Decay sparkline tracking and escalation posture',
-            child: _vigilancePanel(embeddedScroll: true),
-          ),
-        ),
-      ],
+        border: Border.all(color: const Color(0xFF233C56)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x22000000), blurRadius: 18, spreadRadius: 1),
+        ],
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 620;
+          final actionWrap = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                key: const ValueKey('live-operations-context-focus-open-queue'),
+                label: 'Queue',
+                foreground: const Color(0xFFFFE4B5),
+                background: const Color(0x1AF59E0B),
+                border: const Color(0x66F59E0B),
+                leadingIcon: Icons.schedule_rounded,
+                onTap: () => _openContextRailQueue(activeIncident),
+              ),
+              _chip(
+                key: const ValueKey(
+                  'live-operations-context-focus-open-details',
+                ),
+                label: 'Details',
+                foreground: _activeTab == _ContextTab.details
+                    ? const Color(0xFFEAF4FF)
+                    : const Color(0xFF9AB1CF),
+                background: _activeTab == _ContextTab.details
+                    ? const Color(0x3322D3EE)
+                    : const Color(0x14000000),
+                border: _activeTab == _ContextTab.details
+                    ? const Color(0x6622D3EE)
+                    : const Color(0xFF35506F),
+                leadingIcon: Icons.article_outlined,
+                onTap: () =>
+                    _openContextRailTab(activeIncident, _ContextTab.details),
+              ),
+              _chip(
+                key: const ValueKey('live-operations-context-focus-open-voip'),
+                label: 'VoIP',
+                foreground: _activeTab == _ContextTab.voip
+                    ? const Color(0xFFEAF4FF)
+                    : const Color(0xFF9AB1CF),
+                background: _activeTab == _ContextTab.voip
+                    ? const Color(0x333B82F6)
+                    : const Color(0x14000000),
+                border: _activeTab == _ContextTab.voip
+                    ? const Color(0x663B82F6)
+                    : const Color(0xFF35506F),
+                leadingIcon: Icons.call_rounded,
+                onTap: () =>
+                    _openContextRailTab(activeIncident, _ContextTab.voip),
+              ),
+              _chip(
+                key: const ValueKey(
+                  'live-operations-context-focus-open-visual',
+                ),
+                label: 'Visual',
+                foreground: _activeTab == _ContextTab.visual
+                    ? const Color(0xFFEAF4FF)
+                    : const Color(0xFF9AB1CF),
+                background: _activeTab == _ContextTab.visual
+                    ? const Color(0x3310B981)
+                    : const Color(0x14000000),
+                border: _activeTab == _ContextTab.visual
+                    ? const Color(0x6610B981)
+                    : const Color(0xFF35506F),
+                leadingIcon: Icons.videocam_outlined,
+                onTap: () =>
+                    _openContextRailTab(activeIncident, _ContextTab.visual),
+              ),
+              _chip(
+                key: const ValueKey(
+                  'live-operations-context-focus-guard-attention',
+                ),
+                label: focusedGuard == null
+                    ? 'Guard attention'
+                    : focusedGuard.callsign,
+                foreground: const Color(0xFFE8FFF4),
+                background: const Color(0x1A10B981),
+                border: const Color(0x6610B981),
+                leadingIcon: Icons.shield_moon_outlined,
+                onTap: _vigilance.isEmpty
+                    ? null
+                    : _focusGuardAttentionFromContext,
+              ),
+              if (openClientLaneAction != null)
+                _chip(
+                  key: const ValueKey(
+                    'live-operations-context-focus-open-client-lane',
+                  ),
+                  label: 'Client lane',
+                  foreground: const Color(0xFFDCF5FF),
+                  background: const Color(0x1422D3EE),
+                  border: const Color(0x553FAEEB),
+                  leadingIcon: Icons.open_in_new_rounded,
+                  onTap: openClientLaneAction,
+                ),
+            ],
+          );
+
+          final summaryColumn = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0x1422D3EE),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0x3322D3EE)),
+                    ),
+                    child: Icon(
+                      switch (_activeTab) {
+                        _ContextTab.details => Icons.article_outlined,
+                        _ContextTab.voip => Icons.call_rounded,
+                        _ContextTab.visual => Icons.videocam_outlined,
+                      },
+                      color: switch (_activeTab) {
+                        _ContextTab.details => const Color(0xFF8FD1FF),
+                        _ContextTab.voip => const Color(0xFF9BC3FF),
+                        _ContextTab.visual => const Color(0xFF86EFAC),
+                      },
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CONTEXT RAIL FOCUS',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8FAFD4),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          activeIncident == null
+                              ? 'Right rail on standby'
+                              : '$tabLabel context for ${activeIncident.id}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF94B0D2),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          activeIncident?.site ?? 'Context ready',
+                          style: GoogleFonts.rajdhani(
+                            color: const Color(0xFFEAF4FF),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                summary,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFD8E7F7),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _chip(
+                    label: tabLabel,
+                    foreground: const Color(0xFFEAF4FF),
+                    background: const Color(0x333B82F6),
+                    border: const Color(0x663B82F6),
+                    leadingIcon: switch (_activeTab) {
+                      _ContextTab.details => Icons.article_outlined,
+                      _ContextTab.voip => Icons.call_rounded,
+                      _ContextTab.visual => Icons.videocam_outlined,
+                    },
+                  ),
+                  _chip(
+                    label: queueLabel,
+                    foreground: const Color(0xFFFFE4B5),
+                    background: const Color(0x1AF59E0B),
+                    border: const Color(0x66F59E0B),
+                    leadingIcon: Icons.schedule_rounded,
+                  ),
+                  if (focusedGuard != null)
+                    _chip(
+                      key: const ValueKey(
+                        'live-operations-context-focus-guard-chip',
+                      ),
+                      label:
+                          '${focusedGuard.callsign} • ${focusedGuard.decayLevel}%',
+                      foreground: focusedGuard.decayLevel >= 90
+                          ? const Color(0xFFFFD6D6)
+                          : focusedGuard.decayLevel >= 75
+                          ? const Color(0xFFFFE4B5)
+                          : const Color(0xFFE8FFF4),
+                      background: focusedGuard.decayLevel >= 90
+                          ? const Color(0x1AEF4444)
+                          : focusedGuard.decayLevel >= 75
+                          ? const Color(0x1AF59E0B)
+                          : const Color(0x1A10B981),
+                      border: focusedGuard.decayLevel >= 90
+                          ? const Color(0x66EF4444)
+                          : focusedGuard.decayLevel >= 75
+                          ? const Color(0x66F59E0B)
+                          : const Color(0x6610B981),
+                      leadingIcon: Icons.shield_moon_outlined,
+                    ),
+                  if (activeIncident != null)
+                    _chip(
+                      label: _statusLabel(activeIncident.status),
+                      foreground: _statusChipColor(activeIncident.status),
+                      background: _statusChipColor(
+                        activeIncident.status,
+                      ).withValues(alpha: 0.16),
+                      border: _statusChipColor(
+                        activeIncident.status,
+                      ).withValues(alpha: 0.42),
+                      leadingIcon: Icons.fiber_manual_record_rounded,
+                    ),
+                ],
+              ),
+            ],
+          );
+
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [summaryColumn, const SizedBox(height: 12), actionWrap],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 11, child: summaryColumn),
+              const SizedBox(width: 16),
+              Expanded(flex: 8, child: actionWrap),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -4294,7 +5964,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         children: rows,
       );
     }
-    return ListView(children: rows);
+    return ListView(
+      key: const ValueKey('live-operations-details-scroll-view'),
+      children: rows,
+    );
   }
 
   LiveClientCommsSnapshot? _clientCommsSnapshotForIncident(
@@ -5098,10 +6771,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           ).convert(_moShadowPayload(incident, sitePosture));
                           Clipboard.setData(ClipboardData(text: pretty));
                           Navigator.of(dialogContext).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Shadow MO dossier copied'),
-                            ),
+                          _showLiveOpsFeedback(
+                            'Shadow MO dossier copied',
+                            label: 'SHADOW MO',
+                            detail:
+                                'The copied dossier stays visible in the desktop rail while the shadow pattern remains in context.',
+                            accent: const Color(0xFF8FD1FF),
                           );
                         },
                         child: const Text('COPY JSON'),
@@ -5289,17 +6964,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     snapshot.eventIds,
                     snapshot.selectedEventId,
                   );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Opening Events Review for activity truth.',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFE7F0FF),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      backgroundColor: const Color(0xFF0E203A),
-                    ),
+                  _showLiveOpsFeedback(
+                    'Opening Events Review for activity truth.',
+                    label: 'ACTIVITY TRUTH',
+                    detail:
+                        'The scoped evidence handoff stays pinned in the context rail while the incident board remains in place.',
+                    accent: const Color(0xFF67E8F9),
                   );
                 },
                 style: OutlinedButton.styleFrom(
@@ -5949,13 +7619,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _voipTab(
-    _IncidentRecord? incident, {
-    required bool embeddedScroll,
-  }) {
+  Widget _voipTab(_IncidentRecord? incident, {required bool embeddedScroll}) {
     final wide = embeddedScroll;
     if (incident == null) {
-      return _muted('No live call transcript for this lane yet.');
+      return _contextTabRecoveryDeck(
+        key: const ValueKey('live-operations-voip-recovery'),
+        eyebrow: 'VOIP CONTEXT READY',
+        title: 'No live call transcript is pinned yet.',
+        summary:
+            'The context rail can still recover the lead lane, reopen the action ladder, or keep the client-lane posture visible while the next call transcript comes online.',
+        accent: const Color(0xFF22D3EE),
+        clientCommsSnapshot: widget.clientCommsSnapshot,
+      );
     }
     final duress = _duressDetected(incident);
     final transcript = <Map<String, String>>[
@@ -6089,114 +7764,118 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  Widget _visualTab(
-    _IncidentRecord? incident, {
-    required bool embeddedScroll,
-  }) {
+  Widget _visualTab(_IncidentRecord? incident, {required bool embeddedScroll}) {
     if (incident == null) {
-      return _muted('No camera comparison is ready for this lane yet.');
+      return _contextTabRecoveryDeck(
+        key: const ValueKey('live-operations-visual-recovery'),
+        eyebrow: 'VISUAL CONTEXT READY',
+        title: 'No camera comparison is pinned yet.',
+        summary:
+            'The visual rail can still recover the lead lane, reopen the action ladder, or keep the scoped client-lane posture visible while comparison evidence comes online.',
+        accent: const Color(0xFFFACC15),
+        clientCommsSnapshot: widget.clientCommsSnapshot,
+      );
     }
     final snapshotAvailable = (incident.snapshotUrl ?? '').trim().isNotEmpty;
     final clipAvailable = (incident.clipUrl ?? '').trim().isNotEmpty;
-    final score = incident.priority == _IncidentPriority.p1Critical
-        ? 58
-        : incident.priority == _IncidentPriority.p2High
-        ? 74
-        : 96;
+    final score = _visualMatchScoreForIncident(incident);
     final scoreColor = score >= 95
         ? const Color(0xFF10B981)
         : score >= 60
         ? const Color(0xFFFACC15)
         : const Color(0xFFEF4444);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _metaRow('NORM', 'NIGHT BASELINE'),
-        _metaRow('LIVE', incident.timestamp),
-        Row(
-          children: [
-            Text(
-              'Match Score',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9CB3D2),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+    final children = <Widget>[
+      _metaRow('NORM', 'NIGHT BASELINE'),
+      _metaRow('LIVE', incident.timestamp),
+      Row(
+        children: [
+          Text(
+            'Match Score',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB3D2),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
-            const Spacer(),
-            Text(
-              '$score%',
-              style: GoogleFonts.rajdhani(
-                color: scoreColor,
-                fontSize: 38,
-                height: 0.9,
-                fontWeight: FontWeight.w700,
-              ),
+          ),
+          const Spacer(),
+          Text(
+            '$score%',
+            style: GoogleFonts.rajdhani(
+              color: scoreColor,
+              fontSize: 38,
+              height: 0.9,
+              fontWeight: FontWeight.w700,
             ),
-          ],
+          ),
+        ],
+      ),
+      const SizedBox(height: 8),
+      Row(
+        children: [
+          Expanded(
+            child: _metaRow(
+              'Snapshot',
+              snapshotAvailable ? 'READY' : 'PENDING',
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _metaRow('Clip', clipAvailable ? 'READY' : 'PENDING'),
+          ),
+        ],
+      ),
+      if (snapshotAvailable || clipAvailable) ...[
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: const Color(0x120F766E),
+            border: Border.all(color: const Color(0x5534D399)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (snapshotAvailable)
+                _anomalyRow('Snapshot reference captured', 100),
+              if (snapshotAvailable && clipAvailable) const SizedBox(height: 4),
+              if (clipAvailable) _anomalyRow('Clip reference captured', 100),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: _metaRow(
-                'Snapshot',
-                snapshotAvailable ? 'READY' : 'PENDING',
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _metaRow('Clip', clipAvailable ? 'READY' : 'PENDING'),
-            ),
-          ],
-        ),
-        if (snapshotAvailable || clipAvailable) ...[
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: const Color(0x120F766E),
-              border: Border.all(color: const Color(0x5534D399)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (snapshotAvailable)
-                  _anomalyRow('Snapshot reference captured', 100),
-                if (snapshotAvailable && clipAvailable)
-                  const SizedBox(height: 4),
-                if (clipAvailable) _anomalyRow('Clip reference captured', 100),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-        if (score < 60) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: const Color(0x18EF4444),
-              border: Border.all(color: const Color(0x55EF4444)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _anomalyRow('Gate status changed', 94),
-                const SizedBox(height: 4),
-                _anomalyRow('Perimeter breach line', 91),
-                const SizedBox(height: 4),
-                _anomalyRow('Unauthorized vehicle', 86),
-              ],
-            ),
-          ),
-        ] else
-          _metaRow('Anomalies', '0'),
       ],
-    );
+      if (score < 60) ...[
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: const Color(0x18EF4444),
+            border: Border.all(color: const Color(0x55EF4444)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _anomalyRow('Gate status changed', 94),
+              const SizedBox(height: 4),
+              _anomalyRow('Perimeter breach line', 91),
+              const SizedBox(height: 4),
+              _anomalyRow('Unauthorized vehicle', 86),
+            ],
+          ),
+        ),
+      ] else
+        _metaRow('Anomalies', '0'),
+    ];
+    if (!embeddedScroll) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      );
+    }
+    return ListView(children: children);
   }
 
   Widget _anomalyRow(String label, int confidence) {
@@ -6228,74 +7907,118 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final wide = embeddedScroll;
     Widget vigilanceTile(int index) {
       final guard = _vigilance[index];
+      final selected = _focusedVigilanceCallsign == guard.callsign;
       final statusColor = guard.decayLevel <= 75
           ? const Color(0xFF10B981)
           : guard.decayLevel <= 90
           ? const Color(0xFFF59E0B)
           : const Color(0xFFEF4444);
-      return Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: ValueKey('live-operations-vigilance-tile-${guard.callsign}'),
           borderRadius: BorderRadius.circular(8),
-          color: const Color(0x14000000),
-          border: Border.all(color: const Color(0xFF2A3C57)),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    guard.callsign,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFE7F2FF),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    'Last check-in: ${guard.lastCheckIn}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF8FA7C8),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+          onTap: () => _setFocusedVigilanceGuard(guard.callsign),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: selected
+                  ? statusColor.withValues(alpha: 0.16)
+                  : const Color(0x14000000),
+              border: Border.all(
+                color: selected
+                    ? statusColor.withValues(alpha: 0.72)
+                    : const Color(0xFF2A3C57),
+                width: selected ? 1.4 : 1,
               ),
             ),
-            SizedBox(
-              width: 64,
-              height: 20,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: guard.sparkline
-                    .map((value) {
-                      return Expanded(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          height: (value.clamp(10, 100) / 100) * 18,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            borderRadius: BorderRadius.circular(3),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            guard.callsign,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFE7F2FF),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
+                          if (selected) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                color: statusColor.withValues(alpha: 0.18),
+                                border: Border.all(
+                                  color: statusColor.withValues(alpha: 0.45),
+                                ),
+                              ),
+                              child: Text(
+                                'FOCUS',
+                                style: GoogleFonts.inter(
+                                  color: statusColor,
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      Text(
+                        'Last check-in: ${guard.lastCheckIn}',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8FA7C8),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
                         ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  width: 64,
+                  height: 20,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: guard.sparkline
+                        .map((value) {
+                          return Expanded(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 1),
+                              height: (value.clamp(10, 100) / 100) * 18,
+                              decoration: BoxDecoration(
+                                color: statusColor,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          );
+                        })
+                        .toList(growable: false),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${guard.decayLevel}%',
+                  style: GoogleFonts.inter(
+                    color: statusColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              '${guard.decayLevel}%',
-              style: GoogleFonts.inter(
-                color: statusColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
@@ -6317,10 +8040,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   Widget _ledgerPanel(List<_LedgerEntry> ledger, {bool embeddedScroll = true}) {
+    final verifiedCount = ledger
+        .where((entry) => _isLedgerEntryVerified(entry))
+        .length;
+    final chainVerified = ledger.isNotEmpty && verifiedCount == ledger.length;
+    final panelPadding = EdgeInsets.all(embeddedScroll ? 12 : 10);
+    final headerSpacing = embeddedScroll ? 12.0 : 10.0;
+    final sectionSpacing = embeddedScroll ? 10.0 : 8.0;
     final visibleEntries = ledger.take(embeddedScroll ? 4 : 3).toList();
     final rows = List<Widget>.generate(visibleEntries.length, (index) {
       final entry = visibleEntries[index];
       final style = _ledgerStyle(entry.type);
+      final verified = _isLedgerEntryVerified(entry);
       final hh = entry.timestamp.toLocal().hour.toString().padLeft(2, '0');
       final mm = entry.timestamp.toLocal().minute.toString().padLeft(2, '0');
       final ss = entry.timestamp.toLocal().second.toString().padLeft(2, '0');
@@ -6357,6 +8088,34 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             color: style.color,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            color: verified
+                                ? const Color(0x1A34D399)
+                                : const Color(0x1AF59E0B),
+                            border: Border.all(
+                              color: verified
+                                  ? const Color(0x6634D399)
+                                  : const Color(0x66F59E0B),
+                            ),
+                          ),
+                          child: Text(
+                            verified ? 'VERIFIED' : 'PENDING',
+                            style: GoogleFonts.robotoMono(
+                              color: verified
+                                  ? const Color(0xFF6EE7B7)
+                                  : const Color(0xFFFBBF24),
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                         const Spacer(),
@@ -6429,7 +8188,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return Container(
       key: const ValueKey('live-operations-ledger-preview'),
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: panelPadding,
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),
         borderRadius: BorderRadius.circular(14),
@@ -6485,7 +8244,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: headerSpacing),
           if (rows.isEmpty)
             Container(
               width: double.infinity,
@@ -6513,7 +8272,71 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ],
               ],
             ),
-          const SizedBox(height: 10),
+          SizedBox(height: sectionSpacing),
+          Container(
+            key: const ValueKey('live-operations-ledger-chain-status'),
+            width: double.infinity,
+            padding: EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: embeddedScroll ? 9 : 8,
+            ),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: chainVerified
+                  ? const Color(0x1434D399)
+                  : const Color(0x14F59E0B),
+              border: Border.all(
+                color: chainVerified
+                    ? const Color(0x3334D399)
+                    : const Color(0x33F59E0B),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  chainVerified
+                      ? Icons.verified_user_outlined
+                      : Icons.pending_actions_outlined,
+                  size: 16,
+                  color: chainVerified
+                      ? const Color(0xFF6EE7B7)
+                      : const Color(0xFFFBBF24),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        chainVerified
+                            ? 'Chain status: Verified'
+                            : 'Chain status: Pending verification',
+                        style: GoogleFonts.inter(
+                          color: chainVerified
+                              ? const Color(0xFFD1FAE5)
+                              : const Color(0xFFFEF3C7),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        chainVerified
+                            ? '$verifiedCount of ${ledger.length} events sealed${_lastLedgerVerificationAt == null ? '' : ' • ${_commsMomentLabel(_lastLedgerVerificationAt)}'}'
+                            : '$verifiedCount of ${ledger.length} events sealed',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF9AB2D2),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(height: sectionSpacing),
           Row(
             children: [
               Expanded(
@@ -6527,13 +8350,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
               ),
               OutlinedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Ledger chain verification passed'),
-                    ),
-                  );
-                },
+                key: const ValueKey('live-operations-ledger-verify-chain'),
+                onPressed: ledger.isEmpty
+                    ? null
+                    : () => _verifyLedgerChain(ledger),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFA78BFA),
                   side: const BorderSide(color: Color(0x665B3FD1)),
@@ -6543,7 +8363,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ),
                 ),
                 child: Text(
-                  'Verify Chain',
+                  chainVerified ? 'Re-run Verify' : 'Verify Chain',
                   style: GoogleFonts.inter(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w800,
@@ -6555,6 +8375,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ],
       ),
     );
+  }
+
+  bool _isLedgerEntryVerified(_LedgerEntry entry) =>
+      entry.verified || _verifiedLedgerEntryIds.contains(entry.id);
+
+  void _verifyLedgerChain(List<_LedgerEntry> ledger) {
+    if (ledger.isEmpty) {
+      return;
+    }
+    setState(() {
+      _verifiedLedgerEntryIds = <String>{
+        ..._verifiedLedgerEntryIds,
+        ...ledger.map((entry) => entry.id),
+      };
+      _lastLedgerVerificationAt = DateTime.now().toUtc();
+    });
   }
 
   Widget _contextTabs() {
@@ -6590,34 +8426,241 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
+  int _visualMatchScoreForIncident(_IncidentRecord incident) {
+    return incident.priority == _IncidentPriority.p1Critical
+        ? 58
+        : incident.priority == _IncidentPriority.p2High
+        ? 74
+        : 96;
+  }
+
+  _GuardVigilance? _guardAttentionLeadFrom(List<_GuardVigilance> guards) {
+    if (guards.isEmpty) {
+      return null;
+    }
+    return guards.reduce(
+      (best, candidate) =>
+          candidate.decayLevel > best.decayLevel ? candidate : best,
+    );
+  }
+
+  _GuardVigilance? get _focusedVigilanceGuard {
+    if (_vigilance.isEmpty) {
+      return null;
+    }
+    final focusedCallsign = _focusedVigilanceCallsign;
+    if (focusedCallsign != null) {
+      for (final guard in _vigilance) {
+        if (guard.callsign == focusedCallsign) {
+          return guard;
+        }
+      }
+    }
+    return _guardAttentionLeadFrom(_vigilance);
+  }
+
+  void _setFocusedVigilanceGuard(String callsign) {
+    if (_focusedVigilanceCallsign == callsign) {
+      return;
+    }
+    setState(() {
+      _focusedVigilanceCallsign = callsign;
+    });
+  }
+
+  Future<void> _openContextRailQueue(_IncidentRecord? activeIncident) async {
+    if (activeIncident != null && _activeIncidentId != activeIncident.id) {
+      _focusIncidentFromBanner(activeIncident);
+    } else if (activeIncident == null && _incidents.isNotEmpty) {
+      _focusLeadIncident();
+    }
+    await _jumpToControlInboxPanel();
+    _showLiveOpsFeedback(
+      activeIncident == null
+          ? 'Context rail reopened the control inbox.'
+          : 'Context rail reopened the control inbox for ${activeIncident.id}.',
+      label: 'CONTEXT RAIL',
+      detail: activeIncident == null
+          ? 'The queue came forward in the left rail while the right-side context stayed pinned for the next incident.'
+          : 'The selected incident stayed active while the left rail reopened high-priority reply work in place.',
+      accent: const Color(0xFFF59E0B),
+    );
+  }
+
+  Future<void> _openContextRailTab(
+    _IncidentRecord? activeIncident,
+    _ContextTab tab,
+  ) async {
+    if (_activeTab != tab) {
+      setState(() {
+        _activeTab = tab;
+      });
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _ensureContextAndVigilancePanelVisible();
+    final tabLabel = _tabLabel(tab);
+    _showLiveOpsFeedback(
+      activeIncident == null
+          ? 'Context rail opened $tabLabel.'
+          : 'Context rail opened $tabLabel for ${activeIncident.id}.',
+      label: 'CONTEXT RAIL',
+      detail: activeIncident == null
+          ? 'The right rail stayed active so the next incident can land without losing operator context.'
+          : 'The context rail kept ${activeIncident.id} pinned while ${tabLabel.toLowerCase()} posture moved forward in place.',
+      accent: switch (tab) {
+        _ContextTab.details => const Color(0xFF22D3EE),
+        _ContextTab.voip => const Color(0xFF3B82F6),
+        _ContextTab.visual => const Color(0xFF10B981),
+      },
+    );
+  }
+
+  void _focusGuardAttentionFromContext() {
+    final guard = _guardAttentionLeadFrom(_vigilance);
+    if (guard == null) {
+      return;
+    }
+    setState(() {
+      _focusedVigilanceCallsign = guard.callsign;
+    });
+    final accent = guard.decayLevel >= 90
+        ? const Color(0xFFEF4444)
+        : guard.decayLevel >= 75
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF10B981);
+    _showLiveOpsFeedback(
+      'Guard attention centered on ${guard.callsign}.',
+      label: 'GUARD VIGILANCE',
+      detail:
+          '${guard.callsign} now anchors the vigilance rail with ${guard.decayLevel}% decay and last check-in ${guard.lastCheckIn}.',
+      accent: accent,
+    );
+  }
+
+  Future<void> _openIncidentQueueBoardFocus(_IncidentRecord? incident) async {
+    if (incident != null && _activeIncidentId != incident.id) {
+      _focusIncidentFromBanner(incident);
+    } else if (incident == null && _incidents.isNotEmpty) {
+      _focusLeadIncident();
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _ensureActionLadderPanelVisible();
+    final active = incident ?? _activeIncident;
+    _showLiveOpsFeedback(
+      active == null
+          ? 'Rail focus moved to the active board.'
+          : 'Board focus opened for ${active.id}.',
+      label: 'INCIDENT RAIL',
+      detail: active == null
+          ? 'The board is centered and ready for the next live lane without leaving the rail.'
+          : 'The selected lane stayed pinned while the action ladder moved into view for ${active.id}.',
+      accent: const Color(0xFF22D3EE),
+    );
+  }
+
+  Future<void> _openIncidentQueueContextFocus(
+    _IncidentRecord? incident,
+    _ContextTab tab,
+  ) async {
+    if (incident != null && _activeIncidentId != incident.id) {
+      _focusIncidentFromBanner(incident);
+    } else if (incident == null && _incidents.isNotEmpty) {
+      _focusLeadIncident();
+    }
+    if (_activeTab != tab) {
+      setState(() {
+        _activeTab = tab;
+      });
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _ensureContextAndVigilancePanelVisible();
+    final active = incident ?? _activeIncident;
+    final tabLabel = _tabLabel(tab);
+    _showLiveOpsFeedback(
+      active == null
+          ? '$tabLabel context opened from the incident rail.'
+          : '$tabLabel context opened for ${active.id}.',
+      label: 'INCIDENT RAIL',
+      detail: active == null
+          ? 'The right rail stayed active so the next lane can land without losing operator context.'
+          : 'The incident rail kept ${active.id} selected while ${tabLabel.toLowerCase()} posture moved forward in place.',
+      accent: switch (tab) {
+        _ContextTab.details => const Color(0xFF22D3EE),
+        _ContextTab.voip => const Color(0xFF3B82F6),
+        _ContextTab.visual => const Color(0xFF10B981),
+      },
+    );
+  }
+
+  Future<void> _openIncidentQueueQueueFocus() async {
+    await _jumpToControlInboxPanel();
+    final active = _activeIncident;
+    _showLiveOpsFeedback(
+      active == null
+          ? 'Queue focus opened from the incident rail.'
+          : 'Queue focus opened for ${active.id}.',
+      label: 'INCIDENT RAIL',
+      detail: active == null
+          ? 'The left rail moved directly into reply work while the board stayed ready for the next selected lane.'
+          : 'Reply work came forward in the left rail while ${active.id} remained the active live lane.',
+      accent: const Color(0xFFF59E0B),
+    );
+  }
+
+  Future<void> _focusCriticalIncidentFromQueue(_IncidentRecord incident) async {
+    _focusIncidentFromBanner(incident);
+    await Future<void>.delayed(Duration.zero);
+    await _ensureActionLadderPanelVisible();
+    _showLiveOpsFeedback(
+      'Critical lane focused for ${incident.id}.',
+      label: 'INCIDENT RAIL',
+      detail:
+          'The highest-risk live lane moved into the board while the rest of the queue stayed visible for follow-through.',
+      accent: const Color(0xFFEF4444),
+    );
+  }
+
   Widget _contextTabButton(
     _ContextTab tab,
     bool selected, {
     required bool compact,
   }) {
-    return OutlinedButton(
-      onPressed: () {
-        setState(() {
-          _activeTab = tab;
-        });
-      },
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(
+    final pill = Container(
+      width: compact ? null : double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 10 : 12,
+        vertical: 10,
+      ),
+      decoration: BoxDecoration(
+        color: selected ? const Color(0x3322D3EE) : const Color(0x14FFFFFF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
           color: selected ? const Color(0x6622D3EE) : const Color(0x33FFFFFF),
         ),
-        backgroundColor: selected
-            ? const Color(0x3322D3EE)
-            : const Color(0x14FFFFFF),
-        foregroundColor: selected
-            ? const Color(0xFF22D3EE)
-            : const Color(0xFFB8CAE4),
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 10 : 0,
-          vertical: 10,
-        ),
-        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800),
       ),
-      child: Text(_tabLabel(tab)),
+      alignment: Alignment.center,
+      child: Text(
+        _tabLabel(tab),
+        textAlign: TextAlign.center,
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          color: selected ? const Color(0xFF22D3EE) : const Color(0xFFB8CAE4),
+        ),
+      ),
+    );
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          setState(() {
+            _activeTab = tab;
+          });
+        },
+        child: pill,
+      ),
     );
   }
 
@@ -6784,6 +8827,174 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           color: const Color(0xFF7F95B6),
           fontSize: 11,
           fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _contextTabRecoveryDeck({
+    required Key key,
+    required String eyebrow,
+    required String title,
+    required String summary,
+    required Color accent,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+  }) {
+    final criticalAlertIncident = _criticalAlertIncident;
+    final leadIncident = _incidents.isEmpty
+        ? null
+        : (_criticalAlertIncident ?? _incidents.first);
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1520),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.42)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              eyebrow,
+              style: GoogleFonts.inter(
+                color: accent,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.9,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              summary,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB1CC),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _contextChip(
+                  label: _tabLabel(_activeTab),
+                  foreground: accent,
+                  background: accent.withValues(alpha: 0.12),
+                  border: accent.withValues(alpha: 0.38),
+                ),
+                _contextChip(
+                  label:
+                      '${_incidents.length} live lane${_incidents.length == 1 ? '' : 's'}',
+                  foreground: const Color(0xFFB8CAE4),
+                  background: const Color(0x14000000),
+                  border: const Color(0xFF2A3D58),
+                ),
+                if (leadIncident != null)
+                  _contextChip(
+                    label: 'Lead ${leadIncident.id}',
+                    foreground: const Color(0xFF8FD1FF),
+                    background: const Color(0x1A22D3EE),
+                    border: const Color(0x5522D3EE),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (leadIncident != null)
+                  _chip(
+                    key: const ValueKey(
+                      'live-operations-context-recovery-focus-lead',
+                    ),
+                    label: 'Focus lead lane',
+                    foreground: const Color(0xFFEAF4FF),
+                    background: const Color(0x1A22D3EE),
+                    border: const Color(0x5522D3EE),
+                    leadingIcon: Icons.center_focus_strong_rounded,
+                    onTap: () async {
+                      _focusLeadIncident();
+                      await Future<void>.delayed(Duration.zero);
+                      await _ensureContextAndVigilancePanelVisible();
+                      _showLiveOpsFeedback(
+                        'Lead lane context recovered.',
+                        label: 'CONTEXT RECOVERY',
+                        detail:
+                            'Live Ops pinned the lead incident back into the board while keeping the ${_tabLabel(_activeTab).toLowerCase()} context active.',
+                        accent: accent,
+                      );
+                    },
+                  ),
+                if (criticalAlertIncident != null)
+                  _chip(
+                    key: const ValueKey(
+                      'live-operations-context-recovery-focus-critical',
+                    ),
+                    label: 'Focus critical',
+                    foreground: const Color(0xFFFFD6D6),
+                    background: const Color(0x1AEF4444),
+                    border: const Color(0x66EF4444),
+                    leadingIcon: Icons.warning_amber_rounded,
+                    onTap: () async {
+                      _focusIncidentFromBanner(criticalAlertIncident);
+                      await Future<void>.delayed(Duration.zero);
+                      await _ensureContextAndVigilancePanelVisible();
+                      _showLiveOpsFeedback(
+                        'Critical lane context recovered.',
+                        label: 'CONTEXT RECOVERY',
+                        detail:
+                            'Live Ops pinned the critical incident back into the board while keeping the current context tab active.',
+                        accent: const Color(0xFFEF4444),
+                      );
+                    },
+                  ),
+                _chip(
+                  key: const ValueKey(
+                    'live-operations-context-recovery-open-queue',
+                  ),
+                  label: 'Open action ladder',
+                  foreground: const Color(0xFFFFE4B5),
+                  background: const Color(0x1AF59E0B),
+                  border: const Color(0x66F59E0B),
+                  leadingIcon: Icons.schedule_rounded,
+                  onTap: () async {
+                    await _openPendingActionsRecovery();
+                  },
+                ),
+                if (clientCommsSnapshot != null)
+                  _chip(
+                    key: const ValueKey(
+                      'live-operations-context-recovery-open-client-lane',
+                    ),
+                    label: 'Recover client lane',
+                    foreground: const Color(0xFFDCF5FF),
+                    background: const Color(0x1422D3EE),
+                    border: const Color(0x553FAEEB),
+                    leadingIcon: Icons.forum_rounded,
+                    onTap: () async {
+                      await _openClientLaneRecovery(clientCommsSnapshot);
+                    },
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -6985,11 +9196,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
   }
 
-  void _showLiveOpsSnack(String message) {
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.hideCurrentSnackBar();
-    messenger?.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+  void _showLiveOpsSnack(
+    String message, {
+    String label = 'CONTROL INBOX',
+    String? detail,
+    Color accent = const Color(0xFF8FD1FF),
+  }) {
+    _showLiveOpsFeedback(
+      message,
+      label: label,
+      detail:
+          detail ??
+          'The latest inbox action stays pinned in the context rail while the queue and selected incident remain visible.',
+      accent: accent,
     );
   }
 
@@ -7160,13 +9379,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       'live_operations.pause_automation',
       context: {'incident_id': incident.id},
     );
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    messenger?.hideCurrentSnackBar();
-    messenger?.showSnackBar(
-      SnackBar(
-        content: Text('Automation paused for ${incident.id}'),
-        duration: const Duration(seconds: 2),
-      ),
+    _showLiveOpsSnack(
+      'Automation paused for ${incident.id}',
+      label: 'AUTOMATION HOLD',
+      detail:
+          'The automation hold stays visible in the context rail while the operator reviews the incident ladder.',
+      accent: const Color(0xFFFBBF24),
     );
   }
 
@@ -7240,8 +9458,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _incidents = projectedIncidents;
       _projectedLedger = projectedLedger;
       _vigilance = projectedVigilance;
+      final persistedFocusedGuard =
+          _focusedVigilanceCallsign != null &&
+              projectedVigilance.any(
+                (guard) => guard.callsign == _focusedVigilanceCallsign,
+              )
+          ? _focusedVigilanceCallsign
+          : _guardAttentionLeadFrom(projectedVigilance)?.callsign;
+      _focusedVigilanceCallsign = persistedFocusedGuard;
       _resolvedFocusReference = focusReference;
-      _focusLinkState = switch ((focusReference.isNotEmpty, focusMatchedInLiveStream)) {
+      _focusLinkState = switch ((
+        focusReference.isNotEmpty,
+        focusMatchedInLiveStream,
+      )) {
         (false, _) => _FocusLinkState.none,
         (true, false) => _FocusLinkState.seeded,
         (true, true) when normalizedInputFocus == focusReference =>

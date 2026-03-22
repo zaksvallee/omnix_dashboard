@@ -69,6 +69,463 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('governance desktop workspace rail routes command actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+    String? openedReportsClientId;
+    String? openedReportsSiteId;
+    String? openedReportsPartnerLabel;
+    String? openedLedgerClientId;
+    String? openedLedgerSiteId;
+    var generatedReportCount = 0;
+    final focusChanges = <GovernanceSceneActionFocus?>[];
+
+    final report = SovereignReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 184,
+        hashVerified: true,
+        integrityScore: 98,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 24,
+        humanOverrides: 3,
+        overrideReasons: {'PSIRA expired': 2},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 14,
+        driftDetected: 2,
+        avgMatchScore: 84,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 2,
+        pdpExpired: 1,
+        totalBlocked: 3,
+      ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 2,
+        trackedConfigurationReports: 1,
+        legacyConfigurationReports: 1,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 1,
+        omittedAiDecisionLogReports: 1,
+        omittedGuardMetricsReports: 1,
+        headline: '1 generated reports omitted sections',
+        summaryLine:
+            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+        latestReportSummary:
+            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+      ),
+      sceneReview: const SovereignReportSceneReview(
+        totalReviews: 7,
+        modelReviews: 5,
+        metadataFallbackReviews: 2,
+        suppressedActions: 1,
+        incidentAlerts: 2,
+        repeatUpdates: 2,
+        escalationCandidates: 2,
+        topPosture: 'escalation candidate',
+        actionMixSummary:
+            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
+        latestActionTaken:
+            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
+        recentActionsSummary:
+            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
+        latestSuppressedPattern:
+            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: <DispatchEvent>[
+            IntelligenceReceived(
+              eventId: 'evt-workspace-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              intelligenceId: 'intel-workspace-1',
+              provider: 'hikvision_dvr_monitor_only',
+              sourceType: 'dvr',
+              externalId: 'ext-workspace-1',
+              clientId: 'CLIENT-1',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-42',
+              cameraId: 'gate-cam',
+              objectLabel: 'person',
+              objectConfidence: 0.95,
+              headline: 'Scoped workspace event',
+              summary: 'Scoped site event',
+              riskScore: 92,
+              snapshotUrl: 'https://edge.example.com/intel-workspace-1.jpg',
+              canonicalHash: 'hash-workspace-1',
+            ),
+          ],
+          morningSovereignReport: report,
+          initialScopeClientId: 'CLIENT-1',
+          initialScopeSiteId: 'SITE-42',
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+          onOpenReportsForPartnerScope: (clientId, siteId, partnerLabel) {
+            openedReportsClientId = clientId;
+            openedReportsSiteId = siteId;
+            openedReportsPartnerLabel = partnerLabel;
+          },
+          onOpenLedgerForScope: (clientId, siteId) {
+            openedLedgerClientId = clientId;
+            openedLedgerSiteId = siteId;
+          },
+          onGenerateMorningSovereignReport: () async {
+            generatedReportCount += 1;
+          },
+          onSceneActionFocusChanged: focusChanges.add,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-workspace-panel-rail')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('governance-workspace-panel-board')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('governance-workspace-panel-context')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('governance-command-receipt')), findsOneWidget);
+    expect(find.text('Governance relay ready'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('governance-workspace-open-events')),
+    );
+    await tester.pumpAndSettle();
+    expect(openedEventIds, ['evt-workspace-1']);
+    expect(openedSelectedEventId, 'evt-workspace-1');
+    expect(find.text('Events review opened'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('governance-workspace-open-reports')),
+    );
+    await tester.pumpAndSettle();
+    expect(openedReportsClientId, 'CLIENT-1');
+    expect(openedReportsSiteId, 'SITE-42');
+    expect(openedReportsPartnerLabel, 'ONYX');
+    expect(find.text('Report workspace opened'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('governance-workspace-open-ledger')),
+    );
+    await tester.pumpAndSettle();
+    expect(openedLedgerClientId, 'CLIENT-1');
+    expect(openedLedgerSiteId, 'SITE-42');
+    expect(find.text('Ledger continuity opened'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-workspace-generate-report')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-workspace-generate-report')),
+    );
+    await tester.pumpAndSettle();
+    expect(generatedReportCount, 1);
+    expect(find.text('Morning report generated'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('governance-workspace-focus-latest-action')),
+    );
+    await tester.pumpAndSettle();
+    expect(focusChanges.last, GovernanceSceneActionFocus.latestAction);
+
+    await tester.tap(find.byKey(const ValueKey('governance-workspace-clear-focus')));
+    await tester.pumpAndSettle();
+    expect(focusChanges.last, isNull);
+  });
+
+  testWidgets(
+    'governance desktop recovery decks keep empty scope actionable',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      var reportsOpenCount = 0;
+      String? openedReportsClientId;
+      String? openedReportsSiteId;
+      var generatedReportCount = 0;
+
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 12,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 4,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 2,
+          driftDetected: 0,
+          avgMatchScore: 96,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+        receiptPolicy: const SovereignReportReceiptPolicy(
+          generatedReports: 0,
+          trackedConfigurationReports: 0,
+          legacyConfigurationReports: 0,
+          fullyIncludedReports: 0,
+          reportsWithOmittedSections: 0,
+          omittedAiDecisionLogReports: 0,
+          omittedGuardMetricsReports: 0,
+          headline: '',
+          summaryLine: '',
+          latestReportSummary: '',
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const <DispatchEvent>[],
+            morningSovereignReport: report,
+            initialScopeClientId: 'CLIENT-1',
+            initialScopeSiteId: 'SITE-42',
+            onOpenReportsForScope: (clientId, siteId) {
+              reportsOpenCount += 1;
+              openedReportsClientId = clientId;
+              openedReportsSiteId = siteId;
+            },
+            onGenerateMorningSovereignReport: () async {
+              generatedReportCount += 1;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Recover Event Scope'), findsNWidgets(2));
+      expect(find.text('Recover Ledger Continuity'), findsNWidgets(2));
+      expect(find.text('RECEIPT SUMMARY PENDING'), findsOneWidget);
+      expect(find.text('EVENT TRAIL AWAITING NEW SIGNALS'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('governance-workspace-open-events')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(reportsOpenCount, 1);
+      expect(openedReportsClientId, 'CLIENT-1');
+      expect(openedReportsSiteId, 'SITE-42');
+      expect(find.text('Report workspace opened'), findsOneWidget);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-quick-view-ledger-button')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-quick-view-ledger-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(reportsOpenCount, 2);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-context-events-open-reports')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-context-events-open-reports')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(reportsOpenCount, 3);
+
+      await tester.ensureVisible(
+        find.byKey(
+          const ValueKey('governance-context-receipt-refresh-report'),
+        ),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-context-receipt-refresh-report')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(generatedReportCount, 1);
+      expect(find.text('Morning report generated'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'governance empty partner chain surface routes scoped recovery actions',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      List<String>? openedEventIds;
+      String? openedSelectedEventId;
+      String? openedReportsClientId;
+      String? openedReportsSiteId;
+      String? openedLedgerClientId;
+      String? openedLedgerSiteId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: <DispatchEvent>[
+              IntelligenceReceived(
+                eventId: 'evt-partner-empty-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+                intelligenceId: 'intel-partner-empty-1',
+                provider: 'hikvision_dvr_monitor_only',
+                sourceType: 'dvr',
+                externalId: 'ext-partner-empty-1',
+                clientId: 'CLIENT-1',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-42',
+                cameraId: 'gate-cam',
+                objectLabel: 'person',
+                objectConfidence: 0.95,
+                headline: 'Scoped event',
+                summary: 'Scoped site event',
+                riskScore: 92,
+                snapshotUrl:
+                    'https://edge.example.com/intel-partner-empty-1.jpg',
+                canonicalHash: 'hash-partner-empty-1',
+              ),
+            ],
+            morningSovereignReport: SovereignReport(
+              date: '2026-03-10',
+              generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+              shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+              shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+              ledgerIntegrity: const SovereignReportLedgerIntegrity(
+                totalEvents: 40,
+                hashVerified: true,
+                integrityScore: 98,
+              ),
+              aiHumanDelta: const SovereignReportAiHumanDelta(
+                aiDecisions: 8,
+                humanOverrides: 1,
+                overrideReasons: {'FALSE_ALARM': 1},
+              ),
+              normDrift: const SovereignReportNormDrift(
+                sitesMonitored: 4,
+                driftDetected: 1,
+                avgMatchScore: 88,
+              ),
+              complianceBlockage: const SovereignReportComplianceBlockage(
+                psiraExpired: 0,
+                pdpExpired: 0,
+                totalBlocked: 0,
+              ),
+              partnerProgression: const SovereignReportPartnerProgression(
+                dispatchCount: 0,
+                declarationCount: 0,
+                acceptedCount: 0,
+                onSiteCount: 0,
+                allClearCount: 0,
+                cancelledCount: 0,
+                workflowHeadline: 'No partner dispatches in progress',
+                performanceHeadline: 'Awaiting next escalation',
+                slaHeadline: 'No partner handoff timing available',
+                summaryLine: 'Dispatches 0 • Declarations 0',
+                scopeBreakdowns: <SovereignReportPartnerScopeBreakdown>[],
+                scoreboardRows: <SovereignReportPartnerScoreboardRow>[],
+                dispatchChains: <SovereignReportPartnerDispatchChain>[],
+              ),
+            ),
+            initialScopeClientId: 'CLIENT-1',
+            initialScopeSiteId: 'SITE-42',
+            onOpenEventsForScope: (eventIds, selectedEventId) {
+              openedEventIds = eventIds;
+              openedSelectedEventId = selectedEventId;
+            },
+            onOpenReportsForScope: (clientId, siteId) {
+              openedReportsClientId = clientId;
+              openedReportsSiteId = siteId;
+            },
+            onOpenLedgerForScope: (clientId, siteId) {
+              openedLedgerClientId = clientId;
+              openedLedgerSiteId = siteId;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No active partner handoffs'), findsOneWidget);
+      expect(
+        find.textContaining('scoped recovery actions below'),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-partner-empty-open-events')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-partner-empty-open-events')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedEventIds, equals(const ['evt-partner-empty-1']));
+      expect(openedSelectedEventId, 'evt-partner-empty-1');
+      expect(find.text('Events review opened'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('governance-partner-empty-open-reports')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedReportsClientId, 'CLIENT-1');
+      expect(openedReportsSiteId, 'SITE-42');
+      expect(find.text('Report workspace opened'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey('governance-partner-empty-open-ledger')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedLedgerClientId, 'CLIENT-1');
+      expect(openedLedgerSiteId, 'SITE-42');
+      expect(find.text('Ledger continuity opened'), findsOneWidget);
+    },
+  );
+
   testWidgets('governance header view events opens the scoped event review', (
     tester,
   ) async {
@@ -327,8 +784,25 @@ void main() {
   testWidgets('governance page includes shadow MO intelligence in readiness', (
     tester,
   ) async {
+    String? copiedPayload;
     List<String>? openedEventIds;
     String? openedSelectedEventId;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
     SovereignReport buildReport({
       required String date,
       required DateTime generatedAtUtc,
@@ -541,6 +1015,20 @@ void main() {
     expect(find.textContaining('Posture weight weight '), findsOneWidget);
     expect(find.textContaining('Strength '), findsWidgets);
     expect(find.textContaining('VALIDATED'), findsWidgets);
+
+    await tester.tap(find.text('COPY SHADOW JSON'));
+    await tester.pumpAndSettle();
+
+    expect(copiedPayload, isNotNull);
+    expect(copiedPayload, contains('"shadowSiteCount": 1'));
+    expect(copiedPayload, contains('"sites": ['));
+    expect(
+      find.byKey(
+        const ValueKey('governance-global-readiness-shadow-receipt'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Shadow dossier copied'), findsWidgets);
 
     final openEvidenceButton = find.text('OPEN EVIDENCE').last;
     await tester.ensureVisible(openEvidenceButton);
@@ -1016,6 +1504,84 @@ void main() {
     expect(
       find.textContaining(
         'Signals 7 • Vehicles 3 • People 4 • Known 2 • Unknown 3 • Flagged 1 • Guard 1',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('governance site activity metric opens quiet-state drill-in', (
+    tester,
+  ) async {
+    final report = SovereignReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      siteActivity: const SovereignReportSiteActivity(
+        totalSignals: 0,
+        personSignals: 0,
+        vehicleSignals: 0,
+        knownIdentitySignals: 0,
+        flaggedIdentitySignals: 0,
+        unknownSignals: 0,
+        longPresenceSignals: 0,
+        guardInteractionSignals: 0,
+        executiveSummary: '',
+        headline: '',
+        summaryLine: '',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const <DispatchEvent>[],
+          morningSovereignReport: report,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-metric-site-activity')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-metric-site-activity')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-site-activity-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('SITE ACTIVITY TRUTH DRILL-IN'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-site-activity-history-2026-03-10')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'Signals 0 • Vehicles 0 • People 0 • Known 0 • Unknown 0 • Flagged 0 • Guard 0',
       ),
       findsOneWidget,
     );
@@ -2360,9 +2926,147 @@ void main() {
     );
   });
 
+  testWidgets(
+    'governance receipt policy empty shift exposes recovery pivots',
+    (tester) async {
+      String? openedReportsClientId;
+      String? openedReportsSiteId;
+      String? openedLedgerClientId;
+      String? openedLedgerSiteId;
+      var generatedReportCount = 0;
+
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 1,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+        receiptPolicy: const SovereignReportReceiptPolicy(
+          generatedReports: 0,
+          trackedConfigurationReports: 0,
+          legacyConfigurationReports: 0,
+          fullyIncludedReports: 0,
+          reportsWithOmittedSections: 0,
+          omittedAiDecisionLogReports: 0,
+          omittedGuardMetricsReports: 0,
+          headline: '',
+          summaryLine: '',
+          latestReportSummary: '',
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const <DispatchEvent>[],
+            morningSovereignReport: report,
+            initialScopeClientId: 'CLIENT-1',
+            initialScopeSiteId: 'SITE-42',
+            onOpenReportsForScope: (clientId, siteId) {
+              openedReportsClientId = clientId;
+              openedReportsSiteId = siteId;
+            },
+            onOpenLedgerForScope: (clientId, siteId) {
+              openedLedgerClientId = clientId;
+              openedLedgerSiteId = siteId;
+            },
+            onGenerateMorningSovereignReport: () async {
+              generatedReportCount += 1;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-metric-receipt-policy')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-metric-receipt-policy')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('governance-receipt-policy-empty-recovery')),
+        findsOneWidget,
+      );
+      expect(find.text('RECEIPT LANE RECOVERY READY'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-receipt-policy-empty-open-reports'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedReportsClientId, 'CLIENT-1');
+      expect(openedReportsSiteId, 'SITE-42');
+      expect(find.text('Report workspace opened'), findsOneWidget);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-metric-receipt-policy')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-metric-receipt-policy')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-receipt-policy-empty-open-ledger'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedLedgerClientId, 'CLIENT-1');
+      expect(openedLedgerSiteId, 'SITE-42');
+      expect(find.text('Ledger continuity opened'), findsOneWidget);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-metric-receipt-policy')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-metric-receipt-policy')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-receipt-policy-empty-refresh-report'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(generatedReportCount, 1);
+      expect(find.text('Morning report generated'), findsOneWidget);
+    },
+  );
+
   testWidgets('governance page shows listener alarm metric from audit events', (
     tester,
   ) async {
+    List<String>? openedEventIds;
+    String? openedSelectedEventId;
+    var generatedReportCount = 0;
     final report = SovereignReport(
       date: '2026-03-16',
       generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
@@ -2455,6 +3159,15 @@ void main() {
             ),
           ],
           morningSovereignReport: report,
+          initialScopeClientId: 'CLIENT-1',
+          initialScopeSiteId: 'SITE-1',
+          onOpenEventsForScope: (eventIds, selectedEventId) {
+            openedEventIds = eventIds;
+            openedSelectedEventId = selectedEventId;
+          },
+          onGenerateMorningSovereignReport: () async {
+            generatedReportCount += 1;
+          },
         ),
       ),
     );
@@ -2485,9 +3198,209 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('LISTENER ALARM PARITY DRILL-IN'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-listener-latest-cycle')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('governance-listener-latest-advisory')),
+      findsOneWidget,
+    );
     expect(find.text('zone_mismatch: 1'), findsOneWidget);
     expect(find.text('skew_exceeded: 1'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('governance-listener-drill-open-events')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedEventIds, equals(const ['alarm-advisory-1']));
+    expect(openedSelectedEventId, 'alarm-advisory-1');
+    expect(find.text('Events review opened'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-metric-listener-alarm')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-metric-listener-alarm')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('governance-listener-drill-refresh-report')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(generatedReportCount, 1);
+    expect(find.text('Morning report generated'), findsOneWidget);
   });
+
+  testWidgets(
+    'governance listener alarm quiet parity state exposes recovery pivots',
+    (tester) async {
+      List<String>? openedEventIds;
+      String? openedSelectedEventId;
+      String? openedReportsClientId;
+      String? openedReportsSiteId;
+      var generatedReportCount = 0;
+
+      final report = SovereignReport(
+        date: '2026-03-16',
+        generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 0, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 12,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 2,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 1,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: [
+              ListenerAlarmFeedCycleRecorded(
+                eventId: 'alarm-cycle-quiet-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 16, 2, 0),
+                sourceLabel: 'listener-http',
+                acceptedCount: 5,
+                mappedCount: 4,
+                unmappedCount: 1,
+                duplicateCount: 0,
+                rejectedCount: 0,
+                normalizationSkippedCount: 0,
+                deliveredCount: 4,
+                failedCount: 0,
+                clearCount: 3,
+                suspiciousCount: 1,
+                unavailableCount: 0,
+                pendingCount: 0,
+                rejectSummary: '',
+              ),
+              ListenerAlarmAdvisoryRecorded(
+                eventId: 'alarm-advisory-quiet-1',
+                sequence: 2,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 16, 2, 1),
+                clientId: 'CLIENT-1',
+                regionId: 'REGION-1',
+                siteId: 'SITE-42',
+                externalAlarmId: 'EXT-1',
+                accountNumber: '1234',
+                partition: '1',
+                zone: '004',
+                zoneLabel: 'Front gate',
+                eventLabel: 'Burglary',
+                dispositionLabel: 'suspicious',
+                summary: 'Person detected near the front gate camera.',
+                recommendation: 'Escalation recommended.',
+                deliveredCount: 1,
+                failedCount: 0,
+              ),
+            ],
+            morningSovereignReport: report,
+            initialScopeClientId: 'CLIENT-1',
+            initialScopeSiteId: 'SITE-42',
+            onOpenEventsForScope: (eventIds, selectedEventId) {
+              openedEventIds = eventIds;
+              openedSelectedEventId = selectedEventId;
+            },
+            onOpenReportsForScope: (clientId, siteId) {
+              openedReportsClientId = clientId;
+              openedReportsSiteId = siteId;
+            },
+            onGenerateMorningSovereignReport: () async {
+              generatedReportCount += 1;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-metric-listener-alarm')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-metric-listener-alarm')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey('governance-listener-parity-empty-recovery'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('LISTENER PARITY PENDING'), findsOneWidget);
+      expect(find.text('Escalation recommended.'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-listener-parity-empty-open-events'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedEventIds, equals(const ['alarm-advisory-quiet-1']));
+      expect(openedSelectedEventId, 'alarm-advisory-quiet-1');
+      expect(find.text('Events review opened'), findsOneWidget);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-metric-listener-alarm')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-metric-listener-alarm')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-listener-parity-empty-open-reports'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedReportsClientId, 'CLIENT-1');
+      expect(openedReportsSiteId, 'SITE-42');
+      expect(find.text('Report workspace opened'), findsOneWidget);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-metric-listener-alarm')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-metric-listener-alarm')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-listener-parity-empty-refresh-report'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(generatedReportCount, 1);
+      expect(find.text('Morning report generated'), findsOneWidget);
+    },
+  );
 
   testWidgets('governance partner scorecard drill-in can open scoped reports', (
     tester,
@@ -2607,6 +3520,315 @@ void main() {
     });
     expect(find.textContaining('Opening Reports for SITE-42'), findsOneWidget);
   });
+
+  testWidgets(
+    'governance partner scorecard empty chains expose recovery pivots',
+    (tester) async {
+      String? openedLedgerClientId;
+      String? openedLedgerSiteId;
+      var generatedReportCount = 0;
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 1,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+        partnerProgression: SovereignReportPartnerProgression(
+          dispatchCount: 1,
+          declarationCount: 1,
+          acceptedCount: 0,
+          onSiteCount: 0,
+          allClearCount: 0,
+          cancelledCount: 0,
+          summaryLine: '',
+          scoreboardRows: [
+            SovereignReportPartnerScoreboardRow(
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              partnerLabel: 'Partner Alpha',
+              dispatchCount: 1,
+              strongCount: 0,
+              onTrackCount: 1,
+              watchCount: 0,
+              criticalCount: 0,
+              averageAcceptedDelayMinutes: 0,
+              averageOnSiteDelayMinutes: 0,
+              summaryLine:
+                  'Dispatches 1 • Strong 0 • On track 1 • Watch 0 • Critical 0 • Avg accept 0.0m • Avg on site 0.0m',
+            ),
+          ],
+          dispatchChains: const [],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const [],
+            morningSovereignReport: report,
+            onOpenLedgerForScope: (clientId, siteId) {
+              openedLedgerClientId = clientId;
+              openedLedgerSiteId = siteId;
+            },
+            onGenerateMorningSovereignReport: () async {
+              generatedReportCount += 1;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final scoreboardFinder = find.byKey(
+        const ValueKey(
+          'governance-partner-scoreboard-CLIENT-1/SITE-42-Partner Alpha',
+        ),
+      );
+      await tester.ensureVisible(scoreboardFinder);
+      await tester.tap(scoreboardFinder);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('governance-partner-scorecard-empty-chains')),
+        findsOneWidget,
+      );
+      expect(find.text('CHAIN RECOVERY READY'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-partner-scorecard-empty-open-ledger'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedLedgerClientId, 'CLIENT-1');
+      expect(openedLedgerSiteId, 'SITE-42');
+      expect(find.text('Ledger continuity opened'), findsOneWidget);
+
+      await tester.ensureVisible(scoreboardFinder);
+      await tester.tap(scoreboardFinder);
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('governance-partner-scorecard-empty-refresh-report'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(generatedReportCount, 1);
+      expect(find.text('Morning report generated'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'governance workspace reports action falls back to scoped reports lane',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      String? openedClientId;
+      String? openedSiteId;
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 1,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+        partnerProgression: SovereignReportPartnerProgression(
+          dispatchCount: 1,
+          declarationCount: 3,
+          acceptedCount: 1,
+          onSiteCount: 1,
+          allClearCount: 1,
+          cancelledCount: 0,
+          summaryLine: '',
+          scoreboardRows: const [],
+          dispatchChains: [
+            SovereignReportPartnerDispatchChain(
+              dispatchId: 'DSP-200',
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              partnerLabel: 'Partner Alpha',
+              declarationCount: 3,
+              latestStatus: PartnerDispatchStatus.allClear,
+              latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+              dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 1, 0),
+              acceptedAtUtc: DateTime.utc(2026, 3, 10, 1, 4),
+              onSiteAtUtc: DateTime.utc(2026, 3, 10, 1, 10),
+              allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+              acceptedDelayMinutes: 4.0,
+              onSiteDelayMinutes: 10.0,
+              scoreLabel: 'STRONG',
+              scoreReason:
+                  'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
+              workflowSummary:
+                  'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const <DispatchEvent>[],
+            morningSovereignReport: report,
+            initialScopeClientId: 'CLIENT-1',
+            initialScopeSiteId: 'SITE-42',
+            onOpenReportsForScope: (clientId, siteId) {
+              openedClientId = clientId;
+              openedSiteId = siteId;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey('governance-workspace-open-reports')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedClientId, 'CLIENT-1');
+      expect(openedSiteId, 'SITE-42');
+      expect(find.text('Report workspace opened'), findsOneWidget);
+      expect(
+        find.textContaining('keeping Partner Alpha as the active partner context'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'governance workspace reports action opens receipt drill-in when no reports route is available',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 10,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 1,
+          humanOverrides: 0,
+          overrideReasons: <String, int>{},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 1,
+          driftDetected: 0,
+          avgMatchScore: 100,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 0,
+          pdpExpired: 0,
+          totalBlocked: 0,
+        ),
+        receiptPolicy: const SovereignReportReceiptPolicy(
+          generatedReports: 2,
+          trackedConfigurationReports: 1,
+          legacyConfigurationReports: 1,
+          fullyIncludedReports: 0,
+          reportsWithOmittedSections: 1,
+          omittedAiDecisionLogReports: 1,
+          omittedGuardMetricsReports: 1,
+          headline: '1 generated reports omitted sections',
+          summaryLine:
+              'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
+          latestReportSummary:
+              'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        ),
+        partnerProgression: SovereignReportPartnerProgression(
+          dispatchCount: 1,
+          declarationCount: 3,
+          acceptedCount: 1,
+          onSiteCount: 1,
+          allClearCount: 1,
+          cancelledCount: 0,
+          summaryLine: '',
+          scoreboardRows: const [],
+          dispatchChains: const [],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const <DispatchEvent>[],
+            morningSovereignReport: report,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey('governance-workspace-open-reports')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('governance-receipt-policy-dialog')),
+        findsOneWidget,
+      );
+      expect(find.text('Receipt policy drill-in opened'), findsOneWidget);
+      expect(
+        find.textContaining('no scoped reports lane was available'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets(
     'governance receipt branding drill-in can open reports for the selected shift',

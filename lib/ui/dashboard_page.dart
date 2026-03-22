@@ -18,6 +18,7 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/intelligence/triage_policy.dart';
 import '../domain/projection/operations_health_projection.dart';
 import '../domain/store/in_memory_event_store.dart';
+import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
 class DashboardPage extends StatelessWidget {
@@ -444,58 +445,79 @@ class _DesktopDashboard extends StatelessWidget {
       onOpenEventsForScope: onOpenEventsForScope,
     );
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1540),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // Keep the primary operational read path full-width on typical
-              // desktop/laptop windows; only pin the right rail on very wide layouts.
-              final stackRightRailBelow = constraints.maxWidth < 1320;
+    return LayoutBuilder(
+      builder: (context, viewport) {
+        const contentPadding = EdgeInsets.all(10);
+        final useScrollFallback =
+            viewport.maxHeight < 720 || viewport.maxWidth < 1180;
+        final boundedDesktopSurface =
+            !useScrollFallback &&
+            viewport.hasBoundedHeight &&
+            viewport.maxHeight.isFinite;
+        final ultrawideSurface = isUltrawideLayout(
+          context,
+          viewportWidth: viewport.maxWidth,
+        );
+        final widescreenSurface = isWidescreenLayout(
+          context,
+          viewportWidth: viewport.maxWidth,
+        );
+        final surfaceMaxWidth = ultrawideSurface
+            ? viewport.maxWidth
+            : widescreenSurface
+            ? viewport.maxWidth * 0.94
+            : 1540.0;
 
-              return Column(
-                children: [
-                  _ExecutiveSummary(
-                    snapshot: snapshot,
-                    threat: threat,
-                    triage: triage,
-                  ),
-                  const SizedBox(height: 10),
-                  if (stackRightRailBelow) ...[
-                    _SignalAndFeedGrid(snapshot: snapshot),
-                    const SizedBox(height: 10),
-                    _SitePosturePanel(snapshot: snapshot, threat: threat),
-                    const SizedBox(height: 10),
-                    rightRail,
-                  ] else
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          flex: 7,
-                          child: Column(
-                            children: [
-                              _SignalAndFeedGrid(snapshot: snapshot),
-                              const SizedBox(height: 10),
-                              _SitePosturePanel(
-                                snapshot: snapshot,
-                                threat: threat,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        SizedBox(width: 336, child: rightRail),
-                      ],
-                    ),
-                ],
+        Widget buildSurfaceBody({required bool embedScroll}) {
+          final stackRightRailBelow = viewport.maxWidth < 1320;
+          final workspace = _DashboardOperationsWorkspace(
+            snapshot: snapshot,
+            triage: triage,
+            threat: threat,
+          );
+          if (stackRightRailBelow) {
+            if (embedScroll) {
+              return ListView(
+                padding: EdgeInsets.zero,
+                children: [workspace, const SizedBox(height: 10), rightRail],
               );
-            },
+            }
+            return Column(
+              children: [workspace, const SizedBox(height: 10), rightRail],
+            );
+          }
+
+          final railWidth = ultrawideSurface ? 380.0 : 336.0;
+          final leftColumn = embedScroll
+              ? SingleChildScrollView(primary: false, child: workspace)
+              : workspace;
+          final rightColumn = embedScroll
+              ? SingleChildScrollView(primary: false, child: rightRail)
+              : rightRail;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 8, child: leftColumn),
+              const SizedBox(width: 10),
+              SizedBox(width: railWidth, child: rightColumn),
+            ],
+          );
+        }
+
+        return OnyxViewportWorkspaceLayout(
+          padding: contentPadding,
+          maxWidth: surfaceMaxWidth,
+          lockToViewport: boundedDesktopSurface,
+          spacing: 10,
+          header: _ExecutiveSummary(
+            snapshot: snapshot,
+            threat: threat,
+            triage: triage,
           ),
-        ),
-      ),
+          body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
+        );
+      },
     );
   }
 }
@@ -585,9 +607,11 @@ class _CompactDashboard extends StatelessWidget {
       children: [
         _ExecutiveSummary(snapshot: snapshot, threat: threat, triage: triage),
         const SizedBox(height: 10),
-        _SignalAndFeedGrid(snapshot: snapshot),
-        const SizedBox(height: 12),
-        _SitePosturePanel(snapshot: snapshot, threat: threat),
+        _DashboardOperationsWorkspace(
+          snapshot: snapshot,
+          triage: triage,
+          threat: threat,
+        ),
         const SizedBox(height: 12),
         _RightRail(
           snapshot: snapshot,
@@ -927,135 +951,2039 @@ class _SummaryStripItem extends StatelessWidget {
   }
 }
 
-class _SignalAndFeedGrid extends StatelessWidget {
+class _DashboardOperationsWorkspace extends StatefulWidget {
   final OperationsHealthSnapshot snapshot;
+  final _DashboardTriageSummary triage;
+  final _ThreatState threat;
 
-  const _SignalAndFeedGrid({required this.snapshot});
+  const _DashboardOperationsWorkspace({
+    required this.snapshot,
+    required this.triage,
+    required this.threat,
+  });
+
+  @override
+  State<_DashboardOperationsWorkspace> createState() =>
+      _DashboardOperationsWorkspaceState();
+}
+
+class _DashboardOperationsWorkspaceState
+    extends State<_DashboardOperationsWorkspace> {
+  _DashboardWorkspaceMode _mode = _DashboardWorkspaceMode.signals;
+  _DashboardSignalLane _signalLane = _DashboardSignalLane.all;
+  _DashboardDispatchLane _dispatchLane = _DashboardDispatchLane.all;
+  _DashboardSiteLane _siteLane = _DashboardSiteLane.all;
+  String? _selectedSignalId;
+  String? _selectedDispatchId;
+  String? _selectedSiteId;
 
   @override
   Widget build(BuildContext context) {
-    final visibleSignals = snapshot.liveSignals.take(8).toList(growable: false);
-    final visibleDispatchFeed = snapshot.dispatchFeed
-        .take(8)
-        .toList(growable: false);
-    final hiddenSignals = snapshot.liveSignals.length - visibleSignals.length;
-    final hiddenDispatches =
-        snapshot.dispatchFeed.length - visibleDispatchFeed.length;
+    final signalItems = _buildSignalItems(widget.snapshot.liveSignals);
+    final dispatchItems = _buildDispatchItems(widget.snapshot.dispatchFeed);
+    final siteItems = _buildSiteItems(widget.snapshot.sites);
 
-    final liveSignalsCard = _DashboardCard(
-      title: 'Live Signals',
+    final visibleSignals = _filteredSignalItems(signalItems);
+    final visibleDispatches = _filteredDispatchItems(dispatchItems);
+    final visibleSites = _filteredSiteItems(siteItems);
+
+    final selectedSignal = _resolveSignalSelection(visibleSignals);
+    final selectedDispatch = _resolveDispatchSelection(visibleDispatches);
+    final selectedSite = _resolveSiteSelection(visibleSites);
+
+    final focus = switch (_mode) {
+      _DashboardWorkspaceMode.signals => _signalFocusModel(
+        selectedSignal,
+        visibleSignals.length,
+        signalItems.length,
+      ),
+      _DashboardWorkspaceMode.dispatch => _dispatchFocusModel(
+        selectedDispatch,
+        visibleDispatches.length,
+        dispatchItems.length,
+      ),
+      _DashboardWorkspaceMode.sites => _siteFocusModel(
+        selectedSite,
+        visibleSites.length,
+        siteItems.length,
+      ),
+    };
+
+    return _DashboardCard(
+      title: 'Command Workspace',
       subtitle:
-          'Recent intelligence, patrol, and field confirmations • ${snapshot.liveSignals.length} total',
+          'Selectable operational lanes that turn the dashboard body into a live command board.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final row in visibleSignals) ...[
-            _TimelineRow(accent: const Color(0xFF57C8FF), label: row),
-            const SizedBox(height: 8),
-          ],
-          if (snapshot.liveSignals.isEmpty)
-            const _MutedLabel(label: 'No live signals yet.')
-          else if (hiddenSignals > 0)
-            OnyxTruncationHint(
-              visibleCount: visibleSignals.length,
-              totalCount: snapshot.liveSignals.length,
-              subject: 'signals',
-              hiddenDescriptor: 'older signals',
-            ),
+          _workspaceFocusBanner(focus),
+          const SizedBox(height: 12),
+          _workspaceStatusBanner(
+            signalItems: signalItems,
+            dispatchItems: dispatchItems,
+            siteItems: siteItems,
+            visibleSignals: visibleSignals,
+            visibleDispatches: visibleDispatches,
+            visibleSites: visibleSites,
+            selectedSignal: selectedSignal,
+            selectedDispatch: selectedDispatch,
+            selectedSite: selectedSite,
+          ),
+          const SizedBox(height: 10),
+          _activeFilterRow(signalItems, dispatchItems, siteItems),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 1160;
+              final lane = switch (_mode) {
+                _DashboardWorkspaceMode.signals => _signalLanePane(
+                  signalItems,
+                  visibleSignals,
+                  selectedSignal,
+                ),
+                _DashboardWorkspaceMode.dispatch => _dispatchLanePane(
+                  dispatchItems,
+                  visibleDispatches,
+                  selectedDispatch,
+                ),
+                _DashboardWorkspaceMode.sites => _siteLanePane(
+                  siteItems,
+                  visibleSites,
+                  selectedSite,
+                ),
+              };
+              final detail = switch (_mode) {
+                _DashboardWorkspaceMode.signals => _signalDetailPane(
+                  signalItems,
+                  visibleSignals,
+                  selectedSignal,
+                ),
+                _DashboardWorkspaceMode.dispatch => _dispatchDetailPane(
+                  dispatchItems,
+                  visibleDispatches,
+                  selectedDispatch,
+                ),
+                _DashboardWorkspaceMode.sites => _siteDetailPane(
+                  siteItems,
+                  visibleSites,
+                  selectedSite,
+                ),
+              };
+              if (stacked) {
+                return Column(
+                  children: [lane, const SizedBox(height: 10), detail],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 4, child: lane),
+                  const SizedBox(width: 10),
+                  Expanded(flex: 6, child: detail),
+                ],
+              );
+            },
+          ),
         ],
       ),
     );
-    final dispatchFeedCard = _DashboardCard(
-      title: 'Dispatch Feed',
-      subtitle:
-          'Readable dispatch outcomes with quick priority color • ${snapshot.dispatchFeed.length} total',
+  }
+
+  void _setMode(_DashboardWorkspaceMode mode) {
+    if (_mode == mode) {
+      return;
+    }
+    setState(() {
+      _mode = mode;
+    });
+  }
+
+  void _focusSignalLaneAction(
+    List<_DashboardSignalItem> items,
+    _DashboardSignalLane lane,
+  ) {
+    final visible = _filteredSignalItems(items, lane: lane);
+    setState(() {
+      _mode = _DashboardWorkspaceMode.signals;
+      _signalLane = lane;
+      _selectedSignalId = visible.isEmpty ? null : visible.first.id;
+    });
+  }
+
+  void _focusDispatchLaneAction(
+    List<_DashboardDispatchItem> items,
+    _DashboardDispatchLane lane,
+  ) {
+    final visible = _filteredDispatchItems(items, lane: lane);
+    setState(() {
+      _mode = _DashboardWorkspaceMode.dispatch;
+      _dispatchLane = lane;
+      _selectedDispatchId = visible.isEmpty ? null : visible.first.dispatchId;
+    });
+  }
+
+  void _focusSiteLaneAction(
+    List<SiteHealthSnapshot> items,
+    _DashboardSiteLane lane,
+  ) {
+    final visible = _filteredSiteItems(items, lane: lane);
+    setState(() {
+      _mode = _DashboardWorkspaceMode.sites;
+      _siteLane = lane;
+      _selectedSiteId = visible.isEmpty ? null : visible.first.siteId;
+    });
+  }
+
+  Widget _workspaceStatusBanner({
+    required List<_DashboardSignalItem> signalItems,
+    required List<_DashboardDispatchItem> dispatchItems,
+    required List<SiteHealthSnapshot> siteItems,
+    required List<_DashboardSignalItem> visibleSignals,
+    required List<_DashboardDispatchItem> visibleDispatches,
+    required List<SiteHealthSnapshot> visibleSites,
+    required _DashboardSignalItem? selectedSignal,
+    required _DashboardDispatchItem? selectedDispatch,
+    required SiteHealthSnapshot? selectedSite,
+  }) {
+    final selectedLabel = switch (_mode) {
+      _DashboardWorkspaceMode.signals => selectedSignal?.title ?? 'none',
+      _DashboardWorkspaceMode.dispatch =>
+        selectedDispatch?.dispatchId ?? 'none',
+      _DashboardWorkspaceMode.sites => selectedSite?.siteId ?? 'none',
+    };
+    final activeLaneLabel = switch (_mode) {
+      _DashboardWorkspaceMode.signals => switch (_signalLane) {
+        _DashboardSignalLane.all => 'Signals • All',
+        _DashboardSignalLane.intelligence => 'Signals • Intel',
+        _DashboardSignalLane.field => 'Signals • Field',
+        _DashboardSignalLane.closures => 'Signals • Closures',
+      },
+      _DashboardWorkspaceMode.dispatch => switch (_dispatchLane) {
+        _DashboardDispatchLane.all => 'Dispatch • All',
+        _DashboardDispatchLane.open => 'Dispatch • Open',
+        _DashboardDispatchLane.risk => 'Dispatch • Risk',
+        _DashboardDispatchLane.resolved => 'Dispatch • Resolved',
+      },
+      _DashboardWorkspaceMode.sites => switch (_siteLane) {
+        _DashboardSiteLane.all => 'Sites • All',
+        _DashboardSiteLane.active => 'Sites • Active',
+        _DashboardSiteLane.watch => 'Sites • Watch',
+        _DashboardSiteLane.strong => 'Sites • Strong',
+      },
+    };
+    return Container(
+      key: const ValueKey('dashboard-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1521),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF27425D)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final row in visibleDispatchFeed) ...[
-            _DispatchFeedRow(label: row),
-            const SizedBox(height: 6),
-          ],
-          if (snapshot.dispatchFeed.isEmpty)
-            const _MutedLabel(label: 'No dispatch events yet.')
-          else if (hiddenDispatches > 0)
-            OnyxTruncationHint(
-              visibleCount: visibleDispatchFeed.length,
-              totalCount: snapshot.dispatchFeed.length,
-              subject: 'dispatch rows',
-              hiddenDescriptor: 'older rows',
-            ),
-        ],
-      ),
-    );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < 1200) {
-          return Column(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              liveSignalsCard,
-              const SizedBox(height: 10),
-              dispatchFeedCard,
+              _workspaceStatusChip(
+                label: activeLaneLabel,
+                accent: const Color(0xFF8FD1FF),
+              ),
+              _workspaceStatusChip(
+                label: 'Selected $selectedLabel',
+                accent: const Color(0xFFF6C067),
+              ),
+              _workspaceStatusChip(
+                label: 'Signals ${visibleSignals.length}/${signalItems.length}',
+                accent: const Color(0xFF63BDFF),
+              ),
+              _workspaceStatusChip(
+                label:
+                    'Dispatch ${visibleDispatches.length}/${dispatchItems.length}',
+                accent: const Color(0xFFFF8E9A),
+              ),
+              _workspaceStatusChip(
+                label: 'Sites ${visibleSites.length}/${siteItems.length}',
+                accent: const Color(0xFF8EF3C0),
+              ),
+              _workspaceStatusChip(
+                label: 'Threat ${widget.threat.label}',
+                accent: widget.threat.accent,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _WorkspaceModeChip(
+                widgetKey: const ValueKey('dashboard-workspace-mode-signals'),
+                label: 'Signals',
+                selected: _mode == _DashboardWorkspaceMode.signals,
+                onTap: () => _setMode(_DashboardWorkspaceMode.signals),
+              ),
+              _WorkspaceModeChip(
+                widgetKey: const ValueKey('dashboard-workspace-mode-dispatch'),
+                label: 'Dispatch',
+                selected: _mode == _DashboardWorkspaceMode.dispatch,
+                onTap: () => _setMode(_DashboardWorkspaceMode.dispatch),
+              ),
+              _WorkspaceModeChip(
+                widgetKey: const ValueKey('dashboard-workspace-mode-sites'),
+                label: 'Sites',
+                selected: _mode == _DashboardWorkspaceMode.sites,
+                onTap: () => _setMode(_DashboardWorkspaceMode.sites),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceStatusAction(
+                key: const ValueKey(
+                  'dashboard-workspace-banner-open-live-intel',
+                ),
+                label: 'Live Intel',
+                selected:
+                    _mode == _DashboardWorkspaceMode.signals &&
+                    _signalLane == _DashboardSignalLane.intelligence,
+                accent: const Color(0xFF63BDFF),
+                onTap: () => _focusSignalLaneAction(
+                  signalItems,
+                  _DashboardSignalLane.intelligence,
+                ),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey(
+                  'dashboard-workspace-banner-open-dispatch-risk',
+                ),
+                label: 'Risk Dispatch',
+                selected:
+                    _mode == _DashboardWorkspaceMode.dispatch &&
+                    _dispatchLane == _DashboardDispatchLane.risk,
+                accent: const Color(0xFFFF8E9A),
+                onTap: () => _focusDispatchLaneAction(
+                  dispatchItems,
+                  _DashboardDispatchLane.risk,
+                ),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey(
+                  'dashboard-workspace-banner-open-site-watch',
+                ),
+                label: 'Watch Sites',
+                selected:
+                    _mode == _DashboardWorkspaceMode.sites &&
+                    _siteLane == _DashboardSiteLane.watch,
+                accent: const Color(0xFF8EF3C0),
+                onTap: () =>
+                    _focusSiteLaneAction(siteItems, _DashboardSiteLane.watch),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceStatusChip({required String label, required Color accent}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.38)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: accent,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _workspaceStatusAction({
+    required Key key,
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.18)
+              : const Color(0xFF10273D),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.5)
+                : const Color(0xFF27425D),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? accent : const Color(0xFFEAF2FF),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _activeFilterRow(
+    List<_DashboardSignalItem> signalItems,
+    List<_DashboardDispatchItem> dispatchItems,
+    List<SiteHealthSnapshot> siteItems,
+  ) {
+    return switch (_mode) {
+      _DashboardWorkspaceMode.signals => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-signal-filter-all'),
+            label: 'All',
+            value: '${signalItems.length}',
+            selected: _signalLane == _DashboardSignalLane.all,
+            onTap: () => _setSignalLane(_DashboardSignalLane.all),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-signal-filter-intel'),
+            label: 'Intel',
+            value:
+                '${_signalCount(signalItems, _DashboardSignalLane.intelligence)}',
+            selected: _signalLane == _DashboardSignalLane.intelligence,
+            onTap: () => _setSignalLane(_DashboardSignalLane.intelligence),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-signal-filter-field'),
+            label: 'Field',
+            value: '${_signalCount(signalItems, _DashboardSignalLane.field)}',
+            selected: _signalLane == _DashboardSignalLane.field,
+            onTap: () => _setSignalLane(_DashboardSignalLane.field),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-signal-filter-closures'),
+            label: 'Closures',
+            value:
+                '${_signalCount(signalItems, _DashboardSignalLane.closures)}',
+            selected: _signalLane == _DashboardSignalLane.closures,
+            onTap: () => _setSignalLane(_DashboardSignalLane.closures),
+          ),
+        ],
+      ),
+      _DashboardWorkspaceMode.dispatch => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-dispatch-filter-all'),
+            label: 'All',
+            value: '${dispatchItems.length}',
+            selected: _dispatchLane == _DashboardDispatchLane.all,
+            onTap: () => _setDispatchLane(_DashboardDispatchLane.all),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-dispatch-filter-open'),
+            label: 'Open',
+            value:
+                '${_dispatchCount(dispatchItems, _DashboardDispatchLane.open)}',
+            selected: _dispatchLane == _DashboardDispatchLane.open,
+            onTap: () => _setDispatchLane(_DashboardDispatchLane.open),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-dispatch-filter-risk'),
+            label: 'Risk',
+            value:
+                '${_dispatchCount(dispatchItems, _DashboardDispatchLane.risk)}',
+            selected: _dispatchLane == _DashboardDispatchLane.risk,
+            onTap: () => _setDispatchLane(_DashboardDispatchLane.risk),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-dispatch-filter-resolved'),
+            label: 'Resolved',
+            value:
+                '${_dispatchCount(dispatchItems, _DashboardDispatchLane.resolved)}',
+            selected: _dispatchLane == _DashboardDispatchLane.resolved,
+            onTap: () => _setDispatchLane(_DashboardDispatchLane.resolved),
+          ),
+        ],
+      ),
+      _DashboardWorkspaceMode.sites => Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-site-filter-all'),
+            label: 'All',
+            value: '${siteItems.length}',
+            selected: _siteLane == _DashboardSiteLane.all,
+            onTap: () => _setSiteLane(_DashboardSiteLane.all),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-site-filter-active'),
+            label: 'Active',
+            value: '${_siteCount(siteItems, _DashboardSiteLane.active)}',
+            selected: _siteLane == _DashboardSiteLane.active,
+            onTap: () => _setSiteLane(_DashboardSiteLane.active),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-site-filter-watch'),
+            label: 'Watch',
+            value: '${_siteCount(siteItems, _DashboardSiteLane.watch)}',
+            selected: _siteLane == _DashboardSiteLane.watch,
+            onTap: () => _setSiteLane(_DashboardSiteLane.watch),
+          ),
+          _WorkspaceFilterChip(
+            widgetKey: const ValueKey('dashboard-site-filter-strong'),
+            label: 'Strong',
+            value: '${_siteCount(siteItems, _DashboardSiteLane.strong)}',
+            selected: _siteLane == _DashboardSiteLane.strong,
+            onTap: () => _setSiteLane(_DashboardSiteLane.strong),
+          ),
+        ],
+      ),
+    };
+  }
+
+  void _setSignalLane(_DashboardSignalLane lane) {
+    if (_signalLane == lane) {
+      return;
+    }
+    setState(() {
+      _signalLane = lane;
+    });
+  }
+
+  void _setDispatchLane(_DashboardDispatchLane lane) {
+    if (_dispatchLane == lane) {
+      return;
+    }
+    setState(() {
+      _dispatchLane = lane;
+    });
+  }
+
+  void _setSiteLane(_DashboardSiteLane lane) {
+    if (_siteLane == lane) {
+      return;
+    }
+    setState(() {
+      _siteLane = lane;
+    });
+  }
+
+  List<_DashboardSignalItem> _buildSignalItems(List<String> rows) {
+    return rows
+        .map((row) {
+          final riskMatch = RegExp(
+            r'risk (\d+)',
+            caseSensitive: false,
+          ).firstMatch(row);
+          final risk = riskMatch == null
+              ? null
+              : int.tryParse(riskMatch.group(1)!);
+          final siteId = _siteTokenFromSummary(row);
+          if (row.startsWith('Intel ')) {
+            return _DashboardSignalItem(
+              id: row,
+              title: row.replaceFirst(RegExp(r'\.$'), ''),
+              subtitle: siteId == null
+                  ? 'Intelligence lane'
+                  : 'Site $siteId • risk ${risk ?? 0}',
+              detail: risk != null && risk >= 70
+                  ? 'Escalate this intelligence packet into watch review before the next dispatch cycle.'
+                  : 'Keep this intelligence signal in review and correlate it against field movement.',
+              lane: _DashboardSignalLane.intelligence,
+              badge: risk != null && risk >= 70 ? 'HIGH RISK' : 'INTEL',
+              accent: risk != null && risk >= 70
+                  ? const Color(0xFFFFB44D)
+                  : const Color(0xFF63BDFF),
+            );
+          }
+          if (row.startsWith('Incident ')) {
+            return _DashboardSignalItem(
+              id: row,
+              title: row.replaceFirst(RegExp(r'\.$'), ''),
+              subtitle: siteId == null
+                  ? 'Incident closure lane'
+                  : 'Site $siteId',
+              detail:
+                  'Incident closure is feeding the command ledger, so verify that the resolved trail is complete.',
+              lane: _DashboardSignalLane.closures,
+              badge: 'CLOSURE',
+              accent: const Color(0xFF8EF3C0),
+            );
+          }
+          return _DashboardSignalItem(
+            id: row,
+            title: row.replaceFirst(RegExp(r'\.$'), ''),
+            subtitle: siteId == null ? 'Field operations lane' : 'Site $siteId',
+            detail:
+                'Field movement is reshaping live posture, so keep patrol and guard confirmations in the active read path.',
+            lane: _DashboardSignalLane.field,
+            badge: row.startsWith('Patrol ') ? 'PATROL' : 'FIELD',
+            accent: row.startsWith('Patrol ')
+                ? const Color(0xFF8EF3C0)
+                : const Color(0xFF63BDFF),
+          );
+        })
+        .toList(growable: false);
+  }
+
+  List<_DashboardDispatchItem> _buildDispatchItems(List<String> rows) {
+    return rows
+        .map((row) {
+          final match = RegExp(r'Dispatch ([^ ]+) ([A-Z]+)').firstMatch(row);
+          final dispatchId = match?.group(1) ?? row;
+          final status = match?.group(2) ?? 'DECIDED';
+          final scope = row.contains('•')
+              ? row.split('•').last.trim()
+              : 'Unknown scope';
+          final lane = switch (status) {
+            'EXECUTED' => _DashboardDispatchLane.resolved,
+            'FAILED' || 'DENIED' => _DashboardDispatchLane.risk,
+            _ => _DashboardDispatchLane.open,
+          };
+          final accent = switch (status) {
+            'EXECUTED' => const Color(0xFF8EF3C0),
+            'FAILED' => const Color(0xFFFF8E9A),
+            'DENIED' => const Color(0xFFFFB44D),
+            _ => const Color(0xFF63BDFF),
+          };
+          final directive = switch (status) {
+            'EXECUTED' =>
+              'Dispatch chain completed successfully. Hold the evidence trail and monitor follow-through.',
+            'FAILED' =>
+              'Dispatch failed in execution. Route this chain into rapid command review before pressure spreads.',
+            'DENIED' =>
+              'Dispatch was denied. Verify denial rationale and decide whether to reopen or suppress.',
+            _ =>
+              'Dispatch is still open. Keep acceptance and arrival pressure visible until the chain resolves.',
+          };
+          return _DashboardDispatchItem(
+            dispatchId: dispatchId,
+            status: status,
+            scope: scope,
+            summary: row,
+            directive: directive,
+            lane: lane,
+            accent: accent,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  List<SiteHealthSnapshot> _buildSiteItems(List<SiteHealthSnapshot> sites) {
+    final ranked = [...sites]
+      ..sort(
+        (left, right) =>
+            _siteOperationalLoad(right).compareTo(_siteOperationalLoad(left)),
+      );
+    return ranked;
+  }
+
+  List<_DashboardSignalItem> _filteredSignalItems(
+    List<_DashboardSignalItem> items, {
+    _DashboardSignalLane? lane,
+  }) {
+    final activeLane = lane ?? _signalLane;
+    return items
+        .where((item) {
+          return switch (activeLane) {
+            _DashboardSignalLane.all => true,
+            _DashboardSignalLane.intelligence =>
+              item.lane == _DashboardSignalLane.intelligence,
+            _DashboardSignalLane.field =>
+              item.lane == _DashboardSignalLane.field,
+            _DashboardSignalLane.closures =>
+              item.lane == _DashboardSignalLane.closures,
+          };
+        })
+        .toList(growable: false);
+  }
+
+  List<_DashboardDispatchItem> _filteredDispatchItems(
+    List<_DashboardDispatchItem> items, {
+    _DashboardDispatchLane? lane,
+  }) {
+    final activeLane = lane ?? _dispatchLane;
+    return items
+        .where((item) {
+          return switch (activeLane) {
+            _DashboardDispatchLane.all => true,
+            _DashboardDispatchLane.open =>
+              item.lane == _DashboardDispatchLane.open,
+            _DashboardDispatchLane.risk =>
+              item.lane == _DashboardDispatchLane.risk,
+            _DashboardDispatchLane.resolved =>
+              item.lane == _DashboardDispatchLane.resolved,
+          };
+        })
+        .toList(growable: false);
+  }
+
+  List<SiteHealthSnapshot> _filteredSiteItems(
+    List<SiteHealthSnapshot> items, {
+    _DashboardSiteLane? lane,
+  }) {
+    final activeLane = lane ?? _siteLane;
+    return items
+        .where((item) {
+          return switch (activeLane) {
+            _DashboardSiteLane.all => true,
+            _DashboardSiteLane.active => item.activeDispatches > 0,
+            _DashboardSiteLane.watch =>
+              item.failedCount > 0 ||
+                  item.deniedCount > 0 ||
+                  item.healthScore < 70,
+            _DashboardSiteLane.strong => item.healthStatus == 'STRONG',
+          };
+        })
+        .toList(growable: false);
+  }
+
+  int _signalCount(
+    List<_DashboardSignalItem> items,
+    _DashboardSignalLane lane,
+  ) {
+    return _filteredSignalItems(items, lane: lane).length;
+  }
+
+  int _dispatchCount(
+    List<_DashboardDispatchItem> items,
+    _DashboardDispatchLane lane,
+  ) {
+    return _filteredDispatchItems(items, lane: lane).length;
+  }
+
+  int _siteCount(List<SiteHealthSnapshot> items, _DashboardSiteLane lane) {
+    return _filteredSiteItems(items, lane: lane).length;
+  }
+
+  _DashboardSignalItem? _resolveSignalSelection(
+    List<_DashboardSignalItem> items,
+  ) {
+    if (items.isEmpty) {
+      return null;
+    }
+    return items.firstWhere(
+      (item) => item.id == _selectedSignalId,
+      orElse: () => items.first,
+    );
+  }
+
+  _DashboardDispatchItem? _resolveDispatchSelection(
+    List<_DashboardDispatchItem> items,
+  ) {
+    if (items.isEmpty) {
+      return null;
+    }
+    return items.firstWhere(
+      (item) => item.dispatchId == _selectedDispatchId,
+      orElse: () => items.first,
+    );
+  }
+
+  SiteHealthSnapshot? _resolveSiteSelection(List<SiteHealthSnapshot> items) {
+    if (items.isEmpty) {
+      return null;
+    }
+    return items.firstWhere(
+      (item) => item.siteId == _selectedSiteId,
+      orElse: () => items.first,
+    );
+  }
+
+  _DashboardFocusModel _signalFocusModel(
+    _DashboardSignalItem? selected,
+    int visibleCount,
+    int totalCount,
+  ) {
+    final title = selected?.title ?? 'No live signals in this lane';
+    final narrative =
+        selected?.detail ??
+        'Switch the signal lane to restore live command visibility.';
+    return _DashboardFocusModel(
+      eyebrow: 'SIGNAL COMMAND',
+      title: title,
+      narrative: narrative,
+      accent: selected?.accent ?? widget.threat.accent,
+      metrics: [
+        _DashboardFocusMetric(
+          label: 'Visible',
+          value: '$visibleCount/$totalCount',
+          accent: const Color(0xFF63BDFF),
+        ),
+        _DashboardFocusMetric(
+          label: 'High Risk',
+          value: '${widget.snapshot.highRiskIntelligence}',
+          accent: const Color(0xFFFFB44D),
+        ),
+        _DashboardFocusMetric(
+          label: 'Watch',
+          value: '${widget.triage.watchCount}',
+          accent: const Color(0xFF8EF3C0),
+        ),
+        _DashboardFocusMetric(
+          label: 'Threat',
+          value: widget.threat.label,
+          accent: widget.threat.accent,
+        ),
+      ],
+    );
+  }
+
+  _DashboardFocusModel _dispatchFocusModel(
+    _DashboardDispatchItem? selected,
+    int visibleCount,
+    int totalCount,
+  ) {
+    final title = selected == null
+        ? 'No dispatch chains in this lane'
+        : '${selected.dispatchId} • ${selected.status}';
+    final narrative =
+        selected?.directive ??
+        'Switch the dispatch lane to recover active chains and risk posture.';
+    return _DashboardFocusModel(
+      eyebrow: 'DISPATCH CONTROL',
+      title: title,
+      narrative: narrative,
+      accent: selected?.accent ?? widget.threat.accent,
+      metrics: [
+        _DashboardFocusMetric(
+          label: 'Visible',
+          value: '$visibleCount/$totalCount',
+          accent: const Color(0xFF63BDFF),
+        ),
+        _DashboardFocusMetric(
+          label: 'Failed',
+          value: '${widget.snapshot.totalFailed}',
+          accent: const Color(0xFFFF8E9A),
+        ),
+        _DashboardFocusMetric(
+          label: 'Denied',
+          value: '${widget.snapshot.totalDenied}',
+          accent: const Color(0xFFFFB44D),
+        ),
+        _DashboardFocusMetric(
+          label: 'Executed',
+          value: '${widget.snapshot.totalExecuted}',
+          accent: const Color(0xFF8EF3C0),
+        ),
+      ],
+    );
+  }
+
+  _DashboardFocusModel _siteFocusModel(
+    SiteHealthSnapshot? selected,
+    int visibleCount,
+    int totalCount,
+  ) {
+    final averageHealth = totalCount == 0
+        ? 0.0
+        : widget.snapshot.sites.fold<double>(
+                0,
+                (sum, site) => sum + site.healthScore,
+              ) /
+              totalCount;
+    final title = selected == null
+        ? 'No sites in this lane'
+        : '${selected.siteId} • ${selected.healthStatus}';
+    final narrative = selected == null
+        ? 'Switch the site lane to recover posture visibility.'
+        : _siteNarrative(selected);
+    return _DashboardFocusModel(
+      eyebrow: 'SITE POSTURE',
+      title: title,
+      narrative: narrative,
+      accent: selected == null
+          ? widget.threat.accent
+          : _siteAccent(selected, widget.threat),
+      metrics: [
+        _DashboardFocusMetric(
+          label: 'Visible',
+          value: '$visibleCount/$totalCount',
+          accent: const Color(0xFF63BDFF),
+        ),
+        _DashboardFocusMetric(
+          label: 'Watch',
+          value:
+              '${_siteCount(_buildSiteItems(widget.snapshot.sites), _DashboardSiteLane.watch)}',
+          accent: const Color(0xFFFFB44D),
+        ),
+        _DashboardFocusMetric(
+          label: 'Strong',
+          value:
+              '${_siteCount(_buildSiteItems(widget.snapshot.sites), _DashboardSiteLane.strong)}',
+          accent: const Color(0xFF8EF3C0),
+        ),
+        _DashboardFocusMetric(
+          label: 'Avg Health',
+          value: averageHealth.toStringAsFixed(0),
+          accent: const Color(0xFF7AD3FF),
+        ),
+      ],
+    );
+  }
+
+  Widget _signalLanePane(
+    List<_DashboardSignalItem> allItems,
+    List<_DashboardSignalItem> visibleItems,
+    _DashboardSignalItem? selected,
+  ) {
+    return _workspacePaneShell(
+      key: const ValueKey('dashboard-workspace-panel-signals'),
+      title: 'Signal Lane',
+      subtitle:
+          '${visibleItems.length} of ${allItems.length} signals are in the active live lane.',
+      child: visibleItems.isEmpty
+          ? const _MutedLabel(label: 'No signals match the active lane.')
+          : Column(
+              children: [
+                for (final item in visibleItems.take(6)) ...[
+                  _WorkspaceListCard(
+                    widgetKey: ValueKey(
+                      'dashboard-signal-card-${item.badge}-${item.id}',
+                    ),
+                    selected: selected?.id == item.id,
+                    accent: item.accent,
+                    eyebrow: item.badge,
+                    title: item.title,
+                    subtitle: item.subtitle,
+                    trailing: item.lane.name.toUpperCase(),
+                    onTap: () {
+                      setState(() {
+                        _selectedSignalId = item.id;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (visibleItems.length > 6)
+                  OnyxTruncationHint(
+                    visibleCount: visibleItems.take(6).length,
+                    totalCount: visibleItems.length,
+                    subject: 'signal cards',
+                    hiddenDescriptor: 'additional cards',
+                  ),
+              ],
+            ),
+    );
+  }
+
+  Widget _dispatchLanePane(
+    List<_DashboardDispatchItem> allItems,
+    List<_DashboardDispatchItem> visibleItems,
+    _DashboardDispatchItem? selected,
+  ) {
+    return _workspacePaneShell(
+      key: const ValueKey('dashboard-workspace-panel-dispatch'),
+      title: 'Dispatch Lane',
+      subtitle:
+          '${visibleItems.length} of ${allItems.length} dispatch chains are in the active command lane.',
+      child: visibleItems.isEmpty
+          ? const _MutedLabel(
+              label: 'No dispatch chains match the active lane.',
+            )
+          : Column(
+              children: [
+                for (final item in visibleItems.take(6)) ...[
+                  _WorkspaceListCard(
+                    widgetKey: ValueKey(
+                      'dashboard-dispatch-card-${item.dispatchId}',
+                    ),
+                    selected: selected?.dispatchId == item.dispatchId,
+                    accent: item.accent,
+                    eyebrow: item.status,
+                    title: item.dispatchId,
+                    subtitle: item.scope,
+                    trailing: item.status,
+                    onTap: () {
+                      setState(() {
+                        _selectedDispatchId = item.dispatchId;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (visibleItems.length > 6)
+                  OnyxTruncationHint(
+                    visibleCount: visibleItems.take(6).length,
+                    totalCount: visibleItems.length,
+                    subject: 'dispatch cards',
+                    hiddenDescriptor: 'additional chains',
+                  ),
+              ],
+            ),
+    );
+  }
+
+  Widget _siteLanePane(
+    List<SiteHealthSnapshot> allItems,
+    List<SiteHealthSnapshot> visibleItems,
+    SiteHealthSnapshot? selected,
+  ) {
+    return _workspacePaneShell(
+      key: const ValueKey('dashboard-workspace-panel-sites'),
+      title: 'Site Lane',
+      subtitle:
+          '${visibleItems.length} of ${allItems.length} sites are visible in the active posture lane.',
+      child: visibleItems.isEmpty
+          ? const _MutedLabel(label: 'No sites match the active posture lane.')
+          : Column(
+              children: [
+                for (final item in visibleItems.take(5)) ...[
+                  _WorkspaceListCard(
+                    widgetKey: ValueKey('dashboard-site-card-${item.siteId}'),
+                    selected: selected?.siteId == item.siteId,
+                    accent: _siteAccent(item, widget.threat),
+                    eyebrow: item.healthStatus,
+                    title: item.siteId,
+                    subtitle: '${item.clientId} • ${item.regionId}',
+                    trailing: item.healthScore.toStringAsFixed(0),
+                    onTap: () {
+                      setState(() {
+                        _selectedSiteId = item.siteId;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (visibleItems.length > 5)
+                  OnyxTruncationHint(
+                    visibleCount: visibleItems.take(5).length,
+                    totalCount: visibleItems.length,
+                    subject: 'site cards',
+                    hiddenDescriptor: 'additional sites',
+                  ),
+              ],
+            ),
+    );
+  }
+
+  Widget _signalDetailPane(
+    List<_DashboardSignalItem> allItems,
+    List<_DashboardSignalItem> visibleItems,
+    _DashboardSignalItem? selected,
+  ) {
+    return _workspacePaneShell(
+      title: 'Signal Board',
+      subtitle:
+          'Selected signal context and operating guidance for the current live lane.',
+      child: selected == null
+          ? const _MutedLabel(
+              label: 'Select a signal to inspect its command context.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _workspaceHeadlineCard(
+                  accent: selected.accent,
+                  eyebrow: selected.badge,
+                  title: selected.title,
+                  subtitle: selected.subtitle,
+                  narrative: selected.detail,
+                ),
+                const SizedBox(height: 10),
+                _workspaceMetricGrid([
+                  _WorkspaceMetricTileData(
+                    label: 'Visible signals',
+                    value: '${visibleItems.length}',
+                    helper: 'Live lane size',
+                    accent: const Color(0xFF63BDFF),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'High risk intel',
+                    value: '${widget.snapshot.highRiskIntelligence}',
+                    helper: 'Current queue',
+                    accent: const Color(0xFFFFB44D),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'Advisories',
+                    value: '${widget.triage.advisoryCount}',
+                    helper: 'Triage posture',
+                    accent: const Color(0xFF8EF3C0),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'Threat state',
+                    value: widget.threat.label,
+                    helper: 'Global command posture',
+                    accent: widget.threat.accent,
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                _workspaceNarrativeSplit(
+                  leftTitle: 'Signal Directive',
+                  leftBody: selected.detail,
+                  rightTitle: 'Triage Pressure',
+                  rightBody:
+                      'A ${widget.triage.advisoryCount} • W ${widget.triage.watchCount} • DC ${widget.triage.dispatchCandidateCount} • Esc ${widget.triage.escalateCount}. Top signals: ${widget.triage.topSignalsSummary}.',
+                ),
+                const SizedBox(height: 10),
+                _workspaceSupportList(
+                  title: 'Supporting live reads',
+                  rows: visibleItems
+                      .where((item) => item.id != selected.id)
+                      .take(3)
+                      .map((item) => item.title)
+                      .toList(growable: false),
+                  emptyLabel: 'No supporting signals in this lane.',
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _dispatchDetailPane(
+    List<_DashboardDispatchItem> allItems,
+    List<_DashboardDispatchItem> visibleItems,
+    _DashboardDispatchItem? selected,
+  ) {
+    return _workspacePaneShell(
+      title: 'Dispatch Board',
+      subtitle:
+          'Selected dispatch chain with the exact operational posture for this lane.',
+      child: selected == null
+          ? const _MutedLabel(
+              label:
+                  'Select a dispatch chain to inspect the current control posture.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _workspaceHeadlineCard(
+                  accent: selected.accent,
+                  eyebrow: selected.status,
+                  title: selected.dispatchId,
+                  subtitle: selected.scope,
+                  narrative: selected.directive,
+                ),
+                const SizedBox(height: 10),
+                _workspaceMetricGrid([
+                  _WorkspaceMetricTileData(
+                    label: 'Visible chains',
+                    value: '${visibleItems.length}',
+                    helper: 'Current lane',
+                    accent: const Color(0xFF63BDFF),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'Open',
+                    value:
+                        '${_dispatchCount(allItems, _DashboardDispatchLane.open)}',
+                    helper: 'Awaiting closure',
+                    accent: const Color(0xFF63BDFF),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'Risk chains',
+                    value:
+                        '${_dispatchCount(allItems, _DashboardDispatchLane.risk)}',
+                    helper: 'Failed or denied',
+                    accent: const Color(0xFFFF8E9A),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'Resolved',
+                    value:
+                        '${_dispatchCount(allItems, _DashboardDispatchLane.resolved)}',
+                    helper: 'Closed successfully',
+                    accent: const Color(0xFF8EF3C0),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                _workspaceNarrativeSplit(
+                  leftTitle: 'Chain Summary',
+                  leftBody: selected.summary,
+                  rightTitle: 'Command Note',
+                  rightBody:
+                      'Controller pressure is ${widget.snapshot.controllerPressureIndex.toStringAsFixed(1)} with ${widget.snapshot.totalFailed} failed and ${widget.snapshot.totalDenied} denied dispatches in the broader board.',
+                ),
+                const SizedBox(height: 10),
+                _workspaceSupportList(
+                  title: 'Related dispatch context',
+                  rows: visibleItems
+                      .where((item) => item.dispatchId != selected.dispatchId)
+                      .take(3)
+                      .map((item) => item.summary)
+                      .toList(growable: false),
+                  emptyLabel: 'No related dispatch chains in this lane.',
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _siteDetailPane(
+    List<SiteHealthSnapshot> allItems,
+    List<SiteHealthSnapshot> visibleItems,
+    SiteHealthSnapshot? selected,
+  ) {
+    return _workspacePaneShell(
+      title: 'Site Board',
+      subtitle:
+          'Selected site posture with deployment stress, response tempo, and lane context.',
+      child: selected == null
+          ? const _MutedLabel(
+              label: 'Select a site to inspect its current posture board.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _workspaceHeadlineCard(
+                  accent: _siteAccent(selected, widget.threat),
+                  eyebrow: selected.healthStatus,
+                  title: selected.siteId,
+                  subtitle: '${selected.clientId} • ${selected.regionId}',
+                  narrative: _siteNarrative(selected),
+                ),
+                const SizedBox(height: 10),
+                _workspaceMetricGrid([
+                  _WorkspaceMetricTileData(
+                    label: 'Health',
+                    value: selected.healthScore.toStringAsFixed(0),
+                    helper: 'Operational score',
+                    accent: _siteAccent(selected, widget.threat),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'Active',
+                    value: '${selected.activeDispatches}',
+                    helper: 'Open dispatches',
+                    accent: const Color(0xFFFFB44D),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'Failed',
+                    value: '${selected.failedCount}',
+                    helper: 'Execution failures',
+                    accent: const Color(0xFFFF8E9A),
+                  ),
+                  _WorkspaceMetricTileData(
+                    label: 'Response',
+                    value: _workspaceResponseLabel(
+                      selected.averageResponseMinutes,
+                    ),
+                    helper: 'Average tempo',
+                    accent: const Color(0xFF63BDFF),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                _workspaceNarrativeSplit(
+                  leftTitle: 'Deployment Read',
+                  leftBody: _siteNarrative(selected),
+                  rightTitle: 'Board Context',
+                  rightBody:
+                      '${visibleItems.length} of ${allItems.length} sites are visible in the active lane. Patrols ${selected.patrolsCompleted} • Check-ins ${selected.guardCheckIns} • Closed incidents ${selected.incidentsClosed}.',
+                ),
+                const SizedBox(height: 10),
+                _workspaceSupportList(
+                  title: 'Adjacent site pressure',
+                  rows: visibleItems
+                      .where((item) => item.siteId != selected.siteId)
+                      .take(3)
+                      .map(
+                        (item) =>
+                            '${item.siteId} • ${item.healthStatus} • ${item.activeDispatches} active',
+                      )
+                      .toList(growable: false),
+                  emptyLabel: 'No adjacent sites in this lane.',
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _workspaceFocusBanner(_DashboardFocusModel model) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF10273D), Color(0xFF0C1420)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF27425D)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = constraints.maxWidth < 980;
+          final summary = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                model.eyebrow,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8AA2C0),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                model.title,
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFEAF2FF),
+                  fontSize: 30,
+                  height: 0.95,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                model.narrative,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFD4E1F3),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
             ],
           );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          final metrics = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: [
+              for (final metric in model.metrics)
+                _focusMetricPill(metric: metric),
+            ],
+          );
+          if (stacked) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [summary, const SizedBox(height: 12), metrics],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: summary),
+              const SizedBox(width: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: metrics,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _focusMetricPill({required _DashboardFocusMetric metric}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: metric.accent.withValues(alpha: 0.45)),
+      ),
+      child: RichText(
+        text: TextSpan(
           children: [
-            Expanded(child: liveSignalsCard),
-            const SizedBox(width: 10),
-            Expanded(child: dispatchFeedCard),
+            TextSpan(
+              text: '${metric.label} ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: metric.value,
+              style: GoogleFonts.inter(
+                color: metric.accent,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _workspacePaneShell({
+    Key? key,
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1421),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF243549)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7D93B1),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceHeadlineCard({
+    required Color accent,
+    required String eyebrow,
+    required String title,
+    required String subtitle,
+    required String narrative,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF102337), Color(0xFF0C131C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF28415B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: accent.withValues(alpha: 0.45)),
+            ),
+            child: Text(
+              eyebrow,
+              style: GoogleFonts.inter(
+                color: accent,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 28,
+              height: 0.95,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF89A0BE),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            narrative,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD9E7FA),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceMetricGrid(List<_WorkspaceMetricTileData> metrics) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final cell = width < 760 ? (width - 8) / 2 : (width - 24) / 4;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final metric in metrics)
+              _workspaceMetricTile(width: cell, metric: metric),
           ],
         );
       },
     );
   }
-}
 
-class _SitePosturePanel extends StatelessWidget {
-  final OperationsHealthSnapshot snapshot;
-  final _ThreatState threat;
-
-  const _SitePosturePanel({required this.snapshot, required this.threat});
-
-  @override
-  Widget build(BuildContext context) {
-    final rankedSites = [...snapshot.sites]
-      ..sort(
-        (a, b) => (b.activeDispatches + b.failedCount + b.deniedCount)
-            .compareTo(a.activeDispatches + a.failedCount + a.deniedCount),
-      );
-
-    return _DashboardCard(
-      title: 'Site Posture',
-      subtitle:
-          'Security status by operational site • ${rankedSites.length} total sites',
+  Widget _workspaceMetricTile({
+    required double width,
+    required _WorkspaceMetricTileData metric,
+  }) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111C2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF243549)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final site in rankedSites.take(6)) ...[
-            _SiteRow(site: site, threat: threat),
-            const SizedBox(height: 10),
-          ],
-          if (rankedSites.isEmpty)
-            const _MutedLabel(label: 'No site posture data available.'),
-          if (rankedSites.length > 6)
-            OnyxTruncationHint(
-              visibleCount: 6,
-              totalCount: rankedSites.length,
-              subject: 'sites by operational load',
-              hiddenDescriptor: 'additional sites',
+          Text(
+            metric.label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8AA2C0),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.7,
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            metric.value,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 28,
+              height: 0.95,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            metric.helper,
+            style: GoogleFonts.inter(
+              color: metric.accent,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _workspaceNarrativeSplit({
+    required String leftTitle,
+    required String leftBody,
+    required String rightTitle,
+    required String rightBody,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final left = _workspaceTextBlock(title: leftTitle, body: leftBody);
+        final right = _workspaceTextBlock(title: rightTitle, body: rightBody);
+        if (constraints.maxWidth < 820) {
+          return Column(children: [left, const SizedBox(height: 8), right]);
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: left),
+            const SizedBox(width: 8),
+            Expanded(child: right),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _workspaceTextBlock({required String title, required String body}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111C2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF243549)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8BA1BF),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceSupportList({
+    required String title,
+    required List<String> rows,
+    required String emptyLabel,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111C2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF243549)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (rows.isEmpty)
+            _MutedLabel(label: emptyLabel)
+          else
+            for (final row in rows) ...[
+              _workspaceSupportRow(row: row),
+              const SizedBox(height: 8),
+            ],
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceSupportRow({required String row}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.only(top: 4),
+          decoration: const BoxDecoration(
+            color: Color(0xFF63BDFF),
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            row,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD7E4F7),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String? _siteTokenFromSummary(String summary) {
+    final match = RegExp(r'at ([A-Z0-9\-]+)').firstMatch(summary);
+    return match?.group(1);
+  }
+
+  int _siteOperationalLoad(SiteHealthSnapshot site) {
+    return (site.activeDispatches * 4) +
+        (site.failedCount * 5) +
+        (site.deniedCount * 3) +
+        (site.executedCount * 2);
+  }
+
+  Color _siteAccent(SiteHealthSnapshot site, _ThreatState threat) {
+    if (site.failedCount > 0) {
+      return const Color(0xFFFF8E9A);
+    }
+    if (site.activeDispatches > 0 || site.deniedCount > 0) {
+      return const Color(0xFFFFB44D);
+    }
+    if (site.healthStatus == 'STRONG') {
+      return const Color(0xFF8EF3C0);
+    }
+    return threat.softAccent;
+  }
+
+  String _siteNarrative(SiteHealthSnapshot site) {
+    if (site.failedCount > 0) {
+      return 'Execution failures are now shaping the posture at ${site.siteId}. Push command attention here before field pressure spreads.';
+    }
+    if (site.activeDispatches > 0) {
+      return '${site.siteId} is carrying live dispatch load. Keep patrol coverage and response tempo in the front channel.';
+    }
+    if (site.deniedCount > 0) {
+      return 'Denials are suppressing part of the response chain at ${site.siteId}, so verify whether the site is still carrying latent exposure.';
+    }
+    if (site.healthStatus == 'STRONG') {
+      return '${site.siteId} is holding strong posture with clean patrol and response flow. Use it as a baseline lane.';
+    }
+    return '${site.siteId} is stable, but command should keep the next patrol loop and response tempo in view.';
+  }
+
+  String _workspaceResponseLabel(double minutes) {
+    if (minutes <= 0) {
+      return 'Pending';
+    }
+    return '${minutes.toStringAsFixed(1)}m';
+  }
+}
+
+enum _DashboardWorkspaceMode { signals, dispatch, sites }
+
+enum _DashboardSignalLane { all, intelligence, field, closures }
+
+enum _DashboardDispatchLane { all, open, risk, resolved }
+
+enum _DashboardSiteLane { all, active, watch, strong }
+
+class _DashboardSignalItem {
+  final String id;
+  final String title;
+  final String subtitle;
+  final String detail;
+  final _DashboardSignalLane lane;
+  final String badge;
+  final Color accent;
+
+  const _DashboardSignalItem({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.detail,
+    required this.lane,
+    required this.badge,
+    required this.accent,
+  });
+}
+
+class _DashboardDispatchItem {
+  final String dispatchId;
+  final String status;
+  final String scope;
+  final String summary;
+  final String directive;
+  final _DashboardDispatchLane lane;
+  final Color accent;
+
+  const _DashboardDispatchItem({
+    required this.dispatchId,
+    required this.status,
+    required this.scope,
+    required this.summary,
+    required this.directive,
+    required this.lane,
+    required this.accent,
+  });
+}
+
+class _DashboardFocusModel {
+  final String eyebrow;
+  final String title;
+  final String narrative;
+  final Color accent;
+  final List<_DashboardFocusMetric> metrics;
+
+  const _DashboardFocusModel({
+    required this.eyebrow,
+    required this.title,
+    required this.narrative,
+    required this.accent,
+    required this.metrics,
+  });
+}
+
+class _DashboardFocusMetric {
+  final String label;
+  final String value;
+  final Color accent;
+
+  const _DashboardFocusMetric({
+    required this.label,
+    required this.value,
+    required this.accent,
+  });
+}
+
+class _WorkspaceMetricTileData {
+  final String label;
+  final String value;
+  final String helper;
+  final Color accent;
+
+  const _WorkspaceMetricTileData({
+    required this.label,
+    required this.value,
+    required this.helper,
+    required this.accent,
+  });
+}
+
+class _WorkspaceModeChip extends StatelessWidget {
+  final Key widgetKey;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _WorkspaceModeChip({
+    required this.widgetKey,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: widgetKey,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF123244) : const Color(0xFF111C2B),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? const Color(0xFF3F87C9) : const Color(0xFF243549),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? const Color(0xFFEAF2FF) : const Color(0xFF8EA4C2),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceFilterChip extends StatelessWidget {
+  final Key widgetKey;
+  final String label;
+  final String value;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _WorkspaceFilterChip({
+    required this.widgetKey,
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: widgetKey,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF10273A) : const Color(0xFF111C2B),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? const Color(0xFF3F87C9) : const Color(0xFF243549),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: selected
+                    ? const Color(0xFFEAF2FF)
+                    : const Color(0xFF8EA4C2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFF0E1C2A)
+                    : const Color(0xFF0B1421),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                value,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF2FF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WorkspaceListCard extends StatelessWidget {
+  final Key widgetKey;
+  final bool selected;
+  final Color accent;
+  final String eyebrow;
+  final String title;
+  final String subtitle;
+  final String trailing;
+  final VoidCallback onTap;
+
+  const _WorkspaceListCard({
+    required this.widgetKey,
+    required this.selected,
+    required this.accent,
+    required this.eyebrow,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: widgetKey,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          gradient: selected
+              ? const LinearGradient(
+                  colors: [Color(0xFF11273A), Color(0xFF0D1620)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: selected ? null : const Color(0xFF111C2B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? accent : const Color(0xFF243549),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 10,
+              height: 10,
+              margin: const EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    eyebrow,
+                    style: GoogleFonts.inter(
+                      color: accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF2FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8EA4C2),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              trailing,
+              style: GoogleFonts.rajdhani(
+                color: accent,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _RightRail extends StatelessWidget {
-  static const _snapshotFiles = DispatchSnapshotFileService();
-  static const _textShare = TextShareService();
-  static const _emailBridge = EmailBridgeService();
   static const _siteActivityTelegram = SiteActivityTelegramFormatter();
 
   final OperationsHealthSnapshot snapshot;
@@ -1564,23 +3492,24 @@ class _RightRail extends StatelessWidget {
     String clientId,
     String siteId,
   ) {
-    final reportDates = allEvents
-        .whereType<IntelligenceReceived>()
-        .where(
-          (event) =>
-              event.clientId.trim() == clientId &&
-              event.siteId.trim() == siteId &&
-              ((event.sourceType.trim().toLowerCase() == 'dvr') ||
-                  (event.sourceType.trim().toLowerCase() == 'cctv')),
-        )
-        .map((event) {
-          final utc = event.occurredAt.toUtc();
-          String two(int value) => value.toString().padLeft(2, '0');
-          return '${utc.year.toString().padLeft(4, '0')}-${two(utc.month)}-${two(utc.day)}';
-        })
-        .toSet()
-        .toList(growable: false)
-      ..sort((a, b) => b.compareTo(a));
+    final reportDates =
+        allEvents
+            .whereType<IntelligenceReceived>()
+            .where(
+              (event) =>
+                  event.clientId.trim() == clientId &&
+                  event.siteId.trim() == siteId &&
+                  ((event.sourceType.trim().toLowerCase() == 'dvr') ||
+                      (event.sourceType.trim().toLowerCase() == 'cctv')),
+            )
+            .map((event) {
+              final utc = event.occurredAt.toUtc();
+              String two(int value) => value.toString().padLeft(2, '0');
+              return '${utc.year.toString().padLeft(4, '0')}-${two(utc.month)}-${two(utc.day)}';
+            })
+            .toSet()
+            .toList(growable: false)
+          ..sort((a, b) => b.compareTo(a));
     return reportDates;
   }
 
@@ -1681,12 +3610,11 @@ class _RightRail extends StatelessWidget {
             siteId: scope.siteId,
             reportDate: reportDate,
           ),
-          caseFileCommandBuilder:
-              (reportDate) => _siteActivityCaseFileCommand(
-                clientId: scope.clientId,
-                siteId: scope.siteId,
-                reportDate: reportDate,
-              ),
+          caseFileCommandBuilder: (reportDate) => _siteActivityCaseFileCommand(
+            clientId: scope.clientId,
+            siteId: scope.siteId,
+            reportDate: reportDate,
+          ),
         ),
       'site_activity_total_signals,${siteActivity.totalSignals}',
       'site_activity_people,${siteActivity.personSignals}',
@@ -1735,23 +3663,11 @@ class _RightRail extends StatelessWidget {
     });
   }
 
-  void _openSiteActivityEventsReview(BuildContext context) {
+  void _openSiteActivityEventsReview() {
     if (onOpenEventsForScope == null || siteActivity.eventIds.isEmpty) {
       return;
     }
     onOpenEventsForScope!(siteActivity.eventIds, siteActivity.selectedEventId);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Opening Events Review for site activity truth lane.',
-          style: GoogleFonts.inter(
-            color: const Color(0xFFE7F0FF),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        backgroundColor: const Color(0xFF0E203A),
-      ),
-    );
   }
 
   String _guardPolicyTelemetryCsv() {
@@ -2289,842 +4205,27 @@ class _RightRail extends StatelessWidget {
                     ),
                   ),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: siteActivity.eventIds.isEmpty
-                                  ? null
-                                  : () async {
-                                      await Clipboard.setData(
-                                        ClipboardData(
-                                          text: _siteActivityReviewJson(),
-                                        ),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Site activity review JSON copied for command review.',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Site Activity Review JSON',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          if (onOpenEventsForScope != null &&
-                              siteActivity.eventIds.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: TextButton(
-                                onPressed: () =>
-                                    _openSiteActivityEventsReview(context),
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                  minimumSize: const Size(0, 0),
-                                  tapTargetSize:
-                                      MaterialTapTargetSize.shrinkWrap,
-                                ),
-                                child: Text(
-                                  'Open Site Activity Events Review',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF8FD1FF),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(
-                                    text: _guardFailureTraceClipboard(
-                                      recentFailureTraces,
-                                      guardLastFailureReason,
-                                    ),
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Failure trace copied for command review.',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Failure Trace',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_emailBridge.supported
-                                  ? null
-                                  : () async {
-                                      final opened =
-                                          await _emailBridge.openMailDraft(
-                                            subject:
-                                                'ONYX Guard Sync Failure Trace',
-                                            body: _guardFailureTraceText(
-                                              recentFailureTraces,
-                                              guardLastFailureReason,
-                                            ),
-                                          );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            opened
-                                                ? 'Mail draft opened for the failure trace.'
-                                                : 'Mail draft bridge is not available in this session.',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Email Failure Trace',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_snapshotFiles.supported
-                                  ? null
-                                  : () async {
-                                      await _snapshotFiles.downloadTextFile(
-                                        filename:
-                                            'guard-sync-failure-trace.txt',
-                                        contents: _guardFailureTraceText(
-                                          recentFailureTraces,
-                                          guardLastFailureReason,
-                                        ),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Failure trace download started.',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Download Failure Trace',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_textShare.supported
-                                  ? null
-                                  : () async {
-                                      final shared = await _textShare.shareText(
-                                        title: 'ONYX Guard Sync Failure Trace',
-                                        text: _guardFailureTraceText(
-                                          recentFailureTraces,
-                                          guardLastFailureReason,
-                                        ),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            shared
-                                                ? 'Failure trace share started.'
-                                                : 'Failure trace sharing is not available in this session.',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Share Failure Trace',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(
-                                    text: _guardPolicyTelemetryJson(),
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Policy telemetry JSON copied',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Policy Telemetry JSON',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFF5C27A),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(
-                                    text: _guardPolicyTelemetryCsv(),
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Policy telemetry CSV copied',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Policy Telemetry CSV',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFF5C27A),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_snapshotFiles.supported
-                                  ? null
-                                  : () async {
-                                      await _snapshotFiles.downloadJsonFile(
-                                        filename:
-                                            'guard-policy-telemetry.json',
-                                        contents: _guardPolicyTelemetryJson(),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Policy telemetry JSON download started',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Download Policy JSON',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFF5C27A),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_snapshotFiles.supported
-                                  ? null
-                                  : () async {
-                                      await _snapshotFiles.downloadTextFile(
-                                        filename:
-                                            'guard-policy-telemetry.csv',
-                                        contents: _guardPolicyTelemetryCsv(),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Policy telemetry CSV download started',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Download Policy CSV',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFF5C27A),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_textShare.supported
-                                  ? null
-                                  : () async {
-                                      final shared = await _textShare.shareText(
-                                        title: 'ONYX Guard Policy Telemetry',
-                                        text: _guardPolicyTelemetryJson(),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            shared
-                                                ? 'Policy telemetry share started'
-                                                : 'Policy telemetry share unavailable',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Share Policy Pack',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFF5C27A),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(
-                                    text: _guardCoachingTelemetryJson(),
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Coaching telemetry JSON copied',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Coaching Telemetry JSON',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(
-                                    text: _guardCoachingTelemetryCsv(),
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Coaching telemetry CSV copied',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Coaching Telemetry CSV',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_snapshotFiles.supported
-                                  ? null
-                                  : () async {
-                                      await _snapshotFiles.downloadJsonFile(
-                                        filename:
-                                            'guard-coaching-telemetry.json',
-                                        contents:
-                                            _guardCoachingTelemetryJson(),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Coaching telemetry JSON download started',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Download Coaching JSON',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_textShare.supported
-                                  ? null
-                                  : () async {
-                                      final shared = await _textShare.shareText(
-                                        title: 'ONYX Guard Coaching Telemetry',
-                                        text: _guardCoachingTelemetryJson(),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            shared
-                                                ? 'Coaching telemetry share started'
-                                                : 'Coaching telemetry share unavailable',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Share Coaching Pack',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(text: _siteActivityTruthJson()),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Site activity truth JSON copied for command review.',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Site Activity JSON',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(text: _siteActivityTruthCsv()),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Site activity truth CSV copied for command review.',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Site Activity CSV',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_textShare.supported
-                                  ? null
-                                  : () async {
-                                      final shared = await _textShare.shareText(
-                                        title: 'ONYX Site Activity Truth',
-                                        text: _siteActivityTruthJson(),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            shared
-                                                ? 'Site activity truth share started.'
-                                                : 'Site activity truth sharing is not available in this session.',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Share Site Activity Pack',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: () async {
-                                await Clipboard.setData(
-                                  ClipboardData(
-                                    text: _siteActivityTelegramSummary(),
-                                  ),
-                                );
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      'Site activity Telegram summary copied for command review.',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFE7F0FF),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    backgroundColor: const Color(0xFF0E203A),
-                                  ),
-                                );
-                              },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Copy Site Activity Telegram',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: TextButton(
-                              onPressed: !_textShare.supported
-                                  ? null
-                                  : () async {
-                                      final shared = await _textShare.shareText(
-                                        title:
-                                            'ONYX Site Activity Telegram Summary',
-                                        text: _siteActivityTelegramSummary(),
-                                      );
-                                      if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            shared
-                                                ? 'Site activity Telegram share started.'
-                                                : 'Site activity Telegram sharing is not available in this session.',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFFE7F0FF),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFF0E203A,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                              style: TextButton.styleFrom(
-                                padding: EdgeInsets.zero,
-                                minimumSize: const Size(0, 0),
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: Text(
-                                'Share Site Activity Telegram',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FD1FF),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                    _DashboardAdvancedExportPanel(
+                      canCopySiteActivityReview:
+                          siteActivity.eventIds.isNotEmpty,
+                      siteActivityReviewJson: _siteActivityReviewJson(),
+                      onOpenSiteActivityEventsReview:
+                          onOpenEventsForScope != null &&
+                              siteActivity.eventIds.isNotEmpty
+                          ? _openSiteActivityEventsReview
+                          : null,
+                      guardFailureTraceText: _guardFailureTraceText(
+                        recentFailureTraces,
+                        guardLastFailureReason,
                       ),
+                      guardPolicyTelemetryJson: _guardPolicyTelemetryJson(),
+                      guardPolicyTelemetryCsv: _guardPolicyTelemetryCsv(),
+                      guardCoachingTelemetryJson: _guardCoachingTelemetryJson(),
+                      guardCoachingTelemetryCsv: _guardCoachingTelemetryCsv(),
+                      siteActivityTruthJson: _siteActivityTruthJson(),
+                      siteActivityTruthCsv: _siteActivityTruthCsv(),
+                      siteActivityTelegramSummary:
+                          _siteActivityTelegramSummary(),
                     ),
                   ],
                 ),
@@ -3344,6 +4445,669 @@ class _RightRail extends StatelessWidget {
   }
 }
 
+class _DashboardExportReceipt {
+  final String headline;
+  final String detail;
+  final IconData icon;
+  final Color accent;
+
+  const _DashboardExportReceipt({
+    required this.headline,
+    required this.detail,
+    required this.icon,
+    required this.accent,
+  });
+}
+
+class _DashboardAdvancedExportPanel extends StatefulWidget {
+  final bool canCopySiteActivityReview;
+  final String siteActivityReviewJson;
+  final VoidCallback? onOpenSiteActivityEventsReview;
+  final String guardFailureTraceText;
+  final String guardPolicyTelemetryJson;
+  final String guardPolicyTelemetryCsv;
+  final String guardCoachingTelemetryJson;
+  final String guardCoachingTelemetryCsv;
+  final String siteActivityTruthJson;
+  final String siteActivityTruthCsv;
+  final String siteActivityTelegramSummary;
+
+  const _DashboardAdvancedExportPanel({
+    required this.canCopySiteActivityReview,
+    required this.siteActivityReviewJson,
+    required this.onOpenSiteActivityEventsReview,
+    required this.guardFailureTraceText,
+    required this.guardPolicyTelemetryJson,
+    required this.guardPolicyTelemetryCsv,
+    required this.guardCoachingTelemetryJson,
+    required this.guardCoachingTelemetryCsv,
+    required this.siteActivityTruthJson,
+    required this.siteActivityTruthCsv,
+    required this.siteActivityTelegramSummary,
+  });
+
+  @override
+  State<_DashboardAdvancedExportPanel> createState() =>
+      _DashboardAdvancedExportPanelState();
+}
+
+class _DashboardAdvancedExportPanelState
+    extends State<_DashboardAdvancedExportPanel> {
+  static const _snapshotFiles = DispatchSnapshotFileService();
+  static const _textShare = TextShareService();
+  static const _emailBridge = EmailBridgeService();
+
+  static const _defaultReceipt = _DashboardExportReceipt(
+    headline: 'Export relay ready',
+    detail:
+        'Copy, share, download, or open a scoped handoff from this console.',
+    icon: Icons.hub_outlined,
+    accent: Color(0xFF8FD1FF),
+  );
+
+  _DashboardExportReceipt _receipt = _defaultReceipt;
+
+  void _setReceipt(_DashboardExportReceipt receipt) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _receipt = receipt;
+    });
+  }
+
+  Future<void> _copyText({
+    required String text,
+    required _DashboardExportReceipt receipt,
+  }) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    _setReceipt(receipt);
+  }
+
+  Future<void> _downloadJson({
+    required String filename,
+    required String contents,
+    required _DashboardExportReceipt receipt,
+  }) async {
+    await _snapshotFiles.downloadJsonFile(
+      filename: filename,
+      contents: contents,
+    );
+    _setReceipt(receipt);
+  }
+
+  Future<void> _downloadText({
+    required String filename,
+    required String contents,
+    required _DashboardExportReceipt receipt,
+  }) async {
+    await _snapshotFiles.downloadTextFile(
+      filename: filename,
+      contents: contents,
+    );
+    _setReceipt(receipt);
+  }
+
+  Future<void> _shareText({
+    required String title,
+    required String text,
+    required _DashboardExportReceipt successReceipt,
+    required _DashboardExportReceipt fallbackReceipt,
+  }) async {
+    if (_textShare.supported) {
+      final shared = await _textShare.shareText(title: title, text: text);
+      if (shared) {
+        _setReceipt(successReceipt);
+        return;
+      }
+    }
+    await Clipboard.setData(ClipboardData(text: '$title\n\n$text'));
+    _setReceipt(fallbackReceipt);
+  }
+
+  Future<void> _openMailDraft({
+    required String subject,
+    required String body,
+    required _DashboardExportReceipt successReceipt,
+    required _DashboardExportReceipt fallbackReceipt,
+  }) async {
+    if (_emailBridge.supported) {
+      final opened = await _emailBridge.openMailDraft(
+        subject: subject,
+        body: body,
+      );
+      if (opened) {
+        _setReceipt(successReceipt);
+        return;
+      }
+    }
+    await Clipboard.setData(ClipboardData(text: 'Subject: $subject\n\n$body'));
+    _setReceipt(fallbackReceipt);
+  }
+
+  void _openSiteActivityEventsReview() {
+    final callback = widget.onOpenSiteActivityEventsReview;
+    if (callback == null) {
+      return;
+    }
+    callback();
+    _setReceipt(
+      const _DashboardExportReceipt(
+        headline: 'Events review opened',
+        detail:
+            'Scoped site activity evidence was handed off into the forensic lane.',
+        icon: Icons.route_outlined,
+        accent: Color(0xFF8FD1FF),
+      ),
+    );
+  }
+
+  Widget _section({
+    required String title,
+    required Color accent,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0x12000000),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _actionButton({
+    required String label,
+    required Color color,
+    required Future<void> Function()? onPressed,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: TextButton(
+        onPressed: onPressed == null ? null : () async => onPressed(),
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(0, 0),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _receiptPanel() {
+    return Container(
+      key: const ValueKey('dashboard-advanced-export-receipt'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: _receipt.accent.withValues(alpha: 0.12),
+        border: Border.all(color: _receipt.accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: _receipt.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _receipt.accent.withValues(alpha: 0.28),
+              ),
+            ),
+            child: Icon(_receipt.icon, size: 16, color: _receipt.accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Last handoff',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9FB6D5),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  _receipt.headline,
+                  key: const ValueKey(
+                    'dashboard-advanced-export-receipt-headline',
+                  ),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE7F0FF),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _receipt.detail,
+                  key: const ValueKey(
+                    'dashboard-advanced-export-receipt-detail',
+                  ),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFB8CBE7),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const cyan = Color(0xFF8FD1FF);
+    const gold = Color(0xFFF5C27A);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _receiptPanel(),
+          const SizedBox(height: 10),
+          _section(
+            title: 'Site Activity Handoff',
+            accent: cyan,
+            children: [
+              _actionButton(
+                label: 'Copy Site Activity Review JSON',
+                color: cyan,
+                onPressed: !widget.canCopySiteActivityReview
+                    ? null
+                    : () => _copyText(
+                        text: widget.siteActivityReviewJson,
+                        receipt: const _DashboardExportReceipt(
+                          headline: 'Review JSON copied',
+                          detail:
+                              'Site activity review payload is staged on the command clipboard.',
+                          icon: Icons.content_copy_outlined,
+                          accent: cyan,
+                        ),
+                      ),
+              ),
+              _actionButton(
+                label: 'Open Site Activity Events Review',
+                color: cyan,
+                onPressed: widget.onOpenSiteActivityEventsReview == null
+                    ? null
+                    : () async => _openSiteActivityEventsReview(),
+              ),
+              _actionButton(
+                label: 'Copy Site Activity JSON',
+                color: cyan,
+                onPressed: () => _copyText(
+                  text: widget.siteActivityTruthJson,
+                  receipt: const _DashboardExportReceipt(
+                    headline: 'Site activity JSON copied',
+                    detail:
+                        'Operational truth payload is staged for command review.',
+                    icon: Icons.content_copy_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Copy Site Activity CSV',
+                color: cyan,
+                onPressed: () => _copyText(
+                  text: widget.siteActivityTruthCsv,
+                  receipt: const _DashboardExportReceipt(
+                    headline: 'Site activity CSV copied',
+                    detail: 'Flat export is ready for spreadsheet handoff.',
+                    icon: Icons.table_chart_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Share Site Activity Pack',
+                color: cyan,
+                onPressed: () => _shareText(
+                  title: 'ONYX Site Activity Truth',
+                  text: widget.siteActivityTruthJson,
+                  successReceipt: const _DashboardExportReceipt(
+                    headline: 'Site activity pack shared',
+                    detail:
+                        'The command rail handed the site activity payload to a share target.',
+                    icon: Icons.share_outlined,
+                    accent: cyan,
+                  ),
+                  fallbackReceipt: const _DashboardExportReceipt(
+                    headline: 'Site activity pack staged',
+                    detail:
+                        'Native share is unavailable, so the site activity payload was copied for manual handoff.',
+                    icon: Icons.copy_all_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Copy Site Activity Telegram',
+                color: cyan,
+                onPressed: () => _copyText(
+                  text: widget.siteActivityTelegramSummary,
+                  receipt: const _DashboardExportReceipt(
+                    headline: 'Telegram summary copied',
+                    detail:
+                        'Operator-ready messaging summary is staged on the clipboard.',
+                    icon: Icons.send_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Share Site Activity Telegram',
+                color: cyan,
+                onPressed: () => _shareText(
+                  title: 'ONYX Site Activity Telegram Summary',
+                  text: widget.siteActivityTelegramSummary,
+                  successReceipt: const _DashboardExportReceipt(
+                    headline: 'Telegram summary shared',
+                    detail:
+                        'Client-ready summary left the command rail through a share target.',
+                    icon: Icons.share_outlined,
+                    accent: cyan,
+                  ),
+                  fallbackReceipt: const _DashboardExportReceipt(
+                    headline: 'Telegram summary staged',
+                    detail:
+                        'Native share is unavailable, so the Telegram-ready summary was copied for operator handoff.',
+                    icon: Icons.copy_all_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _section(
+            title: 'Failure Trace',
+            accent: cyan,
+            children: [
+              _actionButton(
+                label: 'Copy Failure Trace',
+                color: cyan,
+                onPressed: () => _copyText(
+                  text: widget.guardFailureTraceText,
+                  receipt: const _DashboardExportReceipt(
+                    headline: 'Failure trace copied',
+                    detail:
+                        'Latest guard sync failure evidence is staged for review.',
+                    icon: Icons.content_copy_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Email Failure Trace',
+                color: cyan,
+                onPressed: () => _openMailDraft(
+                  subject: 'ONYX Guard Sync Failure Trace',
+                  body: widget.guardFailureTraceText,
+                  successReceipt: const _DashboardExportReceipt(
+                    headline: 'Failure trace mail opened',
+                    detail:
+                        'An email draft was staged with the guard sync trace.',
+                    icon: Icons.mark_email_read_outlined,
+                    accent: cyan,
+                  ),
+                  fallbackReceipt: const _DashboardExportReceipt(
+                    headline: 'Failure trace mail staged',
+                    detail:
+                        'Mail bridge is unavailable, so a mail-ready failure trace draft was copied to the clipboard.',
+                    icon: Icons.copy_all_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Download Failure Trace',
+                color: cyan,
+                onPressed: !_snapshotFiles.supported
+                    ? null
+                    : () => _downloadText(
+                        filename: 'guard-sync-failure-trace.txt',
+                        contents: widget.guardFailureTraceText,
+                        receipt: const _DashboardExportReceipt(
+                          headline: 'Failure trace download started',
+                          detail:
+                              'A text export of the guard sync trace is being saved.',
+                          icon: Icons.download_outlined,
+                          accent: cyan,
+                        ),
+                      ),
+              ),
+              _actionButton(
+                label: 'Share Failure Trace',
+                color: cyan,
+                onPressed: () => _shareText(
+                  title: 'ONYX Guard Sync Failure Trace',
+                  text: widget.guardFailureTraceText,
+                  successReceipt: const _DashboardExportReceipt(
+                    headline: 'Failure trace shared',
+                    detail:
+                        'Guard sync trace left the dashboard through a share target.',
+                    icon: Icons.share_outlined,
+                    accent: cyan,
+                  ),
+                  fallbackReceipt: const _DashboardExportReceipt(
+                    headline: 'Failure trace staged',
+                    detail:
+                        'Native share is unavailable, so the failure trace was copied for manual handoff.',
+                    icon: Icons.copy_all_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _section(
+            title: 'Policy Telemetry',
+            accent: gold,
+            children: [
+              _actionButton(
+                label: 'Copy Policy Telemetry JSON',
+                color: gold,
+                onPressed: () => _copyText(
+                  text: widget.guardPolicyTelemetryJson,
+                  receipt: const _DashboardExportReceipt(
+                    headline: 'Policy telemetry JSON copied',
+                    detail:
+                        'Structured policy telemetry is staged for governance review.',
+                    icon: Icons.content_copy_outlined,
+                    accent: gold,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Copy Policy Telemetry CSV',
+                color: gold,
+                onPressed: () => _copyText(
+                  text: widget.guardPolicyTelemetryCsv,
+                  receipt: const _DashboardExportReceipt(
+                    headline: 'Policy telemetry CSV copied',
+                    detail:
+                        'Flat policy metrics are ready for spreadsheet analysis.',
+                    icon: Icons.table_chart_outlined,
+                    accent: gold,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Download Policy JSON',
+                color: gold,
+                onPressed: !_snapshotFiles.supported
+                    ? null
+                    : () => _downloadJson(
+                        filename: 'guard-policy-telemetry.json',
+                        contents: widget.guardPolicyTelemetryJson,
+                        receipt: const _DashboardExportReceipt(
+                          headline: 'Policy JSON download started',
+                          detail:
+                              'Governance telemetry export is being saved to disk.',
+                          icon: Icons.download_outlined,
+                          accent: gold,
+                        ),
+                      ),
+              ),
+              _actionButton(
+                label: 'Download Policy CSV',
+                color: gold,
+                onPressed: !_snapshotFiles.supported
+                    ? null
+                    : () => _downloadText(
+                        filename: 'guard-policy-telemetry.csv',
+                        contents: widget.guardPolicyTelemetryCsv,
+                        receipt: const _DashboardExportReceipt(
+                          headline: 'Policy CSV download started',
+                          detail:
+                              'Flat governance telemetry export is being saved to disk.',
+                          icon: Icons.download_outlined,
+                          accent: gold,
+                        ),
+                      ),
+              ),
+              _actionButton(
+                label: 'Share Policy Pack',
+                color: gold,
+                onPressed: () => _shareText(
+                  title: 'ONYX Guard Policy Telemetry',
+                  text: widget.guardPolicyTelemetryJson,
+                  successReceipt: const _DashboardExportReceipt(
+                    headline: 'Policy pack shared',
+                    detail:
+                        'Governance telemetry left the dashboard through a share target.',
+                    icon: Icons.share_outlined,
+                    accent: gold,
+                  ),
+                  fallbackReceipt: const _DashboardExportReceipt(
+                    headline: 'Policy pack staged',
+                    detail:
+                        'Native share is unavailable, so the policy telemetry pack was copied for governance handoff.',
+                    icon: Icons.copy_all_outlined,
+                    accent: gold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _section(
+            title: 'Coaching Telemetry',
+            accent: cyan,
+            children: [
+              _actionButton(
+                label: 'Copy Coaching Telemetry JSON',
+                color: cyan,
+                onPressed: () => _copyText(
+                  text: widget.guardCoachingTelemetryJson,
+                  receipt: const _DashboardExportReceipt(
+                    headline: 'Coaching telemetry JSON copied',
+                    detail:
+                        'Coaching feedback telemetry is staged for operator review.',
+                    icon: Icons.content_copy_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Copy Coaching Telemetry CSV',
+                color: cyan,
+                onPressed: () => _copyText(
+                  text: widget.guardCoachingTelemetryCsv,
+                  receipt: const _DashboardExportReceipt(
+                    headline: 'Coaching telemetry CSV copied',
+                    detail:
+                        'Flat coaching metrics are ready for spreadsheet analysis.',
+                    icon: Icons.table_chart_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+              _actionButton(
+                label: 'Download Coaching JSON',
+                color: cyan,
+                onPressed: !_snapshotFiles.supported
+                    ? null
+                    : () => _downloadJson(
+                        filename: 'guard-coaching-telemetry.json',
+                        contents: widget.guardCoachingTelemetryJson,
+                        receipt: const _DashboardExportReceipt(
+                          headline: 'Coaching JSON download started',
+                          detail:
+                              'Coaching telemetry export is being saved to disk.',
+                          icon: Icons.download_outlined,
+                          accent: cyan,
+                        ),
+                      ),
+              ),
+              _actionButton(
+                label: 'Share Coaching Pack',
+                color: cyan,
+                onPressed: () => _shareText(
+                  title: 'ONYX Guard Coaching Telemetry',
+                  text: widget.guardCoachingTelemetryJson,
+                  successReceipt: const _DashboardExportReceipt(
+                    headline: 'Coaching pack shared',
+                    detail:
+                        'Coaching telemetry left the dashboard through a share target.',
+                    icon: Icons.share_outlined,
+                    accent: cyan,
+                  ),
+                  fallbackReceipt: const _DashboardExportReceipt(
+                    headline: 'Coaching pack staged',
+                    detail:
+                        'Native share is unavailable, so the coaching telemetry pack was copied for operator handoff.',
+                    icon: Icons.copy_all_outlined,
+                    accent: cyan,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _HeaderStat extends StatelessWidget {
   final String label;
   final String value;
@@ -3530,222 +5294,6 @@ class _KpiBandTile extends StatelessWidget {
               color: const Color(0xFF7088A9),
               fontSize: 10,
               fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TimelineRow extends StatelessWidget {
-  final Color accent;
-  final String label;
-
-  const _TimelineRow({required this.accent, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 5),
-          child: Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFD7E4F7),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DispatchFeedRow extends StatelessWidget {
-  final String label;
-
-  const _DispatchFeedRow({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    final isDanger = label.contains('FAILED') || label.contains('DENIED');
-    final isSuccess = label.contains('EXECUTED');
-    final accent = isDanger
-        ? const Color(0xFFFF8E9A)
-        : isSuccess
-        ? const Color(0xFF8EF3C0)
-        : const Color(0xFF8FD1FF);
-    final border = isDanger
-        ? const Color(0xFF6B3040)
-        : isSuccess
-        ? const Color(0xFF225F4A)
-        : const Color(0xFF21406F);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: border),
-        color: const Color(0xFF0E1A2B),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: accent,
-          fontSize: 12.5,
-          fontWeight: FontWeight.w700,
-          height: 1.3,
-        ),
-      ),
-    );
-  }
-}
-
-class _SiteRow extends StatelessWidget {
-  final SiteHealthSnapshot site;
-  final _ThreatState threat;
-
-  const _SiteRow({required this.site, required this.threat});
-
-  @override
-  Widget build(BuildContext context) {
-    final healthFraction = (site.healthScore / 100).clamp(0.0, 1.0);
-    final stressColor = site.failedCount > 0
-        ? const Color(0xFFFF7C88)
-        : site.activeDispatches > 0
-        ? const Color(0xFFFFC27A)
-        : const Color(0xFF73D8FF);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: const Color(0xFF0E1A2B),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      site.siteId,
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFE8F1FF),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      '${site.clientId} • ${site.regionId}',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF7C93B2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(999),
-                  color: threat.softAccent.withValues(alpha: 0.08),
-                  border: Border.all(color: stressColor.withValues(alpha: 0.7)),
-                ),
-                child: Text(
-                  site.healthStatus,
-                  style: GoogleFonts.inter(
-                    color: stressColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: healthFraction,
-              minHeight: 6,
-              backgroundColor: const Color(0xFF13253E),
-              valueColor: AlwaysStoppedAnimation<Color>(stressColor),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              _SiteStat(
-                label: 'Health',
-                value: site.healthScore.toStringAsFixed(0),
-              ),
-              _SiteStat(
-                label: 'Active',
-                value: site.activeDispatches.toString(),
-              ),
-              _SiteStat(label: 'Failed', value: site.failedCount.toString()),
-              _SiteStat(
-                label: 'Response',
-                value: '${site.averageResponseMinutes.toStringAsFixed(1)}m',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SiteStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _SiteStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7F96B5),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF2FF),
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ],

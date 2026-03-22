@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
@@ -51,6 +52,10 @@ void main() {
     expect(find.text('Guards & Workforce'), findsOneWidget);
     expect(find.byKey(const ValueKey('guards-overview-grid')), findsOneWidget);
     expect(
+      find.byKey(const ValueKey('guards-overview-selected-card')),
+      findsOneWidget,
+    );
+    expect(
       find.text(
         'Real-time guard monitoring, shift verification, and performance tracking.',
       ),
@@ -61,6 +66,97 @@ void main() {
     expect(find.text('Thabo Mokoena'), findsWidgets);
     expect(find.text('Recent Activity'), findsOneWidget);
     expect(find.text('System Alerts'), findsOneWidget);
+  });
+
+  testWidgets('guards page switches roster lanes and workspace views', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? openedReportSiteId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 980)),
+          child: GuardsPage(
+            events: const <DispatchEvent>[],
+            onOpenGuardReportsForSite: (siteId) {
+              openedReportSiteId = siteId;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('guards-workspace-status-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('guards-overview-selected-card')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('guards-workspace-panel-command')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('guards-workspace-command-receipt')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('guards-overview-selected-open-reports')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('guards-overview-selected-open-reports')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedReportSiteId, 'WTF-MAIN');
+
+    await tester.tap(
+      find.byKey(const ValueKey('guards-workspace-banner-open-attention')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('guards-roster-card-GRD-447')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('guards-roster-card-GRD-441')),
+      findsNothing,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('guards-overview-selected-open-readiness')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('guards-overview-selected-open-readiness')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('guards-workspace-panel-readiness')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('guards-overview-selected-open-trace')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('guards-overview-selected-open-trace')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('guards-workspace-panel-trace')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('guards page reports action opens helper dialog', (tester) async {
@@ -219,12 +315,15 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: GuardsPage(
-          events: const <DispatchEvent>[],
-          onStageGuardVoipCall: (guardId, guardName, siteId, phone) async {
-            stagedGuardId = guardId;
-            return 'staged $guardName';
-          },
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 980)),
+          child: GuardsPage(
+            events: const <DispatchEvent>[],
+            onStageGuardVoipCall: (guardId, guardName, siteId, phone) async {
+              stagedGuardId = guardId;
+              return 'staged $guardName';
+            },
+          ),
         ),
       ),
     );
@@ -241,7 +340,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(stagedGuardId, 'GRD-441');
+    expect(
+      find.byKey(const ValueKey('guards-workspace-command-receipt')),
+      findsOneWidget,
+    );
     expect(find.text('staged Thabo Mokoena'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('guards page shows disabled readiness for unavailable actions', (
@@ -249,9 +353,31 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    String? copiedContact;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = (call.arguments as Map<dynamic, dynamic>);
+          copiedContact = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
 
     await tester.pumpWidget(
-      const MaterialApp(home: GuardsPage(events: <DispatchEvent>[])),
+      const MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(size: Size(1440, 980)),
+          child: GuardsPage(events: <DispatchEvent>[]),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -278,7 +404,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.textContaining('Client lane routing is not connected in this session'),
+      find.textContaining(
+        'Client lane routing is not connected in this session',
+      ),
       findsOneWidget,
     );
     expect(
@@ -292,6 +420,9 @@ void main() {
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Copy Contact'));
     await tester.pumpAndSettle();
+    expect(copiedContact, '+27 82 555 0441');
+    expect(find.text('Thabo Mokoena contact copied.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
 
     final callButton = find.widgetWithText(OutlinedButton, 'Call').first;
     await tester.ensureVisible(callButton);

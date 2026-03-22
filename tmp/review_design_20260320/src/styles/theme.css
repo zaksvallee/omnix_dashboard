@@ -1,0 +1,400 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+  
+  /* ONYX Design System - Premium Enterprise Command Platform */
+  /* Refined color palette - calm, professional, high contrast */
+  
+  /* Enhanced Typography Scale */
+  --font-size-xs: 0.6875rem;     /* 11px - micro labels */
+  --font-size-sm: 0.8125rem;     /* 13px - secondary text */
+  --font-size-base: 0.875rem;    /* 14px - body */
+  --font-size-lg: 1rem;          /* 16px - emphasis */
+  --font-size-xl: 1.125rem;      /* 18px - section headers */
+  --font-size-2xl: 1.5rem;       /* 24px - page titles */
+  --font-size-3xl: 2rem;         /* 32px - large headers */
+  --font-size-4xl: 3rem;         /* 48px - KPI numbers */
+  --font-size-5xl: 4rem;         /* 64px - hero numbers */
+  
+  /* Letter Spacing */
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.05em;
+  
+  /* Line Heights */
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+  --leading-loose: 1.8;
+  
+  /* Base surfaces - deep navy, graphite, near-black blue */
+  --onyx-bg-base: #0C1220;        /* Main background (slightly lighter) */
+  --onyx-bg-primary: #0d1117;
+  --onyx-bg-secondary: #0F1419;   /* Card backgrounds */
+  --onyx-bg-elevated: #141B24;    /* Elevated surfaces */
+  --onyx-bg-surface: #1a1f2e;
+  --onyx-bg-hover: #1e2432;
+  --onyx-bg-input: #0f1319;
+  
+  /* Borders and dividers - subtle, refined */
+  --onyx-border-subtle: #1f242e;
+  --onyx-border-default: #282d3a;
+  --onyx-border-medium: #303847;
+  --onyx-border-strong: #3a4152;
+  
+  /* Text hierarchy - clear, high contrast */
+  --onyx-text-primary: #e8eaed;
+  --onyx-text-secondary: #b8bcc6;
+  --onyx-text-tertiary: #8b8f9a;
+  --onyx-text-disabled: #5a5e69;
+  --onyx-text-placeholder: #4a4e59;
+  
+  /* Primary accent - cool blue/cyan */
+  --onyx-accent-primary: #3d8fff;
+  --onyx-accent-primary-hover: #5ba3ff;
+  --onyx-accent-primary-active: #2478eb;
+  --onyx-accent-primary-subtle: #1a4573;
+  --onyx-accent-primary-bg: #0d1f3a;
+  
+  /* Secondary accent - steel blue */
+  --onyx-accent-steel: #6b8aad;
+  --onyx-accent-steel-bg: #1a2533;
+  
+  /* Semantic colors - status system */
+  --onyx-status-success: #3dd68c;
+  --onyx-status-success-hover: #58dd9d;
+  --onyx-status-success-bg: #0d2d1f;
+  --onyx-status-success-border: #1a4a33;
+  
+  --onyx-status-warning: #ffa726;
+  --onyx-status-warning-hover: #ffb74d;
+  --onyx-status-warning-bg: #2d2214;
+  --onyx-status-warning-border: #4a3820;
+  
+  --onyx-status-danger: #ff5252;
+  --onyx-status-danger-hover: #ff6b6b;
+  --onyx-status-danger-bg: #2d1414;
+  --onyx-status-danger-border: #4a2020;
+  
+  --onyx-status-intel: #9d7df0;
+  --onyx-status-intel-hover: #b196f5;
+  --onyx-status-intel-bg: #1f1a33;
+  --onyx-status-intel-border: #332952;
+  
+  --onyx-status-info: #42a5f5;
+  --onyx-status-info-bg: #0d2333;
+  --onyx-status-info-border: #1a3d5a;
+  
+  /* Shadows - subtle depth */
+  --onyx-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --onyx-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --onyx-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --onyx-shadow-xl: 0 12px 36px rgba(0, 0, 0, 0.6);
+  
+  /* Legacy theme tokens for compatibility */
+  --background: #0d1117;
+  --foreground: #e8eaed;
+  --card: #161b26;
+  --card-foreground: #e8eaed;
+  --popover: #1a1f2e;
+  --popover-foreground: #e8eaed;
+  --primary: #3d8fff;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1f2e;
+  --secondary-foreground: #e8eaed;
+  --muted: #1e2432;
+  --muted-foreground: #b8bcc6;
+  --accent: #1a4573;
+  --accent-foreground: #e8eaed;
+  --destructive: #ff5252;
+  --destructive-foreground: #ffffff;
+  --border: #282d3a;
+  --input: #1a1f2e;
+  --input-background: #0f1319;
+  --switch-background: #282d3a;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-normal: 400;
+  --ring: #3d8fff;
+  --chart-1: #3d8fff;
+  --chart-2: #3dd68c;
+  --chart-3: #ffa726;
+  --chart-4: #9d7df0;
+  --chart-5: #ff5252;
+  --radius: 0.5rem;
+  --sidebar: #0f1319;
+  --sidebar-foreground: #e8eaed;
+  --sidebar-primary: #3d8fff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a1f2e;
+  --sidebar-accent-foreground: #e8eaed;
+  --sidebar-border: #282d3a;
+  --sidebar-ring: #3d8fff;
+}
+
+.dark {
+  /* Dark mode is the default for ONYX, use same values */
+  --background: #0d1117;
+  --foreground: #e8eaed;
+  --card: #161b26;
+  --card-foreground: #e8eaed;
+  --popover: #1a1f2e;
+  --popover-foreground: #e8eaed;
+  --primary: #3d8fff;
+  --primary-foreground: #ffffff;
+  --secondary: #1a1f2e;
+  --secondary-foreground: #e8eaed;
+  --muted: #1e2432;
+  --muted-foreground: #b8bcc6;
+  --accent: #1a4573;
+  --accent-foreground: #e8eaed;
+  --destructive: #ff5252;
+  --destructive-foreground: #ffffff;
+  --border: #282d3a;
+  --input: #1a1f2e;
+  --ring: #3d8fff;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-normal: 400;
+  --chart-1: #3d8fff;
+  --chart-2: #3dd68c;
+  --chart-3: #ffa726;
+  --chart-4: #9d7df0;
+  --chart-5: #ff5252;
+  --sidebar: #0f1319;
+  --sidebar-foreground: #e8eaed;
+  --sidebar-primary: #3d8fff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a1f2e;
+  --sidebar-accent-foreground: #e8eaed;
+  --sidebar-border: #282d3a;
+  --sidebar-ring: #3d8fff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* ONYX specific color utilities */
+  --color-onyx-bg-base: var(--onyx-bg-base);
+  --color-onyx-bg-primary: var(--onyx-bg-primary);
+  --color-onyx-bg-secondary: var(--onyx-bg-secondary);
+  --color-onyx-bg-elevated: var(--onyx-bg-elevated);
+  --color-onyx-bg-surface: var(--onyx-bg-surface);
+  --color-onyx-bg-hover: var(--onyx-bg-hover);
+  --color-onyx-bg-input: var(--onyx-bg-input);
+  --color-onyx-border-subtle: var(--onyx-border-subtle);
+  --color-onyx-border-default: var(--onyx-border-default);
+  --color-onyx-border-medium: var(--onyx-border-medium);
+  --color-onyx-border-strong: var(--onyx-border-strong);
+  --color-onyx-text-primary: var(--onyx-text-primary);
+  --color-onyx-text-secondary: var(--onyx-text-secondary);
+  --color-onyx-text-tertiary: var(--onyx-text-tertiary);
+  --color-onyx-text-disabled: var(--onyx-text-disabled);
+  --color-onyx-text-placeholder: var(--onyx-text-placeholder);
+  --color-onyx-accent-primary: var(--onyx-accent-primary);
+  --color-onyx-accent-primary-hover: var(--onyx-accent-primary-hover);
+  --color-onyx-accent-primary-active: var(--onyx-accent-primary-active);
+  --color-onyx-accent-primary-subtle: var(--onyx-accent-primary-subtle);
+  --color-onyx-accent-primary-bg: var(--onyx-accent-primary-bg);
+  --color-onyx-accent-steel: var(--onyx-accent-steel);
+  --color-onyx-accent-steel-bg: var(--onyx-accent-steel-bg);
+  --color-onyx-status-success: var(--onyx-status-success);
+  --color-onyx-status-success-hover: var(--onyx-status-success-hover);
+  --color-onyx-status-success-bg: var(--onyx-status-success-bg);
+  --color-onyx-status-success-border: var(--onyx-status-success-border);
+  --color-onyx-status-warning: var(--onyx-status-warning);
+  --color-onyx-status-warning-hover: var(--onyx-status-warning-hover);
+  --color-onyx-status-warning-bg: var(--onyx-status-warning-bg);
+  --color-onyx-status-warning-border: var(--onyx-status-warning-border);
+  --color-onyx-status-danger: var(--onyx-status-danger);
+  --color-onyx-status-danger-hover: var(--onyx-status-danger-hover);
+  --color-onyx-status-danger-bg: var(--onyx-status-danger-bg);
+  --color-onyx-status-danger-border: var(--onyx-status-danger-border);
+  --color-onyx-status-intel: var(--onyx-status-intel);
+  --color-onyx-status-intel-hover: var(--onyx-status-intel-hover);
+  --color-onyx-status-intel-bg: var(--onyx-status-intel-bg);
+  --color-onyx-status-intel-border: var(--onyx-status-intel-border);
+  --color-onyx-status-info: var(--onyx-status-info);
+  --color-onyx-status-info-bg: var(--onyx-status-info-bg);
+  --color-onyx-status-info-border: var(--onyx-status-info-border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /**
+  * ONYX Typography System
+  * Clear hierarchy for command platform readability
+  */
+
+  html {
+    font-size: var(--font-size);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.5;
+  }
+  
+  /* ONYX Custom Animations */
+  @keyframes pulse-glow {
+    0%, 100% { 
+      box-shadow: 0 0 12px currentColor; 
+      opacity: 0.2; 
+    }
+    50% { 
+      box-shadow: 0 0 20px currentColor; 
+      opacity: 0.4; 
+    }
+  }
+  
+  @keyframes pulse-dot {
+    0%, 100% { 
+      opacity: 1; 
+      transform: scale(1); 
+    }
+    50% { 
+      opacity: 0.5; 
+      transform: scale(1.2); 
+    }
+  }
+  
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  
+  @keyframes count-up {
+    from { 
+      opacity: 0; 
+      transform: translateY(4px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateY(0); 
+    }
+  }
+  
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  .animate-pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s ease-in-out infinite;
+  }
+  
+  .animate-count {
+    animation: count-up 0.4s ease;
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.3s ease;
+  }
+}

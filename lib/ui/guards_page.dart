@@ -13,6 +13,10 @@ enum _ShiftChangeType { clockIn, clockOut, breakStart, breakEnd }
 
 enum _GuardContactMode { call, message }
 
+enum _GuardLaneFilter { all, deployed, attention, reserve }
+
+enum _GuardWorkspaceView { command, readiness, trace }
+
 class _GuardRecord {
   final String id;
   final String name;
@@ -85,6 +89,20 @@ class _ShiftChangeRecord {
   });
 }
 
+class _GuardCommandReceipt {
+  final String label;
+  final String headline;
+  final String detail;
+  final Color accent;
+
+  const _GuardCommandReceipt({
+    required this.label,
+    required this.headline,
+    required this.detail,
+    required this.accent,
+  });
+}
+
 class GuardsPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final String initialSiteFilter;
@@ -114,6 +132,13 @@ class GuardsPage extends StatefulWidget {
 }
 
 class _GuardsPageState extends State<GuardsPage> {
+  static const _defaultCommandReceipt = _GuardCommandReceipt(
+    label: 'ACTIVITY RAIL',
+    headline: 'Guard workspace ready',
+    detail:
+        'Contact handoffs, workforce trace, and route-level actions stay visible in the activity rail.',
+    accent: Color(0xFF63BDFF),
+  );
   static const List<_GuardRecord> _guards = [
     _GuardRecord(
       id: 'GRD-441',
@@ -342,7 +367,11 @@ class _GuardsPageState extends State<GuardsPage> {
   String _searchQuery = '';
   String _statusFilter = 'ALL';
   String _siteFilter = 'ALL';
+  _GuardLaneFilter _laneFilter = _GuardLaneFilter.all;
+  _GuardWorkspaceView _workspaceView = _GuardWorkspaceView.command;
   String _selectedGuardId = 'GRD-441';
+  _GuardCommandReceipt _commandReceipt = _defaultCommandReceipt;
+  bool _desktopWorkspaceActive = false;
 
   @override
   void initState() {
@@ -367,9 +396,12 @@ class _GuardsPageState extends State<GuardsPage> {
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredGuards();
-    final selected = _selectedGuard(filtered);
+    final laneFiltered = filtered
+        .where((guard) => _matchesLaneFilter(guard, _laneFilter))
+        .toList(growable: false);
+    final selected = _selectedGuard(laneFiltered);
     final sites = _siteOptions();
-    final headerGuard = selected ?? _guards.first;
+    final headerGuard = selected ?? _selectedGuard(filtered) ?? _guards.first;
 
     final onDutyCount = _guards
         .where((guard) => guard.status == _GuardStatus.onDuty)
@@ -385,73 +417,363 @@ class _GuardsPageState extends State<GuardsPage> {
         .length;
 
     final wide = allowEmbeddedPanelScroll(context);
+    _desktopWorkspaceActive = wide;
+    const contentPadding = EdgeInsets.fromLTRB(12, 12, 12, 14);
+
+    Widget buildWorkspacePanels({required bool embedScroll}) {
+      if (wide) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _workspaceStatusBanner(
+              context: context,
+              selectedGuard: headerGuard,
+              visibleGuards: laneFiltered,
+              scopedGuards: filtered,
+            ),
+            const SizedBox(height: 8),
+            if (embedScroll)
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: _guardListPanel(
+                        guards: laneFiltered,
+                        scopedGuards: filtered,
+                        siteOptions: sites,
+                        embedScroll: true,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 5,
+                      child: _guardDetailPanel(
+                        guard: selected,
+                        scopedGuards: filtered,
+                        embedScroll: true,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 4,
+                      child: _activityPanel(
+                        guard: selected,
+                        scopedGuards: filtered,
+                        embedScroll: true,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 5,
+                    child: _guardListPanel(
+                      guards: laneFiltered,
+                      scopedGuards: filtered,
+                      siteOptions: sites,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 5,
+                    child: _guardDetailPanel(
+                      guard: selected,
+                      scopedGuards: filtered,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 4,
+                    child: _activityPanel(
+                      guard: selected,
+                      scopedGuards: filtered,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        );
+      }
+
+      return Column(
+        children: [
+          _guardListPanel(
+            guards: laneFiltered,
+            scopedGuards: filtered,
+            siteOptions: sites,
+          ),
+          const SizedBox(height: 8),
+          _guardDetailPanel(guard: selected, scopedGuards: filtered),
+          const SizedBox(height: 8),
+          _activityPanel(guard: selected, scopedGuards: filtered),
+        ],
+      );
+    }
+
+    Widget buildSurfaceBody({required bool embedScroll}) {
+      final content = <Widget>[
+        _workforceSummaryBar(
+          onDutyCount: onDutyCount,
+          offlineCount: offlineCount,
+          activeSiteCount: sites.length - 1,
+        ),
+        const SizedBox(height: 8),
+        _overviewGrid(
+          selectedGuard: headerGuard,
+          onDutyCount: onDutyCount,
+          offlineCount: offlineCount,
+        ),
+        if (!wide) ...[const SizedBox(height: 8), _header(headerGuard)],
+        const SizedBox(height: 8),
+        _kpis(
+          onDutyCount: onDutyCount,
+          offDutyCount: offDutyCount,
+          onBreakCount: onBreakCount,
+          offlineCount: offlineCount,
+        ),
+        const SizedBox(height: 8),
+      ];
+
+      if (embedScroll) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...content,
+            Expanded(child: buildWorkspacePanels(embedScroll: true)),
+          ],
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [...content, buildWorkspacePanels(embedScroll: false)],
+      );
+    }
 
     return OnyxPageScaffold(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1500),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _heroHeader(
-                  selectedGuard: headerGuard,
-                  onDutyCount: onDutyCount,
-                ),
-                const SizedBox(height: 10),
-                _workforceSummaryBar(
-                  onDutyCount: onDutyCount,
-                  offlineCount: offlineCount,
-                  activeSiteCount: sites.length - 1,
-                ),
-                const SizedBox(height: 10),
-                _overviewGrid(
-                  selectedGuard: headerGuard,
-                  onDutyCount: onDutyCount,
-                  offlineCount: offlineCount,
-                ),
-                const SizedBox(height: 10),
-                _header(headerGuard),
-                const SizedBox(height: 10),
-                _kpis(
-                  onDutyCount: onDutyCount,
-                  offDutyCount: offDutyCount,
-                  onBreakCount: onBreakCount,
-                  offlineCount: offlineCount,
-                ),
-                const SizedBox(height: 10),
-                wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 5,
-                            child: _guardListPanel(
-                              guards: filtered,
-                              siteOptions: sites,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 4,
-                            child: _guardDetailPanel(guard: selected),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(flex: 3, child: _activityPanel()),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          _guardListPanel(guards: filtered, siteOptions: sites),
-                          const SizedBox(height: 10),
-                          _guardDetailPanel(guard: selected),
-                          const SizedBox(height: 10),
-                          _activityPanel(),
-                        ],
-                      ),
-              ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boundedDesktopSurface =
+              wide &&
+              constraints.hasBoundedHeight &&
+              constraints.maxHeight.isFinite;
+          final ultrawideSurface = isUltrawideLayout(
+            context,
+            viewportWidth: constraints.maxWidth,
+          );
+          final widescreenSurface = isWidescreenLayout(
+            context,
+            viewportWidth: constraints.maxWidth,
+          );
+          final surfaceMaxWidth = ultrawideSurface
+              ? constraints.maxWidth
+              : widescreenSurface
+              ? constraints.maxWidth * 0.94
+              : 1500.0;
+          return OnyxViewportWorkspaceLayout(
+            padding: contentPadding,
+            maxWidth: surfaceMaxWidth,
+            lockToViewport: boundedDesktopSurface,
+            spacing: 8,
+            header: _heroHeader(
+              selectedGuard: headerGuard,
+              onDutyCount: onDutyCount,
             ),
+            body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _workspaceStatusBanner({
+    required BuildContext context,
+    required _GuardRecord selectedGuard,
+    required List<_GuardRecord> visibleGuards,
+    required List<_GuardRecord> scopedGuards,
+  }) {
+    final attentionCount = _laneCountForFilter(
+      scopedGuards,
+      _GuardLaneFilter.attention,
+    );
+    final deployedCount = _laneCountForFilter(
+      scopedGuards,
+      _GuardLaneFilter.deployed,
+    );
+    final reserveCount = _laneCountForFilter(
+      scopedGuards,
+      _GuardLaneFilter.reserve,
+    );
+    final siteLabel = _siteFilter == 'ALL' ? 'All Sites' : _siteFilter;
+    return Container(
+      key: const ValueKey('guards-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _statusPill(
+                icon: Icons.group_outlined,
+                label: '${visibleGuards.length} Visible',
+                accent: const Color(0xFF63BDFF),
+              ),
+              _statusPill(
+                icon: Icons.tune_rounded,
+                label: 'Lane ${_laneLabel(_laneFilter)}',
+                accent: _laneAccent(_laneFilter),
+              ),
+              _statusPill(
+                icon: Icons.dashboard_customize_outlined,
+                label: 'View ${_workspaceLabel(_workspaceView)}',
+                accent: _workspaceAccent(_workspaceView),
+              ),
+              _statusPill(
+                icon: Icons.person_outline_rounded,
+                label: 'Focus ${selectedGuard.employeeId}',
+                accent: const Color(0xFFF6C067),
+              ),
+              _statusPill(
+                icon: Icons.location_on_outlined,
+                label: siteLabel,
+                accent: const Color(0xFFA78BFA),
+              ),
+              _statusPill(
+                icon: Icons.warning_amber_rounded,
+                label: '$attentionCount Attention',
+                accent: attentionCount > 0
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF94A3B8),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceBannerAction(
+                key: const ValueKey('guards-workspace-banner-open-all'),
+                label: 'All Guards',
+                selected: _laneFilter == _GuardLaneFilter.all,
+                accent: _laneAccent(_GuardLaneFilter.all),
+                onTap: () => _setRosterLane(_GuardLaneFilter.all),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('guards-workspace-banner-open-attention'),
+                label: 'Attention Lane',
+                selected: _laneFilter == _GuardLaneFilter.attention,
+                accent: _laneAccent(_GuardLaneFilter.attention),
+                onTap: attentionCount == 0
+                    ? null
+                    : () => _focusAttentionLane(scopedGuards),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('guards-workspace-banner-open-command'),
+                label: 'Command View',
+                selected: _workspaceView == _GuardWorkspaceView.command,
+                accent: _workspaceAccent(_GuardWorkspaceView.command),
+                onTap: () => _setWorkspaceView(_GuardWorkspaceView.command),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('guards-workspace-banner-open-readiness'),
+                label: 'Readiness View',
+                selected: _workspaceView == _GuardWorkspaceView.readiness,
+                accent: _workspaceAccent(_GuardWorkspaceView.readiness),
+                onTap: () => _setWorkspaceView(_GuardWorkspaceView.readiness),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('guards-workspace-banner-open-trace'),
+                label: 'Trace View',
+                selected: _workspaceView == _GuardWorkspaceView.trace,
+                accent: _workspaceAccent(_GuardWorkspaceView.trace),
+                onTap: () => _setWorkspaceView(_GuardWorkspaceView.trace),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('guards-workspace-banner-open-reports'),
+                label: 'Open Reports',
+                selected: false,
+                accent: const Color(0xFF93C5FD),
+                onTap: () => _openReportsForSite(context, selectedGuard),
+              ),
+              if (widget.onOpenGuardSchedule != null)
+                _workspaceBannerAction(
+                  key: const ValueKey('guards-workspace-banner-open-schedule'),
+                  label: 'Manage Schedule',
+                  selected: false,
+                  accent: const Color(0xFF63BDFF),
+                  onTap: _openGuardSchedule,
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Deployed $deployedCount • Reserve $reserveCount • Attention $attentionCount. Selected scope stays anchored to ${selectedGuard.name} at ${selectedGuard.site}.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceBannerAction({
+    required Key key,
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: onTap == null
+              ? const Color(0xFF111827)
+              : selected
+              ? accent.withValues(alpha: 0.16)
+              : const Color(0xFF131B24),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: onTap == null
+                ? const Color(0x332B425F)
+                : selected
+                ? accent.withValues(alpha: 0.46)
+                : const Color(0x332B425F),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: onTap == null
+                ? const Color(0xFF6C829D)
+                : selected
+                ? accent
+                : const Color(0xFFEAF4FF),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -464,14 +786,14 @@ class _GuardsPageState extends State<GuardsPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF2C1B12), Color(0xFF1B1110)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF5B3021)),
       ),
       child: LayoutBuilder(
@@ -484,10 +806,10 @@ class _GuardsPageState extends State<GuardsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       gradient: const LinearGradient(
                         colors: [Color(0xFFF97316), Color(0xFFEF4444)],
                         begin: Alignment.topLeft,
@@ -497,10 +819,10 @@ class _GuardsPageState extends State<GuardsPage> {
                     child: const Icon(
                       Icons.groups_rounded,
                       color: Colors.white,
-                      size: 28,
+                      size: 24,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,7 +831,7 @@ class _GuardsPageState extends State<GuardsPage> {
                           'Guards & Workforce',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 22 : 26,
+                            fontSize: compact ? 20 : 24,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -518,7 +840,7 @@ class _GuardsPageState extends State<GuardsPage> {
                           'Roster management, performance tracking, and operational readiness.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF95A9C7),
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -527,10 +849,10 @@ class _GuardsPageState extends State<GuardsPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
                   _heroChip('On Duty', '$onDutyCount'),
                   _heroChip('Focus', selectedGuard.name),
@@ -541,10 +863,10 @@ class _GuardsPageState extends State<GuardsPage> {
             ],
           );
           final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             alignment: WrapAlignment.end,
-          children: [
+            children: [
               _heroActionButton(
                 key: const ValueKey('guards-view-reports-button'),
                 icon: Icons.open_in_new,
@@ -557,20 +879,16 @@ class _GuardsPageState extends State<GuardsPage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleBlock,
-                const SizedBox(height: 16),
-                actions,
-              ],
+              children: [titleBlock, const SizedBox(height: 12), actions],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: titleBlock),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220),
+                constraints: const BoxConstraints(maxWidth: 210),
                 child: actions,
               ),
             ],
@@ -582,7 +900,7 @@ class _GuardsPageState extends State<GuardsPage> {
 
   Widget _heroChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -595,7 +913,7 @@ class _GuardsPageState extends State<GuardsPage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -603,12 +921,83 @@ class _GuardsPageState extends State<GuardsPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE8F1FF),
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _workspaceCommandReceipt(_GuardRecord? focusGuard) {
+    final receipt = _commandReceipt;
+    final defaultDetail = focusGuard == null
+        ? _defaultCommandReceipt.detail
+        : 'Selected scope stays anchored to ${focusGuard.name} at ${focusGuard.site} while command actions remain in view.';
+    final detail = receipt == _defaultCommandReceipt
+        ? defaultDetail
+        : receipt.detail;
+    return Container(
+      key: const ValueKey('guards-workspace-command-receipt'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C1117),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.42)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LATEST COMMAND',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: receipt.accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: receipt.accent.withValues(alpha: 0.45)),
+            ),
+            child: Text(
+              receipt.label,
+              style: GoogleFonts.inter(
+                color: receipt.accent,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            receipt.headline,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -629,11 +1018,8 @@ class _GuardsPageState extends State<GuardsPage> {
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        textStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
@@ -646,22 +1032,22 @@ class _GuardsPageState extends State<GuardsPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF151619),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF3D2A24)),
       ),
       child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
+        spacing: 8,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
             'WORKFORCE STATUS',
             style: GoogleFonts.inter(
               color: const Color(0x669BB0CE),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.2,
             ),
@@ -692,7 +1078,7 @@ class _GuardsPageState extends State<GuardsPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -701,13 +1087,13 @@ class _GuardsPageState extends State<GuardsPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: accent),
-          const SizedBox(width: 6),
+          Icon(icon, size: 13, color: accent),
+          const SizedBox(width: 5),
           Text(
             label,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -722,17 +1108,17 @@ class _GuardsPageState extends State<GuardsPage> {
     required int offlineCount,
   }) {
     return LayoutBuilder(
-      builder: (context, constraints) {
+      builder: (layoutContext, constraints) {
         final columns = constraints.maxWidth >= 1200
             ? 4
             : constraints.maxWidth >= 760
             ? 2
             : 1;
         final aspectRatio = columns == 4
-            ? 1.95
+            ? 1.94
             : columns == 2
-            ? 2.35
-            : 2.55;
+            ? 2.2
+            : 2.4;
         return GridView.count(
           key: const ValueKey('guards-overview-grid'),
           crossAxisCount: columns,
@@ -745,34 +1131,224 @@ class _GuardsPageState extends State<GuardsPage> {
             _overviewCard(
               title: 'On Duty',
               value: '$onDutyCount',
-              detail: 'Active field roster currently available across visible sites.',
+              detail:
+                  'Active field roster currently available across visible sites.',
               icon: Icons.shield_outlined,
               accent: const Color(0xFF34D399),
             ),
             _overviewCard(
               title: 'Sync Issues',
               value: '$offlineCount',
-              detail: 'Guards needing follow-up for heartbeat, sync, or device state.',
+              detail:
+                  'Guards needing follow-up for heartbeat, sync, or device state.',
               icon: Icons.wifi_off_rounded,
               accent: const Color(0xFFF6C067),
             ),
-            _overviewCard(
-              title: 'Selected Guard',
-              value: selectedGuard.employeeId,
-              detail: '${selectedGuard.name} is active in the workforce profile pane.',
-              icon: Icons.person_outline_rounded,
-              accent: const Color(0xFF63BDFF),
+            _selectedGuardOverviewCard(
+              layoutContext,
+              selectedGuard: selectedGuard,
             ),
             _overviewCard(
               title: 'Primary Site',
               value: selectedGuard.siteId,
-              detail: '${selectedGuard.site} is the current field deployment focus.',
+              detail:
+                  '${selectedGuard.site} is the current field deployment focus.',
               icon: Icons.location_on_outlined,
               accent: const Color(0xFFA78BFA),
             ),
           ],
         );
       },
+    );
+  }
+
+  Widget _selectedGuardOverviewCard(
+    BuildContext context, {
+    required _GuardRecord selectedGuard,
+  }) {
+    final statusStyle = _statusStyle(selectedGuard.status);
+    final laneAction =
+        _guardNeedsAttention(selectedGuard) &&
+            _laneFilter != _GuardLaneFilter.attention
+        ? _GuardLaneFilter.attention
+        : (selectedGuard.status == _GuardStatus.onDuty ||
+                  selectedGuard.status == _GuardStatus.onBreak) &&
+              _laneFilter != _GuardLaneFilter.deployed
+        ? _GuardLaneFilter.deployed
+        : selectedGuard.status == _GuardStatus.offDuty &&
+              _laneFilter != _GuardLaneFilter.reserve
+        ? _GuardLaneFilter.reserve
+        : _laneFilter != _GuardLaneFilter.all
+        ? _GuardLaneFilter.all
+        : null;
+    final laneActionLabel = switch (laneAction) {
+      _GuardLaneFilter.attention => 'Attention Lane',
+      _GuardLaneFilter.deployed => 'Deployed Lane',
+      _GuardLaneFilter.reserve => 'Reserve Lane',
+      _GuardLaneFilter.all => 'All Guards',
+      null => null,
+    };
+    final directive = _guardNeedsAttention(selectedGuard)
+        ? _attentionReason(selectedGuard)
+        : '${selectedGuard.shiftStart} - ${selectedGuard.shiftEnd} remains anchored at ${selectedGuard.site} while sync last landed ${selectedGuard.lastHeartbeat}.';
+
+    return Container(
+      key: const ValueKey('guards-overview-selected-card'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            statusStyle.foreground.withValues(alpha: 0.16),
+            const Color(0xFF101A2B),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusStyle.border),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: statusStyle.foreground.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.badge_outlined,
+                    color: statusStyle.foreground,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GUARD IN FOCUS',
+                        style: GoogleFonts.inter(
+                          color: statusStyle.foreground,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Selected Guard',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8EA4C2),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _statusChip(statusStyle),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              selectedGuard.employeeId,
+              style: GoogleFonts.rajdhani(
+                color: const Color(0xFFF4F8FF),
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${selectedGuard.name} stays pinned while ${_workspaceLabel(_workspaceView).toLowerCase()} remains live for ${selectedGuard.siteId}.',
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFD5E1F2),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _heroChip('Site', selectedGuard.siteId),
+                _heroChip('Battery', '${selectedGuard.battery}%'),
+                _heroChip('Signal', '${selectedGuard.signalStrength}%'),
+                _heroChip('Compliance', '${selectedGuard.compliance}%'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              directive,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9AB1CF),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (laneAction != null && laneActionLabel != null)
+                  _workspaceBannerAction(
+                    key: const ValueKey('guards-overview-selected-open-lane'),
+                    label: laneActionLabel,
+                    selected: false,
+                    accent: _laneAccent(laneAction),
+                    onTap: () => _setRosterLane(laneAction),
+                  ),
+                _workspaceBannerAction(
+                  key: const ValueKey('guards-overview-selected-open-command'),
+                  label: 'Command',
+                  selected: _workspaceView == _GuardWorkspaceView.command,
+                  accent: _workspaceAccent(_GuardWorkspaceView.command),
+                  onTap: () => _setWorkspaceView(_GuardWorkspaceView.command),
+                ),
+                _workspaceBannerAction(
+                  key: const ValueKey(
+                    'guards-overview-selected-open-readiness',
+                  ),
+                  label: 'Readiness',
+                  selected: _workspaceView == _GuardWorkspaceView.readiness,
+                  accent: _workspaceAccent(_GuardWorkspaceView.readiness),
+                  onTap: () => _setWorkspaceView(_GuardWorkspaceView.readiness),
+                ),
+                _workspaceBannerAction(
+                  key: const ValueKey('guards-overview-selected-open-trace'),
+                  label: 'Trace',
+                  selected: _workspaceView == _GuardWorkspaceView.trace,
+                  accent: _workspaceAccent(_GuardWorkspaceView.trace),
+                  onTap: () => _setWorkspaceView(_GuardWorkspaceView.trace),
+                ),
+                _workspaceBannerAction(
+                  key: const ValueKey('guards-overview-selected-open-reports'),
+                  label: 'Reports',
+                  selected: false,
+                  accent: const Color(0xFF93C5FD),
+                  onTap: () => _openReportsForSite(context, selectedGuard),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -796,13 +1372,13 @@ class _GuardsPageState extends State<GuardsPage> {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: accent, size: 20),
+                child: Icon(icon, color: accent, size: 18),
               ),
               const Spacer(),
               Flexible(
@@ -813,7 +1389,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   textAlign: TextAlign.end,
                   style: GoogleFonts.robotoMono(
                     color: const Color(0xFFF4F8FF),
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -837,7 +1413,7 @@ class _GuardsPageState extends State<GuardsPage> {
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               color: const Color(0xFFD5E1F2),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
@@ -895,6 +1471,15 @@ class _GuardsPageState extends State<GuardsPage> {
     callback(selectedGuard.siteId);
   }
 
+  void _openGuardSchedule() {
+    final callback = widget.onOpenGuardSchedule;
+    if (callback == null) {
+      return;
+    }
+    logUiAction('guards_schedule_opened');
+    callback();
+  }
+
   Widget _header(_GuardRecord selectedGuard) {
     final reportsAvailable = widget.onOpenGuardReportsForSite != null;
     final scheduleAvailable = widget.onOpenGuardSchedule != null;
@@ -936,16 +1521,7 @@ class _GuardsPageState extends State<GuardsPage> {
           ),
         ),
         FilledButton.icon(
-          onPressed: scheduleAvailable
-              ? () {
-                  final callback = widget.onOpenGuardSchedule;
-                  if (callback == null) {
-                    return;
-                  }
-                  logUiAction('guards_schedule_opened');
-                  callback();
-                }
-              : null,
+          onPressed: scheduleAvailable ? _openGuardSchedule : null,
           icon: const Icon(Icons.people_rounded, size: 16),
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFF2B5E93),
@@ -1065,16 +1641,40 @@ class _GuardsPageState extends State<GuardsPage> {
 
   Widget _guardListPanel({
     required List<_GuardRecord> guards,
+    required List<_GuardRecord> scopedGuards,
     required List<DropdownMenuItem<String>> siteOptions,
+    bool embedScroll = false,
   }) {
     return _panelSurface(
+      embedScroll: embedScroll,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle('Active Guards'),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+          Text(
+            'Lane-led roster control for fast deployment triage, staffing attention, and site-scoped search.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _GuardLaneFilter.values
+                .map(
+                  (lane) =>
+                      _laneChip(lane, _laneCountForFilter(scopedGuards, lane)),
+                )
+                .toList(growable: false),
+          ),
+          const SizedBox(height: 6),
           _searchField(),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             children: [
               Expanded(
@@ -1112,18 +1712,41 @@ class _GuardsPageState extends State<GuardsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _statusPill(
+                icon: Icons.visibility_outlined,
+                label: '${guards.length} Visible',
+                accent: const Color(0xFF63BDFF),
+              ),
+              _statusPill(
+                icon: Icons.tune_rounded,
+                label: _laneLabel(_laneFilter),
+                accent: _laneAccent(_laneFilter),
+              ),
+              if (_searchQuery.isNotEmpty)
+                _statusPill(
+                  icon: Icons.search_rounded,
+                  label: 'Query ${_searchQuery.toUpperCase()}',
+                  accent: const Color(0xFFF6C067),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
           if (guards.isEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: const Color(0xFF0C1117),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0x332B425F)),
               ),
               child: Text(
-                'No guards match current filters.',
+                'No guards match the current roster lane and filters.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF9AB1CF),
                   fontSize: 12,
@@ -1136,7 +1759,7 @@ class _GuardsPageState extends State<GuardsPage> {
               children: [
                 for (int i = 0; i < guards.length; i++) ...[
                   _guardCard(guards[i]),
-                  if (i != guards.length - 1) const SizedBox(height: 8),
+                  if (i != guards.length - 1) const SizedBox(height: 6),
                 ],
               ],
             ),
@@ -1148,16 +1771,18 @@ class _GuardsPageState extends State<GuardsPage> {
   Widget _guardCard(_GuardRecord guard) {
     final selected = guard.id == _selectedGuardId;
     final statusStyle = _statusStyle(guard.status);
+    final needsAttention = _guardNeedsAttention(guard);
 
     return InkWell(
-      onTap: () => setState(() => _selectedGuardId = guard.id),
+      key: ValueKey('guards-roster-card-${guard.id}'),
+      onTap: () => _selectGuard(guard.id),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: selected ? const Color(0x1A22D3EE) : const Color(0xFF0C1117),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(9),
           border: Border.all(
             color: selected ? const Color(0x8022D3EE) : const Color(0x332B425F),
           ),
@@ -1166,7 +1791,7 @@ class _GuardsPageState extends State<GuardsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             CircleAvatar(
-              radius: 22,
+              radius: 20,
               backgroundColor: const Color(0xFF1A2A3D),
               child: Text(
                 _initials(guard.name),
@@ -1177,7 +1802,7 @@ class _GuardsPageState extends State<GuardsPage> {
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1189,11 +1814,32 @@ class _GuardsPageState extends State<GuardsPage> {
                           guard.name,
                           style: GoogleFonts.inter(
                             color: const Color(0xFFEAF4FF),
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
+                      if (needsAttention)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0x1AEF4444),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: const Color(0x66EF4444)),
+                          ),
+                          child: Text(
+                            'ATTN',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFFFA3A3),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
                       const Icon(
                         Icons.chevron_right_rounded,
                         color: Color(0x668EA4C2),
@@ -1209,18 +1855,27 @@ class _GuardsPageState extends State<GuardsPage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     guard.site,
                     style: GoogleFonts.inter(
                       color: const Color(0xCCFFFFFF),
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Shift ${guard.shiftStart} - ${guard.shiftEnd} • ${guard.lastHeartbeat}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0x998EA4C2),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
                   Wrap(
-                    spacing: 8,
+                    spacing: 6,
                     runSpacing: 6,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
@@ -1241,10 +1896,17 @@ class _GuardsPageState extends State<GuardsPage> {
                               ? const Color(0xFFEF4444)
                               : const Color(0xFF9AB1CF),
                         ),
+                      _iconMeta(
+                        Icons.verified_user_outlined,
+                        '${guard.compliance}%',
+                        guard.compliance >= 95
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFF59E0B),
+                      ),
                     ],
                   ),
                   if (guard.clockInTime != null) ...[
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
                         const Icon(
@@ -1268,8 +1930,27 @@ class _GuardsPageState extends State<GuardsPage> {
                             size: 13,
                             color: Color(0xFF10B981),
                           ),
+                        ] else ...[
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            size: 13,
+                            color: Color(0xFFF59E0B),
+                          ),
                         ],
                       ],
+                    ),
+                  ],
+                  if (needsAttention) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      _attentionReason(guard),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFFFC8B5),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
                     ),
                   ],
                 ],
@@ -1281,260 +1962,146 @@ class _GuardsPageState extends State<GuardsPage> {
     );
   }
 
-  Widget _guardDetailPanel({required _GuardRecord? guard}) {
+  Widget _guardDetailPanel({
+    required _GuardRecord? guard,
+    required List<_GuardRecord> scopedGuards,
+    bool embedScroll = false,
+  }) {
     return _panelSurface(
+      embedScroll: embedScroll,
       child: guard == null
-          ? _emptyHint('Select a guard to view details.')
+          ? _emptyHint('Select a guard lane with an available roster entry.')
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _sectionTitle('Guard Profile'),
-                const SizedBox(height: 10),
-                Center(
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: const Color(0xFF1A2A3D),
-                        child: Text(
-                          _initials(guard.name),
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        guard.name,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF4FF),
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        guard.employeeId,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8EA4C2),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      _statusChip(_statusStyle(guard.status)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _subPanel(
-                  child: Column(
-                    children: [
-                      _kv('Current Site', guard.site),
-                      _kv(
-                        'Shift Hours',
-                        '${guard.shiftStart} - ${guard.shiftEnd}',
-                      ),
-                      if (guard.clockInTime != null)
-                        _kv(
-                          'Clock In',
-                          guard.clockInPhotoVerified
-                              ? '${guard.clockInTime} • photo verified'
-                              : guard.clockInTime!,
-                          valueColor: const Color(0xFF10B981),
-                        ),
-                      _kv('Last Heartbeat', guard.lastHeartbeat),
-                      _kv('Emergency', guard.emergencyContact),
-                    ],
+                const SizedBox(height: 3),
+                Text(
+                  'A selected-guard command board with field posture, readiness checks, and workforce trace.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _metricMini('Battery', '${guard.battery}%'),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _metricMini('Signal', '${guard.signalStrength}%'),
-                    ),
-                  ],
+                _guardFocusBanner(guard),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _GuardWorkspaceView.values
+                      .map((view) => _workspaceChip(view))
+                      .toList(growable: false),
                 ),
                 const SizedBox(height: 8),
-                _subPanel(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Current Location',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF9AB1CF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${guard.lat.toStringAsFixed(6)}, ${guard.lng.toStringAsFixed(6)}',
-                        style: GoogleFonts.robotoMono(
-                          color: const Color(0xFFDDEBFF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Accuracy: ${guard.locationAccuracy}',
-                        style: GoogleFonts.inter(
-                          color: const Color(0x998EA4C2),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                switch (_workspaceView) {
+                  _GuardWorkspaceView.command => _guardCommandPanel(guard),
+                  _GuardWorkspaceView.readiness => _guardReadinessPanel(guard),
+                  _GuardWorkspaceView.trace => _guardTracePanel(
+                    guard,
+                    scopedGuards,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _secondaryButton(
-                        'Call',
-                        Icons.phone_rounded,
-                        () => _showGuardContactSheet(
-                          guard,
-                          initialMode: _GuardContactMode.call,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _secondaryButton(
-                        'Message',
-                        Icons.message_rounded,
-                        () => _showGuardContactSheet(
-                          guard,
-                          initialMode: _GuardContactMode.message,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                _sectionTitle('Performance (24h)'),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _metricMini('OB Entries', '${guard.obEntries}'),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _metricMini('Incidents', '${guard.incidents}'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: _metricMini('Patrols', '${guard.patrols}')),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _metricMini(
-                        'Compliance',
-                        '${guard.compliance}%',
-                        valueColor: const Color(0xFF10B981),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                _subPanel(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Certifications',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF9AB1CF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: guard.certifications
-                            .map(
-                              (cert) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 5,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0x1A3B82F6),
-                                  borderRadius: BorderRadius.circular(999),
-                                  border: Border.all(
-                                    color: const Color(0x553B82F6),
-                                  ),
-                                ),
-                                child: Text(
-                                  cert,
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFF8FD1FF),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(growable: false),
-                      ),
-                    ],
-                  ),
-                ),
+                },
               ],
             ),
     );
   }
 
-  Widget _activityPanel() {
+  Widget _activityPanel({
+    required _GuardRecord? guard,
+    required List<_GuardRecord> scopedGuards,
+    bool embedScroll = false,
+  }) {
+    final focusGuard = guard ?? _selectedGuard(scopedGuards);
+    final scopedChanges = focusGuard == null
+        ? _recentShiftChanges
+        : _changesForGuard(focusGuard);
     return _panelSurface(
+      embedScroll: embedScroll,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle('Recent Activity'),
+          const SizedBox(height: 3),
+          Text(
+            'Context rail for shift moves, system risk, and route-level workforce handoff.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (focusGuard != null) ...[
+            _subPanel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Selected Scope',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB1CF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  _kv('Guard', focusGuard.name),
+                  _kv('Lane', _laneLabel(_laneFilter)),
+                  _kv('Site', focusGuard.site),
+                  _kv(
+                    'Watch Status',
+                    _guardNeedsAttention(focusGuard)
+                        ? 'Attention required'
+                        : 'Nominal',
+                    valueColor: _guardNeedsAttention(focusGuard)
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFF10B981),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            FilledButton.tonalIcon(
+              key: const ValueKey('guards-activity-focus-attention'),
+              onPressed: () => _focusAttentionLane(scopedGuards),
+              icon: const Icon(Icons.warning_amber_rounded, size: 18),
+              label: const Text('Focus Attention Lane'),
+            ),
+            const SizedBox(height: 8),
+          ],
+          _workspaceCommandReceipt(focusGuard),
           const SizedBox(height: 8),
           Column(
             children: [
-              for (int i = 0; i < _recentShiftChanges.length; i++) ...[
-                _shiftChangeCard(_recentShiftChanges[i]),
-                if (i != _recentShiftChanges.length - 1)
-                  const SizedBox(height: 8),
+              for (int i = 0; i < scopedChanges.length; i++) ...[
+                _shiftChangeCard(scopedChanges[i]),
+                if (i != scopedChanges.length - 1) const SizedBox(height: 6),
               ],
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(height: 1, color: const Color(0x332B425F)),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             'System Alerts',
             style: GoogleFonts.inter(
               color: const Color(0xFF9AB1CF),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           _alertCard(
             title: 'Low Battery Alert',
             detail: 'Precious Sithole (GRD-447) - Battery at 12%',
             color: const Color(0xFFEF4444),
             icon: Icons.battery_alert_rounded,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           _alertCard(
             title: 'Signal Lost',
             detail: 'Precious Sithole (GRD-447) - Last contact 8 min ago',
@@ -1550,7 +2117,7 @@ class _GuardsPageState extends State<GuardsPage> {
     final style = _shiftStyle(change.type);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(9),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
         borderRadius: BorderRadius.circular(10),
@@ -1560,15 +2127,15 @@ class _GuardsPageState extends State<GuardsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(
               color: const Color(0xFF151E2A),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(7),
             ),
-            child: Icon(style.icon, color: style.color, size: 16),
+            child: Icon(style.icon, color: style.color, size: 14),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 7),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1577,7 +2144,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   change.guardName,
                   style: GoogleFonts.inter(
                     color: const Color(0xFFEAF4FF),
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1590,9 +2157,9 @@ class _GuardsPageState extends State<GuardsPage> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Wrap(
-                  spacing: 8,
+                  spacing: 6,
                   runSpacing: 4,
                   children: [
                     _iconMeta(
@@ -1630,7 +2197,7 @@ class _GuardsPageState extends State<GuardsPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
@@ -1641,21 +2208,21 @@ class _GuardsPageState extends State<GuardsPage> {
         children: [
           Row(
             children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 6),
+              Icon(icon, size: 15, color: color),
+              const SizedBox(width: 5),
               Expanded(
                 child: Text(
                   title,
                   style: GoogleFonts.inter(
                     color: color,
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             detail,
             style: GoogleFonts.inter(
@@ -1669,26 +2236,553 @@ class _GuardsPageState extends State<GuardsPage> {
     );
   }
 
-  Widget _panelSurface({required Widget child}) {
+  Widget _laneChip(_GuardLaneFilter lane, int count) {
+    final selected = _laneFilter == lane;
+    final accent = _laneAccent(lane);
+    return InkWell(
+      key: ValueKey('guards-roster-lane-${_laneKey(lane)}'),
+      onTap: () {
+        _setRosterLane(lane);
+      },
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.16)
+              : const Color(0xFF0C1117),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.42)
+                : const Color(0x332B425F),
+          ),
+        ),
+        child: Text(
+          '${_laneLabel(lane)} $count',
+          style: GoogleFonts.inter(
+            color: selected ? accent : const Color(0xFF9AB1CF),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _guardFocusBanner(_GuardRecord guard) {
+    final statusStyle = _statusStyle(guard.status);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF223244)),
+        gradient: LinearGradient(
+          colors: [
+            statusStyle.foreground.withValues(alpha: 0.16),
+            const Color(0xFF101A2B),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusStyle.border),
       ),
-      child: child,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: const Color(0xFF1A2A3D),
+                child: Text(
+                  _initials(guard.name),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8FD1FF),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ACTIVE WORKFORCE PROFILE',
+                      style: GoogleFonts.inter(
+                        color: statusStyle.foreground,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      guard.name,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${guard.employeeId} • ${guard.siteId}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _statusChip(statusStyle),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _heroChip('Site', guard.site),
+              _heroChip('Shift', '${guard.shiftStart} - ${guard.shiftEnd}'),
+              _heroChip('Sync', guard.lastHeartbeat),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _metricMini('Battery', '${guard.battery}%')),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _metricMini('Signal', '${guard.signalStrength}%'),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _metricMini(
+                  'Compliance',
+                  '${guard.compliance}%',
+                  valueColor: guard.compliance >= 95
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFF59E0B),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceChip(_GuardWorkspaceView view) {
+    final selected = _workspaceView == view;
+    final accent = _workspaceAccent(view);
+    return InkWell(
+      key: ValueKey('guards-workspace-view-${_workspaceKey(view)}'),
+      onTap: () {
+        _setWorkspaceView(view);
+      },
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.16)
+              : const Color(0xFF0C1117),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.42)
+                : const Color(0x332B425F),
+          ),
+        ),
+        child: Text(
+          _workspaceLabel(view),
+          style: GoogleFonts.inter(
+            color: selected ? accent : const Color(0xFF9AB1CF),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _guardCommandPanel(_GuardRecord guard) {
+    return Container(
+      key: const ValueKey('guards-workspace-panel-command'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _subPanel(
+            child: Column(
+              children: [
+                _kv('Current Site', guard.site),
+                _kv('Shift Hours', '${guard.shiftStart} - ${guard.shiftEnd}'),
+                if (guard.clockInTime != null)
+                  _kv(
+                    'Clock In',
+                    guard.clockInPhotoVerified
+                        ? '${guard.clockInTime} • photo verified'
+                        : '${guard.clockInTime} • awaiting review',
+                    valueColor: guard.clockInPhotoVerified
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFF59E0B),
+                  ),
+                _kv('Last Heartbeat', guard.lastHeartbeat),
+                _kv('Emergency', guard.emergencyContact),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          _subPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Current Location',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB1CF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${guard.lat.toStringAsFixed(6)}, ${guard.lng.toStringAsFixed(6)}',
+                  style: GoogleFonts.robotoMono(
+                    color: const Color(0xFFDDEBFF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Accuracy: ${guard.locationAccuracy}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0x998EA4C2),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _secondaryButton(
+                  'Call',
+                  Icons.phone_rounded,
+                  () => _showGuardContactSheet(
+                    guard,
+                    initialMode: _GuardContactMode.call,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _secondaryButton(
+                  'Message',
+                  Icons.message_rounded,
+                  () => _showGuardContactSheet(
+                    guard,
+                    initialMode: _GuardContactMode.message,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Performance (24h)',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(child: _metricMini('OB Entries', '${guard.obEntries}')),
+              const SizedBox(width: 6),
+              Expanded(child: _metricMini('Incidents', '${guard.incidents}')),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(child: _metricMini('Patrols', '${guard.patrols}')),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _metricMini(
+                  'Site Pulse',
+                  _guardNeedsAttention(guard) ? 'Watch' : 'Stable',
+                  valueColor: _guardNeedsAttention(guard)
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _guardReadinessPanel(_GuardRecord guard) {
+    return Container(
+      key: const ValueKey('guards-workspace-panel-readiness'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _subPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Shift Verification',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB1CF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _kv(
+                  'Photo Verification',
+                  guard.clockInPhotoVerified ? 'Verified' : 'Pending review',
+                  valueColor: guard.clockInPhotoVerified
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFF59E0B),
+                ),
+                _kv('Location Accuracy', guard.locationAccuracy),
+                _kv('Status', _statusStyle(guard.status).label),
+                _kv('Readiness Note', _attentionReason(guard)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: _metricMini(
+                  'Battery',
+                  '${guard.battery}%',
+                  valueColor: guard.battery <= 20
+                      ? const Color(0xFFEF4444)
+                      : const Color(0xFFEAF4FF),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _metricMini(
+                  'Signal',
+                  '${guard.signalStrength}%',
+                  valueColor: guard.signalStrength <= 20
+                      ? const Color(0xFFEF4444)
+                      : const Color(0xFFEAF4FF),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _subPanel(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Certifications',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB1CF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: guard.certifications
+                      .map(
+                        (cert) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0x1A3B82F6),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: const Color(0x553B82F6)),
+                          ),
+                          child: Text(
+                            cert,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF8FD1FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _guardTracePanel(_GuardRecord guard, List<_GuardRecord> scopedGuards) {
+    final peers = scopedGuards
+        .where(
+          (candidate) =>
+              candidate.id != guard.id && candidate.siteId == guard.siteId,
+        )
+        .toList(growable: false);
+    final changes = _changesForGuard(guard);
+    return Container(
+      key: const ValueKey('guards-workspace-panel-trace'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Site Peers',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          if (peers.isEmpty)
+            _emptyHint('No other visible guards share this site scope.')
+          else
+            Column(
+              children: [
+                for (int i = 0; i < peers.length; i++) ...[
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0C1117),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: const Color(0x332B425F)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                peers[i].name,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFEAF4FF),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${peers[i].employeeId} • ${_statusStyle(peers[i].status).label}',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8EA4C2),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => _selectGuard(peers[i].id),
+                          child: Text(
+                            'Focus',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (i != peers.length - 1) const SizedBox(height: 6),
+                ],
+              ],
+            ),
+          const SizedBox(height: 8),
+          Text(
+            'Verification Trace',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Column(
+            children: [
+              for (int i = 0; i < changes.length; i++) ...[
+                _shiftChangeCard(changes[i]),
+                if (i != changes.length - 1) const SizedBox(height: 6),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _panelSurface({required Widget child, bool embedScroll = false}) {
+    if (!embedScroll) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0E1A2B),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF223244)),
+        ),
+        child: child,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final canEmbedScroll = constraints.hasBoundedHeight;
+        return Container(
+          width: double.infinity,
+          height: canEmbedScroll ? constraints.maxHeight : null,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E1A2B),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF223244)),
+          ),
+          child: canEmbedScroll
+              ? SingleChildScrollView(primary: false, child: child)
+              : child,
+        );
+      },
     );
   }
 
   Widget _subPanel({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0x332B425F)),
       ),
       child: child,
@@ -1701,14 +2795,14 @@ class _GuardsPageState extends State<GuardsPage> {
       onChanged: (value) => setState(() => _searchQuery = value.trim()),
       style: GoogleFonts.inter(
         color: const Color(0xFFEAF4FF),
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
         hintText: 'Search by name, ID, or site...',
         hintStyle: GoogleFonts.inter(
           color: const Color(0x668EA4C2),
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
         prefixIcon: const Icon(
@@ -1718,10 +2812,7 @@ class _GuardsPageState extends State<GuardsPage> {
         ),
         filled: true,
         fillColor: const Color(0xFF0C1117),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0x332B425F)),
@@ -1751,16 +2842,13 @@ class _GuardsPageState extends State<GuardsPage> {
       dropdownColor: const Color(0xFF0E1A2B),
       style: GoogleFonts.inter(
         color: const Color(0xFFEAF4FF),
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
         filled: true,
         fillColor: const Color(0xFF0C1117),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0x332B425F)),
@@ -1783,7 +2871,7 @@ class _GuardsPageState extends State<GuardsPage> {
       label,
       style: GoogleFonts.rajdhani(
         color: const Color(0xFFEAF4FF),
-        fontSize: 23,
+        fontSize: 21,
         fontWeight: FontWeight.w700,
       ),
     );
@@ -1818,7 +2906,7 @@ class _GuardsPageState extends State<GuardsPage> {
           value,
           style: GoogleFonts.inter(
             color: color,
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -1835,7 +2923,7 @@ class _GuardsPageState extends State<GuardsPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0x998EA4C2),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1844,7 +2932,7 @@ class _GuardsPageState extends State<GuardsPage> {
             value,
             style: GoogleFonts.rajdhani(
               color: valueColor ?? const Color(0xFFEAF4FF),
-              fontSize: 28,
+              fontSize: 24,
               height: 0.9,
               fontWeight: FontWeight.w700,
             ),
@@ -1921,6 +3009,154 @@ class _GuardsPageState extends State<GuardsPage> {
         ),
       ),
     );
+  }
+
+  void _selectGuard(String guardId) {
+    setState(() => _selectedGuardId = guardId);
+  }
+
+  void _setRosterLane(_GuardLaneFilter lane) {
+    if (_laneFilter == lane) {
+      return;
+    }
+    setState(() {
+      _laneFilter = lane;
+    });
+  }
+
+  void _setWorkspaceView(_GuardWorkspaceView view) {
+    if (_workspaceView == view) {
+      return;
+    }
+    setState(() {
+      _workspaceView = view;
+    });
+  }
+
+  void _focusAttentionLane(List<_GuardRecord> scopedGuards) {
+    final attentionGuards = scopedGuards
+        .where(
+          (candidate) =>
+              _matchesLaneFilter(candidate, _GuardLaneFilter.attention),
+        )
+        .toList(growable: false);
+    setState(() {
+      _laneFilter = _GuardLaneFilter.attention;
+      if (attentionGuards.isNotEmpty) {
+        _selectedGuardId = attentionGuards.first.id;
+      }
+    });
+  }
+
+  bool _matchesLaneFilter(_GuardRecord guard, _GuardLaneFilter lane) {
+    return switch (lane) {
+      _GuardLaneFilter.all => true,
+      _GuardLaneFilter.deployed =>
+        guard.status == _GuardStatus.onDuty ||
+            guard.status == _GuardStatus.onBreak,
+      _GuardLaneFilter.attention => _guardNeedsAttention(guard),
+      _GuardLaneFilter.reserve => guard.status == _GuardStatus.offDuty,
+    };
+  }
+
+  bool _guardNeedsAttention(_GuardRecord guard) {
+    if (guard.status == _GuardStatus.offline ||
+        guard.status == _GuardStatus.onBreak) {
+      return true;
+    }
+    return !guard.clockInPhotoVerified ||
+        guard.battery <= 20 ||
+        guard.signalStrength <= 20 ||
+        guard.compliance < 95;
+  }
+
+  int _laneCountForFilter(List<_GuardRecord> guards, _GuardLaneFilter lane) {
+    return guards.where((guard) => _matchesLaneFilter(guard, lane)).length;
+  }
+
+  String _laneLabel(_GuardLaneFilter lane) {
+    return switch (lane) {
+      _GuardLaneFilter.all => 'All',
+      _GuardLaneFilter.deployed => 'Deployed',
+      _GuardLaneFilter.attention => 'Attention',
+      _GuardLaneFilter.reserve => 'Reserve',
+    };
+  }
+
+  String _laneKey(_GuardLaneFilter lane) {
+    return switch (lane) {
+      _GuardLaneFilter.all => 'all',
+      _GuardLaneFilter.deployed => 'deployed',
+      _GuardLaneFilter.attention => 'attention',
+      _GuardLaneFilter.reserve => 'reserve',
+    };
+  }
+
+  Color _laneAccent(_GuardLaneFilter lane) {
+    return switch (lane) {
+      _GuardLaneFilter.all => const Color(0xFF93A8C9),
+      _GuardLaneFilter.deployed => const Color(0xFF10B981),
+      _GuardLaneFilter.attention => const Color(0xFFF59E0B),
+      _GuardLaneFilter.reserve => const Color(0xFF94A3B8),
+    };
+  }
+
+  String _workspaceLabel(_GuardWorkspaceView view) {
+    return switch (view) {
+      _GuardWorkspaceView.command => 'Command',
+      _GuardWorkspaceView.readiness => 'Readiness',
+      _GuardWorkspaceView.trace => 'Trace',
+    };
+  }
+
+  String _workspaceKey(_GuardWorkspaceView view) {
+    return switch (view) {
+      _GuardWorkspaceView.command => 'command',
+      _GuardWorkspaceView.readiness => 'readiness',
+      _GuardWorkspaceView.trace => 'trace',
+    };
+  }
+
+  Color _workspaceAccent(_GuardWorkspaceView view) {
+    return switch (view) {
+      _GuardWorkspaceView.command => const Color(0xFF63BDFF),
+      _GuardWorkspaceView.readiness => const Color(0xFF10B981),
+      _GuardWorkspaceView.trace => const Color(0xFFF59E0B),
+    };
+  }
+
+  String _attentionReason(_GuardRecord guard) {
+    if (guard.status == _GuardStatus.offline) {
+      return 'Device heartbeat lost and field sync follow-up is required.';
+    }
+    if (guard.battery <= 20) {
+      return 'Battery is below operating tolerance for the active shift.';
+    }
+    if (guard.signalStrength <= 20) {
+      return 'Signal strength is weak enough to threaten live field visibility.';
+    }
+    if (!guard.clockInPhotoVerified) {
+      return 'Clock-in proof still needs image verification or supervisor review.';
+    }
+    if (guard.compliance < 95) {
+      return 'Recent compliance has dipped below the target operating threshold.';
+    }
+    if (guard.status == _GuardStatus.onBreak) {
+      return 'Guard is on break and requires coverage awareness for the post.';
+    }
+    return 'Field posture is nominal for the current deployment window.';
+  }
+
+  List<_ShiftChangeRecord> _changesForGuard(_GuardRecord guard) {
+    final scoped = _recentShiftChanges
+        .where(
+          (change) => change.guardId == guard.id || change.site == guard.site,
+        )
+        .toList(growable: false);
+    if (scoped.isNotEmpty) {
+      return scoped;
+    }
+    return _recentShiftChanges.take(4).toList(growable: false);
   }
 
   _GuardStatusStyle _statusStyle(_GuardStatus status) {
@@ -2078,7 +3314,25 @@ class _GuardsPageState extends State<GuardsPage> {
     return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
   }
 
-  void _showToast(String message) {
+  void _showGuardFeedback(
+    String message, {
+    String label = 'CONTACT HANDOFF',
+    String? detail,
+    Color accent = const Color(0xFF63BDFF),
+  }) {
+    if (_desktopWorkspaceActive) {
+      setState(() {
+        _commandReceipt = _GuardCommandReceipt(
+          label: label,
+          headline: message,
+          detail:
+              detail ??
+              'The latest guard workflow action stays pinned in the activity rail while the selected scope remains active.',
+          accent: accent,
+        );
+      });
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         backgroundColor: const Color(0xFF0F1419),
@@ -2105,7 +3359,13 @@ class _GuardsPageState extends State<GuardsPage> {
         'contact': guard.emergencyContact,
       },
     );
-    _showToast('${guard.name} contact copied.');
+    _showGuardFeedback(
+      '${guard.name} contact copied.',
+      label: 'CONTACT COPIED',
+      detail:
+          'The copied guard contact stays visible in the activity rail while message and voice handoffs remain available.',
+      accent: const Color(0xFF8FD1FF),
+    );
   }
 
   Future<void> _showGuardContactSheet(
@@ -2123,7 +3383,9 @@ class _GuardsPageState extends State<GuardsPage> {
     final isMessage = initialMode == _GuardContactMode.message;
     final clientLaneAvailable = widget.onOpenClientLaneForSite != null;
     final voipAvailable = widget.onStageGuardVoipCall != null;
-    final primaryActionAvailable = isMessage ? clientLaneAvailable : voipAvailable;
+    final primaryActionAvailable = isMessage
+        ? clientLaneAvailable
+        : voipAvailable;
     final primaryStatusLabel = isMessage
         ? (clientLaneAvailable ? 'Client lane ready' : 'Client lane offline')
         : (voipAvailable ? 'VoIP ready' : 'VoIP offline');
@@ -2264,7 +3526,13 @@ class _GuardsPageState extends State<GuardsPage> {
                               if (!mounted) {
                                 return;
                               }
-                              _showToast(message);
+                              _showGuardFeedback(
+                                message,
+                                label: 'VOIP STAGING',
+                                detail:
+                                    'The staged call handoff stays pinned in the activity rail while the guard workspace remains in focus.',
+                                accent: const Color(0xFF10B981),
+                              );
                             }
                           : null,
                       style: FilledButton.styleFrom(

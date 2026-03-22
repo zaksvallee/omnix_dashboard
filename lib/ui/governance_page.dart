@@ -119,6 +119,20 @@ class _VehicleExceptionReviewOverride {
   }
 }
 
+class _GovernanceCommandReceipt {
+  final String headline;
+  final String detail;
+  final Color accent;
+  final IconData icon;
+
+  const _GovernanceCommandReceipt({
+    required this.headline,
+    required this.detail,
+    required this.accent,
+    required this.icon,
+  });
+}
+
 class _PartnerTrendRow {
   final String clientId;
   final String siteId;
@@ -746,6 +760,7 @@ class GovernancePage extends StatefulWidget {
   onOpenReportsForReceiptEvent;
   final ValueChanged<SovereignReportVehicleVisitException>?
   onOpenVehicleExceptionVisit;
+  final void Function(String clientId, String siteId)? onOpenReportsForScope;
   final void Function(String clientId, String siteId, String partnerLabel)?
   onOpenReportsForPartnerScope;
   final void Function(List<String> eventIds, String? selectedEventId)?
@@ -775,6 +790,7 @@ class GovernancePage extends StatefulWidget {
     this.onOpenReceiptPolicyEvent,
     this.onOpenReportsForReceiptEvent,
     this.onOpenVehicleExceptionVisit,
+    this.onOpenReportsForScope,
     this.onOpenReportsForPartnerScope,
     this.onOpenEventsForScope,
     this.onOpenLedgerForScope,
@@ -794,10 +810,18 @@ class _GovernancePageState extends State<GovernancePage> {
   static const _orchestratorService = MonitoringOrchestratorService();
   static const _syntheticWarRoomService = MonitoringSyntheticWarRoomService();
   static const _moPromotionDecisionStore = MoPromotionDecisionStore();
+  static const _defaultCommandReceipt = _GovernanceCommandReceipt(
+    headline: 'Governance relay ready',
+    detail:
+        'Open scoped evidence, hand reports to downstream lanes, or refresh the sovereign report from this surface.',
+    accent: Color(0xFF8FD1FF),
+    icon: Icons.verified_user_outlined,
+  );
 
   bool _generatingMorningReport = false;
   GovernanceSceneActionFocus? _activeSceneActionFocus;
   String? _activeVehicleExceptionEventId;
+  _GovernanceCommandReceipt _commandReceipt = _defaultCommandReceipt;
   final Set<String> _resolvedComplianceIssueKeys = <String>{};
   Map<String, _VehicleExceptionReviewOverride>
   _vehicleExceptionReviewOverrides =
@@ -890,117 +914,821 @@ class _GovernancePageState extends State<GovernancePage> {
     final readiness = _readinessPercent(fleet: fleet, issues: compliance);
 
     return OnyxPageScaffold(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1500),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final useDesktopWorkspace = constraints.maxWidth >= 1240;
+          final useEmbeddedPanels = useDesktopWorkspace && wide;
+          final ultrawideSurface = isUltrawideLayout(
+            context,
+            viewportWidth: constraints.maxWidth,
+          );
+          final widescreenSurface = isWidescreenLayout(
+            context,
+            viewportWidth: constraints.maxWidth,
+          );
+          final surfaceMaxWidth = commandSurfaceMaxWidth(
+            context,
+            compactDesktopWidth: 1600,
+            viewportWidth: constraints.maxWidth,
+            widescreenFillFactor: ultrawideSurface
+                ? 1
+                : widescreenSurface
+                ? 0.96
+                : 0.94,
+          );
+          return OnyxViewportWorkspaceLayout(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+            maxWidth: surfaceMaxWidth,
+            lockToViewport: useEmbeddedPanels,
+            header: _heroHeader(
+              report: report,
+              complianceCritical: complianceCritical,
+              readiness: readiness,
+            ),
+            body: useDesktopWorkspace
+                ? _governanceDesktopWorkspace(
+                    report: report,
+                    compliance: compliance,
+                    complianceCritical: complianceCritical,
+                    readiness: readiness,
+                    vigilance: vigilance,
+                    now: now,
+                    fleet: fleet,
+                    wide: wide,
+                    useEmbeddedPanels: useEmbeddedPanels,
+                  )
+                : _governanceLegacyBody(
+                    report: report,
+                    compliance: compliance,
+                    vigilance: vigilance,
+                    now: now,
+                    fleet: fleet,
+                    wide: wide,
+                  ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _governanceLegacyBody({
+    required _GovernanceReportView report,
+    required List<_ComplianceIssue> compliance,
+    required List<_GuardVigilance> vigilance,
+    required DateTime now,
+    required _FleetStatus fleet,
+    required bool wide,
+  }) {
+    return Column(
+      children: [
+        _reportViewStrip(report: report),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final stacked = constraints.maxWidth < 1180;
+            final primary = Column(
+              children: [
+                _readinessBlockersSurface(
+                  report: report,
+                  compliance: compliance,
+                ),
+                const SizedBox(height: 12),
+                _nonBlockersSurface(compliance: compliance),
+                const SizedBox(height: 12),
+                _partnerDispatchChainSurface(report: report),
+              ],
+            );
+            final secondary = Column(
+              children: [
+                _complianceSummarySurface(report: report),
+                const SizedBox(height: 12),
+                _quickActionsSurface(report: report),
+              ],
+            );
+            if (stacked) {
+              return Column(
+                children: [primary, const SizedBox(height: 12), secondary],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 7, child: primary),
+                const SizedBox(width: 12),
+                Expanded(flex: 4, child: secondary),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _readinessSignalsSurface(report: report),
+        const SizedBox(height: 12),
+        _governanceSupportDeck(
+          report: report,
+          vigilance: vigilance,
+          now: now,
+          fleet: fleet,
+          wide: wide,
+        ),
+      ],
+    );
+  }
+
+  Widget _governanceDesktopWorkspace({
+    required _GovernanceReportView report,
+    required List<_ComplianceIssue> compliance,
+    required int complianceCritical,
+    required int readiness,
+    required List<_GuardVigilance> vigilance,
+    required DateTime now,
+    required _FleetStatus fleet,
+    required bool wide,
+    required bool useEmbeddedPanels,
+  }) {
+    final legacyBoardContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _reportViewStrip(report: report),
+        const SizedBox(height: 12),
+        _readinessBlockersSurface(report: report, compliance: compliance),
+        const SizedBox(height: 12),
+        _nonBlockersSurface(compliance: compliance),
+        const SizedBox(height: 12),
+        _partnerDispatchChainSurface(report: report),
+        const SizedBox(height: 12),
+        _readinessSignalsSurface(report: report),
+      ],
+    );
+    final opsRailWidth = useEmbeddedPanels ? 272.0 : 292.0;
+    final contextRailWidth = useEmbeddedPanels ? 304.0 : 320.0;
+    final workspaceGap = useEmbeddedPanels ? 8.0 : 10.0;
+    final workspaceRow = Row(
+      crossAxisAlignment: useEmbeddedPanels
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: opsRailWidth,
+          child: _governanceWorkspacePanel(
+            key: const ValueKey('governance-workspace-panel-rail'),
+            title: 'Governance Ops Rail',
+            subtitle:
+                'Keep the active scope, report mode, and route handoffs visible while the report board stays anchored.',
+            child: _governanceOpsRail(
+              report: report,
+              readiness: readiness,
+              complianceCritical: complianceCritical,
+            ),
+          ),
+        ),
+        SizedBox(width: workspaceGap),
+        Expanded(
+          flex: 9,
+          child: _governanceWorkspacePanel(
+            key: const ValueKey('governance-workspace-panel-board'),
+            title: 'Governance Report Board',
+            subtitle:
+                'Readiness blockers, partner chain posture, and report intelligence stay in one review lane.',
+            flexibleChild: useEmbeddedPanels,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final splitBoard =
+                    useEmbeddedPanels && constraints.maxWidth >= 980;
+                if (!splitBoard) {
+                  return legacyBoardContent;
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _reportViewStrip(report: report),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(
+                            flex: 7,
+                            child: _governanceBoardLane(
+                              children: [
+                                _readinessBlockersSurface(
+                                  report: report,
+                                  compliance: compliance,
+                                ),
+                                _partnerDispatchChainSurface(report: report),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 5,
+                            child: _governanceBoardLane(
+                              children: [
+                                _nonBlockersSurface(compliance: compliance),
+                                _readinessSignalsSurface(report: report),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+        SizedBox(width: workspaceGap),
+        SizedBox(
+          width: contextRailWidth,
+          child: _governanceWorkspacePanel(
+            key: const ValueKey('governance-workspace-panel-context'),
+            title: 'Oversight Context Rail',
+            subtitle:
+                'Summary lanes, command actions, and the active report snapshot stay within reach.',
+            child: _governanceContextRail(
+              report: report,
+              includeSupportDeck: useEmbeddedPanels,
+              vigilance: vigilance,
+              now: now,
+              fleet: fleet,
+              wide: wide,
+            ),
+          ),
+        ),
+      ],
+    );
+    return Column(
+      children: [
+        if (useEmbeddedPanels) Expanded(child: workspaceRow) else workspaceRow,
+        if (!useEmbeddedPanels) ...[
+          const SizedBox(height: 12),
+          _governanceSupportDeck(
+            report: report,
+            vigilance: vigilance,
+            now: now,
+            fleet: fleet,
+            wide: wide,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _governanceBoardLane({required List<Widget> children}) {
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemBuilder: (context, index) => children[index],
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      itemCount: children.length,
+    );
+  }
+
+  Widget _governanceSupportDeck({
+    required _GovernanceReportView report,
+    required List<_GuardVigilance> vigilance,
+    required DateTime now,
+    required _FleetStatus fleet,
+    required bool wide,
+  }) {
+    return Column(
+      children: [
+        wide
+            ? Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 6,
+                    child: _vigilanceCard(vigilance: vigilance, now: now),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(flex: 6, child: _fleetCard(fleet: fleet)),
+                ],
+              )
+            : Column(
+                children: [
+                  _vigilanceCard(vigilance: vigilance, now: now),
+                  const SizedBox(height: 12),
+                  _fleetCard(fleet: fleet),
+                ],
+              ),
+        const SizedBox(height: 12),
+        _morningReportCard(report: report),
+      ],
+    );
+  }
+
+  Widget _governanceWorkspacePanel({
+    Key? key,
+    required String title,
+    required String subtitle,
+    required Widget child,
+    bool flexibleChild = false,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          key: key,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFF111A26),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF223548)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 16,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _heroHeader(
-                  report: report,
-                  complianceCritical: complianceCritical,
-                  readiness: readiness,
+                Text(
+                  title,
+                  style: GoogleFonts.rajdhani(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                _reportViewStrip(report: report),
-                const SizedBox(height: 12),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final stacked = constraints.maxWidth < 1180;
-                    final primary = Column(
-                      children: [
-                        _readinessBlockersSurface(
-                          report: report,
-                          compliance: compliance,
-                        ),
-                        const SizedBox(height: 12),
-                        _nonBlockersSurface(compliance: compliance),
-                        const SizedBox(height: 12),
-                        _partnerDispatchChainSurface(report: report),
-                      ],
-                    );
-                    final secondary = Column(
-                      children: [
-                        _complianceSummarySurface(report: report),
-                        const SizedBox(height: 12),
-                        _quickActionsSurface(report: report),
-                      ],
-                    );
-                    if (stacked) {
-                      return Column(
-                        children: [
-                          primary,
-                          const SizedBox(height: 12),
-                          secondary,
-                        ],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 7, child: primary),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 4, child: secondary),
-                      ],
-                    );
-                  },
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF92A6C1),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                _readinessSignalsSurface(report: report),
-                const SizedBox(height: 12),
-                wide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 6,
-                            child: _vigilanceCard(
-                              vigilance: vigilance,
-                              now: now,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            flex: 6,
-                            child: _fleetCard(fleet: fleet),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          _vigilanceCard(vigilance: vigilance, now: now),
-                          const SizedBox(height: 12),
-                          _fleetCard(fleet: fleet),
-                        ],
-                      ),
-                const SizedBox(height: 12),
-                _morningReportCard(report: report),
+                const SizedBox(height: 10),
+                onyxBoundedPanelBody(
+                  context: context,
+                  constraints: constraints,
+                  flexibleChild: flexibleChild,
+                  child: child,
+                ),
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  Widget _governanceOpsRail({
+    required _GovernanceReportView report,
+    required int readiness,
+    required int complianceCritical,
+  }) {
+    final visibleEvents = _visibleGovernanceEvents().length;
+    final canOpenEvents = _canOpenGovernanceEventsReview();
+    final canOpenLedger = _canOpenGovernanceLedger(report);
+    final scopeLabel = _hasPartnerScopeFocus
+        ? '${_partnerScopeClientId!} / ${_partnerScopeSiteId!} / ${_partnerScopePartnerLabel!}'
+        : _hasScopeFocus
+        ? _scopeSiteId == null
+              ? '${_scopeClientId!} / all sites'
+              : '${_scopeClientId!} / ${_scopeSiteId!}'
+        : 'All oversight lanes';
+    final reportLabel = _hasHistoricalReportFocus
+        ? 'Historical Shift ${report.reportDate}'
+        : report.reportDate.trim().isEmpty
+        ? 'Morning Sovereign'
+        : 'Morning Sovereign ${report.reportDate}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          key: const ValueKey('governance-workspace-status-banner'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0C1117),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0x332B425F)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ACTIVE OVERSIGHT',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8EA4C2),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                reportLabel,
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                scopeLabel,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8EA4C2),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _governanceWorkspaceChip(
+                    label: 'Readiness',
+                    value: '$readiness%',
+                    accent: readiness >= 90
+                        ? const Color(0xFF34D399)
+                        : const Color(0xFFF59E0B),
+                  ),
+                  _governanceWorkspaceChip(
+                    label: 'Critical',
+                    value: '$complianceCritical',
+                    accent: complianceCritical == 0
+                        ? const Color(0xFF34D399)
+                        : const Color(0xFFEF4444),
+                  ),
+                  _governanceWorkspaceChip(
+                    label: 'Events',
+                    value: '$visibleEvents',
+                    accent: const Color(0xFF67E8F9),
+                  ),
+                ],
+              ),
+              if (_focusedSceneActionLabel(report) != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Focused scene action: ${_focusedSceneActionLabel(report)!}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if ((_focusedSceneActionDetailValue(report) ?? '')
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _focusedSceneActionDetailValue(report)!,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF92D6E9),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'COMMAND ACTIONS',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        _governanceActionButton(
+          key: const ValueKey('governance-workspace-open-events'),
+          label: canOpenEvents ? 'Open Event Review' : 'Recover Event Scope',
+          onTap: _openGovernanceEventsAction(report),
+        ),
+        const SizedBox(height: 8),
+        _governanceActionButton(
+          key: const ValueKey('governance-workspace-open-reports'),
+          label: 'Open Report Workspace',
+          onTap: _openPrimaryGovernanceReports(report),
+        ),
+        const SizedBox(height: 8),
+        _governanceActionButton(
+          key: const ValueKey('governance-workspace-open-ledger'),
+          label: canOpenLedger
+              ? 'Open Ledger Continuity'
+              : 'Recover Ledger Continuity',
+          onTap: _openGovernanceLedgerAction(report),
+        ),
+        if (widget.onGenerateMorningSovereignReport != null) ...[
+          const SizedBox(height: 8),
+          _governanceActionButton(
+            key: const ValueKey('governance-workspace-generate-report'),
+            label: _generatingMorningReport
+                ? 'Generating Morning Report'
+                : 'Refresh Morning Report',
+            onTap: _generatingMorningReport ? null : _generateMorningReport,
+          ),
+        ],
+        if (_activeSceneActionFocus != null) ...[
+          const SizedBox(height: 8),
+          _governanceActionButton(
+            key: const ValueKey('governance-workspace-clear-focus'),
+            label: 'Clear Scene Focus',
+            onTap: () => _setActiveSceneActionFocus(null),
+          ),
+        ],
+        if (_hasSceneActionFocusOptions(report)) ...[
+          const SizedBox(height: 12),
+          Text(
+            'SCENE FOCUS',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (report.latestActionTaken.trim().isNotEmpty)
+                _sceneActionFocusChip(
+                  key: const ValueKey(
+                    'governance-workspace-focus-latest-action',
+                  ),
+                  label: 'Latest Action',
+                  focus: GovernanceSceneActionFocus.latestAction,
+                  color: const Color(0xFF67E8F9),
+                ),
+              if (report.recentActionsSummary.trim().isNotEmpty)
+                _sceneActionFocusChip(
+                  key: const ValueKey(
+                    'governance-workspace-focus-recent-actions',
+                  ),
+                  label: 'Recent Actions',
+                  focus: GovernanceSceneActionFocus.recentActions,
+                  color: const Color(0xFFFDE68A),
+                ),
+              if (report.latestSuppressedPattern.trim().isNotEmpty)
+                _sceneActionFocusChip(
+                  key: const ValueKey(
+                    'governance-workspace-focus-filtered-pattern',
+                  ),
+                  label: 'Filtered Pattern',
+                  focus: GovernanceSceneActionFocus.filteredPattern,
+                  color: const Color(0xFF9CB2D1),
+                ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _governanceWorkspaceChip({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: accent,
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  Widget _governanceContextRail({
+    required _GovernanceReportView report,
+    bool includeSupportDeck = false,
+    List<_GuardVigilance> vigilance = const [],
+    DateTime? now,
+    _FleetStatus? fleet,
+    bool wide = false,
+  }) {
+    final canOpenEvents = _canOpenGovernanceEventsReview();
+    final canOpenLedger = _canOpenGovernanceLedger(report);
+    final hasReceiptSummary = _hasReceiptSummary(report);
+    final receiptSummary = report.latestReceiptPolicySummary.trim().isNotEmpty
+        ? report.latestReceiptPolicySummary
+        : report.receiptPolicySummary.trim().isNotEmpty
+        ? report.receiptPolicySummary
+        : 'No generated receipt summary captured yet.';
+    return Column(
+      children: [
+        _governanceSurface(
+          title: 'OVERSIGHT SNAPSHOT',
+          subtitle:
+              'Current report focus, scene posture, and receipt handoff state for the active governance lane.',
+          child: Column(
+            key: const ValueKey('governance-workspace-context-snapshot'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _governanceInfoCallout(
+                title: _globalReadinessFocusState(report).toUpperCase(),
+                detail: _globalReadinessFocusSummary(report),
+                accent: _isHistoricalGlobalReadinessFocus(report)
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF22C55E),
+              ),
+              const SizedBox(height: 8),
+              _governanceKeyValueRow(
+                'Scene Posture',
+                report.topScenePosture.trim().isEmpty
+                    ? 'No scene posture captured'
+                    : report.topScenePosture,
+              ),
+              const SizedBox(height: 6),
+              _governanceKeyValueRow(
+                'Override Pressure',
+                report.overrideReasonSummary.trim().isEmpty
+                    ? 'No override pressure recorded'
+                    : report.overrideReasonSummary,
+              ),
+              const SizedBox(height: 6),
+              _governanceKeyValueRow('Receipt Summary', receiptSummary),
+              if (!hasReceiptSummary) ...[
+                const SizedBox(height: 10),
+                _governanceRecoveryDeck(
+                  key: const ValueKey('governance-context-receipt-recovery'),
+                  title: 'Receipt summary pending',
+                  detail:
+                      'The generated receipt summary has not landed yet. Keep the lane moving through reports, ledger continuity, or a morning refresh while governance rebuilds the audit story.',
+                  accent: const Color(0xFFF1B872),
+                  actions: [
+                    _governanceMiniAction(
+                      key: const ValueKey(
+                        'governance-context-receipt-open-reports',
+                      ),
+                      label: 'Open Report Workspace',
+                      accent: const Color(0xFFF1B872),
+                      onTap: _openPrimaryGovernanceReports(report),
+                    ),
+                    _governanceMiniAction(
+                      key: const ValueKey(
+                        'governance-context-receipt-open-ledger',
+                      ),
+                      label: canOpenLedger ? 'View Ledger' : 'Recover Ledger',
+                      accent: const Color(0xFFA78BFA),
+                      onTap: _openGovernanceLedgerAction(report),
+                    ),
+                    if (widget.onGenerateMorningSovereignReport != null)
+                      _governanceMiniAction(
+                        key: const ValueKey(
+                          'governance-context-receipt-refresh-report',
+                        ),
+                        label: _generatingMorningReport
+                            ? 'Refreshing...'
+                            : 'Refresh Morning Report',
+                        accent: const Color(0xFF67E8F9),
+                        onTap: _generatingMorningReport
+                            ? null
+                            : _generateMorningReport,
+                      ),
+                  ],
+                ),
+              ],
+              if (!canOpenEvents) ...[
+                const SizedBox(height: 10),
+                _governanceRecoveryDeck(
+                  key: const ValueKey('governance-context-events-recovery'),
+                  title: 'Event trail awaiting new signals',
+                  detail:
+                      'No scoped governance events are available right now. Recover the lane through reports, ledger continuity, or a refreshed morning report while the event trail repopulates.',
+                  accent: const Color(0xFF67E8F9),
+                  actions: [
+                    _governanceMiniAction(
+                      key: const ValueKey(
+                        'governance-context-events-open-reports',
+                      ),
+                      label: 'Open Report Workspace',
+                      accent: const Color(0xFF67E8F9),
+                      onTap: _openPrimaryGovernanceReports(report),
+                    ),
+                    _governanceMiniAction(
+                      key: const ValueKey(
+                        'governance-context-events-open-ledger',
+                      ),
+                      label: canOpenLedger ? 'View Ledger' : 'Recover Ledger',
+                      accent: const Color(0xFFA78BFA),
+                      onTap: _openGovernanceLedgerAction(report),
+                    ),
+                    if (widget.onGenerateMorningSovereignReport != null)
+                      _governanceMiniAction(
+                        key: const ValueKey(
+                          'governance-context-events-refresh-report',
+                        ),
+                        label: _generatingMorningReport
+                            ? 'Refreshing...'
+                            : 'Refresh Morning Report',
+                        accent: const Color(0xFFF1B872),
+                        onTap: _generatingMorningReport
+                            ? null
+                            : _generateMorningReport,
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        _complianceSummarySurface(report: report),
+        const SizedBox(height: 10),
+        _quickActionsSurface(report: report),
+        if (includeSupportDeck && now != null && fleet != null) ...[
+          const SizedBox(height: 10),
+          _governanceSupportDeck(
+            report: report,
+            vigilance: vigilance,
+            now: now,
+            fleet: fleet,
+            wide: wide,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _governanceKeyValueRow(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.45,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+  }
+
   List<DispatchEvent> _visibleGovernanceEvents() {
-    return widget.events.where((event) {
-      final scope = _eventScope(event);
-      if (scope == null) {
-        return !_hasScopeFocus;
-      }
-      if (_hasScopeFocus) {
-        if (scope.clientId != _scopeClientId) {
-          return false;
-        }
-        if (_scopeSiteId != null && scope.siteId != _scopeSiteId) {
-          return false;
-        }
-      }
-      return true;
-    }).toList(growable: false);
+    return widget.events
+        .where((event) {
+          final scope = _eventScope(event);
+          if (scope == null) {
+            return !_hasScopeFocus;
+          }
+          if (_hasScopeFocus) {
+            if (scope.clientId != _scopeClientId) {
+              return false;
+            }
+            if (_scopeSiteId != null && scope.siteId != _scopeSiteId) {
+              return false;
+            }
+          }
+          return true;
+        })
+        .toList(growable: false);
   }
 
   ({String clientId, String siteId})? _eventScope(DispatchEvent event) {
@@ -1074,6 +1802,13 @@ class _GovernancePageState extends State<GovernancePage> {
       return;
     }
     callback(eventIds, eventIds.first);
+    _setCommandReceipt(
+      headline: 'Events review opened',
+      detail:
+          'Governance handed ${eventIds.length} scoped event${eventIds.length == 1 ? '' : 's'} into forensic review.',
+      accent: const Color(0xFF8FD1FF),
+      icon: Icons.open_in_new,
+    );
   }
 
   Future<void> _generateMorningReport() async {
@@ -1087,32 +1822,22 @@ class _GovernancePageState extends State<GovernancePage> {
     try {
       await callback();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Morning sovereign report generated.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFFE7F0FF),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            backgroundColor: const Color(0xFF0E203A),
-          ),
+        _setCommandReceipt(
+          headline: 'Morning report generated',
+          detail:
+              'The sovereign report pipeline completed and refreshed the governance surface.',
+          accent: const Color(0xFF34D399),
+          icon: Icons.description_outlined,
         );
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Morning sovereign report generation failed.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFFFFC2C8),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            backgroundColor: const Color(0xFF3A0E14),
-          ),
+        _setCommandReceipt(
+          headline: 'Morning report generation failed',
+          detail:
+              'Governance could not refresh the sovereign report. Review the pipeline and retry.',
+          accent: const Color(0xFFFF8A94),
+          icon: Icons.error_outline,
         );
       }
     } finally {
@@ -1124,22 +1849,42 @@ class _GovernancePageState extends State<GovernancePage> {
     }
   }
 
+  void _setCommandReceipt({
+    required String headline,
+    required String detail,
+    Color accent = const Color(0xFF8FD1FF),
+    IconData icon = Icons.notifications_active_outlined,
+  }) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _commandReceipt = _GovernanceCommandReceipt(
+        headline: headline,
+        detail: detail,
+        accent: accent,
+        icon: icon,
+      );
+    });
+  }
+
   void _showSnack(
     String message, {
     Color background = const Color(0xFF0E203A),
   }) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: GoogleFonts.inter(
-            color: const Color(0xFFE7F0FF),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        backgroundColor: background,
-      ),
+    final accent = background == const Color(0xFF3A0E14)
+        ? const Color(0xFFFF8A94)
+        : background == const Color(0xFF0E203A)
+        ? const Color(0xFF8FD1FF)
+        : const Color(0xFFF5C27A);
+    _setCommandReceipt(
+      headline: message,
+      detail:
+          'Governance kept this action in the page shell instead of a transient toast.',
+      accent: accent,
+      icon: accent == const Color(0xFFFF8A94)
+          ? Icons.error_outline
+          : Icons.notifications_active_outlined,
     );
   }
 
@@ -1162,14 +1907,14 @@ class _GovernancePageState extends State<GovernancePage> {
         : 'GLOBAL READINESS';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF122237), Color(0xFF0C1727)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: LayoutBuilder(
@@ -1182,10 +1927,10 @@ class _GovernancePageState extends State<GovernancePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 50,
+                    height: 50,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       gradient: const LinearGradient(
                         colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
                         begin: Alignment.topLeft,
@@ -1195,10 +1940,10 @@ class _GovernancePageState extends State<GovernancePage> {
                     child: const Icon(
                       Icons.verified_user_outlined,
                       color: Colors.white,
-                      size: 28,
+                      size: 26,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1207,16 +1952,16 @@ class _GovernancePageState extends State<GovernancePage> {
                           'Governance & Compliance',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 22 : 26,
+                            fontSize: compact ? 20 : 24,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           'Sovereign reporting, readiness monitoring, and evidence compliance.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF95A9C7),
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1225,10 +1970,10 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
                   _heroChip('Report View', reportViewLabel),
                   _heroChip('Scope', scopeLabel),
@@ -1242,31 +1987,39 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                   _heroChip(
                     'Evidence',
-                    report.hashVerified ? 'Ledger Verified' : 'Verification Gap',
+                    report.hashVerified
+                        ? 'Ledger Verified'
+                        : 'Verification Gap',
                     accent: report.hashVerified
                         ? const Color(0xFF2DD4BF)
                         : const Color(0xFFF97316),
                   ),
                 ],
               ),
+              const SizedBox(height: 10),
+              _commandReceiptPanel(),
             ],
           );
           final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             alignment: WrapAlignment.end,
             children: [
               _heroActionButton(
                 key: const ValueKey('governance-view-events-button'),
                 icon: Icons.open_in_new,
                 label: 'View Events',
-                onPressed: viewEventsEnabled ? _openGovernanceEventsReview : null,
+                onPressed: viewEventsEnabled
+                    ? _openGovernanceEventsReview
+                    : null,
                 accent: const Color(0xFF7DD3FC),
               ),
               _heroActionButton(
                 key: const ValueKey('governance-generate-report-button'),
                 icon: Icons.description_outlined,
-                label: _generatingMorningReport ? 'Generating...' : 'Generate Report',
+                label: _generatingMorningReport
+                    ? 'Generating...'
+                    : 'Generate Report',
                 onPressed: generateEnabled && !_generatingMorningReport
                     ? _generateMorningReport
                     : null,
@@ -1277,20 +2030,16 @@ class _GovernancePageState extends State<GovernancePage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleBlock,
-                const SizedBox(height: 16),
-                actions,
-              ],
+              children: [titleBlock, const SizedBox(height: 12), actions],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: titleBlock),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
+                constraints: const BoxConstraints(maxWidth: 292),
                 child: actions,
               ),
             ],
@@ -1303,7 +2052,7 @@ class _GovernancePageState extends State<GovernancePage> {
   Widget _heroChip(String label, String value, {Color? accent}) {
     final resolvedAccent = accent ?? const Color(0xFFE8F1FF);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -1316,7 +2065,7 @@ class _GovernancePageState extends State<GovernancePage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1324,12 +2073,85 @@ class _GovernancePageState extends State<GovernancePage> {
               text: value,
               style: GoogleFonts.inter(
                 color: resolvedAccent,
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _commandReceiptPanel() {
+    return Container(
+      key: const ValueKey('governance-command-receipt'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _commandReceipt.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: _commandReceipt.accent.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: _commandReceipt.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(
+                color: _commandReceipt.accent.withValues(alpha: 0.28),
+              ),
+            ),
+            child: Icon(
+              _commandReceipt.icon,
+              size: 16,
+              color: _commandReceipt.accent,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Last command',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _commandReceipt.headline,
+                  key: const ValueKey('governance-command-receipt-headline'),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFEAF4FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _commandReceipt.detail,
+                  key: const ValueKey('governance-command-receipt-detail'),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFB6C8E2),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1344,7 +2166,7 @@ class _GovernancePageState extends State<GovernancePage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 16),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
@@ -1352,16 +2174,15 @@ class _GovernancePageState extends State<GovernancePage> {
         disabledBackgroundColor: const Color(0x12000000),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         textStyle: GoogleFonts.inter(
-          fontSize: 12,
+          fontSize: 11.5,
           fontWeight: FontWeight.w700,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
-
 
   Widget _reportViewStrip({required _GovernanceReportView report}) {
     final reportViewLabel = _hasHistoricalReportFocus
@@ -1374,28 +2195,28 @@ class _GovernancePageState extends State<GovernancePage> {
         : 'All';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1726),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF243548)),
       ),
       child: Wrap(
-        spacing: 14,
-        runSpacing: 12,
+        spacing: 10,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         alignment: WrapAlignment.spaceBetween,
         children: [
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'REPORT VIEW:',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF7F93AE),
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                 ),
@@ -1413,15 +2234,15 @@ class _GovernancePageState extends State<GovernancePage> {
             ],
           ),
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'SCOPE:',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF7F93AE),
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                 ),
@@ -1448,10 +2269,10 @@ class _GovernancePageState extends State<GovernancePage> {
     required bool active,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: active ? const Color(0xFF112A22) : const Color(0xFF0D1522),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: active ? const Color(0xFF22C55E) : const Color(0xFF2B3B4C),
         ),
@@ -1461,15 +2282,15 @@ class _GovernancePageState extends State<GovernancePage> {
         children: [
           Icon(
             icon,
-            size: 16,
+            size: 14,
             color: active ? const Color(0xFF22E39E) : const Color(0xFFD2DCEC),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text(
             label,
             style: GoogleFonts.inter(
               color: active ? const Color(0xFF22E39E) : const Color(0xFFDCE6F5),
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1480,10 +2301,10 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Widget _reportScopePill({required String label, required bool active}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: active ? const Color(0xFF241A41) : const Color(0xFF0D1522),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: active ? const Color(0xFF8B5CF6) : const Color(0xFF2B3B4C),
         ),
@@ -1492,7 +2313,7 @@ class _GovernancePageState extends State<GovernancePage> {
         label,
         style: GoogleFonts.inter(
           color: active ? const Color(0xFFD9B8FF) : const Color(0xFFDCE6F5),
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -1592,6 +2413,10 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   Widget _partnerDispatchChainSurface({required _GovernanceReportView report}) {
+    final hasScopedEvents = _visibleGovernanceEvents().isNotEmpty;
+    final canOpenLedger =
+        widget.onOpenLedgerForScope != null &&
+        _currentGovernanceLedgerScope(report) != null;
     return _governanceSurface(
       title: 'PARTNER DISPATCH CHAIN',
       subtitle: report.partnerDispatchChains.isEmpty
@@ -1600,14 +2425,41 @@ class _GovernancePageState extends State<GovernancePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (report.partnerDispatchChains.isEmpty)
+          if (report.partnerDispatchChains.isEmpty) ...[
             _governanceInfoCallout(
               title: 'No active partner handoffs',
               detail:
-                  'Partner dispatch escalation is available, but no active chains are currently staged.',
+                  'Partner dispatch escalation is available, but no active chains are currently staged. Use the scoped recovery actions below to keep the current governance lane moving.',
               accent: const Color(0xFF8EA4C2),
-            )
-          else ...[
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (hasScopedEvents)
+                  _governanceMiniAction(
+                    key: const ValueKey('governance-partner-empty-open-events'),
+                    label: 'Open Event Review',
+                    accent: const Color(0xFF67E8F9),
+                    onTap: _openGovernanceEventsReview,
+                  ),
+                _governanceMiniAction(
+                  key: const ValueKey('governance-partner-empty-open-reports'),
+                  label: 'Open Report Workspace',
+                  accent: const Color(0xFFF1B872),
+                  onTap: _openPrimaryGovernanceReports(report),
+                ),
+                if (canOpenLedger)
+                  _governanceMiniAction(
+                    key: const ValueKey('governance-partner-empty-open-ledger'),
+                    label: 'View Ledger',
+                    accent: const Color(0xFFA78BFA),
+                    onTap: _openGovernanceLedgerAction(report),
+                  ),
+              ],
+            ),
+          ] else ...[
             for (final chain in report.partnerDispatchChains.take(3)) ...[
               _partnerDispatchChainRow(chain),
               if (chain != report.partnerDispatchChains.take(3).last)
@@ -1633,7 +2485,9 @@ class _GovernancePageState extends State<GovernancePage> {
             accent: report.hashVerified
                 ? const Color(0xFF22C55E)
                 : const Color(0xFFEF4444),
-            buttonLabel: 'View Event ${report.partnerDispatchChains.isNotEmpty ? report.partnerDispatchChains.first.dispatchId : ''}'.trim(),
+            buttonLabel:
+                'View Event ${report.partnerDispatchChains.isNotEmpty ? report.partnerDispatchChains.first.dispatchId : ''}'
+                    .trim(),
             onTap: _visibleGovernanceEvents().isNotEmpty
                 ? _openGovernanceEventsReview
                 : null,
@@ -1672,18 +2526,16 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   Widget _quickActionsSurface({required _GovernanceReportView report}) {
+    final canOpenEvents = _canOpenGovernanceEventsReview();
+    final canOpenLedger = _canOpenGovernanceLedger(report);
     return _governanceSurface(
       title: 'QUICK ACTIONS',
       child: Column(
         children: [
           _governanceActionButton(
             key: const ValueKey('governance-quick-view-events-button'),
-            label: 'View All Events',
-            onTap: _visibleGovernanceEvents().isNotEmpty
-                ? _openGovernanceEventsReview
-                : () => _showSnack(
-                    'No scoped governance events are available right now.',
-                  ),
+            label: canOpenEvents ? 'View All Events' : 'Recover Event Scope',
+            onTap: _openGovernanceEventsAction(report),
           ),
           const SizedBox(height: 10),
           _governanceActionButton(
@@ -1694,7 +2546,7 @@ class _GovernancePageState extends State<GovernancePage> {
           const SizedBox(height: 10),
           _governanceActionButton(
             key: const ValueKey('governance-quick-view-ledger-button'),
-            label: 'View Ledger',
+            label: canOpenLedger ? 'View Ledger' : 'Recover Ledger Continuity',
             onTap: _openGovernanceLedgerAction(report),
           ),
         ],
@@ -1702,31 +2554,54 @@ class _GovernancePageState extends State<GovernancePage> {
     );
   }
 
+  bool _canOpenGovernanceEventsReview() {
+    return widget.onOpenEventsForScope != null &&
+        _visibleGovernanceEvents().isNotEmpty;
+  }
+
+  bool _canOpenGovernanceLedger(_GovernanceReportView report) {
+    return widget.onOpenLedgerForScope != null &&
+        _currentGovernanceLedgerScope(report) != null;
+  }
+
+  bool _hasReceiptSummary(_GovernanceReportView report) {
+    return report.latestReceiptPolicySummary.trim().isNotEmpty ||
+        report.receiptPolicySummary.trim().isNotEmpty;
+  }
+
+  VoidCallback _openGovernanceEventsAction(_GovernanceReportView report) {
+    if (_canOpenGovernanceEventsReview()) {
+      return _openGovernanceEventsReview;
+    }
+    return _openPrimaryGovernanceReports(report);
+  }
+
   VoidCallback _openGovernanceLedgerAction(_GovernanceReportView report) {
     final callback = widget.onOpenLedgerForScope;
     final scope = _currentGovernanceLedgerScope(report);
     if (callback == null || scope == null) {
-      return () => _showSnack(
-        'No scoped ledger handoff is available for the current governance view.',
-      );
+      return _openPrimaryGovernanceReports(report);
     }
-    return () => callback(scope.clientId, scope.siteId);
+    return () {
+      callback(scope.clientId, scope.siteId);
+      _setCommandReceipt(
+        headline: 'Ledger continuity opened',
+        detail:
+            'Governance handed ${scope.clientId}${scope.siteId == null ? '' : ' / ${scope.siteId}'} into sovereign ledger continuity.',
+        accent: const Color(0xFFA78BFA),
+        icon: Icons.shield_outlined,
+      );
+    };
   }
 
   ({String clientId, String? siteId})? _currentGovernanceLedgerScope(
     _GovernanceReportView report,
   ) {
     if (_hasPartnerScopeFocus) {
-      return (
-        clientId: _partnerScopeClientId!,
-        siteId: _partnerScopeSiteId,
-      );
+      return (clientId: _partnerScopeClientId!, siteId: _partnerScopeSiteId);
     }
     if (_scopeClientId != null) {
-      return (
-        clientId: _scopeClientId!,
-        siteId: _scopeSiteId,
-      );
+      return (clientId: _scopeClientId!, siteId: _scopeSiteId);
     }
     final visibleEvents = _visibleGovernanceEvents();
     if (visibleEvents.isNotEmpty) {
@@ -1764,10 +2639,11 @@ class _GovernancePageState extends State<GovernancePage> {
     final warRoomPlans = _syntheticWarRoomPlansForReport(report);
     return _governanceSurface(
       title: 'READINESS INTELLIGENCE',
-      subtitle: 'Global posture, synthetic escalation pressure, and report policy signals',
+      subtitle:
+          'Global posture, synthetic escalation pressure, and report policy signals',
       child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
+        spacing: 10,
+        runSpacing: 10,
         children: [
           _reportMetric(
             key: const ValueKey('governance-metric-global-readiness'),
@@ -1792,9 +2668,10 @@ class _GovernancePageState extends State<GovernancePage> {
             label: 'Synthetic War-Room',
             value: '${warRoomPlans.length} plans',
             detail: _syntheticWarRoomMetricDetail(warRoomPlans),
-            color: warRoomPlans.any(
-              (plan) => plan.actionType == 'POLICY RECOMMENDATION',
-            )
+            color:
+                warRoomPlans.any(
+                  (plan) => plan.actionType == 'POLICY RECOMMENDATION',
+                )
                 ? const Color(0xFF8B5CF6)
                 : warRoomPlans.isNotEmpty
                 ? const Color(0xFF22D3EE)
@@ -1804,7 +2681,8 @@ class _GovernancePageState extends State<GovernancePage> {
             label: 'Receipt Policy',
             value: '${report.generatedReports} reports',
             detail: _receiptPolicyMetricDetail(report),
-            color: report.reportsWithOmittedSections > 0 ||
+            color:
+                report.reportsWithOmittedSections > 0 ||
                     report.legacyConfigurationReports > 0
                 ? const Color(0xFFF59E0B)
                 : report.generatedReports > 0
@@ -1840,14 +2718,14 @@ class _GovernancePageState extends State<GovernancePage> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFF0C1522),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1859,17 +2737,17 @@ class _GovernancePageState extends State<GovernancePage> {
                         title,
                         style: GoogleFonts.inter(
                           color: const Color(0xFFF4F8FF),
-                          fontSize: 18,
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       if (subtitle != null && subtitle.trim().isNotEmpty) ...[
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
                           subtitle,
                           style: GoogleFonts.inter(
                             color: const Color(0xFF8EA4C2),
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1877,16 +2755,13 @@ class _GovernancePageState extends State<GovernancePage> {
                     ],
                   ),
                 ),
-                if (trailing != null) ...[
-                  const SizedBox(width: 12),
-                  trailing,
-                ],
+                if (trailing != null) ...[const SizedBox(width: 10), trailing],
               ],
             ),
           ),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(14),
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Color(0xFF1B2A3D))),
             ),
@@ -1899,17 +2774,17 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Widget _statusBadge(String label, {required Color color}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
           color: color,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.6,
         ),
@@ -1928,10 +2803,10 @@ class _GovernancePageState extends State<GovernancePage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: 0.45)),
       ),
       child: Column(
@@ -1949,30 +2824,30 @@ class _GovernancePageState extends State<GovernancePage> {
                 ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
             title,
             style: GoogleFonts.inter(
               color: const Color(0xFFF5F8FF),
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            footer,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF94A8C4),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
           Text(
+            footer,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF94A8C4),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFFD3DDED),
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               height: 1.45,
             ),
@@ -1989,10 +2864,10 @@ class _GovernancePageState extends State<GovernancePage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
       child: Column(
@@ -2002,20 +2877,71 @@ class _GovernancePageState extends State<GovernancePage> {
             title,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFFD8E2F0),
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               height: 1.45,
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _governanceRecoveryDeck({
+    Key? key,
+    required String title,
+    required String detail,
+    required Color accent,
+    required List<Widget> actions,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.18), const Color(0xFF101A28)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.55,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD9E7F6),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ],
         ],
       ),
     );
@@ -2031,37 +2957,37 @@ class _GovernancePageState extends State<GovernancePage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: 0.32)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _statusBadge(label, color: accent),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFFEAF2FF),
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               height: 1.45,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             category.toUpperCase(),
             style: GoogleFonts.inter(
               color: const Color(0xFF7E91AC),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _governanceActionButton(label: buttonLabel, onTap: onTap),
         ],
       ),
@@ -2081,9 +3007,9 @@ class _GovernancePageState extends State<GovernancePage> {
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFEAF2FF),
           side: const BorderSide(color: Color(0xFF304256)),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
         child: Row(
@@ -2092,12 +3018,12 @@ class _GovernancePageState extends State<GovernancePage> {
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, size: 20),
+            const Icon(Icons.chevron_right_rounded, size: 18),
           ],
         ),
       ),
@@ -2105,41 +3031,72 @@ class _GovernancePageState extends State<GovernancePage> {
   }
 
   Widget _governanceMiniAction({
+    Key? key,
     required String label,
     required Color accent,
     VoidCallback? onTap,
   }) {
     return TextButton(
+      key: key,
       onPressed: onTap,
       style: TextButton.styleFrom(
         foregroundColor: accent,
         backgroundColor: accent.withValues(alpha: 0.12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w800),
+        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
       ),
     );
+  }
+
+  bool _dispatchGovernanceReportsScope({
+    required String clientId,
+    required String siteId,
+    required String partnerLabel,
+  }) {
+    final partnerCallback = widget.onOpenReportsForPartnerScope;
+    if (partnerCallback != null) {
+      partnerCallback(clientId, siteId, partnerLabel);
+      return true;
+    }
+    final scopedCallback = widget.onOpenReportsForScope;
+    if (scopedCallback == null) {
+      return false;
+    }
+    scopedCallback(clientId, siteId);
+    return true;
   }
 
   VoidCallback _openPrimaryGovernanceReports(_GovernanceReportView report) {
     return () {
       final partnerScope = _reportPartnerScopeForQuickAction(report);
-      if (partnerScope == null) {
-        _showSnack('Report workspace requires an active scoped report lane.');
+      if (partnerScope == null ||
+          !_dispatchGovernanceReportsScope(
+            clientId: partnerScope.clientId,
+            siteId: partnerScope.siteId,
+            partnerLabel: partnerScope.partnerLabel,
+          )) {
+        _showReceiptPolicyDrillIn(report);
+        _setCommandReceipt(
+          headline: 'Receipt policy drill-in opened',
+          detail:
+              'Governance kept report investigation in-page because no scoped reports lane was available for this handoff.',
+          accent: const Color(0xFFF1B872),
+          icon: Icons.policy_outlined,
+        );
         return;
       }
-      final callback = widget.onOpenReportsForPartnerScope;
-      if (callback == null) {
-        _showSnack('Scoped reports route is not wired in this surface.');
-        return;
-      }
-      callback(
-        partnerScope.clientId,
-        partnerScope.siteId,
-        partnerScope.partnerLabel,
+      final usedPartnerScope = widget.onOpenReportsForPartnerScope != null;
+      _setCommandReceipt(
+        headline: 'Report workspace opened',
+        detail: usedPartnerScope
+            ? 'Governance handed ${partnerScope.clientId} / ${partnerScope.siteId} (${partnerScope.partnerLabel}) into the reports lane.'
+            : 'Governance handed ${partnerScope.clientId} / ${partnerScope.siteId} into the scoped reports lane while keeping ${partnerScope.partnerLabel} as the active partner context.',
+        accent: const Color(0xFF67E8F9),
+        icon: Icons.article_outlined,
       );
     };
   }
@@ -3286,7 +4243,9 @@ class _GovernancePageState extends State<GovernancePage> {
                   filename: _morningJsonFilename(report),
                   contents: _morningReportJson(report),
                 );
-                _showSnack('Morning report JSON download started for command review.');
+                _showSnack(
+                  'Morning report JSON download started for command review.',
+                );
               },
       ),
       _morningReportActionButton(
@@ -3298,7 +4257,9 @@ class _GovernancePageState extends State<GovernancePage> {
                   filename: _morningCsvFilename(report),
                   contents: _morningReportCsv(report),
                 );
-                _showSnack('Morning report CSV download started for command review.');
+                _showSnack(
+                  'Morning report CSV download started for command review.',
+                );
               },
       ),
       _morningReportActionButton(
@@ -3994,9 +4955,7 @@ class _GovernancePageState extends State<GovernancePage> {
             : listenerAdvisories.isEmpty
             ? const Color(0xFF10B981)
             : const Color(0xFF34D399),
-        onTap: latestListenerParity != null
-            ? () => _showListenerAlarmParityDrillIn(report)
-            : null,
+        onTap: () => _showListenerAlarmParityDrillIn(report),
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-receipt-policy'),
@@ -4010,9 +4969,7 @@ class _GovernancePageState extends State<GovernancePage> {
             : report.generatedReports > 0
             ? const Color(0xFF10B981)
             : const Color(0xFF22D3EE),
-        onTap: report.generatedReports > 0
-            ? () => _showReceiptPolicyDrillIn(report)
-            : null,
+        onTap: () => _showReceiptPolicyDrillIn(report),
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-site-activity'),
@@ -4027,6 +4984,7 @@ class _GovernancePageState extends State<GovernancePage> {
             : report.siteActivitySignals > 0
             ? const Color(0xFF22D3EE)
             : const Color(0xFF10B981),
+        onTap: () => _showSiteActivityDrillIn(report),
       ),
       _reportMetric(
         key: const ValueKey('governance-metric-vehicle-throughput'),
@@ -5829,6 +6787,16 @@ class _GovernancePageState extends State<GovernancePage> {
 
   void _showListenerAlarmParityDrillIn(_GovernanceReportView report) {
     final parities = _listenerAlarmParityCyclesForReport(report);
+    final feedCycles = _listenerAlarmFeedCyclesForReport(report);
+    final advisories = _listenerAlarmAdvisoriesForReport(report);
+    final latestCycle = feedCycles.isEmpty ? null : feedCycles.first;
+    final latestAdvisory = advisories.isEmpty ? null : advisories.first;
+    final canOpenEvents = _canOpenGovernanceEventsReview();
+    final parityColor = parities.isEmpty
+        ? const Color(0xFFF59E0B)
+        : parities.first.statusLabel == 'ok'
+        ? const Color(0xFF34D399)
+        : const Color(0xFFF59E0B);
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -5880,14 +6848,232 @@ class _GovernancePageState extends State<GovernancePage> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  if (parities.isEmpty)
-                    Text(
-                      'No listener parity cycles landed in this shift window.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _partnerTrendMetricChip(
+                        label: 'Advisories',
+                        value: '${advisories.length}',
+                        color: advisories.isEmpty
+                            ? const Color(0xFF9CB2D1)
+                            : const Color(0xFF34D399),
                       ),
+                      _partnerTrendMetricChip(
+                        label: 'Feed Cycles',
+                        value: '${feedCycles.length}',
+                        color: feedCycles.isEmpty
+                            ? const Color(0xFF9CB2D1)
+                            : const Color(0xFF22D3EE),
+                      ),
+                      _partnerTrendMetricChip(
+                        label: 'Parity',
+                        value: '${parities.length}',
+                        color: parityColor,
+                      ),
+                    ],
+                  ),
+                  if (latestCycle != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      key: const ValueKey('governance-listener-latest-cycle'),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0x14000000),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0x22FFFFFF)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${latestCycle.sourceLabel} • ${_timestampLabel(latestCycle.occurredAt)}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Mapped ${latestCycle.mappedCount}/${latestCycle.acceptedCount} • Missed ${latestCycle.unmappedCount + latestCycle.rejectedCount + latestCycle.failedCount} • Clear ${latestCycle.clearCount} • Suspicious ${latestCycle.suspiciousCount}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF9CB2D1),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (latestCycle.rejectSummary.trim().isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              latestCycle.rejectSummary,
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFFDE68A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (latestAdvisory != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      key: const ValueKey(
+                        'governance-listener-latest-advisory',
+                      ),
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0x14000000),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0x22FFFFFF)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${latestAdvisory.siteId} • ${latestAdvisory.eventLabel} • ${latestAdvisory.dispositionLabel.toUpperCase()}',
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFFEAF4FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            latestAdvisory.summary,
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF9CB2D1),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (latestAdvisory.recommendation
+                              .trim()
+                              .isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              latestAdvisory.recommendation,
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFFFDE68A),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (canOpenEvents)
+                        _governanceMiniAction(
+                          key: const ValueKey(
+                            'governance-listener-drill-open-events',
+                          ),
+                          label: 'Open Event Review',
+                          accent: const Color(0xFF67E8F9),
+                          onTap: () {
+                            Navigator.of(dialogContext).pop();
+                            _openGovernanceEventsReview();
+                          },
+                        ),
+                      _governanceMiniAction(
+                        key: const ValueKey(
+                          'governance-listener-drill-open-reports',
+                        ),
+                        label: 'Open Report Workspace',
+                        accent: const Color(0xFFF1B872),
+                        onTap: () {
+                          Navigator.of(dialogContext).pop();
+                          _openPrimaryGovernanceReports(report)();
+                        },
+                      ),
+                      if (widget.onGenerateMorningSovereignReport != null)
+                        _governanceMiniAction(
+                          key: const ValueKey(
+                            'governance-listener-drill-refresh-report',
+                          ),
+                          label: _generatingMorningReport
+                              ? 'Refreshing...'
+                              : 'Refresh Morning Report',
+                          accent: const Color(0xFF67E8F9),
+                          onTap: _generatingMorningReport
+                              ? null
+                              : () {
+                                  Navigator.of(dialogContext).pop();
+                                  _generateMorningReport();
+                                },
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (parities.isEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _governanceRecoveryDeck(
+                          key: const ValueKey(
+                            'governance-listener-parity-empty-recovery',
+                          ),
+                          title: 'Listener parity pending',
+                          detail: latestCycle != null
+                              ? 'Latest listener feed cycle mapped ${latestCycle.mappedCount}/${latestCycle.acceptedCount}, but no parity comparison landed in this shift window yet. Keep the audit lane moving through event review, reports, or a morning refresh while parity catches up.'
+                              : latestAdvisory != null
+                              ? '${advisories.length} listener advisories landed without a matching parity cycle. Use the recovery actions below to keep the current governance lane moving while the listener audit catches up.'
+                              : 'No listener feed or parity cycles landed in this shift window yet. Use the recovery actions below to keep the governance lane moving while the listener audit path comes online.',
+                          accent: const Color(0xFFF59E0B),
+                          actions: [
+                            if (canOpenEvents)
+                              _governanceMiniAction(
+                                key: const ValueKey(
+                                  'governance-listener-parity-empty-open-events',
+                                ),
+                                label: 'Open Event Review',
+                                accent: const Color(0xFF67E8F9),
+                                onTap: () {
+                                  Navigator.of(dialogContext).pop();
+                                  _openGovernanceEventsReview();
+                                },
+                              ),
+                            _governanceMiniAction(
+                              key: const ValueKey(
+                                'governance-listener-parity-empty-open-reports',
+                              ),
+                              label: 'Open Report Workspace',
+                              accent: const Color(0xFFF1B872),
+                              onTap: () {
+                                Navigator.of(dialogContext).pop();
+                                _openPrimaryGovernanceReports(report)();
+                              },
+                            ),
+                            if (widget.onGenerateMorningSovereignReport != null)
+                              _governanceMiniAction(
+                                key: const ValueKey(
+                                  'governance-listener-parity-empty-refresh-report',
+                                ),
+                                label: _generatingMorningReport
+                                    ? 'Refreshing...'
+                                    : 'Refresh Morning Report',
+                                accent: const Color(0xFF67E8F9),
+                                onTap: _generatingMorningReport
+                                    ? null
+                                    : () {
+                                        Navigator.of(dialogContext).pop();
+                                        _generateMorningReport();
+                                      },
+                              ),
+                          ],
+                        ),
+                      ],
                     )
                   else
                     Expanded(
@@ -6241,7 +7427,7 @@ class _GovernancePageState extends State<GovernancePage> {
     VoidCallback? onTap,
   }) {
     final content = Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(8),
@@ -6254,7 +7440,7 @@ class _GovernancePageState extends State<GovernancePage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -6263,7 +7449,7 @@ class _GovernancePageState extends State<GovernancePage> {
             value,
             style: GoogleFonts.inter(
               color: color,
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -6272,17 +7458,17 @@ class _GovernancePageState extends State<GovernancePage> {
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFF9CB2D1),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (onTap != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 5),
             Text(
               'Tap to drill in',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8FD1FF),
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -6292,7 +7478,7 @@ class _GovernancePageState extends State<GovernancePage> {
     );
     return SizedBox(
       key: key,
-      width: 255,
+      width: 236,
       child: onTap == null
           ? content
           : InkWell(
@@ -6492,6 +7678,7 @@ class _GovernancePageState extends State<GovernancePage> {
 
   void _showReceiptPolicyDrillIn(_GovernanceReportView report) {
     final events = _currentShiftReportGeneratedEvents();
+    final canOpenLedger = _canOpenGovernanceLedger(report);
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -6613,13 +7800,57 @@ class _GovernancePageState extends State<GovernancePage> {
                           ),
                           const SizedBox(height: 6),
                           if (events.isEmpty)
-                            Text(
-                              'No generated receipt events landed in this shift window.',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF9CB2D1),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                            _governanceRecoveryDeck(
+                              key: const ValueKey(
+                                'governance-receipt-policy-empty-recovery',
                               ),
+                              title: 'Receipt lane recovery ready',
+                              detail:
+                                  'No generated receipt events landed in this shift window. Recover the audit story through reports, ledger continuity, or a morning refresh while the receipt pipeline catches up.',
+                              accent: const Color(0xFFF1B872),
+                              actions: [
+                                _governanceMiniAction(
+                                  key: const ValueKey(
+                                    'governance-receipt-policy-empty-open-reports',
+                                  ),
+                                  label: 'Open Report Workspace',
+                                  accent: const Color(0xFFF1B872),
+                                  onTap: () {
+                                    Navigator.of(dialogContext).pop();
+                                    _openPrimaryGovernanceReports(report)();
+                                  },
+                                ),
+                                _governanceMiniAction(
+                                  key: const ValueKey(
+                                    'governance-receipt-policy-empty-open-ledger',
+                                  ),
+                                  label: canOpenLedger
+                                      ? 'View Ledger'
+                                      : 'Recover Ledger',
+                                  accent: const Color(0xFFA78BFA),
+                                  onTap: () {
+                                    Navigator.of(dialogContext).pop();
+                                    _openGovernanceLedgerAction(report)();
+                                  },
+                                ),
+                                if (widget.onGenerateMorningSovereignReport !=
+                                    null)
+                                  _governanceMiniAction(
+                                    key: const ValueKey(
+                                      'governance-receipt-policy-empty-refresh-report',
+                                    ),
+                                    label: _generatingMorningReport
+                                        ? 'Refreshing...'
+                                        : 'Refresh Morning Report',
+                                    accent: const Color(0xFF67E8F9),
+                                    onTap: _generatingMorningReport
+                                        ? null
+                                        : () {
+                                            Navigator.of(dialogContext).pop();
+                                            _generateMorningReport();
+                                          },
+                                  ),
+                              ],
                             )
                           else
                             for (final event in events) ...[
@@ -9215,483 +10446,581 @@ class _GovernancePageState extends State<GovernancePage> {
       report,
       shadowSites,
     );
+    _GovernanceCommandReceipt? dialogReceipt;
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: const Color(0xFF08111B),
-          insetPadding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 24,
-          ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                key: const ValueKey('governance-global-readiness-dialog'),
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return Dialog(
+              backgroundColor: const Color(0xFF08111B),
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 24,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: 760,
+                  maxHeight: 720,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    key: const ValueKey('governance-global-readiness-dialog'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'GLOBAL READINESS DRILL-IN',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFEAF4FF),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${trend.trendLabel} • ${trend.trendReason}',
-                              style: GoogleFonts.inter(
-                                color: _partnerTrendColor(trend.trendLabel),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (shadowSites.isNotEmpty)
-                        TextButton(
-                          onPressed: () async {
-                            await Clipboard.setData(
-                              ClipboardData(
-                                text: const JsonEncoder.withIndent(
-                                  '  ',
-                                ).convert(shadowDossier),
-                              ),
-                            );
-                            if (!mounted) {
-                              return;
-                            }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Shadow MO dossier copied'),
-                              ),
-                            );
-                          },
-                          child: const Text('COPY SHADOW JSON'),
-                        ),
-                      IconButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _partnerTrendMetricChip(
-                        label: 'Current mode',
-                        value: trend.currentModeLabel,
-                        color: _globalReadinessModeColor(
-                          trend.currentModeLabel,
-                        ),
-                      ),
-                      _partnerTrendMetricChip(
-                        label: 'Baseline Critical',
-                        value: baseline.reportDays <= 0
-                            ? 'n/a'
-                            : baseline.criticalAverage.toStringAsFixed(1),
-                        color: const Color(0xFFEF4444),
-                      ),
-                      _partnerTrendMetricChip(
-                        label: 'Baseline Elevated',
-                        value: baseline.reportDays <= 0
-                            ? 'n/a'
-                            : baseline.elevatedAverage.toStringAsFixed(1),
-                        color: const Color(0xFFF59E0B),
-                      ),
-                      _partnerTrendMetricChip(
-                        label: 'Baseline Intents',
-                        value: baseline.reportDays <= 0
-                            ? 'n/a'
-                            : baseline.intentAverage.toStringAsFixed(1),
-                        color: const Color(0xFF22D3EE),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
                         children: [
-                          for (final point in history) ...[
-                            Container(
-                              key: ValueKey<String>(
-                                'governance-global-readiness-history-${point.reportDate}',
-                              ),
-                              width: double.infinity,
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: point.current
-                                    ? const Color(0x1A0EA5E9)
-                                    : const Color(0x14000000),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: point.current
-                                      ? const Color(0x550EA5E9)
-                                      : const Color(0x22FFFFFF),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          point.reportDate,
-                                          style: GoogleFonts.inter(
-                                            color: const Color(0xFFEAF4FF),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                      if (point.current)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 7,
-                                            vertical: 3,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: const Color(
-                                              0xFF8FD1FF,
-                                            ).withValues(alpha: 0.14),
-                                            borderRadius: BorderRadius.circular(
-                                              999,
-                                            ),
-                                            border: Border.all(
-                                              color: const Color(
-                                                0xFF8FD1FF,
-                                              ).withValues(alpha: 0.5),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            'CURRENT',
-                                            style: GoogleFonts.inter(
-                                              color: const Color(0xFF8FD1FF),
-                                              fontSize: 8,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                      const SizedBox(width: 6),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 7,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: _globalReadinessModeColor(
-                                            point.modeLabel,
-                                          ).withValues(alpha: 0.14),
-                                          borderRadius: BorderRadius.circular(
-                                            999,
-                                          ),
-                                          border: Border.all(
-                                            color: _globalReadinessModeColor(
-                                              point.modeLabel,
-                                            ).withValues(alpha: 0.5),
-                                          ),
-                                        ),
-                                        child: Text(
-                                          point.modeLabel,
-                                          style: GoogleFonts.inter(
-                                            color: _globalReadinessModeColor(
-                                              point.modeLabel,
-                                            ),
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    'Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount}',
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFF9CB2D1),
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  if (point.leadRegionSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      point.leadRegionId.trim().isEmpty
-                                          ? point.leadRegionSummary
-                                          : '${point.leadRegionId} • ${point.leadRegionSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFEAF4FF),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.leadSiteSummary.trim().isNotEmpty ||
-                                      point.latestIntentSummary
-                                          .trim()
-                                          .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      point.latestIntentSummary
-                                              .trim()
-                                              .isNotEmpty
-                                          ? point.latestIntentSummary
-                                          : '${point.leadSiteId} • ${point.leadSiteSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFF8EA4C2),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.tomorrowUrgencySummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Tomorrow urgency • ${point.tomorrowUrgencySummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFFDE68A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.tomorrowShadowPostureSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Tomorrow shadow posture • ${point.tomorrowShadowPostureSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFBFDBFE),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.tomorrowPromotionPressureSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Tomorrow promotion pressure • ${point.tomorrowPromotionPressureSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFFDE68A),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                  if (point.tomorrowPromotionExecutionSummary
-                                      .trim()
-                                      .isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Tomorrow promotion execution • ${point.tomorrowPromotionExecutionSummary}',
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFFFEDD5),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ],
-                          if (shadowSites.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'SHADOW MO INTELLIGENCE',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFB8D7FF),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.6,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if ((shadowDossier['tomorrowUrgencySummary'] ?? '')
-                                .toString()
-                                .trim()
-                                .isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Text(
-                                  'Tomorrow urgency • ${(shadowDossier['tomorrowUrgencySummary'] ?? '').toString().trim()}',
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'GLOBAL READINESS DRILL-IN',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFFFDE68A),
-                                    fontSize: 10,
+                                    color: const Color(0xFFEAF4FF),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${trend.trendLabel} • ${trend.trendReason}',
+                                  style: GoogleFonts.inter(
+                                    color: _partnerTrendColor(trend.trendLabel),
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                              ),
-                            if ((shadowDossier['postureStrengthSummary'] ?? '')
-                                .toString()
-                                .trim()
-                                .isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Text(
-                                  'Tomorrow shadow posture • ${(shadowDossier['postureStrengthSummary'] ?? '').toString().trim()}',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFBFDBFE),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
+                              ],
+                            ),
+                          ),
+                          if (shadowSites.isNotEmpty)
+                            TextButton(
+                              onPressed: () async {
+                                await Clipboard.setData(
+                                  ClipboardData(
+                                    text: const JsonEncoder.withIndent(
+                                      '  ',
+                                    ).convert(shadowDossier),
                                   ),
-                                ),
+                                );
+                                if (!mounted || !dialogContext.mounted) {
+                                  return;
+                                }
+                                _setCommandReceipt(
+                                  headline: 'Shadow dossier copied',
+                                  detail:
+                                      'Global readiness shadow MO evidence is staged on the clipboard.',
+                                  accent: const Color(0xFF8FD1FF),
+                                  icon: Icons.content_copy_outlined,
+                                );
+                                setDialogState(() {
+                                  dialogReceipt = const _GovernanceCommandReceipt(
+                                    headline: 'Shadow dossier copied',
+                                    detail:
+                                        'Shadow MO evidence is staged on the clipboard for governance review.',
+                                    accent: Color(0xFF8FD1FF),
+                                    icon: Icons.content_copy_outlined,
+                                  );
+                                });
+                              },
+                              child: const Text('COPY SHADOW JSON'),
+                            ),
+                          IconButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Color(0xFFEAF4FF),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (dialogReceipt != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          key: const ValueKey(
+                            'governance-global-readiness-shadow-receipt',
+                          ),
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: dialogReceipt!.accent.withValues(
+                              alpha: 0.12,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: dialogReceipt!.accent.withValues(
+                                alpha: 0.3,
                               ),
-                            if ((shadowDossier['previousTomorrowUrgencySummary'] ??
-                                    '')
-                                .toString()
-                                .trim()
-                                .isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: Text(
-                                  'Previous tomorrow urgency • ${(shadowDossier['previousTomorrowUrgencySummary'] ?? '').toString().trim()}',
-                                  style: GoogleFonts.inter(
-                                    color: const Color(0xFFFCD34D),
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                            ),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                dialogReceipt!.icon,
+                                size: 16,
+                                color: dialogReceipt!.accent,
                               ),
-                            for (final site in shadowSites) ...[
-                              Container(
-                                width: double.infinity,
-                                margin: const EdgeInsets.only(bottom: 8),
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: const Color(0x14000000),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: const Color(0x335B9BD5),
-                                  ),
-                                ),
+                              const SizedBox(width: 8),
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '${site.siteId} • ${site.moShadowSummary}',
+                                      dialogReceipt!.headline,
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFEAF4FF),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w700,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
-                                    if (shadowMoPostureStrengthSummary(
-                                      site,
-                                    ).isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 3),
-                                        child: Text(
-                                          'Posture weight ${shadowMoPostureStrengthSummary(site)}',
-                                          style: GoogleFonts.robotoMono(
-                                            color: const Color(0xFFFDE68A),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      dialogReceipt!.detail,
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFB6C8E2),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _partnerTrendMetricChip(
+                            label: 'Current mode',
+                            value: trend.currentModeLabel,
+                            color: _globalReadinessModeColor(
+                              trend.currentModeLabel,
+                            ),
+                          ),
+                          _partnerTrendMetricChip(
+                            label: 'Baseline Critical',
+                            value: baseline.reportDays <= 0
+                                ? 'n/a'
+                                : baseline.criticalAverage.toStringAsFixed(1),
+                            color: const Color(0xFFEF4444),
+                          ),
+                          _partnerTrendMetricChip(
+                            label: 'Baseline Elevated',
+                            value: baseline.reportDays <= 0
+                                ? 'n/a'
+                                : baseline.elevatedAverage.toStringAsFixed(1),
+                            color: const Color(0xFFF59E0B),
+                          ),
+                          _partnerTrendMetricChip(
+                            label: 'Baseline Intents',
+                            value: baseline.reportDays <= 0
+                                ? 'n/a'
+                                : baseline.intentAverage.toStringAsFixed(1),
+                            color: const Color(0xFF22D3EE),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              for (final point in history) ...[
+                                Container(
+                                  key: ValueKey<String>(
+                                    'governance-global-readiness-history-${point.reportDate}',
+                                  ),
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: point.current
+                                        ? const Color(0x1A0EA5E9)
+                                        : const Color(0x14000000),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: point.current
+                                          ? const Color(0x550EA5E9)
+                                          : const Color(0x22FFFFFF),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              point.reportDate,
+                                              style: GoogleFonts.inter(
+                                                color: const Color(0xFFEAF4FF),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
                                           ),
-                                        ),
+                                          if (point.current)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 7,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: const Color(
+                                                  0xFF8FD1FF,
+                                                ).withValues(alpha: 0.14),
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                                border: Border.all(
+                                                  color: const Color(
+                                                    0xFF8FD1FF,
+                                                  ).withValues(alpha: 0.5),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                'CURRENT',
+                                                style: GoogleFonts.inter(
+                                                  color: const Color(
+                                                    0xFF8FD1FF,
+                                                  ),
+                                                  fontSize: 8,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 7,
+                                              vertical: 3,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: _globalReadinessModeColor(
+                                                point.modeLabel,
+                                              ).withValues(alpha: 0.14),
+                                              borderRadius:
+                                                  BorderRadius.circular(999),
+                                              border: Border.all(
+                                                color:
+                                                    _globalReadinessModeColor(
+                                                      point.modeLabel,
+                                                    ).withValues(alpha: 0.5),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              point.modeLabel,
+                                              style: GoogleFonts.inter(
+                                                color:
+                                                    _globalReadinessModeColor(
+                                                      point.modeLabel,
+                                                    ),
+                                                fontSize: 8,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    const SizedBox(height: 6),
-                                    for (final match
-                                        in site.moShadowMatches) ...[
+                                      const SizedBox(height: 6),
                                       Text(
-                                        match.title,
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFB8D7FF),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        'Indicators ${match.matchedIndicators.join(', ')}',
+                                        'Sites ${point.totalSites} • Critical ${point.criticalSiteCount} • Elevated ${point.elevatedSiteCount} • Intents ${point.intentCount}',
                                         style: GoogleFonts.inter(
                                           color: const Color(0xFF9CB2D1),
                                           fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      if (match
-                                          .validationStatus
+                                      if (point.leadRegionSummary
+                                          .trim()
                                           .isNotEmpty) ...[
-                                        const SizedBox(height: 2),
+                                        const SizedBox(height: 4),
                                         Text(
-                                          'Strength ${shadowMoStrengthSummary(match)}',
-                                          style: GoogleFonts.robotoMono(
-                                            color: const Color(0xFF8FD1FF),
+                                          point.leadRegionId.trim().isEmpty
+                                              ? point.leadRegionSummary
+                                              : '${point.leadRegionId} • ${point.leadRegionSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFEAF4FF),
                                             fontSize: 10,
                                             fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ],
-                                      if (match
-                                          .recommendedActionPlans
-                                          .isNotEmpty) ...[
-                                        const SizedBox(height: 2),
+                                      if (point.leadSiteSummary
+                                              .trim()
+                                              .isNotEmpty ||
+                                          point.latestIntentSummary
+                                              .trim()
+                                              .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
                                         Text(
-                                          'Actions ${match.recommendedActionPlans.join(' • ')}',
+                                          point.latestIntentSummary
+                                                  .trim()
+                                                  .isNotEmpty
+                                              ? point.latestIntentSummary
+                                              : '${point.leadSiteId} • ${point.leadSiteSummary}',
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFF8FD1FF),
+                                            color: const Color(0xFF8EA4C2),
                                             fontSize: 10,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ],
-                                      if (widget.onOpenEventsForScope != null &&
-                                          site.moShadowEventIds.isNotEmpty) ...[
-                                        const SizedBox(height: 6),
-                                        Align(
-                                          alignment: Alignment.centerLeft,
-                                          child: OutlinedButton(
-                                            onPressed: () {
-                                              Navigator.of(dialogContext).pop();
-                                              widget.onOpenEventsForScope!(
-                                                site.moShadowEventIds,
-                                                site.moShadowSelectedEventId,
-                                              );
-                                            },
-                                            child: const Text('OPEN EVIDENCE'),
+                                      if (point.tomorrowUrgencySummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Tomorrow urgency • ${point.tomorrowUrgencySummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFFDE68A),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                       ],
-                                      const SizedBox(height: 6),
+                                      if (point.tomorrowShadowPostureSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Tomorrow shadow posture • ${point.tomorrowShadowPostureSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFBFDBFE),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point.tomorrowPromotionPressureSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Tomorrow promotion pressure • ${point.tomorrowPromotionPressureSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFFDE68A),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                      if (point
+                                          .tomorrowPromotionExecutionSummary
+                                          .trim()
+                                          .isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Tomorrow promotion execution • ${point.tomorrowPromotionExecutionSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFFFEDD5),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
-                              ),
+                              ],
+                              if (shadowSites.isNotEmpty) ...[
+                                const SizedBox(height: 8),
+                                Text(
+                                  'SHADOW MO INTELLIGENCE',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFFB8D7FF),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                if ((shadowDossier['tomorrowUrgencySummary'] ??
+                                        '')
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Text(
+                                      'Tomorrow urgency • ${(shadowDossier['tomorrowUrgencySummary'] ?? '').toString().trim()}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFFDE68A),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                if ((shadowDossier['postureStrengthSummary'] ??
+                                        '')
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Text(
+                                      'Tomorrow shadow posture • ${(shadowDossier['postureStrengthSummary'] ?? '').toString().trim()}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFBFDBFE),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                if ((shadowDossier['previousTomorrowUrgencySummary'] ??
+                                        '')
+                                    .toString()
+                                    .trim()
+                                    .isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Text(
+                                      'Previous tomorrow urgency • ${(shadowDossier['previousTomorrowUrgencySummary'] ?? '').toString().trim()}',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFFFCD34D),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                for (final site in shadowSites) ...[
+                                  Container(
+                                    width: double.infinity,
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0x14000000),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: const Color(0x335B9BD5),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${site.siteId} • ${site.moShadowSummary}',
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFEAF4FF),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        if (shadowMoPostureStrengthSummary(
+                                          site,
+                                        ).isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                              top: 3,
+                                            ),
+                                            child: Text(
+                                              'Posture weight ${shadowMoPostureStrengthSummary(site)}',
+                                              style: GoogleFonts.robotoMono(
+                                                color: const Color(0xFFFDE68A),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        const SizedBox(height: 6),
+                                        for (final match
+                                            in site.moShadowMatches) ...[
+                                          Text(
+                                            match.title,
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFFB8D7FF),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            'Indicators ${match.matchedIndicators.join(', ')}',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF9CB2D1),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          if (match
+                                              .validationStatus
+                                              .isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Strength ${shadowMoStrengthSummary(match)}',
+                                              style: GoogleFonts.robotoMono(
+                                                color: const Color(0xFF8FD1FF),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                          if (match
+                                              .recommendedActionPlans
+                                              .isNotEmpty) ...[
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Actions ${match.recommendedActionPlans.join(' • ')}',
+                                              style: GoogleFonts.inter(
+                                                color: const Color(0xFF8FD1FF),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                          if (widget.onOpenEventsForScope !=
+                                                  null &&
+                                              site
+                                                  .moShadowEventIds
+                                                  .isNotEmpty) ...[
+                                            const SizedBox(height: 6),
+                                            Align(
+                                              alignment: Alignment.centerLeft,
+                                              child: OutlinedButton(
+                                                onPressed: () {
+                                                  Navigator.of(
+                                                    dialogContext,
+                                                  ).pop();
+                                                  widget.onOpenEventsForScope!(
+                                                    site.moShadowEventIds,
+                                                    site.moShadowSelectedEventId,
+                                                  );
+                                                },
+                                                child: const Text(
+                                                  'OPEN EVIDENCE',
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 6),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ],
-                          ],
-                        ],
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -10648,6 +11977,10 @@ class _GovernancePageState extends State<GovernancePage> {
                   row.partnerLabel.trim().toUpperCase(),
         )
         .toList(growable: false);
+    final canOpenReports =
+        widget.onOpenReportsForPartnerScope != null ||
+        widget.onOpenReportsForScope != null;
+    final canOpenLedger = widget.onOpenLedgerForScope != null;
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
@@ -10744,7 +12077,7 @@ class _GovernancePageState extends State<GovernancePage> {
                       ),
                     ),
                   ],
-                  if (widget.onOpenReportsForPartnerScope != null) ...[
+                  if (canOpenReports) ...[
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerLeft,
@@ -10753,11 +12086,14 @@ class _GovernancePageState extends State<GovernancePage> {
                           'governance-partner-scorecard-open-reports-scope',
                         ),
                         onPressed: () {
-                          widget.onOpenReportsForPartnerScope!(
-                            row.clientId,
-                            row.siteId,
-                            row.partnerLabel,
+                          final opened = _dispatchGovernanceReportsScope(
+                            clientId: row.clientId,
+                            siteId: row.siteId,
+                            partnerLabel: row.partnerLabel,
                           );
+                          if (!opened) {
+                            return;
+                          }
                           Navigator.of(dialogContext).pop();
                           _showSnack(
                             'Opening Reports for ${row.siteId} • ${row.partnerLabel}',
@@ -10843,13 +12179,78 @@ class _GovernancePageState extends State<GovernancePage> {
                           ),
                           const SizedBox(height: 6),
                           if (chains.isEmpty)
-                            Text(
-                              'No active dispatch chains are open for this partner scope right now.',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF9CB2D1),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                            _governanceRecoveryDeck(
+                              key: const ValueKey(
+                                'governance-partner-scorecard-empty-chains',
                               ),
+                              title: 'Chain recovery ready',
+                              detail:
+                                  'No active dispatch chains are open for this partner scope right now. Recover this partner lane through reports, ledger continuity, or a refreshed morning pass while the next escalation forms.',
+                              accent: const Color(0xFF67E8F9),
+                              actions: [
+                                if (canOpenReports)
+                                  _governanceMiniAction(
+                                    key: const ValueKey(
+                                      'governance-partner-scorecard-empty-open-reports',
+                                    ),
+                                    label: 'Open Reports Scope',
+                                    accent: const Color(0xFFF1B872),
+                                    onTap: () {
+                                      final opened =
+                                          _dispatchGovernanceReportsScope(
+                                            clientId: row.clientId,
+                                            siteId: row.siteId,
+                                            partnerLabel: row.partnerLabel,
+                                          );
+                                      if (!opened) {
+                                        return;
+                                      }
+                                      Navigator.of(dialogContext).pop();
+                                      _showSnack(
+                                        'Opening Reports for ${row.siteId} • ${row.partnerLabel}',
+                                      );
+                                    },
+                                  ),
+                                if (canOpenLedger)
+                                  _governanceMiniAction(
+                                    key: const ValueKey(
+                                      'governance-partner-scorecard-empty-open-ledger',
+                                    ),
+                                    label: 'View Ledger',
+                                    accent: const Color(0xFFA78BFA),
+                                    onTap: () {
+                                      widget.onOpenLedgerForScope!(
+                                        row.clientId,
+                                        row.siteId,
+                                      );
+                                      Navigator.of(dialogContext).pop();
+                                      _setCommandReceipt(
+                                        headline: 'Ledger continuity opened',
+                                        detail:
+                                            'Governance handed ${row.clientId} / ${row.siteId} into sovereign ledger continuity while keeping ${row.partnerLabel} as the active partner context.',
+                                        accent: const Color(0xFFA78BFA),
+                                        icon: Icons.shield_outlined,
+                                      );
+                                    },
+                                  ),
+                                if (widget.onGenerateMorningSovereignReport !=
+                                    null)
+                                  _governanceMiniAction(
+                                    key: const ValueKey(
+                                      'governance-partner-scorecard-empty-refresh-report',
+                                    ),
+                                    label: _generatingMorningReport
+                                        ? 'Refreshing...'
+                                        : 'Refresh Morning Report',
+                                    accent: const Color(0xFF67E8F9),
+                                    onTap: _generatingMorningReport
+                                        ? null
+                                        : () {
+                                            Navigator.of(dialogContext).pop();
+                                            _generateMorningReport();
+                                          },
+                                  ),
+                              ],
                             )
                           else
                             for (final chain in chains) ...[
@@ -11697,10 +13098,10 @@ class _GovernancePageState extends State<GovernancePage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -11710,7 +13111,7 @@ class _GovernancePageState extends State<GovernancePage> {
             title,
             style: GoogleFonts.inter(
               color: const Color(0x66FFFFFF),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
             ),
@@ -11720,11 +13121,11 @@ class _GovernancePageState extends State<GovernancePage> {
             subtitle,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           child,
         ],
       ),

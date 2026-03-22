@@ -52,57 +52,51 @@ void main() {
     },
   );
 
-  testWidgets(
-    'onyx app stages guard voip call into scoped comms persistence',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1680, 1600));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app stages guard voip call into scoped comms persistence', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    await tester.binding.setSurfaceSize(const Size(1680, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.guards,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.guards),
+    );
+    await tester.pumpAndSettle();
 
-      final callButton = find.widgetWithText(OutlinedButton, 'Call').first;
-      await tester.ensureVisible(callButton);
-      await tester.tap(callButton);
-      await tester.pumpAndSettle();
+    final callButton = find.widgetWithText(OutlinedButton, 'Call').first;
+    await tester.ensureVisible(callButton);
+    await tester.tap(callButton);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Voice Call Staging'), findsOneWidget);
+    expect(find.text('Voice Call Staging'), findsOneWidget);
 
-      await tester.tap(find.text('Stage VoIP Call'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Stage VoIP Call'));
+    await tester.pumpAndSettle();
 
-      final persistence = await DispatchPersistenceService.create();
-      final scopeKeys = await persistence.readClientConversationScopeKeys();
-      final scopedPushSyncState = await persistence.readScopedClientAppPushSyncState(
-        clientId: 'CLIENT-MS-VALLEE',
-        siteId: 'WTF-MAIN',
-      );
+    final persistence = await DispatchPersistenceService.create();
+    final scopeKeys = await persistence.readClientConversationScopeKeys();
+    final scopedPushSyncState = await persistence
+        .readScopedClientAppPushSyncState(
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'WTF-MAIN',
+        );
 
-      expect(scopeKeys, contains('CLIENT-MS-VALLEE|WTF-MAIN'));
-      expect(scopedPushSyncState.history, isNotEmpty);
-      expect(scopedPushSyncState.history.first.status, 'voip-failed');
-      expect(
-        scopedPushSyncState.history.first.failureReason,
-        contains('VoIP staging is not configured for Thabo Mokoena yet.'),
-      );
-    },
-  );
+    expect(scopeKeys, contains('CLIENT-MS-VALLEE|WTF-MAIN'));
+    expect(scopedPushSyncState.history, isNotEmpty);
+    expect(scopedPushSyncState.history.first.status, 'voip-failed');
+    expect(
+      scopedPushSyncState.history.first.failureReason,
+      contains('VoIP staging is not configured for Thabo Mokoena yet.'),
+    );
+  });
 
   testWidgets('onyx app opens reports from guards hero action', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.guards,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.guards),
     );
     await tester.pumpAndSettle();
 
@@ -119,10 +113,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.guards,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.guards),
     );
     await tester.pumpAndSettle();
 
@@ -135,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AdministrationPage), findsOneWidget);
-    expect(find.text('Administration Console'), findsOneWidget);
-    expect(find.text('Employees'), findsWidgets);
+    expect(find.text('Administration'), findsOneWidget);
+    expect(find.text('Guards'), findsWidgets);
   });
 }

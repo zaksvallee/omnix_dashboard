@@ -98,14 +98,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final verifyChain = tester.widget<InkWell>(
-      find.widgetWithText(InkWell, 'VERIFY CHAIN'),
+    final verifyChain = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('ledger-context-verify-chain')),
     );
-    final exportLedger = tester.widget<InkWell>(
-      find.widgetWithText(InkWell, 'EXPORT LEDGER'),
+    final exportLedger = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('ledger-context-export-ledger')),
     );
-    expect(verifyChain.onTap, isNotNull);
-    expect(exportLedger.onTap, isNotNull);
+    expect(verifyChain.onPressed, isNotNull);
+    expect(exportLedger.onPressed, isNotNull);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -120,10 +120,10 @@ void main() {
     );
     await tester.pumpAndSettle();
     final retryPushSync = tester.widget<InkWell>(
-      find.widgetWithText(InkWell, 'Retry Push Sync'),
+      find.byKey(const ValueKey('clients-retry-push-sync-action')),
     );
     final residentsRoom = tester.widget<InkWell>(
-      find.widgetWithText(InkWell, 'Residents'),
+      find.byKey(const ValueKey('clients-room-Residents')),
     );
     expect(retryPushSync.onTap, isNotNull);
     expect(residentsRoom.onTap, isNotNull);

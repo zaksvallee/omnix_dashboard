@@ -153,6 +153,20 @@ class ClientAppPage extends StatefulWidget {
   State<ClientAppPage> createState() => _ClientAppPageState();
 }
 
+class _ClientCommandReceipt {
+  final String label;
+  final String message;
+  final String detail;
+  final Color accent;
+
+  const _ClientCommandReceipt({
+    required this.label,
+    required this.message,
+    required this.detail,
+    required this.accent,
+  });
+}
+
 class _ClientAppPageState extends State<ClientAppPage> {
   static const int _maxNotificationRows = 12;
   static const int _maxPushQueueRows = 6;
@@ -163,6 +177,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
   static const double _spaceSm = 8;
   static const double _spaceMd = 10;
   static const double _spaceLg = 12;
+  static const _defaultCommandReceipt = _ClientCommandReceipt(
+    label: 'INCIDENT READY',
+    message: 'Thread handoffs and delivery actions stay pinned in this rail.',
+    detail:
+        'Open-thread pivots keep reporting whether a scoped incident is available so operators never hit dead chrome.',
+    accent: Color(0xFF8FD1FF),
+  );
 
   final TextEditingController _chatController = TextEditingController();
   final FocusNode _chatFocusNode = FocusNode();
@@ -176,9 +197,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
   String? _sentNotificationMessageKey;
   String? _sentThreadMessageKey;
   String? _threadLandingMessageKey;
+  String? _selectedPushMessageKey;
+  String? _selectedNotificationMessageKey;
   _ClientSystemMessageType? _composedSystemType;
   String? _focusedIncidentReference;
   String? _selectedIncidentReference;
+  _ClientCommandReceipt _commandReceipt = _defaultCommandReceipt;
   late List<ClientAppMessage> _manualMessages;
   late List<ClientAppAcknowledgement> _acknowledgements;
   late ClientAppViewerRole _viewerRole;
@@ -247,9 +271,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
   void didUpdateWidget(covariant ClientAppPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     final scopeChanged =
-        oldWidget.clientId != widget.clientId || oldWidget.siteId != widget.siteId;
+        oldWidget.clientId != widget.clientId ||
+        oldWidget.siteId != widget.siteId;
     if (scopeChanged) {
-      _manualMessages = List<ClientAppMessage>.from(widget.initialManualMessages);
+      _manualMessages = List<ClientAppMessage>.from(
+        widget.initialManualMessages,
+      );
       _acknowledgements = List<ClientAppAcknowledgement>.from(
         widget.initialAcknowledgements,
       );
@@ -299,7 +326,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
           oldWidget.initialManualMessages,
           widget.initialManualMessages,
         )) {
-      _manualMessages = List<ClientAppMessage>.from(widget.initialManualMessages);
+      _manualMessages = List<ClientAppMessage>.from(
+        widget.initialManualMessages,
+      );
     }
     if (_sameClientAppAcknowledgements(
           _acknowledgements,
@@ -371,383 +400,321 @@ class _ClientAppPageState extends State<ClientAppPage> {
         .where((item) => item.status == ClientPushDeliveryStatus.queued)
         .length;
 
+    Widget buildSyncBanner() {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0E1A2B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: widget.backendSyncEnabled
+                ? const Color(0xFF3D8BFF).withValues(alpha: 0.45)
+                : const Color(0xFF35506F).withValues(alpha: 0.38),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  widget.backendSyncEnabled
+                      ? Icons.cloud_done_rounded
+                      : Icons.storage_rounded,
+                  size: 16,
+                  color: widget.backendSyncEnabled
+                      ? const Color(0xFF8FD1FF)
+                      : const Color(0xFF93A8C9),
+                ),
+                const SizedBox(width: _spaceSm),
+                Expanded(
+                  child: Text(
+                    widget.backendSyncEnabled
+                        ? _localizedConversationSyncLive
+                        : _localizedConversationSyncLocal,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFD6E8FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    softWrap: true,
+                  ),
+                ),
+              ],
+            ),
+            if (!widget.backendSyncEnabled) ...[
+              const SizedBox(height: _spaceXs),
+              Text(
+                _localizedRunWithLocalDefines,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF93A8C9),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    Widget buildRoleSelector() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _localizedLanguageLabel,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7FA2CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: ClientAppViewerRole.values
+                .map((role) => _viewerRoleChip(role))
+                .toList(growable: false),
+          ),
+        ],
+      );
+    }
+
+    Widget buildMetricsRow() {
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 1680
+              ? 6
+              : constraints.maxWidth >= 1200
+              ? 3
+              : constraints.maxWidth >= 760
+              ? 2
+              : 1;
+          const spacing = 10.0;
+          final cardWidth =
+              (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              SizedBox(
+                width: cardWidth,
+                child: _metricCard(
+                  _viewerRole.alertsMetricLabelForLocale(widget.locale),
+                  unreadNotifications.toString(),
+                  const Color(0xFFFFD6A5),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _metricCard(
+                  _localizedActiveIncidentsLabel,
+                  activeDispatches.toString(),
+                  const Color(0xFFFFA7B8),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _metricCard(
+                  _localizedEstateRoomsLabel,
+                  rooms.length.toString(),
+                  const Color(0xFF9FD8AC),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _metricCard(
+                  _viewerRole.chatMetricLabelForLocale(widget.locale),
+                  '${chatMessages.length} updates',
+                  const Color(0xFF8FD1FF),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _metricCard(
+                  _viewerRole.pendingMetricLabelForLocale(widget.locale),
+                  pendingAcknowledgements.toString(),
+                  const Color(0xFFC9B8FF),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _metricCard(
+                  _localizedPushQueueReadyLabel,
+                  pushReadyCount.toString(),
+                  const Color(0xFFFFB5C6),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
     return OnyxPageScaffold(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1540),
-            child: Column(
+      child: LayoutBuilder(
+        builder: (context, viewport) {
+          const contentPadding = EdgeInsets.fromLTRB(10, 10, 10, 14);
+          final useScrollFallback =
+              isHandsetLayout(context) ||
+              viewport.maxHeight < 720 ||
+              viewport.maxWidth < 980;
+          final boundedDesktopSurface =
+              !useScrollFallback &&
+              viewport.hasBoundedHeight &&
+              viewport.maxHeight.isFinite;
+          final ultrawideSurface = isUltrawideLayout(
+            context,
+            viewportWidth: viewport.maxWidth,
+          );
+          final surfaceMaxWidth = commandSurfaceMaxWidth(
+            context,
+            compactDesktopWidth: 1540,
+            viewportWidth: viewport.maxWidth,
+            widescreenFillFactor: ultrawideSurface ? 1 : 0.96,
+          );
+
+          final communicationsCard = OnyxSectionCard(
+            title: 'Client Communications Workspace',
+            subtitle:
+                'Room-centered notifications, direct thread execution, and context actions in one operational body.',
+            child: _communicationsWorkspace(
+              rooms: rooms,
+              activeRoom: activeRoom,
+              filterScopeLabel: filterScopeLabel,
+              showAllRoomItems: showAllRoomItems,
+              visibleNotificationRows: visibleNotificationRows,
+              visibleNotificationCount: visibleNotifications.length,
+              hiddenNotificationRows: hiddenNotificationRows,
+              chatMessages: chatMessages,
+              unreadNotifications: unreadNotifications,
+              pendingAcknowledgements: pendingAcknowledgements,
+              pushReadyCount: pushReadyCount,
+              incidentFeed: incidentFeed,
+              selectedIncidentGroup: selectedIncidentGroup,
+            ),
+          );
+          final deliveryCard = OnyxSectionCard(
+            title: 'Delivery & Incident Workspace',
+            subtitle:
+                'Queued client delivery, sync telemetry, and incident-thread handoff in one desktop command body.',
+            child: _deliveryIncidentWorkspace(
+              notifications: notifications,
+              pushQueue: pushQueue,
+              pushReadyCount: pushReadyCount,
+              incidentFeed: incidentFeed,
+              selectedIncidentGroup: selectedIncidentGroup,
+            ),
+          );
+
+          Widget buildHeader() {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${_localizedSurfaceTitle(_viewerRole)} — ${widget.clientId} / ${widget.siteId}',
-                  style: GoogleFonts.rajdhani(
-                    color: const Color(0xFFE5F1FF),
-                    fontSize: _phoneLayout ? 23 : 28,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: _spaceSm),
-                Text(
-                  _localizedSurfaceSubtitle(_viewerRole),
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF93A8C9),
-                    fontSize: _phoneLayout ? 12 : 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: _spaceSm),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0E1A2B),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: widget.backendSyncEnabled
-                          ? const Color(0xFF3D8BFF).withValues(alpha: 0.45)
-                          : const Color(0xFF35506F).withValues(alpha: 0.38),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            widget.backendSyncEnabled
-                                ? Icons.cloud_done_rounded
-                                : Icons.storage_rounded,
-                            size: 16,
-                            color: widget.backendSyncEnabled
-                                ? const Color(0xFF8FD1FF)
-                                : const Color(0xFF93A8C9),
-                          ),
-                          const SizedBox(width: _spaceSm),
-                          Expanded(
-                            child: Text(
-                              widget.backendSyncEnabled
-                                  ? _localizedConversationSyncLive
-                                  : _localizedConversationSyncLocal,
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFD6E8FF),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              softWrap: true,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (!widget.backendSyncEnabled) ...[
-                        const SizedBox(height: _spaceXs),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stackedHeader = constraints.maxWidth < 1240;
+                    final titleBlock = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          _localizedRunWithLocalDefines,
+                          '${_localizedSurfaceTitle(_viewerRole)} — ${widget.clientId} / ${widget.siteId}',
+                          style: GoogleFonts.rajdhani(
+                            color: const Color(0xFFE5F1FF),
+                            fontSize: _phoneLayout ? 23 : 28,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: _spaceSm),
+                        Text(
+                          _localizedSurfaceSubtitle(_viewerRole),
                           style: GoogleFonts.inter(
                             color: const Color(0xFF93A8C9),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: _spaceLg),
-                Text(
-                  _localizedLanguageLabel,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF7FA2CF),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: ClientAppViewerRole.values
-                      .map((role) => _viewerRoleChip(role))
-                      .toList(growable: false),
-                ),
-                const SizedBox(height: 12),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 1500
-                        ? 6
-                        : constraints.maxWidth >= 1200
-                        ? 3
-                        : constraints.maxWidth >= 760
-                        ? 2
-                        : 1;
-                    const spacing = 12.0;
-                    final cardWidth =
-                        (constraints.maxWidth - ((columns - 1) * spacing)) /
-                        columns;
-                    return Wrap(
-                      spacing: spacing,
-                      runSpacing: spacing,
-                      children: [
-                        SizedBox(
-                          width: cardWidth,
-                          child: _metricCard(
-                            _viewerRole.alertsMetricLabelForLocale(
-                              widget.locale,
-                            ),
-                            unreadNotifications.toString(),
-                            const Color(0xFFFFD6A5),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _metricCard(
-                            _localizedActiveIncidentsLabel,
-                            activeDispatches.toString(),
-                            const Color(0xFFFFA7B8),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _metricCard(
-                            _localizedEstateRoomsLabel,
-                            rooms.length.toString(),
-                            const Color(0xFF9FD8AC),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _metricCard(
-                            _viewerRole.chatMetricLabelForLocale(widget.locale),
-                            '${chatMessages.length} updates',
-                            const Color(0xFF8FD1FF),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _metricCard(
-                            _viewerRole.pendingMetricLabelForLocale(
-                              widget.locale,
-                            ),
-                            pendingAcknowledgements.toString(),
-                            const Color(0xFFC9B8FF),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _metricCard(
-                            _localizedPushQueueReadyLabel,
-                            pushReadyCount.toString(),
-                            const Color(0xFFFFB5C6),
+                            fontSize: _phoneLayout ? 12 : 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     );
-                  },
-                ),
-                const SizedBox(height: _spaceLg),
-                _panel(
-                  title: _localizedPushDeliveryQueueTitle,
-                  subtitle: _localizedPushDeliveryQueueSubtitle,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _pushSyncStatusStrip(),
-                      const SizedBox(height: _spaceMd),
-                      _backendProbeHistoryList(widget.backendProbeHistory),
-                      const SizedBox(height: _spaceMd),
-                      _pushSyncHistoryList(widget.pushSyncHistory),
-                      const SizedBox(height: _spaceMd),
-                      _pushQueueList(pushQueue),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: _spaceLg),
-                _panel(
-                  title: _viewerRole.incidentFeedPanelTitleForLocale(
-                    widget.locale,
-                  ),
-                  subtitle: _viewerRole.incidentFeedPanelSubtitleForLocale(
-                    widget.locale,
-                  ),
-                  subtitleAction: selectedIncidentGroup == null
-                      ? null
-                      : TextButton(
-                          onPressed: () =>
-                              _reopenSelectedIncidentThread(incidentFeed),
-                          style: _inlineHandoffButtonStyle(
-                            const Color(0xFF8FD1FF),
-                          ),
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Icon(
-                                _viewerRole.selectedIncidentHeaderIcon,
-                                size: 14,
-                              ),
-                              Text(
-                                _viewerRole.selectedIncidentHeaderLabel(
-                                  selectedIncidentGroup.referenceLabel,
-                                ),
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                  headerAction: selectedIncidentGroup == null
-                      ? TextButton(
-                          key: const ValueKey(
-                            'incident-feed-open-first-action',
-                          ),
-                          onPressed: incidentFeed.isEmpty
-                              ? null
-                              : () => _openFirstAvailableIncidentThread(
-                                  incidentFeed,
-                                ),
-                          style: _inlineHandoffButtonStyle(
-                            const Color(0xFF8FD1FF),
-                            disabledForegroundColor: const Color(0xFF5B7294),
-                          ),
-                          child: Text(
-                            _viewerRole.noSelectedIncidentLabel,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        )
-                      : null,
-                  child: _incidentFeedList(incidentFeed),
-                ),
-                const SizedBox(height: _spaceLg),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final stacked = constraints.maxWidth < 680;
-                    final scopeText = Text(
-                      filterScopeLabel,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8FD1FF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    );
-                    final toggleButton = TextButton(
-                      onPressed: _toggleShowAllRoomItems,
-                      style: TextButton.styleFrom(
-                        padding: _phoneLayout
-                            ? const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              )
-                            : EdgeInsets.zero,
-                        minimumSize: Size(0, _phoneLayout ? 40 : 0),
-                        tapTargetSize: _phoneLayout
-                            ? MaterialTapTargetSize.padded
-                            : MaterialTapTargetSize.shrinkWrap,
-                        foregroundColor: const Color(0xFF8FD1FF),
-                      ),
-                      child: Text(
-                        showAllRoomItems
-                            ? _localizedShowPendingLabel
-                            : _localizedShowAllLabel,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    );
-                    if (stacked) {
+                    final syncBanner = buildSyncBanner();
+                    if (stackedHeader) {
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          scopeText,
-                          const SizedBox(height: 6),
-                          toggleButton,
+                          titleBlock,
+                          const SizedBox(height: 10),
+                          syncBanner,
                         ],
                       );
                     }
                     return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: scopeText),
-                        toggleButton,
+                        Expanded(child: titleBlock),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 328, child: syncBanner),
                       ],
                     );
                   },
                 ),
-                const SizedBox(height: _spaceLg),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 1400
-                        ? 3
-                        : constraints.maxWidth >= 980
-                        ? 2
-                        : 1;
-                    const spacing = 12.0;
-                    final cardWidth =
-                        (constraints.maxWidth - ((columns - 1) * spacing)) /
-                        columns;
-                    return Wrap(
-                      spacing: spacing,
-                      runSpacing: spacing,
-                      children: [
-                        SizedBox(
-                          width: cardWidth,
-                          child: _panel(
-                            title: _viewerRole.notificationsPanelTitleForLocale(
-                              widget.locale,
-                            ),
-                            subtitle: _notificationsPanelSubtitle(
-                              showAllRoomItems: showAllRoomItems,
-                              roomDisplayName: activeRoom.displayName,
-                            ),
-                            child: _notificationsList(
-                              visibleNotificationRows,
-                              totalCount: visibleNotifications.length,
-                              hiddenCount: hiddenNotificationRows,
-                            ),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _panel(
-                            title: _viewerRole.roomsPanelTitleForLocale(
-                              widget.locale,
-                            ),
-                            subtitle: _roomsPanelSubtitle(
-                              showAllRoomItems: showAllRoomItems,
-                              roomDisplayName: activeRoom.displayName,
-                            ),
-                            child: _roomsList(rooms),
-                          ),
-                        ),
-                        SizedBox(
-                          width: cardWidth,
-                          child: _panel(
-                            title: _viewerRole.chatPanelTitleForLocale(
-                              widget.locale,
-                            ),
-                            subtitle: _chatPanelSubtitle(
-                              showAllRoomItems: showAllRoomItems,
-                              roomDisplayName: activeRoom.displayName,
-                            ),
-                            child: _chatPanel(chatMessages),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+                const SizedBox(height: 12),
+                buildRoleSelector(),
+                const SizedBox(height: 12),
+                buildMetricsRow(),
               ],
-            ),
-          ),
-        ),
+            );
+          }
+
+          Widget buildBody() {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final workspaceWidth = constraints.maxWidth;
+                final splitWorkspace =
+                    boundedDesktopSurface && workspaceWidth >= 2100;
+                final workspaceGap = ultrawideSurface ? 12.0 : 10.0;
+                if (splitWorkspace) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(flex: 5, child: communicationsCard),
+                      SizedBox(width: workspaceGap),
+                      Expanded(flex: 6, child: deliveryCard),
+                    ],
+                  );
+                }
+                if (boundedDesktopSurface) {
+                  return ListView.separated(
+                    itemCount: 2,
+                    itemBuilder: (context, index) {
+                      return index == 0 ? communicationsCard : deliveryCard;
+                    },
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    communicationsCard,
+                    const SizedBox(height: 10),
+                    deliveryCard,
+                  ],
+                );
+              },
+            );
+          }
+
+          return OnyxViewportWorkspaceLayout(
+            padding: contentPadding,
+            maxWidth: surfaceMaxWidth,
+            spacing: 10,
+            lockToViewport: boundedDesktopSurface,
+            header: buildHeader(),
+            body: buildBody(),
+          );
+        },
       ),
     );
   }
@@ -927,29 +894,1976 @@ class _ClientAppPageState extends State<ClientAppPage> {
     );
   }
 
+  Widget _communicationsWorkspace({
+    required List<_ClientRoom> rooms,
+    required _ClientRoom activeRoom,
+    required String filterScopeLabel,
+    required bool showAllRoomItems,
+    required List<_ClientNotification> visibleNotificationRows,
+    required int visibleNotificationCount,
+    required int hiddenNotificationRows,
+    required List<_ClientChatMessage> chatMessages,
+    required int unreadNotifications,
+    required int pendingAcknowledgements,
+    required int pushReadyCount,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    final roomsPanel = Container(
+      key: const ValueKey('client-comms-workspace-panel-rooms'),
+      child: _panel(
+        title: _viewerRole.roomsPanelTitleForLocale(widget.locale),
+        subtitle: _roomsPanelSubtitle(
+          showAllRoomItems: showAllRoomItems,
+          roomDisplayName: activeRoom.displayName,
+        ),
+        child: _roomsList(
+          rooms,
+          activeRoom: activeRoom,
+          showAllRoomItems: showAllRoomItems,
+          incidentFeed: incidentFeed,
+          selectedIncidentGroup: selectedIncidentGroup,
+        ),
+      ),
+    );
+    final notificationsPanel = Container(
+      key: const ValueKey('client-comms-workspace-panel-notifications'),
+      child: _panel(
+        title: _viewerRole.notificationsPanelTitleForLocale(widget.locale),
+        subtitle: _notificationsPanelSubtitle(
+          showAllRoomItems: showAllRoomItems,
+          roomDisplayName: activeRoom.displayName,
+        ),
+        child: _notificationsList(
+          visibleNotificationRows,
+          totalCount: visibleNotificationCount,
+          hiddenCount: hiddenNotificationRows,
+          roomDisplayName: activeRoom.displayName,
+          showAllRoomItems: showAllRoomItems,
+          incidentFeed: incidentFeed,
+          selectedIncidentGroup: selectedIncidentGroup,
+        ),
+      ),
+    );
+    final chatPanel = Container(
+      key: const ValueKey('client-comms-workspace-panel-chat'),
+      child: _panel(
+        title: _viewerRole.chatPanelTitleForLocale(widget.locale),
+        subtitle: _chatPanelSubtitle(
+          showAllRoomItems: showAllRoomItems,
+          roomDisplayName: activeRoom.displayName,
+        ),
+        child: _chatPanel(
+          chatMessages,
+          incidentFeed: incidentFeed,
+          selectedIncidentGroup: selectedIncidentGroup,
+        ),
+      ),
+    );
+    final contextRail = _communicationsContextRail(
+      activeRoom: activeRoom,
+      unreadNotifications: unreadNotifications,
+      pendingAcknowledgements: pendingAcknowledgements,
+      pushReadyCount: pushReadyCount,
+      incidentFeed: incidentFeed,
+      selectedIncidentGroup: selectedIncidentGroup,
+      showAllRoomItems: showAllRoomItems,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 1360;
+        final medium = constraints.maxWidth >= 980;
+        if (wide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _communicationsFocusBanner(
+                rooms: rooms,
+                activeRoom: activeRoom,
+                filterScopeLabel: filterScopeLabel,
+                showAllRoomItems: showAllRoomItems,
+                unreadNotifications: unreadNotifications,
+                pendingAcknowledgements: pendingAcknowledgements,
+                pushReadyCount: pushReadyCount,
+                incidentFeed: incidentFeed,
+                selectedIncidentGroup: selectedIncidentGroup,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: 304, child: roomsPanel),
+                  const SizedBox(width: 12),
+                  Expanded(child: chatPanel),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 296,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        notificationsPanel,
+                        const SizedBox(height: 12),
+                        contextRail,
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+        if (medium) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _communicationsFocusBanner(
+                rooms: rooms,
+                activeRoom: activeRoom,
+                filterScopeLabel: filterScopeLabel,
+                showAllRoomItems: showAllRoomItems,
+                unreadNotifications: unreadNotifications,
+                pendingAcknowledgements: pendingAcknowledgements,
+                pushReadyCount: pushReadyCount,
+                incidentFeed: incidentFeed,
+                selectedIncidentGroup: selectedIncidentGroup,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(width: 304, child: roomsPanel),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        chatPanel,
+                        const SizedBox(height: 12),
+                        notificationsPanel,
+                        const SizedBox(height: 12),
+                        contextRail,
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _communicationsFocusBanner(
+              rooms: rooms,
+              activeRoom: activeRoom,
+              filterScopeLabel: filterScopeLabel,
+              showAllRoomItems: showAllRoomItems,
+              unreadNotifications: unreadNotifications,
+              pendingAcknowledgements: pendingAcknowledgements,
+              pushReadyCount: pushReadyCount,
+              incidentFeed: incidentFeed,
+              selectedIncidentGroup: selectedIncidentGroup,
+            ),
+            const SizedBox(height: 12),
+            roomsPanel,
+            const SizedBox(height: 12),
+            notificationsPanel,
+            const SizedBox(height: 12),
+            chatPanel,
+            const SizedBox(height: 12),
+            contextRail,
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _communicationsFocusBanner({
+    required List<_ClientRoom> rooms,
+    required _ClientRoom activeRoom,
+    required String filterScopeLabel,
+    required bool showAllRoomItems,
+    required int unreadNotifications,
+    required int pendingAcknowledgements,
+    required int pushReadyCount,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    return Container(
+      key: const ValueKey('client-comms-focus-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF11243A), Color(0xFF0E1A2B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2B4F73)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 760;
+          final roomPivots = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: rooms
+                .map(
+                  (room) => _bannerRoomPivot(
+                    room,
+                    selected: room.key == activeRoom.key,
+                  ),
+                )
+                .toList(growable: false),
+          );
+          final openThreadAction = _bannerActionChip(
+            key: const ValueKey('client-comms-banner-open-thread'),
+            label: selectedIncidentGroup == null
+                ? 'Open first thread'
+                : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+            accent: const Color(0xFF8FD1FF),
+            onTap: selectedIncidentGroup == null
+                ? () => _openFirstAvailableIncidentThread(incidentFeed)
+                : () => _reopenSelectedIncidentThread(incidentFeed),
+          );
+          final composerAction = _bannerActionChip(
+            key: const ValueKey('client-comms-banner-focus-composer'),
+            label: 'Jump to Composer',
+            accent: const Color(0xFFC9B8FF),
+            onTap: _focusChatComposer,
+          );
+          final scopeAction = _bannerActionChip(
+            key: const ValueKey('client-comms-toggle-scope'),
+            label: showAllRoomItems
+                ? _localizedShowPendingLabel
+                : _localizedShowAllLabel,
+            accent: const Color(0xFFFFD6A5),
+            selected: showAllRoomItems,
+            onTap: _toggleShowAllRoomItems,
+          );
+          final sentMessageAction = _sentThreadMessageKey == null
+              ? null
+              : _bannerActionChip(
+                  key: const ValueKey('client-comms-banner-view-sent-message'),
+                  label: _viewSentMessageLabel(),
+                  accent: const Color(0xFF9FD8AC),
+                  onTap: _showSentMessageInThread,
+                );
+          final actionPivots = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              openThreadAction,
+              composerAction,
+              ...?sentMessageAction == null
+                  ? null
+                  : <Widget>[sentMessageAction],
+              scopeAction,
+            ],
+          );
+          final details = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'CLIENT COMMS FOCUS',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Focus lane: ${activeRoom.displayName}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFF4F8FF),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                filterScopeLabel,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFD7E7FA),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _pill(
+                    'Unread $unreadNotifications',
+                    const Color(0xFFFFD6A5),
+                    const Color(0xFF8A5A1C),
+                  ),
+                  _pill(
+                    'Pending $pendingAcknowledgements',
+                    const Color(0xFFC9B8FF),
+                    const Color(0xFF6352A3),
+                  ),
+                  _pill(
+                    'Push Ready $pushReadyCount',
+                    const Color(0xFFFFB5C6),
+                    const Color(0xFF8A3D4A),
+                  ),
+                  if (selectedIncidentGroup != null)
+                    _pill(
+                      'Thread ${selectedIncidentGroup.referenceLabel}',
+                      const Color(0xFFB9D9FF),
+                      const Color(0xFF2A5D91),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              roomPivots,
+            ],
+          );
+          if (compact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [details, const SizedBox(height: 12), actionPivots],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: details),
+              const SizedBox(width: 16),
+              SizedBox(
+                width: 280,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [actionPivots],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _bannerRoomPivot(_ClientRoom room, {required bool selected}) {
+    final accent = selected
+        ? const Color(0xFF8FD1FF)
+        : room.unread > 0
+        ? const Color(0xFFFFD6A5)
+        : const Color(0xFFB9D9FF);
+    return InkWell(
+      key: ValueKey('client-comms-banner-room-${room.key}'),
+      onTap: () => _setSelectedRoom(room.key),
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0x1A8FD1FF) : const Color(0x14000000),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? const Color(0x665D91C6) : const Color(0xFF223244),
+          ),
+        ),
+        child: Text(
+          '${room.displayName} ${room.unread}',
+          style: GoogleFonts.inter(
+            color: accent,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bannerActionChip({
+    required Key key,
+    required String label,
+    required Color accent,
+    required VoidCallback? onTap,
+    bool selected = false,
+  }) {
+    final enabled = onTap != null;
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.18)
+              : const Color(0xFF10273D),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.52)
+                : enabled
+                ? const Color(0xFF27425D)
+                : const Color(0xFF223244),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: enabled
+                ? (selected ? accent : const Color(0xFFEAF2FF))
+                : const Color(0xFF6B7A90),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _communicationsContextRail({
+    required _ClientRoom activeRoom,
+    required int unreadNotifications,
+    required int pendingAcknowledgements,
+    required int pushReadyCount,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+    required bool showAllRoomItems,
+  }) {
+    return Container(
+      key: const ValueKey('client-comms-workspace-panel-context'),
+      padding: const EdgeInsets.all(14),
+      decoration: onyxWorkspaceSurfaceDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Room Command Rail',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE6F0FF),
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Selected-room posture, quick handoffs, and thread/composer pivots for the active client lane.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C6),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          if (_showDesktopCommandReceipt) ...[
+            const SizedBox(height: 12),
+            _workspaceCommandReceiptCard(
+              const ValueKey('client-comms-command-receipt'),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: onyxPanelSurfaceDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _contextMetric('Lane', '${activeRoom.displayName} focus'),
+                _contextMetric('Unread', '$unreadNotifications'),
+                _contextMetric('Pending', '$pendingAcknowledgements'),
+                _contextMetric('Push Ready', '$pushReadyCount'),
+                _contextMetric(
+                  'Scope',
+                  showAllRoomItems
+                      ? _localizedShowAllLabel
+                      : _localizedShowPendingLabel,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: onyxPanelSurfaceDecoration(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Incident focus',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8FD1FF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  selectedIncidentGroup == null
+                      ? 'No active thread selected'
+                      : 'Thread ${selectedIncidentGroup.referenceLabel}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE5F1FF),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (selectedIncidentGroup != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    selectedIncidentGroup.latestEntry.headline,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9DB3CF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                _contextActionButton(
+                  key: const ValueKey('client-comms-open-thread'),
+                  label: selectedIncidentGroup == null
+                      ? 'Open first incident'
+                      : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+                  onTap: selectedIncidentGroup == null
+                      ? () => _openFirstAvailableIncidentThread(incidentFeed)
+                      : () => _reopenSelectedIncidentThread(incidentFeed),
+                ),
+                const SizedBox(height: 6),
+                _contextActionButton(
+                  key: const ValueKey('client-comms-focus-composer'),
+                  label: 'Jump to Composer',
+                  onTap: _focusChatComposer,
+                ),
+                if (_sentThreadMessageKey != null) ...[
+                  const SizedBox(height: 6),
+                  _contextActionButton(
+                    key: const ValueKey('client-comms-view-sent-message'),
+                    label: _viewSentMessageLabel(),
+                    onTap: _showSentMessageInThread,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _deliveryIncidentWorkspace({
+    required List<_ClientNotification> notifications,
+    required List<ClientAppPushDeliveryItem> pushQueue,
+    required int pushReadyCount,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 1260;
+        if (!wide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _deliverySystemsPanel(
+                notifications: notifications,
+                pushQueue: pushQueue,
+                incidentFeed: incidentFeed,
+                selectedIncidentGroup: selectedIncidentGroup,
+              ),
+              const SizedBox(height: _spaceLg),
+              _incidentFeedWorkspacePanel(
+                incidentFeed: incidentFeed,
+                selectedIncidentGroup: selectedIncidentGroup,
+              ),
+            ],
+          );
+        }
+        final selectedDelivery = _selectedPushDeliveryItem(pushQueue);
+        final selectedNotification = _notificationForPushQueueItem(
+          notifications,
+          selectedDelivery,
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _deliveryIncidentWorkspaceBanner(
+              pushQueue: pushQueue,
+              pushReadyCount: pushReadyCount,
+              selectedDelivery: selectedDelivery,
+              incidentFeed: incidentFeed,
+              selectedIncidentGroup: selectedIncidentGroup,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 304,
+                  child: Container(
+                    key: const ValueKey(
+                      'client-delivery-workspace-panel-queue',
+                    ),
+                    child: _panel(
+                      title: _localizedPushDeliveryQueueTitle,
+                      subtitle:
+                          'Select a queued or acknowledged delivery to inspect route, provider, and thread handoff.',
+                      child: _deliveryQueueRail(
+                        pushQueue,
+                        selectedNotification: selectedNotification,
+                        incidentFeed: incidentFeed,
+                        selectedIncidentGroup: selectedIncidentGroup,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    key: const ValueKey(
+                      'client-delivery-workspace-panel-board',
+                    ),
+                    child: _panel(
+                      title: 'Delivery Systems Board',
+                      subtitle:
+                          'Sync pressure, backend probe health, and the selected delivery stay in one systems board.',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _pushSyncStatusStrip(),
+                          const SizedBox(height: _spaceMd),
+                          _backendProbeHistoryList(widget.backendProbeHistory),
+                          const SizedBox(height: _spaceMd),
+                          _pushSyncHistoryList(widget.pushSyncHistory),
+                          const SizedBox(height: _spaceMd),
+                          _selectedDeliveryBoard(
+                            selectedDelivery: selectedDelivery,
+                            selectedNotification: selectedNotification,
+                            incidentFeed: incidentFeed,
+                            selectedIncidentGroup: selectedIncidentGroup,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 336,
+                  child: Container(
+                    key: const ValueKey(
+                      'client-delivery-workspace-panel-incident',
+                    ),
+                    child: _incidentFeedWorkspacePanel(
+                      incidentFeed: incidentFeed,
+                      selectedIncidentGroup: selectedIncidentGroup,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _deliveryIncidentWorkspaceBanner({
+    required List<ClientAppPushDeliveryItem> pushQueue,
+    required int pushReadyCount,
+    required ClientAppPushDeliveryItem? selectedDelivery,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    return Container(
+      key: const ValueKey('client-delivery-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF11243A), Color(0xFF0E1A2B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2B4F73)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'DELIVERY COMMAND WORKSPACE',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            selectedDelivery == null
+                ? 'Delivery telemetry is active while incident-thread handoff remains available.'
+                : '${selectedDelivery.title} is pinned in the systems board while the incident rail stays live.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF4F8FF),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(
+                'Queue ${pushQueue.length}',
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
+              ),
+              _pill(
+                'Ready $pushReadyCount',
+                const Color(0xFFFFB5C6),
+                const Color(0xFF8A3D4A),
+              ),
+              _pill(
+                'Incidents ${incidentFeed.length}',
+                const Color(0xFFB9D9FF),
+                const Color(0xFF2A5D91),
+              ),
+              if (selectedIncidentGroup != null)
+                _pill(
+                  'Thread ${selectedIncidentGroup.referenceLabel}',
+                  const Color(0xFFC9B8FF),
+                  const Color(0xFF6352A3),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _bannerActionChip(
+                key: const ValueKey('client-delivery-workspace-retry-sync'),
+                label: 'Retry Push Sync',
+                accent: const Color(0xFF8FD1FF),
+                onTap: widget.onRetryPushSync == null
+                    ? null
+                    : () async {
+                        await widget.onRetryPushSync!.call();
+                      },
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-delivery-workspace-run-probe'),
+                label: 'Run Backend Probe',
+                accent: const Color(0xFF9FD8AC),
+                onTap: widget.onRunBackendProbe == null
+                    ? null
+                    : () async {
+                        await widget.onRunBackendProbe!.call();
+                      },
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-delivery-workspace-open-thread'),
+                label: selectedIncidentGroup == null
+                    ? 'Open first incident'
+                    : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+                accent: const Color(0xFFC9B8FF),
+                onTap: selectedIncidentGroup == null
+                    ? () => _openFirstAvailableIncidentThread(incidentFeed)
+                    : () => _reopenSelectedIncidentThread(incidentFeed),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _deliverySystemsPanel({
+    required List<_ClientNotification> notifications,
+    required List<ClientAppPushDeliveryItem> pushQueue,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    final selectedDelivery = _selectedPushDeliveryItem(pushQueue);
+    final selectedNotification = _notificationForPushQueueItem(
+      notifications,
+      selectedDelivery,
+    );
+    return _panel(
+      title: _localizedPushDeliveryQueueTitle,
+      subtitle: _localizedPushDeliveryQueueSubtitle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _pushSyncStatusStrip(),
+          const SizedBox(height: _spaceMd),
+          _backendProbeHistoryList(widget.backendProbeHistory),
+          const SizedBox(height: _spaceMd),
+          _pushSyncHistoryList(widget.pushSyncHistory),
+          const SizedBox(height: _spaceMd),
+          _selectedDeliveryBoard(
+            selectedDelivery: selectedDelivery,
+            selectedNotification: selectedNotification,
+            incidentFeed: incidentFeed,
+            selectedIncidentGroup: selectedIncidentGroup,
+            includeQueueRail: true,
+            pushQueue: pushQueue,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _incidentFeedWorkspacePanel({
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    return _panel(
+      title: _viewerRole.incidentFeedPanelTitleForLocale(widget.locale),
+      subtitle: _viewerRole.incidentFeedPanelSubtitleForLocale(widget.locale),
+      subtitleAction: selectedIncidentGroup == null
+          ? null
+          : TextButton(
+              onPressed: () => _reopenSelectedIncidentThread(incidentFeed),
+              style: _inlineHandoffButtonStyle(const Color(0xFF8FD1FF)),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Icon(_viewerRole.selectedIncidentHeaderIcon, size: 14),
+                  Text(
+                    _viewerRole.selectedIncidentHeaderLabel(
+                      selectedIncidentGroup.referenceLabel,
+                    ),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      headerAction: selectedIncidentGroup == null
+          ? TextButton(
+              key: const ValueKey('incident-feed-open-first-action'),
+              onPressed: () => _openFirstAvailableIncidentThread(incidentFeed),
+              style: _inlineHandoffButtonStyle(
+                const Color(0xFF8FD1FF),
+                disabledForegroundColor: const Color(0xFF5B7294),
+              ),
+              child: Text(
+                _viewerRole.noSelectedIncidentLabel,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_showDesktopCommandReceipt) ...[
+            _workspaceCommandReceiptCard(
+              const ValueKey('client-delivery-command-receipt'),
+            ),
+            const SizedBox(height: _spaceMd),
+          ],
+          _incidentCommandDeck(
+            incidentFeed: incidentFeed,
+            selectedIncidentGroup: selectedIncidentGroup,
+          ),
+          const SizedBox(height: _spaceMd),
+          _incidentFeedList(incidentFeed),
+        ],
+      ),
+    );
+  }
+
+  Widget _incidentCommandDeck({
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    final roomKey = _selectedRoomFor(_viewerRole);
+    final showAllRoomItems = _showAllRoomItemsFor(_viewerRole);
+    final expandedReference = _expandedIncidentReferenceFor(_viewerRole);
+    final selectedReference =
+        _selectedIncidentReferenceByRole[_viewerRole.name] ??
+        selectedIncidentGroup?.referenceLabel;
+    final selectedExpanded =
+        expandedReference != null && expandedReference == selectedReference;
+
+    return Container(
+      key: const ValueKey('client-incident-command-deck'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2B4F73)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'INCIDENT COMMAND RAIL',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            selectedIncidentGroup == null
+                ? 'The incident rail is armed. Open the first ready thread or widen scope without leaving the workspace.'
+                : 'Thread ${selectedIncidentGroup.referenceLabel} is holding the live incident focus while review, expansion, and composer pivots stay within reach.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(
+                'Lane ${_roomDisplayNameForKey(roomKey)}',
+                const Color(0xFFB9D9FF),
+                const Color(0xFF2A5D91),
+              ),
+              _pill(
+                showAllRoomItems
+                    ? _localizedShowAllLabel
+                    : _localizedShowPendingLabel,
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
+              ),
+              _pill(
+                'Threads ${incidentFeed.length}',
+                const Color(0xFFC9B8FF),
+                const Color(0xFF6352A3),
+              ),
+              if (selectedIncidentGroup != null)
+                _pill(
+                  'Focus ${selectedIncidentGroup.referenceLabel}',
+                  const Color(0xFFFFB5C6),
+                  const Color(0xFF8A3D4A),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Recommended next move',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _bannerActionChip(
+                key: const ValueKey('client-incident-command-primary-action'),
+                label: selectedIncidentGroup == null
+                    ? 'Open first incident'
+                    : _viewerRole.incidentFeedActionLabel,
+                accent: const Color(0xFF8FD1FF),
+                onTap: selectedIncidentGroup == null
+                    ? () => _openFirstAvailableIncidentThread(incidentFeed)
+                    : () => _showIncidentFeedDetail(selectedIncidentGroup),
+              ),
+              if (selectedIncidentGroup != null)
+                _bannerActionChip(
+                  key: const ValueKey(
+                    'client-incident-command-toggle-expansion',
+                  ),
+                  label: selectedExpanded
+                      ? _viewerRole.incidentToggleActionLabel(true)
+                      : _viewerRole.incidentToggleActionLabel(false),
+                  accent: const Color(0xFFC9B8FF),
+                  selected: selectedExpanded,
+                  onTap: () => _toggleIncidentFeedExpansion(
+                    selectedIncidentGroup.referenceLabel,
+                  ),
+                ),
+              _bannerActionChip(
+                key: const ValueKey('client-incident-command-focus-composer'),
+                label: 'Jump to Composer',
+                accent: const Color(0xFF9FD8AC),
+                onTap: _focusChatComposer,
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-incident-command-toggle-scope'),
+                label: showAllRoomItems
+                    ? _localizedShowPendingLabel
+                    : _localizedShowAllLabel,
+                accent: const Color(0xFFFFD6A5),
+                selected: showAllRoomItems,
+                onTap: _toggleShowAllRoomItems,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _deliveryQueueRail(
+    List<ClientAppPushDeliveryItem> items, {
+    required _ClientNotification? selectedNotification,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    if (items.isEmpty) {
+      return _deliveryRecoveryDeck(
+        key: const ValueKey('client-delivery-queue-empty-recovery'),
+        eyebrow: 'DELIVERY RAIL READY',
+        title: _localizedNoPushNotificationsQueuedYet,
+        summary:
+            'The queue rail stays armed so operators can retry sync, probe delivery health, or keep incident handoff moving without leaving this workspace.',
+        accent: const Color(0xFFFFD6A5),
+        metrics: [
+          _pill('Queue 0', const Color(0xFFFFD6A5), const Color(0xFF8A5A1C)),
+          _pill(
+            'Incidents ${incidentFeed.length}',
+            const Color(0xFFB9D9FF),
+            const Color(0xFF2A5D91),
+          ),
+        ],
+        actions: _deliveryRecoveryActions(
+          incidentFeed: incidentFeed,
+          selectedIncidentGroup: selectedIncidentGroup,
+          includeComposer: false,
+        ),
+      );
+    }
+    final selectedDelivery = _selectedPushDeliveryItem(items);
+    final queuedCount = items
+        .where((item) => item.status == ClientPushDeliveryStatus.queued)
+        .length;
+    final deliveredCount = items.length - queuedCount;
+    final visibleItems = items.take(_maxPushQueueRows).toList(growable: false);
+    final hiddenItems = items.length - visibleItems.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _deliveryQueueCommandDeck(
+          selectedDelivery: selectedDelivery,
+          selectedNotification: selectedNotification,
+          totalCount: items.length,
+          queuedCount: queuedCount,
+          deliveredCount: deliveredCount,
+          incidentFeed: incidentFeed,
+          selectedIncidentGroup: selectedIncidentGroup,
+        ),
+        const SizedBox(height: 12),
+        for (final item in visibleItems) ...[
+          _deliveryQueueCard(
+            item,
+            isSelected:
+                _selectedPushDeliveryItem(items)?.messageKey == item.messageKey,
+            selectedNotification:
+                selectedDelivery?.messageKey == item.messageKey
+                ? selectedNotification
+                : null,
+          ),
+          const SizedBox(height: 10),
+        ],
+        if (hiddenItems > 0)
+          OnyxTruncationHint(
+            visibleCount: visibleItems.length,
+            totalCount: items.length,
+            subject: 'queue rows',
+            color: const Color(0xFF87A5C8),
+          ),
+      ],
+    );
+  }
+
+  Widget _deliveryQueueCommandDeck({
+    required ClientAppPushDeliveryItem? selectedDelivery,
+    required _ClientNotification? selectedNotification,
+    required int totalCount,
+    required int queuedCount,
+    required int deliveredCount,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    final openThread = selectedIncidentGroup == null
+        ? () => _openFirstAvailableIncidentThread(incidentFeed)
+        : () => _reopenSelectedIncidentThread(incidentFeed);
+    final canSendNow =
+        selectedNotification != null &&
+        _canSendNotificationActionNow(selectedNotification.systemType);
+    final primaryLabel = selectedNotification == null
+        ? (selectedIncidentGroup == null
+              ? 'Open first incident'
+              : 'Reopen ${selectedIncidentGroup.referenceLabel}')
+        : canSendNow
+        ? _notificationSendNowLabelFor(selectedNotification.systemType)
+        : _notificationActionLabelFor(selectedNotification.systemType);
+    final primaryAccent = selectedNotification == null
+        ? const Color(0xFF8FD1FF)
+        : canSendNow
+        ? const Color(0xFF9FD8AC)
+        : selectedNotification.systemType.textColor;
+
+    return Container(
+      key: const ValueKey('client-delivery-queue-command-deck'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2B4F73)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'DELIVERY QUEUE COMMAND',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFFFD6A5),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            selectedDelivery == null
+                ? 'The queue rail is armed. Pick the next delivery row or reopen the linked incident thread.'
+                : '${selectedDelivery.title} is holding the active queue focus while sync, thread handoff, and alert actions stay within reach.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(
+                'Queue $totalCount',
+                const Color(0xFFC9B8FF),
+                const Color(0xFF6352A3),
+              ),
+              _pill(
+                'Queued $queuedCount',
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
+              ),
+              _pill(
+                'Delivered $deliveredCount',
+                const Color(0xFF9FD8AC),
+                const Color(0xFF235C47),
+              ),
+              if (selectedDelivery != null)
+                _pill(
+                  selectedDelivery.targetChannel.displayLabel,
+                  const Color(0xFFB9D9FF),
+                  const Color(0xFF2A5D91),
+                ),
+              if (selectedIncidentGroup != null)
+                _pill(
+                  'Thread ${selectedIncidentGroup.referenceLabel}',
+                  const Color(0xFFFFB5C6),
+                  const Color(0xFF8A3D4A),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Recommended next move',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFFFD6A5),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _bannerActionChip(
+                key: const ValueKey('client-delivery-queue-primary-action'),
+                label: primaryLabel,
+                accent: primaryAccent,
+                onTap: selectedNotification == null
+                    ? openThread
+                    : canSendNow
+                    ? () => _sendNotificationAction(selectedNotification)
+                    : () => _focusDraftNotificationAction(selectedNotification),
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-delivery-queue-open-thread'),
+                label: selectedIncidentGroup == null
+                    ? 'Open first incident'
+                    : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+                accent: const Color(0xFF8FD1FF),
+                onTap: openThread,
+              ),
+              if (widget.onRetryPushSync != null)
+                _bannerActionChip(
+                  key: const ValueKey('client-delivery-queue-retry-sync'),
+                  label: _localizedRetryPushSyncLabel,
+                  accent: const Color(0xFFB9D9FF),
+                  onTap: () async {
+                    await widget.onRetryPushSync!.call();
+                  },
+                ),
+              if (widget.onRunBackendProbe != null)
+                _bannerActionChip(
+                  key: const ValueKey('client-delivery-queue-run-probe'),
+                  label: _localizedRunBackendProbeLabel,
+                  accent: const Color(0xFF9FD8AC),
+                  onTap: () async {
+                    await widget.onRunBackendProbe!.call();
+                  },
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _deliveryQueueCard(
+    ClientAppPushDeliveryItem item, {
+    required bool isSelected,
+    required _ClientNotification? selectedNotification,
+  }) {
+    final accent = item.status == ClientPushDeliveryStatus.queued
+        ? const Color(0xFFFFB5C6)
+        : const Color(0xFF9FD8AC);
+    return InkWell(
+      key: ValueKey('client-delivery-queue-item-${item.messageKey}'),
+      onTap: () => _selectPushDeliveryItem(item.messageKey),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF5D91C6)
+                : const Color(0xFF223244),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _pill(
+                  item.status == ClientPushDeliveryStatus.queued
+                      ? _localizedQueuedStatus
+                      : _localizedDeliveredStatus,
+                  accent,
+                  const Color(0xFF223244),
+                ),
+                _pill(
+                  item.targetChannel.displayLabel,
+                  const Color(0xFFB9D9FF),
+                  const Color(0xFF223244),
+                ),
+                _pill(
+                  _localizedDeliveryProviderLabel(item.deliveryProvider),
+                  const Color(0xFFC9B8FF),
+                  const Color(0xFF6352A3),
+                ),
+                if (isSelected)
+                  _pill(
+                    'Current focus',
+                    const Color(0xFF8FD1FF),
+                    const Color(0xFF2A5D91),
+                  ),
+                Text(
+                  item.timeLabel,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7FA8D5),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              item.title,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE5F1FF),
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.body,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9AB4D8),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(height: 10),
+              Text(
+                selectedNotification == null
+                    ? 'Recommended next move: reopen the linked incident thread from the queue rail.'
+                    : 'Recommended next move: ${_canSendNotificationActionNow(selectedNotification.systemType) ? _notificationSendNowLabelFor(selectedNotification.systemType) : _notificationActionLabelFor(selectedNotification.systemType)}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFFFD6A5),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  ClientAppPushDeliveryItem? _selectedPushDeliveryItem(
+    List<ClientAppPushDeliveryItem> items,
+  ) {
+    if (items.isEmpty) {
+      return null;
+    }
+    for (final item in items) {
+      if (item.messageKey == _selectedPushMessageKey) {
+        return item;
+      }
+    }
+    return items.first;
+  }
+
+  _ClientNotification? _notificationForPushQueueItem(
+    List<_ClientNotification> notifications,
+    ClientAppPushDeliveryItem? item,
+  ) {
+    if (item == null) {
+      return null;
+    }
+    for (final notification in notifications) {
+      if (notification.messageKey == item.messageKey) {
+        return notification;
+      }
+    }
+    return null;
+  }
+
+  _ClientNotification _selectedNotificationItem(
+    List<_ClientNotification> items,
+  ) {
+    for (final item in items) {
+      if (item.messageKey == _selectedNotificationMessageKey) {
+        return item;
+      }
+    }
+    return items.first;
+  }
+
+  void _selectNotificationItem(String messageKey) {
+    if (_selectedNotificationMessageKey == messageKey) {
+      return;
+    }
+    setState(() {
+      _selectedNotificationMessageKey = messageKey;
+    });
+    logUiAction(
+      'client_app.select_notification_item',
+      context: {'message_key': messageKey, 'role': _viewerRole.name},
+    );
+  }
+
+  void _selectPushDeliveryItem(String messageKey) {
+    if (_selectedPushMessageKey == messageKey) {
+      return;
+    }
+    setState(() {
+      _selectedPushMessageKey = messageKey;
+    });
+    logUiAction(
+      'client_app.select_delivery_item',
+      context: {'message_key': messageKey, 'role': _viewerRole.name},
+    );
+  }
+
+  Widget _selectedDeliveryBoard({
+    required ClientAppPushDeliveryItem? selectedDelivery,
+    required _ClientNotification? selectedNotification,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+    bool includeQueueRail = false,
+    List<ClientAppPushDeliveryItem> pushQueue = const [],
+  }) {
+    final openThread = selectedIncidentGroup == null
+        ? () => _openFirstAvailableIncidentThread(incidentFeed)
+        : () => _reopenSelectedIncidentThread(incidentFeed);
+    return Container(
+      key: const ValueKey('client-delivery-workspace-selected-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'SELECTED DELIVERY',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (includeQueueRail) ...[
+            _deliveryQueueRail(
+              pushQueue,
+              selectedNotification: selectedNotification,
+              incidentFeed: incidentFeed,
+              selectedIncidentGroup: selectedIncidentGroup,
+            ),
+            const SizedBox(height: _spaceMd),
+          ],
+          if (selectedDelivery == null)
+            _deliveryRecoveryDeck(
+              key: const ValueKey('client-delivery-selected-empty-recovery'),
+              eyebrow: 'SYSTEMS BOARD STANDBY',
+              title: 'No delivery is pinned in the systems board.',
+              summary:
+                  'Delivery telemetry is still live. Reopen an incident thread, retry sync, run a backend probe, or jump back into the composer from this board.',
+              accent: const Color(0xFF8FD1FF),
+              metrics: [
+                _pill(
+                  'Queue ${pushQueue.length}',
+                  const Color(0xFFFFD6A5),
+                  const Color(0xFF8A5A1C),
+                ),
+                _pill(
+                  'Incidents ${incidentFeed.length}',
+                  const Color(0xFFB9D9FF),
+                  const Color(0xFF2A5D91),
+                ),
+                if (selectedIncidentGroup != null)
+                  _pill(
+                    'Thread ${selectedIncidentGroup.referenceLabel}',
+                    const Color(0xFFC9B8FF),
+                    const Color(0xFF6352A3),
+                  ),
+              ],
+              actions: _deliveryRecoveryActions(
+                incidentFeed: incidentFeed,
+                selectedIncidentGroup: selectedIncidentGroup,
+                includeComposer: true,
+              ),
+            )
+          else ...[
+            Text(
+              selectedDelivery.title,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE5F1FF),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              selectedDelivery.body,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9AB4D8),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _pill(
+                  selectedDelivery.targetChannel.displayLabel,
+                  const Color(0xFFB9D9FF),
+                  const Color(0xFF223244),
+                ),
+                _pill(
+                  _localizedDeliveryProviderLabel(
+                    selectedDelivery.deliveryProvider,
+                  ),
+                  const Color(0xFFC9B8FF),
+                  const Color(0xFF6352A3),
+                ),
+                _pill(
+                  selectedDelivery.status == ClientPushDeliveryStatus.queued
+                      ? _localizedQueuedStatus
+                      : _localizedDeliveredStatus,
+                  selectedDelivery.status == ClientPushDeliveryStatus.queued
+                      ? const Color(0xFFFFB5C6)
+                      : const Color(0xFF9FD8AC),
+                  const Color(0xFF223244),
+                ),
+                _pill(
+                  selectedDelivery.timeLabel,
+                  const Color(0xFFFFD6A5),
+                  const Color(0xFF8A5A1C),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (selectedNotification != null)
+                  OutlinedButton(
+                    key: const ValueKey('client-delivery-open-draft'),
+                    onPressed: () =>
+                        _focusDraftNotificationAction(selectedNotification),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          selectedNotification.systemType.textColor,
+                      side: BorderSide(
+                        color: selectedNotification.systemType.borderColor,
+                      ),
+                    ),
+                    child: Text(
+                      _notificationActionLabelFor(
+                        selectedNotification.systemType,
+                      ),
+                    ),
+                  ),
+                if (selectedNotification != null &&
+                    _canSendNotificationActionNow(
+                      selectedNotification.systemType,
+                    ))
+                  TextButton(
+                    key: const ValueKey('client-delivery-send-now'),
+                    onPressed: () =>
+                        _sendNotificationAction(selectedNotification),
+                    child: Text(
+                      _notificationSendNowLabelFor(
+                        selectedNotification.systemType,
+                      ),
+                    ),
+                  ),
+                OutlinedButton(
+                  key: const ValueKey('client-delivery-open-thread'),
+                  onPressed: openThread,
+                  child: Text(
+                    selectedIncidentGroup == null
+                        ? 'Open First Incident'
+                        : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+                  ),
+                ),
+                if (widget.onRetryPushSync != null)
+                  OutlinedButton(
+                    key: const ValueKey('client-delivery-retry-sync'),
+                    onPressed: () async {
+                      await widget.onRetryPushSync!.call();
+                    },
+                    child: Text(_localizedRetryPushSyncLabel),
+                  ),
+                if (widget.onRunBackendProbe != null)
+                  OutlinedButton(
+                    key: const ValueKey('client-delivery-run-probe'),
+                    onPressed: () async {
+                      await widget.onRunBackendProbe!.call();
+                    },
+                    child: Text(_localizedRunBackendProbeLabel),
+                  ),
+                if (_sentNotificationMessageKey ==
+                        selectedDelivery.messageKey &&
+                    _sentThreadMessageKey != null)
+                  TextButton(
+                    key: const ValueKey('client-delivery-view-thread'),
+                    onPressed: _showSentMessageInThread,
+                    child: Text(_viewSentMessageLabel()),
+                  ),
+              ],
+            ),
+            if (selectedNotification != null &&
+                !_canSendNotificationActionNow(
+                  selectedNotification.systemType,
+                )) ...[
+              const SizedBox(height: 8),
+              Text(
+                _draftRequiredHintFor(selectedNotification.systemType),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AB4D8),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _deliveryRecoveryDeck({
+    required Key key,
+    required String eyebrow,
+    required String title,
+    required String summary,
+    required Color accent,
+    required List<Widget> metrics,
+    required List<Widget> actions,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            eyebrow,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            summary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB4D8),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          if (metrics.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: metrics),
+          ],
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _deliveryRecoveryActions({
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+    required bool includeComposer,
+  }) {
+    return [
+      _bannerActionChip(
+        key: const ValueKey('client-delivery-recovery-open-thread'),
+        label: selectedIncidentGroup == null
+            ? 'Open first incident'
+            : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+        accent: const Color(0xFF8FD1FF),
+        onTap: selectedIncidentGroup == null
+            ? () => _openFirstAvailableIncidentThread(incidentFeed)
+            : () => _reopenSelectedIncidentThread(incidentFeed),
+      ),
+      if (widget.onRetryPushSync != null)
+        _bannerActionChip(
+          key: const ValueKey('client-delivery-recovery-retry-sync'),
+          label: 'Retry Push Sync',
+          accent: const Color(0xFFFFD6A5),
+          onTap: () async {
+            await widget.onRetryPushSync!.call();
+          },
+        ),
+      if (widget.onRunBackendProbe != null)
+        _bannerActionChip(
+          key: const ValueKey('client-delivery-recovery-run-probe'),
+          label: 'Run Backend Probe',
+          accent: const Color(0xFF9FD8AC),
+          onTap: () async {
+            await widget.onRunBackendProbe!.call();
+          },
+        ),
+      if (includeComposer)
+        _bannerActionChip(
+          key: const ValueKey('client-delivery-recovery-focus-composer'),
+          label: 'Jump to Composer',
+          accent: const Color(0xFFC9B8FF),
+          onTap: _focusChatComposer,
+        ),
+    ];
+  }
+
+  Widget _contextMetric(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA5C6),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE5F1FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _contextActionButton({
+    required Key key,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0D1117),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFF2A374A)),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFD9E7FA),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool get _showDesktopCommandReceipt => true;
+
+  void _showClientCommandFeedback(
+    String message, {
+    String label = 'INCIDENT HANDOFF',
+    String? detail,
+    Color accent = const Color(0xFF8FD1FF),
+  }) {
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _commandReceipt = _ClientCommandReceipt(
+        label: label,
+        message: message,
+        detail:
+            detail ??
+            'The latest workspace command remains pinned in the incident rail.',
+        accent: accent,
+      );
+    });
+  }
+
+  Widget _workspaceCommandReceiptCard(Key key) {
+    final receipt = _commandReceipt;
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: receipt.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LATEST COMMAND',
+            style: GoogleFonts.inter(
+              color: receipt.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            receipt.label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            receipt.message,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            receipt.detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _notificationsList(
     List<_ClientNotification> items, {
     required int totalCount,
     required int hiddenCount,
+    required String roomDisplayName,
+    required bool showAllRoomItems,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
   }) {
     if (items.isEmpty) {
-      return _emptyBox(_viewerRole.notificationsEmptyLabel);
+      return _deliveryRecoveryDeck(
+        key: const ValueKey('client-notifications-empty-recovery'),
+        eyebrow: 'ALERT FEED READY',
+        title: _viewerRole.notificationsEmptyLabel,
+        summary:
+            'This notification lane is quiet right now, but the shell stays armed so you can widen scope, reopen an incident thread, or pivot back into message drafting.',
+        accent: const Color(0xFFFFD6A5),
+        metrics: [
+          _pill(
+            'Lane $roomDisplayName',
+            const Color(0xFFB9D9FF),
+            const Color(0xFF2A5D91),
+          ),
+          _pill(
+            showAllRoomItems
+                ? _localizedShowAllLabel
+                : _localizedShowPendingLabel,
+            const Color(0xFFFFD6A5),
+            const Color(0xFF8A5A1C),
+          ),
+          _pill(
+            'Alerts $totalCount',
+            const Color(0xFFC9B8FF),
+            const Color(0xFF6352A3),
+          ),
+        ],
+        actions: _communicationsRecoveryActions(
+          prefix: 'client-notifications-empty',
+          incidentFeed: incidentFeed,
+          selectedIncidentGroup: selectedIncidentGroup,
+          includeResetFilters: false,
+        ),
+      );
     }
+    final selectedNotification = _selectedNotificationItem(items);
     final embeddedScroll = _desktopEmbeddedScroll;
     final list = ListView.separated(
       itemCount: items.length,
       shrinkWrap: !embeddedScroll,
       primary: embeddedScroll,
       physics: embeddedScroll ? null : const NeverScrollableScrollPhysics(),
-      itemBuilder: (context, index) => _notificationRowCard(items[index]),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _notificationRowCard(
+          item,
+          selected: selectedNotification.messageKey == item.messageKey,
+        );
+      },
       separatorBuilder: (_, _) => const SizedBox(height: 10),
     );
     if (embeddedScroll) {
       return SizedBox(
-        height: 340,
+        height: 420,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _notificationsCommandDeck(
+              selectedNotification: selectedNotification,
+              totalCount: totalCount,
+              hiddenCount: hiddenCount,
+              showAllRoomItems: showAllRoomItems,
+              incidentFeed: incidentFeed,
+              selectedIncidentGroup: selectedIncidentGroup,
+            ),
+            const SizedBox(height: 12),
             Expanded(child: list),
             if (hiddenCount > 0) ...[
               const SizedBox(height: 8),
@@ -967,6 +2881,15 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _notificationsCommandDeck(
+          selectedNotification: selectedNotification,
+          totalCount: totalCount,
+          hiddenCount: hiddenCount,
+          showAllRoomItems: showAllRoomItems,
+          incidentFeed: incidentFeed,
+          selectedIncidentGroup: selectedIncidentGroup,
+        ),
+        const SizedBox(height: 12),
         list,
         if (hiddenCount > 0) ...[
           const SizedBox(height: 8),
@@ -981,292 +2904,390 @@ class _ClientAppPageState extends State<ClientAppPage> {
     );
   }
 
-  Widget _notificationRowCard(_ClientNotification item) {
+  Widget _notificationsCommandDeck({
+    required _ClientNotification selectedNotification,
+    required int totalCount,
+    required int hiddenCount,
+    required bool showAllRoomItems,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
+    final canSendNow = _canSendNotificationActionNow(
+      selectedNotification.systemType,
+    );
     return Container(
-      padding: const EdgeInsets.all(12),
+      key: const ValueKey('client-notifications-command-deck'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: const Color(0xFF101A2B),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: item.priority
-              ? item.systemType.priorityBorderColor
-              : item.systemType.cardBorderColor,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 10,
-            offset: Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFF2B4F73)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'ALERT COMMAND DECK',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFFFD6A5),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${selectedNotification.title} is the active alert focus. Draft, send, or pivot the lane without leaving the rail.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
           Wrap(
             spacing: 8,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
+            runSpacing: 8,
             children: [
               _pill(
-                item.systemType.label,
-                item.systemType.textColor,
-                item.systemType.borderColor,
+                selectedNotification.systemType.label,
+                selectedNotification.systemType.textColor,
+                selectedNotification.systemType.borderColor,
+                icon: selectedNotification.systemType.icon,
               ),
               _pill(
-                item.priority ? 'Priority' : 'Info',
-                item.priority
+                selectedNotification.priority ? 'Priority' : 'Info',
+                selectedNotification.priority
                     ? const Color(0xFFFFD3D8)
                     : const Color(0xFFB9D9FF),
-                item.priority
+                selectedNotification.priority
                     ? const Color(0xFF8A3D4A)
                     : const Color(0xFF223244),
+              ),
+              _pill(
+                'Alerts $totalCount',
+                const Color(0xFFC9B8FF),
+                const Color(0xFF6352A3),
+              ),
+              _pill(
+                showAllRoomItems
+                    ? _localizedShowAllLabel
+                    : _localizedShowPendingLabel,
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
               ),
               _pill(
                 _notificationTargetBadgeLabel(),
                 const Color(0xFFCBE6FF),
                 const Color(0xFF35679B),
               ),
-              Text(
-                item.timeLabel,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF7FA8D5),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+              if (hiddenCount > 0)
+                _pill(
+                  'Hidden $hiddenCount',
+                  const Color(0xFF9FD8AC),
+                  const Color(0xFF235C47),
                 ),
-              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(
-                item.systemType.icon,
-                size: 14,
-                color: item.systemType.textColor,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  item.title,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFE5F1FF),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 12),
           Text(
-            item.body,
+            'Recommended next move',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFFFD6A5),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _bannerActionChip(
+                key: const ValueKey('client-notifications-primary-action'),
+                label: canSendNow
+                    ? _notificationSendNowLabelFor(
+                        selectedNotification.systemType,
+                      )
+                    : _notificationActionLabelFor(
+                        selectedNotification.systemType,
+                      ),
+                accent: canSendNow
+                    ? const Color(0xFF9FD8AC)
+                    : selectedNotification.systemType.textColor,
+                onTap: canSendNow
+                    ? () => _sendNotificationAction(selectedNotification)
+                    : () => _focusDraftNotificationAction(selectedNotification),
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-notifications-open-thread-action'),
+                label: selectedIncidentGroup == null
+                    ? 'Open first incident'
+                    : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+                accent: const Color(0xFF8FD1FF),
+                onTap: selectedIncidentGroup == null
+                    ? () => _openFirstAvailableIncidentThread(incidentFeed)
+                    : () => _reopenSelectedIncidentThread(incidentFeed),
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-notifications-toggle-scope'),
+                label: showAllRoomItems
+                    ? _localizedShowPendingLabel
+                    : _localizedShowAllLabel,
+                accent: const Color(0xFFFFD6A5),
+                selected: showAllRoomItems,
+                onTap: _toggleShowAllRoomItems,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            selectedNotification.body,
             style: GoogleFonts.inter(
               color: const Color(0xFF9AB4D8),
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 10,
-            runSpacing: 4,
-            children: [
-              _notificationPrimaryAction(
-                item,
-                label: _notificationActionLabelFor(item.systemType),
-              ),
-              if (_canSendNotificationActionNow(item.systemType))
-                _notificationSendNowAction(item),
-            ],
-          ),
-          if (_sentNotificationMessageKey == item.messageKey) ...[
-            const SizedBox(height: 4),
-            TextButton(
-              onPressed: _showSentMessageInThread,
-              style: _inlineHandoffButtonStyle(item.systemType.textColor),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    _notificationSentLabelFor(item.systemType),
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFB9E2FF),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    _viewSentMessageLabel(),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-          if (!_canSendNotificationActionNow(item.systemType)) ...[
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  _draftRequiredHintFor(item.systemType),
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF9AB4D8),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => _focusDraftNotificationAction(item),
-                  style: _inlineHandoffButtonStyle(item.systemType.textColor),
-                  child: Text(
-                    _draftReadyLabelFor(item.systemType),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (_draftOpenedMessageKey == item.messageKey)
-                  Text(
-                    _draftOpenedLabelFor(item.systemType),
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFB9E2FF),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 8),
-          _acknowledgementControls(item.messageKey, item.acknowledgements),
         ],
       ),
     );
   }
 
-  Widget _pushQueueList(List<ClientAppPushDeliveryItem> items) {
-    if (items.isEmpty) {
-      return _emptyBox(_localizedNoPushNotificationsQueuedYet);
-    }
-    final visibleItems = items.take(_maxPushQueueRows).toList(growable: false);
-    final hiddenItems = items.length - visibleItems.length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ...visibleItems.map(
-          (item) => Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E1A2B),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: item.status == ClientPushDeliveryStatus.queued
-                    ? const Color(0xFFB94C63)
-                    : const Color(0xFF2D6A46),
-              ),
+  Widget _notificationRowCard(
+    _ClientNotification item, {
+    required bool selected,
+  }) {
+    return InkWell(
+      key: ValueKey('client-notification-row-${item.messageKey}'),
+      onTap: () => _selectNotificationItem(item.messageKey),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? const Color(0xFF5D91C6)
+                : item.priority
+                ? item.systemType.priorityBorderColor
+                : item.systemType.cardBorderColor,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x12000000),
+              blurRadius: 10,
+              offset: Offset(0, 6),
             ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final stacked = constraints.maxWidth < 700;
-                final statusBadge = Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _pill(
+                  item.systemType.label,
+                  item.systemType.textColor,
+                  item.systemType.borderColor,
+                ),
+                _pill(
+                  item.priority ? 'Priority' : 'Info',
+                  item.priority
+                      ? const Color(0xFFFFD3D8)
+                      : const Color(0xFFB9D9FF),
+                  item.priority
+                      ? const Color(0xFF8A3D4A)
+                      : const Color(0xFF223244),
+                ),
+                _pill(
+                  _notificationTargetBadgeLabel(),
+                  const Color(0xFFCBE6FF),
+                  const Color(0xFF35679B),
+                ),
+                if (selected)
+                  _pill(
+                    'Current focus',
+                    const Color(0xFF8FD1FF),
+                    const Color(0xFF2A5D91),
                   ),
-                  decoration: BoxDecoration(
-                    color: item.status == ClientPushDeliveryStatus.queued
-                        ? const Color(0x332D6A46)
-                        : const Color(0x331F5E83),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: item.status == ClientPushDeliveryStatus.queued
-                          ? const Color(0xFF9FD8AC)
-                          : const Color(0xFF8FD1FF),
-                    ),
+                Text(
+                  item.timeLabel,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7FA8D5),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
+                  item.systemType.icon,
+                  size: 14,
+                  color: item.systemType.textColor,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
                   child: Text(
-                    item.status == ClientPushDeliveryStatus.queued
-                        ? _localizedQueuedStatus
-                        : _localizedDeliveredStatus,
+                    item.title,
                     style: GoogleFonts.inter(
-                      color: item.status == ClientPushDeliveryStatus.queued
-                          ? const Color(0xFF9FD8AC)
-                          : const Color(0xFF8FD1FF),
-                      fontSize: 11,
+                      color: const Color(0xFFE5F1FF),
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                );
-                final details = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.body,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9AB4D8),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              children: [
+                _notificationPrimaryAction(
+                  item,
+                  label: _notificationActionLabelFor(item.systemType),
+                ),
+                if (_canSendNotificationActionNow(item.systemType))
+                  _notificationSendNowAction(item),
+              ],
+            ),
+            if (_sentNotificationMessageKey == item.messageKey) ...[
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: _showSentMessageInThread,
+                style: _inlineHandoffButtonStyle(item.systemType.textColor),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
-                      item.title,
+                      _notificationSentLabelFor(item.systemType),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE5F1FF),
-                        fontSize: 13,
+                        color: const Color(0xFFB9E2FF),
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
                     Text(
-                      item.body,
+                      _viewSentMessageLabel(),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9DB3CF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '$_localizedTargetPrefix: ${item.targetChannel.displayLabel} • $_localizedBridgePrefix: ${_localizedDeliveryProviderLabel(item.deliveryProvider)} • ${item.timeLabel}',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF7FA2C9),
                         fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
-                );
-                if (stacked) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [details, const SizedBox(height: 8), statusBadge],
-                  );
-                }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: details),
-                    const SizedBox(width: 10),
-                    statusBadge,
-                  ],
-                );
-              },
-            ),
-          ),
+                ),
+              ),
+            ],
+            if (!_canSendNotificationActionNow(item.systemType)) ...[
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    _draftRequiredHintFor(item.systemType),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB4D8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _focusDraftNotificationAction(item),
+                    style: _inlineHandoffButtonStyle(item.systemType.textColor),
+                    child: Text(
+                      _draftReadyLabelFor(item.systemType),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (_draftOpenedMessageKey == item.messageKey)
+                    Text(
+                      _draftOpenedLabelFor(item.systemType),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB9E2FF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            _acknowledgementControls(item.messageKey, item.acknowledgements),
+          ],
         ),
-        if (hiddenItems > 0)
-          OnyxTruncationHint(
-            visibleCount: visibleItems.length,
-            totalCount: items.length,
-            subject: 'queue rows',
-            color: const Color(0xFF87A5C8),
-          ),
-      ],
+      ),
     );
+  }
+
+  List<Widget> _communicationsRecoveryActions({
+    required String prefix,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+    required bool includeResetFilters,
+  }) {
+    return [
+      _bannerActionChip(
+        key: ValueKey('$prefix-open-thread'),
+        label: selectedIncidentGroup == null
+            ? 'Open first incident'
+            : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+        accent: const Color(0xFF8FD1FF),
+        onTap: selectedIncidentGroup == null
+            ? () => _openFirstAvailableIncidentThread(incidentFeed)
+            : () => _reopenSelectedIncidentThread(incidentFeed),
+      ),
+      _bannerActionChip(
+        key: ValueKey('$prefix-focus-composer'),
+        label: 'Jump to Composer',
+        accent: const Color(0xFFC9B8FF),
+        onTap: _focusChatComposer,
+      ),
+      _bannerActionChip(
+        key: ValueKey('$prefix-toggle-scope'),
+        label: _showAllRoomItemsFor(_viewerRole)
+            ? _localizedShowPendingLabel
+            : _localizedShowAllLabel,
+        accent: const Color(0xFFFFD6A5),
+        selected: _showAllRoomItemsFor(_viewerRole),
+        onTap: _toggleShowAllRoomItems,
+      ),
+      if (includeResetFilters)
+        _bannerActionChip(
+          key: ValueKey('$prefix-reset-filters'),
+          label: 'Reset Filters',
+          accent: const Color(0xFF9FD8AC),
+          onTap: _resetChatFilters,
+        ),
+    ];
   }
 
   Widget _pushSyncStatusStrip() {
@@ -1280,19 +3301,96 @@ class _ClientAppPageState extends State<ClientAppPage> {
     final probeLastRunLabel = widget.backendProbeLastRunAtUtc == null
         ? 'none'
         : _timeLabel(widget.backendProbeLastRunAtUtc!.toUtc());
+    final telemetryActions = <Widget>[
+      if (widget.onRetryPushSync != null)
+        _bannerActionChip(
+          key: const ValueKey('client-delivery-telemetry-retry-sync'),
+          label: _localizedRetryPushSyncLabel,
+          accent: const Color(0xFF8FD1FF),
+          onTap: () async {
+            await widget.onRetryPushSync!.call();
+          },
+        ),
+      if (widget.onRunBackendProbe != null)
+        _bannerActionChip(
+          key: const ValueKey('client-delivery-telemetry-run-probe'),
+          label: _localizedRunBackendProbeLabel,
+          accent: const Color(0xFF9FD8AC),
+          onTap: () async {
+            await widget.onRunBackendProbe!.call();
+          },
+        ),
+      if (widget.onClearBackendProbeHistory != null)
+        _bannerActionChip(
+          key: const ValueKey('client-delivery-telemetry-clear-probe'),
+          label: _localizedClearProbeHistoryButton,
+          accent: const Color(0xFFFFD6A5),
+          onTap: _confirmClearBackendProbeHistory,
+        ),
+    ];
     return Container(
+      key: const ValueKey('client-delivery-telemetry-strip'),
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _localizedTelegramStatusLine(widget.telegramHealthLabel.toUpperCase()),
+            'DELIVERY TELEMETRY',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Push sync, Telegram bridge, and backend probe health stay pinned while the delivery board shifts below.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9DB3CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(
+                'Telegram ${widget.telegramHealthLabel.toUpperCase()}',
+                const Color(0xFFB9D9FF),
+                const Color(0xFF2A5D91),
+              ),
+              _pill(
+                'Sync ${_humanizedPushSyncStatusLabel(widget.pushSyncStatusLabel)}',
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
+              ),
+              _pill(
+                'Retries ${widget.pushSyncRetryCount}',
+                const Color(0xFFC9B8FF),
+                const Color(0xFF6352A3),
+              ),
+              _pill(
+                'Probe ${widget.backendProbeStatusLabel}',
+                const Color(0xFF9FD8AC),
+                const Color(0xFF235C47),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _localizedTelegramStatusLine(
+              widget.telegramHealthLabel.toUpperCase(),
+            ),
             style: GoogleFonts.inter(
               color: const Color(0xFF8FD1FF),
               fontSize: 11,
@@ -1378,171 +3476,157 @@ class _ClientAppPageState extends State<ClientAppPage> {
               ),
             ),
           ],
-          if (widget.onRetryPushSync != null) ...[
-            const SizedBox(height: 6),
-            TextButton(
-              onPressed: () async {
-                await widget.onRetryPushSync!.call();
-              },
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: const Color(0xFF8FD1FF),
-              ),
-              child: Text(
-                _localizedRetryPushSyncLabel,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-          if (widget.onRunBackendProbe != null) ...[
-            const SizedBox(height: 6),
-            TextButton(
-              onPressed: () async {
-                await widget.onRunBackendProbe!.call();
-              },
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: const Color(0xFF9FD8AC),
-              ),
-              child: Text(
-                _localizedRunBackendProbeLabel,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
-          if (widget.onClearBackendProbeHistory != null) ...[
-            const SizedBox(height: 6),
-            TextButton(
-              onPressed: () async {
-                final shouldClear = await showDialog<bool>(
-                  context: context,
-                  builder: (dialogContext) {
-                    return AlertDialog(
-                      backgroundColor: const Color(0xFF0E1A2B),
-                      title: Text(
-                        _localizedClearProbeHistoryTitle,
-                        style: GoogleFonts.rajdhani(
-                          color: const Color(0xFFE5F1FF),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      content: Text(
-                        _localizedClearProbeHistoryBody,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF9DB3CF),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(dialogContext).pop(false);
-                          },
-                          child: Text(
-                            _localizedCancelLabel,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF8FD1FF),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(dialogContext).pop(true);
-                          },
-                          child: Text(
-                            _localizedClearLabel,
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFFFFD6A5),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                );
-                if (shouldClear == true) {
-                  await widget.onClearBackendProbeHistory!.call();
-                }
-              },
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(0, 0),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: const Color(0xFFFFD6A5),
-              ),
-              child: Text(
-                _localizedClearProbeHistoryButton,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+          if (telemetryActions.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: telemetryActions),
           ],
         ],
       ),
     );
   }
 
+  Future<void> _confirmClearBackendProbeHistory() async {
+    if (widget.onClearBackendProbeHistory == null) {
+      return;
+    }
+    final shouldClear = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0E1A2B),
+          title: Text(
+            _localizedClearProbeHistoryTitle,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE5F1FF),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          content: Text(
+            _localizedClearProbeHistoryBody,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9DB3CF),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(false);
+              },
+              child: Text(
+                _localizedCancelLabel,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop(true);
+              },
+              child: Text(
+                _localizedClearLabel,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFFFD6A5),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+    if (shouldClear == true) {
+      await widget.onClearBackendProbeHistory!.call();
+    }
+  }
+
   Widget _pushSyncHistoryList(List<ClientPushSyncAttempt> history) {
     if (history.isEmpty) {
-      return Text(
-        _localizedPushSyncHistoryEmpty,
-        style: GoogleFonts.inter(
-          color: const Color(0xFF7FA2C9),
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
+      return _deliveryRecoveryDeck(
+        key: const ValueKey('client-delivery-push-sync-empty-recovery'),
+        eyebrow: 'SYNC HISTORY READY',
+        title: _localizedPushSyncHistoryEmpty,
+        summary:
+            'No sync attempts are recorded yet. You can still force a sync cycle or run a backend probe from this telemetry stack.',
+        accent: const Color(0xFF8FD1FF),
+        metrics: [
+          _pill(
+            'Sync ${_humanizedPushSyncStatusLabel(widget.pushSyncStatusLabel)}',
+            const Color(0xFFFFD6A5),
+            const Color(0xFF8A5A1C),
+          ),
+          _pill(
+            'Retries ${widget.pushSyncRetryCount}',
+            const Color(0xFFC9B8FF),
+            const Color(0xFF6352A3),
+          ),
+        ],
+        actions: [
+          if (widget.onRetryPushSync != null)
+            _bannerActionChip(
+              key: const ValueKey('client-delivery-push-sync-empty-retry-sync'),
+              label: _localizedRetryPushSyncLabel,
+              accent: const Color(0xFF8FD1FF),
+              onTap: () async {
+                await widget.onRetryPushSync!.call();
+              },
+            ),
+          if (widget.onRunBackendProbe != null)
+            _bannerActionChip(
+              key: const ValueKey('client-delivery-push-sync-empty-run-probe'),
+              label: _localizedRunBackendProbeLabel,
+              accent: const Color(0xFF9FD8AC),
+              onTap: () async {
+                await widget.onRunBackendProbe!.call();
+              },
+            ),
+        ],
       );
     }
     final rows = history.take(5).toList(growable: false);
     final hiddenRows = history.length - rows.length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _localizedPushSyncHistoryTitle,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF8FD1FF),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+    return Container(
+      key: const ValueKey('client-delivery-push-sync-history-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: onyxPanelSurfaceDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _localizedPushSyncHistoryTitle,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        ...rows.map(
-          (attempt) => Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: Text(
-              _pushSyncHistorySummaryLine(attempt),
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9DB3CF),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+          const SizedBox(height: 4),
+          ...rows.map(
+            (attempt) => Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                _pushSyncHistorySummaryLine(attempt),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9DB3CF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
-        ),
-        if (hiddenRows > 0)
-          OnyxTruncationHint(
-            visibleCount: rows.length,
-            totalCount: history.length,
-            subject: 'sync attempts',
-            color: const Color(0xFF7FA2C9),
-          ),
-      ],
+          if (hiddenRows > 0)
+            OnyxTruncationHint(
+              visibleCount: rows.length,
+              totalCount: history.length,
+              subject: 'sync attempts',
+              color: const Color(0xFF7FA2C9),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1580,54 +3664,102 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
   Widget _backendProbeHistoryList(List<ClientBackendProbeAttempt> history) {
     if (history.isEmpty) {
-      return Text(
-        _localizedBackendProbeHistoryEmpty,
-        style: GoogleFonts.inter(
-          color: const Color(0xFF7FA2C9),
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
+      return _deliveryRecoveryDeck(
+        key: const ValueKey('client-delivery-backend-probe-empty-recovery'),
+        eyebrow: 'PROBE HISTORY READY',
+        title: _localizedBackendProbeHistoryEmpty,
+        summary:
+            'No probe runs are recorded yet. Start a backend probe to validate delivery health or clear stale notes before the next cycle.',
+        accent: const Color(0xFF9FD8AC),
+        metrics: [
+          _pill(
+            'Probe ${widget.backendProbeStatusLabel}',
+            const Color(0xFF9FD8AC),
+            const Color(0xFF235C47),
+          ),
+          _pill(
+            widget.backendProbeLastRunAtUtc == null
+                ? 'Last none'
+                : 'Last ${_timeLabel(widget.backendProbeLastRunAtUtc!.toUtc())}',
+            const Color(0xFFC9B8FF),
+            const Color(0xFF6352A3),
+          ),
+        ],
+        actions: [
+          if (widget.onRunBackendProbe != null)
+            _bannerActionChip(
+              key: const ValueKey(
+                'client-delivery-backend-probe-empty-run-probe',
+              ),
+              label: _localizedRunBackendProbeLabel,
+              accent: const Color(0xFF9FD8AC),
+              onTap: () async {
+                await widget.onRunBackendProbe!.call();
+              },
+            ),
+          if (widget.onClearBackendProbeHistory != null)
+            _bannerActionChip(
+              key: const ValueKey(
+                'client-delivery-backend-probe-empty-clear-history',
+              ),
+              label: _localizedClearProbeHistoryButton,
+              accent: const Color(0xFFFFD6A5),
+              onTap: _confirmClearBackendProbeHistory,
+            ),
+        ],
       );
     }
     final rows = history.take(5).toList(growable: false);
     final hiddenRows = history.length - rows.length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          _localizedBackendProbeHistoryTitle,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF9FD8AC),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+    return Container(
+      key: const ValueKey('client-delivery-backend-probe-history-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: onyxPanelSurfaceDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _localizedBackendProbeHistoryTitle,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9FD8AC),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: 4),
-        ...rows.map(
-          (attempt) => Padding(
-            padding: const EdgeInsets.only(bottom: 3),
-            child: Text(
-              attempt.summaryLine,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9DB3CF),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+          const SizedBox(height: 4),
+          ...rows.map(
+            (attempt) => Padding(
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                attempt.summaryLine,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9DB3CF),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
-        ),
-        if (hiddenRows > 0)
-          OnyxTruncationHint(
-            visibleCount: rows.length,
-            totalCount: history.length,
-            subject: 'backend probes',
-            color: const Color(0xFF7FA2C9),
-          ),
-      ],
+          if (hiddenRows > 0)
+            OnyxTruncationHint(
+              visibleCount: rows.length,
+              totalCount: history.length,
+              subject: 'backend probes',
+              color: const Color(0xFF7FA2C9),
+            ),
+        ],
+      ),
     );
   }
 
-  Widget _roomsList(List<_ClientRoom> rooms) {
+  Widget _roomsList(
+    List<_ClientRoom> rooms, {
+    required _ClientRoom activeRoom,
+    required bool showAllRoomItems,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
     final visibleRooms = rooms.take(_maxRoomRows).toList(growable: false);
     final hiddenRooms = rooms.length - visibleRooms.length;
     final embeddedScroll = _desktopEmbeddedScroll;
@@ -1640,6 +3772,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         final room = visibleRooms[index];
         final selected = room.key == _selectedRoomFor(_viewerRole);
         return InkWell(
+          key: ValueKey('client-room-${room.key}'),
           onTap: () => _setSelectedRoom(room.key),
           borderRadius: BorderRadius.circular(14),
           child: Container(
@@ -1693,6 +3826,64 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _pill(
+                      room.acknowledgementChannel.displayLabel,
+                      _roomChannelAccent(room.acknowledgementChannel),
+                      const Color(0xFF223244),
+                    ),
+                    if (selected)
+                      _pill(
+                        'Current focus',
+                        const Color(0xFF8FD1FF),
+                        const Color(0xFF2A5D91),
+                      ),
+                  ],
+                ),
+                if (selected) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Recommended next move',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8FD1FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _bannerActionChip(
+                        key: ValueKey('client-room-${room.key}-primary-action'),
+                        label: selectedIncidentGroup == null
+                            ? 'Open first incident'
+                            : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+                        accent: const Color(0xFF8FD1FF),
+                        onTap: selectedIncidentGroup == null
+                            ? () => _openFirstAvailableIncidentThread(
+                                incidentFeed,
+                              )
+                            : () => _reopenSelectedIncidentThread(incidentFeed),
+                      ),
+                      _bannerActionChip(
+                        key: ValueKey('client-room-${room.key}-scope-action'),
+                        label: showAllRoomItems
+                            ? _localizedShowPendingLabel
+                            : _localizedShowAllLabel,
+                        accent: const Color(0xFFFFD6A5),
+                        selected: showAllRoomItems,
+                        onTap: _toggleShowAllRoomItems,
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -1724,6 +3915,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _roomRailCommandDeck(
+          activeRoom: activeRoom,
+          showAllRoomItems: showAllRoomItems,
+          incidentFeed: incidentFeed,
+          selectedIncidentGroup: selectedIncidentGroup,
+          roomCount: rooms.length,
+        ),
+        const SizedBox(height: 12),
         list,
         if (hiddenRooms > 0) ...[
           const SizedBox(height: 8),
@@ -1739,9 +3938,114 @@ class _ClientAppPageState extends State<ClientAppPage> {
     );
   }
 
+  Widget _roomRailCommandDeck({
+    required _ClientRoom activeRoom,
+    required bool showAllRoomItems,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+    required int roomCount,
+  }) {
+    return Container(
+      key: const ValueKey('client-room-rail-command-deck'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2B4F73)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ROOM COMMAND RAIL',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${activeRoom.displayName} is holding the live lane while comms, alerts, and thread handoff stay within reach.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(
+                'Rooms $roomCount',
+                const Color(0xFFB9D9FF),
+                const Color(0xFF2A5D91),
+              ),
+              _pill(
+                'Unread ${activeRoom.unread}',
+                _roomChannelAccent(activeRoom.acknowledgementChannel),
+                const Color(0xFF223244),
+              ),
+              _pill(
+                showAllRoomItems
+                    ? _localizedShowAllLabel
+                    : _localizedShowPendingLabel,
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
+              ),
+              if (selectedIncidentGroup != null)
+                _pill(
+                  'Thread ${selectedIncidentGroup.referenceLabel}',
+                  const Color(0xFFC9B8FF),
+                  const Color(0xFF6352A3),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _bannerActionChip(
+                key: const ValueKey('client-room-rail-open-thread'),
+                label: selectedIncidentGroup == null
+                    ? 'Open first incident'
+                    : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+                accent: const Color(0xFF8FD1FF),
+                onTap: selectedIncidentGroup == null
+                    ? () => _openFirstAvailableIncidentThread(incidentFeed)
+                    : () => _reopenSelectedIncidentThread(incidentFeed),
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-room-rail-focus-composer'),
+                label: 'Jump to Composer',
+                accent: const Color(0xFFC9B8FF),
+                onTap: _focusChatComposer,
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-room-rail-toggle-scope'),
+                label: showAllRoomItems
+                    ? _localizedShowPendingLabel
+                    : _localizedShowAllLabel,
+                accent: const Color(0xFFFFD6A5),
+                selected: showAllRoomItems,
+                onTap: _toggleShowAllRoomItems,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _incidentFeedList(List<_ClientIncidentFeedGroup> items) {
     if (items.isEmpty) {
-      return _emptyBox(_viewerRole.incidentFeedEmptyLabel);
+      return _incidentFeedEmptyRecovery(items);
     }
     final visibleItems = items
         .take(_maxIncidentFeedRows)
@@ -1781,6 +4085,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             _emitClientStateChanged();
           },
           child: InkWell(
+            key: ValueKey('client-incident-row-${group.referenceLabel}'),
             onTap: () => _toggleIncidentFeedExpansion(group.referenceLabel),
             borderRadius: BorderRadius.circular(14),
             child: Container(
@@ -1926,7 +4231,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return list;
   }
 
-  Widget _chatPanel(List<_ClientChatMessage> messages) {
+  Widget _chatPanel(
+    List<_ClientChatMessage> messages, {
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+  }) {
     final selectedSource = _chatSourceFilterFor(_viewerRole);
     final sourceOptions = <String>{
       'all',
@@ -1959,12 +4268,52 @@ class _ClientAppPageState extends State<ClientAppPage> {
         )
         .toList(growable: false);
     final visibleMessages = filtered.take(_maxChatRows).toList(growable: false);
+    final roomDisplayName = _activeRoomLabel();
+    final quickActionTemplates = _viewerRole.quickActionTemplatesFor(
+      _selectedRoomFor(_viewerRole),
+    );
     final embeddedThreadScroll = _desktopEmbeddedScroll;
     final threadList = visibleMessages.isEmpty
-        ? _emptyBox(
-            messages.isEmpty
+        ? _deliveryRecoveryDeck(
+            key: const ValueKey('client-chat-empty-recovery'),
+            eyebrow: messages.isEmpty ? 'THREAD READY' : 'FILTERS ACTIVE',
+            title: messages.isEmpty
                 ? _viewerRole.chatEmptyLabel
                 : 'No messages match the selected source/provider filters.',
+            summary: messages.isEmpty
+                ? 'This lane is quiet, but the thread shell stays hot so you can reopen incident context, widen scope, or jump straight into composition.'
+                : 'The current source/provider filters narrowed this thread to zero rows. Reset filters or widen lane scope to bring the thread back into view.',
+            accent: const Color(0xFF8FD1FF),
+            metrics: [
+              _pill(
+                'Lane $roomDisplayName',
+                const Color(0xFFB9D9FF),
+                const Color(0xFF2A5D91),
+              ),
+              _pill(
+                _showAllRoomItemsFor(_viewerRole)
+                    ? _localizedShowAllLabel
+                    : _localizedShowPendingLabel,
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
+              ),
+              _pill(
+                'Source ${_messageSourceLabel(selectedSource)}',
+                const Color(0xFFC9B8FF),
+                const Color(0xFF6352A3),
+              ),
+              _pill(
+                'Provider ${_messageProviderLabel(selectedProvider)}',
+                const Color(0xFF9FD8AC),
+                const Color(0xFF235C47),
+              ),
+            ],
+            actions: _communicationsRecoveryActions(
+              prefix: 'client-chat-empty',
+              incidentFeed: incidentFeed,
+              selectedIncidentGroup: selectedIncidentGroup,
+              includeResetFilters: messages.isNotEmpty,
+            ),
           )
         : ListView.separated(
             itemCount: visibleMessages.length,
@@ -2173,33 +4522,6 @@ class _ClientAppPageState extends State<ClientAppPage> {
             child: threadList,
           ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _viewerRole
-              .quickActionTemplatesFor(_selectedRoomFor(_viewerRole))
-              .map(
-                (template) => OutlinedButton(
-                  onPressed: () => _applyQuickAction(template),
-                  style: _compactOutlinedActionStyle(
-                    foregroundColor: const Color(0xFFB9D9FF),
-                    sideColor: const Color(0xFF223244),
-                    backgroundColor: const Color(0xFF0E1A2B),
-                  ),
-                  child: Text(
-                    template,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              )
-              .toList(growable: false),
-        ),
-        const SizedBox(height: 12),
-        _manualIncidentTypeSelector(),
-        const SizedBox(height: 12),
         LayoutBuilder(
           builder: (context, constraints) {
             final stacked = constraints.maxWidth < 820;
@@ -2249,6 +4571,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ],
                 const SizedBox(height: 8),
                 FilledButton(
+                  key: const ValueKey('client-chat-send-action'),
                   onPressed: _sendClientMessage,
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF1F66FF),
@@ -2282,28 +4605,257 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ),
               ],
             );
-            if (stacked) {
-              return Column(
-                key: _chatComposerKey,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  composerField,
-                  const SizedBox(height: 10),
-                  composerActions,
-                ],
-              );
-            }
-            return Row(
-              key: _chatComposerKey,
-              children: [
-                Expanded(child: composerField),
-                const SizedBox(width: 10),
-                composerActions,
-              ],
+            final composerSurface = stacked
+                ? Column(
+                    key: _chatComposerKey,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      composerField,
+                      const SizedBox(height: 10),
+                      composerActions,
+                    ],
+                  )
+                : Row(
+                    key: _chatComposerKey,
+                    children: [
+                      Expanded(child: composerField),
+                      const SizedBox(width: 10),
+                      composerActions,
+                    ],
+                  );
+            return _chatComposerCommandDeck(
+              roomDisplayName: roomDisplayName,
+              showAllRoomItems: _showAllRoomItemsFor(_viewerRole),
+              selectedSourceLabel: _messageSourceLabel(selectedSource),
+              selectedProviderLabel: _messageProviderLabel(selectedProvider),
+              quickActionTemplates: quickActionTemplates,
+              incidentFeed: incidentFeed,
+              selectedIncidentGroup: selectedIncidentGroup,
+              composerSurface: composerSurface,
             );
           },
         ),
       ],
+    );
+  }
+
+  Widget _chatComposerCommandDeck({
+    required String roomDisplayName,
+    required bool showAllRoomItems,
+    required String selectedSourceLabel,
+    required String selectedProviderLabel,
+    required List<String> quickActionTemplates,
+    required List<_ClientIncidentFeedGroup> incidentFeed,
+    required _ClientIncidentFeedGroup? selectedIncidentGroup,
+    required Widget composerSurface,
+  }) {
+    final composedType = _composedSystemType ?? _ClientSystemMessageType.update;
+    final hasDraftText = _chatController.text.trim().isNotEmpty;
+    final recommendedTemplate = quickActionTemplates.first;
+    final primaryActionLabel = hasDraftText
+        ? _chatSendButtonLabel()
+        : 'Load recommended draft';
+    final primaryActionAccent = hasDraftText
+        ? const Color(0xFF9FD8AC)
+        : const Color(0xFF8FD1FF);
+
+    return Container(
+      key: const ValueKey('client-chat-composer-command-deck'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2B4F73)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 14,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'COMPOSER COMMAND DECK',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            hasDraftText
+                ? '$roomDisplayName has a staged ${composedType.label.toLowerCase()} ready for review and send.'
+                : '$roomDisplayName is hot. Load the recommended draft, adjust posture, and push the next operator update from one surface.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(
+                'Lane $roomDisplayName',
+                const Color(0xFFB9D9FF),
+                const Color(0xFF2A5D91),
+              ),
+              _pill(
+                showAllRoomItems
+                    ? _localizedShowAllLabel
+                    : _localizedShowPendingLabel,
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
+              ),
+              _pill(
+                'Source $selectedSourceLabel',
+                const Color(0xFFC9B8FF),
+                const Color(0xFF6352A3),
+              ),
+              _pill(
+                'Provider $selectedProviderLabel',
+                const Color(0xFF9FD8AC),
+                const Color(0xFF235C47),
+              ),
+              _pill(
+                'Posture ${composedType.label}',
+                composedType.textColor,
+                composedType.borderColor,
+                icon: composedType.icon,
+              ),
+              if (selectedIncidentGroup != null)
+                _pill(
+                  'Thread ${selectedIncidentGroup.referenceLabel}',
+                  const Color(0xFFFFB5C6),
+                  const Color(0xFF8A3D4A),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Recommended next move',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _bannerActionChip(
+                key: const ValueKey('client-chat-command-deck-primary-action'),
+                label: primaryActionLabel,
+                accent: primaryActionAccent,
+                onTap: hasDraftText
+                    ? () {
+                        _sendClientMessage();
+                      }
+                    : () => _loadRecommendedChatDraft(recommendedTemplate),
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-chat-command-deck-open-thread'),
+                label: selectedIncidentGroup == null
+                    ? 'Open first incident'
+                    : 'Reopen ${selectedIncidentGroup.referenceLabel}',
+                accent: const Color(0xFFC9B8FF),
+                onTap: selectedIncidentGroup == null
+                    ? () => _openFirstAvailableIncidentThread(incidentFeed)
+                    : () => _reopenSelectedIncidentThread(incidentFeed),
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-chat-command-deck-focus-composer'),
+                label: 'Jump to Composer',
+                accent: const Color(0xFFB9D9FF),
+                onTap: _focusChatComposer,
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-chat-command-deck-toggle-scope'),
+                label: showAllRoomItems
+                    ? _localizedShowPendingLabel
+                    : _localizedShowAllLabel,
+                accent: const Color(0xFFFFD6A5),
+                selected: showAllRoomItems,
+                onTap: _toggleShowAllRoomItems,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Quick drafts',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA7C8),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (
+                var index = 0;
+                index < quickActionTemplates.length;
+                index += 1
+              )
+                OutlinedButton(
+                  key: ValueKey('client-chat-quick-action-$index'),
+                  onPressed: () =>
+                      _applyQuickAction(quickActionTemplates[index]),
+                  style: _compactOutlinedActionStyle(
+                    foregroundColor: index == 0
+                        ? const Color(0xFFB9E2FF)
+                        : const Color(0xFFB9D9FF),
+                    sideColor: index == 0
+                        ? const Color(0xFF5D91C6)
+                        : const Color(0xFF223244),
+                    backgroundColor: index == 0
+                        ? const Color(0xFF11243A)
+                        : const Color(0xFF0E1A2B),
+                  ),
+                  child: Text(
+                    quickActionTemplates[index],
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _manualIncidentTypeSelector(),
+          const SizedBox(height: 12),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B1626),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _showComposerLandingHighlight
+                    ? const Color(0xFF8FD1FF)
+                    : const Color(0xFF223244),
+              ),
+            ),
+            child: composerSurface,
+          ),
+        ],
+      ),
     );
   }
 
@@ -2610,6 +5162,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
   Widget _manualIncidentTypeSelector() {
     final selectedType = _composedSystemType ?? _ClientSystemMessageType.update;
     return Column(
+      key: const ValueKey('client-chat-incident-type-selector'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -2860,26 +5413,6 @@ class _ClientAppPageState extends State<ClientAppPage> {
     };
   }
 
-  Widget _emptyBox(String label) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: const Color(0xFF9AB4D8),
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
   Widget _pill(
     String label,
     Color textColor,
@@ -3113,20 +5646,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
     final text = _chatController.text.trim();
     final systemType = _composedSystemType;
     final originalDraftText = _reviewedDraftOriginalText?.trim() ?? '';
-    _sendManualMessageText(
-      text,
-      systemType: systemType,
-      clearComposer: true,
-    );
+    _sendManualMessageText(text, systemType: systemType, clearComposer: true);
     if (_viewerRole == ClientAppViewerRole.control &&
         systemType == _ClientSystemMessageType.dispatch &&
         originalDraftText.isNotEmpty &&
         text.isNotEmpty &&
         widget.onRecordApprovedDraftLearning != null) {
-      await widget.onRecordApprovedDraftLearning!(
-        originalDraftText,
-        text,
-      );
+      await widget.onRecordApprovedDraftLearning!(originalDraftText, text);
     }
   }
 
@@ -3143,6 +5669,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
         offset: _chatController.text.length,
       );
     });
+  }
+
+  void _loadRecommendedChatDraft(String template) {
+    _applyQuickAction(template);
+    _focusChatComposer();
   }
 
   void _draftNotificationAction(_ClientNotification item) {
@@ -3175,6 +5706,34 @@ class _ClientAppPageState extends State<ClientAppPage> {
         );
       }
       _chatFocusNode.requestFocus();
+    });
+  }
+
+  void _focusChatComposer() {
+    if (mounted) {
+      setState(() {
+        _showComposerLandingHighlight = true;
+      });
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final composerContext = _chatComposerKey.currentContext;
+      if (composerContext != null) {
+        Scrollable.ensureVisible(
+          composerContext,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+          alignment: 1,
+        );
+      }
+      _chatFocusNode.requestFocus();
+    });
+    Future<void>.delayed(const Duration(milliseconds: 900), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showComposerLandingHighlight = false;
+      });
     });
   }
 
@@ -3608,6 +6167,109 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 fontWeight: FontWeight.w700,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _incidentFeedEmptyRecovery(List<_ClientIncidentFeedGroup> items) {
+    final showAllRoomItems = _showAllRoomItemsFor(_viewerRole);
+    final roomKey = _selectedRoomFor(_viewerRole);
+    return Container(
+      key: const ValueKey('client-incident-feed-empty-recovery'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'INCIDENT WORKSPACE READY',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _viewerRole.incidentFeedEmptyLabel,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF2FF),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Keep the lane anchored by checking the current scope, opening the first ready thread, or jumping back to the composer.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB4D8),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(
+                'Lane ${_roomDisplayNameForKey(roomKey)}',
+                const Color(0xFFB9D9FF),
+                const Color(0xFF2A5D91),
+              ),
+              _pill(
+                showAllRoomItems
+                    ? _localizedShowAllLabel
+                    : _localizedShowPendingLabel,
+                const Color(0xFFFFD6A5),
+                const Color(0xFF8A5A1C),
+              ),
+              _pill(
+                'Threads ${items.length}',
+                const Color(0xFFC9B8FF),
+                const Color(0xFF6352A3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _bannerActionChip(
+                key: const ValueKey('client-incident-feed-empty-open-first'),
+                label: 'Open first incident',
+                accent: const Color(0xFF8FD1FF),
+                onTap: () => _openFirstAvailableIncidentThread(items),
+              ),
+              _bannerActionChip(
+                key: const ValueKey(
+                  'client-incident-feed-empty-focus-composer',
+                ),
+                label: 'Jump to Composer',
+                accent: const Color(0xFFC9B8FF),
+                onTap: _focusChatComposer,
+              ),
+              _bannerActionChip(
+                key: const ValueKey('client-incident-feed-empty-toggle-scope'),
+                label: showAllRoomItems
+                    ? _localizedShowPendingLabel
+                    : _localizedShowAllLabel,
+                accent: const Color(0xFFFFD6A5),
+                selected: showAllRoomItems,
+                onTap: _toggleShowAllRoomItems,
+              ),
+            ],
           ),
         ],
       ),
@@ -4595,6 +7257,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
     ];
   }
 
+  Color _roomChannelAccent(ClientAppAcknowledgementChannel channel) {
+    return switch (channel) {
+      ClientAppAcknowledgementChannel.client => const Color(0xFFC9B8FF),
+      ClientAppAcknowledgementChannel.control => const Color(0xFF8FD1FF),
+      ClientAppAcknowledgementChannel.resident => const Color(0xFFFFD6A5),
+    };
+  }
+
   List<_ClientChatMessage> _buildChatMessages(
     List<_ClientNotification> notifications,
   ) {
@@ -4697,6 +7367,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
     });
   }
 
+  void _resetChatFilters() {
+    if (_chatSourceFilterFor(_viewerRole) == 'all' &&
+        _chatProviderFilterFor(_viewerRole) == 'all') {
+      return;
+    }
+    setState(() {
+      _chatSourceFilterByRole[_viewerRole.name] = 'all';
+      _chatProviderFilterByRole[_viewerRole.name] = 'all';
+    });
+  }
+
   String _roomDisplayNameForKey(String roomKey) {
     return _viewerRole.roomLabelForKey(roomKey);
   }
@@ -4708,6 +7389,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
     setState(() {
       _selectedRoomByRole[_viewerRole.name] = roomName;
       _showAllRoomItemsByRole[_viewerRole.name] = false;
+      _selectedNotificationMessageKey = null;
     });
     _emitClientStateChanged();
   }
@@ -4743,6 +7425,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
       _expandedIncidentReferenceByRole[_viewerRole.name] = group.referenceLabel;
     });
     _emitClientStateChanged();
+    _showClientCommandFeedback(
+      'Reopened ${group.referenceLabel} incident thread.',
+      label: 'THREAD REOPEN',
+      detail:
+          'The selected incident remains pinned across the comms and delivery rails while the detail dialog opens.',
+      accent: const Color(0xFF8FD1FF),
+    );
     return _showIncidentFeedDetail(group);
   }
 
@@ -4754,13 +7443,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
         'client_app.open_first_incident_missing',
         context: {'role': _viewerRole.name},
       );
-      final messenger = ScaffoldMessenger.maybeOf(context);
-      messenger?.hideCurrentSnackBar();
-      messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('No incident thread is ready for this lane yet.'),
-          duration: Duration(seconds: 2),
-        ),
+      _showClientCommandFeedback(
+        'No incident thread is ready for this lane yet.',
+        label: 'INCIDENT HANDOFF',
+        detail:
+            'Open-thread controls stay live so operators can confirm when the current lane does not have a scoped incident available.',
+        accent: const Color(0xFFC9B8FF),
       );
       return Future<void>.value();
     }
@@ -4781,6 +7469,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
       _focusedIncidentReferenceByRole[_viewerRole.name] = first.referenceLabel;
     });
     _emitClientStateChanged();
+    _showClientCommandFeedback(
+      'Opening ${first.referenceLabel} incident thread.',
+      label: 'INCIDENT HANDOFF',
+      detail:
+          'The first scoped incident is now pinned for both the comms shell and the delivery workspace.',
+      accent: const Color(0xFF8FD1FF),
+    );
     return _showIncidentFeedDetail(first);
   }
 
@@ -4938,14 +7633,6 @@ class _ClientAppPageState extends State<ClientAppPage> {
       locale: widget.locale,
       key: 'targetCurrentLanePrefix',
       fallback: 'Target (current lane)',
-    );
-  }
-
-  String get _localizedBridgePrefix {
-    return ClientAppLocaleText.generalText(
-      locale: widget.locale,
-      key: 'bridgePrefix',
-      fallback: 'Bridge',
     );
   }
 
@@ -5250,12 +7937,22 @@ class _ClientAppPageState extends State<ClientAppPage> {
   }
 
   List<DispatchEvent> _currentClientEvents() {
+    final normalizedClientId = widget.clientId.trim();
+    final normalizedSiteId = widget.siteId.trim();
     final clientEvents = widget.events.where((event) {
       return switch (event) {
-        DecisionCreated e => e.clientId == widget.clientId,
-        ResponseArrived e => e.clientId == widget.clientId,
-        IncidentClosed e => e.clientId == widget.clientId,
-        IntelligenceReceived e => e.clientId == widget.clientId,
+        DecisionCreated e =>
+          e.clientId.trim() == normalizedClientId &&
+              e.siteId.trim() == normalizedSiteId,
+        ResponseArrived e =>
+          e.clientId.trim() == normalizedClientId &&
+              e.siteId.trim() == normalizedSiteId,
+        IncidentClosed e =>
+          e.clientId.trim() == normalizedClientId &&
+              e.siteId.trim() == normalizedSiteId,
+        IntelligenceReceived e =>
+          e.clientId.trim() == normalizedClientId &&
+              e.siteId.trim() == normalizedSiteId,
         _ => false,
       };
     }).toList()..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));

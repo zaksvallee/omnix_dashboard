@@ -9,6 +9,7 @@ import '../domain/events/guard_checked_in.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
+import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
 
@@ -32,101 +33,131 @@ class SitesCommandPage extends StatefulWidget {
   State<SitesCommandPage> createState() => _SitesCommandPageState();
 }
 
+enum _SiteLaneFilter { all, healthy, watch, strong }
+
+enum _SiteWorkspaceView { response, coverage, checkpoints }
+
 class _SitesCommandPageState extends State<SitesCommandPage> {
   String? _selectedSiteId;
+  _SiteLaneFilter _siteLaneFilter = _SiteLaneFilter.all;
+  _SiteWorkspaceView _workspaceView = _SiteWorkspaceView.response;
 
   @override
   Widget build(BuildContext context) {
     final projected = _siteRowsFromEvents(widget.events);
-    final sites = projected.isEmpty ? _seedSites() : projected;
+    final allSites = projected.isEmpty ? _seedSites() : projected;
+    final filteredSites = _filteredSites(allSites);
+    final selectedPool = filteredSites.isEmpty ? allSites : filteredSites;
+    final selectedSiteId =
+        selectedPool.any((site) => site.id == _selectedSiteId)
+        ? _selectedSiteId
+        : selectedPool.first.id;
 
-    _selectedSiteId ??= sites.first.id;
-    final selected = sites.firstWhere(
-      (site) => site.id == _selectedSiteId,
-      orElse: () => sites.first,
+    _selectedSiteId ??= selectedPool.first.id;
+    final selected = selectedPool.firstWhere(
+      (site) => site.id == selectedSiteId,
+      orElse: () => selectedPool.first,
     );
 
-    final strongCount = sites
+    final strongCount = allSites
         .where((site) => site.status == _SiteStatus.strong)
         .length;
-    final atRiskCount = sites
+    final atRiskCount = allSites
         .where(
           (site) =>
               site.status == _SiteStatus.atRisk ||
               site.status == _SiteStatus.critical,
         )
         .length;
-    final totalGuards = sites.fold<int>(
+    final totalGuards = allSites.fold<int>(
       0,
       (sum, site) => sum + site.guardsActive,
     );
 
     return OnyxPageScaffold(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1540),
-            child: ListView(
-              children: [
-                _heroHeader(
-                  selected: selected,
-                  totalSites: sites.length,
-                  strongCount: strongCount,
-                  atRiskCount: atRiskCount,
-                  totalGuards: totalGuards,
-                ),
-                const SizedBox(height: 14),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final maxWidth = constraints.maxWidth;
-                    final width = maxWidth < 920
-                        ? (maxWidth - 8) / 2
-                        : (maxWidth - 24) / 4;
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _kpiCard(
-                          width: width,
-                          label: 'TOTAL SITES',
-                          value: '${sites.length}',
-                          icon: Icons.apartment_rounded,
-                          iconColor: const Color(0xFF22D3EE),
-                        ),
-                        _kpiCard(
-                          width: width,
-                          label: 'STRONG POSTURE',
-                          value: '$strongCount',
-                          icon: Icons.check_circle_outline_rounded,
-                          iconColor: const Color(0xFF22D3EE),
-                        ),
-                        _kpiCard(
-                          width: width,
-                          label: 'AT RISK',
-                          value: '$atRiskCount',
-                          icon: Icons.warning_amber_rounded,
-                          iconColor: const Color(0xFF22D3EE),
-                        ),
-                        _kpiCard(
-                          width: width,
-                          label: 'TOTAL GUARDS',
-                          value: '$totalGuards',
-                          icon: Icons.shield_outlined,
-                          iconColor: const Color(0xFF22D3EE),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 8),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final stacked = constraints.maxWidth < 1240;
-                    final roster = _rosterPane(sites);
-                    final workspace = _workspacePane(selected);
-                    if (stacked) {
-                      return Column(
+      child: LayoutBuilder(
+        builder: (context, viewport) {
+          const contentPadding = EdgeInsets.all(10);
+          final useScrollFallback =
+              isHandsetLayout(context) ||
+              viewport.maxHeight < 720 ||
+              viewport.maxWidth < 980;
+          final boundedDesktopSurface =
+              !useScrollFallback &&
+              viewport.hasBoundedHeight &&
+              viewport.maxHeight.isFinite;
+          final ultrawideSurface = isUltrawideLayout(
+            context,
+            viewportWidth: viewport.maxWidth,
+          );
+          final widescreenSurface = isWidescreenLayout(
+            context,
+            viewportWidth: viewport.maxWidth,
+          );
+          final surfaceMaxWidth = ultrawideSurface
+              ? viewport.maxWidth
+              : widescreenSurface
+              ? viewport.maxWidth * 0.94
+              : 1540.0;
+
+          Widget buildSurfaceBody({required bool expandedPanels}) {
+            final kpiRow = LayoutBuilder(
+              builder: (context, constraints) {
+                final maxWidth = constraints.maxWidth;
+                final width = maxWidth < 920
+                    ? (maxWidth - 8) / 2
+                    : (maxWidth - 24) / 4;
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _kpiCard(
+                      width: width,
+                      label: 'TOTAL SITES',
+                      value: '${allSites.length}',
+                      icon: Icons.apartment_rounded,
+                      iconColor: const Color(0xFF22D3EE),
+                    ),
+                    _kpiCard(
+                      width: width,
+                      label: 'STRONG POSTURE',
+                      value: '$strongCount',
+                      icon: Icons.check_circle_outline_rounded,
+                      iconColor: const Color(0xFF22D3EE),
+                    ),
+                    _kpiCard(
+                      width: width,
+                      label: 'AT RISK',
+                      value: '$atRiskCount',
+                      icon: Icons.warning_amber_rounded,
+                      iconColor: const Color(0xFF22D3EE),
+                    ),
+                    _kpiCard(
+                      width: width,
+                      label: 'TOTAL GUARDS',
+                      value: '$totalGuards',
+                      icon: Icons.shield_outlined,
+                      iconColor: const Color(0xFF22D3EE),
+                    ),
+                  ],
+                );
+              },
+            );
+
+            Widget buildWorkspaceShell({required bool expandedPanels}) {
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final stacked = constraints.maxWidth < 1240;
+                  final roster = _rosterPane(allSites, filteredSites);
+                  final workspace = _workspacePane(
+                    selected,
+                    filteredSites.length,
+                    allSites.length,
+                  );
+
+                  if (stacked) {
+                    if (expandedPanels) {
+                      return ListView(
                         children: [
                           roster,
                           const SizedBox(height: 8),
@@ -134,20 +165,333 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                         ],
                       );
                     }
-                    return Row(
+                    return Column(
+                      children: [roster, const SizedBox(height: 8), workspace],
+                    );
+                  }
+
+                  final workspaceShell = Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: expandedPanels
+                            ? SingleChildScrollView(child: roster)
+                            : roster,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 8,
+                        child: expandedPanels
+                            ? SingleChildScrollView(child: workspace)
+                            : workspace,
+                      ),
+                    ],
+                  );
+                  if (expandedPanels) {
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(flex: 4, child: roster),
-                        const SizedBox(width: 8),
-                        Expanded(flex: 8, child: workspace),
+                        _workspaceStatusBanner(
+                          context: context,
+                          allSites: allSites,
+                          visibleSites: filteredSites,
+                          selected: selected,
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(child: workspaceShell),
                       ],
                     );
-                  },
-                ),
+                  }
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _workspaceStatusBanner(
+                        context: context,
+                        allSites: allSites,
+                        visibleSites: filteredSites,
+                        selected: selected,
+                      ),
+                      const SizedBox(height: 8),
+                      workspaceShell,
+                    ],
+                  );
+                },
+              );
+            }
+
+            if (expandedPanels) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  kpiRow,
+                  const SizedBox(height: 8),
+                  Expanded(child: buildWorkspaceShell(expandedPanels: true)),
+                ],
+              );
+            }
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                kpiRow,
+                const SizedBox(height: 8),
+                buildWorkspaceShell(expandedPanels: false),
               ],
+            );
+          }
+
+          return OnyxViewportWorkspaceLayout(
+            padding: contentPadding,
+            maxWidth: surfaceMaxWidth,
+            lockToViewport: boundedDesktopSurface,
+            spacing: 14,
+            header: _heroHeader(
+              selected: selected,
+              totalSites: allSites.length,
+              strongCount: strongCount,
+              atRiskCount: atRiskCount,
+              totalGuards: totalGuards,
+            ),
+            body: buildSurfaceBody(expandedPanels: boundedDesktopSurface),
+          );
+        },
+      ),
+    );
+  }
+
+  List<_SiteViewModel> _filteredSites(
+    List<_SiteViewModel> sites, {
+    _SiteLaneFilter? filter,
+  }) {
+    final activeFilter = filter ?? _siteLaneFilter;
+    return sites
+        .where((site) {
+          return switch (activeFilter) {
+            _SiteLaneFilter.all => true,
+            _SiteLaneFilter.healthy =>
+              site.status == _SiteStatus.strong ||
+                  site.status == _SiteStatus.stable,
+            _SiteLaneFilter.watch =>
+              site.status == _SiteStatus.atRisk ||
+                  site.status == _SiteStatus.critical,
+            _SiteLaneFilter.strong => site.status == _SiteStatus.strong,
+          };
+        })
+        .toList(growable: false);
+  }
+
+  int _siteCountForFilter(List<_SiteViewModel> sites, _SiteLaneFilter filter) {
+    return _filteredSites(sites, filter: filter).length;
+  }
+
+  void _setSiteLaneFilter(List<_SiteViewModel> sites, _SiteLaneFilter filter) {
+    if (_siteLaneFilter == filter) {
+      return;
+    }
+    final filteredSites = _filteredSites(sites, filter: filter);
+    final nextSelectedSiteId = filteredSites.isEmpty
+        ? (_selectedSiteId ?? (sites.isEmpty ? null : sites.first.id))
+        : filteredSites.any((site) => site.id == _selectedSiteId)
+        ? _selectedSiteId
+        : filteredSites.first.id;
+    setState(() {
+      _siteLaneFilter = filter;
+      _selectedSiteId = nextSelectedSiteId;
+    });
+    logUiAction(
+      'sites.filter_lane',
+      context: {'filter': filter.name, 'selected_site_id': nextSelectedSiteId},
+    );
+  }
+
+  void _setWorkspaceView(_SiteWorkspaceView view) {
+    if (_workspaceView == view) {
+      return;
+    }
+    setState(() {
+      _workspaceView = view;
+    });
+    logUiAction(
+      'sites.workspace_view',
+      context: {'view': view.name, 'selected_site_id': _selectedSiteId},
+    );
+  }
+
+  void _openAddSite() {
+    final callback = widget.onAddSite;
+    if (callback == null) {
+      return;
+    }
+    logUiAction(
+      'sites.add_site',
+      context: {'selected_site_id': _selectedSiteId},
+    );
+    callback();
+  }
+
+  void _openSiteSettings(_SiteViewModel site) {
+    final callback = widget.onOpenSiteSettings;
+    if (callback == null) {
+      return;
+    }
+    logUiAction(
+      'sites.open_settings',
+      context: {'site_id': site.id, 'site_name': site.displayName},
+    );
+    callback(site.id, site.displayName);
+  }
+
+  void _openGuardRoster(_SiteViewModel site) {
+    final callback = widget.onOpenGuardRoster;
+    if (callback == null) {
+      return;
+    }
+    logUiAction(
+      'sites.open_guard_roster',
+      context: {'site_id': site.id, 'site_name': site.displayName},
+    );
+    callback(site.id, site.displayName);
+  }
+
+  Widget _workspaceStatusBanner({
+    required BuildContext context,
+    required List<_SiteViewModel> allSites,
+    required List<_SiteViewModel> visibleSites,
+    required _SiteViewModel selected,
+  }) {
+    final watchCount = _siteCountForFilter(allSites, _SiteLaneFilter.watch);
+    final strongCount = _siteCountForFilter(allSites, _SiteLaneFilter.strong);
+    return Container(
+      key: const ValueKey('sites-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceStatusPill(
+                icon: Icons.apartment_rounded,
+                label: '${visibleSites.length} Visible',
+                accent: const Color(0xFF63BDFF),
+              ),
+              _workspaceStatusPill(
+                icon: Icons.radar_outlined,
+                label: 'Lane ${_laneLabel(_siteLaneFilter)}',
+                accent: _laneAccent(_siteLaneFilter),
+              ),
+              _workspaceStatusPill(
+                icon: Icons.dashboard_customize_outlined,
+                label: 'View ${_workspaceViewTitle(_workspaceView)}',
+                accent: _workspaceAccent(_workspaceView),
+              ),
+              _workspaceStatusPill(
+                icon: Icons.flag_outlined,
+                label: 'Focus ${selected.id}',
+                accent: _statusColor(selected.status),
+              ),
+              _workspaceStatusPill(
+                icon: Icons.warning_amber_rounded,
+                label: '$watchCount Watch',
+                accent: watchCount > 0
+                    ? const Color(0xFFF59E0B)
+                    : const Color(0xFF94A3B8),
+              ),
+              _workspaceStatusPill(
+                icon: Icons.verified_outlined,
+                label: '$strongCount Strong',
+                accent: const Color(0xFF22D3EE),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceBannerAction(
+                key: const ValueKey('sites-workspace-banner-open-all'),
+                label: 'All Sites',
+                selected: _siteLaneFilter == _SiteLaneFilter.all,
+                accent: _laneAccent(_SiteLaneFilter.all),
+                onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('sites-workspace-banner-open-watch'),
+                label: 'Watch Lane',
+                selected: _siteLaneFilter == _SiteLaneFilter.watch,
+                accent: _laneAccent(_SiteLaneFilter.watch),
+                onTap: watchCount == 0
+                    ? null
+                    : () => _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('sites-workspace-banner-open-response'),
+                label: 'Response View',
+                selected: _workspaceView == _SiteWorkspaceView.response,
+                accent: _workspaceAccent(_SiteWorkspaceView.response),
+                onTap: () => _setWorkspaceView(_SiteWorkspaceView.response),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('sites-workspace-banner-open-coverage'),
+                label: 'Coverage View',
+                selected: _workspaceView == _SiteWorkspaceView.coverage,
+                accent: _workspaceAccent(_SiteWorkspaceView.coverage),
+                onTap: () => _setWorkspaceView(_SiteWorkspaceView.coverage),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('sites-workspace-banner-open-checkpoints'),
+                label: 'Checkpoints View',
+                selected: _workspaceView == _SiteWorkspaceView.checkpoints,
+                accent: _workspaceAccent(_SiteWorkspaceView.checkpoints),
+                onTap: () => _setWorkspaceView(_SiteWorkspaceView.checkpoints),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('sites-workspace-banner-open-tactical'),
+                label: 'Open Tactical',
+                selected: false,
+                accent: const Color(0xFF93C5FD),
+                onTap: () => _openTacticalForSite(context, selected),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('sites-workspace-banner-open-settings'),
+                label: 'Site Settings',
+                selected: false,
+                accent: const Color(0xFFA78BFA),
+                onTap: widget.onOpenSiteSettings == null
+                    ? null
+                    : () => _openSiteSettings(selected),
+              ),
+              _workspaceBannerAction(
+                key: const ValueKey('sites-workspace-banner-open-roster'),
+                label: 'Guard Roster',
+                selected: false,
+                accent: const Color(0xFF34D399),
+                onTap: widget.onOpenGuardRoster == null
+                    ? null
+                    : () => _openGuardRoster(selected),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${selected.displayName} stays pinned to the command board while lane pivots, tactical handoffs, and coverage views stay in sync.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -255,11 +599,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleBlock,
-                const SizedBox(height: 16),
-                actions,
-              ],
+              children: [titleBlock, const SizedBox(height: 16), actions],
             );
           }
           return Row(
@@ -328,10 +668,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         foregroundColor: accent,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        textStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
@@ -442,12 +779,17 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     );
   }
 
-  Widget _rosterPane(List<_SiteViewModel> sites) {
+  Widget _rosterPane(
+    List<_SiteViewModel> allSites,
+    List<_SiteViewModel> visibleSites,
+  ) {
+    final watchingCount = _siteCountForFilter(allSites, _SiteLaneFilter.watch);
+    final visibleCount = visibleSites.length;
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF1E2A3A)),
       ),
       child: Column(
@@ -467,26 +809,18 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               const Spacer(),
               InkWell(
                 key: const ValueKey('sites-add-site-button'),
-                borderRadius: BorderRadius.circular(8),
-                onTap: widget.onAddSite == null
-                    ? null
-                    : () {
-                        logUiAction(
-                          'sites.add_site',
-                          context: {'selected_site_id': _selectedSiteId},
-                        );
-                        widget.onAddSite!.call();
-                      },
+                borderRadius: BorderRadius.circular(10),
+                onTap: widget.onAddSite == null ? null : _openAddSite,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
+                    horizontal: 12,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: widget.onAddSite == null
                         ? const Color(0xFF1D2937)
                         : const Color(0xFF3B82F6),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: widget.onAddSite == null
                           ? const Color(0xFF314154)
@@ -508,10 +842,109 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             ],
           ),
           const SizedBox(height: 8),
-          for (final site in sites) ...[
-            _rosterRow(site),
-            const SizedBox(height: 8),
-          ],
+          Text(
+            visibleCount == 0
+                ? 'No sites match the active lane. Switch lanes to recover the roster.'
+                : '$visibleCount of ${allSites.length} sites are in the active command lane.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _rosterFilterChip(
+                key: const ValueKey('sites-roster-filter-all'),
+                label: 'All',
+                count: allSites.length,
+                selected: _siteLaneFilter == _SiteLaneFilter.all,
+                onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
+              ),
+              _rosterFilterChip(
+                key: const ValueKey('sites-roster-filter-healthy'),
+                label: 'Healthy',
+                count: _siteCountForFilter(allSites, _SiteLaneFilter.healthy),
+                selected: _siteLaneFilter == _SiteLaneFilter.healthy,
+                onTap: () =>
+                    _setSiteLaneFilter(allSites, _SiteLaneFilter.healthy),
+              ),
+              _rosterFilterChip(
+                key: const ValueKey('sites-roster-filter-watch'),
+                label: 'Watch',
+                count: watchingCount,
+                selected: _siteLaneFilter == _SiteLaneFilter.watch,
+                onTap: () =>
+                    _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
+              ),
+              _rosterFilterChip(
+                key: const ValueKey('sites-roster-filter-strong'),
+                label: 'Strong',
+                count: _siteCountForFilter(allSites, _SiteLaneFilter.strong),
+                selected: _siteLaneFilter == _SiteLaneFilter.strong,
+                onTap: () =>
+                    _setSiteLaneFilter(allSites, _SiteLaneFilter.strong),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF101923),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF253345)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _rosterSignal(
+                    label: 'WATCH POSTS',
+                    value: '$watchingCount',
+                    accent: const Color(0xFFF59E0B),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _rosterSignal(
+                    label: 'VISIBLE NOW',
+                    value: '$visibleCount',
+                    accent: const Color(0xFF38BDF8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (visibleSites.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF101923),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF253345)),
+              ),
+              child: Text(
+                'No sites are currently in this lane. Choose another lane to continue issuing commands.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFD9E7FA),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
+                ),
+              ),
+            )
+          else
+            for (final site in visibleSites) ...[
+              _rosterRow(site),
+              const SizedBox(height: 8),
+            ],
         ],
       ),
     );
@@ -520,77 +953,128 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
   Widget _rosterRow(_SiteViewModel site) {
     final selected = site.id == _selectedSiteId;
     final status = _statusColor(site.status);
+    final guardFill = _percent(site.guardsActive, site.guardsTotal);
+    final checkpointFill = _percent(
+      site.checkpointsCompleted,
+      site.checkpointsTotal,
+    );
     return InkWell(
-      onTap: () => setState(() => _selectedSiteId = site.id),
-      borderRadius: BorderRadius.circular(10),
+      key: ValueKey('sites-roster-card-${site.id}'),
+      onTap: () {
+        setState(() => _selectedSiteId = site.id);
+        logUiAction(
+          'sites.select_site',
+          context: {'site_id': site.id, 'site_name': site.displayName},
+        );
+      },
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF10333B) : const Color(0xFF0D131A),
-          borderRadius: BorderRadius.circular(10),
+          gradient: selected
+              ? const LinearGradient(
+                  colors: [Color(0xFF112D38), Color(0xFF0D1821)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: selected ? null : const Color(0xFF0D131A),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? const Color(0xFF1F7F95) : const Color(0xFF1F2B3B),
+            color: selected ? const Color(0xFF2A6F8A) : const Color(0xFF1F2B3B),
           ),
         ),
-        child: Row(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: status.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                _statusIcon(site.status),
-                color: const Color(0xFFEAF1FB),
-                size: 20,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: status.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _statusIcon(site.status),
+                    color: const Color(0xFFEAF1FB),
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        site.displayName,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFEAF1FB),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        site.location,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF9BB0C8),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        site.id,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF6F839C),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _statusBadge(site.status),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    site.displayName,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF1FB),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    site.location,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF9BB0C8),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Guards: ${site.guardsActive}/${site.guardsTotal}    Incidents: ${site.incidentsToday}',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF8EA4C2),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _siteMetricChip(
+                  'Guards',
+                  '${site.guardsActive}/${site.guardsTotal}',
+                ),
+                _siteMetricChip('Incidents', '${site.incidentsToday}'),
+                _siteMetricChip('Response', '${site.responseRate.round()}%'),
+              ],
             ),
-            Container(
-              width: 18,
-              height: 8,
-              decoration: BoxDecoration(
-                color: status.withValues(alpha: 0.25),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: status.withValues(alpha: 0.45)),
-              ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _progressMeter(
+                    label: 'Coverage',
+                    percent: guardFill,
+                    color: const Color(0xFF22D3EE),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _progressMeter(
+                    label: 'Checkpoints',
+                    percent: checkpointFill,
+                    color: status,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -598,142 +1082,384 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     );
   }
 
-  Widget _workspacePane(_SiteViewModel site) {
+  Widget _workspacePane(
+    _SiteViewModel site,
+    int visibleSiteCount,
+    int totalSiteCount,
+  ) {
+    final guardFill = _percent(site.guardsActive, site.guardsTotal);
+    final checkpointFill = _percent(
+      site.checkpointsCompleted,
+      site.checkpointsTotal,
+    );
+    final focusCopy = visibleSiteCount == 0
+        ? 'No sites match this lane right now. Holding ${site.displayName} in focus so command context stays intact.'
+        : '$visibleSiteCount of $totalSiteCount sites are visible in the current lane. ${_siteDirective(site)}';
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF1E2A3A)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'SITE OPERATIONS WORKSPACE',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7B8FA8),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            site.displayName,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFEAF1FB),
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            site.location,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFA5B6CB),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _miniButton(
-                'VIEW ON MAP',
-                key: const ValueKey('sites-view-on-map-button'),
-                primary: true,
-                enabled: widget.onOpenMapForSite != null,
-                onTap: () {
-                  logUiAction(
-                    'sites.view_on_map',
-                    context: {
-                      'site_id': site.id,
-                      'site_name': site.displayName,
-                    },
-                  );
-                  widget.onOpenMapForSite!.call(site.id, site.displayName);
-                },
-              ),
-              _miniButton(
-                'SITE SETTINGS',
-                key: const ValueKey('sites-site-settings-button'),
-                enabled: widget.onOpenSiteSettings != null,
-                onTap: () {
-                  logUiAction(
-                    'sites.open_settings',
-                    context: {
-                      'site_id': site.id,
-                      'site_name': site.displayName,
-                    },
-                  );
-                  widget.onOpenSiteSettings!.call(site.id, site.displayName);
-                },
-              ),
-              _miniButton(
-                'GUARD ROSTER',
-                key: const ValueKey('sites-guard-roster-button'),
-                enabled: widget.onOpenGuardRoster != null,
-                onTap: () {
-                  logUiAction(
-                    'sites.open_guard_roster',
-                    context: {
-                      'site_id': site.id,
-                      'site_name': site.displayName,
-                    },
-                  );
-                  widget.onOpenGuardRoster!.call(site.id, site.displayName);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
-              final width = constraints.maxWidth;
-              final cell = width < 760 ? (width - 8) / 2 : (width - 24) / 4;
-              return Wrap(
+              final compact = constraints.maxWidth < 980;
+              final title = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SITE OPERATIONS WORKSPACE',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF7B8FA8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          site.displayName,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFEAF1FB),
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _statusBadge(site.status),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${site.location}  •  ${site.id}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFA5B6CB),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              );
+              final actions = Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _smallKpiCard(
-                    width: cell,
-                    title: 'ACTIVE GUARDS',
-                    value: '${site.guardsActive}/${site.guardsTotal}',
-                    helper: 'Full strength',
-                    helperColor: const Color(0xFF00D084),
+                  _miniButton(
+                    'VIEW ON MAP',
+                    key: const ValueKey('sites-view-on-map-button'),
+                    primary: true,
+                    enabled: widget.onOpenMapForSite != null,
+                    onTap: () {
+                      logUiAction(
+                        'sites.view_on_map',
+                        context: {
+                          'site_id': site.id,
+                          'site_name': site.displayName,
+                        },
+                      );
+                      widget.onOpenMapForSite!.call(site.id, site.displayName);
+                    },
                   ),
-                  _smallKpiCard(
-                    width: cell,
-                    title: 'INCIDENTS TODAY',
-                    value: '${site.incidentsToday}',
-                    helper: 'Last: ${site.lastIncident}',
-                    helperColor: const Color(0xFF8EA4C2),
+                  _miniButton(
+                    'SITE SETTINGS',
+                    key: const ValueKey('sites-site-settings-button'),
+                    enabled: widget.onOpenSiteSettings != null,
+                    onTap: () => _openSiteSettings(site),
                   ),
-                  _smallKpiCard(
-                    width: cell,
-                    title: 'RESPONSE RATE',
-                    value: '${site.responseRate.toStringAsFixed(0)}%',
-                    helper: '+2% vs avg',
-                    helperColor: const Color(0xFF00D084),
+                  _miniButton(
+                    'GUARD ROSTER',
+                    key: const ValueKey('sites-guard-roster-button'),
+                    enabled: widget.onOpenGuardRoster != null,
+                    onTap: () => _openGuardRoster(site),
                   ),
-                  _smallKpiCard(
-                    width: cell,
-                    title: 'CHECKPOINTS',
-                    value:
-                        '${site.checkpointsCompleted}/${site.checkpointsTotal}',
-                    helper:
-                        '${((site.checkpointsCompleted / (site.checkpointsTotal <= 0 ? 1 : site.checkpointsTotal)) * 100).round()}% complete',
-                    helperColor: const Color(0xFF8EA4C2),
+                ],
+              );
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [title, const SizedBox(height: 12), actions],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: actions,
                   ),
                 ],
               );
             },
           ),
-          const SizedBox(height: 8),
-          _panelCard(
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF11273A), Color(0xFF0D1620)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFF27425D)),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 920;
+                final overview = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'COMMAND FOCUS',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA4C2),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      focusCopy,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFF4F8FF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _siteMetricChip(
+                          'Response',
+                          '${site.responseRate.round()}%',
+                        ),
+                        _siteMetricChip('Coverage', '$guardFill%'),
+                        _siteMetricChip('Checkpoints', '$checkpointFill%'),
+                        _siteMetricChip('Last Incident', site.lastIncident),
+                      ],
+                    ),
+                  ],
+                );
+                final directive = Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0x14000000),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0x33527AA6)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _commandDetailRow(
+                        label: 'Directive',
+                        value: _siteDirective(site),
+                        accent: _statusColor(site.status),
+                      ),
+                      const SizedBox(height: 10),
+                      _commandDetailRow(
+                        label: 'Lane State',
+                        value: _workspaceViewTitle(_workspaceView),
+                        accent: const Color(0xFF38BDF8),
+                      ),
+                      const SizedBox(height: 10),
+                      _commandDetailRow(
+                        label: 'Watchline',
+                        value: _siteRiskNarrative(site),
+                        accent: const Color(0xFFF59E0B),
+                      ),
+                    ],
+                  ),
+                );
+                if (compact) {
+                  return Column(
+                    children: [overview, const SizedBox(height: 12), directive],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 5, child: overview),
+                    const SizedBox(width: 12),
+                    Expanded(flex: 4, child: directive),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceViewChip(
+                key: const ValueKey('sites-workspace-view-response'),
+                label: 'Response',
+                selected: _workspaceView == _SiteWorkspaceView.response,
+                onTap: () => _setWorkspaceView(_SiteWorkspaceView.response),
+              ),
+              _workspaceViewChip(
+                key: const ValueKey('sites-workspace-view-coverage'),
+                label: 'Coverage',
+                selected: _workspaceView == _SiteWorkspaceView.coverage,
+                onTap: () => _setWorkspaceView(_SiteWorkspaceView.coverage),
+              ),
+              _workspaceViewChip(
+                key: const ValueKey('sites-workspace-view-checkpoints'),
+                label: 'Checkpoints',
+                selected: _workspaceView == _SiteWorkspaceView.checkpoints,
+                onTap: () => _setWorkspaceView(_SiteWorkspaceView.checkpoints),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _workspaceDeck(site, visibleSiteCount, totalSiteCount),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceDeck(
+    _SiteViewModel site,
+    int visibleSiteCount,
+    int totalSiteCount,
+  ) {
+    return switch (_workspaceView) {
+      _SiteWorkspaceView.response => _responseWorkspace(
+        site,
+        visibleSiteCount,
+        totalSiteCount,
+      ),
+      _SiteWorkspaceView.coverage => _coverageWorkspace(
+        site,
+        visibleSiteCount,
+        totalSiteCount,
+      ),
+      _SiteWorkspaceView.checkpoints => _checkpointWorkspace(
+        site,
+        visibleSiteCount,
+        totalSiteCount,
+      ),
+    };
+  }
+
+  Widget _responseWorkspace(
+    _SiteViewModel site,
+    int visibleSiteCount,
+    int totalSiteCount,
+  ) {
+    final guardFill = _percent(site.guardsActive, site.guardsTotal);
+    final checkpointFill = _percent(
+      site.checkpointsCompleted,
+      site.checkpointsTotal,
+    );
+    return Column(
+      key: const ValueKey('sites-workspace-panel-response'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _workspaceKpiRow([
+          _WorkspaceKpi(
+            title: 'ACTIVE GUARDS',
+            value: '${site.guardsActive}/${site.guardsTotal}',
+            helper: guardFill >= 95 ? 'Full strength' : '$guardFill% staffed',
+            helperColor: guardFill >= 95
+                ? const Color(0xFF00D084)
+                : const Color(0xFFF59E0B),
+          ),
+          _WorkspaceKpi(
+            title: 'INCIDENTS TODAY',
+            value: '${site.incidentsToday}',
+            helper: 'Last: ${site.lastIncident}',
+            helperColor: site.incidentsToday <= 1
+                ? const Color(0xFF8EA4C2)
+                : const Color(0xFFF59E0B),
+          ),
+          _WorkspaceKpi(
+            title: 'RESPONSE RATE',
+            value: '${site.responseRate.toStringAsFixed(0)}%',
+            helper: '$visibleSiteCount of $totalSiteCount visible',
+            helperColor: const Color(0xFF38BDF8),
+          ),
+          _WorkspaceKpi(
+            title: 'CHECKPOINTS',
+            value: '${site.checkpointsCompleted}/${site.checkpointsTotal}',
+            helper: '$checkpointFill% complete',
+            helperColor: const Color(0xFF8EA4C2),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        _workspaceSplitCards(
+          left: _panelCard(
+            title: 'RESPONSE COMMAND BOARD',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _commandDetailRow(
+                  label: 'Current posture',
+                  value: _siteDirective(site),
+                  accent: _statusColor(site.status),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _progressMeter(
+                        label: 'Guard fill',
+                        percent: guardFill,
+                        color: const Color(0xFF22D3EE),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _progressMeter(
+                        label: 'Checkpoint closure',
+                        percent: checkpointFill,
+                        color: _statusColor(site.status),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _siteMetricChip('Visible Sites', '$visibleSiteCount'),
+                    _siteMetricChip('Escalations', '${site.mixEscalated}%'),
+                    _siteMetricChip(
+                      'Resolved On-Site',
+                      '${site.mixResolvedOnsite}%',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _siteRiskNarrative(site),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFD6E2F2),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          right: _panelCard(
             title: 'DISPATCH OUTCOME MIX (30 DAYS)',
             child: Column(
               children: [
@@ -763,65 +1489,896 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          _panelCard(
-            title: 'OPERATIONAL PULSE',
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final stacked = constraints.maxWidth < 780;
-                final left = _pulseColumn([
-                  const _PulseMetric(
-                    'Patrol Coverage',
-                    '96%',
-                    Color(0xFF10B981),
-                  ),
-                  const _PulseMetric(
-                    'Checkpoint Compliance',
-                    '98%',
-                    Color(0xFF10B981),
-                  ),
-                  const _PulseMetric(
-                    'Avg Response Time',
-                    '4.2 min',
-                    Color(0xFF38BDF8),
-                  ),
-                ]);
-                final right = _pulseColumn([
-                  const _PulseMetric(
-                    'Client Satisfaction',
-                    '4.8/5.0',
-                    Color(0xFF10B981),
-                  ),
-                  const _PulseMetric(
-                    'Guard Vigilance',
-                    'Strong',
-                    Color(0xFF10B981),
-                  ),
-                  const _PulseMetric(
-                    'Equipment Status',
-                    'Optimal',
-                    Color(0xFF10B981),
-                  ),
-                ]);
-                if (stacked) {
-                  return Column(
-                    children: [left, const SizedBox(height: 8), right],
-                  );
-                }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: left),
-                    const SizedBox(width: 18),
-                    Expanded(child: right),
-                  ],
+        ),
+        const SizedBox(height: 10),
+        _panelCard(
+          title: 'OPERATIONAL PULSE',
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 780;
+              final left = _pulseColumn([
+                _PulseMetric(
+                  'Patrol Coverage',
+                  '$guardFill%',
+                  guardFill >= 95
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFF59E0B),
+                ),
+                _PulseMetric(
+                  'Checkpoint Compliance',
+                  '$checkpointFill%',
+                  checkpointFill >= 95
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFF38BDF8),
+                ),
+                _PulseMetric(
+                  'Avg Response Tempo',
+                  '${(6.4 - (site.responseRate / 100) * 2.1).toStringAsFixed(1)} min',
+                  const Color(0xFF38BDF8),
+                ),
+              ]);
+              final right = _pulseColumn([
+                _PulseMetric(
+                  'Client Confidence',
+                  site.incidentsToday >= 3 ? 'Watching' : 'Stable',
+                  site.incidentsToday >= 3
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF10B981),
+                ),
+                _PulseMetric(
+                  'Guard Vigilance',
+                  _statusLabel(site.status),
+                  _statusColor(site.status),
+                ),
+                _PulseMetric(
+                  'Visible Sites',
+                  '$visibleSiteCount/$totalSiteCount',
+                  const Color(0xFF8EA4C2),
+                ),
+              ]);
+              if (stacked) {
+                return Column(
+                  children: [left, const SizedBox(height: 8), right],
                 );
-              },
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: left),
+                  const SizedBox(width: 18),
+                  Expanded(child: right),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _coverageWorkspace(
+    _SiteViewModel site,
+    int visibleSiteCount,
+    int totalSiteCount,
+  ) {
+    final guardFill = _percent(site.guardsActive, site.guardsTotal);
+    final checkpointFill = _percent(
+      site.checkpointsCompleted,
+      site.checkpointsTotal,
+    );
+    final reserveUnits = site.guardsTotal > site.guardsActive
+        ? site.guardsTotal - site.guardsActive
+        : 0;
+    final perimeterCoverage = _boundedPercent(
+      ((guardFill + site.responseRate) / 2).round(),
+    );
+    final accessCoverage = _boundedPercent(checkpointFill + 4);
+    final mobileCoverage = _boundedPercent(site.responseRate.round() - 3);
+    final reserveCoverage = site.guardsTotal == 0
+        ? 0
+        : _boundedPercent(((reserveUnits / site.guardsTotal) * 100).round());
+    return Column(
+      key: const ValueKey('sites-workspace-panel-coverage'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _workspaceKpiRow([
+          _WorkspaceKpi(
+            title: 'COVERAGE ARC',
+            value: '$perimeterCoverage%',
+            helper: 'Perimeter stabilized',
+            helperColor: const Color(0xFF38BDF8),
+          ),
+          _WorkspaceKpi(
+            title: 'ACTIVE POSTS',
+            value: '${site.guardsActive}',
+            helper: '${site.guardsTotal} total assigned',
+            helperColor: const Color(0xFF8EA4C2),
+          ),
+          _WorkspaceKpi(
+            title: 'MOBILE UNITS',
+            value: '${reserveUnits <= 0 ? 1 : reserveUnits}',
+            helper: reserveUnits == 0
+                ? 'No reserve slack'
+                : 'Reserve available',
+            helperColor: reserveUnits == 0
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFF00D084),
+          ),
+          _WorkspaceKpi(
+            title: 'VISIBLE SITES',
+            value: '$visibleSiteCount/$totalSiteCount',
+            helper: 'Network lane scope',
+            helperColor: const Color(0xFF8EA4C2),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        _workspaceSplitCards(
+          left: _panelCard(
+            title: 'COVERAGE GRID',
+            child: Column(
+              children: [
+                _progressMeter(
+                  label: 'Perimeter watch',
+                  percent: perimeterCoverage,
+                  color: const Color(0xFF22D3EE),
+                ),
+                const SizedBox(height: 10),
+                _progressMeter(
+                  label: 'Access control',
+                  percent: accessCoverage,
+                  color: const Color(0xFF10B981),
+                ),
+                const SizedBox(height: 10),
+                _progressMeter(
+                  label: 'Mobile patrol sweep',
+                  percent: mobileCoverage,
+                  color: const Color(0xFF38BDF8),
+                ),
+                const SizedBox(height: 10),
+                _progressMeter(
+                  label: 'Reserve buffer',
+                  percent: reserveCoverage,
+                  color: reserveCoverage == 0
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF10B981),
+                ),
+              ],
+            ),
+          ),
+          right: _panelCard(
+            title: 'SHIFT DISTRIBUTION',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _commandDetailRow(
+                  label: 'Primary lane',
+                  value:
+                      '${site.guardsActive} guards covering the main response ring',
+                  accent: const Color(0xFF38BDF8),
+                ),
+                const SizedBox(height: 10),
+                _commandDetailRow(
+                  label: 'Pressure point',
+                  value: reserveUnits == 0
+                      ? 'No spare guard buffer for relief rotation.'
+                      : '$reserveUnits reserve guard(s) can reinforce the watchline.',
+                  accent: reserveUnits == 0
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF10B981),
+                ),
+                const SizedBox(height: 10),
+                _commandDetailRow(
+                  label: 'Coverage note',
+                  value: _siteRiskNarrative(site),
+                  accent: _statusColor(site.status),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _panelCard(
+          title: 'FIELD READINESS',
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 780;
+              final left = _pulseColumn([
+                _PulseMetric(
+                  'Guard Fill',
+                  '$guardFill%',
+                  guardFill >= 95
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFF59E0B),
+                ),
+                _PulseMetric(
+                  'Checkpoint Carry',
+                  '$checkpointFill%',
+                  const Color(0xFF38BDF8),
+                ),
+                _PulseMetric(
+                  'Response Support',
+                  reserveUnits == 0 ? 'Tight' : 'Available',
+                  reserveUnits == 0
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF10B981),
+                ),
+              ]);
+              final right = _pulseColumn([
+                _PulseMetric(
+                  'Command Lane',
+                  '$visibleSiteCount/$totalSiteCount',
+                  const Color(0xFF8EA4C2),
+                ),
+                _PulseMetric(
+                  'Status',
+                  _statusLabel(site.status),
+                  _statusColor(site.status),
+                ),
+                _PulseMetric(
+                  'Last Incident',
+                  site.lastIncident,
+                  const Color(0xFFD9E7FA),
+                ),
+              ]);
+              if (stacked) {
+                return Column(
+                  children: [left, const SizedBox(height: 8), right],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: left),
+                  const SizedBox(width: 18),
+                  Expanded(child: right),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _checkpointWorkspace(
+    _SiteViewModel site,
+    int visibleSiteCount,
+    int totalSiteCount,
+  ) {
+    final checkpointFill = _percent(
+      site.checkpointsCompleted,
+      site.checkpointsTotal,
+    );
+    final remainingCheckpoints =
+        site.checkpointsTotal > site.checkpointsCompleted
+        ? site.checkpointsTotal - site.checkpointsCompleted
+        : 0;
+    final assuranceScore = _boundedPercent(
+      ((checkpointFill + site.responseRate.round()) / 2).round(),
+    );
+    final exceptionRate = _boundedPercent(100 - checkpointFill);
+    return Column(
+      key: const ValueKey('sites-workspace-panel-checkpoints'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _workspaceKpiRow([
+          _WorkspaceKpi(
+            title: 'COMPLETED',
+            value: '${site.checkpointsCompleted}',
+            helper: '${site.checkpointsTotal} scheduled',
+            helperColor: const Color(0xFF8EA4C2),
+          ),
+          _WorkspaceKpi(
+            title: 'REMAINING',
+            value: '$remainingCheckpoints',
+            helper: remainingCheckpoints == 0
+                ? 'No backlog'
+                : 'Pending field closeout',
+            helperColor: remainingCheckpoints == 0
+                ? const Color(0xFF00D084)
+                : const Color(0xFFF59E0B),
+          ),
+          _WorkspaceKpi(
+            title: 'ASSURANCE',
+            value: '$assuranceScore%',
+            helper: '$visibleSiteCount/$totalSiteCount in lane',
+            helperColor: const Color(0xFF38BDF8),
+          ),
+          _WorkspaceKpi(
+            title: 'LAST INCIDENT',
+            value: site.lastIncident,
+            helper: 'Most recent alert',
+            helperColor: const Color(0xFF8EA4C2),
+          ),
+        ]),
+        const SizedBox(height: 10),
+        _workspaceSplitCards(
+          left: _panelCard(
+            title: 'CHECKPOINT COMMAND BOARD',
+            child: Column(
+              children: [
+                _progressMeter(
+                  label: 'Completed route',
+                  percent: checkpointFill,
+                  color: const Color(0xFF10B981),
+                ),
+                const SizedBox(height: 10),
+                _progressMeter(
+                  label: 'Remaining route',
+                  percent: exceptionRate,
+                  color: const Color(0xFFF59E0B),
+                ),
+                const SizedBox(height: 10),
+                _progressMeter(
+                  label: 'Assurance confidence',
+                  percent: assuranceScore,
+                  color: const Color(0xFF38BDF8),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  remainingCheckpoints == 0
+                      ? 'All checkpoints are closed. Hold the current cadence and keep the watchline in place.'
+                      : '$remainingCheckpoints checkpoint(s) still need a physical closeout before the route is considered sealed.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFD6E2F2),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          right: _panelCard(
+            title: 'ASSURANCE TRACK',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _commandDetailRow(
+                  label: 'Checkpoint state',
+                  value: checkpointFill >= 95
+                      ? 'Closed and verified'
+                      : 'Active follow-through required',
+                  accent: checkpointFill >= 95
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFF59E0B),
+                ),
+                const SizedBox(height: 10),
+                _commandDetailRow(
+                  label: 'Field note',
+                  value: _siteRiskNarrative(site),
+                  accent: _statusColor(site.status),
+                ),
+                const SizedBox(height: 10),
+                _commandDetailRow(
+                  label: 'Lane scope',
+                  value:
+                      '$visibleSiteCount of $totalSiteCount sites are visible in this checkpoint lane.',
+                  accent: const Color(0xFF38BDF8),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _panelCard(
+          title: 'FOLLOW-THROUGH',
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final stacked = constraints.maxWidth < 780;
+              final left = _pulseColumn([
+                _PulseMetric(
+                  'Completion',
+                  '$checkpointFill%',
+                  checkpointFill >= 95
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFF59E0B),
+                ),
+                _PulseMetric(
+                  'Exceptions',
+                  '$exceptionRate%',
+                  const Color(0xFFF59E0B),
+                ),
+                _PulseMetric(
+                  'Response Overlay',
+                  '${site.responseRate.round()}%',
+                  const Color(0xFF38BDF8),
+                ),
+              ]);
+              final right = _pulseColumn([
+                _PulseMetric(
+                  'Active Site',
+                  site.displayName,
+                  const Color(0xFFD9E7FA),
+                ),
+                _PulseMetric(
+                  'Status',
+                  _statusLabel(site.status),
+                  _statusColor(site.status),
+                ),
+                _PulseMetric(
+                  'Visible Lane',
+                  '$visibleSiteCount/$totalSiteCount',
+                  const Color(0xFF8EA4C2),
+                ),
+              ]);
+              if (stacked) {
+                return Column(
+                  children: [left, const SizedBox(height: 8), right],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: left),
+                  const SizedBox(width: 18),
+                  Expanded(child: right),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _workspaceKpiRow(List<_WorkspaceKpi> metrics) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final cell = width < 760 ? (width - 8) / 2 : (width - 24) / 4;
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final metric in metrics)
+              _smallKpiCard(
+                width: cell,
+                title: metric.title,
+                value: metric.value,
+                helper: metric.helper,
+                helperColor: metric.helperColor,
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _workspaceSplitCards({required Widget left, required Widget right}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 980;
+        if (stacked) {
+          return Column(children: [left, const SizedBox(height: 10), right]);
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 5, child: left),
+            const SizedBox(width: 10),
+            Expanded(flex: 4, child: right),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _rosterFilterChip({
+    required Key key,
+    required String label,
+    required int count,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF113245) : const Color(0xFF101923),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? const Color(0xFF2D89A7) : const Color(0xFF253345),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: selected
+                    ? const Color(0xFFEAF1FB)
+                    : const Color(0xFF9BB0C8),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: selected
+                    ? const Color(0xFF0F2532)
+                    : const Color(0xFF0D131A),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF1FB),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _workspaceViewChip({
+    required Key key,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF123244) : const Color(0xFF111822),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? const Color(0xFF2D89A7) : const Color(0xFF2A374A),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? const Color(0xFFEAF1FB) : const Color(0xFF9BB0C8),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _rosterSignal({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF6F839C),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            color: accent,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusBadge(_SiteStatus status) {
+    final color = _statusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        _statusLabel(status).toUpperCase(),
+        style: GoogleFonts.inter(
+          color: const Color(0xFFEAF1FB),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
+  Widget _siteMetricChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101923),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFF263446)),
+      ),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '$label ',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF7D93B1),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            TextSpan(
+              text: value,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF1FB),
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _progressMeter({
+    required String label,
+    required int percent,
+    required Color color,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFA5B6CB),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Text(
+              '$percent%',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF1FB),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: SizedBox(
+            height: 8,
+            child: LinearProgressIndicator(
+              value: percent / 100,
+              backgroundColor: const Color(0xFF0A0E14),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _commandDetailRow({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF6F839C),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF1FB),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            height: 1.45,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: 54,
+          height: 3,
+          decoration: BoxDecoration(
+            color: accent,
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _workspaceStatusPill({
+    required IconData icon,
+    required String label,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111F33),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
       ),
     );
+  }
+
+  Widget _workspaceBannerAction({
+    required Key key,
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback? onTap,
+  }) {
+    final enabled = onTap != null;
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: !enabled
+              ? const Color(0xFF1D2937)
+              : selected
+              ? accent.withValues(alpha: 0.2)
+              : const Color(0xFF111F33),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: !enabled
+                ? const Color(0xFF314154)
+                : selected
+                ? accent.withValues(alpha: 0.75)
+                : accent.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: !enabled ? const Color(0xFF8EA4C2) : const Color(0xFFEAF1FB),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _laneLabel(_SiteLaneFilter filter) {
+    return switch (filter) {
+      _SiteLaneFilter.all => 'All Sites',
+      _SiteLaneFilter.healthy => 'Healthy',
+      _SiteLaneFilter.watch => 'Watch',
+      _SiteLaneFilter.strong => 'Strong',
+    };
+  }
+
+  Color _laneAccent(_SiteLaneFilter filter) {
+    return switch (filter) {
+      _SiteLaneFilter.all => const Color(0xFF63BDFF),
+      _SiteLaneFilter.healthy => const Color(0xFF22D3EE),
+      _SiteLaneFilter.watch => const Color(0xFFF59E0B),
+      _SiteLaneFilter.strong => const Color(0xFF34D399),
+    };
+  }
+
+  Color _workspaceAccent(_SiteWorkspaceView view) {
+    return switch (view) {
+      _SiteWorkspaceView.response => const Color(0xFF63BDFF),
+      _SiteWorkspaceView.coverage => const Color(0xFF34D399),
+      _SiteWorkspaceView.checkpoints => const Color(0xFFA78BFA),
+    };
+  }
+
+  String _workspaceViewTitle(_SiteWorkspaceView view) {
+    return switch (view) {
+      _SiteWorkspaceView.response => 'Response Command Board',
+      _SiteWorkspaceView.coverage => 'Coverage Grid',
+      _SiteWorkspaceView.checkpoints => 'Checkpoint Command Board',
+    };
+  }
+
+  String _siteDirective(_SiteViewModel site) {
+    return switch (site.status) {
+      _SiteStatus.strong =>
+        'Hold a steady watchline and preserve rapid-response reserve at ${site.displayName}.',
+      _SiteStatus.stable =>
+        'Maintain current patrol rhythm and reinforce the next available sweep window.',
+      _SiteStatus.atRisk =>
+        'Reinforce the active perimeter and tighten supervisor visibility before the next incident cycle.',
+      _SiteStatus.critical =>
+        'Escalate field oversight immediately and rebalance guard coverage across the exposed lane.',
+    };
+  }
+
+  String _siteRiskNarrative(_SiteViewModel site) {
+    if (site.incidentsToday >= 4) {
+      return 'Incident load is elevated today, so the site should stay on a short operational leash until closeout improves.';
+    }
+    if (site.guardsActive < site.guardsTotal) {
+      return 'Guard coverage is below planned strength, which increases response pressure if another alert arrives.';
+    }
+    if (site.checkpointsCompleted < site.checkpointsTotal) {
+      return 'Checkpoint follow-through is still open, so assurance depends on the next patrol loop closing cleanly.';
+    }
+    return 'Current posture is controlled. Keep the same deployment tempo and continue monitoring the wider lane.';
+  }
+
+  String _statusLabel(_SiteStatus status) {
+    return switch (status) {
+      _SiteStatus.strong => 'Strong',
+      _SiteStatus.stable => 'Stable',
+      _SiteStatus.atRisk => 'Watch',
+      _SiteStatus.critical => 'Critical',
+    };
+  }
+
+  int _percent(int part, int total) {
+    if (total <= 0) {
+      return 0;
+    }
+    return _boundedPercent(((part / total) * 100).round());
+  }
+
+  int _boundedPercent(int value) {
+    if (value < 0) {
+      return 0;
+    }
+    if (value > 100) {
+      return 100;
+    }
+    return value;
   }
 
   Widget _miniButton(
@@ -844,18 +2401,14 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: enabled
-                ? (primary
-                      ? const Color(0xFF4E8FFF)
-                      : const Color(0xFF2A374A))
+                ? (primary ? const Color(0xFF4E8FFF) : const Color(0xFF2A374A))
                 : const Color(0xFF314154),
           ),
         ),
         child: Text(
           text,
           style: GoogleFonts.inter(
-            color: enabled
-                ? const Color(0xFFEAF1FB)
-                : const Color(0xFF8EA4C2),
+            color: enabled ? const Color(0xFFEAF1FB) : const Color(0xFF8EA4C2),
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -1022,6 +2575,20 @@ class _PulseMetric {
   final Color color;
 
   const _PulseMetric(this.label, this.value, this.color);
+}
+
+class _WorkspaceKpi {
+  final String title;
+  final String value;
+  final String helper;
+  final Color helperColor;
+
+  const _WorkspaceKpi({
+    required this.title,
+    required this.value,
+    required this.helper,
+    required this.helperColor,
+  });
 }
 
 enum _SiteStatus { strong, stable, atRisk, critical }

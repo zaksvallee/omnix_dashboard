@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/application/telegram_bridge_service.dart';
+import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/main.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
@@ -127,6 +128,7 @@ Future<void> pumpClientControlSourceApp(
   Key? key,
   String? clientId,
   String? siteId,
+  List<DispatchEvent> initialStoreEventsOverride = const <DispatchEvent>[],
 }) async {
   final persistence = await DispatchPersistenceService.create();
   await persistence.saveClientAppDraft(
@@ -154,6 +156,7 @@ Future<void> pumpClientControlSourceApp(
       initialClientLaneClientIdOverride: clientId,
       initialClientLaneSiteIdOverride: siteId,
       appModeOverride: OnyxAppMode.client,
+      initialStoreEventsOverride: initialStoreEventsOverride,
     ),
   );
   await tester.pumpAndSettle();

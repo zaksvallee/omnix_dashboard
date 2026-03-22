@@ -13806,21 +13806,41 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (action == null) {
       return false;
     }
+    final nowLocal = DateTime.now();
+    final nowUtc = nowLocal.toUtc();
+    final recentSignalWindowStartUtc = nowUtc.subtract(
+      const Duration(minutes: 15),
+    );
+    final extendedSignalWindowStartUtc = nowUtc.subtract(
+      const Duration(hours: 24),
+    );
     final fieldActivity = _recentFieldActivitySnapshotForScope(
       clientId: target.clientId,
       siteId: siteId,
-      startUtc: DateTime.now().toUtc().subtract(const Duration(hours: 24)),
+      startUtc: extendedSignalWindowStartUtc,
     );
-    final recentSiteNarrative = _recentSiteNarrativeSnapshotForScope(
-      clientId: target.clientId,
-      siteId: siteId,
-      startUtc: DateTime.now().toUtc().subtract(const Duration(minutes: 15)),
-    );
-    final recentSiteSignal = _recentSiteSignalSnapshotForScope(
-      clientId: target.clientId,
-      siteId: siteId,
-      startUtc: DateTime.now().toUtc().subtract(const Duration(minutes: 15)),
-    );
+    final recentSiteNarrative =
+        _recentSiteNarrativeSnapshotForScope(
+          clientId: target.clientId,
+          siteId: siteId,
+          startUtc: recentSignalWindowStartUtc,
+        ) ??
+        _recentSiteNarrativeSnapshotForScope(
+          clientId: target.clientId,
+          siteId: siteId,
+          startUtc: extendedSignalWindowStartUtc,
+        );
+    final recentSiteSignal =
+        _recentSiteSignalSnapshotForScope(
+          clientId: target.clientId,
+          siteId: siteId,
+          startUtc: recentSignalWindowStartUtc,
+        ) ??
+        _recentSiteSignalSnapshotForScope(
+          clientId: target.clientId,
+          siteId: siteId,
+          startUtc: extendedSignalWindowStartUtc,
+        );
     final fallbackAssessmentLabel =
         recentSiteNarrative?.assessment ??
         (fieldActivity == null
@@ -13835,7 +13855,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       schedule: _monitoringScheduleForScope(target.clientId, siteId),
       runtime:
           _monitoringWatchByScope[_monitoringScopeKey(target.clientId, siteId)],
-      nowLocal: DateTime.now(),
+      nowLocal: nowLocal,
       fallbackReviewedEvents: fieldActivity?.count ?? 0,
       fallbackActivitySource:
           recentSiteSignal?.source ?? fieldActivity?.latestSource,
@@ -13849,7 +13869,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           recentSiteSignal?.occurredAtLocal ??
           fieldActivity?.latestOccurredAtLocal,
     );
-    final occurredAtUtc = DateTime.now().toUtc();
+    final occurredAtUtc = nowUtc;
     final delivered = await _sendTelegramMessageWithChunks(
       messageKeyPrefix: 'tg-client-quick-${action.name}-${update.updateId}',
       chatId: update.chatId,
@@ -26462,6 +26482,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           onOpenReceiptPolicyEvent: _openEventsForEventId,
           onOpenReportsForReceiptEvent: _openReportsForReceiptEvent,
           onOpenVehicleExceptionVisit: _openEventsForVehicleVisit,
+          onOpenReportsForScope: _openReportsForScope,
           onOpenEventsForScope: (eventIds, selectedEventId) {
             _openEventsForScopedEventIds(
               eventIds,

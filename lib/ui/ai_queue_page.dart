@@ -24,6 +24,10 @@ enum _AiIncidentPriority { p1Critical, p2High, p3Medium }
 
 enum _AiActionStatus { pending, executing, paused }
 
+enum _AiQueueLaneFilter { live, queued, drafts, shadow }
+
+enum _AiQueueWorkspaceView { runbook, policy, context }
+
 class _AiQueueAction {
   final String id;
   final String incidentId;
@@ -87,6 +91,20 @@ class _AiQueueDailyStats {
   });
 }
 
+class _AiQueueCommandReceipt {
+  final String label;
+  final String message;
+  final String detail;
+  final Color accent;
+
+  const _AiQueueCommandReceipt({
+    required this.label,
+    required this.message,
+    required this.detail,
+    required this.accent,
+  });
+}
+
 class AIQueuePage extends StatefulWidget {
   final List<DispatchEvent> events;
   final List<String> historicalSyntheticLearningLabels;
@@ -117,10 +135,22 @@ class AIQueuePage extends StatefulWidget {
 class _AIQueuePageState extends State<AIQueuePage> {
   static const _autonomyService = MonitoringWatchAutonomyService();
   static const _globalPostureService = MonitoringGlobalPostureService();
+  static const _defaultCommandReceipt = _AiQueueCommandReceipt(
+    label: 'QUEUE READY',
+    message: 'Workspace commands stay pinned in this rail on desktop.',
+    detail:
+        'Promotions, pause changes, and shadow dossier exports remain visible while you keep working the queue.',
+    accent: Color(0xFF8FD1FF),
+  );
   late List<_AiQueueAction> _actions;
   late final _AiQueueDailyStats _stats;
   Timer? _ticker;
   bool _queuePaused = false;
+  _AiQueueLaneFilter _laneFilter = _AiQueueLaneFilter.live;
+  _AiQueueWorkspaceView _workspaceView = _AiQueueWorkspaceView.runbook;
+  String? _selectedFocusId;
+  _AiQueueCommandReceipt _commandReceipt = _defaultCommandReceipt;
+  bool _desktopWorkspaceActive = false;
 
   @override
   void initState() {
@@ -159,57 +189,165 @@ class _AIQueuePageState extends State<AIQueuePage> {
   @override
   Widget build(BuildContext context) {
     final activeAction = _activeAction;
-    final queuedActions = _queuedActions;
+    final queuedActions = _displayQueuedActions;
     final nextShiftDrafts = _nextShiftDrafts;
     final moShadowSites = _moShadowSites;
+    final focusItems = _buildFocusItems(
+      activeAction: activeAction,
+      queuedActions: queuedActions,
+      nextShiftDrafts: nextShiftDrafts,
+      moShadowSites: moShadowSites,
+    );
+    final effectiveLane = _effectiveLaneForItems(focusItems);
+    final laneItems = focusItems
+        .where((item) => item.lane == effectiveLane)
+        .toList(growable: false);
+    final selectedFocus = _resolveSelectedFocus(
+      laneItems: laneItems,
+      allItems: focusItems,
+    );
     final viewport = MediaQuery.sizeOf(context).width;
     final compact = viewport < 900 || isHandsetLayout(context);
+    final useEmbeddedWorkspace = !compact && allowEmbeddedPanelScroll(context);
     final contentPadding = compact
-        ? const EdgeInsets.all(14)
-        : const EdgeInsets.fromLTRB(24, 22, 24, 22);
+        ? const EdgeInsets.all(12)
+        : const EdgeInsets.fromLTRB(12, 12, 12, 14);
+
+    Widget buildWorkspaceSection({required bool expandToFill}) {
+      return OnyxSectionCard(
+        title: 'Automation Workspace',
+        subtitle:
+            'Lane-based queue supervision with a selected automation board and live context rail.',
+        flexibleChild: expandToFill,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final useEmbeddedPanels =
+                constraints.maxWidth >= 1240 &&
+                allowEmbeddedPanelScroll(context);
+            final useWideLayout = constraints.maxWidth >= 1180;
+            _desktopWorkspaceActive = useWideLayout;
+            final workspace = _automationWorkspace(
+              activeAction: activeAction,
+              queuedActions: queuedActions,
+              nextShiftDrafts: nextShiftDrafts,
+              moShadowSites: moShadowSites,
+              focusItems: focusItems,
+              laneItems: laneItems,
+              selectedFocus: selectedFocus,
+              effectiveLane: effectiveLane,
+              useWideLayout: useWideLayout,
+              useEmbeddedPanels: useEmbeddedPanels,
+              compact: compact,
+            );
+            if (expandToFill) {
+              if (!useWideLayout) {
+                return workspace;
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _workspaceStatusBanner(
+                    activeAction: activeAction,
+                    queuedActions: queuedActions,
+                    nextShiftDrafts: nextShiftDrafts,
+                    moShadowSites: moShadowSites,
+                    selectedFocus: selectedFocus,
+                    effectiveLane: effectiveLane,
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(child: workspace),
+                ],
+              );
+            }
+            final workspaceShell = useWideLayout
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _workspaceStatusBanner(
+                        activeAction: activeAction,
+                        queuedActions: queuedActions,
+                        nextShiftDrafts: nextShiftDrafts,
+                        moShadowSites: moShadowSites,
+                        selectedFocus: selectedFocus,
+                        effectiveLane: effectiveLane,
+                      ),
+                      const SizedBox(height: 10),
+                      if (useEmbeddedPanels)
+                        Expanded(child: workspace)
+                      else
+                        workspace,
+                    ],
+                  )
+                : workspace;
+            if (useEmbeddedPanels) {
+              return SizedBox(
+                height: useWideLayout ? 780 : 700,
+                child: workspaceShell,
+              );
+            }
+            return workspaceShell;
+          },
+        ),
+      );
+    }
+
+    Widget buildSurfaceBody() {
+      final content = [
+        _queueSnapshotStrip(
+          queuedActions: queuedActions,
+          nextShiftDrafts: nextShiftDrafts,
+          moShadowSites: moShadowSites,
+          selectedFocus: selectedFocus,
+          effectiveLane: effectiveLane,
+        ),
+        SizedBox(height: useEmbeddedWorkspace ? 6 : 10),
+      ];
+      if (useEmbeddedWorkspace) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...content,
+            Expanded(child: buildWorkspaceSection(expandToFill: true)),
+          ],
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [...content, buildWorkspaceSection(expandToFill: false)],
+      );
+    }
 
     return OnyxPageScaffold(
-      child: SingleChildScrollView(
-        padding: contentPadding,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1320),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _heroHeader(
-                  context,
-                  compact: compact,
-                  totalQueueCount: _actions.length,
-                  queuedCount: queuedActions.length,
-                ),
-                const SizedBox(height: 16),
-                if (activeAction != null)
-                  _activeAutomationCard(
-                    activeAction,
-                    compact: compact,
-                  )
-                else
-                  _automationStandbyCard(
-                    totalQueueCount: _actions.length,
-                    queuedCount: queuedActions.length,
-                  ),
-                const SizedBox(height: 16),
-                _queuedActionsCard(queuedActions),
-                if (moShadowSites.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _moShadowCard(moShadowSites),
-                ],
-                if (nextShiftDrafts.isNotEmpty) ...[
-                  const SizedBox(height: 16),
-                  _nextShiftDraftsCard(nextShiftDrafts),
-                ],
-                const SizedBox(height: 16),
-                _todayPerformance(compact: compact),
-              ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boundedDesktopSurface =
+              useEmbeddedWorkspace &&
+              constraints.hasBoundedHeight &&
+              constraints.maxHeight.isFinite;
+          final ultrawideSurface = isUltrawideLayout(
+            context,
+            viewportWidth: constraints.maxWidth,
+          );
+          final surfaceMaxWidth = commandSurfaceMaxWidth(
+            context,
+            compactDesktopWidth: 1600,
+            viewportWidth: constraints.maxWidth,
+            widescreenFillFactor: ultrawideSurface ? 1 : 0.95,
+          );
+          return OnyxViewportWorkspaceLayout(
+            padding: contentPadding,
+            maxWidth: surfaceMaxWidth,
+            lockToViewport: boundedDesktopSurface,
+            spacing: compact ? 8 : 10,
+            header: _heroHeader(
+              context,
+              compact: compact,
+              totalQueueCount: _actions.length,
+              queuedCount: queuedActions.length,
             ),
-          ),
-        ),
+            body: buildSurfaceBody(),
+          );
+        },
       ),
     );
   }
@@ -268,10 +406,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 56,
-          height: 56,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             gradient: const LinearGradient(
               colors: [Color(0xFF9333EA), Color(0xFF4F46E5)],
               begin: Alignment.topLeft,
@@ -281,10 +419,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
           child: const Icon(
             Icons.psychology_alt_rounded,
             color: Colors.white,
-            size: 28,
+            size: 26,
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,7 +431,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 'AI Automation Queue',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFF6FBFF),
-                  fontSize: compact ? 24 : 28,
+                  fontSize: compact ? 21 : 24,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -302,7 +440,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 'Human-parallel execution supervision with 30s intervention windows.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF95A9C7),
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -341,20 +479,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          titleBlock,
-          const SizedBox(height: 14),
-          actions,
-        ],
+        children: [titleBlock, const SizedBox(height: 12), actions],
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: titleBlock),
-        const SizedBox(width: 18),
+        const SizedBox(width: 12),
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 380),
+          constraints: const BoxConstraints(maxWidth: 332),
           child: actions,
         ),
       ],
@@ -363,7 +497,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Widget _heroStatusChip({required String label, required Color accent}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -373,16 +507,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 10,
-            height: 10,
+            width: 8,
+            height: 8,
             decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Text(
             label.toUpperCase(),
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.4,
             ),
@@ -398,10 +532,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
       decoration: BoxDecoration(
         color: const Color(0xFF10141F),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF293245)),
       ),
       child: Column(
@@ -411,17 +545,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
             label.toUpperCase(),
             style: GoogleFonts.inter(
               color: const Color(0xFF7D8DA8),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
               letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             value,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 28,
+              fontSize: 22,
               fontWeight: FontWeight.w800,
               height: 0.95,
             ),
@@ -441,7 +575,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 16),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
@@ -449,120 +583,1222 @@ class _AIQueuePageState extends State<AIQueuePage> {
         disabledBackgroundColor: const Color(0x12000000),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         textStyle: GoogleFonts.inter(
-          fontSize: 12,
+          fontSize: 10.5,
           fontWeight: FontWeight.w700,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
 
-  Widget _activeAutomationCard(
-    _AiQueueAction action, {
+  Widget _queueSnapshotStrip({
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+    required _AiQueueFocusItem? selectedFocus,
+    required _AiQueueLaneFilter effectiveLane,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cards = [
+          _selectedFocusSnapshotCard(
+            selectedFocus: selectedFocus,
+            effectiveLane: effectiveLane,
+          ),
+          _statCard(
+            label: 'Queued',
+            value: queuedActions.length.toString(),
+            color: const Color(0xFF22D3EE),
+            border: const Color(0x5540BAD4),
+          ),
+          _statCard(
+            label: 'Drafts',
+            value: nextShiftDrafts.length.toString(),
+            color: const Color(0xFFC8D2FF),
+            border: const Color(0x665C7CFA),
+          ),
+          _statCard(
+            label: 'Shadow Sites',
+            value: moShadowSites.length.toString(),
+            color: const Color(0xFFB8D7FF),
+            border: const Color(0x665B9BD5),
+          ),
+        ];
+        if (constraints.maxWidth < 900) {
+          return Column(
+            children: [
+              for (var i = 0; i < cards.length; i++) ...[
+                cards[i],
+                if (i != cards.length - 1) const SizedBox(height: 8),
+              ],
+            ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(flex: 2, child: cards.first),
+            const SizedBox(width: 8),
+            for (var i = 1; i < cards.length; i++) ...[
+              Expanded(child: cards[i]),
+              if (i != cards.length - 1) const SizedBox(width: 8),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _selectedFocusSnapshotCard({
+    required _AiQueueFocusItem? selectedFocus,
+    required _AiQueueLaneFilter effectiveLane,
+  }) {
+    final accent = selectedFocus?.accent ?? _laneAccent(effectiveLane);
+    final descriptor = selectedFocus?.secondaryLabel ?? 'Queue supervision';
+    final headline = selectedFocus?.primaryLabel ?? 'Standby Supervision';
+    final summary =
+        selectedFocus?.summary ??
+        'The queue is clear for now, but the runbook, policy, and context shells stay armed for the next automation wave.';
+    final laneRecovery =
+        selectedFocus != null && selectedFocus.lane != effectiveLane
+        ? selectedFocus.lane
+        : null;
+    final canPromoteSelected =
+        selectedFocus?.action != null &&
+        selectedFocus!.action!.status == _AiActionStatus.pending;
+    final canOpenScope = _canOpenEventsForFocus(selectedFocus);
+
+    return Container(
+      key: const ValueKey('ai-queue-overview-selected-card'),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.16), const Color(0xFF101A2B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  selectedFocus?.shadowSite != null
+                      ? Icons.visibility_outlined
+                      : Icons.auto_awesome_rounded,
+                  color: accent,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AUTOMATION IN FOCUS',
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      descriptor,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8EA5C5),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (selectedFocus != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: accent.withValues(alpha: 0.34)),
+                  ),
+                  child: Text(
+                    'FOCUS',
+                    style: GoogleFonts.inter(
+                      color: accent,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            headline,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE7F1FF),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              height: 0.95,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            summary,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD7E4F5),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (selectedFocus != null)
+                ...selectedFocus.chips.map(
+                  (chip) => _detailChip(chip.$1, chip.$2, accent: chip.$3),
+                ),
+              _detailChip(
+                'View',
+                _workspaceLabel(_workspaceView),
+                accent: _workspaceAccent(_workspaceView),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            selectedFocus?.bannerSummary ??
+                'Keep the board simple up top while runbook, policy, and context stay one move away underneath.',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (laneRecovery != null)
+                _workspaceStatusAction(
+                  key: const ValueKey('ai-queue-overview-selected-open-lane'),
+                  label: 'Open ${_laneLabel(laneRecovery)}',
+                  selected: false,
+                  accent: _laneAccent(laneRecovery),
+                  onTap: () => _focusLane(
+                    laneRecovery,
+                    preferredFocusId: selectedFocus!.id,
+                  ),
+                ),
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-overview-selected-open-runbook'),
+                label: 'Runbook',
+                selected: _workspaceView == _AiQueueWorkspaceView.runbook,
+                accent: _workspaceAccent(_AiQueueWorkspaceView.runbook),
+                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.runbook),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-overview-selected-open-policy'),
+                label: 'Policy',
+                selected: _workspaceView == _AiQueueWorkspaceView.policy,
+                accent: _workspaceAccent(_AiQueueWorkspaceView.policy),
+                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.policy),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-overview-selected-open-context'),
+                label: 'Context',
+                selected: _workspaceView == _AiQueueWorkspaceView.context,
+                accent: _workspaceAccent(_AiQueueWorkspaceView.context),
+                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.context),
+              ),
+              if (canPromoteSelected)
+                _workspaceStatusAction(
+                  key: const ValueKey('ai-queue-overview-selected-promote'),
+                  label: 'Promote',
+                  selected: false,
+                  accent: const Color(0xFF2563EB),
+                  onTap: () => _promoteAction(selectedFocus.action!.id),
+                )
+              else if (canOpenScope)
+                _workspaceStatusAction(
+                  key: const ValueKey('ai-queue-overview-selected-open-scope'),
+                  label: selectedFocus?.shadowSite != null
+                      ? 'Open Evidence'
+                      : 'Open Event Scope',
+                  selected: false,
+                  accent: const Color(0xFF8FD1FF),
+                  onTap: () => _openEventsForFocus(selectedFocus!),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceStatusBanner({
+    required _AiQueueAction? activeAction,
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+    required _AiQueueFocusItem? selectedFocus,
+    required _AiQueueLaneFilter effectiveLane,
+  }) {
+    final focusTitle = selectedFocus == null
+        ? 'No queue item is pinned yet. The live lane remains ready to take over.'
+        : selectedFocus.action != null
+        ? '${selectedFocus.action!.incidentId} is pinned in the board while ${_workspaceLabel(_workspaceView)} and ${_laneLabel(effectiveLane)} context stay available.'
+        : '${selectedFocus.shadowSite!.siteId} is pinned as the active shadow dossier while queue lanes remain visible.';
+    final focusDescriptor = selectedFocus == null
+        ? 'Standby'
+        : selectedFocus.action?.incidentId ?? selectedFocus.shadowSite!.siteId;
+    final canPromoteSelected =
+        selectedFocus?.action != null &&
+        selectedFocus!.action!.status == _AiActionStatus.pending;
+    final canOpenScope = _canOpenEventsForFocus(selectedFocus);
+
+    return Container(
+      key: const ValueKey('ai-queue-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF101D30), Color(0xFF172842)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFF26405C)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x22000000), blurRadius: 14, spreadRadius: 1),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0x1A22D3EE),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0x3322D3EE)),
+                ),
+                child: const Icon(
+                  Icons.auto_mode_rounded,
+                  color: Color(0xFF8FD1FF),
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI AUTOMATION WORKSPACE',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FAFD4),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      focusTitle,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      selectedFocus?.bannerSummary ??
+                          'Use the lane rail to shift between live, queued, draft, and shadow supervision without leaving the page.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB4C8E1),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceStatusPill(
+                label: _queuePaused ? 'Engine paused' : 'Engine active',
+                accent: _queuePaused
+                    ? const Color(0xFFF6C067)
+                    : const Color(0xFF10B981),
+              ),
+              _workspaceStatusPill(
+                label: 'Lane ${_laneLabel(effectiveLane)}',
+                accent: _laneAccent(effectiveLane),
+              ),
+              _workspaceStatusPill(
+                label: 'Focus $focusDescriptor',
+                accent: selectedFocus?.accent ?? const Color(0xFF9AB1CF),
+              ),
+              if (activeAction != null)
+                _workspaceStatusPill(
+                  label:
+                      'Live ${_formatTime(activeAction.timeUntilExecutionSeconds)}',
+                  accent: const Color(0xFF22D3EE),
+                ),
+              _workspaceStatusPill(
+                label: 'Queued ${queuedActions.length}',
+                accent: const Color(0xFF63BDFF),
+              ),
+              _workspaceStatusPill(
+                label: 'Drafts ${nextShiftDrafts.length}',
+                accent: const Color(0xFFC8D2FF),
+              ),
+              _workspaceStatusPill(
+                label: 'Shadow ${moShadowSites.length}',
+                accent: const Color(0xFFB8D7FF),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-workspace-banner-open-live'),
+                label: 'Live Window',
+                selected: effectiveLane == _AiQueueLaneFilter.live,
+                accent: _laneAccent(_AiQueueLaneFilter.live),
+                onTap: () => _focusLane(_AiQueueLaneFilter.live),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-workspace-banner-open-queued'),
+                label: 'Queued Stack',
+                selected: effectiveLane == _AiQueueLaneFilter.queued,
+                accent: _laneAccent(_AiQueueLaneFilter.queued),
+                onTap: () => _focusLane(_AiQueueLaneFilter.queued),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-workspace-banner-open-drafts'),
+                label: 'Draft Carry',
+                selected: effectiveLane == _AiQueueLaneFilter.drafts,
+                accent: _laneAccent(_AiQueueLaneFilter.drafts),
+                onTap: () => _focusLane(_AiQueueLaneFilter.drafts),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-workspace-banner-open-shadow'),
+                label: 'Shadow Dossier',
+                selected: effectiveLane == _AiQueueLaneFilter.shadow,
+                accent: _laneAccent(_AiQueueLaneFilter.shadow),
+                onTap: () => _focusLane(_AiQueueLaneFilter.shadow),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-workspace-banner-open-runbook'),
+                label: 'Runbook',
+                selected: _workspaceView == _AiQueueWorkspaceView.runbook,
+                accent: _workspaceAccent(_AiQueueWorkspaceView.runbook),
+                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.runbook),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-workspace-banner-open-policy'),
+                label: 'Policy',
+                selected: _workspaceView == _AiQueueWorkspaceView.policy,
+                accent: _workspaceAccent(_AiQueueWorkspaceView.policy),
+                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.policy),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('ai-queue-workspace-banner-open-context'),
+                label: 'Context',
+                selected: _workspaceView == _AiQueueWorkspaceView.context,
+                accent: _workspaceAccent(_AiQueueWorkspaceView.context),
+                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.context),
+              ),
+              if (activeAction != null)
+                _workspaceStatusAction(
+                  key: const ValueKey('ai-queue-workspace-banner-toggle-pause'),
+                  label: _queuePaused ? 'Resume Engine' : 'Pause Engine',
+                  selected: _queuePaused,
+                  accent: _queuePaused
+                      ? const Color(0xFFF6C067)
+                      : const Color(0xFF22D3EE),
+                  onTap: () => _togglePause(activeAction.id),
+                ),
+              if (canPromoteSelected)
+                _workspaceStatusAction(
+                  key: const ValueKey('ai-queue-workspace-banner-promote'),
+                  label: 'Promote Current',
+                  selected: false,
+                  accent: const Color(0xFF2563EB),
+                  onTap: () => _promoteAction(selectedFocus.action!.id),
+                ),
+              if (canOpenScope)
+                _workspaceStatusAction(
+                  key: const ValueKey('ai-queue-workspace-banner-open-scope'),
+                  label: selectedFocus?.shadowSite != null
+                      ? 'Open Evidence'
+                      : 'Open Event Scope',
+                  selected: false,
+                  accent: const Color(0xFF8FD1FF),
+                  onTap: () => _openEventsForFocus(selectedFocus!),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceStatusPill({required String label, required Color accent}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.38)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: accent,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _workspaceStatusAction({
+    required Key key,
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.18)
+              : const Color(0xFF10273D),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.5)
+                : const Color(0xFF27425D),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? accent : const Color(0xFFEAF2FF),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _automationWorkspace({
+    required _AiQueueAction? activeAction,
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+    required List<_AiQueueFocusItem> focusItems,
+    required List<_AiQueueFocusItem> laneItems,
+    required _AiQueueFocusItem? selectedFocus,
+    required _AiQueueLaneFilter effectiveLane,
+    required bool useWideLayout,
+    required bool useEmbeddedPanels,
     required bool compact,
   }) {
-    final countdownColor = action.timeUntilExecutionSeconds <= 10
-        ? const Color(0xFFEF4444)
-        : action.timeUntilExecutionSeconds <= 20
-        ? const Color(0xFFF59E0B)
-        : const Color(0xFF22D3EE);
-    final progress = (action.timeUntilExecutionSeconds / 30).clamp(0.0, 1.0);
-    final paused = action.status == _AiActionStatus.paused;
+    final laneWidth = useEmbeddedPanels ? 272.0 : 284.0;
+    final contextRailWidth = useEmbeddedPanels ? 292.0 : 304.0;
+    final workspaceGap = 8.0;
+    final laneRail = _laneRail(
+      focusItems: focusItems,
+      laneItems: laneItems,
+      effectiveLane: effectiveLane,
+      useExpandedBody: useEmbeddedPanels,
+    );
+    final selectedBoard = _selectedAutomationBoard(
+      selectedFocus: selectedFocus,
+      activeAction: activeAction,
+      queuedActions: queuedActions,
+      nextShiftDrafts: nextShiftDrafts,
+      moShadowSites: moShadowSites,
+      compact: compact,
+      useExpandedBody: useEmbeddedPanels,
+    );
+    final contextRail = _workspaceContextRail(
+      activeAction: activeAction,
+      queuedActions: queuedActions,
+      nextShiftDrafts: nextShiftDrafts,
+      moShadowSites: moShadowSites,
+      selectedFocus: selectedFocus,
+      compact: compact,
+      useExpandedBody: useEmbeddedPanels,
+    );
+
+    if (useWideLayout) {
+      return Row(
+        crossAxisAlignment: useEmbeddedPanels
+            ? CrossAxisAlignment.stretch
+            : CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: laneWidth, child: laneRail),
+          SizedBox(width: workspaceGap),
+          Expanded(child: selectedBoard),
+          SizedBox(width: workspaceGap),
+          SizedBox(width: contextRailWidth, child: contextRail),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        laneRail,
+        const SizedBox(height: 10),
+        selectedBoard,
+        const SizedBox(height: 10),
+        contextRail,
+      ],
+    );
+  }
+
+  Widget _laneRail({
+    required List<_AiQueueFocusItem> focusItems,
+    required List<_AiQueueFocusItem> laneItems,
+    required _AiQueueLaneFilter effectiveLane,
+    required bool useExpandedBody,
+  }) {
+    final list = laneItems.isEmpty
+        ? _emptyLaneState(
+            totalQueueCount: _actions.length,
+            queuedCount: _displayQueuedActions.length,
+            draftCount: _nextShiftDrafts.length,
+            shadowCount: _moShadowSites.length,
+          )
+        : ListView.separated(
+            shrinkWrap: !useExpandedBody,
+            primary: false,
+            padding: EdgeInsets.zero,
+            physics: useExpandedBody
+                ? null
+                : const NeverScrollableScrollPhysics(),
+            itemCount: laneItems.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final item = laneItems[index];
+              return _focusCard(item, isSelected: item.id == _selectedFocusId);
+            },
+          );
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: onyxWorkspaceSurfaceDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Queue Lanes',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE7F1FF),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Pick the live lane, queued stack, next-shift drafts, or shadow posture signals.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C5),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _AiQueueLaneFilter.values
+                .map((lane) => _laneChip(lane, focusItems, effectiveLane))
+                .toList(),
+          ),
+          const SizedBox(height: 8),
+          if (useExpandedBody) Expanded(child: list) else list,
+        ],
+      ),
+    );
+  }
+
+  Widget _laneChip(
+    _AiQueueLaneFilter lane,
+    List<_AiQueueFocusItem> focusItems,
+    _AiQueueLaneFilter effectiveLane,
+  ) {
+    final selected = lane == effectiveLane;
+    final accent = _laneAccent(lane);
+    final count = focusItems.where((item) => item.lane == lane).length;
+    return InkWell(
+      key: ValueKey('ai-queue-lane-${lane.name}'),
+      onTap: () => _focusLane(lane, focusItems: focusItems),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.16)
+              : const Color(0xFF0B1930),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.42)
+                : const Color(0xFF223244),
+          ),
+        ),
+        child: Text(
+          '${_laneLabel(lane)} $count',
+          style: GoogleFonts.inter(
+            color: selected ? accent : const Color(0xFF9AB1CF),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyLaneState({
+    required int totalQueueCount,
+    required int queuedCount,
+    required int draftCount,
+    required int shadowCount,
+  }) {
+    return _workspaceRecoveryDeck(
+      key: const ValueKey('ai-queue-empty-lane-recovery'),
+      eyebrow: 'LANE CLEAR',
+      title: 'No automation is staged in this rail.',
+      summary:
+          'The lane shell stays armed so you can keep the workspace oriented while policy, runbook, and context views remain one tap away.',
+      accent: const Color(0xFF8FD1FF),
+      metrics: _standbyWorkspaceMetrics(
+        totalQueueCount: totalQueueCount,
+        queuedCount: queuedCount,
+        draftCount: draftCount,
+        shadowCount: shadowCount,
+      ),
+      actions: _standbyWorkspaceActions(prefix: 'ai-queue-empty-lane'),
+    );
+  }
+
+  Widget _focusCard(_AiQueueFocusItem item, {required bool isSelected}) {
+    return InkWell(
+      key: ValueKey('ai-queue-focus-card-${item.id}'),
+      onTap: () => _focusItem(item),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: onyxSelectableRowSurfaceDecoration(isSelected: isSelected),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(top: 4),
+                  decoration: BoxDecoration(
+                    color: item.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.primaryLabel,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFE6F0FF),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.secondaryLabel,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8EA5C6),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x129FD9FF),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0x409FD9FF)),
+                    ),
+                    child: Text(
+                      'FOCUS',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9FD9FF),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: item.chips
+                  .map((chip) => _detailChip(chip.$1, chip.$2, accent: chip.$3))
+                  .toList(),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              item.summary,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB2D1),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailChip(String label, String value, {required Color accent}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+      ),
+      child: Text(
+        '$label $value',
+        style: GoogleFonts.inter(
+          color: accent,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _selectedAutomationBoard({
+    required _AiQueueFocusItem? selectedFocus,
+    required _AiQueueAction? activeAction,
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+    required bool compact,
+    required bool useExpandedBody,
+  }) {
+    final panel = switch (_workspaceView) {
+      _AiQueueWorkspaceView.runbook => _runbookPanel(
+        selectedFocus,
+        compact: compact,
+        totalQueueCount: _actions.length,
+        queuedCount: _displayQueuedActions.length,
+        draftCount: _nextShiftDrafts.length,
+        shadowCount: _moShadowSites.length,
+        useExpandedBody: useExpandedBody,
+      ),
+      _AiQueueWorkspaceView.policy => _policyPanel(
+        selectedFocus,
+        queuedActions: queuedActions,
+        nextShiftDrafts: nextShiftDrafts,
+        moShadowSites: moShadowSites,
+        totalQueueCount: _actions.length,
+        shadowCount: _moShadowSites.length,
+        useExpandedBody: useExpandedBody,
+      ),
+      _AiQueueWorkspaceView.context => _contextPanel(
+        selectedFocus,
+        activeAction: activeAction,
+        queuedActions: queuedActions,
+        nextShiftDrafts: nextShiftDrafts,
+        moShadowSites: moShadowSites,
+        useExpandedBody: useExpandedBody,
+      ),
+    };
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: onyxWorkspaceSurfaceDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Selected Automation',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE7F1FF),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'A focused execution board for the selected queue item, policy signal, or shadow dossier.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C5),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _focusBanner(
+            selectedFocus,
+            totalQueueCount: _actions.length,
+            queuedCount: _displayQueuedActions.length,
+            draftCount: _nextShiftDrafts.length,
+            shadowCount: _moShadowSites.length,
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _AiQueueWorkspaceView.values
+                .map((view) => _workspaceChip(view))
+                .toList(),
+          ),
+          const SizedBox(height: 8),
+          if (useExpandedBody) Expanded(child: panel) else panel,
+        ],
+      ),
+    );
+  }
+
+  Widget _focusBanner(
+    _AiQueueFocusItem? selectedFocus, {
+    required int totalQueueCount,
+    required int queuedCount,
+    required int draftCount,
+    required int shadowCount,
+  }) {
+    if (selectedFocus == null) {
+      return _workspaceRecoveryDeck(
+        key: const ValueKey('ai-queue-focus-standby-recovery'),
+        eyebrow: 'WORKSPACE STANDBY',
+        title: 'Queue clear. No automation is pinned.',
+        summary:
+            'Standby supervision is still armed. Reset the live lane or pivot to policy and context without leaving the board.',
+        accent: const Color(0xFF8FD1FF),
+        metrics: _standbyWorkspaceMetrics(
+          totalQueueCount: totalQueueCount,
+          queuedCount: queuedCount,
+          draftCount: draftCount,
+          shadowCount: shadowCount,
+        ),
+        actions: _standbyWorkspaceActions(prefix: 'ai-queue-focus-standby'),
+      );
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            selectedFocus.accent.withValues(alpha: 0.18),
+            const Color(0xFF101A2B),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: selectedFocus.accent.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ACTIVE WORKSPACE FOCUS',
+            style: GoogleFonts.inter(
+              color: selectedFocus.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            selectedFocus.headline,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFF4F8FF),
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            selectedFocus.bannerSummary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD8E4F5),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _detailChip(
+                'Lane',
+                _laneLabel(selectedFocus.lane),
+                accent: _laneAccent(selectedFocus.lane),
+              ),
+              if (selectedFocus.action != null)
+                _detailChip(
+                  'Priority',
+                  _priorityStyle(selectedFocus.action!.incidentPriority).label,
+                  accent: _priorityStyle(
+                    selectedFocus.action!.incidentPriority,
+                  ).foreground,
+                ),
+              if (selectedFocus.action != null)
+                _detailChip(
+                  'ETA',
+                  _formatTime(selectedFocus.action!.timeUntilExecutionSeconds),
+                  accent: const Color(0xFF22D3EE),
+                ),
+              if (selectedFocus.shadowSite != null)
+                _detailChip(
+                  'Matches',
+                  '${selectedFocus.shadowSite!.moShadowMatchCount}',
+                  accent: const Color(0xFFB8D7FF),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceChip(_AiQueueWorkspaceView view) {
+    final selected = _workspaceView == view;
+    final accent = _workspaceAccent(view);
+    return InkWell(
+      key: ValueKey('ai-queue-workspace-view-${view.name}'),
+      onTap: () => _setWorkspaceView(view),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? accent.withValues(alpha: 0.16)
+              : const Color(0xFF0B1930),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? accent.withValues(alpha: 0.45)
+                : const Color(0xFF223244),
+          ),
+        ),
+        child: Text(
+          _workspaceLabel(view),
+          style: GoogleFonts.inter(
+            color: selected ? accent : const Color(0xFF9DB1CF),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _runbookPanel(
+    _AiQueueFocusItem? selectedFocus, {
+    required bool compact,
+    required int totalQueueCount,
+    required int queuedCount,
+    required int draftCount,
+    required int shadowCount,
+    required bool useExpandedBody,
+  }) {
+    Widget child;
+    if (selectedFocus == null) {
+      child = _automationStandbyCard(
+        totalQueueCount: totalQueueCount,
+        queuedCount: queuedCount,
+        draftCount: draftCount,
+        shadowCount: shadowCount,
+      );
+    } else if (selectedFocus.action != null) {
+      final action = selectedFocus.action!;
+      if (action.status == _AiActionStatus.executing ||
+          action.status == _AiActionStatus.paused) {
+        child = _activeAutomationCard(action, compact: compact);
+      } else {
+        child = _queuedAutomationWorkspaceCard(
+          action,
+          isDraft: _isNextShiftDraft(action),
+        );
+      }
+    } else {
+      child = _shadowWorkspaceCard(selectedFocus.shadowSite!);
+    }
+    if (useExpandedBody) {
+      return ListView(
+        key: const ValueKey('ai-queue-workspace-panel-runbook'),
+        primary: false,
+        padding: EdgeInsets.zero,
+        children: [child],
+      );
+    }
+    return SingleChildScrollView(
+      key: const ValueKey('ai-queue-workspace-panel-runbook'),
+      child: child,
+    );
+  }
+
+  Widget _queuedAutomationWorkspaceCard(
+    _AiQueueAction action, {
+    required bool isDraft,
+  }) {
     final promotionPressureSummary = _promotionPressureSummary(action.metadata);
     final promotionExecutionSummary = _promotionExecutionSummary(
       action.metadata,
     );
-    final officer = action.metadata['officer'] ?? 'Echo-3';
-    final distance = action.metadata['distance'] ?? '2.4km';
-    final eta =
-        action.metadata['eta'] ??
-        '${(action.timeUntilExecutionSeconds / 60).ceil().clamp(1, 9)}m ${(action.timeUntilExecutionSeconds % 60).toString().padLeft(2, '0')}s';
-    final confidence = _confidenceLabel(action);
-
+    final eventIds = _eventIdsForAction(action);
+    final canOpenEvents =
+        widget.onOpenEventsForScope != null && eventIds.isNotEmpty;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: _panelDecoration(border: const Color(0x6640A5D8), glow: true),
+      decoration: _panelDecoration(border: const Color(0xFF3A567A)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stackHeader = constraints.maxWidth < 720;
-              final headerCopy = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    paused ? 'ACTIVE AUTOMATION (PAUSED)' : 'ACTIVE AUTOMATION',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFE8F3FF),
-                      fontSize: compact ? 15 : 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    paused
-                        ? 'Execution hold is active'
-                        : 'AI preparing to execute • intervention window active',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB5D7),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              );
-              final leadingIcon = Container(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0x3322D3EE),
+                  color: const Color(0x331F9AD3),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
-                  Icons.bolt_rounded,
-                  color: Color(0xFF22D3EE),
+                child: Icon(
+                  isDraft ? Icons.upcoming_rounded : Icons.schedule_rounded,
+                  color: const Color(0xFF22D3EE),
                   size: 24,
                 ),
-              );
-              if (stackHeader) {
-                return Column(
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        leadingIcon,
-                        const SizedBox(width: 12),
-                        Expanded(child: headerCopy),
-                      ],
+                    Text(
+                      isDraft ? 'NEXT-SHIFT DRAFT' : 'QUEUED ACTION',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFE8F3FF),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.4,
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _actionTypePill(action.actionType),
+                    const SizedBox(height: 2),
+                    Text(
+                      isDraft
+                          ? 'Draft carry-forward is staged for the next operator window.'
+                          : 'Awaiting promotion into the active autonomy slot.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9AB5D7),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  leadingIcon,
-                  const SizedBox(width: 12),
-                  Expanded(child: headerCopy),
-                  const SizedBox(width: 12),
-                  _actionTypePill(action.actionType),
-                ],
-              );
-            },
+                ),
+              ),
+              const SizedBox(width: 12),
+              _actionTypePill(action.actionType),
+            ],
           ),
           const SizedBox(height: 16),
           _activeAutomationMetrics(
             incidentId: action.incidentId,
             site: action.site,
-            officer: officer,
-            eta: eta,
+            officer: action.metadata['officer'] ?? 'Queue hold',
+            eta:
+                action.metadata['eta'] ??
+                _formatTime(action.timeUntilExecutionSeconds),
           ),
           const SizedBox(height: 16),
           Container(
@@ -595,7 +1831,918 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 10,
+                  children: [
+                    _detailCell(
+                      'Queue status',
+                      isDraft ? 'Drafted' : 'Pending',
+                    ),
+                    if ((action.metadata['scope'] ?? '').trim().isNotEmpty)
+                      _detailCell(
+                        'Scope mode',
+                        action.metadata['scope']!.trim(),
+                      ),
+                    if (promotionPressureSummary.isNotEmpty)
+                      _detailCell('Pressure cue', promotionPressureSummary),
+                    if (promotionExecutionSummary.isNotEmpty)
+                      _detailCell('Execution cue', promotionExecutionSummary),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Promote this action to active execution, approve it immediately, or remove it from the queue.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C5),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _actionButton(
+                label: 'CANCEL ACTION',
+                icon: Icons.cancel_rounded,
+                background: const Color(0xFFEF4444),
+                onPressed: () => _cancelAction(action.id),
+              ),
+              FilledButton.icon(
+                key: const ValueKey('ai-queue-workspace-promote-action'),
+                onPressed: () => _promoteAction(action.id),
+                icon: const Icon(Icons.bolt_rounded, size: 18),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2563EB),
+                  foregroundColor: const Color(0xFFF3F8FF),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                label: const Text('PROMOTE NOW'),
+              ),
+              _actionButton(
+                label: 'APPROVE NOW',
+                icon: Icons.check_circle_rounded,
+                background: const Color(0xFF10B981),
+                onPressed: () => _approveAction(action.id),
+              ),
+              if (canOpenEvents)
+                OutlinedButton.icon(
+                  key: const ValueKey('ai-queue-workspace-open-event-scope'),
+                  onPressed: () => _openEventsForAction(action),
+                  icon: const Icon(Icons.alt_route_rounded, size: 18),
+                  label: const Text('OPEN EVENT SCOPE'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _shadowWorkspaceCard(MonitoringGlobalSitePosture site) {
+    final eventIds = site.moShadowEventIds;
+    final canOpenEvidence =
+        widget.onOpenEventsForScope != null && eventIds.isNotEmpty;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: _panelDecoration(border: const Color(0x665B9BD5)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'SHADOW DOSSIER FOCUS',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F3FF),
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${site.siteId} • ${site.moShadowSummary}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE6F0FF),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 16,
+            runSpacing: 10,
+            children: [
+              _detailCell('Lead site', site.siteId),
+              _detailCell('Signal family', 'mo_shadow'),
+              _detailCell('Matched cues', '${site.moShadowMatchCount}'),
+              _detailCell(
+                'Strength summary',
+                shadowMoPostureStrengthSummary(site),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (site.moShadowMatches.isEmpty)
+            Text(
+              'No matched dossier entries are available for this site yet.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9AB5D7),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: site.moShadowMatches.take(3).expand((match) {
+                return <Widget>[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0x14000000),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x335B9BD5)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          match.title,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFB8D7FF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Indicators ${match.matchedIndicators.join(', ')}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF9AB5D7),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ];
+              }).toList(),
+            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                key: const ValueKey('ai-queue-workspace-open-shadow-dossier'),
+                onPressed: () => _showMoShadowDossier([site]),
+                icon: const Icon(Icons.visibility_rounded, size: 18),
+                label: const Text('OPEN DOSSIER'),
+              ),
+              if (canOpenEvidence)
+                OutlinedButton.icon(
+                  key: const ValueKey(
+                    'ai-queue-workspace-open-shadow-evidence',
+                  ),
+                  onPressed: () => widget.onOpenEventsForScope!(
+                    eventIds,
+                    site.moShadowSelectedEventId,
+                  ),
+                  icon: const Icon(Icons.alt_route_rounded, size: 18),
+                  label: const Text('OPEN EVIDENCE'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _policyPanel(
+    _AiQueueFocusItem? selectedFocus, {
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+    required int totalQueueCount,
+    required int shadowCount,
+    required bool useExpandedBody,
+  }) {
+    final content = selectedFocus == null
+        ? _policyEmptyState(
+            totalQueueCount: totalQueueCount,
+            queuedCount: queuedActions.length,
+            draftCount: nextShiftDrafts.length,
+            shadowCount: shadowCount,
+          )
+        : selectedFocus.action != null
+        ? _actionPolicyContent(
+            selectedFocus.action!,
+            queuedActions: queuedActions,
+            nextShiftDrafts: nextShiftDrafts,
+            moShadowSites: moShadowSites,
+          )
+        : _shadowPolicyContent(selectedFocus.shadowSite!);
+    return Container(
+      key: const ValueKey('ai-queue-workspace-panel-policy'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF091728),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1A355A)),
+      ),
+      child: useExpandedBody
+          ? ListView(
+              primary: false,
+              padding: EdgeInsets.zero,
+              children: [content],
+            )
+          : SingleChildScrollView(child: content),
+    );
+  }
+
+  Widget _policyEmptyState({
+    required int totalQueueCount,
+    required int queuedCount,
+    required int draftCount,
+    required int shadowCount,
+  }) {
+    return _workspaceRecoveryDeck(
+      key: const ValueKey('ai-queue-policy-empty-recovery'),
+      eyebrow: 'POLICY STANDBY',
+      title: 'Policy panel is waiting for the next focus.',
+      summary:
+          'Autonomy pressure, execution bias, and lane posture will land here as soon as an automation re-enters the board.',
+      accent: const Color(0xFF86EFAC),
+      metrics: _standbyWorkspaceMetrics(
+        totalQueueCount: totalQueueCount,
+        queuedCount: queuedCount,
+        draftCount: draftCount,
+        shadowCount: shadowCount,
+      ),
+      actions: _standbyWorkspaceActions(prefix: 'ai-queue-policy-empty'),
+    );
+  }
+
+  Widget _actionPolicyContent(
+    _AiQueueAction action, {
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+  }) {
+    final promotionPressureSummary = _promotionPressureSummary(action.metadata);
+    final promotionExecutionSummary = _promotionExecutionSummary(
+      action.metadata,
+    );
+    final shadowBiasSummary = _shadowPostureBiasSummary(action.metadata);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Policy Signals',
+          style: GoogleFonts.rajdhani(
+            color: const Color(0xFFE7F1FF),
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Autonomy pressure, biasing cues, and carry-forward posture for the current focus.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA5C6),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (promotionPressureSummary.isNotEmpty)
+          Text(
+            'Promotion pressure: $promotionPressureSummary',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF86EFAC),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        if (promotionExecutionSummary.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Promotion execution: $promotionExecutionSummary',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF86EFAC),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+        if (shadowBiasSummary.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Shadow bias in effect: $shadowBiasSummary',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFC8D2FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _miniPolicyTile(
+              'Queue Depth',
+              '${queuedActions.length}',
+              const Color(0xFF22D3EE),
+            ),
+            _miniPolicyTile(
+              'Draft Carry',
+              '${nextShiftDrafts.length}',
+              const Color(0xFFC8D2FF),
+            ),
+            _miniPolicyTile(
+              'Shadow Sites',
+              '${moShadowSites.length}',
+              const Color(0xFFB8D7FF),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F1B2D),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF223244)),
+          ),
+          child: Text(
+            (action.metadata['scope'] ?? '').trim().toUpperCase() ==
+                    'NEXT_SHIFT'
+                ? 'This recommendation is currently staged for the next-shift carry-forward lane.'
+                : 'This recommendation is held inside the live queue and can be promoted directly into execution.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD7E3F4),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _shadowPolicyContent(MonitoringGlobalSitePosture site) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Shadow Pattern Weighting',
+          style: GoogleFonts.rajdhani(
+            color: const Color(0xFFE7F1FF),
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Pattern strength, recommended actions, and evidence density for the selected shadow site.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA5C6),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _miniPolicyTile('Lead Site', site.siteId, const Color(0xFFB8D7FF)),
+            _miniPolicyTile(
+              'Matches',
+              '${site.moShadowMatchCount}',
+              const Color(0xFF22D3EE),
+            ),
+            _miniPolicyTile(
+              'Posture Weight',
+              shadowMoPostureStrengthSummary(site),
+              const Color(0xFFC8D2FF),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        for (final match in site.moShadowMatches.take(3)) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0x14000000),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0x335B9BD5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  match.title,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFB8D7FF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Actions ${match.recommendedActionPlans.join(' • ')}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF9AB5D7),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Widget _miniPolicyTile(String label, String value, Color accent) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10233D),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C6),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _contextPanel(
+    _AiQueueFocusItem? selectedFocus, {
+    required _AiQueueAction? activeAction,
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+    required bool useExpandedBody,
+  }) {
+    final totalQueueCount =
+        (activeAction == null ? 0 : 1) +
+        queuedActions.length +
+        nextShiftDrafts.length;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Execution Context',
+          style: GoogleFonts.rajdhani(
+            color: const Color(0xFFE7F1FF),
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Queue counts, related lanes, and handoffs for the current automation focus.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA5C6),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _contextMetric('Live Action', activeAction?.incidentId ?? 'Standby'),
+        const SizedBox(height: 6),
+        _contextMetric('Queued Stack', '${queuedActions.length}'),
+        const SizedBox(height: 6),
+        _contextMetric('Draft Carry', '${nextShiftDrafts.length}'),
+        const SizedBox(height: 6),
+        _contextMetric('Shadow Sites', '${moShadowSites.length}'),
+        if (selectedFocus?.action != null) ...[
+          const SizedBox(height: 6),
+          _contextMetric(
+            'Scoped Events',
+            '${_eventIdsForAction(selectedFocus!.action!).length}',
+          ),
+        ],
+        const SizedBox(height: 10),
+        if (selectedFocus == null)
+          _workspaceRecoveryDeck(
+            key: const ValueKey('ai-queue-context-standby-recovery'),
+            eyebrow: 'CONTEXT READY',
+            title: 'Standby supervision is still armed.',
+            summary:
+                'Use the context rail to reset the live lane or move back into the runbook and policy shells while the queue stays clear.',
+            accent: const Color(0xFFC8D2FF),
+            metrics: _standbyWorkspaceMetrics(
+              totalQueueCount: totalQueueCount,
+              queuedCount: queuedActions.length,
+              draftCount: nextShiftDrafts.length,
+              shadowCount: moShadowSites.length,
+            ),
+            actions: _standbyWorkspaceActions(
+              prefix: 'ai-queue-context-standby',
+            ),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                key: const ValueKey('ai-queue-context-focus-drafts'),
+                onPressed: nextShiftDrafts.isEmpty
+                    ? null
+                    : () => _focusLane(_AiQueueLaneFilter.drafts),
+                icon: const Icon(Icons.upcoming_rounded, size: 18),
+                label: const Text('Focus Draft Lane'),
+              ),
+              FilledButton.tonalIcon(
+                key: const ValueKey('ai-queue-context-focus-shadow'),
+                onPressed: moShadowSites.isEmpty
+                    ? null
+                    : () => _focusLane(_AiQueueLaneFilter.shadow),
+                icon: const Icon(Icons.visibility_rounded, size: 18),
+                label: const Text('Focus Shadow Lane'),
+              ),
+            ],
+          ),
+      ],
+    );
+    return Container(
+      key: const ValueKey('ai-queue-workspace-panel-context'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF091728),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1A355A)),
+      ),
+      child: useExpandedBody
+          ? ListView(
+              primary: false,
+              padding: EdgeInsets.zero,
+              children: [content],
+            )
+          : SingleChildScrollView(child: content),
+    );
+  }
+
+  Widget _contextMetric(String label, String value) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10233D),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF1A355A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7F95B5),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE6F0FF),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceCommandReceiptCard() {
+    final receipt = _commandReceipt;
+    return Container(
+      key: const ValueKey('ai-queue-workspace-command-receipt'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: receipt.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LATEST COMMAND',
+            style: GoogleFonts.inter(
+              color: receipt.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            receipt.label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            receipt.message,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            receipt.detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceContextRail({
+    required _AiQueueAction? activeAction,
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+    required _AiQueueFocusItem? selectedFocus,
+    required bool compact,
+    required bool useExpandedBody,
+  }) {
+    final children = <Widget>[
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: onyxWorkspaceSurfaceDecoration(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Queue Context Rail',
+              style: GoogleFonts.rajdhani(
+                color: const Color(0xFFE7F1FF),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Preview cards and controls that stay visible while the selected workspace changes.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA5C5),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            _contextMetric(
+              'Current Lane',
+              selectedFocus == null
+                  ? _laneLabel(_laneFilter)
+                  : _laneLabel(selectedFocus.lane),
+            ),
+          ],
+        ),
+      ),
+      if (_desktopWorkspaceActive) ...[
+        const SizedBox(height: 10),
+        _workspaceCommandReceiptCard(),
+      ],
+      const SizedBox(height: 10),
+      if (queuedActions.isNotEmpty) ...[
+        _queuedActionsCard(queuedActions),
+        const SizedBox(height: 10),
+      ],
+      if (nextShiftDrafts.isNotEmpty) ...[
+        _nextShiftDraftsCard(nextShiftDrafts),
+        const SizedBox(height: 10),
+      ],
+      if (moShadowSites.isNotEmpty) ...[
+        _moShadowCard(moShadowSites),
+        const SizedBox(height: 10),
+      ],
+      _todayPerformance(compact: true),
+    ];
+    if (useExpandedBody) {
+      return ListView(
+        primary: false,
+        padding: EdgeInsets.zero,
+        children: children,
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children,
+    );
+  }
+
+  Widget _activeAutomationCard(_AiQueueAction action, {required bool compact}) {
+    final countdownColor = action.timeUntilExecutionSeconds <= 10
+        ? const Color(0xFFEF4444)
+        : action.timeUntilExecutionSeconds <= 20
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF22D3EE);
+    final progress = (action.timeUntilExecutionSeconds / 30).clamp(0.0, 1.0);
+    final paused = action.status == _AiActionStatus.paused;
+    final promotionPressureSummary = _promotionPressureSummary(action.metadata);
+    final promotionExecutionSummary = _promotionExecutionSummary(
+      action.metadata,
+    );
+    final officer = action.metadata['officer'] ?? 'Echo-3';
+    final distance = action.metadata['distance'] ?? '2.4km';
+    final eta =
+        action.metadata['eta'] ??
+        '${(action.timeUntilExecutionSeconds / 60).ceil().clamp(1, 9)}m ${(action.timeUntilExecutionSeconds % 60).toString().padLeft(2, '0')}s';
+    final confidence = _confidenceLabel(action);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: _panelDecoration(border: const Color(0x6640A5D8), glow: true),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackHeader = constraints.maxWidth < 720;
+              final headerCopy = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    paused ? 'ACTIVE AUTOMATION (PAUSED)' : 'ACTIVE AUTOMATION',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFE8F3FF),
+                      fontSize: compact ? 14 : 15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    paused
+                        ? 'Execution hold is active'
+                        : 'AI preparing to execute • intervention window active',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9AB5D7),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              );
+              final leadingIcon = Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0x3322D3EE),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.bolt_rounded,
+                  color: Color(0xFF22D3EE),
+                  size: 22,
+                ),
+              );
+              if (stackHeader) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        leadingIcon,
+                        const SizedBox(width: 10),
+                        Expanded(child: headerCopy),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    _actionTypePill(action.actionType),
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  leadingIcon,
+                  const SizedBox(width: 10),
+                  Expanded(child: headerCopy),
+                  const SizedBox(width: 10),
+                  _actionTypePill(action.actionType),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _activeAutomationMetrics(
+            incidentId: action.incidentId,
+            site: action.site,
+            officer: officer,
+            eta: eta,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0x1A0B2234),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF21445E)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'PROPOSED ACTION',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF22D3EE),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  action.description,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFF3F8FF),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 12),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 760 ? 3 : 1;
@@ -625,7 +2772,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           for (int i = 0; i < cards.length; i++) ...[
                             cards[i],
                             if (i != cards.length - 1)
-                              const SizedBox(height: 10),
+                              const SizedBox(height: 8),
                           ],
                         ],
                       );
@@ -634,7 +2781,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       children: [
                         for (int i = 0; i < cards.length; i++) ...[
                           Expanded(child: cards[i]),
-                          if (i != cards.length - 1) const SizedBox(width: 10),
+                          if (i != cards.length - 1) const SizedBox(width: 8),
                         ],
                       ],
                     );
@@ -649,7 +2796,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               'Promotion pressure: $promotionPressureSummary',
               style: GoogleFonts.inter(
                 color: const Color(0xFF86EFAC),
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -660,12 +2807,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
               'Promotion execution: $promotionExecutionSummary',
               style: GoogleFonts.inter(
                 color: const Color(0xFF86EFAC),
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
               final timerStack = constraints.maxWidth < 520;
@@ -677,7 +2824,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       'INTERVENTION WINDOW',
                       style: GoogleFonts.inter(
                         color: const Color(0xFFA1B7D5),
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
                       ),
@@ -689,16 +2836,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           : 'Auto-executes when timer reaches zero',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF7F95B6),
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Text(
                       _formatTime(action.timeUntilExecutionSeconds),
                       style: GoogleFonts.rajdhani(
                         color: countdownColor,
-                        fontSize: 42,
+                        fontSize: 38,
                         height: 0.88,
                         fontWeight: FontWeight.w700,
                       ),
@@ -717,7 +2864,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           'INTERVENTION WINDOW',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFA1B7D5),
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.4,
                           ),
@@ -729,7 +2876,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                               : 'Auto-executes when timer reaches zero',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF7F95B6),
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -740,7 +2887,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     _formatTime(action.timeUntilExecutionSeconds),
                     style: GoogleFonts.rajdhani(
                       color: countdownColor,
-                      fontSize: 46,
+                      fontSize: 42,
                       height: 0.88,
                       fontWeight: FontWeight.w700,
                     ),
@@ -759,7 +2906,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               valueColor: AlwaysStoppedAnimation<Color>(countdownColor),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
               final stackButtons = constraints.maxWidth < 760;
@@ -773,7 +2920,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       background: const Color(0xFFEF4444),
                       onPressed: () => _cancelAction(action.id),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     _actionButton(
                       label: paused ? 'RESUME' : 'PAUSE',
                       icon: paused
@@ -782,7 +2929,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       background: const Color(0xFF24354E),
                       onPressed: () => _togglePause(action.id),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     _actionButton(
                       label: 'APPROVE NOW',
                       icon: Icons.check_circle_rounded,
@@ -802,7 +2949,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       onPressed: () => _cancelAction(action.id),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   _actionButton(
                     label: paused ? 'RESUME' : 'PAUSE',
                     icon: paused
@@ -811,7 +2958,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     background: const Color(0xFF24354E),
                     onPressed: () => _togglePause(action.id),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: _actionButton(
                       label: 'APPROVE NOW',
@@ -832,64 +2979,153 @@ class _AIQueuePageState extends State<AIQueuePage> {
   Widget _automationStandbyCard({
     required int totalQueueCount,
     required int queuedCount,
+    required int draftCount,
+    required int shadowCount,
+  }) {
+    return _workspaceRecoveryDeck(
+      key: const ValueKey('ai-queue-runbook-standby-recovery'),
+      eyebrow: 'RUNBOOK STANDBY',
+      title: 'The live automation board is standing by.',
+      summary:
+          'No action is executing right now, but the shell remains hot so you can reset the live lane or move straight into policy and context review.',
+      accent: const Color(0xFF22D3EE),
+      metrics: _standbyWorkspaceMetrics(
+        totalQueueCount: totalQueueCount,
+        queuedCount: queuedCount,
+        draftCount: draftCount,
+        shadowCount: shadowCount,
+      ),
+      actions: _standbyWorkspaceActions(prefix: 'ai-queue-runbook-standby'),
+    );
+  }
+
+  Widget _workspaceRecoveryDeck({
+    required Key key,
+    required String eyebrow,
+    required String title,
+    required String summary,
+    required Color accent,
+    required List<Widget> metrics,
+    required List<Widget> actions,
   }) {
     return Container(
+      key: key,
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: _panelDecoration(border: const Color(0xFF2A3D58)),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101A2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.08),
+            blurRadius: 14,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'ACTIVE AUTOMATION',
+            eyebrow,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F3FF),
-              fontSize: 16,
+              color: accent,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
-              letterSpacing: 0.4,
+              letterSpacing: 0.9,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            'No automation is currently executing. The queue is standing by for the next live incident.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9AB5D7),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              height: 1.4,
+            title,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFF4F8FF),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: _activeSignalCard(
-                  label: 'Queued',
-                  value: '$queuedCount',
-                  accent: const Color(0xFF22D3EE),
-                  icon: Icons.schedule_rounded,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _activeSignalCard(
-                  label: 'Total Queue',
-                  value: '$totalQueueCount',
-                  accent: const Color(0xFFA78BFA),
-                  icon: Icons.list_alt_rounded,
-                ),
-              ),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            summary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD8E4F5),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
           ),
+          if (metrics.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: metrics),
+          ],
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ],
         ],
       ),
     );
   }
 
+  List<Widget> _standbyWorkspaceMetrics({
+    required int totalQueueCount,
+    required int queuedCount,
+    required int draftCount,
+    required int shadowCount,
+  }) {
+    return [
+      _workspaceStatusPill(
+        label: 'Total $totalQueueCount',
+        accent: const Color(0xFFA78BFA),
+      ),
+      _workspaceStatusPill(
+        label: 'Queued $queuedCount',
+        accent: const Color(0xFF63BDFF),
+      ),
+      _workspaceStatusPill(
+        label: 'Drafts $draftCount',
+        accent: const Color(0xFFC8D2FF),
+      ),
+      _workspaceStatusPill(
+        label: 'Shadow $shadowCount',
+        accent: const Color(0xFFB8D7FF),
+      ),
+    ];
+  }
+
+  List<Widget> _standbyWorkspaceActions({required String prefix}) {
+    return [
+      _workspaceStatusAction(
+        key: ValueKey('$prefix-prime-live'),
+        label: 'Prime Live Lane',
+        selected:
+            _laneFilter == _AiQueueLaneFilter.live &&
+            _workspaceView == _AiQueueWorkspaceView.runbook,
+        accent: _laneAccent(_AiQueueLaneFilter.live),
+        onTap: () => _openStandbyWorkspace(_AiQueueWorkspaceView.runbook),
+      ),
+      _workspaceStatusAction(
+        key: ValueKey('$prefix-open-policy'),
+        label: 'Policy Console',
+        selected: _workspaceView == _AiQueueWorkspaceView.policy,
+        accent: _workspaceAccent(_AiQueueWorkspaceView.policy),
+        onTap: () => _openStandbyWorkspace(_AiQueueWorkspaceView.policy),
+      ),
+      _workspaceStatusAction(
+        key: ValueKey('$prefix-open-context'),
+        label: 'Context Rail',
+        selected: _workspaceView == _AiQueueWorkspaceView.context,
+        accent: _workspaceAccent(_AiQueueWorkspaceView.context),
+        onTap: () => _openStandbyWorkspace(_AiQueueWorkspaceView.context),
+      ),
+    ];
+  }
+
   Widget _queuedActionsCard(List<_AiQueueAction> queuedActions) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: _panelDecoration(border: const Color(0xFF223A59)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -908,7 +3144,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 'Queued Actions',
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFE7F1FF),
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -930,11 +3166,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           if (queuedActions.isEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 color: const Color(0x33000000),
@@ -952,7 +3188,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     'No actions queued',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF9AB1CF),
-                      fontSize: 13,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -981,9 +3217,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         color: const Color(0x33000000),
         border: Border.all(color: const Color(0xFF2A3E59)),
       ),
@@ -996,8 +3232,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 22,
-                    height: 22,
+                    width: 20,
+                    height: 20,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
@@ -1008,7 +3244,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       '$index',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF22D3EE),
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -1027,7 +3263,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                               action.actionType,
                               style: GoogleFonts.inter(
                                 color: const Color(0xFFE5EFFF),
-                                fontSize: 13,
+                                fontSize: 12.5,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -1065,7 +3301,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           action.description,
                           style: GoogleFonts.inter(
                             color: const Color(0xFF9CB2D1),
-                            fontSize: 11,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1075,7 +3311,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             'Promotion pressure: $promotionPressureSummary',
                             style: GoogleFonts.inter(
                               color: const Color(0xFF86EFAC),
-                              fontSize: 10,
+                              fontSize: 9.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -1086,7 +3322,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             'Promotion execution: $promotionExecutionSummary',
                             style: GoogleFonts.inter(
                               color: const Color(0xFF86EFAC),
-                              fontSize: 10,
+                              fontSize: 9.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -1096,7 +3332,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Align(
                 alignment: compact
                     ? Alignment.centerLeft
@@ -1110,7 +3346,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       'Executes in',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF7D92B2),
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1118,7 +3354,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       _formatTime(action.timeUntilExecutionSeconds),
                       style: GoogleFonts.robotoMono(
                         color: const Color(0xFF22D3EE),
-                        fontSize: 17,
+                        fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1195,7 +3431,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final leadDraft = drafts.first;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: _panelDecoration(border: const Color(0x665C7CFA)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1214,7 +3450,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 'Next-Shift Drafts',
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFE7F1FF),
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1236,12 +3472,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             leadDraft.actionType,
             style: GoogleFonts.inter(
               color: const Color(0xFFE7F1FF),
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1250,12 +3486,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
             leadDraft.description,
             style: GoogleFonts.inter(
               color: const Color(0xFFDAE4FF),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (leadDraft.metadata.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Wrap(
               spacing: 16,
               runSpacing: 8,
@@ -1317,7 +3553,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ],
             ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Column(
             children: [
               for (var i = 0; i < drafts.length; i++) ...[
@@ -1337,7 +3573,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       key: const ValueKey('ai-queue-mo-shadow-card'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: _panelDecoration(border: const Color(0x665B9BD5)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1356,7 +3592,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 'Shadow MO Intelligence',
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFE7F1FF),
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1378,12 +3614,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             '${lead.siteId} • ${lead.moShadowSummary}',
             style: GoogleFonts.inter(
               color: const Color(0xFFE6F0FF),
-              fontSize: 13,
+              fontSize: 12.5,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1416,7 +3652,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               'Supporting sites: $supporting',
               style: GoogleFonts.inter(
                 color: const Color(0xFF9AB5D7),
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1468,10 +3704,15 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             ),
                           );
                           Navigator.of(dialogContext).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Shadow MO dossier copied'),
-                            ),
+                          if (!mounted) {
+                            return;
+                          }
+                          _showAiQueueFeedback(
+                            'Shadow MO dossier copied',
+                            label: 'SHADOW DOSSIER',
+                            detail:
+                                'The exported MO dossier stays pinned in the context rail while the shadow lane remains available.',
+                            accent: const Color(0xFFB8D7FF),
                           );
                         },
                         child: const Text('COPY JSON'),
@@ -1597,7 +3838,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required Color border,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: _panelDecoration(border: border),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1606,16 +3847,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C5),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             value,
             style: GoogleFonts.rajdhani(
               color: color,
-              fontSize: 36,
+              fontSize: 30,
               height: 0.9,
               fontWeight: FontWeight.w700,
             ),
@@ -1659,7 +3900,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ? 2
             : 1;
         final cards = [
-          _activeMetricCard(label: 'Incident ID', value: incidentId, mono: true),
+          _activeMetricCard(
+            label: 'Incident ID',
+            value: incidentId,
+            mono: true,
+          ),
           _activeMetricCard(label: 'Target Site', value: site),
           _activeMetricCard(label: 'Assigned Officer', value: officer),
           _activeMetricCard(label: 'Estimated ETA', value: eta, accent: true),
@@ -1897,6 +4142,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
       .where((action) => action.status == _AiActionStatus.pending)
       .toList(growable: false);
 
+  List<_AiQueueAction> get _displayQueuedActions => _queuedActions
+      .where((action) => !_isNextShiftDraft(action))
+      .toList(growable: false);
+
   List<_AiQueueAction> get _nextShiftDrafts => _actions
       .where((action) => action.metadata['scope'] == 'NEXT_SHIFT')
       .toList(growable: false);
@@ -1959,17 +4208,46 @@ class _AIQueuePageState extends State<AIQueuePage> {
     });
   }
 
+  void _showAiQueueFeedback(
+    String message, {
+    String label = 'QUEUE ACTION',
+    String? detail,
+    Color accent = const Color(0xFF8FD1FF),
+  }) {
+    if (_desktopWorkspaceActive) {
+      setState(() {
+        _commandReceipt = _AiQueueCommandReceipt(
+          label: label,
+          message: message,
+          detail:
+              detail ??
+              'The latest automation command remains pinned in the context rail.',
+          accent: accent,
+        );
+      });
+      return;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger?.hideCurrentSnackBar();
+    messenger?.showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+    );
+  }
+
   void _togglePause(String actionId) {
+    _AiQueueAction? toggledAction;
     setState(() {
       _actions = _actions.map((action) {
         if (action.id != actionId) {
           return action;
         }
         if (action.status == _AiActionStatus.paused) {
-          return action.copyWith(status: _AiActionStatus.executing);
+          toggledAction = action.copyWith(status: _AiActionStatus.executing);
+          return toggledAction!;
         }
         if (action.status == _AiActionStatus.executing) {
-          return action.copyWith(status: _AiActionStatus.paused);
+          toggledAction = action.copyWith(status: _AiActionStatus.paused);
+          return toggledAction!;
         }
         return action;
       }).toList();
@@ -1980,6 +4258,130 @@ class _AIQueuePageState extends State<AIQueuePage> {
         _ensureSingleExecuting();
       }
     });
+    if (toggledAction == null) {
+      return;
+    }
+    final isPaused = toggledAction!.status == _AiActionStatus.paused;
+    _showAiQueueFeedback(
+      isPaused
+          ? 'Paused ${toggledAction!.incidentId}.'
+          : 'Resumed ${toggledAction!.incidentId}.',
+      label: isPaused ? 'PAUSE ENGINE' : 'RESUME ENGINE',
+      detail:
+          '${toggledAction!.site} stays pinned in the workspace while the queue lane remains available for review.',
+      accent: isPaused ? const Color(0xFFF6C067) : const Color(0xFF22D3EE),
+    );
+  }
+
+  void _promoteAction(String actionId) {
+    _AiQueueAction? promotedAction;
+    setState(() {
+      _actions = _actions.map((action) {
+        if (action.id == actionId) {
+          promotedAction = action.copyWith(status: _AiActionStatus.executing);
+          return promotedAction!;
+        }
+        if (action.status == _AiActionStatus.executing ||
+            action.status == _AiActionStatus.paused) {
+          return action.copyWith(status: _AiActionStatus.pending);
+        }
+        return action;
+      }).toList();
+      _queuePaused = false;
+      _laneFilter = _AiQueueLaneFilter.live;
+      _workspaceView = _AiQueueWorkspaceView.runbook;
+      _selectedFocusId = actionId;
+      _ensureSingleExecuting();
+    });
+    if (promotedAction == null) {
+      return;
+    }
+    _showAiQueueFeedback(
+      'Promoted ${promotedAction!.incidentId} into the live window.',
+      label: 'PROMOTE CURRENT',
+      detail:
+          '${promotedAction!.site} now leads the automation board while queued alternatives stay visible in the lane rail.',
+      accent: const Color(0xFF2563EB),
+    );
+  }
+
+  void _openStandbyWorkspace(_AiQueueWorkspaceView view) {
+    setState(() {
+      _laneFilter = _AiQueueLaneFilter.live;
+      _workspaceView = view;
+    });
+  }
+
+  void _setWorkspaceView(_AiQueueWorkspaceView view) {
+    setState(() => _workspaceView = view);
+  }
+
+  void _focusItem(_AiQueueFocusItem item) {
+    setState(() {
+      _selectedFocusId = item.id;
+      _laneFilter = item.lane;
+    });
+  }
+
+  void _focusLane(
+    _AiQueueLaneFilter lane, {
+    List<_AiQueueFocusItem>? focusItems,
+    String? preferredFocusId,
+  }) {
+    final items =
+        focusItems ??
+        _buildFocusItems(
+          activeAction: _activeAction,
+          queuedActions: _displayQueuedActions,
+          nextShiftDrafts: _nextShiftDrafts,
+          moShadowSites: _moShadowSites,
+        );
+    final laneItems = items
+        .where((item) => item.lane == lane)
+        .toList(growable: false);
+    setState(() {
+      _laneFilter = lane;
+      if (laneItems.isEmpty) {
+        return;
+      }
+      if (preferredFocusId != null &&
+          laneItems.any((item) => item.id == preferredFocusId)) {
+        _selectedFocusId = preferredFocusId;
+        return;
+      }
+      if (!laneItems.any((item) => item.id == _selectedFocusId)) {
+        _selectedFocusId = laneItems.first.id;
+      }
+    });
+  }
+
+  bool _canOpenEventsForFocus(_AiQueueFocusItem? focus) {
+    final callback = widget.onOpenEventsForScope;
+    if (callback == null || focus == null) {
+      return false;
+    }
+    if (focus.action != null) {
+      return _eventIdsForAction(focus.action!).isNotEmpty;
+    }
+    if (focus.shadowSite != null) {
+      return focus.shadowSite!.moShadowEventIds.isNotEmpty;
+    }
+    return false;
+  }
+
+  void _openEventsForFocus(_AiQueueFocusItem focus) {
+    if (focus.action != null) {
+      _openEventsForAction(focus.action!);
+      return;
+    }
+    final callback = widget.onOpenEventsForScope;
+    final shadowSite = focus.shadowSite;
+    if (callback == null ||
+        shadowSite == null ||
+        shadowSite.moShadowEventIds.isEmpty) {
+      return;
+    }
+    callback(shadowSite.moShadowEventIds, shadowSite.moShadowSelectedEventId);
   }
 
   void _ensureSingleExecuting() {
@@ -2001,6 +4403,105 @@ class _AIQueuePageState extends State<AIQueuePage> {
     _actions[nextPendingIndex] = _actions[nextPendingIndex].copyWith(
       status: _AiActionStatus.executing,
     );
+  }
+
+  List<_AiQueueFocusItem> _buildFocusItems({
+    required _AiQueueAction? activeAction,
+    required List<_AiQueueAction> queuedActions,
+    required List<_AiQueueAction> nextShiftDrafts,
+    required List<MonitoringGlobalSitePosture> moShadowSites,
+  }) {
+    return [
+      if (activeAction != null)
+        _AiQueueFocusItem.fromAction(
+          activeAction,
+          lane: _AiQueueLaneFilter.live,
+        ),
+      ...queuedActions.map(
+        (action) => _AiQueueFocusItem.fromAction(
+          action,
+          lane: _AiQueueLaneFilter.queued,
+        ),
+      ),
+      ...nextShiftDrafts.map(
+        (action) => _AiQueueFocusItem.fromAction(
+          action,
+          lane: _AiQueueLaneFilter.drafts,
+        ),
+      ),
+      ...moShadowSites.map(_AiQueueFocusItem.fromShadowSite),
+    ];
+  }
+
+  _AiQueueLaneFilter _effectiveLaneForItems(List<_AiQueueFocusItem> items) {
+    if (items.any((item) => item.lane == _laneFilter)) {
+      return _laneFilter;
+    }
+    for (final lane in _AiQueueLaneFilter.values) {
+      if (items.any((item) => item.lane == lane)) {
+        return lane;
+      }
+    }
+    return _AiQueueLaneFilter.live;
+  }
+
+  _AiQueueFocusItem? _resolveSelectedFocus({
+    required List<_AiQueueFocusItem> laneItems,
+    required List<_AiQueueFocusItem> allItems,
+  }) {
+    for (final item in laneItems) {
+      if (item.id == _selectedFocusId) {
+        return item;
+      }
+    }
+    if (laneItems.isNotEmpty) {
+      return laneItems.first;
+    }
+    for (final item in allItems) {
+      if (item.id == _selectedFocusId) {
+        return item;
+      }
+    }
+    return allItems.isEmpty ? null : allItems.first;
+  }
+
+  bool _isNextShiftDraft(_AiQueueAction action) {
+    return (action.metadata['scope'] ?? '').trim().toUpperCase() ==
+        'NEXT_SHIFT';
+  }
+
+  String _laneLabel(_AiQueueLaneFilter lane) {
+    return switch (lane) {
+      _AiQueueLaneFilter.live => 'Live',
+      _AiQueueLaneFilter.queued => 'Queued',
+      _AiQueueLaneFilter.drafts => 'Drafts',
+      _AiQueueLaneFilter.shadow => 'Shadow',
+    };
+  }
+
+  Color _laneAccent(_AiQueueLaneFilter lane) {
+    return switch (lane) {
+      _AiQueueLaneFilter.live => const Color(0xFF22D3EE),
+      _AiQueueLaneFilter.queued => const Color(0xFF63BDFF),
+      _AiQueueLaneFilter.drafts => const Color(0xFFC8D2FF),
+      _AiQueueLaneFilter.shadow => const Color(0xFFB8D7FF),
+    };
+  }
+
+  String _workspaceLabel(_AiQueueWorkspaceView view) {
+    return switch (view) {
+      _AiQueueWorkspaceView.runbook => 'Runbook',
+      _AiQueueWorkspaceView.policy => 'Policy',
+      _AiQueueWorkspaceView.context => 'Context',
+    };
+  }
+
+  Color _workspaceAccent(_AiQueueWorkspaceView view) {
+    return switch (view) {
+      _AiQueueWorkspaceView.runbook => const Color(0xFF22D3EE),
+      _AiQueueWorkspaceView.policy => const Color(0xFF86EFAC),
+      _AiQueueWorkspaceView.context => const Color(0xFFC8D2FF),
+    };
   }
 
   String _formatTime(int totalSeconds) {
@@ -2215,8 +4716,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
   }
 
   String _promotionPressureSummary(Map<String, String> metadata) {
-    final prebuiltSummary =
-        (metadata['mo_promotion_pressure_summary'] ?? '').trim();
+    final prebuiltSummary = (metadata['mo_promotion_pressure_summary'] ?? '')
+        .trim();
     if (prebuiltSummary.isNotEmpty) {
       return prebuiltSummary;
     }
@@ -2232,23 +4733,23 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   String _promotionExecutionSummary(Map<String, String> metadata) {
     return buildSyntheticPromotionExecutionBiasSummary(
-      promotionPriorityBias:
-          (metadata['mo_promotion_priority_bias'] ?? '').trim(),
-      promotionCountdownBias:
-          (metadata['mo_promotion_countdown_bias'] ?? '').trim(),
+      promotionPriorityBias: (metadata['mo_promotion_priority_bias'] ?? '')
+          .trim(),
+      promotionCountdownBias: (metadata['mo_promotion_countdown_bias'] ?? '')
+          .trim(),
     );
   }
 
   String _shadowPostureBiasSummary(Map<String, String> metadata) {
-    final prebuiltSummary =
-        (metadata['shadow_posture_bias_summary'] ?? '').trim();
+    final prebuiltSummary = (metadata['shadow_posture_bias_summary'] ?? '')
+        .trim();
     if (prebuiltSummary.isNotEmpty) {
       return prebuiltSummary;
     }
     final postureBias = (metadata['shadow_posture_bias'] ?? '').trim();
     final posturePriority = (metadata['shadow_posture_priority'] ?? '').trim();
-    final postureCountdown =
-        (metadata['shadow_posture_countdown'] ?? '').trim();
+    final postureCountdown = (metadata['shadow_posture_countdown'] ?? '')
+        .trim();
     if (postureBias.isEmpty &&
         posturePriority.isEmpty &&
         postureCountdown.isEmpty) {
@@ -2304,4 +4805,112 @@ class _AiQueuePriorityStyle {
     required this.background,
     required this.border,
   });
+}
+
+class _AiQueueFocusItem {
+  final String id;
+  final _AiQueueLaneFilter lane;
+  final _AiQueueAction? action;
+  final MonitoringGlobalSitePosture? shadowSite;
+
+  const _AiQueueFocusItem._({
+    required this.id,
+    required this.lane,
+    this.action,
+    this.shadowSite,
+  });
+
+  factory _AiQueueFocusItem.fromAction(
+    _AiQueueAction action, {
+    required _AiQueueLaneFilter lane,
+  }) {
+    return _AiQueueFocusItem._(id: action.id, lane: lane, action: action);
+  }
+
+  factory _AiQueueFocusItem.fromShadowSite(MonitoringGlobalSitePosture site) {
+    return _AiQueueFocusItem._(
+      id: 'shadow:${site.siteId}',
+      lane: _AiQueueLaneFilter.shadow,
+      shadowSite: site,
+    );
+  }
+
+  Color get accent {
+    if (action != null) {
+      return switch (action!.incidentPriority) {
+        _AiIncidentPriority.p1Critical => const Color(0xFFEF4444),
+        _AiIncidentPriority.p2High => const Color(0xFFF59E0B),
+        _AiIncidentPriority.p3Medium => const Color(0xFF22D3EE),
+      };
+    }
+    return const Color(0xFFB8D7FF);
+  }
+
+  String get primaryLabel {
+    if (action != null) {
+      return '${action!.incidentId} • ${action!.site}';
+    }
+    return shadowSite!.siteId;
+  }
+
+  String get secondaryLabel {
+    if (action != null) {
+      return switch (lane) {
+        _AiQueueLaneFilter.live => 'Live execution',
+        _AiQueueLaneFilter.queued => 'Queued for review',
+        _AiQueueLaneFilter.drafts => 'Next-shift draft',
+        _AiQueueLaneFilter.shadow => 'Shadow',
+      };
+    }
+    return 'Shadow posture signal';
+  }
+
+  String get summary {
+    if (action != null) {
+      return action!.description;
+    }
+    return shadowSite!.moShadowSummary;
+  }
+
+  String get headline {
+    if (action != null) {
+      return action!.site;
+    }
+    return shadowSite!.siteId;
+  }
+
+  String get bannerSummary {
+    if (action != null) {
+      return lane == _AiQueueLaneFilter.drafts
+          ? 'This queued automation is staged as a next-shift carry-forward recommendation.'
+          : lane == _AiQueueLaneFilter.live
+          ? 'This automation is currently in the live intervention window.'
+          : 'This automation remains in the pending review stack.';
+    }
+    return 'Shadow pattern intelligence is ready for dossier review and evidence handoff.';
+  }
+
+  List<(String, String, Color)> get chips {
+    if (action != null) {
+      return [
+        ('Lane', lane.name.toUpperCase(), accent),
+        (
+          'ETA',
+          _formatChipTime(action!.timeUntilExecutionSeconds),
+          const Color(0xFF22D3EE),
+        ),
+      ];
+    }
+    return [
+      ('Signal', 'mo_shadow', const Color(0xFFB8D7FF)),
+      ('Matches', '${shadowSite!.moShadowMatchCount}', const Color(0xFF22D3EE)),
+    ];
+  }
+
+  static String _formatChipTime(int totalSeconds) {
+    final bounded = totalSeconds < 0 ? 0 : totalSeconds;
+    final mins = bounded ~/ 60;
+    final secs = bounded % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
 }

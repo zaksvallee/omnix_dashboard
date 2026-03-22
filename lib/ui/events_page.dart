@@ -34,14 +34,16 @@ class EventsPage extends StatefulWidget {
 class _EventsPageState extends State<EventsPage> {
   static const int _maxTimelineRows = 50;
   static const int _maxDetailRows = 24;
-  static const double _spaceXs = 6;
-  static const double _spaceSm = 8;
-  static const double _spaceMd = 10;
+  static const double _spaceSm = 6;
+  static const double _spaceMd = 8;
   String _typeFilter = _allValue;
   String _siteFilter = _allValue;
   String _guardFilter = _allValue;
   _TimeWindow _timeWindow = _TimeWindow.last24h;
+  _EventLaneFilter _laneFilter = _EventLaneFilter.all;
+  _EventWorkspaceView _workspaceView = _EventWorkspaceView.casefile;
   bool _showAdvancedFilters = false;
+  String _lastActionFeedback = '';
   DispatchEvent? _selected;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -58,9 +60,16 @@ class _EventsPageState extends State<EventsPage> {
     final allSites = _distinctValues(forensicRows.map((r) => r.siteId));
     final allGuards = _distinctValues(forensicRows.map((r) => r.guardId));
 
-    final filtered = forensicRows.where(_matchesFilters).toList();
-    final visibleRows = filtered.take(_maxTimelineRows).toList(growable: false);
-    final hiddenRows = filtered.length - visibleRows.length;
+    final filtered = forensicRows
+        .where(_matchesFilters)
+        .toList(growable: false);
+    final laneFiltered = filtered
+        .where((row) => _matchesLaneFilter(row, _laneFilter))
+        .toList(growable: false);
+    final visibleRows = laneFiltered
+        .take(_maxTimelineRows)
+        .toList(growable: false);
+    final hiddenRows = laneFiltered.length - visibleRows.length;
     final selected = visibleRows.isEmpty
         ? null
         : _selected != null
@@ -75,417 +84,155 @@ class _EventsPageState extends State<EventsPage> {
     } else if (selected == null && _selected != null) {
       _selected = null;
     }
+    final relatedRows = selected == null
+        ? const <_ForensicRow>[]
+        : _relatedRows(filtered, selected);
 
     return Scaffold(
       key: _scaffoldKey,
       endDrawer: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth >= 1120 || selected == null) {
+          if (constraints.maxWidth >= 980 || selected == null) {
             return const SizedBox.shrink();
           }
           return Drawer(
-            width: 320,
+            width: 360,
             backgroundColor: const Color(0xFF0E1A2B),
             child: SafeArea(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(10),
-                child: _selectedDetailPane(selected),
+                child: _selectedEventWorkspace(
+                  row: selected,
+                  relatedRows: relatedRows,
+                  useExpandedBody: false,
+                ),
               ),
             ),
           );
         },
       ),
       body: OnyxPageScaffold(
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1540),
-              child: LayoutBuilder(
-                builder: (context, viewport) {
-                  final useScrollFallback =
-                      handsetLayout ||
-                      viewport.maxHeight < 720 ||
-                      viewport.maxWidth < 1120;
+        child: LayoutBuilder(
+          builder: (context, viewport) {
+            const contentPadding = EdgeInsets.all(8);
+            final useScrollFallback =
+                handsetLayout ||
+                viewport.maxHeight < 720 ||
+                viewport.maxWidth < 980;
+            final boundedDesktopSurface =
+                !useScrollFallback &&
+                viewport.hasBoundedHeight &&
+                viewport.maxHeight.isFinite;
+            final ultrawideSurface = isUltrawideLayout(
+              context,
+              viewportWidth: viewport.maxWidth,
+            );
+            final widescreenSurface = isWidescreenLayout(
+              context,
+              viewportWidth: viewport.maxWidth,
+            );
+            final surfaceMaxWidth = ultrawideSurface
+                ? viewport.maxWidth
+                : widescreenSurface
+                ? viewport.maxWidth
+                : 1540.0;
 
-                  Widget timelinePane({
-                    required bool showSideDrawer,
-                    required bool useExpandedList,
-                  }) {
-                    final timelineList = visibleRows.isEmpty
-                        ? _emptyState()
-                        : ListView.separated(
-                            shrinkWrap: !useExpandedList,
-                            primary: useExpandedList,
-                            physics: useExpandedList
-                                ? null
-                                : const NeverScrollableScrollPhysics(),
-                            itemCount: visibleRows.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: _spaceSm),
-                            itemBuilder: (context, index) {
-                              final row = visibleRows[index];
-                              final event = row.event;
-                              final info = row.info;
-                              final isSelected =
-                                  _selected?.eventId == event.eventId;
+            final hero = _heroHeader(
+              context,
+              totalCount: forensicRows.length,
+              filteredCount: laneFiltered.length,
+              selectedCount: selected == null ? 0 : 1,
+              laneLabel: _laneFilter.label,
+            );
 
-                              return InkWell(
-                                onTap: () {
-                                  setState(() => _selected = event);
-                                  if (!showSideDrawer) {
-                                    _scaffoldKey.currentState?.openEndDrawer();
-                                  }
-                                },
-                                borderRadius: BorderRadius.circular(14),
-                                child: Container(
-                                  padding: const EdgeInsets.all(9),
-                                  decoration: onyxForensicRowDecoration(
-                                    isSelected: isSelected,
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        margin: const EdgeInsets.only(top: 2),
-                                        width: 10,
-                                        height: 10,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: info.color,
-                                        ),
-                                      ),
-                                      const SizedBox(width: _spaceMd),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            LayoutBuilder(
-                                              builder: (context, rowConstraints) {
-                                                final compactHeader =
-                                                    rowConstraints.maxWidth <
-                                                    340;
-                                                final timestampText =
-                                                    "UTC ${event.occurredAt.toIso8601String()}";
-                                                if (compactHeader) {
-                                                  return Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      Text(
-                                                        info.label,
-                                                        style:
-                                                            GoogleFonts.rajdhani(
-                                                              color: info.color,
-                                                              fontSize: 16,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700,
-                                                            ),
-                                                      ),
-                                                      const SizedBox(height: 2),
-                                                      Text(
-                                                        timestampText,
-                                                        maxLines: 1,
-                                                        overflow: TextOverflow
-                                                            .ellipsis,
-                                                        style:
-                                                            GoogleFonts.inter(
-                                                              color:
-                                                                  const Color(
-                                                                    0xFF89A0BE,
-                                                                  ),
-                                                              fontSize: 11,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
-                                                            ),
-                                                      ),
-                                                    ],
-                                                  );
-                                                }
-                                                return Row(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Expanded(
-                                                      child: Text(
-                                                        info.label,
-                                                        style:
-                                                            GoogleFonts.rajdhani(
-                                                              color: info.color,
-                                                              fontSize: 16,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      timestampText,
-                                                      style: GoogleFonts.inter(
-                                                        color: const Color(
-                                                          0xFF89A0BE,
-                                                        ),
-                                                        fontSize: 11,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                      textAlign: TextAlign.end,
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Wrap(
-                                              spacing: 6,
-                                              runSpacing: 6,
-                                              children: [
-                                                _pill("SEQ ${event.sequence}"),
-                                                if (row.siteId != null)
-                                                  _pill(row.siteId!),
-                                                if (row.guardId != null)
-                                                  _pill(row.guardId!),
-                                                if (isSelected)
-                                                  _pill(
-                                                    "SELECTED",
-                                                    color: const Color(
-                                                      0xFF9FD9FF,
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: _spaceXs),
-                                            Text(
-                                              info.summary,
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFFE4EEFF),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                height: 1.35,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              "Event ID ${event.eventId}",
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFF7289AA),
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
+            Widget buildSurfaceBody({required bool expandedPanels}) {
+              final content = <Widget>[
+                _overviewGrid(
+                  totalCount: forensicRows.length,
+                  filteredCount: laneFiltered.length,
+                  latestSequence: timeline.isEmpty
+                      ? null
+                      : timeline.first.sequence,
+                  laneLabel: _laneFilter.label,
+                  filteredRows: filtered,
+                  selected: selected,
+                  relatedRows: relatedRows,
+                ),
+                const SizedBox(height: _spaceSm),
+                if (!boundedDesktopSurface) ...[
+                  const OnyxPageHeader(
+                    title: 'Event Review',
+                    subtitle:
+                        'A lane-driven command workspace for forensic review, evidence checks, and event-chain tracing.',
+                  ),
+                  const SizedBox(height: _spaceSm),
+                ],
+                if (!handsetLayout) ...[
+                  _workspaceStatusBanner(
+                    context,
+                    filteredRows: filtered,
+                    visibleRows: visibleRows,
+                    selected: selected,
+                    relatedRows: relatedRows,
+                  ),
+                  const SizedBox(height: _spaceSm),
+                ],
+              ];
 
-                    return Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: onyxForensicSurfaceCardDecoration(),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 42,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF3C79BB),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                          ),
-                          const SizedBox(height: _spaceSm),
-                          Text(
-                            "Timeline Feed",
-                            style: GoogleFonts.rajdhani(
-                              color: const Color(0xFFE6F0FF),
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Newest first, with summary-first cards instead of raw dense rows • ${filtered.length} filtered.",
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF7E95B4),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: _spaceSm),
-                          if (useExpandedList)
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(child: timelineList),
-                                  if (hiddenRows > 0) ...[
-                                    const SizedBox(height: _spaceSm),
-                                    OnyxTruncationHint(
-                                      visibleCount: visibleRows.length,
-                                      totalCount: filtered.length,
-                                      subject: 'event rows',
-                                      hiddenDescriptor: 'additional rows',
-                                      color: const Color(0xFF8FA8CA),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            )
-                          else
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                timelineList,
-                                if (hiddenRows > 0) ...[
-                                  const SizedBox(height: _spaceSm),
-                                  OnyxTruncationHint(
-                                    visibleCount: visibleRows.length,
-                                    totalCount: filtered.length,
-                                    subject: 'event rows',
-                                    hiddenDescriptor: 'additional rows',
-                                    color: const Color(0xFF8FA8CA),
-                                  ),
-                                ],
-                              ],
-                            ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  Widget mainLayout() {
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        final showSideDrawer =
-                            constraints.maxWidth >= 1120 && !handsetLayout;
-                        final sidePaneWidth = constraints.maxWidth >= 1480
-                            ? 340.0
-                            : 300.0;
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: timelinePane(
-                                showSideDrawer: showSideDrawer,
-                                useExpandedList: !useScrollFallback,
-                              ),
-                            ),
-                            if (showSideDrawer) ...[
-                              const SizedBox(width: _spaceMd),
-                              SizedBox(
-                                width: sidePaneWidth,
-                                child: selected == null
-                                    ? _emptyDetailPane()
-                                    : _selectedDetailPane(selected),
-                              ),
-                            ],
-                          ],
-                        );
-                      },
-                    );
-                  }
-
-                  if (useScrollFallback) {
-                    return ListView(
-                      children: [
-                        _heroHeader(
-                          context,
-                          totalCount: forensicRows.length,
-                          filteredCount: filtered.length,
-                          selectedCount: selected == null ? 0 : 1,
-                        ),
-                        const SizedBox(height: _spaceSm),
-                        _overviewGrid(
-                          totalCount: forensicRows.length,
-                          filteredCount: filtered.length,
-                          selectedCount: selected == null ? 0 : 1,
-                          latestSequence: timeline.isEmpty
-                              ? null
-                              : timeline.first.sequence,
-                        ),
-                        const SizedBox(height: _spaceSm),
-                        const OnyxPageHeader(
-                          title: 'Event Review',
-                          subtitle:
-                              'Readable forensic timeline with a calmer detail surface and faster filter triage.',
-                        ),
-                        const SizedBox(height: _spaceSm),
-                        _summaryStrip(
-                          totalCount: forensicRows.length,
-                          filteredCount: filtered.length,
-                          latestSequence: timeline.isEmpty
-                              ? null
-                              : timeline.first.sequence,
-                        ),
-                        const SizedBox(height: _spaceXs),
-                        _filterBar(
-                          allTypes: allTypes,
-                          allSites: allSites,
-                          allGuards: allGuards,
-                          filteredCount: filtered.length,
-                        ),
-                        const SizedBox(height: _spaceXs),
-                        mainLayout(),
-                      ],
-                    );
-                  }
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _heroHeader(
-                        context,
-                        totalCount: forensicRows.length,
-                        filteredCount: filtered.length,
-                        selectedCount: selected == null ? 0 : 1,
-                      ),
-                      const SizedBox(height: 8),
-                      _overviewGrid(
-                        totalCount: forensicRows.length,
-                        filteredCount: filtered.length,
-                        selectedCount: selected == null ? 0 : 1,
-                        latestSequence: timeline.isEmpty
-                            ? null
-                            : timeline.first.sequence,
-                      ),
-                      const SizedBox(height: 8),
-                      const OnyxPageHeader(
-                        title: 'Event Review',
-                        subtitle:
-                            'Readable forensic timeline with a calmer detail surface and faster filter triage.',
-                      ),
-                      const SizedBox(height: 8),
-                      _summaryStrip(
-                        totalCount: forensicRows.length,
-                        filteredCount: filtered.length,
-                        latestSequence: timeline.isEmpty
-                            ? null
-                            : timeline.first.sequence,
-                      ),
-                      const SizedBox(height: 6),
-                      _filterBar(
+              if (expandedPanels) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...content,
+                    Expanded(
+                      child: _eventsReviewWorkspace(
                         allTypes: allTypes,
                         allSites: allSites,
                         allGuards: allGuards,
-                        filteredCount: filtered.length,
+                        filteredRows: filtered,
+                        visibleRows: visibleRows,
+                        relatedRows: relatedRows,
+                        hiddenRows: hiddenRows,
+                        selected: selected,
+                        showSelectedWorkspace: true,
+                        embedSelectedWorkspaceInFlow: false,
+                        useExpandedPanels: true,
                       ),
-                      const SizedBox(height: 6),
-                      Expanded(child: mainLayout()),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ),
+                    ),
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...content,
+                  _eventsReviewWorkspace(
+                    allTypes: allTypes,
+                    allSites: allSites,
+                    allGuards: allGuards,
+                    filteredRows: filtered,
+                    visibleRows: visibleRows,
+                    relatedRows: relatedRows,
+                    hiddenRows: hiddenRows,
+                    selected: selected,
+                    showSelectedWorkspace: false,
+                    embedSelectedWorkspaceInFlow: !handsetLayout,
+                    useExpandedPanels: false,
+                  ),
+                ],
+              );
+            }
+
+            return OnyxViewportWorkspaceLayout(
+              padding: contentPadding,
+              maxWidth: surfaceMaxWidth,
+              lockToViewport: boundedDesktopSurface,
+              spacing: _spaceSm,
+              header: hero,
+              body: buildSurfaceBody(expandedPanels: boundedDesktopSurface),
+            );
+          },
         ),
       ),
     );
@@ -496,18 +243,19 @@ class _EventsPageState extends State<EventsPage> {
     required int totalCount,
     required int filteredCount,
     required int selectedCount,
+    required String laneLabel,
   }) {
     final windowLabel = _timeWindow.label;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF171736), Color(0xFF10172A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(11),
         border: Border.all(color: const Color(0xFF2A3150)),
       ),
       child: LayoutBuilder(
@@ -520,10 +268,10 @@ class _EventsPageState extends State<EventsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(12),
                       gradient: const LinearGradient(
                         colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
                         begin: Alignment.topLeft,
@@ -533,10 +281,10 @@ class _EventsPageState extends State<EventsPage> {
                     child: const Icon(
                       Icons.timeline_rounded,
                       color: Colors.white,
-                      size: 28,
+                      size: 18,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -545,7 +293,7 @@ class _EventsPageState extends State<EventsPage> {
                           'Events & Forensic Timeline',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 22 : 26,
+                            fontSize: compact ? 17 : 20,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -554,7 +302,7 @@ class _EventsPageState extends State<EventsPage> {
                           'Immutable event log with forensic filtering and audit trails.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF95A9C7),
-                            fontSize: 13,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -563,25 +311,23 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
                   _heroChip('Window', windowLabel),
+                  _heroChip('Lane', laneLabel),
                   _heroChip('Filtered', '$filteredCount of $totalCount'),
                   _heroChip('Selected', '$selectedCount'),
-                  _heroChip(
-                    'Filters',
-                    '${_activeFilterCount()} active',
-                  ),
+                  _heroChip('Filters', '${_activeFilterCount()} active'),
                 ],
               ),
             ],
           );
           final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 5,
+            runSpacing: 5,
             alignment: WrapAlignment.end,
             children: [
               _heroActionButton(
@@ -589,44 +335,30 @@ class _EventsPageState extends State<EventsPage> {
                 icon: Icons.open_in_new,
                 label: 'View Governance',
                 accent: const Color(0xFF93C5FD),
-                onPressed: () => _showSurfaceLinkDialog(
-                  context,
-                  title: 'Governance Link Ready',
-                  message:
-                      'Use Governance to review blocker posture, sovereign readiness, and compliance detail for the selected forensic scope.',
-                ),
+                onPressed: () => _openGovernanceDialog(context),
               ),
               _heroActionButton(
                 key: const ValueKey('events-view-ledger-button'),
                 icon: Icons.account_tree_outlined,
                 label: 'View Ledger',
                 accent: const Color(0xFFA78BFA),
-                onPressed: () => _showSurfaceLinkDialog(
-                  context,
-                  title: 'Ledger Link Ready',
-                  message:
-                      'Use Ledger to inspect provenance, evidence continuity, and immutable verification for the selected event chain.',
-                ),
+                onPressed: () => _openLedgerDialog(context),
               ),
             ],
           );
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleBlock,
-                const SizedBox(height: 16),
-                actions,
-              ],
+              children: [titleBlock, const SizedBox(height: 8), actions],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: titleBlock),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 340),
+                constraints: const BoxConstraints(maxWidth: 260),
                 child: actions,
               ),
             ],
@@ -638,7 +370,7 @@ class _EventsPageState extends State<EventsPage> {
 
   Widget _heroChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -651,7 +383,7 @@ class _EventsPageState extends State<EventsPage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 11,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -659,7 +391,7 @@ class _EventsPageState extends State<EventsPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE8F1FF),
-                fontSize: 11,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -679,18 +411,18 @@ class _EventsPageState extends State<EventsPage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 16),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         textStyle: GoogleFonts.inter(
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -698,8 +430,11 @@ class _EventsPageState extends State<EventsPage> {
   Widget _overviewGrid({
     required int totalCount,
     required int filteredCount,
-    required int selectedCount,
     required int? latestSequence,
+    required String laneLabel,
+    required List<_ForensicRow> filteredRows,
+    required _ForensicRow? selected,
+    required List<_ForensicRow> relatedRows,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -708,16 +443,18 @@ class _EventsPageState extends State<EventsPage> {
             : constraints.maxWidth >= 760
             ? 2
             : 1;
-        final aspectRatio = columns == 4
-            ? 1.95
+        final aspectRatio = constraints.maxWidth >= 1800
+            ? 3.0
+            : columns == 4
+            ? 2.55
             : columns == 2
-            ? 2.35
-            : 2.55;
+            ? 2.2
+            : 2.2;
         return GridView.count(
           key: const ValueKey('events-overview-grid'),
           crossAxisCount: columns,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
           childAspectRatio: aspectRatio,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -725,25 +462,23 @@ class _EventsPageState extends State<EventsPage> {
             _overviewCard(
               title: 'Timeline Events',
               value: '$totalCount',
-              detail: 'Immutable forensic rows available for review in this session.',
+              detail:
+                  'Immutable forensic rows available for review in this session.',
               icon: Icons.timeline_rounded,
               accent: const Color(0xFF63BDFF),
             ),
             _overviewCard(
               title: 'Visible Rows',
               value: '$filteredCount',
-              detail: '${_activeFilterCount()} active filters are shaping the current event view.',
+              detail:
+                  '${_activeFilterCount()} active filters plus the $laneLabel lane are shaping the review.',
               icon: Icons.filter_alt_outlined,
               accent: const Color(0xFF59D79B),
             ),
-            _overviewCard(
-              title: 'Selected Event',
-              value: '$selectedCount',
-              detail: selectedCount == 0
-                  ? 'No forensic row is focused yet.'
-                  : 'A detailed forensic record is pinned in the right-side pane.',
-              icon: Icons.visibility_outlined,
-              accent: const Color(0xFFA78BFA),
+            _selectedEventOverviewCard(
+              filteredRows: filteredRows,
+              selected: selected,
+              relatedRows: relatedRows,
             ),
             _overviewCard(
               title: 'Latest Sequence',
@@ -758,6 +493,207 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
+  Widget _selectedEventOverviewCard({
+    required List<_ForensicRow> filteredRows,
+    required _ForensicRow? selected,
+    required List<_ForensicRow> relatedRows,
+  }) {
+    final hasScopedRowsOutsideLane =
+        selected == null && filteredRows.isNotEmpty;
+    final intelligenceCount = _laneCountForFilter(
+      filteredRows,
+      _EventLaneFilter.intelligence,
+    );
+    final canWidenWindow = _timeWindow != _TimeWindow.all;
+    final canResetScope =
+        _activeFilterCount() > 0 || _laneFilter != _EventLaneFilter.all;
+    final accent =
+        selected?.info.color ??
+        (hasScopedRowsOutsideLane
+            ? const Color(0xFF63BDFF)
+            : const Color(0xFFF6C067));
+    final title = selected == null ? 'No case pinned' : selected.event.eventId;
+    final detail = selected == null
+        ? hasScopedRowsOutsideLane
+              ? '${filteredRows.length} scoped row${filteredRows.length == 1 ? '' : 's'} still sit outside the active lane. Reopen the broader stream or pivot into intelligence-first review to pin a case again.'
+              : 'No forensic row is focused inside the current review horizon. Widen the window or reset scope so the board can pull a live case file back into focus.'
+        : '${selected.info.label} stays pinned while case file, evidence posture, and chain review can shift in place without leaving the workspace.';
+    final actions = <Widget>[
+      if (selected != null) ...[
+        _overviewCardAction(
+          key: const ValueKey('events-overview-selected-open-casefile'),
+          label: 'Case File',
+          accent: const Color(0xFFA78BFA),
+          selected: _workspaceView == _EventWorkspaceView.casefile,
+          onTap: () => _setWorkspaceView(_EventWorkspaceView.casefile),
+        ),
+        _overviewCardAction(
+          key: const ValueKey('events-overview-selected-open-evidence'),
+          label: 'Evidence',
+          accent: const Color(0xFF63BDFF),
+          selected: _workspaceView == _EventWorkspaceView.evidence,
+          onTap: () => _setWorkspaceView(_EventWorkspaceView.evidence),
+        ),
+        if (relatedRows.isNotEmpty ||
+            _workspaceView == _EventWorkspaceView.chain)
+          _overviewCardAction(
+            key: const ValueKey('events-overview-selected-open-chain'),
+            label: 'Chain',
+            accent: const Color(0xFF59D79B),
+            selected: _workspaceView == _EventWorkspaceView.chain,
+            onTap: () => _setWorkspaceView(_EventWorkspaceView.chain),
+          ),
+        if (_laneFilter != _EventLaneFilter.all)
+          _overviewCardAction(
+            key: const ValueKey('events-overview-selected-open-all-events'),
+            label: 'All Events',
+            accent: _EventLaneFilter.all.accent,
+            onTap: () => _setLaneFilter(_EventLaneFilter.all),
+          ),
+      ] else ...[
+        if (hasScopedRowsOutsideLane)
+          _overviewCardAction(
+            key: const ValueKey('events-overview-selected-open-all-events'),
+            label: 'Open All Events',
+            accent: _EventLaneFilter.all.accent,
+            onTap: () => _setLaneFilter(_EventLaneFilter.all),
+          ),
+        if (intelligenceCount > 0 &&
+            _laneFilter != _EventLaneFilter.intelligence)
+          _overviewCardAction(
+            key: const ValueKey('events-overview-selected-open-intelligence'),
+            label: 'Intelligence Lane',
+            accent: _EventLaneFilter.intelligence.accent,
+            onTap: () => _setLaneFilter(_EventLaneFilter.intelligence),
+          ),
+        if (canWidenWindow)
+          _overviewCardAction(
+            key: const ValueKey('events-overview-selected-open-all-time'),
+            label: 'All Time',
+            accent: const Color(0xFFF6C067),
+            onTap: () => _setTimeWindow(_TimeWindow.all),
+          ),
+        if (canResetScope)
+          _overviewCardAction(
+            key: const ValueKey('events-overview-selected-reset-scope'),
+            label: 'Reset Scope',
+            accent: const Color(0xFF59D79B),
+            onTap: () => _resetForensicFilters(resetLane: true),
+          ),
+      ],
+    ];
+
+    return Container(
+      key: const ValueKey('events-overview-selected-card'),
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.16), const Color(0xFF101A2B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(
+                    Icons.visibility_outlined,
+                    color: accent,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        selected == null ? 'FOCUS RECOVERY' : 'CASE IN FOCUS',
+                        style: GoogleFonts.inter(
+                          color: accent,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        'Selected Case',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8EA4C2),
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.rajdhani(
+                color: const Color(0xFFF4F8FF),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              detail,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFD5E1F2),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 5,
+              runSpacing: 5,
+              children: [
+                if (selected != null) ...[
+                  _pill(selected.info.label, color: accent),
+                  _pill('SEQ ${selected.event.sequence}'),
+                  _pill('${relatedRows.length} linked'),
+                ] else ...[
+                  _pill(_laneFilter.label, color: _laneFilter.accent),
+                  if (filteredRows.isNotEmpty)
+                    _pill('${filteredRows.length} scoped'),
+                  if (_activeFilterCount() > 0)
+                    _pill('${_activeFilterCount()} filters'),
+                ],
+              ],
+            ),
+            if (actions.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Wrap(spacing: 5, runSpacing: 5, children: actions),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _overviewCard({
     required String title,
     required String value,
@@ -766,10 +702,10 @@ class _EventsPageState extends State<EventsPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -778,20 +714,20 @@ class _EventsPageState extends State<EventsPage> {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                 ),
-                child: Icon(icon, color: accent, size: 20),
+                child: Icon(icon, color: accent, size: 16),
               ),
               const Spacer(),
               Text(
                 value,
                 style: GoogleFonts.robotoMono(
                   color: const Color(0xFFF4F8FF),
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -807,19 +743,46 @@ class _EventsPageState extends State<EventsPage> {
               letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             detail,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               color: const Color(0xFFD5E1F2),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _overviewCardAction({
+    required Key key,
+    required String label,
+    required Color accent,
+    required VoidCallback onTap,
+    bool selected = false,
+  }) {
+    return TextButton(
+      key: key,
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: selected ? const Color(0xFF08111E) : accent,
+        backgroundColor: selected
+            ? accent.withValues(alpha: 0.9)
+            : accent.withValues(alpha: 0.12),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        minimumSize: const Size(0, 0),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -856,6 +819,1427 @@ class _EventsPageState extends State<EventsPage> {
           ],
         );
       },
+    );
+  }
+
+  void _openGovernanceDialog(BuildContext context) {
+    _showSurfaceLinkDialog(
+      context,
+      title: 'Governance Link Ready',
+      message:
+          'Use Governance to review blocker posture, sovereign readiness, and compliance detail for the selected forensic scope.',
+    );
+  }
+
+  void _openLedgerDialog(BuildContext context) {
+    _showSurfaceLinkDialog(
+      context,
+      title: 'Ledger Link Ready',
+      message:
+          'Use Ledger to inspect provenance, evidence continuity, and immutable verification for the selected event chain.',
+    );
+  }
+
+  Widget _workspaceStatusBanner(
+    BuildContext context, {
+    required List<_ForensicRow> filteredRows,
+    required List<_ForensicRow> visibleRows,
+    required _ForensicRow? selected,
+    required List<_ForensicRow> relatedRows,
+  }) {
+    return Container(
+      key: const ValueKey('events-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _workspaceStatusPill(
+                icon: Icons.timeline_outlined,
+                label: '${visibleRows.length} Visible',
+                accent: const Color(0xFF63BDFF),
+              ),
+              _workspaceStatusPill(
+                icon: Icons.radar_outlined,
+                label: 'Lane ${_laneFilter.label}',
+                accent: _laneFilter.accent,
+              ),
+              _workspaceStatusPill(
+                icon: Icons.dashboard_customize_outlined,
+                label: 'View ${_workspaceView.label}',
+                accent: _workspaceView.accent,
+              ),
+              _workspaceStatusPill(
+                icon: Icons.flag_outlined,
+                label: 'Focus ${selected?.event.eventId ?? 'None'}',
+                accent: selected?.info.color ?? const Color(0xFF94A3B8),
+              ),
+              _workspaceStatusPill(
+                icon: Icons.link_outlined,
+                label: '${relatedRows.length} Linked',
+                accent: relatedRows.isEmpty
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF59D79B),
+              ),
+              _workspaceStatusPill(
+                icon: Icons.schedule_outlined,
+                label: _timeWindow.label,
+                accent: const Color(0xFFF6C067),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 5,
+            runSpacing: 5,
+            children: [
+              _workspaceStatusAction(
+                key: const ValueKey('events-workspace-banner-open-all'),
+                label: 'All Events',
+                selected: _laneFilter == _EventLaneFilter.all,
+                accent: _EventLaneFilter.all.accent,
+                onTap: () => _setLaneFilter(_EventLaneFilter.all),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey(
+                  'events-workspace-banner-open-intelligence',
+                ),
+                label: 'Intelligence Lane',
+                selected: _laneFilter == _EventLaneFilter.intelligence,
+                accent: _EventLaneFilter.intelligence.accent,
+                onTap:
+                    _laneCountForFilter(
+                          filteredRows,
+                          _EventLaneFilter.intelligence,
+                        ) ==
+                        0
+                    ? null
+                    : () => _setLaneFilter(_EventLaneFilter.intelligence),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('events-workspace-banner-open-evidence'),
+                label: 'Evidence View',
+                selected: _workspaceView == _EventWorkspaceView.evidence,
+                accent: _EventWorkspaceView.evidence.accent,
+                onTap: () => _setWorkspaceView(_EventWorkspaceView.evidence),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('events-workspace-banner-open-chain'),
+                label: 'Chain View',
+                selected: _workspaceView == _EventWorkspaceView.chain,
+                accent: _EventWorkspaceView.chain.accent,
+                onTap: () => _setWorkspaceView(_EventWorkspaceView.chain),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('events-workspace-banner-focus-linked'),
+                label: 'Focus Linked',
+                selected: false,
+                accent: const Color(0xFF59D79B),
+                onTap: relatedRows.isEmpty
+                    ? null
+                    : () => _focusLinkedEvent(relatedRows),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('events-workspace-banner-open-governance'),
+                label: 'Open Governance',
+                selected: false,
+                accent: const Color(0xFF93C5FD),
+                onTap: () => _openGovernanceDialog(context),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('events-workspace-banner-open-ledger'),
+                label: 'Open Ledger',
+                selected: false,
+                accent: const Color(0xFFA78BFA),
+                onTap: () => _openLedgerDialog(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            selected == null
+                ? 'Hold the current filters to pick a forensic row, then use the workspace strip to pivot lanes, evidence, and linked-chain scope.'
+                : 'The selected forensic scope stays pinned while lane pivots, chain focus, and governance or ledger handoffs remain one step away.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceStatusPill({
+    required IconData icon,
+    required String label,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111F33),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: accent),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceStatusAction({
+    required Key key,
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback? onTap,
+  }) {
+    final enabled = onTap != null;
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        decoration: BoxDecoration(
+          color: !enabled
+              ? const Color(0xFF1D2937)
+              : selected
+              ? accent.withValues(alpha: 0.2)
+              : const Color(0xFF111F33),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: !enabled
+                ? const Color(0xFF314154)
+                : selected
+                ? accent.withValues(alpha: 0.75)
+                : accent.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: !enabled ? const Color(0xFF8EA4C2) : const Color(0xFFEAF1FB),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _eventsReviewWorkspace({
+    required List<String> allTypes,
+    required List<String> allSites,
+    required List<String> allGuards,
+    required List<_ForensicRow> filteredRows,
+    required List<_ForensicRow> visibleRows,
+    required List<_ForensicRow> relatedRows,
+    required int hiddenRows,
+    required _ForensicRow? selected,
+    required bool showSelectedWorkspace,
+    required bool embedSelectedWorkspaceInFlow,
+    required bool useExpandedPanels,
+  }) {
+    if (!showSelectedWorkspace) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _eventLaneRail(
+            filteredRows: filteredRows,
+            visibleRows: visibleRows,
+            hiddenRows: hiddenRows,
+            openDrawerOnSelect: !embedSelectedWorkspaceInFlow,
+            useExpandedList: false,
+          ),
+          if (embedSelectedWorkspaceInFlow) ...[
+            const SizedBox(height: _spaceSm),
+            selected == null
+                ? _emptyDetailPane(filteredRows: filteredRows)
+                : _selectedEventWorkspace(
+                    row: selected,
+                    relatedRows: relatedRows,
+                    useExpandedBody: false,
+                  ),
+          ],
+          const SizedBox(height: _spaceSm),
+          _contextRail(
+            allTypes: allTypes,
+            allSites: allSites,
+            allGuards: allGuards,
+            filteredRows: filteredRows,
+            selected: selected,
+            relatedRows: relatedRows,
+            filteredCount: visibleRows.length,
+          ),
+        ],
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final railWidth = constraints.maxWidth >= 1900
+            ? 276.0
+            : constraints.maxWidth >= 1460
+            ? 284.0
+            : 266.0;
+        final contextWidth = constraints.maxWidth >= 1900
+            ? 238.0
+            : constraints.maxWidth >= 1460
+            ? 248.0
+            : 236.0;
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: railWidth,
+              child: _eventLaneRail(
+                filteredRows: filteredRows,
+                visibleRows: visibleRows,
+                hiddenRows: hiddenRows,
+                openDrawerOnSelect: false,
+                useExpandedList: true,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: selected == null
+                  ? _emptyDetailPane(filteredRows: filteredRows)
+                  : _selectedEventWorkspace(
+                      row: selected,
+                      relatedRows: relatedRows,
+                      useExpandedBody: useExpandedPanels,
+                    ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: contextWidth,
+              child: _contextRail(
+                allTypes: allTypes,
+                allSites: allSites,
+                allGuards: allGuards,
+                filteredRows: filteredRows,
+                selected: selected,
+                relatedRows: relatedRows,
+                filteredCount: visibleRows.length,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _eventLaneRail({
+    required List<_ForensicRow> filteredRows,
+    required List<_ForensicRow> visibleRows,
+    required int hiddenRows,
+    required bool openDrawerOnSelect,
+    required bool useExpandedList,
+  }) {
+    final timelineList = visibleRows.isEmpty
+        ? _emptyState(filteredRows: filteredRows)
+        : ListView.separated(
+            shrinkWrap: !useExpandedList,
+            primary: useExpandedList,
+            physics: useExpandedList
+                ? null
+                : const NeverScrollableScrollPhysics(),
+            itemCount: visibleRows.length,
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: _spaceSm),
+            itemBuilder: (context, index) {
+              final row = visibleRows[index];
+              return _eventLaneCard(
+                row,
+                openDrawerOnSelect: openDrawerOnSelect,
+              );
+            },
+          );
+
+    return Container(
+      padding: const EdgeInsets.all(7),
+      decoration: onyxForensicSurfaceCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 3,
+            decoration: BoxDecoration(
+              color: const Color(0xFF3C79BB),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: _spaceSm),
+          Text(
+            'Review Lanes',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE6F0FF),
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Lane-focused cards keep the triage rail readable while the selected event expands into a deeper case file.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7E95B4),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: _spaceSm),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _EventLaneFilter.values
+                .map(
+                  (filter) => _laneFilterChip(
+                    filter: filter,
+                    count: _laneCountForFilter(filteredRows, filter),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: _spaceSm),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _pill('${visibleRows.length} visible'),
+              _pill('${_activeFilterCount()} advanced filters'),
+              _pill(_laneFilter.label, color: _laneFilter.accent),
+            ],
+          ),
+          const SizedBox(height: _spaceSm),
+          if (useExpandedList)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: timelineList),
+                  if (hiddenRows > 0) ...[
+                    const SizedBox(height: _spaceSm),
+                    OnyxTruncationHint(
+                      visibleCount: visibleRows.length,
+                      totalCount: visibleRows.length + hiddenRows,
+                      subject: 'event rows',
+                      hiddenDescriptor: 'additional rows',
+                      color: const Color(0xFF8FA8CA),
+                    ),
+                  ],
+                ],
+              ),
+            )
+          else
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                timelineList,
+                if (hiddenRows > 0) ...[
+                  const SizedBox(height: _spaceSm),
+                  OnyxTruncationHint(
+                    visibleCount: visibleRows.length,
+                    totalCount: visibleRows.length + hiddenRows,
+                    subject: 'event rows',
+                    hiddenDescriptor: 'additional rows',
+                    color: const Color(0xFF8FA8CA),
+                  ),
+                ],
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _eventLaneCard(_ForensicRow row, {required bool openDrawerOnSelect}) {
+    final event = row.event;
+    final isSelected = _selected?.eventId == event.eventId;
+    final timestampText = 'UTC ${event.occurredAt.toIso8601String()}';
+    final chainLabel = _chainLabel(row);
+    return InkWell(
+      key: ValueKey('events-lane-card-${event.eventId}'),
+      onTap: () => _selectEvent(event, openDrawer: openDrawerOnSelect),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: onyxForensicRowDecoration(isSelected: isSelected),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 4),
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: row.info.color,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.info.label,
+                        style: GoogleFonts.rajdhani(
+                          color: row.info.color,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        timestampText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF89A0BE),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isSelected)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x129FD9FF),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: const Color(0x409FD9FF)),
+                    ),
+                    child: Text(
+                      'FOCUS',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF9FD9FF),
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _pill('SEQ ${event.sequence}'),
+                if (row.siteId != null) _pill(row.siteId!),
+                if (row.guardId != null) _pill(row.guardId!),
+                _pill(chainLabel, color: row.info.color),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              row.info.summary,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFE4EEFF),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Event ID ${event.eventId}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF7289AA),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _contextRail({
+    required List<String> allTypes,
+    required List<String> allSites,
+    required List<String> allGuards,
+    required List<_ForensicRow> filteredRows,
+    required _ForensicRow? selected,
+    required List<_ForensicRow> relatedRows,
+    required int filteredCount,
+  }) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _filterBar(
+          allTypes: allTypes,
+          allSites: allSites,
+          allGuards: allGuards,
+          filteredCount: filteredCount,
+        ),
+        const SizedBox(height: _spaceSm),
+        _focusSnapshotCard(
+          filteredRows: filteredRows,
+          selected: selected,
+          relatedRows: relatedRows,
+          filteredCount: filteredCount,
+        ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!constraints.hasBoundedHeight) {
+          return content;
+        }
+        return SingleChildScrollView(child: content);
+      },
+    );
+  }
+
+  Widget _focusSnapshotCard({
+    required List<_ForensicRow> filteredRows,
+    required _ForensicRow? selected,
+    required List<_ForensicRow> relatedRows,
+    required int filteredCount,
+  }) {
+    final focusEvent = selected?.event;
+    final intelligenceCount = _laneCountForFilter(
+      filteredRows,
+      _EventLaneFilter.intelligence,
+    );
+    final canWidenWindow = _timeWindow != _TimeWindow.all;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E1A2B),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 3,
+            decoration: BoxDecoration(
+              color: const Color(0xFF7FD0FF),
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Scope Snapshot',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE6F0FF),
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            selected == null
+                ? 'Select a row to pull site, dispatch, and evidence context into this rail.'
+                : 'The current forensic focus keeps its lane, scope, and related chain within reach.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C6),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 6),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final useTwoColumns = constraints.maxWidth >= 220;
+              final metricWidth = useTwoColumns
+                  ? (constraints.maxWidth - 6) / 2
+                  : constraints.maxWidth;
+              final metrics = [
+                _contextMetric(label: 'Lane', value: _laneFilter.label),
+                _contextMetric(label: 'Visible Rows', value: '$filteredCount'),
+                _contextMetric(
+                  label: 'Site Scope',
+                  value: selected?.siteId ?? 'No site selected',
+                ),
+                _contextMetric(
+                  label: 'Dispatch Chain',
+                  value: focusEvent == null
+                      ? 'Awaiting selection'
+                      : (_dispatchIdForEvent(focusEvent) ??
+                            'No dispatch chain'),
+                ),
+                _contextMetric(
+                  label: 'Linked Rows',
+                  value: '${relatedRows.length}',
+                ),
+              ];
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final metric in metrics)
+                    SizedBox(width: metricWidth, child: metric),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              key: const ValueKey('events-context-focus-related-button'),
+              onPressed: relatedRows.isEmpty
+                  ? null
+                  : () => _focusLinkedEvent(relatedRows),
+              icon: const Icon(Icons.alt_route_rounded, size: 18),
+              label: const Text('Focus Linked Event'),
+            ),
+          ),
+          if (selected != null && relatedRows.isEmpty) ...[
+            const SizedBox(height: 8),
+            _forensicRecoveryDeck(
+              key: const ValueKey('events-context-chain-recovery'),
+              title: 'Chain Recovery Ready',
+              detail:
+                  'No additional rows share this site, guard, or dispatch inside the current filtered review window. Reopen the wider stream, widen the review horizon, or pivot evidence and ledger while keeping this case file pinned.',
+              accent: selected.info.color,
+              actions: [
+                if (_laneFilter != _EventLaneFilter.all)
+                  _forensicRecoveryAction(
+                    key: const ValueKey('events-context-chain-open-all'),
+                    label: 'Open All Events',
+                    accent: _EventLaneFilter.all.accent,
+                    onTap: () => _setLaneFilter(_EventLaneFilter.all),
+                  ),
+                if (intelligenceCount > 0 &&
+                    _laneFilter != _EventLaneFilter.intelligence)
+                  _forensicRecoveryAction(
+                    key: const ValueKey(
+                      'events-context-chain-open-intelligence',
+                    ),
+                    label: 'Intelligence Lane',
+                    accent: _EventLaneFilter.intelligence.accent,
+                    onTap: () => _setLaneFilter(_EventLaneFilter.intelligence),
+                  ),
+                if (canWidenWindow)
+                  _forensicRecoveryAction(
+                    key: const ValueKey('events-context-chain-open-all-time'),
+                    label: 'All Time',
+                    accent: const Color(0xFFF6C067),
+                    onTap: () => _setTimeWindow(_TimeWindow.all),
+                  ),
+                _forensicRecoveryAction(
+                  key: const ValueKey('events-context-chain-review-evidence'),
+                  label: 'Review Evidence',
+                  accent: _EventWorkspaceView.evidence.accent,
+                  onTap: () => _setWorkspaceView(_EventWorkspaceView.evidence),
+                ),
+                _forensicRecoveryAction(
+                  key: const ValueKey('events-context-chain-open-ledger'),
+                  label: 'Open Ledger',
+                  accent: const Color(0xFFA78BFA),
+                  onTap: () => _openLedgerDialog(context),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _contextMetric({required String label, required String value}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1930),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF1A355A)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7F95B5),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE6F0FF),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _selectedEventWorkspace({
+    required _ForensicRow row,
+    required List<_ForensicRow> relatedRows,
+    required bool useExpandedBody,
+  }) {
+    final workspacePanel = switch (_workspaceView) {
+      _EventWorkspaceView.casefile => _casefilePanel(
+        row,
+        relatedRows: relatedRows,
+        useScrollable: useExpandedBody,
+      ),
+      _EventWorkspaceView.evidence => _evidencePanel(
+        row,
+        relatedRows: relatedRows,
+        useScrollable: useExpandedBody,
+      ),
+      _EventWorkspaceView.chain => _chainPanel(
+        row,
+        relatedRows: relatedRows,
+        useScrollable: useExpandedBody,
+      ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: onyxForensicSurfaceCardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Selected Event',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'A deeper case file with evidence posture and chain context for the current forensic focus.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7D93B1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _selectedEventBanner(row, relatedRows),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: _EventWorkspaceView.values
+                .map((view) => _workspaceViewChip(view))
+                .toList(),
+          ),
+          if (_lastActionFeedback.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              key: const ValueKey('events-last-action-feedback'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: const Color(0x122FD6A3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0x402FD6A3)),
+              ),
+              child: Text(
+                _lastActionFeedback,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9AF3D6),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          if (useExpandedBody)
+            Expanded(child: workspacePanel)
+          else
+            workspacePanel,
+        ],
+      ),
+    );
+  }
+
+  Widget _selectedEventBanner(
+    _ForensicRow row,
+    List<_ForensicRow> relatedRows,
+  ) {
+    final dispatchId = _dispatchIdForEvent(row.event);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            row.info.color.withValues(alpha: 0.18),
+            const Color(0xFF101A2B),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: row.info.color.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'ACTIVE CASE FILE',
+            style: GoogleFonts.inter(
+              color: row.info.color,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            row.info.label,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFF4F8FF),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            row.info.summary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD8E4F5),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _pill('SEQ ${row.event.sequence}'),
+              _pill('UTC ${row.event.occurredAt.toIso8601String()}'),
+              if (row.siteId != null) _pill(row.siteId!),
+              if (dispatchId != null) _pill(dispatchId, color: row.info.color),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 560;
+              final metricChildren = [
+                _miniSignalCard(
+                  label: 'Selected ID',
+                  value: row.event.eventId,
+                  accent: row.info.color,
+                  valueKey: const ValueKey('events-selected-event-id'),
+                ),
+                _miniSignalCard(
+                  label: 'Linked Rows',
+                  value: '${relatedRows.length}',
+                  accent: const Color(0xFF63BDFF),
+                ),
+                _miniSignalCard(
+                  label: 'Review Lane',
+                  value: _laneFilter.label,
+                  accent: _laneFilter.accent,
+                ),
+              ];
+              if (compact) {
+                return Column(
+                  children:
+                      metricChildren
+                          .expand(
+                            (widget) => <Widget>[
+                              widget,
+                              const SizedBox(height: 5),
+                            ],
+                          )
+                          .toList()
+                        ..removeLast(),
+                );
+              }
+              return Row(
+                children:
+                    metricChildren
+                        .expand(
+                          (widget) => <Widget>[
+                            Expanded(child: widget),
+                            const SizedBox(width: 5),
+                          ],
+                        )
+                        .toList()
+                      ..removeLast(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniSignalCard({
+    required String label,
+    required String value,
+    required Color accent,
+    Key? valueKey,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10233D),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C6),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            key: valueKey,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFF4F8FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceViewChip(_EventWorkspaceView view) {
+    final selected = _workspaceView == view;
+    return InkWell(
+      key: ValueKey('events-workspace-view-${view.key}'),
+      onTap: () => _setWorkspaceView(view),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? view.accent.withValues(alpha: 0.16)
+              : const Color(0xFF0B1930),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? view.accent.withValues(alpha: 0.45)
+                : const Color(0xFF223244),
+          ),
+        ),
+        child: Text(
+          view.label,
+          style: GoogleFonts.inter(
+            color: selected ? view.accent : const Color(0xFF9DB1CF),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _casefilePanel(
+    _ForensicRow row, {
+    required List<_ForensicRow> relatedRows,
+    required bool useScrollable,
+  }) {
+    final details = _detailsFor(row.event);
+    final visibleDetails = details.take(_maxDetailRows).toList(growable: false);
+    final hiddenDetails = details.length - visibleDetails.length;
+    final content = <Widget>[
+      _detailHero(row),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _miniSignalCard(
+            label: 'Detail Rows',
+            value: '${details.length}',
+            accent: const Color(0xFF63BDFF),
+          ),
+          _miniSignalCard(
+            label: 'Linked Chain',
+            value: '${relatedRows.length}',
+            accent: const Color(0xFF59D79B),
+          ),
+          _miniSignalCard(
+            label: 'Scope',
+            value: row.siteId ?? 'Unassigned',
+            accent: row.info.color,
+          ),
+        ],
+      ),
+      if (row.event is IntelligenceReceived) ...[
+        const SizedBox(height: 10),
+        IntegrityCertificatePreviewCard(
+          event: row.event as IntelligenceReceived,
+        ),
+      ],
+      const SizedBox(height: 10),
+      ...visibleDetails.expand(
+        (item) => <Widget>[_kv(item.$1, item.$2), const SizedBox(height: 8)],
+      ),
+      if (hiddenDetails > 0)
+        OnyxTruncationHint(
+          visibleCount: visibleDetails.length,
+          totalCount: details.length,
+          subject: 'detail rows',
+          color: const Color(0xFF8EA5C6),
+        ),
+    ];
+
+    return _workspacePanelContainer(
+      key: const ValueKey('events-workspace-panel-casefile'),
+      children: content,
+      useScrollable: useScrollable,
+    );
+  }
+
+  Widget _evidencePanel(
+    _ForensicRow row, {
+    required List<_ForensicRow> relatedRows,
+    required bool useScrollable,
+  }) {
+    final intelligenceEvent = row.event is IntelligenceReceived
+        ? row.event as IntelligenceReceived
+        : null;
+    final reportEvent = row.event is ReportGenerated
+        ? row.event as ReportGenerated
+        : null;
+    final content = <Widget>[
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _miniSignalCard(
+            label: 'Event ID',
+            value: row.event.eventId,
+            accent: row.info.color,
+          ),
+          _miniSignalCard(
+            label: 'Chain Anchor',
+            value: _dispatchIdForEvent(row.event) ?? 'No dispatch',
+            accent: const Color(0xFF63BDFF),
+          ),
+          _miniSignalCard(
+            label: 'Evidence Ready',
+            value: intelligenceEvent != null
+                ? _intelligenceEvidenceReadiness(intelligenceEvent)
+                : reportEvent != null
+                ? 'Receipt Captured'
+                : 'Metadata Only',
+            accent: const Color(0xFFF6C067),
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+      if (intelligenceEvent != null) ...[
+        IntegrityCertificatePreviewCard(event: intelligenceEvent),
+        const SizedBox(height: 10),
+        _contextMetric(
+          label: 'Canonical Hash',
+          value: _shortValue(intelligenceEvent.canonicalHash),
+        ),
+        const SizedBox(height: 8),
+        _contextMetric(
+          label: 'Snapshot Reference',
+          value: _shortValue(intelligenceEvent.snapshotReferenceHash ?? ''),
+        ),
+        const SizedBox(height: 8),
+        _contextMetric(
+          label: 'Clip Reference',
+          value: _shortValue(intelligenceEvent.clipReferenceHash ?? ''),
+        ),
+      ] else if (reportEvent != null) ...[
+        _contextMetric(
+          label: 'Receipt Hash',
+          value: _shortValue(reportEvent.contentHash),
+        ),
+        const SizedBox(height: 8),
+        _contextMetric(
+          label: 'PDF Hash',
+          value: _shortValue(reportEvent.pdfHash),
+        ),
+        const SizedBox(height: 8),
+        _contextMetric(
+          label: 'Configuration',
+          value: _reportSectionConfigurationHeadline(reportEvent),
+        ),
+        const SizedBox(height: 8),
+        _contextMetric(
+          label: 'Branding Mode',
+          value: _reportBrandingModeLabel(reportEvent),
+        ),
+      ] else ...[
+        _contextMetric(
+          label: 'Provenance Note',
+          value:
+              'This event contributes operational metadata to the chain but does not carry asset-level evidence from this surface.',
+        ),
+      ],
+      const SizedBox(height: 12),
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: const ValueKey('events-copy-event-id-button'),
+          onPressed: () => _copyEventId(row.event.eventId),
+          icon: const Icon(Icons.content_copy_rounded, size: 18),
+          label: const Text('Copy Event ID'),
+        ),
+      ),
+      if (relatedRows.isNotEmpty) ...[
+        const SizedBox(height: 8),
+        Text(
+          '${relatedRows.length} linked rows remain available from the same site or dispatch chain.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA5C6),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.4,
+          ),
+        ),
+      ],
+    ];
+
+    return _workspacePanelContainer(
+      key: const ValueKey('events-workspace-panel-evidence'),
+      children: content,
+      useScrollable: useScrollable,
+    );
+  }
+
+  Widget _chainPanel(
+    _ForensicRow row, {
+    required List<_ForensicRow> relatedRows,
+    required bool useScrollable,
+  }) {
+    final content = <Widget>[
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _miniSignalCard(
+            label: 'Anchor Site',
+            value: row.siteId ?? 'Unassigned',
+            accent: row.info.color,
+          ),
+          _miniSignalCard(
+            label: 'Dispatch Chain',
+            value: _dispatchIdForEvent(row.event) ?? 'None',
+            accent: const Color(0xFF63BDFF),
+          ),
+          _miniSignalCard(
+            label: 'Linked Rows',
+            value: '${relatedRows.length}',
+            accent: const Color(0xFF59D79B),
+          ),
+        ],
+      ),
+      const SizedBox(height: 10),
+      if (relatedRows.isEmpty)
+        _contextMetric(
+          label: 'Chain Status',
+          value:
+              'No additional rows share this site, guard, or dispatch within the current filtered review window.',
+        )
+      else
+        ...relatedRows.expand(
+          (relatedRow) => <Widget>[
+            Container(
+              key: ValueKey('events-related-row-${relatedRow.event.eventId}'),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B1930),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF1A355A)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: relatedRow.info.color,
+                    ),
+                  ),
+                  const SizedBox(width: _spaceMd),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          relatedRow.info.label,
+                          style: GoogleFonts.rajdhani(
+                            color: relatedRow.info.color,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          relatedRow.info.summary,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFE4EEFF),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _pill('SEQ ${relatedRow.event.sequence}'),
+                            _pill(relatedRow.event.eventId),
+                            if (relatedRow.guardId != null)
+                              _pill(relatedRow.guardId!),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    key: ValueKey(
+                      'events-chain-focus-${relatedRow.event.eventId}',
+                    ),
+                    onPressed: () => _focusForensicRow(
+                      relatedRow,
+                      view: _EventWorkspaceView.casefile,
+                    ),
+                    child: Text(
+                      'Focus',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+    ];
+
+    return _workspacePanelContainer(
+      key: const ValueKey('events-workspace-panel-chain'),
+      children: content,
+      useScrollable: useScrollable,
+    );
+  }
+
+  Widget _workspacePanelContainer({
+    required Key key,
+    required List<Widget> children,
+    required bool useScrollable,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1526),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF203040)),
+      ),
+      child: useScrollable
+          ? ListView(children: children)
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children,
+            ),
+    );
+  }
+
+  Widget _laneFilterChip({
+    required _EventLaneFilter filter,
+    required int count,
+  }) {
+    final selected = _laneFilter == filter;
+    return InkWell(
+      key: ValueKey('events-lane-filter-${filter.key}'),
+      onTap: () => _setLaneFilter(filter),
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? filter.accent.withValues(alpha: 0.16)
+              : const Color(0xFF0B1930),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected
+                ? filter.accent.withValues(alpha: 0.45)
+                : const Color(0xFF223244),
+          ),
+        ),
+        child: Text(
+          '${filter.label} $count',
+          style: GoogleFonts.inter(
+            color: selected ? filter.accent : const Color(0xFF9DB1CF),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
     );
   }
 
@@ -913,14 +2297,7 @@ class _EventsPageState extends State<EventsPage> {
                     _pill("${_activeFilterCount()} active"),
                     const SizedBox(width: 8),
                     TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _typeFilter = _allValue;
-                          _siteFilter = _allValue;
-                          _guardFilter = _allValue;
-                          _timeWindow = _TimeWindow.last24h;
-                        });
-                      },
+                      onPressed: _resetForensicFilters,
                       child: Text(
                         "Reset Filters",
                         style: GoogleFonts.inter(
@@ -951,14 +2328,7 @@ class _EventsPageState extends State<EventsPage> {
                       _pill("$filteredCount visible"),
                       _pill("${_activeFilterCount()} active"),
                       TextButton(
-                        onPressed: () {
-                          setState(() {
-                            _typeFilter = _allValue;
-                            _siteFilter = _allValue;
-                            _guardFilter = _allValue;
-                            _timeWindow = _TimeWindow.last24h;
-                          });
-                        },
+                        onPressed: _resetForensicFilters,
                         child: Text(
                           "Reset Filters",
                           style: GoogleFonts.inter(
@@ -1094,108 +2464,6 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  Widget _detailDrawer(_ForensicRow row) {
-    final details = _detailsFor(row.event);
-    final visibleDetails = details.take(_maxDetailRows).toList(growable: false);
-    final hiddenDetails = details.length - visibleDetails.length;
-    final embeddedDetailScroll = allowEmbeddedPanelScroll(context);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF243549)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Selected Event",
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            "Focused detail view with a cleaner field stack and grouped metadata.",
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _detailHero(row),
-          const SizedBox(height: 8),
-          if (row.event is IntelligenceReceived) ...[
-            IntegrityCertificatePreviewCard(
-              event: row.event as IntelligenceReceived,
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (embeddedDetailScroll)
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: ListView.separated(
-                      itemCount: visibleDetails.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final item = visibleDetails[index];
-                        return _kv(item.$1, item.$2);
-                      },
-                    ),
-                  ),
-                  if (hiddenDetails > 0) ...[
-                    const SizedBox(height: 8),
-                    OnyxTruncationHint(
-                      visibleCount: visibleDetails.length,
-                      totalCount: details.length,
-                      subject: 'detail rows',
-                      color: const Color(0xFF8EA5C6),
-                    ),
-                  ],
-                ],
-              ),
-            )
-          else
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ListView.separated(
-                  itemCount: visibleDetails.length,
-                  shrinkWrap: true,
-                  primary: false,
-                  physics: const NeverScrollableScrollPhysics(),
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final item = visibleDetails[index];
-                    return _kv(item.$1, item.$2);
-                  },
-                ),
-                if (hiddenDetails > 0) ...[
-                  const SizedBox(height: 8),
-                  OnyxTruncationHint(
-                    visibleCount: visibleDetails.length,
-                    totalCount: details.length,
-                    subject: 'detail rows',
-                    color: const Color(0xFF8EA5C6),
-                  ),
-                ],
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
   Widget _kv(String key, String value) {
     return Container(
       width: double.infinity,
@@ -1231,22 +2499,87 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  Widget _emptyState() {
+  Widget _emptyState({required List<_ForensicRow> filteredRows}) {
+    final hasRowsOutsideLane = filteredRows.isNotEmpty;
+    final canResetFilters = _activeFilterCount() > 0;
+    final canWidenWindow = _timeWindow != _TimeWindow.all;
+    final intelligenceCount = _laneCountForFilter(
+      filteredRows,
+      _EventLaneFilter.intelligence,
+    );
     return Container(
+      key: const ValueKey('events-empty-state'),
       width: double.infinity,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF081426),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF18345F)),
       ),
-      child: Center(
-        child: Text(
-          "No events match current forensic filters.",
-          style: GoogleFonts.inter(
-            color: const Color(0xFF9DB1CF),
-            fontSize: 14,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hasRowsOutsideLane
+                ? 'No rows in the ${_laneFilter.label} lane.'
+                : 'No events match current forensic filters.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF1FB),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            hasRowsOutsideLane
+                ? '${filteredRows.length} scoped row${filteredRows.length == 1 ? '' : 's'} are still available outside this lane. Pivot back to the full review stream or jump straight into an intelligence-first pass.'
+                : 'The current advanced filters and ${_timeWindow.label.toLowerCase()} window left the forensic rail empty. Reset the scope or widen the review horizon to recover the timeline.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9DB1CF),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasRowsOutsideLane)
+                FilledButton.tonalIcon(
+                  key: const ValueKey('events-empty-open-all-events'),
+                  onPressed: () => _setLaneFilter(_EventLaneFilter.all),
+                  icon: const Icon(Icons.reorder_rounded, size: 18),
+                  label: const Text('All Events'),
+                ),
+              if (hasRowsOutsideLane &&
+                  intelligenceCount > 0 &&
+                  _laneFilter != _EventLaneFilter.intelligence)
+                FilledButton.tonalIcon(
+                  key: const ValueKey('events-empty-open-intelligence'),
+                  onPressed: () =>
+                      _setLaneFilter(_EventLaneFilter.intelligence),
+                  icon: const Icon(Icons.psychology_alt_outlined, size: 18),
+                  label: const Text('Intelligence Lane'),
+                ),
+              if (canResetFilters)
+                OutlinedButton.icon(
+                  key: const ValueKey('events-empty-reset-filters'),
+                  onPressed: () => _resetForensicFilters(resetLane: true),
+                  icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
+                  label: const Text('Reset Filters'),
+                ),
+              if (!hasRowsOutsideLane && canWidenWindow)
+                OutlinedButton.icon(
+                  key: const ValueKey('events-empty-open-all-time'),
+                  onPressed: () => _setTimeWindow(_TimeWindow.all),
+                  icon: const Icon(Icons.history_toggle_off_rounded, size: 18),
+                  label: const Text('All Time'),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -1268,6 +2601,218 @@ class _EventsPageState extends State<EventsPage> {
     }
 
     return true;
+  }
+
+  bool _matchesLaneFilter(_ForensicRow row, _EventLaneFilter filter) {
+    final event = row.event;
+    return switch (filter) {
+      _EventLaneFilter.all => true,
+      _EventLaneFilter.intelligence => event is IntelligenceReceived,
+      _EventLaneFilter.response =>
+        event is DecisionCreated ||
+            event is ExecutionCompleted ||
+            event is ExecutionDenied ||
+            event is ResponseArrived ||
+            event is IncidentClosed ||
+            event is PartnerDispatchStatusDeclared,
+      _EventLaneFilter.field =>
+        event is GuardCheckedIn ||
+            event is PatrolCompleted ||
+            event is VehicleVisitReviewRecorded,
+      _EventLaneFilter.reporting => event is ReportGenerated,
+    };
+  }
+
+  int _laneCountForFilter(List<_ForensicRow> rows, _EventLaneFilter filter) {
+    return rows.where((row) => _matchesLaneFilter(row, filter)).length;
+  }
+
+  _EventLaneFilter _laneForEvent(DispatchEvent event) {
+    if (event is IntelligenceReceived) {
+      return _EventLaneFilter.intelligence;
+    }
+    if (event is ReportGenerated) {
+      return _EventLaneFilter.reporting;
+    }
+    if (event is GuardCheckedIn ||
+        event is PatrolCompleted ||
+        event is VehicleVisitReviewRecorded) {
+      return _EventLaneFilter.field;
+    }
+    return _EventLaneFilter.response;
+  }
+
+  void _selectEvent(DispatchEvent event, {bool openDrawer = false}) {
+    setState(() {
+      _selected = event;
+      _lastActionFeedback = '';
+    });
+    if (openDrawer) {
+      _scaffoldKey.currentState?.openEndDrawer();
+    }
+  }
+
+  void _setLaneFilter(_EventLaneFilter filter) {
+    if (_laneFilter == filter) {
+      return;
+    }
+    setState(() {
+      _laneFilter = filter;
+      _lastActionFeedback = '';
+    });
+  }
+
+  void _resetForensicFilters({
+    bool resetLane = false,
+    _TimeWindow timeWindow = _TimeWindow.last24h,
+  }) {
+    setState(() {
+      _typeFilter = _allValue;
+      _siteFilter = _allValue;
+      _guardFilter = _allValue;
+      _timeWindow = timeWindow;
+      if (resetLane) {
+        _laneFilter = _EventLaneFilter.all;
+      }
+      _lastActionFeedback = '';
+    });
+  }
+
+  void _setTimeWindow(_TimeWindow window) {
+    if (_timeWindow == window) {
+      return;
+    }
+    setState(() {
+      _timeWindow = window;
+      _lastActionFeedback = '';
+    });
+  }
+
+  void _setWorkspaceView(_EventWorkspaceView view) {
+    if (_workspaceView == view) {
+      return;
+    }
+    setState(() {
+      _workspaceView = view;
+      _lastActionFeedback = '';
+    });
+  }
+
+  void _focusForensicRow(
+    _ForensicRow row, {
+    required _EventWorkspaceView view,
+    String? feedback,
+  }) {
+    setState(() {
+      _laneFilter = _laneForEvent(row.event);
+      _selected = row.event;
+      _workspaceView = view;
+      _lastActionFeedback = feedback ?? '';
+    });
+  }
+
+  void _focusLinkedEvent(List<_ForensicRow> relatedRows) {
+    if (relatedRows.isEmpty) {
+      return;
+    }
+    final focusRow = relatedRows.first;
+    _focusForensicRow(
+      focusRow,
+      view: _EventWorkspaceView.chain,
+      feedback: 'Focused ${focusRow.event.eventId} from the linked chain.',
+    );
+  }
+
+  Future<void> _copyEventId(String eventId) async {
+    await Clipboard.setData(ClipboardData(text: eventId));
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _lastActionFeedback = 'Event ID $eventId copied to clipboard.';
+    });
+  }
+
+  List<_ForensicRow> _relatedRows(
+    List<_ForensicRow> rows,
+    _ForensicRow selected,
+  ) {
+    final selectedDispatchId = _dispatchIdForEvent(selected.event);
+    final selectedSiteId = selected.siteId;
+    final selectedGuardId = selected.guardId;
+    return rows
+        .where((row) {
+          if (row.event.eventId == selected.event.eventId) {
+            return false;
+          }
+          final sameDispatch =
+              selectedDispatchId != null &&
+              _dispatchIdForEvent(row.event) == selectedDispatchId;
+          final sameSite =
+              selectedSiteId != null && row.siteId == selectedSiteId;
+          final sameGuard =
+              selectedGuardId != null && row.guardId == selectedGuardId;
+          return sameDispatch || sameSite || sameGuard;
+        })
+        .take(8)
+        .toList(growable: false);
+  }
+
+  String _chainLabel(_ForensicRow row) {
+    final dispatchId = _dispatchIdForEvent(row.event);
+    if (dispatchId != null) {
+      return dispatchId;
+    }
+    if (row.event is IntelligenceReceived) {
+      return 'INTEL';
+    }
+    if (row.event is ReportGenerated) {
+      return 'REPORT';
+    }
+    return 'FORENSIC';
+  }
+
+  String? _dispatchIdForEvent(DispatchEvent event) {
+    if (event is DecisionCreated) {
+      return event.dispatchId;
+    }
+    if (event is ExecutionCompleted) {
+      return event.dispatchId;
+    }
+    if (event is ExecutionDenied) {
+      return event.dispatchId;
+    }
+    if (event is ResponseArrived) {
+      return event.dispatchId;
+    }
+    if (event is PartnerDispatchStatusDeclared) {
+      return event.dispatchId;
+    }
+    if (event is IncidentClosed) {
+      return event.dispatchId;
+    }
+    return null;
+  }
+
+  String _intelligenceEvidenceReadiness(IntelligenceReceived event) {
+    final readinessChecks = [
+      event.evidenceRecordHash?.trim().isNotEmpty ?? false,
+      event.snapshotReferenceHash?.trim().isNotEmpty ?? false,
+      event.clipReferenceHash?.trim().isNotEmpty ?? false,
+    ];
+    final readyCount = readinessChecks.where((value) => value).length;
+    return '$readyCount of ${readinessChecks.length} anchors';
+  }
+
+  String _shortValue(String value, {int maxLength = 18}) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) {
+      return 'none';
+    }
+    if (trimmed.length <= maxLength) {
+      return trimmed;
+    }
+    return '${trimmed.substring(0, maxLength)}...';
   }
 
   _ForensicRow _toForensicRow(DispatchEvent event) {
@@ -1665,104 +3210,6 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  Widget _summaryStrip({
-    required int totalCount,
-    required int filteredCount,
-    required int? latestSequence,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1000 ? 3 : 1;
-        const spacing = 12.0;
-        final cardWidth =
-            (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            SizedBox(
-              width: cardWidth,
-              child: _summaryStat(
-                label: "Visible Events",
-                value: filteredCount.toString(),
-                accent: const Color(0xFF7FD0FF),
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _summaryStat(
-                label: "Total Events",
-                value: totalCount.toString(),
-                accent: const Color(0xFF9DB4FF),
-              ),
-            ),
-            SizedBox(
-              width: cardWidth,
-              child: _summaryStat(
-                label: "Latest Sequence",
-                value: latestSequence?.toString() ?? "N/A",
-                accent: const Color(0xFF8CF1C3),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _summaryStat({
-    required String label,
-    required String value,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF243549)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 24,
-            height: 3,
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: GoogleFonts.rajdhani(
-              color: accent,
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   int _activeFilterCount() {
     var count = 0;
     if (_typeFilter != _allValue) count += 1;
@@ -1772,24 +3219,169 @@ class _EventsPageState extends State<EventsPage> {
     return count;
   }
 
-  Widget _selectedDetailPane(_ForensicRow row) {
-    return _detailDrawer(row);
-  }
-
-  Widget _emptyDetailPane() {
+  Widget _emptyDetailPane({required List<_ForensicRow> filteredRows}) {
+    final hasRowsOutsideLane = filteredRows.isNotEmpty;
+    final intelligenceCount = _laneCountForFilter(
+      filteredRows,
+      _EventLaneFilter.intelligence,
+    );
+    final canWidenWindow = _timeWindow != _TimeWindow.all;
+    final canResetScope =
+        _activeFilterCount() > 0 || _laneFilter != _EventLaneFilter.all;
     return Container(
+      key: const ValueKey('events-empty-detail-recovery'),
       padding: const EdgeInsets.all(16),
       decoration: onyxForensicSurfaceCardDecoration(),
-      child: Center(
-        child: Text(
-          "Select an event to inspect detailed metadata.",
-          style: GoogleFonts.inter(
-            color: const Color(0xFF8FA4C5),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Forensic Focus Recovery',
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE6F0FF),
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          textAlign: TextAlign.center,
+          const SizedBox(height: 6),
+          Text(
+            hasRowsOutsideLane
+                ? 'The current lane is empty, but scoped forensic rows still exist outside it. Recover the case board by reopening the full stream or pivoting straight into an intelligence-first pass.'
+                : 'The current review scope is empty. Widen the window or reset the full forensic scope so the board can pull a live case file back into focus.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FA4C5),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _forensicRecoveryDeck(
+            title: hasRowsOutsideLane
+                ? 'Scoped Rows Still Available'
+                : 'Review Horizon Empty',
+            detail: hasRowsOutsideLane
+                ? '${filteredRows.length} scoped row${filteredRows.length == 1 ? '' : 's'} remain available outside the active lane. Reopen the full stream or switch to intelligence-first review to anchor the workspace again.'
+                : 'No visible rows remain inside the current window and filter stack. Use the actions below to widen the forensic horizon and restore a selected case file.',
+            accent: hasRowsOutsideLane
+                ? const Color(0xFF63BDFF)
+                : const Color(0xFFF6C067),
+            actions: [
+              if (hasRowsOutsideLane)
+                _forensicRecoveryAction(
+                  key: const ValueKey('events-empty-detail-open-all'),
+                  label: 'Open All Events',
+                  accent: _EventLaneFilter.all.accent,
+                  onTap: () => _setLaneFilter(_EventLaneFilter.all),
+                ),
+              if (intelligenceCount > 0 &&
+                  _laneFilter != _EventLaneFilter.intelligence)
+                _forensicRecoveryAction(
+                  key: const ValueKey('events-empty-detail-open-intelligence'),
+                  label: 'Intelligence Lane',
+                  accent: _EventLaneFilter.intelligence.accent,
+                  onTap: () => _setLaneFilter(_EventLaneFilter.intelligence),
+                ),
+              if (canWidenWindow)
+                _forensicRecoveryAction(
+                  key: const ValueKey('events-empty-detail-open-all-time'),
+                  label: 'All Time',
+                  accent: const Color(0xFFF6C067),
+                  onTap: () => _setTimeWindow(_TimeWindow.all),
+                ),
+              if (canResetScope)
+                _forensicRecoveryAction(
+                  key: const ValueKey('events-empty-detail-reset-scope'),
+                  label: 'Reset Scope',
+                  accent: const Color(0xFF59D79B),
+                  onTap: () => _resetForensicFilters(resetLane: true),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Selected case boards, evidence posture, and linked-chain context snap back automatically as soon as the rail has a viable row again.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7289AA),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _forensicRecoveryDeck({
+    Key? key,
+    required String title,
+    required String detail,
+    required Color accent,
+    required List<Widget> actions,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.16), const Color(0xFF0F1A2B)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD7E3F4),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(spacing: 8, runSpacing: 8, children: actions),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _forensicRecoveryAction({
+    Key? key,
+    required String label,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return TextButton(
+      key: key,
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        foregroundColor: accent,
+        backgroundColor: accent.withValues(alpha: 0.12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -2372,6 +3964,32 @@ class IntegrityCertificatePreviewCard extends StatelessWidget {
       ),
     );
   }
+}
+
+enum _EventLaneFilter {
+  all('All', 'all', Color(0xFF93A8C9)),
+  intelligence('Intelligence', 'intelligence', Color(0xFFFFA34D)),
+  response('Response', 'response', Color(0xFF63BDFF)),
+  field('Field', 'field', Color(0xFF59D79B)),
+  reporting('Reporting', 'reporting', Color(0xFFAD8DFF));
+
+  final String label;
+  final String key;
+  final Color accent;
+
+  const _EventLaneFilter(this.label, this.key, this.accent);
+}
+
+enum _EventWorkspaceView {
+  casefile('Case File', 'casefile', Color(0xFF63BDFF)),
+  evidence('Evidence', 'evidence', Color(0xFFF6C067)),
+  chain('Chain', 'chain', Color(0xFF59D79B));
+
+  final String label;
+  final String key;
+  final Color accent;
+
+  const _EventWorkspaceView(this.label, this.key, this.accent);
 }
 
 enum _TimeWindow {

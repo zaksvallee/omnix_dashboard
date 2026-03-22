@@ -38,6 +38,7 @@ import '../presentation/reports/report_scene_review_narrative_box.dart';
 import '../presentation/reports/report_scene_review_pill_builder.dart';
 import '../presentation/reports/report_preview_target_banner.dart';
 import '../presentation/reports/report_status_badge.dart';
+import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
 
@@ -82,10 +83,32 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
       _ClientIntelligenceReportsPageState();
 }
 
+class _ReportsCommandReceipt {
+  final String label;
+  final String message;
+  final String detail;
+  final Color accent;
+
+  const _ReportsCommandReceipt({
+    required this.label,
+    required this.message,
+    required this.detail,
+    required this.accent,
+  });
+}
+
 class _ClientIntelligenceReportsPageState
     extends State<ClientIntelligenceReportsPage>
     with ReportShellBindingHost<ClientIntelligenceReportsPage> {
   static const _siteActivityService = SiteActivityIntelligenceService();
+  static const _defaultCommandReceipt = _ReportsCommandReceipt(
+    label: 'REPORTS READY',
+    message:
+        'Receipt exports and handoffs stay pinned in this rail on desktop.',
+    detail:
+        'Use the receipt board, governance handoffs, and partner chains without losing the last command outcome.',
+    accent: Color(0xFF8FD1FF),
+  );
   bool _isGenerating = false;
   bool _isRefreshing = false;
   List<_ReceiptRow> _receipts = const [];
@@ -93,6 +116,8 @@ class _ClientIntelligenceReportsPageState
   String _selectedScope = 'Sandton Estate North';
   DateTime _startDate = DateTime.utc(2024, 3, 1);
   DateTime _endDate = DateTime.utc(2024, 3, 10);
+  _ReportsCommandReceipt _commandReceipt = _defaultCommandReceipt;
+  bool _desktopWorkspaceActive = false;
 
   ReportGenerationService get _service => ReportGenerationService(
     store: widget.store,
@@ -252,121 +277,1129 @@ class _ClientIntelligenceReportsPageState
     final activeReceipt =
         focusedReceipt ??
         (visibleReceipts.isNotEmpty ? visibleReceipts.first : null);
+    final supplementalDeck = _reportsSupplementalDeck(
+      reportRows: reportRows,
+      verifiedCount: verifiedCount,
+      pendingCount: pendingCount,
+      reviewedCount: reviewedCount,
+      alertReceiptCount: alertReceiptCount,
+      repeatReceiptCount: repeatReceiptCount,
+      escalationReceiptCount: escalationReceiptCount,
+      suppressedReceiptCount: suppressedReceiptCount,
+      pendingSceneCount: pendingSceneCount,
+      governanceInvestigationCount: governanceInvestigationCount,
+      routineInvestigationCount: routineInvestigationCount,
+      investigationTrendLabel: investigationTrendLabel,
+    );
     return OnyxPageScaffold(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1540),
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _heroHeader(
-                    totalReceipts: reportRows.length,
-                  ),
-                  const SizedBox(height: 8),
-                  _reportStatusStrip(
-                    verifiedCount: verifiedCount,
-                    pendingCount: pendingCount,
-                    pendingSceneCount: pendingSceneCount,
-                  ),
-                  const SizedBox(height: 8),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final stacked = constraints.maxWidth < 1260;
-                      final workbench = _reportWorkbenchSurface(
-                        visibleReceipts: visibleReceipts,
-                        totalReceipts: reportRows.length,
-                        hasLiveReceipts: _receipts.isNotEmpty,
-                      );
-                      final detailRail = Column(
-                        children: [
-                          _selectedReportSurface(
-                            row: activeReceipt,
-                            hasLiveReceipts: _receipts.isNotEmpty,
-                          ),
-                          const SizedBox(height: 8),
-                          _reportPreviewSurface(
-                            previewTargetReceipt: previewTargetReceipt,
-                            activeReceipt: activeReceipt,
-                            hasLiveReceipts: _receipts.isNotEmpty,
-                          ),
-                          const SizedBox(height: 8),
-                          _reportOperationsSurface(
-                            activeReceipt: activeReceipt,
-                            hasLiveReceipts: _receipts.isNotEmpty,
-                          ),
-                        ],
-                      );
-
-                      if (stacked) {
-                        return Column(
-                          children: [
-                            workbench,
-                            const SizedBox(height: 8),
-                            detailRail,
-                          ],
-                        );
-                      }
-
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 5, child: workbench),
-                          const SizedBox(width: 8),
-                          Expanded(flex: 7, child: detailRail),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  _kpiBand(
-                    totalReceipts: _receipts.length,
-                    verifiedCount: verifiedCount,
-                    pendingCount: pendingCount,
-                    reviewedCount: reviewedCount,
-                    alertReceiptCount: alertReceiptCount,
-                    repeatReceiptCount: repeatReceiptCount,
-                    escalationReceiptCount: escalationReceiptCount,
-                    suppressedReceiptCount: suppressedReceiptCount,
-                    pendingSceneCount: pendingSceneCount,
-                    governanceInvestigationCount: governanceInvestigationCount,
-                    routineInvestigationCount: routineInvestigationCount,
-                    investigationTrendLabel: investigationTrendLabel,
-                  ),
-                  if (_sitePartnerScoreboardRows.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _partnerComparisonCard(),
-                    const SizedBox(height: 8),
-                    _partnerScorecardLanesCard(),
-                  ],
-                  if (reportRows.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _receiptPolicyHistoryCard(reportRows),
-                  ],
-                  if (_hasPartnerScopeFocus) ...[
-                    const SizedBox(height: 8),
-                    _partnerScopeCard(),
-                  ],
-                ],
-              ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final useDesktopWorkspace = constraints.maxWidth >= 1360;
+          final useEmbeddedPanels =
+              useDesktopWorkspace && allowEmbeddedPanelScroll(context);
+          final useUltrawideWorkspace = isUltrawideLayout(
+            context,
+            viewportWidth: constraints.maxWidth,
+          );
+          final useWidescreenWorkspace = isWidescreenLayout(
+            context,
+            viewportWidth: constraints.maxWidth,
+          );
+          final surfaceMaxWidth = useUltrawideWorkspace
+              ? constraints.maxWidth
+              : useWidescreenWorkspace
+              ? constraints.maxWidth * 0.92
+              : 1760.0;
+          return OnyxViewportWorkspaceLayout(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+            maxWidth: surfaceMaxWidth,
+            spacing: 10,
+            lockToViewport: useEmbeddedPanels,
+            header: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _heroHeader(totalReceipts: reportRows.length),
+                const SizedBox(height: 8),
+                _reportStatusStrip(
+                  verifiedCount: verifiedCount,
+                  pendingCount: pendingCount,
+                  pendingSceneCount: pendingSceneCount,
+                ),
+              ],
             ),
+            body: useDesktopWorkspace
+                ? _reportsCommandWorkspace(
+                    reportRows: reportRows,
+                    visibleReceipts: visibleReceipts,
+                    previewTargetReceipt: previewTargetReceipt,
+                    activeReceipt: activeReceipt,
+                    hasLiveReceipts: _receipts.isNotEmpty,
+                    useEmbeddedPanels: useEmbeddedPanels,
+                    desktopSupplementalDeck: supplementalDeck,
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _reportsCommandWorkspace(
+                        reportRows: reportRows,
+                        visibleReceipts: visibleReceipts,
+                        previewTargetReceipt: previewTargetReceipt,
+                        activeReceipt: activeReceipt,
+                        hasLiveReceipts: _receipts.isNotEmpty,
+                        useEmbeddedPanels: false,
+                      ),
+                      const SizedBox(height: 8),
+                      supplementalDeck,
+                    ],
+                  ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _reportsCommandWorkspace({
+    required List<_ReceiptRow> reportRows,
+    required List<_ReceiptRow> visibleReceipts,
+    required _ReceiptRow? previewTargetReceipt,
+    required _ReceiptRow? activeReceipt,
+    required bool hasLiveReceipts,
+    required bool useEmbeddedPanels,
+    Widget? desktopSupplementalDeck,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 1360;
+        final ultrawide = isUltrawideLayout(
+          context,
+          viewportWidth: constraints.maxWidth,
+        );
+        final widescreen = isWidescreenLayout(
+          context,
+          viewportWidth: constraints.maxWidth,
+        );
+        final receiptRailFlex = ultrawide ? 3 : (widescreen ? 4 : 4);
+        final selectedBoardFlex = ultrawide ? 5 : (widescreen ? 5 : 4);
+        final contextRailFlex = ultrawide ? 4 : (widescreen ? 3 : 4);
+        final workspaceGap = ultrawide ? 12.0 : 8.0;
+        _desktopWorkspaceActive = !stacked;
+        final receiptRail = _workspaceDeckPanel(
+          key: const ValueKey('reports-workspace-panel-receipts'),
+          title: 'Receipt Rail',
+          subtitle:
+              'Filter, export, and retarget the live receipt lane without leaving the reports board.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _reportsWorkspaceCommandStrip(
+                visibleReceipts: visibleReceipts,
+                totalReceipts: reportRows.length,
+                activeReceipt: activeReceipt,
+              ),
+              const SizedBox(height: 10),
+              _reportWorkbenchSurface(
+                visibleReceipts: visibleReceipts,
+                totalReceipts: reportRows.length,
+                hasLiveReceipts: hasLiveReceipts,
+              ),
+            ],
+          ),
+        );
+        final selectedBoard = _workspaceDeckPanel(
+          key: const ValueKey('reports-workspace-panel-selected'),
+          title: 'Active Receipt Board',
+          subtitle:
+              'Focused receipt status, verification posture, and generated output for the current lane.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _reportsWorkspaceFocusBanner(
+                reportRows: reportRows,
+                activeReceipt: activeReceipt,
+                previewTargetReceipt: previewTargetReceipt,
+                visibleReceipts: visibleReceipts,
+                hasLiveReceipts: hasLiveReceipts,
+              ),
+              const SizedBox(height: 10),
+              _selectedReportSurface(
+                row: activeReceipt,
+                hasLiveReceipts: hasLiveReceipts,
+              ),
+              if (useEmbeddedPanels && desktopSupplementalDeck != null) ...[
+                const SizedBox(height: 10),
+                desktopSupplementalDeck,
+              ],
+            ],
+          ),
+        );
+        final contextRail = _workspaceDeckPanel(
+          key: const ValueKey('reports-workspace-panel-context'),
+          title: 'Delivery & Handoffs',
+          subtitle:
+              'Keep preview routing, governance handoff, and generation controls in one command column.',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_desktopWorkspaceActive) ...[
+                _reportsWorkspaceCommandReceipt(),
+                const SizedBox(height: 10),
+              ],
+              _reportsWorkspaceContextSnapshot(
+                reportRows: reportRows,
+                activeReceipt: activeReceipt,
+                previewTargetReceipt: previewTargetReceipt,
+                hasLiveReceipts: hasLiveReceipts,
+              ),
+              const SizedBox(height: 10),
+              _reportPreviewSurface(
+                previewTargetReceipt: previewTargetReceipt,
+                activeReceipt: activeReceipt,
+                hasLiveReceipts: hasLiveReceipts,
+              ),
+              const SizedBox(height: 10),
+              _reportOperationsSurface(
+                activeReceipt: activeReceipt,
+                hasLiveReceipts: hasLiveReceipts,
+              ),
+            ],
+          ),
+        );
+
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              receiptRail,
+              const SizedBox(height: 8),
+              selectedBoard,
+              const SizedBox(height: 8),
+              contextRail,
+            ],
+          );
+        }
+
+        final workspaceRow = Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(flex: receiptRailFlex, child: receiptRail),
+            SizedBox(width: workspaceGap),
+            Expanded(flex: selectedBoardFlex, child: selectedBoard),
+            SizedBox(width: workspaceGap),
+            Expanded(flex: contextRailFlex, child: contextRail),
+          ],
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _reportsWorkspaceStatusBanner(
+              reportRows: reportRows,
+              visibleReceipts: visibleReceipts,
+              activeReceipt: activeReceipt,
+              previewTargetReceipt: previewTargetReceipt,
+              hasLiveReceipts: hasLiveReceipts,
+            ),
+            const SizedBox(height: 8),
+            if (useEmbeddedPanels)
+              Expanded(child: workspaceRow)
+            else
+              workspaceRow,
+            if (!useEmbeddedPanels && desktopSupplementalDeck != null) ...[
+              const SizedBox(height: 8),
+              desktopSupplementalDeck,
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _workspaceDeckPanel({
+    Key? key,
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          key: key,
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF09111D),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF1D3046)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFEAF3FF),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF90A8C9),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
+              const SizedBox(height: 10),
+              onyxBoundedPanelBody(
+                context: context,
+                constraints: constraints,
+                child: child,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _reportsSupplementalDeck({
+    required List<_ReceiptRow> reportRows,
+    required int verifiedCount,
+    required int pendingCount,
+    required int reviewedCount,
+    required int alertReceiptCount,
+    required int repeatReceiptCount,
+    required int escalationReceiptCount,
+    required int suppressedReceiptCount,
+    required int pendingSceneCount,
+    required int governanceInvestigationCount,
+    required int routineInvestigationCount,
+    required String investigationTrendLabel,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _kpiBand(
+          totalReceipts: _receipts.length,
+          verifiedCount: verifiedCount,
+          pendingCount: pendingCount,
+          reviewedCount: reviewedCount,
+          alertReceiptCount: alertReceiptCount,
+          repeatReceiptCount: repeatReceiptCount,
+          escalationReceiptCount: escalationReceiptCount,
+          suppressedReceiptCount: suppressedReceiptCount,
+          pendingSceneCount: pendingSceneCount,
+          governanceInvestigationCount: governanceInvestigationCount,
+          routineInvestigationCount: routineInvestigationCount,
+          investigationTrendLabel: investigationTrendLabel,
+        ),
+        if (_sitePartnerScoreboardRows.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _partnerComparisonCard(),
+          const SizedBox(height: 8),
+          _partnerScorecardLanesCard(),
+        ],
+        if (reportRows.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _receiptPolicyHistoryCard(reportRows),
+        ],
+        if (_hasPartnerScopeFocus) ...[
+          const SizedBox(height: 8),
+          _partnerScopeCard(),
+        ],
+      ],
+    );
+  }
+
+  Widget _reportsWorkspaceStatusBanner({
+    required List<_ReceiptRow> reportRows,
+    required List<_ReceiptRow> visibleReceipts,
+    required _ReceiptRow? activeReceipt,
+    required _ReceiptRow? previewTargetReceipt,
+    required bool hasLiveReceipts,
+  }) {
+    final hasPartnerLane = _sitePartnerScoreboardRows.isNotEmpty;
+    final partnerFocusLabel = _hasPartnerScopeFocus
+        ? 'Clear Partner Focus'
+        : 'Focus Top Partner';
+    final partnerFocusAction = _hasPartnerScopeFocus
+        ? _clearPartnerScopeFocus
+        : hasPartnerLane
+        ? () {
+            final lane = _sitePartnerScoreboardRows.first;
+            _setPartnerScopeFocus(
+              clientId: lane.clientId,
+              siteId: lane.siteId,
+              partnerLabel: lane.partnerLabel,
+            );
+          }
+        : null;
+    final governanceAction = _openGovernanceScopeAction(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
+    final recoveryFilters = _receiptHistoryRecoveryFilters(reportRows);
+    final recoveryAction = reportRows.isEmpty
+        ? null
+        : () => _recoverReceiptWorkspace(
+            reportRows,
+            filter: ReportReceiptSceneFilter.all,
+          );
+    final previewAction = previewTargetReceipt != null
+        ? () => _previewReceipt(previewTargetReceipt, hasLiveReceipts)
+        : activeReceipt != null
+        ? () => _previewReceipt(activeReceipt, hasLiveReceipts)
+        : recoveryAction;
+    final previewLabel = previewTargetReceipt != null
+        ? 'Open Staged Target'
+        : activeReceipt != null
+        ? 'Open Active Receipt'
+        : 'Recover Receipt Lane';
+    final previewSummary = previewTargetReceipt != null
+        ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()}.'
+        : activeReceipt != null
+        ? 'Receipt ${activeReceipt.event.eventId} is ready for governance handoff and preview.'
+        : recoveryFilters.isEmpty
+        ? '${reportRows.length} receipts remain in scope. Recover the lane to reopen the active board.'
+        : '${reportRows.length} receipts remain in scope outside ${_receiptFilter.label.toLowerCase()}. Recover the lane or pivot into ${recoveryFilters.first.label.toLowerCase()} to reopen the active board.';
+    return Container(
+      key: const ValueKey('reports-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF09111D),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF1D3046)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: hasLiveReceipts ? 'Live receipts' : 'Sample receipts',
+                color: hasLiveReceipts
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+              _partnerScopeChip(
+                label: '${reportRows.length} total',
+                color: const Color(0xFF8FD1FF),
+              ),
+              _partnerScopeChip(
+                label: '${visibleReceipts.length} visible',
+                color: const Color(0xFF59D79B),
+              ),
+              _partnerScopeChip(
+                label: _receiptFilter.viewingLabel,
+                color: _receiptFilter.bannerBorderColor,
+              ),
+              _partnerScopeChip(
+                label: 'Scope ${widget.selectedSite}',
+                color: const Color(0xFFF6C067),
+              ),
+              if (activeReceipt != null)
+                _partnerScopeChip(
+                  label: 'Focused ${activeReceipt.event.eventId}',
+                  color: const Color(0xFF8FD1FF),
+                ),
+              if (previewTargetReceipt != null)
+                _partnerScopeChip(
+                  label: 'Preview ${previewTargetReceipt.event.eventId}',
+                  color: const Color(0xFF59D79B),
+                ),
+              _partnerScopeChip(
+                label: _hasPartnerScopeFocus
+                    ? 'Partner scope active'
+                    : 'Partner scope idle',
+                color: _hasPartnerScopeFocus
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            previewSummary,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceStatusAction(
+                key: const ValueKey('reports-workspace-banner-filter-all'),
+                label: 'All Receipts',
+                selected: _receiptFilter == ReportReceiptSceneFilter.all,
+                accent: const Color(0xFF8FD1FF),
+                onTap: () =>
+                    toggleReportReceiptFilter(ReportReceiptSceneFilter.all),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('reports-workspace-banner-filter-alerts'),
+                label: 'Focus Alerts',
+                selected: _receiptFilter == ReportReceiptSceneFilter.alerts,
+                accent: const Color(0xFFF6C067),
+                onTap: () =>
+                    toggleReportReceiptFilter(ReportReceiptSceneFilter.alerts),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey(
+                  'reports-workspace-banner-filter-scene-pending',
+                ),
+                label: 'Scene Pending',
+                selected: _receiptFilter == ReportReceiptSceneFilter.pending,
+                accent: const Color(0xFF59D79B),
+                onTap: () =>
+                    toggleReportReceiptFilter(ReportReceiptSceneFilter.pending),
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('reports-workspace-banner-partner-focus'),
+                label: partnerFocusLabel,
+                selected: _hasPartnerScopeFocus,
+                accent: const Color(0xFF67E8F9),
+                onTap: partnerFocusAction,
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('reports-workspace-banner-open-governance'),
+                label: 'Governance Scope',
+                selected: governanceAction != null,
+                accent: governanceAction != null
+                    ? const Color(0xFF22D3EE)
+                    : const Color(0xFF8EA4C2),
+                onTap: governanceAction,
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('reports-workspace-banner-open-preview'),
+                label: previewLabel,
+                selected: previewTargetReceipt != null || activeReceipt != null,
+                accent: previewAction != null
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+                onTap: previewAction,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportsWorkspaceCommandReceipt() {
+    final receipt = _commandReceipt;
+    return Container(
+      key: const ValueKey('reports-workspace-command-receipt'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: receipt.accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LATEST COMMAND',
+            style: GoogleFonts.inter(
+              color: receipt.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            receipt.label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            receipt.message,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            receipt.detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9AB1CF),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceStatusAction({
+    required Key key,
+    required String label,
+    required bool selected,
+    required Color accent,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: onTap == null
+              ? const Color(0xFF0D1724)
+              : selected
+              ? accent.withValues(alpha: 0.18)
+              : const Color(0xFF102337),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: onTap == null
+                ? const Color(0xFF29425F)
+                : selected
+                ? accent.withValues(alpha: 0.52)
+                : const Color(0xFF29425F),
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: onTap == null
+                ? const Color(0xFF6F86A3)
+                : selected
+                ? accent
+                : const Color(0xFFEAF3FF),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),
     );
   }
 
-  Widget _heroHeader({
+  Widget _reportsWorkspaceCommandStrip({
+    required List<_ReceiptRow> visibleReceipts,
     required int totalReceipts,
+    required _ReceiptRow? activeReceipt,
   }) {
+    final hasPartnerLane = _sitePartnerScoreboardRows.isNotEmpty;
+    final partnerFocusLabel = _hasPartnerScopeFocus
+        ? 'Clear Partner Focus'
+        : 'Focus Top Partner';
+    final partnerFocusAction = _hasPartnerScopeFocus
+        ? _clearPartnerScopeFocus
+        : hasPartnerLane
+        ? () {
+            final lane = _sitePartnerScoreboardRows.first;
+            _setPartnerScopeFocus(
+              clientId: lane.clientId,
+              siteId: lane.siteId,
+              partnerLabel: lane.partnerLabel,
+            );
+          }
+        : null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF102337),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF29425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: '$totalReceipts total',
+                color: const Color(0xFF8FD1FF),
+              ),
+              _partnerScopeChip(
+                label: '${visibleReceipts.length} visible',
+                color: const Color(0xFF59D79B),
+              ),
+              _partnerScopeChip(
+                label: _receiptFilter.viewingLabel,
+                color: _receiptFilter.bannerBorderColor,
+              ),
+              if (activeReceipt != null)
+                _partnerScopeChip(
+                  label: 'Focused ${activeReceipt.event.eventId}',
+                  color: const Color(0xFFF6C067),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceQuickButton(
+                key: const ValueKey('reports-workspace-filter-all'),
+                label: 'All Receipts',
+                onTap: () =>
+                    toggleReportReceiptFilter(ReportReceiptSceneFilter.all),
+              ),
+              _workspaceQuickButton(
+                key: const ValueKey('reports-workspace-filter-alerts'),
+                label: 'Focus Alerts',
+                onTap: () =>
+                    toggleReportReceiptFilter(ReportReceiptSceneFilter.alerts),
+              ),
+              _workspaceQuickButton(
+                key: const ValueKey('reports-workspace-filter-scene-pending'),
+                label: 'Scene Pending',
+                onTap: () =>
+                    toggleReportReceiptFilter(ReportReceiptSceneFilter.pending),
+              ),
+              _workspaceQuickButton(
+                key: const ValueKey('reports-workspace-partner-focus'),
+                label: partnerFocusLabel,
+                onTap: partnerFocusAction,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportsWorkspaceFocusBanner({
+    required List<_ReceiptRow> reportRows,
+    required _ReceiptRow? activeReceipt,
+    required _ReceiptRow? previewTargetReceipt,
+    required List<_ReceiptRow> visibleReceipts,
+    required bool hasLiveReceipts,
+  }) {
+    final recoveryFilters = _receiptHistoryRecoveryFilters(reportRows);
+    final sceneCount = activeReceipt?.sceneReviewSummary?.totalReviews ?? 0;
+    final activeAccent = activeReceipt == null
+        ? const Color(0xFF8FD1FF)
+        : activeReceipt.replayVerified
+        ? const Color(0xFF59D79B)
+        : const Color(0xFFF6C067);
+    final governanceAction = _openGovernanceScopeAction(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
+    final activeAction = activeReceipt == null
+        ? reportRows.isEmpty
+              ? null
+              : () => _recoverReceiptWorkspace(
+                  reportRows,
+                  filter: ReportReceiptSceneFilter.all,
+                )
+        : () => _previewReceipt(activeReceipt, hasLiveReceipts);
+    final activeLabel = activeReceipt == null
+        ? 'Recover Active Board'
+        : 'Open Active Receipt';
+    final eventsAction = activeReceipt == null
+        ? null
+        : () => _openEventsForReceiptPolicyRow(activeReceipt);
+    final recoveryHeadline = recoveryFilters.isEmpty
+        ? '${reportRows.length} receipts remain in scope for this board.'
+        : '${reportRows.length} receipts remain in scope outside ${_receiptFilter.label.toLowerCase()}. Pivot back into the full board or jump straight into ${recoveryFilters.first.label.toLowerCase()}.';
+    return Container(
+      key: const ValueKey('reports-workspace-focus-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            activeAccent.withValues(alpha: 0.16),
+            const Color(0xFF102337),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: activeAccent.withValues(alpha: 0.34)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: activeAccent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  activeReceipt == null
+                      ? Icons.restore_rounded
+                      : Icons.description_rounded,
+                  color: activeAccent,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activeReceipt == null
+                          ? 'RECEIPT BOARD RECOVERY'
+                          : 'RECEIPT IN FOCUS',
+                      style: GoogleFonts.inter(
+                        color: activeAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      activeReceipt == null
+                          ? 'Active Receipt Board'
+                          : activeReceipt.event.eventId,
+                      style: GoogleFonts.rajdhani(
+                        color: const Color(0xFFE8F1FF),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        height: 0.95,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (activeReceipt != null)
+                _partnerScopeChip(
+                  label: activeReceipt.replayVerified ? 'Verified' : 'Pending',
+                  color: activeReceipt.replayVerified
+                      ? const Color(0xFF59D79B)
+                      : const Color(0xFFF6C067),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            activeReceipt == null
+                ? 'Receipt lane recovery ready.'
+                : _receiptPolicyHistoryHeadline(activeReceipt.event),
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (activeReceipt != null)
+                _partnerScopeChip(
+                  label: 'Focused: ${activeReceipt.event.eventId}',
+                  color: const Color(0xFF8FD1FF),
+                )
+              else
+                _partnerScopeChip(
+                  label: '${reportRows.length} scoped',
+                  color: const Color(0xFF8FD1FF),
+                ),
+              _partnerScopeChip(
+                label: previewTargetReceipt == null
+                    ? 'Preview idle'
+                    : 'Preview: ${previewTargetReceipt.event.eventId}',
+                color: previewTargetReceipt == null
+                    ? const Color(0xFF8EA4C2)
+                    : const Color(0xFFF6C067),
+              ),
+              _partnerScopeChip(
+                label: 'Scenes: $sceneCount',
+                color: activeReceipt == null
+                    ? const Color(0xFF59D79B)
+                    : activeAccent,
+              ),
+              _partnerScopeChip(
+                label: 'Output: ${_outputMode.label}',
+                color: const Color(0xFFB9C6D8),
+              ),
+              _partnerScopeChip(
+                label: '${visibleReceipts.length} lane rows',
+                color: const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            activeReceipt == null
+                ? recoveryHeadline
+                : previewTargetReceipt != null
+                ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()} while ${activeReceipt.event.eventId} stays pinned for operator review.'
+                : 'Focused receipt ${activeReceipt.event.eventId} is ready for preview, events handoff, and governance review from this board.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            key: activeReceipt == null
+                ? const ValueKey('reports-workspace-focus-recovery')
+                : null,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceStatusAction(
+                key: const ValueKey('reports-workspace-focus-open-active'),
+                label: activeLabel,
+                selected: activeReceipt != null,
+                accent: activeAction != null
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+                onTap: activeAction,
+              ),
+              _workspaceStatusAction(
+                key: const ValueKey('reports-workspace-focus-open-governance'),
+                label: 'Governance Scope',
+                selected: governanceAction != null,
+                accent: governanceAction != null
+                    ? const Color(0xFF22D3EE)
+                    : const Color(0xFF8EA4C2),
+                onTap: governanceAction,
+              ),
+              if (activeReceipt != null)
+                _workspaceStatusAction(
+                  key: const ValueKey('reports-workspace-focus-open-events'),
+                  label: 'Open Events',
+                  selected: false,
+                  accent: const Color(0xFF8FD1FF),
+                  onTap: eventsAction,
+                ),
+              if (activeReceipt != null)
+                _workspaceStatusAction(
+                  key: const ValueKey('reports-workspace-focus-copy-receipt'),
+                  label: 'Copy Receipt',
+                  selected: false,
+                  accent: const Color(0xFFC8D2FF),
+                  onTap: () => _copyReceipt(activeReceipt),
+                ),
+              if (previewTargetReceipt != null)
+                _workspaceStatusAction(
+                  key: const ValueKey(
+                    'reports-workspace-focus-open-preview-target',
+                  ),
+                  label: 'Open Staged Target',
+                  selected: true,
+                  accent: const Color(0xFFF6C067),
+                  onTap: () =>
+                      _previewReceipt(previewTargetReceipt, hasLiveReceipts),
+                ),
+              if (activeReceipt == null)
+                _workspaceStatusAction(
+                  key: const ValueKey('reports-workspace-focus-recover-all'),
+                  label: 'All Receipts',
+                  selected: _receiptFilter == ReportReceiptSceneFilter.all,
+                  accent: const Color(0xFF8FD1FF),
+                  onTap: reportRows.isEmpty
+                      ? null
+                      : () => _recoverReceiptWorkspace(
+                          reportRows,
+                          filter: ReportReceiptSceneFilter.all,
+                        ),
+                ),
+              if (activeReceipt == null)
+                for (final filter in recoveryFilters.take(2))
+                  _workspaceStatusAction(
+                    key: ValueKey<String>(
+                      'reports-workspace-focus-recover-${filter.name}',
+                    ),
+                    label: filter.label,
+                    selected: _receiptFilter == filter,
+                    accent: filter.bannerBorderColor,
+                    onTap: () =>
+                        _recoverReceiptWorkspace(reportRows, filter: filter),
+                  ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportsWorkspaceContextSnapshot({
+    required List<_ReceiptRow> reportRows,
+    required _ReceiptRow? activeReceipt,
+    required _ReceiptRow? previewTargetReceipt,
+    required bool hasLiveReceipts,
+  }) {
+    final governanceAction = _openGovernanceScopeAction(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
+    final recoveryFilters = _receiptHistoryRecoveryFilters(reportRows);
+    final activeAction = activeReceipt == null
+        ? reportRows.isEmpty
+              ? null
+              : () => _recoverReceiptWorkspace(
+                  reportRows,
+                  filter: ReportReceiptSceneFilter.all,
+                )
+        : () => _previewReceipt(activeReceipt, hasLiveReceipts);
+    return Container(
+      key: const ValueKey('reports-workspace-context-snapshot'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF102337),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF29425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Context Snapshot',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: _previewSurface.label,
+                color: const Color(0xFF59D79B),
+              ),
+              _partnerScopeChip(
+                label:
+                    _partnerComparisonWindow ==
+                        ReportPartnerComparisonWindow.latestShift
+                    ? 'Latest shift'
+                    : '3-shift baseline',
+                color: const Color(0xFFF6C067),
+              ),
+              _partnerScopeChip(
+                label: _hasPartnerScopeFocus
+                    ? 'Partner scope active'
+                    : 'Partner scope idle',
+                color: _hasPartnerScopeFocus
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            previewTargetReceipt != null
+                ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()}.'
+                : activeReceipt != null
+                ? 'Focused receipt ${activeReceipt.event.eventId} is ready for governance handoff and preview.'
+                : recoveryFilters.isEmpty
+                ? '${reportRows.length} scoped receipts remain available for this site lane.'
+                : '${reportRows.length} scoped receipts remain available outside ${_receiptFilter.label.toLowerCase()}. Use the recovery controls to reopen the active board or pivot into ${recoveryFilters.first.label.toLowerCase()}.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _workspaceQuickButton(
+                key: const ValueKey('reports-workspace-open-governance'),
+                label: 'Open Governance',
+                onTap: governanceAction,
+              ),
+              _workspaceQuickButton(
+                key: const ValueKey('reports-workspace-open-active'),
+                label: activeReceipt == null
+                    ? 'Recover Active Board'
+                    : 'Open Active Receipt',
+                onTap: activeAction,
+              ),
+              _workspaceQuickButton(
+                key: const ValueKey('reports-workspace-open-preview-target'),
+                label: 'Open Staged Target',
+                onTap: previewTargetReceipt == null
+                    ? null
+                    : () => _previewReceipt(
+                        previewTargetReceipt,
+                        hasLiveReceipts,
+                      ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceQuickButton({
+    required Key key,
+    required String label,
+    required VoidCallback? onTap,
+  }) {
+    return FilledButton(
+      key: key,
+      onPressed: onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: const Color(0xFF153655),
+        side: const BorderSide(color: Color(0xFF63BDFF)),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: const Color(0xFFEAF3FF),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  Widget _heroHeader({required int totalReceipts}) {
     final governanceAction = _openGovernanceScopeAction(
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
     );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF15283F), Color(0xFF0F1728)],
@@ -386,8 +1419,8 @@ class _ClientIntelligenceReportsPageState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 56,
-                    height: 56,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(16),
                       gradient: const LinearGradient(
@@ -399,10 +1432,10 @@ class _ClientIntelligenceReportsPageState
                     child: const Icon(
                       Icons.description_rounded,
                       color: Colors.white,
-                      size: 28,
+                      size: 24,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,11 +1444,11 @@ class _ClientIntelligenceReportsPageState
                           'Reports & Documentation',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 22 : 26,
+                            fontSize: compact ? 20 : 24,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           'Deterministic report generation, replay verification, and governance-linked export readiness.',
                           style: GoogleFonts.inter(
@@ -429,7 +1462,7 @@ class _ClientIntelligenceReportsPageState
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 '${widget.selectedClient} / ${widget.selectedSite} • $totalReceipts receipts',
                 style: GoogleFonts.robotoMono(
@@ -464,20 +1497,16 @@ class _ClientIntelligenceReportsPageState
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleBlock,
-                const SizedBox(height: 16),
-                actions,
-              ],
+              children: [titleBlock, const SizedBox(height: 12), actions],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: titleBlock),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 360),
+                constraints: const BoxConstraints(maxWidth: 400),
                 child: actions,
               ),
             ],
@@ -505,11 +1534,8 @@ class _ClientIntelligenceReportsPageState
         disabledBackgroundColor: const Color(0x12000000),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        textStyle: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
@@ -527,7 +1553,7 @@ class _ClientIntelligenceReportsPageState
     ];
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1523),
         borderRadius: BorderRadius.circular(18),
@@ -537,8 +1563,8 @@ class _ClientIntelligenceReportsPageState
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 1120;
           final left = Wrap(
-            spacing: 12,
-            runSpacing: 12,
+            spacing: 10,
+            runSpacing: 10,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
@@ -580,26 +1606,19 @@ class _ClientIntelligenceReportsPageState
                 ),
               ),
               for (final segment in scopeSegments)
-                _reportScopeChip(
-                  label: segment.label,
-                  active: segment.active,
-                ),
+                _reportScopeChip(label: segment.label, active: segment.active),
             ],
           );
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                left,
-                const SizedBox(height: 12),
-                right,
-              ],
+              children: [left, const SizedBox(height: 10), right],
             );
           }
           return Row(
             children: [
               Expanded(child: left),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Flexible(child: right),
             ],
           );
@@ -608,10 +1627,7 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  Widget _reportStatusPill({
-    required String label,
-    required Color color,
-  }) {
+  Widget _reportStatusPill({required String label, required Color color}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -702,26 +1718,13 @@ class _ClientIntelligenceReportsPageState
     required bool hasLiveReceipts,
   }) {
     if (row == null) {
+      final rows = hasLiveReceipts ? _receipts : _sampleReceipts;
       return OnyxSectionCard(
         title: 'SELECTED REPORT',
         subtitle: 'Focused receipt preview and verification',
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              'No Receipt Selected',
-              style: TextStyle(
-                color: Color(0xFFEAF3FF),
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            SizedBox(height: 10),
-            OnyxEmptyState(
-              label:
-                  'Select or generate a receipt to open the report preview workspace.',
-            ),
-          ],
+        child: _selectedReportRecoverySurface(
+          rows: rows,
+          hasLiveReceipts: hasLiveReceipts,
         ),
       );
     }
@@ -732,7 +1735,8 @@ class _ClientIntelligenceReportsPageState
     final sectionSummary = _receiptSectionConfigurationSummary(row.event);
     return OnyxSectionCard(
       title: 'Morning Sovereign Report • $period',
-      subtitle: '${_humanizeClient(row.event.clientId)} • ${_humanizeSite(row.event.siteId)}',
+      subtitle:
+          '${_humanizeClient(row.event.clientId)} • ${_humanizeSite(row.event.siteId)}',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -779,12 +1783,12 @@ class _ClientIntelligenceReportsPageState
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 780;
               final cards = [
-                _selectedReportMetric('LINKED EVENTS', '${row.event.eventCount}'),
-                _selectedReportMetric('SCENE REVIEWS', '$sceneCount'),
                 _selectedReportMetric(
-                  'OUTPUT MODE',
-                  _outputMode.label,
+                  'LINKED EVENTS',
+                  '${row.event.eventCount}',
                 ),
+                _selectedReportMetric('SCENE REVIEWS', '$sceneCount'),
+                _selectedReportMetric('OUTPUT MODE', _outputMode.label),
               ];
               if (compact) {
                 return Column(
@@ -874,6 +1878,115 @@ class _ClientIntelligenceReportsPageState
                   buttonKey: const ValueKey('reports-selected-download-button'),
                   filled: true,
                   onTap: () => _downloadReceipt(row, hasLiveReceipts),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _selectedReportRecoverySurface({
+    required List<_ReceiptRow> rows,
+    required bool hasLiveReceipts,
+  }) {
+    final recoveryFilters = _receiptHistoryRecoveryFilters(rows);
+    final availableCount = rows.length;
+    final receiptLabel =
+        '${hasLiveReceipts ? 'live' : 'sample'} receipt${availableCount == 1 ? '' : 's'}';
+    final leadRecoveryFilter = recoveryFilters.isEmpty
+        ? null
+        : recoveryFilters.first.label.toLowerCase();
+    final detail = rows.isEmpty
+        ? 'Generate a receipt to reopen the preview workspace and restore the delivery handoff.'
+        : leadRecoveryFilter == null
+        ? '$availableCount $receiptLabel are still staged in this reports lane. Reopen the full history stream to restore the preview workspace.'
+        : '$availableCount $receiptLabel are still staged in this reports lane. Reopen the full history stream or pivot straight into $leadRecoveryFilter to restore the preview workspace.';
+
+    return Container(
+      key: const ValueKey('reports-selected-recovery-surface'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No Receipt Selected',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF3FF),
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 780;
+              final cards = [
+                _selectedReportMetric('VISIBLE', '0'),
+                _selectedReportMetric('SCOPED RECEIPTS', '$availableCount'),
+                _selectedReportMetric('FILTER', _receiptFilter.label),
+              ];
+              if (compact) {
+                return Column(
+                  children: [
+                    for (var i = 0; i < cards.length; i++) ...[
+                      cards[i],
+                      if (i < cards.length - 1) const SizedBox(height: 8),
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  for (var i = 0; i < cards.length; i++) ...[
+                    Expanded(child: cards[i]),
+                    if (i < cards.length - 1) const SizedBox(width: 8),
+                  ],
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                key: const ValueKey('reports-selected-recovery-open-all'),
+                onPressed: rows.isEmpty
+                    ? null
+                    : () =>
+                          setReportReceiptFilter(ReportReceiptSceneFilter.all),
+                icon: const Icon(Icons.reorder_rounded, size: 18),
+                label: const Text('All Receipts'),
+              ),
+              for (final filter in recoveryFilters.take(2))
+                OutlinedButton.icon(
+                  key: ValueKey<String>(
+                    'reports-selected-recovery-open-${filter.name}',
+                  ),
+                  onPressed: () => setReportReceiptFilter(filter),
+                  icon: Icon(_receiptFilterIcon(filter), size: 18),
+                  label: Text(filter.label),
+                ),
+              FilledButton.icon(
+                key: const ValueKey('reports-selected-recovery-generate'),
+                onPressed: _isGenerating ? null : _generateReport,
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                label: Text(
+                  _isGenerating ? 'Generating...' : 'Generate New Report',
                 ),
               ),
             ],
@@ -1092,10 +2205,9 @@ class _ClientIntelligenceReportsPageState
           _toggle(
             label: 'Include checkpoint compliance',
             value: _includeCheckpointCompliance,
-            onChanged: (value) =>
-                setReportSectionConfiguration(
-                  includeCheckpointCompliance: value,
-                ),
+            onChanged: (value) => setReportSectionConfiguration(
+              includeCheckpointCompliance: value,
+            ),
           ),
           _toggle(
             label: 'Include AI decision log',
@@ -1121,7 +2233,9 @@ class _ClientIntelligenceReportsPageState
               onTap: () => _previewReceipt(activeReceipt, hasLiveReceipts),
               secondaryActionText: 'Copy Receipt',
               onSecondaryTap: () => _copyReceipt(activeReceipt),
-              secondaryButtonKey: const ValueKey('reports-selected-copy-inline'),
+              secondaryButtonKey: const ValueKey(
+                'reports-selected-copy-inline',
+              ),
             ),
           ],
         ],
@@ -1285,6 +2399,38 @@ class _ClientIntelligenceReportsPageState
       siteId: _partnerScopeSiteId,
       reportDate: latestPoint?.reportDate,
     );
+    final openReceiptLaneAction = receiptRows.isEmpty
+        ? null
+        : () {
+            setReportReceiptFilter(ReportReceiptSceneFilter.all);
+            focusReportReceiptWorkspace(receiptRows.first.event.eventId);
+            _showReceiptActionFeedback(
+              'Recovered pending partner scorecard scope around ${receiptRows.first.event.eventId}.',
+            );
+          };
+    final genericGovernanceAction = _openGovernanceScopeAction(
+      clientId: _partnerScopeClientId!,
+      siteId: _partnerScopeSiteId!,
+    );
+    final openGovernanceAction = widget.onOpenGovernanceForPartnerScope != null
+        ? () {
+            widget.onOpenGovernanceForPartnerScope!(
+              _partnerScopeClientId!,
+              _partnerScopeSiteId!,
+              _partnerScopePartnerLabel!,
+            );
+            _showReceiptActionFeedback(
+              'Opening Governance for ${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}.',
+            );
+          }
+        : genericGovernanceAction == null
+        ? null
+        : () {
+            genericGovernanceAction();
+            _showReceiptActionFeedback(
+              'Opening Governance for ${_partnerScopeSiteId!}.',
+            );
+          };
     final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
       receiptRows,
     );
@@ -1331,13 +2477,25 @@ class _ClientIntelligenceReportsPageState
                 const SizedBox(height: 6),
                 Text(
                   latestPoint?.row.summaryLine ??
-                      'Morning partner scorecard data has not landed for this scope yet.',
+                      'Morning partner scorecard sync pending for this scope.',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF9CB2D1),
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
+                if (latestPoint == null) ...[
+                  const SizedBox(height: 10),
+                  _partnerScopePendingRecoveryCard(
+                    hasScopedReceipts: receiptRows.isNotEmpty,
+                    activitySignals: siteActivity.totalSignals,
+                    canOpenGovernance: openGovernanceAction != null,
+                    onOpenReceiptLane: openReceiptLaneAction,
+                    onOpenActivityTruth: _openPartnerScopeActivityTruth,
+                    onOpenGovernance: openGovernanceAction,
+                    onClearFocus: _clearPartnerScopeFocus,
+                  ),
+                ],
                 if (trendLabel.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Wrap(
@@ -1503,23 +2661,14 @@ class _ClientIntelligenceReportsPageState
                 icon: Icons.filter_alt_off_rounded,
                 onTap: _clearPartnerScopeFocus,
               ),
-              if (widget.onOpenGovernanceForPartnerScope != null)
+              if (openGovernanceAction != null)
                 _actionButton(
                   key: const ValueKey(
                     'reports-partner-scorecard-open-governance',
                   ),
                   label: 'Open Governance Scope',
                   icon: Icons.verified_user_rounded,
-                  onTap: () {
-                    widget.onOpenGovernanceForPartnerScope!(
-                      _partnerScopeClientId!,
-                      _partnerScopeSiteId!,
-                      _partnerScopePartnerLabel!,
-                    );
-                    _showReceiptActionFeedback(
-                      'Opening Governance for ${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}.',
-                    );
-                  },
+                  onTap: openGovernanceAction,
                 ),
               if (widget.onOpenEventsForScope != null &&
                   currentChains.isNotEmpty)
@@ -1570,6 +2719,34 @@ class _ClientIntelligenceReportsPageState
   }
 
   Widget _partnerScorecardLanesCard() {
+    final rows = _sitePartnerScoreboardRows;
+    final comparisons = _sitePartnerComparisonRows;
+    _PartnerComparisonRow? leaderComparison;
+    for (final comparison in comparisons) {
+      if (comparison.isLeader) {
+        leaderComparison = comparison;
+        break;
+      }
+    }
+    final recoveryComparison = comparisons
+        .where((comparison) => comparison.historyPoints.length <= 1)
+        .cast<_PartnerComparisonRow?>()
+        .firstWhere((comparison) => comparison != null, orElse: () => null);
+    final activeLane = rows
+        .cast<SovereignReportPartnerScoreboardRow?>()
+        .firstWhere(
+          (row) => row != null && _partnerScoreboardMatchesFocus(row),
+          orElse: () => null,
+        );
+    final receiptRows = _siteScopeReceiptRows();
+    final siteActivity = _siteActivitySnapshot(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
+    final openGovernanceScopeAction = _openGovernanceScopeAction(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
     return OnyxSectionCard(
       title: 'Partner Scorecard Lanes',
       subtitle:
@@ -1577,15 +2754,234 @@ class _ClientIntelligenceReportsPageState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (
-            var index = 0;
-            index < _sitePartnerScoreboardRows.length;
-            index++
-          ) ...[
-            _partnerScorecardLaneRow(_sitePartnerScoreboardRows[index]),
-            if (index < _sitePartnerScoreboardRows.length - 1)
-              const SizedBox(height: 8),
+          _partnerLaneCommandBanner(
+            leaderComparison: leaderComparison,
+            recoveryComparison: recoveryComparison,
+            activeLane: activeLane,
+            laneCount: rows.length,
+            receiptCount: receiptRows.length,
+            activitySignals: siteActivity.totalSignals,
+            canOpenGovernance: openGovernanceScopeAction != null,
+            onFocusLeader:
+                leaderComparison == null ||
+                    _partnerScoreboardMatchesFocus(leaderComparison.row)
+                ? null
+                : () => _setPartnerScopeFocus(
+                    clientId: leaderComparison!.row.clientId,
+                    siteId: leaderComparison.row.siteId,
+                    partnerLabel: leaderComparison.row.partnerLabel,
+                  ),
+            onFocusRecovery:
+                recoveryComparison == null ||
+                    _partnerScoreboardMatchesFocus(recoveryComparison.row) ||
+                    (leaderComparison != null &&
+                        recoveryComparison.row.partnerLabel ==
+                            leaderComparison.row.partnerLabel)
+                ? null
+                : () => _setPartnerScopeFocus(
+                    clientId: recoveryComparison.row.clientId,
+                    siteId: recoveryComparison.row.siteId,
+                    partnerLabel: recoveryComparison.row.partnerLabel,
+                  ),
+            onOpenReceiptLane: receiptRows.isEmpty
+                ? null
+                : () {
+                    setReportReceiptFilter(ReportReceiptSceneFilter.all);
+                    focusReportReceiptWorkspace(
+                      receiptRows.first.event.eventId,
+                    );
+                    _showReceiptActionFeedback(
+                      'Recovered scorecard lanes around ${receiptRows.first.event.eventId}.',
+                    );
+                  },
+            onOpenActivityTruth: () => _openSiteActivityTruth(
+              clientId: widget.selectedClient,
+              siteId: widget.selectedSite,
+            ),
+            onOpenGovernance: openGovernanceScopeAction == null
+                ? null
+                : () {
+                    openGovernanceScopeAction();
+                    _showReceiptActionFeedback(
+                      'Opening Governance for scorecard lanes ${widget.selectedSite}.',
+                    );
+                  },
+            onClearFocus: activeLane == null ? null : _clearPartnerScopeFocus,
+          ),
+          const SizedBox(height: 10),
+          for (var index = 0; index < rows.length; index++) ...[
+            _partnerScorecardLaneRow(rows[index]),
+            if (index < rows.length - 1) const SizedBox(height: 8),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerLaneCommandBanner({
+    required _PartnerComparisonRow? leaderComparison,
+    required _PartnerComparisonRow? recoveryComparison,
+    required SovereignReportPartnerScoreboardRow? activeLane,
+    required int laneCount,
+    required int receiptCount,
+    required int activitySignals,
+    required bool canOpenGovernance,
+    required VoidCallback? onFocusLeader,
+    required VoidCallback? onFocusRecovery,
+    required VoidCallback? onOpenReceiptLane,
+    required VoidCallback onOpenActivityTruth,
+    required VoidCallback? onOpenGovernance,
+    required VoidCallback? onClearFocus,
+  }) {
+    final pendingCount = recoveryComparison == null
+        ? 0
+        : recoveryComparison.historyPoints.isEmpty
+        ? 1
+        : 0;
+    final formingCount = recoveryComparison == null
+        ? 0
+        : recoveryComparison.historyPoints.length == 1
+        ? 1
+        : 0;
+    final detail = activeLane != null
+        ? 'The lane rail is anchored on ${activeLane.partnerLabel}. Recover receipts, pivot into activity truth, or clear focus without leaving the scorecard rail.'
+        : pendingCount > 0
+        ? 'A responder lane is already visible before its first scored shift lands. Focus that lane, recover the receipt rail, or open activity truth while the scorecard settles in.'
+        : formingCount > 0
+        ? 'A responder lane is still building its baseline from one scored shift. Focus it directly or recover the adjacent operator rails while the baseline matures.'
+        : 'The lane rail is fully live. Focus the leader, recover receipts, or pivot into activity truth and governance from the same command surface.';
+
+    return Container(
+      key: const ValueKey('reports-partner-lanes-command-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF102337),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF29425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: 'SCORECARD COMMAND',
+                color: const Color(0xFF8FD1FF),
+              ),
+              _partnerScopeChip(
+                label: '$laneCount lane${laneCount == 1 ? '' : 's'}',
+                color: const Color(0xFF5DC8FF),
+              ),
+              if (leaderComparison != null)
+                _partnerScopeChip(
+                  label: 'Leader: ${leaderComparison.row.partnerLabel}',
+                  color: const Color(0xFF59D79B),
+                ),
+              if (activeLane != null)
+                _partnerScopeChip(
+                  label: 'Active: ${activeLane.partnerLabel}',
+                  color: const Color(0xFF59D79B),
+                )
+              else if (pendingCount > 0)
+                _partnerScopeChip(
+                  label: '$pendingCount pending',
+                  color: const Color(0xFFF6C067),
+                )
+              else if (formingCount > 0)
+                _partnerScopeChip(
+                  label: '$formingCount forming',
+                  color: const Color(0xFF8FD1FF),
+                ),
+              if (receiptCount > 0)
+                _partnerScopeChip(
+                  label: '$receiptCount receipts',
+                  color: const Color(0xFF5DC8FF),
+                ),
+              _partnerScopeChip(
+                label: activitySignals > 0
+                    ? '$activitySignals live signals'
+                    : 'Activity truth ready',
+                color: activitySignals > 0
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (onFocusLeader != null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-lanes-command-focus-leader',
+                  ),
+                  label: 'Focus Leader Lane',
+                  icon: Icons.workspace_premium_rounded,
+                  onTap: onFocusLeader,
+                ),
+              if (onFocusRecovery != null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-lanes-command-focus-recovery',
+                  ),
+                  label: pendingCount > 0
+                      ? 'Focus Pending Lane'
+                      : 'Focus Forming Lane',
+                  icon: Icons.filter_center_focus_rounded,
+                  onTap: onFocusRecovery,
+                ),
+              if (onOpenReceiptLane != null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-lanes-command-open-receipts',
+                  ),
+                  label: 'Open Receipt Lane',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: onOpenReceiptLane,
+                ),
+              _actionButton(
+                key: const ValueKey(
+                  'reports-partner-lanes-command-open-activity',
+                ),
+                label: 'Open Activity Truth',
+                icon: Icons.groups_rounded,
+                onTap: onOpenActivityTruth,
+              ),
+              if (canOpenGovernance)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-lanes-command-open-governance',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: onOpenGovernance,
+                ),
+              if (onClearFocus != null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-lanes-command-clear-focus',
+                  ),
+                  label: 'Clear Focus',
+                  icon: Icons.filter_alt_off_rounded,
+                  onTap: onClearFocus,
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -1595,6 +2991,38 @@ class _ClientIntelligenceReportsPageState
     final comparisons = _sitePartnerComparisonRows;
     final receiptRows = _siteScopeReceiptRows();
     final siteActivity = _siteActivitySnapshot(
+      clientId: widget.selectedClient,
+      siteId: widget.selectedSite,
+    );
+    _PartnerComparisonRow? leaderComparison;
+    for (final comparison in comparisons) {
+      if (comparison.isLeader) {
+        leaderComparison = comparison;
+        break;
+      }
+    }
+    final thinComparisons = comparisons
+        .where((comparison) => comparison.historyPoints.length <= 1)
+        .toList(growable: false);
+    final pendingComparisons = thinComparisons
+        .where((comparison) => comparison.historyPoints.isEmpty)
+        .toList(growable: false);
+    final formingComparisons = thinComparisons
+        .where((comparison) => comparison.historyPoints.length == 1)
+        .toList(growable: false);
+    final recoveryComparison = thinComparisons.isEmpty
+        ? null
+        : thinComparisons.first;
+    final openReceiptLaneAction = receiptRows.isEmpty
+        ? null
+        : () {
+            setReportReceiptFilter(ReportReceiptSceneFilter.all);
+            focusReportReceiptWorkspace(receiptRows.first.event.eventId);
+            _showReceiptActionFeedback(
+              'Recovered comparison shell around ${receiptRows.first.event.eventId}.',
+            );
+          };
+    final openGovernanceScopeAction = _openGovernanceScopeAction(
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
     );
@@ -1653,6 +3081,52 @@ class _ClientIntelligenceReportsPageState
               ),
             ],
           ),
+          if (comparisons.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _partnerComparisonCommandBanner(
+              leaderComparison: leaderComparison,
+              recoveryComparison: recoveryComparison,
+              pendingCount: pendingComparisons.length,
+              formingCount: formingComparisons.length,
+              receiptCount: receiptRows.length,
+              activitySignals: siteActivity.totalSignals,
+              canOpenGovernance: openGovernanceScopeAction != null,
+              onOpenReceiptLane: openReceiptLaneAction,
+              onOpenActivityTruth: () => _openSiteActivityTruth(
+                clientId: widget.selectedClient,
+                siteId: widget.selectedSite,
+              ),
+              onOpenGovernance: openGovernanceScopeAction == null
+                  ? null
+                  : () {
+                      openGovernanceScopeAction();
+                      _showReceiptActionFeedback(
+                        'Opening Governance for comparison shell ${widget.selectedSite}.',
+                      );
+                    },
+              onFocusLeader:
+                  leaderComparison == null ||
+                      _partnerScoreboardMatchesFocus(leaderComparison.row)
+                  ? null
+                  : () => _setPartnerScopeFocus(
+                      clientId: leaderComparison!.row.clientId,
+                      siteId: leaderComparison.row.siteId,
+                      partnerLabel: leaderComparison.row.partnerLabel,
+                    ),
+              onFocusRecovery:
+                  recoveryComparison == null ||
+                      (leaderComparison != null &&
+                          recoveryComparison.row.partnerLabel ==
+                              leaderComparison.row.partnerLabel) ||
+                      _partnerScoreboardMatchesFocus(recoveryComparison.row)
+                  ? null
+                  : () => _setPartnerScopeFocus(
+                      clientId: recoveryComparison.row.clientId,
+                      siteId: recoveryComparison.row.siteId,
+                      partnerLabel: recoveryComparison.row.partnerLabel,
+                    ),
+            ),
+          ],
           if (receiptRows.isNotEmpty) ...[
             const SizedBox(height: 10),
             Wrap(
@@ -2118,10 +3592,31 @@ class _ClientIntelligenceReportsPageState
       clientId: clientId,
       siteId: siteId,
     );
+    final scopedReceiptRows = _partnerReceiptRowsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
     final currentPoint = historyPoints.isEmpty ? null : historyPoints.first;
     await showDialog<void>(
       context: context,
       builder: (context) {
+        final normalizedPartnerLabel = partnerLabel?.trim();
+        final partnerGovernanceAction =
+            widget.onOpenGovernanceForPartnerScope != null &&
+                normalizedPartnerLabel != null &&
+                normalizedPartnerLabel.isNotEmpty
+            ? () => widget.onOpenGovernanceForPartnerScope!(
+                clientId,
+                siteId,
+                normalizedPartnerLabel,
+              )
+            : null;
+        final genericGovernanceAction = _openGovernanceScopeAction(
+          clientId: clientId,
+          siteId: siteId,
+        );
+        final canOpenGovernance =
+            partnerGovernanceAction != null || genericGovernanceAction != null;
         return AlertDialog(
           backgroundColor: const Color(0xFF08111F),
           title: Text(
@@ -2206,13 +3701,42 @@ class _ClientIntelligenceReportsPageState
                     ),
                   ] else ...[
                     const SizedBox(height: 8),
-                    Text(
-                      'This scope is quiet so far. Visitor and site-activity signals will appear here once they land.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    _siteActivityQuietScopeRecoveryCard(
+                      clientId: clientId,
+                      siteId: siteId,
+                      partnerLabel: normalizedPartnerLabel,
+                      hasScopedReceipts: scopedReceiptRows.isNotEmpty,
+                      canOpenGovernance: canOpenGovernance,
+                      onOpenReceiptLane: scopedReceiptRows.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              setReportReceiptFilter(
+                                ReportReceiptSceneFilter.all,
+                              );
+                              focusReportReceiptWorkspace(
+                                scopedReceiptRows.first.event.eventId,
+                              );
+                              _showReceiptActionFeedback(
+                                'Focused quiet activity scope on receipt lane ${scopedReceiptRows.first.event.eventId}.',
+                              );
+                            },
+                      onOpenGovernance: !canOpenGovernance
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              if (partnerGovernanceAction != null) {
+                                partnerGovernanceAction();
+                              } else if (genericGovernanceAction != null) {
+                                genericGovernanceAction();
+                              }
+                              _showReceiptActionFeedback(
+                                normalizedPartnerLabel == null ||
+                                        normalizedPartnerLabel.isEmpty
+                                    ? 'Opening Governance for quiet activity scope $siteId.'
+                                    : 'Opening Governance for quiet activity scope $siteId • $normalizedPartnerLabel.',
+                              );
+                            },
                     ),
                   ],
                   if (historyPoints.isNotEmpty) ...[
@@ -2270,6 +3794,318 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  Widget _siteActivityQuietScopeRecoveryCard({
+    required String clientId,
+    required String siteId,
+    required String? partnerLabel,
+    required bool hasScopedReceipts,
+    required bool canOpenGovernance,
+    required VoidCallback? onOpenReceiptLane,
+    required VoidCallback? onOpenGovernance,
+  }) {
+    final detail = hasScopedReceipts
+        ? 'This scope is quiet so far. Visitor and site-activity signals have not landed yet, but the reports lane is still live for $siteId. Reopen the receipt lane or pivot into governance while the activity stream warms up.'
+        : 'This scope is quiet so far. Visitor and site-activity signals have not landed yet, so use governance to keep the operating picture moving while the activity stream warms up.';
+
+    return Container(
+      key: ValueKey<String>(
+        'reports-site-activity-quiet-recovery-$clientId/$siteId/${partnerLabel ?? 'scope'}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1F30),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF36516F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'This scope is quiet so far.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasScopedReceipts)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-site-activity-quiet-open-receipts-$clientId/$siteId/${partnerLabel ?? 'scope'}',
+                  ),
+                  label: 'Open Receipt Lane',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: onOpenReceiptLane,
+                ),
+              if (canOpenGovernance)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-site-activity-quiet-open-governance-$clientId/$siteId/${partnerLabel ?? 'scope'}',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: onOpenGovernance,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerScopePendingRecoveryCard({
+    required bool hasScopedReceipts,
+    required int activitySignals,
+    required bool canOpenGovernance,
+    required VoidCallback? onOpenReceiptLane,
+    required VoidCallback onOpenActivityTruth,
+    required VoidCallback? onOpenGovernance,
+    required VoidCallback onClearFocus,
+  }) {
+    final hasActivitySignals = activitySignals > 0;
+    final detail = hasScopedReceipts || hasActivitySignals
+        ? 'The partner lane is already live, but the morning scorecard snapshot has not landed yet. Reopen the receipt lane, inspect activity truth, or pivot into governance while the scorecard sync catches up.'
+        : 'The partner scope is selected, but the morning scorecard has not landed yet. Open activity truth, pivot into governance, or clear focus while this lane catches up.';
+
+    return Container(
+      key: const ValueKey('reports-partner-scope-recovery-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1F30),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF36516F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: 'SCORECARD PENDING',
+                color: const Color(0xFFF6C067),
+              ),
+              _partnerScopeChip(
+                label: hasScopedReceipts
+                    ? 'Receipt lane live'
+                    : 'Receipt lane idle',
+                color: hasScopedReceipts
+                    ? const Color(0xFF5DC8FF)
+                    : const Color(0xFF7A8EA8),
+              ),
+              _partnerScopeChip(
+                label: hasActivitySignals
+                    ? '$activitySignals live signals'
+                    : 'Activity truth ready',
+                color: hasActivitySignals
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+              if (canOpenGovernance)
+                _partnerScopeChip(
+                  label: 'Governance bridge ready',
+                  color: const Color(0xFF8FD1FF),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasScopedReceipts)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-scope-recovery-open-receipts',
+                  ),
+                  label: 'Open Receipt Lane',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: onOpenReceiptLane,
+                ),
+              _actionButton(
+                key: const ValueKey(
+                  'reports-partner-scope-recovery-open-activity',
+                ),
+                label: 'Open Activity Truth',
+                icon: Icons.groups_rounded,
+                onTap: onOpenActivityTruth,
+              ),
+              if (canOpenGovernance)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-scope-recovery-open-governance',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: onOpenGovernance,
+                ),
+              _actionButton(
+                key: const ValueKey(
+                  'reports-partner-scope-recovery-clear-focus',
+                ),
+                label: 'Clear Focus',
+                icon: Icons.filter_alt_off_rounded,
+                onTap: onClearFocus,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerDrillInRecoveryCard({
+    required bool hasScopedReceipts,
+    required int activitySignals,
+    required bool canOpenGovernance,
+    required bool showClearFocus,
+    required VoidCallback? onOpenReceiptLane,
+    required VoidCallback onOpenActivityTruth,
+    required VoidCallback? onOpenGovernance,
+    required VoidCallback? onClearFocus,
+  }) {
+    final hasActivitySignals = activitySignals > 0;
+    final detail = hasScopedReceipts || hasActivitySignals
+        ? 'No scorecard history has landed for this partner scope yet, but the lane already has live receipt or activity context. Reopen the receipt lane, inspect activity truth, or bridge into governance while the scorecard history sync catches up.'
+        : 'No scorecard history has landed for this partner scope yet. Use activity truth or governance to keep the lane moving while scorecard history catches up.';
+
+    return Container(
+      key: const ValueKey('reports-partner-drill-in-recovery-card'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1F30),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF36516F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No scorecard history has landed for this partner scope yet.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: 'DRILL-IN READY',
+                color: const Color(0xFFF6C067),
+              ),
+              _partnerScopeChip(
+                label: hasScopedReceipts
+                    ? 'Receipt lane live'
+                    : 'Receipt lane idle',
+                color: hasScopedReceipts
+                    ? const Color(0xFF5DC8FF)
+                    : const Color(0xFF7A8EA8),
+              ),
+              _partnerScopeChip(
+                label: hasActivitySignals
+                    ? '$activitySignals live signals'
+                    : 'Activity truth ready',
+                color: hasActivitySignals
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+              if (canOpenGovernance)
+                _partnerScopeChip(
+                  label: 'Governance bridge ready',
+                  color: const Color(0xFF8FD1FF),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasScopedReceipts)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-drill-in-recovery-open-receipts',
+                  ),
+                  label: 'Open Receipt Lane',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: onOpenReceiptLane,
+                ),
+              _actionButton(
+                key: const ValueKey(
+                  'reports-partner-drill-in-recovery-open-activity',
+                ),
+                label: 'Open Activity Truth',
+                icon: Icons.groups_rounded,
+                onTap: onOpenActivityTruth,
+              ),
+              if (canOpenGovernance)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-drill-in-recovery-open-governance',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: onOpenGovernance,
+                ),
+              if (showClearFocus)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-drill-in-recovery-clear-focus',
+                  ),
+                  label: 'Clear Focus',
+                  icon: Icons.filter_alt_off_rounded,
+                  onTap: onClearFocus,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _openPartnerDrillIn({
     required String clientId,
     required String siteId,
@@ -2289,6 +4125,10 @@ class _ClientIntelligenceReportsPageState
       clientId: clientId,
       siteId: siteId,
     );
+    final siteActivity = _siteActivitySnapshot(
+      clientId: clientId,
+      siteId: siteId,
+    );
     final trendLabel = _partnerScopeTrendLabel(historyPoints);
     final trendReason = _partnerScopeTrendReason(historyPoints);
     final receiptInvestigationTrendLabel = _receiptInvestigationTrendLabel(
@@ -2300,6 +4140,25 @@ class _ClientIntelligenceReportsPageState
     await showDialog<void>(
       context: context,
       builder: (context) {
+        final partnerGovernanceAction =
+            widget.onOpenGovernanceForPartnerScope != null
+            ? () => widget.onOpenGovernanceForPartnerScope!(
+                clientId,
+                siteId,
+                partnerLabel,
+              )
+            : null;
+        final genericGovernanceAction = _openGovernanceScopeAction(
+          clientId: clientId,
+          siteId: siteId,
+        );
+        final canOpenGovernance =
+            partnerGovernanceAction != null || genericGovernanceAction != null;
+        final isFocusedScope =
+            _hasPartnerScopeFocus &&
+            _partnerScopeClientId == clientId &&
+            _partnerScopeSiteId == siteId &&
+            _partnerScopePartnerLabel == partnerLabel;
         return AlertDialog(
           backgroundColor: const Color(0xFF08111F),
           title: Text(
@@ -2411,6 +4270,56 @@ class _ClientIntelligenceReportsPageState
                       ),
                     ),
                   ],
+                  if (historyPoints.isEmpty) ...[
+                    const SizedBox(height: 12),
+                    _partnerDrillInRecoveryCard(
+                      hasScopedReceipts: receiptRows.isNotEmpty,
+                      activitySignals: siteActivity.totalSignals,
+                      canOpenGovernance: canOpenGovernance,
+                      showClearFocus: isFocusedScope,
+                      onOpenReceiptLane: receiptRows.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              setReportReceiptFilter(
+                                ReportReceiptSceneFilter.all,
+                              );
+                              focusReportReceiptWorkspace(
+                                receiptRows.first.event.eventId,
+                              );
+                              _showReceiptActionFeedback(
+                                'Recovered partner drill-in around ${receiptRows.first.event.eventId}.',
+                              );
+                            },
+                      onOpenActivityTruth: () {
+                        Navigator.of(context).pop();
+                        _openSiteActivityTruth(
+                          clientId: clientId,
+                          siteId: siteId,
+                          partnerLabel: partnerLabel,
+                        );
+                      },
+                      onOpenGovernance: !canOpenGovernance
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              if (partnerGovernanceAction != null) {
+                                partnerGovernanceAction();
+                              } else if (genericGovernanceAction != null) {
+                                genericGovernanceAction();
+                              }
+                              _showReceiptActionFeedback(
+                                'Opening Governance for drill-in scope $siteId • $partnerLabel.',
+                              );
+                            },
+                      onClearFocus: !isFocusedScope
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              _clearPartnerScopeFocus();
+                            },
+                    ),
+                  ],
                   if (historyPoints.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -2496,6 +4405,10 @@ class _ClientIntelligenceReportsPageState
   }
 
   Future<void> _openPartnerShiftDetail(_PartnerScopeHistoryPoint point) async {
+    final scopedReceiptRows = _partnerReceiptRowsForScope(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+    );
     final receiptRows = _partnerReceiptRowsForScopeDate(
       clientId: point.row.clientId,
       siteId: point.row.siteId,
@@ -2507,9 +4420,22 @@ class _ClientIntelligenceReportsPageState
       partnerLabel: point.row.partnerLabel,
       reportDate: point.reportDate,
     );
+    final eventIds = _partnerShiftEventIdsForScopeDate(
+      clientId: point.row.clientId,
+      siteId: point.row.siteId,
+      partnerLabel: point.row.partnerLabel,
+      reportDate: point.reportDate,
+    );
     await showDialog<void>(
       context: context,
       builder: (context) {
+        final genericGovernanceAction = _openGovernanceScopeAction(
+          clientId: point.row.clientId,
+          siteId: point.row.siteId,
+        );
+        final canOpenGovernance =
+            widget.onOpenGovernanceForPartnerScope != null ||
+            genericGovernanceAction != null;
         return AlertDialog(
           backgroundColor: const Color(0xFF08111F),
           title: Text(
@@ -2596,13 +4522,49 @@ class _ClientIntelligenceReportsPageState
                   ),
                   const SizedBox(height: 6),
                   if (receiptRows.isEmpty)
-                    Text(
-                      'No generated receipts landed in this shift window.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    _partnerShiftEmptyReceiptsRecoveryCard(
+                      point: point,
+                      hasScopedReceipts: scopedReceiptRows.isNotEmpty,
+                      hasEvents: eventIds.isNotEmpty,
+                      canOpenGovernance: canOpenGovernance,
+                      onOpenReceiptLane: scopedReceiptRows.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              setReportReceiptFilter(
+                                ReportReceiptSceneFilter.all,
+                              );
+                              focusReportReceiptWorkspace(
+                                scopedReceiptRows.first.event.eventId,
+                              );
+                              _showReceiptActionFeedback(
+                                'Focused shift receipt lane for ${point.reportDate} • ${point.row.partnerLabel}.',
+                              );
+                            },
+                      onOpenGovernance: !canOpenGovernance
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              if (widget.onOpenGovernanceForPartnerScope !=
+                                  null) {
+                                widget.onOpenGovernanceForPartnerScope!(
+                                  point.row.clientId,
+                                  point.row.siteId,
+                                  point.row.partnerLabel,
+                                );
+                              } else if (genericGovernanceAction != null) {
+                                genericGovernanceAction();
+                              }
+                              _showReceiptActionFeedback(
+                                'Opening Governance for ${point.reportDate} • ${point.row.partnerLabel}.',
+                              );
+                            },
+                      onOpenEvents: eventIds.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              _openEventsForPartnerShift(point);
+                            },
                     )
                   else
                     for (
@@ -2628,13 +4590,49 @@ class _ClientIntelligenceReportsPageState
                   ),
                   const SizedBox(height: 6),
                   if (chains.isEmpty)
-                    Text(
-                      'No partner dispatch chains formed during this shift window.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    _partnerShiftEmptyChainsRecoveryCard(
+                      point: point,
+                      hasReceipts: receiptRows.isNotEmpty,
+                      hasEvents: eventIds.isNotEmpty,
+                      canOpenGovernance: canOpenGovernance,
+                      onOpenReceipts: receiptRows.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              setReportReceiptFilter(
+                                ReportReceiptSceneFilter.all,
+                              );
+                              focusReportReceiptWorkspace(
+                                receiptRows.first.event.eventId,
+                              );
+                              _showReceiptActionFeedback(
+                                'Focused shift receipts for ${point.reportDate} • ${point.row.partnerLabel}.',
+                              );
+                            },
+                      onOpenGovernance: !canOpenGovernance
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              if (widget.onOpenGovernanceForPartnerScope !=
+                                  null) {
+                                widget.onOpenGovernanceForPartnerScope!(
+                                  point.row.clientId,
+                                  point.row.siteId,
+                                  point.row.partnerLabel,
+                                );
+                              } else if (genericGovernanceAction != null) {
+                                genericGovernanceAction();
+                              }
+                              _showReceiptActionFeedback(
+                                'Opening Governance for ${point.reportDate} • ${point.row.partnerLabel}.',
+                              );
+                            },
+                      onOpenEvents: eventIds.isEmpty
+                          ? null
+                          : () {
+                              Navigator.of(context).pop();
+                              _openEventsForPartnerShift(point);
+                            },
                     )
                   else
                     for (var index = 0; index < chains.length; index++) ...[
@@ -2697,6 +4695,174 @@ class _ClientIntelligenceReportsPageState
           ],
         );
       },
+    );
+  }
+
+  Widget _partnerShiftEmptyReceiptsRecoveryCard({
+    required _PartnerScopeHistoryPoint point,
+    required bool hasScopedReceipts,
+    required bool hasEvents,
+    required bool canOpenGovernance,
+    required VoidCallback? onOpenReceiptLane,
+    required VoidCallback? onOpenGovernance,
+    required VoidCallback? onOpenEvents,
+  }) {
+    final detail = hasScopedReceipts
+        ? 'No generated receipts landed in this shift window, but this client/site lane still has report receipts outside the current shift. Reopen the receipt lane, pivot into governance, or review the scoped event trail to keep the handoff moving.'
+        : 'No generated receipts landed in this shift window. Pivot into governance or the scoped event trail to keep the lane moving while the receipt history catches up.';
+
+    return Container(
+      key: ValueKey<String>(
+        'reports-partner-shift-empty-receipts-recovery-${point.reportDate}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1F30),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF36516F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No generated receipts landed in this shift window.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasScopedReceipts)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-shift-empty-receipts-open-lane-${point.reportDate}',
+                  ),
+                  label: 'Open Receipt Lane',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: onOpenReceiptLane,
+                ),
+              if (canOpenGovernance)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-shift-empty-receipts-open-governance-${point.reportDate}',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: onOpenGovernance,
+                ),
+              if (hasEvents)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-shift-empty-receipts-open-events-${point.reportDate}',
+                  ),
+                  label: 'Open Events Review',
+                  icon: Icons.rule_folder_rounded,
+                  onTap: onOpenEvents,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerShiftEmptyChainsRecoveryCard({
+    required _PartnerScopeHistoryPoint point,
+    required bool hasReceipts,
+    required bool hasEvents,
+    required bool canOpenGovernance,
+    required VoidCallback? onOpenReceipts,
+    required VoidCallback? onOpenGovernance,
+    required VoidCallback? onOpenEvents,
+  }) {
+    final detail = hasReceipts
+        ? 'Shift receipts are still staged for this partner lane even though no dispatch chain milestones landed in the current window. Reopen the receipt board, pivot into governance, or review the scoped event trail to keep the handoff moving.'
+        : 'No dispatch chain milestones landed in the current window. Pivot into governance or the scoped event trail to keep the lane moving while telemetry catches up.';
+
+    return Container(
+      key: ValueKey<String>(
+        'reports-partner-shift-empty-chains-recovery-${point.reportDate}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1F30),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF36516F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No partner dispatch chains formed during this shift window.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE8F1FF),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasReceipts)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-shift-empty-chains-open-receipts-${point.reportDate}',
+                  ),
+                  label: 'Open Shift Receipts',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: onOpenReceipts,
+                ),
+              if (canOpenGovernance)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-shift-empty-chains-open-governance-${point.reportDate}',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: onOpenGovernance,
+                ),
+              if (hasEvents)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-shift-empty-chains-open-events-${point.reportDate}',
+                  ),
+                  label: 'Open Events Review',
+                  icon: Icons.rule_folder_rounded,
+                  onTap: onOpenEvents,
+                ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -3295,9 +5461,38 @@ class _ClientIntelligenceReportsPageState
   Widget _partnerComparisonRow(_PartnerComparisonRow comparison) {
     final row = comparison.row;
     final isActive = _partnerScoreboardMatchesFocus(row);
+    final scopedReceiptRows = _partnerReceiptRowsForScope(
+      clientId: row.clientId,
+      siteId: row.siteId,
+    );
     final latestPoint = comparison.historyPoints.isEmpty
         ? null
         : comparison.historyPoints.first;
+    final siteActivity = _siteActivitySnapshot(
+      clientId: row.clientId,
+      siteId: row.siteId,
+      reportDate: latestPoint?.reportDate,
+    );
+    final partnerGovernanceAction =
+        widget.onOpenGovernanceForPartnerScope != null
+        ? () => widget.onOpenGovernanceForPartnerScope!(
+            row.clientId,
+            row.siteId,
+            row.partnerLabel,
+          )
+        : null;
+    final genericGovernanceAction = _openGovernanceScopeAction(
+      clientId: row.clientId,
+      siteId: row.siteId,
+    );
+    final openGovernanceAction =
+        partnerGovernanceAction ??
+        (genericGovernanceAction == null
+            ? null
+            : () {
+                genericGovernanceAction();
+              });
+    final hasThinHistory = comparison.historyPoints.length <= 1;
     final latestShiftPrimaryLabel = latestPoint == null
         ? 'NO SCORE'
         : _partnerScoreboardPrimaryLabel(latestPoint.row);
@@ -3576,6 +5771,48 @@ class _ClientIntelligenceReportsPageState
               ),
             ),
           ],
+          if (hasThinHistory) ...[
+            const SizedBox(height: 10),
+            _partnerComparisonRecoveryCard(
+              row: row,
+              latestPoint: latestPoint,
+              hasScopedReceipts: scopedReceiptRows.isNotEmpty,
+              activitySignals: siteActivity.totalSignals,
+              canOpenGovernance: openGovernanceAction != null,
+              showFocusAction: !isActive,
+              onOpenReceiptLane: scopedReceiptRows.isEmpty
+                  ? null
+                  : () {
+                      setReportReceiptFilter(ReportReceiptSceneFilter.all);
+                      focusReportReceiptWorkspace(
+                        scopedReceiptRows.first.event.eventId,
+                      );
+                      _showReceiptActionFeedback(
+                        'Recovered comparison lane around ${scopedReceiptRows.first.event.eventId}.',
+                      );
+                    },
+              onOpenActivityTruth: () => _openSiteActivityTruth(
+                clientId: row.clientId,
+                siteId: row.siteId,
+                partnerLabel: row.partnerLabel,
+              ),
+              onOpenGovernance: openGovernanceAction == null
+                  ? null
+                  : () {
+                      openGovernanceAction();
+                      _showReceiptActionFeedback(
+                        'Opening Governance for comparison lane ${row.siteId} • ${row.partnerLabel}.',
+                      );
+                    },
+              onFocusLane: isActive
+                  ? null
+                  : () => _setPartnerScopeFocus(
+                      clientId: row.clientId,
+                      siteId: row.siteId,
+                      partnerLabel: row.partnerLabel,
+                    ),
+            ),
+          ],
           if (comparison.historyPoints.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -3712,6 +5949,269 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  Widget _partnerComparisonRecoveryCard({
+    required SovereignReportPartnerScoreboardRow row,
+    required _PartnerScopeHistoryPoint? latestPoint,
+    required bool hasScopedReceipts,
+    required int activitySignals,
+    required bool canOpenGovernance,
+    required bool showFocusAction,
+    required VoidCallback? onOpenReceiptLane,
+    required VoidCallback onOpenActivityTruth,
+    required VoidCallback? onOpenGovernance,
+    required VoidCallback? onFocusLane,
+  }) {
+    final hasActivitySignals = activitySignals > 0;
+    final detail = latestPoint == null
+        ? 'This comparison lane is visible before scorecard history has landed. Use the receipt lane, activity truth, or governance to keep the lane moving while the first scorecard arrives.'
+        : 'This comparison lane is still building its baseline from a single scored shift. Use the receipt lane, activity truth, or governance to keep the operator picture rich while the next scorecard lands.';
+
+    return Container(
+      key: ValueKey<String>(
+        'reports-partner-comparison-recovery-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+      ),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F1F30),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF36516F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _partnerScopeChip(
+                label: latestPoint == null
+                    ? 'SCORE PENDING'
+                    : 'BASELINE FORMING',
+                color: const Color(0xFFF6C067),
+              ),
+              _partnerScopeChip(
+                label: latestPoint == null
+                    ? 'Waiting on first shift'
+                    : '${latestPoint.reportDate} first shift',
+                color: const Color(0xFF8FD1FF),
+              ),
+              _partnerScopeChip(
+                label: hasScopedReceipts
+                    ? 'Receipt lane live'
+                    : 'Receipt lane idle',
+                color: hasScopedReceipts
+                    ? const Color(0xFF5DC8FF)
+                    : const Color(0xFF7A8EA8),
+              ),
+              _partnerScopeChip(
+                label: hasActivitySignals
+                    ? '$activitySignals live signals'
+                    : 'Activity truth ready',
+                color: hasActivitySignals
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasScopedReceipts)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-comparison-recovery-open-receipts-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                  ),
+                  label: 'Open Receipt Lane',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: onOpenReceiptLane,
+                ),
+              _actionButton(
+                key: ValueKey<String>(
+                  'reports-partner-comparison-recovery-open-activity-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Open Activity Truth',
+                icon: Icons.groups_rounded,
+                onTap: onOpenActivityTruth,
+              ),
+              if (canOpenGovernance)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-comparison-recovery-open-governance-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: onOpenGovernance,
+                ),
+              if (showFocusAction)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-comparison-recovery-focus-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                  ),
+                  label: 'Focus Lane',
+                  icon: Icons.filter_center_focus_rounded,
+                  onTap: onFocusLane,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _partnerComparisonCommandBanner({
+    required _PartnerComparisonRow? leaderComparison,
+    required _PartnerComparisonRow? recoveryComparison,
+    required int pendingCount,
+    required int formingCount,
+    required int receiptCount,
+    required int activitySignals,
+    required bool canOpenGovernance,
+    required VoidCallback? onOpenReceiptLane,
+    required VoidCallback onOpenActivityTruth,
+    required VoidCallback? onOpenGovernance,
+    required VoidCallback? onFocusLeader,
+    required VoidCallback? onFocusRecovery,
+  }) {
+    final pendingLabel = pendingCount > 0
+        ? '$pendingCount pending'
+        : formingCount > 0
+        ? '$formingCount forming'
+        : 'All lanes anchored';
+    final detail = pendingCount > 0
+        ? '$pendingCount comparison lane${pendingCount == 1 ? '' : 's'} are visible before the first scorecard lands. Keep receipts, activity truth, and governance moving while the ladder fills in.'
+        : formingCount > 0
+        ? '$formingCount comparison lane${formingCount == 1 ? '' : 's'} are still building a baseline from one scored shift. Focus a lane or open activity truth to anchor decisions while the baseline matures.'
+        : 'The comparison ladder is anchored. Use leader focus, receipts, and governance to move from site posture into a scoped operator lane.';
+
+    return Container(
+      key: const ValueKey('reports-partner-comparison-command-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF102337),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF29425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label: 'COMPARISON COMMAND',
+                color: const Color(0xFF8FD1FF),
+              ),
+              if (leaderComparison != null)
+                _partnerScopeChip(
+                  label: 'Leader: ${leaderComparison.row.partnerLabel}',
+                  color: const Color(0xFF59D79B),
+                ),
+              _partnerScopeChip(
+                label: pendingLabel,
+                color: pendingCount > 0
+                    ? const Color(0xFFF6C067)
+                    : formingCount > 0
+                    ? const Color(0xFF8FD1FF)
+                    : const Color(0xFF59D79B),
+              ),
+              if (receiptCount > 0)
+                _partnerScopeChip(
+                  label: '$receiptCount receipts',
+                  color: const Color(0xFF5DC8FF),
+                ),
+              _partnerScopeChip(
+                label: activitySignals > 0
+                    ? '$activitySignals live signals'
+                    : 'Activity truth ready',
+                color: activitySignals > 0
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (onFocusLeader != null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-comparison-command-focus-leader',
+                  ),
+                  label: 'Focus Leader Lane',
+                  icon: Icons.workspace_premium_rounded,
+                  onTap: onFocusLeader,
+                ),
+              if (onFocusRecovery != null && recoveryComparison != null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-comparison-command-focus-recovery',
+                  ),
+                  label: recoveryComparison.historyPoints.isEmpty
+                      ? 'Focus Pending Lane'
+                      : 'Focus Forming Lane',
+                  icon: Icons.filter_center_focus_rounded,
+                  onTap: onFocusRecovery,
+                ),
+              if (onOpenReceiptLane != null)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-comparison-command-open-receipts',
+                  ),
+                  label: 'Open Receipt Lane',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: onOpenReceiptLane,
+                ),
+              _actionButton(
+                key: const ValueKey(
+                  'reports-partner-comparison-command-open-activity',
+                ),
+                label: 'Open Activity Truth',
+                icon: Icons.groups_rounded,
+                onTap: onOpenActivityTruth,
+              ),
+              if (canOpenGovernance)
+                _actionButton(
+                  key: const ValueKey(
+                    'reports-partner-comparison-command-open-governance',
+                  ),
+                  label: 'Open Governance Scope',
+                  icon: Icons.verified_user_rounded,
+                  onTap: onOpenGovernance,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _partnerComparisonHistoryChip(
     _PartnerScopeHistoryPoint point, {
     VoidCallback? onTap,
@@ -3760,9 +6260,119 @@ class _ClientIntelligenceReportsPageState
       siteId: row.siteId,
       partnerLabel: row.partnerLabel,
     );
+    final scopedReceiptRows = _partnerReceiptRowsForScope(
+      clientId: row.clientId,
+      siteId: row.siteId,
+    );
+    final currentChains = _partnerDispatchChainsForScope(
+      clientId: row.clientId,
+      siteId: row.siteId,
+      partnerLabel: row.partnerLabel,
+    );
+    final siteActivity = _siteActivitySnapshot(
+      clientId: row.clientId,
+      siteId: row.siteId,
+      reportDate: historyPoints.isEmpty ? null : historyPoints.first.reportDate,
+    );
     final trendLabel = _partnerScopeTrendLabel(historyPoints);
     final trendReason = _partnerScopeTrendReason(historyPoints);
+    final laneReason = trendReason.isNotEmpty
+        ? trendReason
+        : historyPoints.isEmpty
+        ? 'No scored shift has landed yet. Use receipts, activity truth, or governance to anchor this lane while the first scorecard arrives.'
+        : historyPoints.length == 1
+        ? 'Single scored shift on record. Use the drill-in and receipts while this lane builds a baseline.'
+        : '';
     final isActive = _partnerScoreboardMatchesFocus(row);
+    final partnerGovernanceAction =
+        widget.onOpenGovernanceForPartnerScope != null
+        ? () => widget.onOpenGovernanceForPartnerScope!(
+            row.clientId,
+            row.siteId,
+            row.partnerLabel,
+          )
+        : null;
+    final genericGovernanceAction = _openGovernanceScopeAction(
+      clientId: row.clientId,
+      siteId: row.siteId,
+    );
+    final latestReceiptSummary = historyPoints.isEmpty
+        ? null
+        : historyPoints.first.receiptInvestigationSummary;
+    final openReceiptLane = scopedReceiptRows.isEmpty
+        ? null
+        : () {
+            setReportReceiptFilter(ReportReceiptSceneFilter.all);
+            focusReportReceiptWorkspace(scopedReceiptRows.first.event.eventId);
+            _showReceiptActionFeedback(
+              'Recovered lane ${row.partnerLabel} around ${scopedReceiptRows.first.event.eventId}.',
+            );
+          };
+    void openActivityTruth() => _openSiteActivityTruth(
+      clientId: row.clientId,
+      siteId: row.siteId,
+      partnerLabel: row.partnerLabel,
+    );
+    void openDrillIn() => _openPartnerDrillIn(
+      clientId: row.clientId,
+      siteId: row.siteId,
+      partnerLabel: row.partnerLabel,
+    );
+    final openEvents =
+        widget.onOpenEventsForScope != null && currentChains.isNotEmpty
+        ? () => _openEventsForPartnerDispatchChain(currentChains.first)
+        : null;
+    final openGovernance =
+        partnerGovernanceAction != null || genericGovernanceAction != null
+        ? () {
+            if (partnerGovernanceAction != null) {
+              partnerGovernanceAction();
+            } else if (genericGovernanceAction != null) {
+              genericGovernanceAction();
+            }
+            _showReceiptActionFeedback(
+              'Opening Governance for ${row.siteId} • ${row.partnerLabel}.',
+            );
+          }
+        : null;
+    late final String primaryActionLabel;
+    late final String primaryActionReason;
+    late final IconData primaryActionIcon;
+    late final VoidCallback primaryAction;
+    if (latestReceiptSummary != null &&
+        latestReceiptSummary.governanceHandoffCount >
+            latestReceiptSummary.routineReviewCount &&
+        openGovernance != null) {
+      primaryActionLabel = 'Governance Handoff';
+      primaryActionReason =
+          'Latest receipt pressure leans toward Governance handoff for this lane.';
+      primaryActionIcon = Icons.verified_user_rounded;
+      primaryAction = openGovernance;
+    } else if (openEvents != null) {
+      primaryActionLabel = 'Open Live Events';
+      primaryActionReason =
+          'A current dispatch chain is already active for this responder lane.';
+      primaryActionIcon = Icons.timeline_rounded;
+      primaryAction = openEvents;
+    } else if (openReceiptLane != null) {
+      primaryActionLabel = 'Open Receipt Lane';
+      primaryActionReason =
+          'Receipts are already live for this lane, so the review rail is the fastest next move.';
+      primaryActionIcon = Icons.receipt_long_rounded;
+      primaryAction = openReceiptLane;
+    } else if (siteActivity.totalSignals > 0) {
+      primaryActionLabel = 'Open Activity Truth';
+      primaryActionReason =
+          'Live activity signals are already present for this lane.';
+      primaryActionIcon = Icons.groups_rounded;
+      primaryAction = openActivityTruth;
+    } else {
+      primaryActionLabel = 'Open Drill-In';
+      primaryActionReason =
+          'Use the drill-in to anchor this lane while deeper scorecard context forms.';
+      primaryActionIcon = Icons.manage_search_rounded;
+      primaryAction = openDrillIn;
+    }
     return Container(
       key: ValueKey<String>(
         'reports-partner-lane-${row.clientId}/${row.siteId}/${row.partnerLabel}',
@@ -3823,10 +6433,42 @@ class _ClientIntelligenceReportsPageState
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (trendReason.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _partnerScopeChip(
+                label:
+                    '${historyPoints.length} shift${historyPoints.length == 1 ? '' : 's'}',
+                color: const Color(0xFF8FD1FF),
+              ),
+              if (scopedReceiptRows.isNotEmpty)
+                _partnerScopeChip(
+                  label:
+                      '${scopedReceiptRows.length} receipt${scopedReceiptRows.length == 1 ? '' : 's'}',
+                  color: const Color(0xFF5DC8FF),
+                ),
+              if (currentChains.isNotEmpty)
+                _partnerScopeChip(
+                  label:
+                      '${currentChains.length} chain${currentChains.length == 1 ? '' : 's'}',
+                  color: const Color(0xFFF6C067),
+                ),
+              _partnerScopeChip(
+                label: siteActivity.totalSignals > 0
+                    ? '${siteActivity.totalSignals} live signals'
+                    : 'Activity truth ready',
+                color: siteActivity.totalSignals > 0
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFF8EA4C2),
+              ),
+            ],
+          ),
+          if (laneReason.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              trendReason,
+              laneReason,
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
                 fontSize: 10,
@@ -3834,6 +6476,59 @@ class _ClientIntelligenceReportsPageState
               ),
             ),
           ],
+          const SizedBox(height: 8),
+          Container(
+            key: ValueKey<String>(
+              'reports-partner-lane-primary-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+            ),
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF102337),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFF29425F)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Recommended next move',
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF8FD1FF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        primaryActionReason,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF9CB2D1),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-lane-primary-action-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                  ),
+                  label: primaryActionLabel,
+                  icon: primaryActionIcon,
+                  onTap: primaryAction,
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -3855,23 +6550,50 @@ class _ClientIntelligenceReportsPageState
                         partnerLabel: row.partnerLabel,
                       ),
               ),
-              if (widget.onOpenGovernanceForPartnerScope != null)
+              if (scopedReceiptRows.isNotEmpty)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-lane-open-receipts-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                  ),
+                  label: 'Open Receipt Lane',
+                  icon: Icons.receipt_long_rounded,
+                  onTap: openReceiptLane,
+                ),
+              _actionButton(
+                key: ValueKey<String>(
+                  'reports-partner-lane-open-activity-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Open Activity Truth',
+                icon: Icons.groups_rounded,
+                onTap: openActivityTruth,
+              ),
+              _actionButton(
+                key: ValueKey<String>(
+                  'reports-partner-lane-open-drill-in-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                ),
+                label: 'Open Drill-In',
+                icon: Icons.manage_search_rounded,
+                onTap: openDrillIn,
+              ),
+              if (widget.onOpenEventsForScope != null &&
+                  currentChains.isNotEmpty)
+                _actionButton(
+                  key: ValueKey<String>(
+                    'reports-partner-lane-open-events-${row.clientId}/${row.siteId}/${row.partnerLabel}',
+                  ),
+                  label: 'Open Events',
+                  icon: Icons.timeline_rounded,
+                  onTap: openEvents,
+                ),
+              if (partnerGovernanceAction != null ||
+                  genericGovernanceAction != null)
                 _actionButton(
                   key: ValueKey<String>(
                     'reports-partner-lane-open-governance-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                   ),
-                  label: 'Open Governance',
+                  label: 'Open Governance Scope',
                   icon: Icons.verified_user_rounded,
-                  onTap: () {
-                    widget.onOpenGovernanceForPartnerScope!(
-                      row.clientId,
-                      row.siteId,
-                      row.partnerLabel,
-                    );
-                    _showReceiptActionFeedback(
-                      'Opening Governance for ${row.siteId} • ${row.partnerLabel}.',
-                    );
-                  },
+                  onTap: openGovernance,
                 ),
             ],
           ),
@@ -5101,11 +7823,7 @@ class _ClientIntelligenceReportsPageState
             if (compact) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  title,
-                  const SizedBox(height: 8),
-                  controls,
-                ],
+                children: [title, const SizedBox(height: 8), controls],
               );
             }
             return Row(
@@ -5129,11 +7847,13 @@ class _ClientIntelligenceReportsPageState
         const SizedBox(height: 8),
         if (rows.isEmpty)
           const OnyxEmptyState(
-            label: 'Live report receipts will appear here once this lane starts publishing them.',
+            label:
+                'Live report receipts will appear here once this lane starts publishing them.',
           )
         else if (filteredRows.isEmpty)
-          const OnyxEmptyState(
-            label: 'No receipts fit the current filter right now.',
+          _filteredReceiptEmptyState(
+            rows: rows,
+            hasLiveReceipts: hasLiveReceipts,
           )
         else
           for (var i = 0; i < filteredRows.length; i++) ...[
@@ -5142,6 +7862,135 @@ class _ClientIntelligenceReportsPageState
           ],
       ],
     );
+  }
+
+  Widget _filteredReceiptEmptyState({
+    required List<_ReceiptRow> rows,
+    required bool hasLiveReceipts,
+  }) {
+    final availableCount = rows.length;
+    final recoveryFilters = _receiptHistoryRecoveryFilters(rows);
+    final receiptLabel =
+        '${hasLiveReceipts ? 'live' : 'sample'} receipt${availableCount == 1 ? '' : 's'}';
+    final focusLabel = recoveryFilters.isEmpty
+        ? null
+        : recoveryFilters.first.label.toLowerCase();
+    final detail = focusLabel == null
+        ? '$availableCount $receiptLabel are still available in this scoped reports lane. Reset the receipt filter to recover the preview and delivery handoff.'
+        : '$availableCount $receiptLabel are still available in this scoped reports lane. Reset the filter or pivot straight into $focusLabel to keep the preview and delivery handoff moving.';
+
+    return Container(
+      key: const ValueKey('reports-history-empty-state'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _receiptFilter.bannerBackgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _receiptFilter.bannerBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No receipts fit the current filter right now.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF1FB),
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9DB1CF),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.tonalIcon(
+                key: const ValueKey('reports-history-empty-open-all'),
+                onPressed: () =>
+                    setReportReceiptFilter(ReportReceiptSceneFilter.all),
+                icon: const Icon(Icons.reorder_rounded, size: 18),
+                label: const Text('All Receipts'),
+              ),
+              for (final filter in recoveryFilters.take(2))
+                OutlinedButton.icon(
+                  key: ValueKey<String>(
+                    'reports-history-empty-open-${filter.name}',
+                  ),
+                  onPressed: () => setReportReceiptFilter(filter),
+                  icon: Icon(_receiptFilterIcon(filter), size: 18),
+                  label: Text(filter.label),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<ReportReceiptSceneFilter> _receiptHistoryRecoveryFilters(
+    List<_ReceiptRow> rows,
+  ) {
+    const candidates = [
+      ReportReceiptSceneFilter.reviewed,
+      ReportReceiptSceneFilter.alerts,
+      ReportReceiptSceneFilter.repeat,
+      ReportReceiptSceneFilter.escalation,
+      ReportReceiptSceneFilter.suppressed,
+      ReportReceiptSceneFilter.pending,
+    ];
+    final scored =
+        <({ReportReceiptSceneFilter filter, int count, int order})>[];
+    for (var index = 0; index < candidates.length; index++) {
+      final filter = candidates[index];
+      if (filter == _receiptFilter) {
+        continue;
+      }
+      final count = _receiptCountForFilter(rows, filter);
+      if (count > 0) {
+        scored.add((filter: filter, count: count, order: index));
+      }
+    }
+    scored.sort((a, b) {
+      final countCompare = b.count.compareTo(a.count);
+      if (countCompare != 0) {
+        return countCompare;
+      }
+      return a.order.compareTo(b.order);
+    });
+    return scored.map((entry) => entry.filter).toList();
+  }
+
+  int _receiptCountForFilter(
+    List<_ReceiptRow> rows,
+    ReportReceiptSceneFilter filter,
+  ) {
+    return rows.where((row) => filter.matches(row.sceneReviewSummary)).length;
+  }
+
+  IconData _receiptFilterIcon(ReportReceiptSceneFilter filter) {
+    return switch (filter) {
+      ReportReceiptSceneFilter.all => Icons.reorder_rounded,
+      ReportReceiptSceneFilter.alerts ||
+      ReportReceiptSceneFilter.latestAlerts => Icons.warning_amber_rounded,
+      ReportReceiptSceneFilter.repeat ||
+      ReportReceiptSceneFilter.latestRepeat => Icons.autorenew_rounded,
+      ReportReceiptSceneFilter.escalation ||
+      ReportReceiptSceneFilter.latestEscalation => Icons.north_rounded,
+      ReportReceiptSceneFilter.suppressed ||
+      ReportReceiptSceneFilter.latestSuppressed => Icons.visibility_off_rounded,
+      ReportReceiptSceneFilter.reviewed => Icons.fact_check_rounded,
+      ReportReceiptSceneFilter.pending => Icons.pending_actions_rounded,
+    };
   }
 
   Widget _generationLane({
@@ -5970,6 +8819,40 @@ class _ClientIntelligenceReportsPageState
       return filteredRows.first;
     }
     return null;
+  }
+
+  _ReceiptRow? _receiptWorkspaceRecoveryTarget(
+    List<_ReceiptRow> rows, {
+    required ReportReceiptSceneFilter filter,
+  }) {
+    final scopedRows = filter == ReportReceiptSceneFilter.all
+        ? rows
+        : rows
+              .where((row) => filter.matches(row.sceneReviewSummary))
+              .toList(growable: false);
+    if (scopedRows.isEmpty) {
+      return null;
+    }
+    return _targetReceiptByEventId(scopedRows, _previewReceiptEventId) ??
+        _targetReceiptByEventId(scopedRows, _selectedReceiptEventId) ??
+        scopedRows.first;
+  }
+
+  void _recoverReceiptWorkspace(
+    List<_ReceiptRow> rows, {
+    required ReportReceiptSceneFilter filter,
+  }) {
+    final target = _receiptWorkspaceRecoveryTarget(rows, filter: filter);
+    if (target == null) {
+      return;
+    }
+    setReportReceiptFilter(filter);
+    focusReportReceiptWorkspace(target.event.eventId);
+    _showReceiptActionFeedback(
+      filter == ReportReceiptSceneFilter.all
+          ? 'Receipt lane recovered around ${target.event.eventId}.'
+          : '${filter.label} lane opened around ${target.event.eventId}.',
+    );
   }
 
   Widget _previewTargetBanner({
@@ -7062,7 +9945,8 @@ class _ClientIntelligenceReportsPageState
         unknownVehicleSignals: 0,
         longPresenceSignals: 0,
         guardInteractionSignals: 0,
-        summaryLine: 'No visitor or site-activity signals landed in this window.',
+        summaryLine:
+            'No visitor or site-activity signals landed in this window.',
       );
     }
     DateTime? startUtc;
@@ -7684,7 +10568,28 @@ class _ClientIntelligenceReportsPageState
     return parts.join(' • ');
   }
 
-  void _showReceiptActionFeedback(String message) {
+  void _showReceiptActionFeedback(
+    String message, {
+    String label = 'REPORTS ACTION',
+    String? detail,
+    Color accent = const Color(0xFF8FD1FF),
+  }) {
+    if (!mounted) {
+      return;
+    }
+    if (_desktopWorkspaceActive) {
+      setState(() {
+        _commandReceipt = _ReportsCommandReceipt(
+          label: label,
+          message: message,
+          detail:
+              detail ??
+              'The latest reports command remains pinned in the delivery rail while you continue working the receipt lane.',
+          accent: accent,
+        );
+      });
+      return;
+    }
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (messenger == null) {
       return;

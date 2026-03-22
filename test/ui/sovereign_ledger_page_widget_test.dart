@@ -59,7 +59,9 @@ void main() {
 
     expect(find.text('Sovereign Ledger'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('ledger-hero-view-events-button')));
+    await tester.tap(
+      find.byKey(const ValueKey('ledger-hero-view-events-button')),
+    );
     await tester.pumpAndSettle();
 
     expect(openedEventIds, equals(const ['INT-LEDGER-HERO-1']));
@@ -142,17 +144,32 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final exportLedger = find.text('EXPORT LEDGER').first;
-    await tester.ensureVisible(exportLedger);
+    expect(
+      find.byKey(const ValueKey('ledger-workspace-command-receipt')),
+      findsOneWidget,
+    );
+
+    final exportLedger = find.byKey(
+      const ValueKey('ledger-context-export-ledger'),
+    );
+    await tester.dragUntilVisible(
+      exportLedger,
+      find.byType(Scrollable).first,
+      const Offset(0, -400),
+    );
     await tester.tap(exportLedger);
     await tester.pump();
     expect(find.textContaining('Ledger export copied'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
 
-    final exportEntryData = find.text('EXPORT ENTRY DATA').first;
+    final exportEntryData = find.byKey(
+      const ValueKey('ledger-entry-export-data'),
+    );
     await tester.ensureVisible(exportEntryData);
-    await tester.tap(exportEntryData, warnIfMissed: false);
+    await tester.tap(exportEntryData);
     await tester.pump();
     expect(find.textContaining('Entry export copied'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
     expect(copiedClipboardPayload, contains('"sceneReview"'));
     expect(
       copiedClipboardPayload,
@@ -163,9 +180,11 @@ void main() {
       contains('Person visible near the boundary line.'),
     );
 
-    final viewInEventReview = find.text('VIEW IN EVENT REVIEW').first;
+    final viewInEventReview = find.byKey(
+      const ValueKey('ledger-entry-view-event-review'),
+    );
     await tester.ensureVisible(viewInEventReview);
-    await tester.tap(viewInEventReview, warnIfMissed: false);
+    await tester.tap(viewInEventReview);
     await tester.pump();
     expect(openedEventIds, <String>['INT-LEDGER-1']);
     expect(openedSelectedEventId, 'INT-LEDGER-1');
@@ -173,6 +192,128 @@ void main() {
     expect(find.text('openai:gpt-4.1-mini'), findsOneWidget);
     expect(find.text('Escalation Candidate'), findsOneWidget);
     expect(find.textContaining('Escalated for urgent review'), findsOneWidget);
+  });
+
+  testWidgets('sovereign ledger switches lanes and workspace views', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1100));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final events = <DispatchEvent>[
+      IntelligenceReceived(
+        eventId: 'INT-LEDGER-OPS-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 6, 30),
+        intelligenceId: 'INTEL-LEDGER-OPS-1',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-ops-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+        headline: 'Perimeter anomaly',
+        summary: 'Movement detected near the north boundary.',
+        riskScore: 82,
+        canonicalHash: 'hash-ops-1',
+      ),
+      buildTestReportGenerated(
+        eventId: 'RPT-LEDGER-OPS-1',
+        sequence: 2,
+        occurredAt: DateTime.utc(2026, 3, 15, 7, 0),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        month: '2026-03',
+        reportSchemaVersion: 3,
+      ),
+      DecisionCreated(
+        eventId: 'DEC-LEDGER-OPS-1',
+        sequence: 3,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 15, 7, 30),
+        dispatchId: 'DSP-LEDGER-OPS-1',
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(1440, 1100)),
+          child: SovereignLedgerPage(clientId: 'CLIENT-001', events: events),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('ledger-workspace-status-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('ledger-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('ledger-workspace-panel-case-file')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('ledger-workspace-banner-open-reports')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('ledger-entry-card-LED-2')),
+      findsOneWidget,
+    );
+    expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('ledger-workspace-banner-open-chain')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('ledger-workspace-panel-chain')),
+      findsOneWidget,
+    );
+    expect(find.text('CHAIN STATUS'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('ledger-workspace-banner-verify-chain')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('INTACT'), findsWidgets);
+    expect(find.text('Chain verification returned intact.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey('ledger-workspace-banner-open-case-file')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('ledger-workspace-banner-open-attention')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('ledger-entry-card-LED-3')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('ledger-workspace-panel-case-file')),
+      findsOneWidget,
+    );
+    expect(find.text('REPORT CONFIGURATION'), findsNothing);
+    expect(
+      find.textContaining('dispatch DSP-LEDGER-OPS-1 created'),
+      findsWidgets,
+    );
   });
 
   testWidgets(
@@ -337,7 +478,10 @@ void main() {
     expect(find.text('CLIENT-001/SITE-VALLEE'), findsOneWidget);
     expect(find.text('Vallee gate alert'), findsWidgets);
     expect(find.text('Sandton boundary alert'), findsNothing);
-    expect(find.textContaining('Focus LINKED • INTEL-LEDGER-SCOPE-2'), findsOneWidget);
+    expect(
+      find.textContaining('Focus LINKED • INTEL-LEDGER-SCOPE-2'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

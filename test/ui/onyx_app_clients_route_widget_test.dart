@@ -8,6 +8,7 @@ import 'package:omnix_dashboard/application/dvr_scope_config.dart';
 import 'package:omnix_dashboard/application/monitoring_shift_schedule_service.dart';
 import 'package:omnix_dashboard/application/monitoring_shift_scope_config.dart';
 import 'package:omnix_dashboard/application/sms_delivery_service.dart';
+import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/application/telegram_bridge_service.dart';
@@ -179,8 +180,9 @@ void main() {
           matching: find.byType(InkWell),
         )
         .first;
-    await tester.ensureVisible(incidentResolvedRow);
-    await tester.tap(incidentResolvedRow);
+    final incidentInkWell = tester.widget<InkWell>(incidentResolvedRow);
+    expect(incidentInkWell.onTap, isNotNull);
+    incidentInkWell.onTap!.call();
     await tester.pumpAndSettle();
 
     expect(openedEventIds, <String>['CLOSE-4']);
@@ -374,9 +376,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(
+    final retryAction = tester.widget<InkWell>(
       find.byKey(const ValueKey('clients-retry-push-sync-action')),
     );
+    expect(retryAction.onTap, isNotNull);
+    retryAction.onTap!.call();
     await tester.pumpAndSettle();
 
     expect(retryTriggeredCount, 1);
@@ -407,9 +411,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(
+      final retryAction = tester.widget<InkWell>(
         find.byKey(const ValueKey('clients-retry-push-sync-action')),
       );
+      expect(retryAction.onTap, isNotNull);
+      retryAction.onTap!.call();
       await tester.pumpAndSettle();
 
       await pumpAdminRouteApp(
@@ -1004,12 +1010,19 @@ void main() {
           initialClientLaneClientIdOverride: 'CLIENT-MS-VALLEE',
           initialClientLaneSiteIdOverride: 'WTF-MAIN',
           appModeOverride: OnyxAppMode.client,
+          initialStoreEventsOverride: <DispatchEvent>[
+            _waterfallDispatchDecision(
+              dispatchId: 'DISP-WTF-ACK-1',
+              occurredAt: DateTime.utc(2026, 3, 19, 6, 44),
+            ),
+          ],
         ),
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Client Ack').first);
-      await tester.tap(find.text('Client Ack').first);
+      final clientAckAction = find.widgetWithText(TextButton, 'Client Ack');
+      await tester.ensureVisible(clientAckAction.first);
+      await tester.tap(clientAckAction.first);
       await tester.pumpAndSettle();
 
       await tester.pumpWidget(
@@ -1231,6 +1244,12 @@ void main() {
         key: const ValueKey('clients-offscope-learn-review-app'),
         clientId: 'CLIENT-MS-VALLEE',
         siteId: 'WTF-MAIN',
+        initialStoreEventsOverride: <DispatchEvent>[
+          _waterfallDispatchDecision(
+            dispatchId: 'DISP-WTF-LEARN-1',
+            occurredAt: DateTime.utc(2026, 3, 19, 6, 41),
+          ),
+        ],
       );
 
       final reviewButton = find.textContaining(
@@ -1615,5 +1634,21 @@ IntelligenceReceived _intel({
     riskScore: 68,
     snapshotUrl: null,
     canonicalHash: 'hash-$intelligenceId',
+  );
+}
+
+DecisionCreated _waterfallDispatchDecision({
+  required String dispatchId,
+  required DateTime occurredAt,
+}) {
+  return DecisionCreated(
+    eventId: 'evt-$dispatchId',
+    sequence: 1,
+    version: 1,
+    occurredAt: occurredAt,
+    dispatchId: dispatchId,
+    clientId: 'CLIENT-MS-VALLEE',
+    regionId: 'REGION-GAUTENG',
+    siteId: 'WTF-MAIN',
   );
 }

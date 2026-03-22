@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/domain/guard/guard_ops_event.dart';
@@ -6,6 +7,28 @@ import 'package:omnix_dashboard/domain/guard/guard_mobile_ops.dart';
 import 'package:omnix_dashboard/domain/guard/outcome_label_governance.dart';
 import 'package:omnix_dashboard/domain/guard/guard_sync_coaching_policy.dart';
 import 'package:omnix_dashboard/ui/guard_mobile_shell_page.dart';
+
+void _mockClipboard(
+  WidgetTester tester, {
+  void Function(String? text)? onCopy,
+}) {
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      if (call.method == 'Clipboard.setData') {
+        final args = call.arguments as Map<dynamic, dynamic>;
+        onCopy?.call(args['text'] as String?);
+      }
+      return null;
+    },
+  );
+  addTearDown(
+    () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    ),
+  );
+}
 
 void main() {
   testWidgets('guard mobile shell stays stable on phone viewport', (
@@ -272,9 +295,166 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('guard mobile shell exposes workspace rail actions', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    GuardSyncHistoryFilter? lastHistoryFilter;
+    String? lastSelectedOperationId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardMobileShellPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          guardId: 'GUARD-001',
+          syncBackendEnabled: true,
+          queueDepth: 2,
+          pendingEventCount: 1,
+          pendingMediaCount: 1,
+          failedEventCount: 1,
+          failedMediaCount: 0,
+          recentEvents: const [],
+          recentMedia: const [],
+          syncInFlight: false,
+          syncStatusLabel: 'Sync idle',
+          coachingPrompt: const GuardCoachingPrompt(
+            ruleId: 'workspace_shell',
+            headline: 'Workspace Shell',
+            message: 'Exercise the new rail and context actions.',
+            priority: GuardCoachingPriority.low,
+          ),
+          coachingPolicy: const GuardSyncCoachingPolicy(),
+          queuedOperations: [
+            GuardSyncOperation(
+              operationId: 'status:1',
+              type: GuardSyncOperationType.statusUpdate,
+              createdAt: DateTime.utc(2026, 3, 5, 10, 0),
+              payload: const {
+                'status': 'enRoute',
+                'onyx_runtime_context': {
+                  'telemetry_adapter_label': 'native_sdk:fsk_sdk',
+                  'telemetry_facade_id': 'fsk_live',
+                  'telemetry_facade_live_mode': true,
+                  'telemetry_facade_toggle_source': 'build_config',
+                },
+              },
+            ),
+          ],
+          historyFilter: GuardSyncHistoryFilter.queued,
+          onHistoryFilterChanged: (filter) async {
+            lastHistoryFilter = filter;
+          },
+          operationModeFilter: GuardSyncOperationModeFilter.all,
+          onOperationModeFilterChanged: (_) async {},
+          availableFacadeIds: const ['fsk_live'],
+          onFacadeIdFilterChanged: (_) async {},
+          onSelectedOperationChanged: (operationId) async {
+            lastSelectedOperationId = operationId;
+          },
+          onShiftStartQueued: () async {},
+          onShiftEndQueued: () async {},
+          onStatusQueued: (_) async {},
+          onCheckpointQueued:
+              ({required checkpointId, required nfcTagId}) async {},
+          onPatrolImageQueued: ({required checkpointId}) async {},
+          onPanicQueued: () async {},
+          onWearableHeartbeatQueued: () async {},
+          onDeviceHealthQueued: () async {},
+          onOutcomeLabeled:
+              ({
+                required outcomeLabel,
+                required confidence,
+                required confirmedBy,
+              }) async {},
+          outcomeGovernancePolicy: OutcomeLabelGovernancePolicy.defaultPolicy(),
+          onClearQueue: () async {},
+          onSyncNow: () async {},
+          onRetryFailedEvents: () async {},
+          onRetryFailedMedia: () async {},
+          onRetryFailedOperation: (_) async {},
+          onRetryFailedOperationsBulk: (_) async {},
+          onDispatchCloseoutPacketCopied:
+              ({
+                required generatedAtUtc,
+                required scopeKey,
+                required facadeMode,
+                required readinessState,
+              }) async {},
+          onProbeTelemetryProvider: () async {},
+          onAcknowledgeCoachingPrompt:
+              ({required ruleId, required context}) async {},
+          onSnoozeCoachingPrompt:
+              ({
+                required ruleId,
+                required context,
+                required minutes,
+                required actorRole,
+              }) async {},
+          lastSuccessfulSyncAtUtc: DateTime.utc(2026, 3, 5, 9, 55),
+          lastFailureReason: 'network timeout',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('guard-workspace-rail')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('guard-workspace-context')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('guard-sync-operations-list')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('guard-screen-card-sync')),
+    );
+    await tester.tap(find.byKey(const ValueKey('guard-screen-card-sync')));
+    await tester.pumpAndSettle();
+    expect(find.text('Sync Status'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('guard-workspace-focus-dispatch')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('guard-workspace-focus-dispatch')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Dispatch Inbox'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('guard-workspace-focus-failed')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('guard-workspace-focus-failed')),
+    );
+    await tester.pumpAndSettle();
+    expect(lastHistoryFilter, GuardSyncHistoryFilter.failed);
+    expect(find.text('Sync Status'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('guard-history-operation-status:1')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('guard-history-operation-status:1')),
+    );
+    await tester.pumpAndSettle();
+    expect(lastSelectedOperationId, 'status:1');
+    expect(
+      find.byKey(const ValueKey('guard-sync-operation-detail')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('guard mobile shell routes actions into callbacks', (
     tester,
   ) async {
+    _mockClipboard(tester);
+
     await tester.binding.setSurfaceSize(const Size(1600, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -745,6 +925,7 @@ void main() {
     await tester.ensureVisible(copySyncReportButton);
     await tester.tap(copySyncReportButton);
     await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsNothing);
     expect(find.text('Copy Export Audit Timeline'), findsOneWidget);
     await tester.ensureVisible(find.text('Copy Export Audit Timeline'));
     await tester.tap(find.text('Copy Export Audit Timeline'));
@@ -758,6 +939,7 @@ void main() {
     await tester.tap(find.text('Dispatch Closeout Packet'));
     await tester.pumpAndSettle();
     expect(find.text('Clear Export Audits'), findsOneWidget);
+    await tester.ensureVisible(find.text('Clear Export Audits'));
     await tester.tap(find.text('Clear Export Audits'));
     await tester.pumpAndSettle();
     expect(clearExportAuditsCount, 1);
@@ -835,6 +1017,105 @@ void main() {
       findsOneWidget,
     );
     expect(retryFailedOperationCount, 0);
+  });
+
+  testWidgets('guard mobile shell pins sync copy feedback in-page', (
+    tester,
+  ) async {
+    String? copiedSyncReport;
+    _mockClipboard(tester, onCopy: (text) => copiedSyncReport = text);
+
+    await tester.binding.setSurfaceSize(const Size(1600, 2000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GuardMobileShellPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          guardId: 'GUARD-001',
+          syncBackendEnabled: true,
+          queueDepth: 0,
+          pendingEventCount: 0,
+          pendingMediaCount: 0,
+          failedEventCount: 0,
+          failedMediaCount: 0,
+          recentEvents: const [],
+          recentMedia: const [],
+          syncInFlight: false,
+          syncStatusLabel: 'Sync idle',
+          lastSuccessfulSyncAtUtc: null,
+          lastFailureReason: null,
+          coachingPrompt: const GuardCoachingPrompt(
+            ruleId: 'sync_copy_feedback',
+            headline: 'Sync Copy',
+            message: 'Verify in-page copy feedback.',
+            priority: GuardCoachingPriority.low,
+          ),
+          coachingPolicy: const GuardSyncCoachingPolicy(),
+          queuedOperations: const [],
+          historyFilter: GuardSyncHistoryFilter.queued,
+          onHistoryFilterChanged: (_) async {},
+          operationModeFilter: GuardSyncOperationModeFilter.all,
+          onOperationModeFilterChanged: (_) async {},
+          onFacadeIdFilterChanged: (_) async {},
+          onSelectedOperationChanged: (_) async {},
+          initialScreen: GuardMobileInitialScreen.sync,
+          onShiftStartQueued: () async {},
+          onShiftEndQueued: () async {},
+          onStatusQueued: (_) async {},
+          onCheckpointQueued:
+              ({required checkpointId, required nfcTagId}) async {},
+          onPatrolImageQueued: ({required checkpointId}) async {},
+          onPanicQueued: () async {},
+          onWearableHeartbeatQueued: () async {},
+          onDeviceHealthQueued: () async {},
+          onOutcomeLabeled:
+              ({
+                required outcomeLabel,
+                required confidence,
+                required confirmedBy,
+              }) async {},
+          outcomeGovernancePolicy: OutcomeLabelGovernancePolicy.defaultPolicy(),
+          onClearQueue: () async {},
+          onSyncNow: () async {},
+          onRetryFailedEvents: () async {},
+          onRetryFailedMedia: () async {},
+          onRetryFailedOperation: (_) async {},
+          onRetryFailedOperationsBulk: (_) async {},
+          onDispatchCloseoutPacketCopied:
+              ({
+                required generatedAtUtc,
+                required scopeKey,
+                required facadeMode,
+                required readinessState,
+              }) async {},
+          onProbeTelemetryProvider: () async {},
+          onAcknowledgeCoachingPrompt:
+              ({required ruleId, required context}) async {},
+          onSnoozeCoachingPrompt:
+              ({
+                required ruleId,
+                required context,
+                required minutes,
+                required actorRole,
+              }) async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final copySyncReportButton = find.widgetWithText(
+      FilledButton,
+      'Copy Sync Report',
+    );
+    await tester.ensureVisible(copySyncReportButton);
+    await tester.tap(copySyncReportButton);
+    await tester.pumpAndSettle();
+
+    expect(copiedSyncReport, isNotNull);
+    expect(find.textContaining('Sync report copied'), findsWidgets);
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('guard app role modes gate screen flow chips', (tester) async {

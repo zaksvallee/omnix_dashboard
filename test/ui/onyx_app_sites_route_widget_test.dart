@@ -50,7 +50,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AdministrationPage), findsOneWidget);
-    expect(find.text('Administration Console'), findsOneWidget);
+    expect(find.text('Administration'), findsOneWidget);
     expect(find.text('Sites'), findsWidgets);
   });
 
@@ -98,7 +98,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(AdministrationPage), findsOneWidget);
-    expect(find.text('Administration Console'), findsOneWidget);
+    expect(find.text('Administration'), findsOneWidget);
     expect(find.text('Sites'), findsWidgets);
   });
 }

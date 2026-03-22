@@ -1,0 +1,413 @@
+/* ONYX SOVEREIGN - Government/Defense Variant */
+/* NATO Standards, Maximum Density, Zero Ambiguity */
+
+:root {
+  /* NATO/MIL-STD Color Standards */
+  --sovereign-critical: #C41E3A;      /* NATO Red */
+  --sovereign-warning: #FF8C00;        /* NATO Amber */
+  --sovereign-normal: #00A86B;         /* NATO Green */
+  --sovereign-info: #0066CC;           /* NATO Blue */
+  
+  /* High-contrast backgrounds (true black for night ops) */
+  --sovereign-bg-base: #000000;
+  --sovereign-bg-surface: #0A0A0A;
+  --sovereign-bg-elevated: #121212;
+  --sovereign-bg-row-even: #0A0A0A;
+  --sovereign-bg-row-odd: #0F0F0F;
+  --sovereign-bg-header: #1A1A1A;
+  
+  /* Borders - high contrast */
+  --sovereign-border: #333333;
+  --sovereign-border-emphasis: #555555;
+  --sovereign-border-critical: var(--sovereign-critical);
+  --sovereign-border-warning: var(--sovereign-warning);
+  --sovereign-border-normal: var(--sovereign-normal);
+  
+  /* Text - maximum contrast */
+  --sovereign-text-primary: #FFFFFF;
+  --sovereign-text-secondary: #CCCCCC;
+  --sovereign-text-tertiary: #999999;
+  --sovereign-text-disabled: #666666;
+  --sovereign-text-mono: #00FF00;     /* Terminal green for monospace */
+  
+  /* Status backgrounds (subtle, for dark mode) */
+  --sovereign-critical-bg: #1A0A0A;
+  --sovereign-warning-bg: #1A1200;
+  --sovereign-normal-bg: #0A1A0A;
+  --sovereign-info-bg: #0A0F1A;
+  
+  /* Density settings */
+  --sovereign-spacing-xs: 2px;
+  --sovereign-spacing-sm: 4px;
+  --sovereign-spacing-md: 6px;
+  --sovereign-spacing-lg: 8px;
+  --sovereign-spacing-xl: 12px;
+  
+  /* Typography - monospace for all data */
+  --sovereign-font-mono: 'SF Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+  --sovereign-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  
+  /* Table settings */
+  --sovereign-row-height: 28px;
+  --sovereign-header-height: 32px;
+  --sovereign-cell-padding: 6px 8px;
+}
+
+/* Sovereign Mode Override */
+.sovereign {
+  background: var(--sovereign-bg-base);
+  color: var(--sovereign-text-primary);
+  font-family: var(--sovereign-font-sans);
+}
+
+/* Status Bar - Full Width, Color-Coded */
+.sovereign-status-bar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-family: var(--sovereign-font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--sovereign-border);
+}
+
+.sovereign-status-bar.critical {
+  background: var(--sovereign-critical);
+  color: #FFFFFF;
+  border-color: var(--sovereign-critical);
+}
+
+.sovereign-status-bar.warning {
+  background: var(--sovereign-warning);
+  color: #000000;
+  border-color: var(--sovereign-warning);
+}
+
+.sovereign-status-bar.normal {
+  background: var(--sovereign-normal);
+  color: #000000;
+  border-color: var(--sovereign-normal);
+}
+
+/* Dense Table Layout */
+.sovereign-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--sovereign-font-mono);
+  font-size: 12px;
+}
+
+.sovereign-table thead {
+  background: var(--sovereign-bg-header);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.sovereign-table th {
+  height: var(--sovereign-header-height);
+  padding: var(--sovereign-cell-padding);
+  text-align: left;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid var(--sovereign-border);
+  color: var(--sovereign-text-primary);
+  font-size: 11px;
+}
+
+.sovereign-table td {
+  height: var(--sovereign-row-height);
+  padding: var(--sovereign-cell-padding);
+  border: 1px solid var(--sovereign-border);
+  color: var(--sovereign-text-secondary);
+}
+
+.sovereign-table tbody tr:nth-child(even) {
+  background: var(--sovereign-bg-row-even);
+}
+
+.sovereign-table tbody tr:nth-child(odd) {
+  background: var(--sovereign-bg-row-odd);
+}
+
+.sovereign-table tbody tr:hover {
+  background: var(--sovereign-bg-elevated);
+  outline: 1px solid var(--sovereign-border-emphasis);
+}
+
+.sovereign-table tbody tr.selected {
+  background: var(--sovereign-info-bg);
+  outline: 2px solid var(--sovereign-info);
+}
+
+/* Status Cells - Redundant Encoding (Symbol + Color + Text) */
+.sovereign-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.sovereign-status.critical {
+  color: var(--sovereign-critical);
+}
+
+.sovereign-status.warning {
+  color: var(--sovereign-warning);
+}
+
+.sovereign-status.normal {
+  color: var(--sovereign-normal);
+}
+
+.sovereign-status.info {
+  color: var(--sovereign-info);
+}
+
+/* Status Symbols */
+.sovereign-symbol {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* Control Bar */
+.sovereign-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--sovereign-bg-surface);
+  border-bottom: 1px solid var(--sovereign-border);
+  font-family: var(--sovereign-font-mono);
+  font-size: 11px;
+}
+
+/* Buttons - Minimal, High Contrast */
+.sovereign-btn {
+  padding: 4px 12px;
+  font-family: var(--sovereign-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--sovereign-bg-elevated);
+  color: var(--sovereign-text-primary);
+  border: 1px solid var(--sovereign-border);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.sovereign-btn:hover {
+  background: var(--sovereign-bg-header);
+  border-color: var(--sovereign-border-emphasis);
+}
+
+.sovereign-btn:active {
+  background: var(--sovereign-border);
+}
+
+.sovereign-btn.active {
+  background: var(--sovereign-info);
+  color: #FFFFFF;
+  border-color: var(--sovereign-info);
+}
+
+.sovereign-btn.critical {
+  background: var(--sovereign-critical);
+  color: #FFFFFF;
+  border-color: var(--sovereign-critical);
+}
+
+/* Data Grid - Maximum Density */
+.sovereign-grid {
+  display: grid;
+  gap: 1px;
+  background: var(--sovereign-border);
+  font-family: var(--sovereign-font-mono);
+  font-size: 11px;
+}
+
+.sovereign-grid-cell {
+  background: var(--sovereign-bg-surface);
+  padding: 4px 8px;
+  color: var(--sovereign-text-secondary);
+}
+
+.sovereign-grid-header {
+  background: var(--sovereign-bg-header);
+  padding: 4px 8px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--sovereign-text-primary);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+/* Monospace Data Display */
+.sovereign-mono {
+  font-family: var(--sovereign-font-mono);
+  font-size: 12px;
+  letter-spacing: -0.5px;
+  tabular-nums: tabular-nums;
+}
+
+/* Flash on Update */
+@keyframes sovereign-flash {
+  0% { background: var(--sovereign-warning); }
+  100% { background: transparent; }
+}
+
+.sovereign-flash {
+  animation: sovereign-flash 0.5s ease-out;
+}
+
+/* NATO Symbology */
+.sovereign-symbol-friendly { color: #3D8FFF; }
+.sovereign-symbol-hostile { color: #C41E3A; }
+.sovereign-symbol-neutral { color: #00A86B; }
+.sovereign-symbol-unknown { color: #FF8C00; }
+
+/* Accessibility - Works in Red Lighting */
+.sovereign-red-compatible {
+  filter: grayscale(100%) brightness(0.8);
+}
+
+/* High-Density Info Cards */
+.sovereign-card {
+  background: var(--sovereign-bg-surface);
+  border: 1px solid var(--sovereign-border);
+  padding: 8px;
+}
+
+.sovereign-card-header {
+  font-family: var(--sovereign-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--sovereign-text-tertiary);
+  margin-bottom: 4px;
+}
+
+.sovereign-card-value {
+  font-family: var(--sovereign-font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--sovereign-text-primary);
+  tabular-nums: tabular-nums;
+}
+
+/* Metric Display */
+.sovereign-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sovereign-metric-label {
+  font-family: var(--sovereign-font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--sovereign-text-tertiary);
+  letter-spacing: 0.5px;
+}
+
+.sovereign-metric-value {
+  font-family: var(--sovereign-font-mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sovereign-text-primary);
+  tabular-nums: tabular-nums;
+}
+
+/* Detail Panel (Right Sidebar) */
+.sovereign-detail-panel {
+  background: var(--sovereign-bg-surface);
+  border-left: 2px solid var(--sovereign-border);
+  padding: 12px;
+  font-family: var(--sovereign-font-mono);
+  font-size: 11px;
+}
+
+/* Action Bar (Bottom) */
+.sovereign-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--sovereign-bg-surface);
+  border-top: 2px solid var(--sovereign-border);
+  font-family: var(--sovereign-font-mono);
+  font-size: 11px;
+}
+
+/* Indicator Lights */
+.sovereign-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.sovereign-indicator.critical {
+  background: var(--sovereign-critical);
+  box-shadow: 0 0 8px var(--sovereign-critical);
+}
+
+.sovereign-indicator.warning {
+  background: var(--sovereign-warning);
+  box-shadow: 0 0 8px var(--sovereign-warning);
+}
+
+.sovereign-indicator.normal {
+  background: var(--sovereign-normal);
+  box-shadow: 0 0 8px var(--sovereign-normal);
+}
+
+.sovereign-indicator.info {
+  background: var(--sovereign-info);
+  box-shadow: 0 0 8px var(--sovereign-info);
+}
+
+/* Page Layout */
+.sovereign-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--sovereign-bg-base);
+}
+
+.sovereign-content {
+  flex: 1;
+  overflow: auto;
+  background: var(--sovereign-bg-base);
+}
+
+/* Scrollbar Styling */
+.sovereign ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.sovereign ::-webkit-scrollbar-track {
+  background: var(--sovereign-bg-base);
+}
+
+.sovereign ::-webkit-scrollbar-thumb {
+  background: var(--sovereign-border);
+  border: 2px solid var(--sovereign-bg-base);
+}
+
+.sovereign ::-webkit-scrollbar-thumb:hover {
+  background: var(--sovereign-border-emphasis);
+}

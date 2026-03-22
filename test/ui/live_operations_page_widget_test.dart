@@ -78,6 +78,671 @@ void main() {
     expect(find.text('SITES UNDER WATCH'), findsOneWidget);
   });
 
+  testWidgets('live operations command overview cards pivot workspace state', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final now = DateTime.now().toUtc();
+    String? openedClientId;
+    String? openedSiteId;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          focusIncidentReference: 'INC-DSP-LOW',
+          clientCommsSnapshot: const LiveClientCommsSnapshot(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-CRIT',
+          ),
+          onOpenClientViewForScope: (clientId, siteId) {
+            openedClientId = clientId;
+            openedSiteId = siteId;
+          },
+          events: [
+            DecisionCreated(
+              eventId: 'decision-low-overview',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 4)),
+              dispatchId: 'DSP-LOW',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-LOW',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-low-overview',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              intelligenceId: 'INTEL-LOW',
+              sourceType: 'hardware',
+              provider: 'dahua',
+              externalId: 'evt-low-overview',
+              riskScore: 72,
+              headline: 'Perimeter motion',
+              summary: 'Moderate perimeter motion detected.',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-LOW',
+              faceConfidence: 0.82,
+              canonicalHash: 'canon-low-overview',
+            ),
+            DecisionCreated(
+              eventId: 'decision-critical-overview',
+              sequence: 3,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              dispatchId: 'DSP-CRIT',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-CRIT',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-critical-overview',
+              sequence: 4,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 1)),
+              intelligenceId: 'INTEL-CRIT',
+              sourceType: 'hardware',
+              provider: 'dahua',
+              externalId: 'evt-crit-overview',
+              riskScore: 92,
+              headline: 'Fire alarm escalation',
+              summary: 'Critical hazard posture detected.',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-CRIT',
+              faceConfidence: 0.97,
+              canonicalHash: 'canon-crit-overview',
+              snapshotUrl: 'https://edge.example.com/crit.jpg',
+              clipUrl: 'https://edge.example.com/crit.mp4',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Active Incident: INC-DSP-LOW'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('live-operations-command-card-active-incidents'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Active Incident: INC-DSP-CRIT'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-command-card-active-lanes')),
+    );
+    await tester.pumpAndSettle();
+    expect(openedClientId, 'CLIENT-001');
+    expect(openedSiteId, 'SITE-CRIT');
+  });
+
+  testWidgets(
+    'live operations command overview recovers missing queue and lane handoffs in place',
+    (tester) async {
+      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            focusIncidentReference: 'INC-DSP-LOW',
+            clientCommsSnapshot: const LiveClientCommsSnapshot(
+              clientId: 'CLIENT-001',
+              siteId: 'SITE-CRIT',
+            ),
+            events: [
+              DecisionCreated(
+                eventId: 'decision-low-recovery',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 4)),
+                dispatchId: 'DSP-LOW',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-LOW',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-low-recovery',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                intelligenceId: 'INTEL-LOW',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-low-recovery',
+                riskScore: 72,
+                headline: 'Perimeter motion',
+                summary: 'Moderate perimeter motion detected.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-LOW',
+                faceConfidence: 0.82,
+                canonicalHash: 'canon-low-recovery',
+              ),
+              DecisionCreated(
+                eventId: 'decision-critical-recovery',
+                sequence: 3,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-CRIT',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-CRIT',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-critical-recovery',
+                sequence: 4,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-CRIT',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-crit-recovery',
+                riskScore: 92,
+                headline: 'Fire alarm escalation',
+                summary: 'Critical hazard posture detected.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-CRIT',
+                faceConfidence: 0.97,
+                canonicalHash: 'canon-crit-recovery',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Control inbox sync offline'), findsOneWidget);
+      expect(find.text('Active Incident: INC-DSP-LOW'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('live-operations-command-card-pending-actions'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Active Incident: INC-DSP-CRIT'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('live-operations-command-receipt')),
+        findsOneWidget,
+      );
+      expect(find.text('Pending actions recovery opened.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-command-card-active-lanes')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('VoIP Call Active - Recording in progress'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Client lane fallback opened in place.'),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'live operations renders desktop workspace shell and routes workspace controls',
+    (tester) async {
+      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            focusIncidentReference: 'INC-DSP-LOW',
+            events: [
+              DecisionCreated(
+                eventId: 'decision-low-workspace',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 4)),
+                dispatchId: 'DSP-LOW',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-LOW',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-low-workspace',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                intelligenceId: 'INTEL-LOW',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-low-workspace',
+                riskScore: 72,
+                headline: 'Perimeter motion',
+                summary: 'Moderate perimeter motion detected.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-LOW',
+                faceConfidence: 0.82,
+                canonicalHash: 'canon-low-workspace',
+              ),
+              DecisionCreated(
+                eventId: 'decision-critical-workspace',
+                sequence: 3,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-CRIT',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-CRIT',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-critical-workspace',
+                sequence: 4,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-CRIT',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-crit-workspace',
+                riskScore: 92,
+                headline: 'Fire alarm escalation',
+                summary: 'Critical hazard posture detected.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-CRIT',
+                faceConfidence: 0.97,
+                canonicalHash: 'canon-crit-workspace',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('live-operations-workspace-status-banner')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-workspace-panel-rail')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-workspace-panel-board')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-workspace-panel-context')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-command-receipt')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-board-focus-card')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-incident-focus-card')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-context-focus-card')),
+        findsOneWidget,
+      );
+      expect(find.text('Active Incident: INC-DSP-LOW'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('live-operations-incident-focus-open-board')),
+        160,
+        scrollable: find.descendant(
+          of: find.byKey(
+            const ValueKey('live-operations-incident-queue-scroll-view'),
+          ),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      final incidentBoardAction = find
+          .ancestor(
+            of: find.byKey(
+              const ValueKey('live-operations-incident-focus-open-board'),
+            ),
+            matching: find.byType(InkWell),
+          )
+          .first;
+      final incidentBoardTap = tester.widget<InkWell>(incidentBoardAction);
+      expect(incidentBoardTap.onTap, isNotNull);
+      incidentBoardTap.onTap!();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Board focus opened for INC-DSP-LOW.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.scrollUntilVisible(
+        find.byKey(
+          const ValueKey('live-operations-incident-focus-focus-critical'),
+        ),
+        100,
+        scrollable: find.descendant(
+          of: find.byKey(
+            const ValueKey('live-operations-incident-queue-scroll-view'),
+          ),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      final incidentCriticalAction = find
+          .ancestor(
+            of: find.byKey(
+              const ValueKey('live-operations-incident-focus-focus-critical'),
+            ),
+            matching: find.byType(InkWell),
+          )
+          .first;
+      final incidentCriticalTap = tester.widget<InkWell>(
+        incidentCriticalAction,
+      );
+      expect(incidentCriticalTap.onTap, isNotNull);
+      incidentCriticalTap.onTap!();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Active Incident: INC-DSP-CRIT'), findsOneWidget);
+      expect(
+        find.text('Critical lane focused for INC-DSP-CRIT.'),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('live-operations-incident-focus-open-queue')),
+        100,
+        scrollable: find.descendant(
+          of: find.byKey(
+            const ValueKey('live-operations-incident-queue-scroll-view'),
+          ),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      final incidentQueueAction = find
+          .ancestor(
+            of: find.byKey(
+              const ValueKey('live-operations-incident-focus-open-queue'),
+            ),
+            matching: find.byType(InkWell),
+          )
+          .first;
+      final incidentQueueTap = tester.widget<InkWell>(incidentQueueAction);
+      expect(incidentQueueTap.onTap, isNotNull);
+      incidentQueueTap.onTap!();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Queue focus opened for INC-DSP-CRIT.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-board-focus-open-voip')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('VoIP Call Active - Recording in progress'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('VOIP context opened for INC-DSP-CRIT.'),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-context-focus-open-visual')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Match Score'), findsOneWidget);
+      expect(
+        find.text('Context rail opened VISUAL for INC-DSP-CRIT.'),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('live-operations-context-focus-guard-attention'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Guard attention centered on Alpha-5.'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('live-operations-context-focus-guard-chip'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Alpha-5 • 98%'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+    },
+  );
+
+  testWidgets('live operations recovers empty desktop context tabs in place', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          initialScopeClientId: 'CLIENT-RECOVERY',
+          initialScopeSiteId: 'SITE-RECOVERY',
+          clientCommsSnapshot: const LiveClientCommsSnapshot(
+            clientId: 'CLIENT-RECOVERY',
+            siteId: 'SITE-RECOVERY',
+          ),
+          events: [
+            DecisionCreated(
+              eventId: 'decision-other-scope-recovery',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              dispatchId: 'DSP-OTHER',
+              clientId: 'CLIENT-OTHER',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-OTHER',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-other-scope-recovery',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              intelligenceId: 'INTEL-OTHER',
+              sourceType: 'hardware',
+              provider: 'dahua',
+              externalId: 'evt-other-scope-recovery',
+              riskScore: 78,
+              headline: 'Other scope motion',
+              summary: 'This event should stay outside the scoped workspace.',
+              clientId: 'CLIENT-OTHER',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-OTHER',
+              faceConfidence: 0.84,
+              canonicalHash: 'canon-other-scope-recovery',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-workspace-tab-voip')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-voip-recovery')),
+      findsOneWidget,
+    );
+    expect(find.text('No live call transcript is pinned yet.'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(
+        const ValueKey('live-operations-context-recovery-open-client-lane'),
+      ),
+    );
+    await tester.tap(
+      find.byKey(
+        const ValueKey('live-operations-context-recovery-open-client-lane'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Client lane fallback opened in place.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-workspace-tab-visual')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-visual-recovery')),
+      findsOneWidget,
+    );
+    expect(find.text('No camera comparison is pinned yet.'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('live-operations-context-recovery-open-queue')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-context-recovery-open-queue')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pending actions recovery opened.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets(
+    'live operations verifies pending ledger chain entries in place',
+    (tester) async {
+      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            focusIncidentReference: 'INC-DSP-LEDGER',
+            events: [
+              DecisionCreated(
+                eventId: 'decision-ledger',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                dispatchId: 'DSP-LEDGER',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-LEDGER',
+              ),
+              PartnerDispatchStatusDeclared(
+                eventId: 'partner-ledger',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-LEDGER',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-LEDGER',
+                partnerLabel: 'PARTNER • Alpha',
+                actorLabel: '@partner.alpha',
+                status: PartnerDispatchStatus.accepted,
+                sourceChannel: 'telegram',
+                sourceMessageKey: 'tg-ledger',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-ledger',
+                sequence: 3,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-LEDGER',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-ledger',
+                riskScore: 78,
+                headline: 'Activity cluster detected',
+                summary: 'Cross-checking a partner escalation in the lane.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-LEDGER',
+                faceConfidence: 0.9,
+                canonicalHash: 'canon-ledger',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final ledgerPanel = find.byKey(
+        const ValueKey('live-operations-ledger-preview'),
+      );
+      expect(ledgerPanel, findsOneWidget);
+      expect(find.text('Chain status: Pending verification'), findsOneWidget);
+      expect(
+        find.descendant(of: ledgerPanel, matching: find.text('PENDING')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-ledger-verify-chain')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Chain status: Verified'), findsOneWidget);
+      expect(
+        find.descendant(of: ledgerPanel, matching: find.text('PENDING')),
+        findsNothing,
+      );
+      expect(find.text('Re-run Verify'), findsOneWidget);
+    },
+  );
+
   testWidgets('live operations narrows incidents to the scoped lane', (
     tester,
   ) async {
@@ -325,8 +990,11 @@ void main() {
       const MaterialApp(home: LiveOperationsPage(events: [])),
     );
 
-    await tester.ensureVisible(find.text('MANUAL OVERRIDE'));
-    await tester.tap(find.text('MANUAL OVERRIDE'));
+    final overrideButton = find.byKey(
+      const ValueKey('live-operations-board-focus-override'),
+    );
+    await tester.ensureVisible(overrideButton);
+    await tester.tap(overrideButton);
     await tester.pumpAndSettle();
 
     final submitFinder = find.byKey(const Key('override-submit-button'));
@@ -344,20 +1012,34 @@ void main() {
   });
 
   testWidgets('pause action records a ledger entry', (tester) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(
       const MaterialApp(home: LiveOperationsPage(events: [])),
     );
     await tester.pumpAndSettle();
 
-    final pauseButton = find.widgetWithText(OutlinedButton, 'Pause').first;
+    final pauseButton = find.byKey(
+      const ValueKey('live-operations-board-focus-pause'),
+    );
     await tester.ensureVisible(pauseButton);
     await tester.tap(pauseButton);
     await tester.pumpAndSettle();
 
     expect(
+      find.byKey(const ValueKey('live-operations-command-receipt')),
+      findsOneWidget,
+    );
+    expect(
       find.textContaining('Automation paused for INC-8829-QX'),
       findsWidgets,
     );
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('live operations enriches incident context with CCTV evidence', (
@@ -583,7 +1265,7 @@ void main() {
     );
     expect(find.text('P1'), findsWidgets);
     expect(find.textContaining('fire and smoke emergency'), findsOneWidget);
-    expect(find.text('FIRE RESPONSE'), findsOneWidget);
+    expect(find.text('FIRE RESPONSE'), findsWidgets);
     expect(find.text('CLIENT SAFETY CALL'), findsOneWidget);
     expect(find.text('FIRE VERIFY'), findsOneWidget);
     expect(
@@ -1000,7 +1682,7 @@ void main() {
     expect(find.text('Escalation Candidate'), findsOneWidget);
     expect(
       find.textContaining('Person visible near the boundary line.'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(find.textContaining('Escalated for urgent review'), findsOneWidget);
   });
@@ -1449,6 +2131,13 @@ void main() {
   testWidgets('live operations shows activity truth and opens scoped events', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     final now = DateTime.now().toUtc();
     List<String>? openedEventIds;
     String? openedSelectedEventId;
@@ -1516,10 +2205,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('live-activity-truth-card-INC-D-2001')),
-      findsOneWidget,
+    final activityTruthCard = find.byKey(
+      const ValueKey('live-activity-truth-card-INC-D-2001'),
     );
+    await tester.scrollUntilVisible(
+      activityTruthCard,
+      220,
+      scrollable: find.descendant(
+        of: find.byKey(
+          const ValueKey('live-operations-details-scroll-view'),
+        ),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(activityTruthCard, findsOneWidget);
     expect(find.text('Activity Truth'), findsOneWidget);
     expect(find.textContaining('Signals 2 • People 2'), findsOneWidget);
     expect(find.textContaining('Long presence 1'), findsOneWidget);
@@ -1532,11 +2233,22 @@ void main() {
       const ValueKey('live-activity-truth-open-events-INC-D-2001'),
     );
     await tester.ensureVisible(openEventsButton);
-    await tester.tap(openEventsButton);
+    final openEventsAction = tester.widget<OutlinedButton>(openEventsButton);
+    expect(openEventsAction.onPressed, isNotNull);
+    openEventsAction.onPressed!();
     await tester.pumpAndSettle();
 
     expect(openedEventIds, equals(const ['ACTIVITY-7', 'ACTIVITY-11']));
     expect(openedSelectedEventId, 'ACTIVITY-11');
+    expect(
+      find.byKey(const ValueKey('live-operations-command-receipt')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Opening Events Review for activity truth.'),
+      findsOneWidget,
+    );
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('live operations shows client comms pulse for active incident', (
@@ -1815,8 +2527,14 @@ void main() {
     expect(find.byKey(const ValueKey('control-inbox-panel')), findsOneWidget);
     expect(find.text('CONTROL INBOX'), findsOneWidget);
     expect(find.text('1 High-priority Reply'), findsWidgets);
-    expect(find.byKey(const ValueKey('control-inbox-priority-badge')), findsOneWidget);
-    expect(find.byKey(const ValueKey('control-inbox-queue-state-chip')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-priority-badge')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-queue-state-chip')),
+      findsOneWidget,
+    );
     expect(find.text('Queue Full'), findsWidgets);
     expect(find.text('High priority 1'), findsOneWidget);
     expect(find.textContaining('2 client replies waiting'), findsOneWidget);
@@ -1850,16 +2568,22 @@ void main() {
     );
     expect(find.widgetWithText(OutlinedButton, 'Reassuring'), findsWidgets);
     expect(
-      tester.getTopLeft(find.byKey(const ValueKey('control-inbox-draft-502'))).dy,
+      tester
+          .getTopLeft(find.byKey(const ValueKey('control-inbox-draft-502')))
+          .dy,
       lessThan(
-        tester.getTopLeft(find.byKey(const ValueKey('control-inbox-draft-501'))).dy,
+        tester
+            .getTopLeft(find.byKey(const ValueKey('control-inbox-draft-501')))
+            .dy,
       ),
     );
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('control-inbox-priority-badge')),
     );
-    await tester.tap(find.byKey(const ValueKey('control-inbox-priority-badge')));
+    await tester.tap(
+      find.byKey(const ValueKey('control-inbox-priority-badge')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Queue shape'), findsOneWidget);
@@ -1872,20 +2596,34 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Queue High priority'), findsWidgets);
-    expect(find.byKey(const ValueKey('control-inbox-filtered-chip')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-filtered-chip')),
+      findsOneWidget,
+    );
     expect(find.text('Filtered 1'), findsWidgets);
-    expect(find.byKey(const ValueKey('control-inbox-draft-502')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-502')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsNothing);
 
-    await tester.tap(find.byKey(const ValueKey('control-inbox-priority-badge')));
+    await tester.tap(
+      find.byKey(const ValueKey('control-inbox-priority-badge')),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Queue shape'), findsOneWidget);
     expect(find.text('1 timing'), findsOneWidget);
     expect(find.text('1 validation'), findsOneWidget);
     expect(find.text('Queue Full'), findsWidgets);
-    expect(find.byKey(const ValueKey('control-inbox-filtered-chip')), findsNothing);
-    expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-filtered-chip')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-501')),
+      findsOneWidget,
+    );
 
     await tester.tap(
       find.byKey(const ValueKey('control-inbox-summary-pill-timing')),
@@ -1895,7 +2633,10 @@ void main() {
     expect(find.text('Queue shape'), findsOneWidget);
     expect(find.text('1 timing'), findsOneWidget);
     expect(find.text('1 validation'), findsNothing);
-    expect(find.byKey(const ValueKey('control-inbox-filtered-chip')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-filtered-chip')),
+      findsOneWidget,
+    );
     expect(find.text('Filtered 1'), findsWidgets);
     expect(
       find.text(
@@ -1906,7 +2647,10 @@ void main() {
     expect(find.text('Queue Timing only'), findsWidgets);
     expect(find.byKey(const ValueKey('top-bar-cue-filter-chip')), findsWidgets);
     expect(find.text('Timing only'), findsWidgets);
-    expect(find.byKey(const ValueKey('control-inbox-draft-502')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-502')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsNothing);
 
     await tester.tap(
@@ -1919,8 +2663,14 @@ void main() {
     expect(find.text('1 validation'), findsOneWidget);
     expect(find.text('Queue Full'), findsWidgets);
     expect(find.byKey(const ValueKey('top-bar-cue-filter-chip')), findsNothing);
-    expect(find.byKey(const ValueKey('control-inbox-filtered-chip')), findsNothing);
-    expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-filtered-chip')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-501')),
+      findsOneWidget,
+    );
 
     final reassuringButton = find
         .widgetWithText(OutlinedButton, 'Reassuring')
@@ -2246,7 +2996,8 @@ void main() {
             clientVoiceProfileLabel: 'Reassuring',
             pendingApprovalCount: 1,
             clientInboundCount: 1,
-            latestClientMessage: 'Hi ONYX, are we still waiting on the patrol update?',
+            latestClientMessage:
+                'Hi ONYX, are we still waiting on the patrol update?',
             latestPendingDraft:
                 'We are checking the latest patrol position now and will send the next verified update shortly.',
             telegramHealthLabel: 'ok',
@@ -2295,7 +3046,10 @@ void main() {
 
     final controlInboxPanel = find.byKey(const ValueKey('control-inbox-panel'));
     expect(tester.getTopLeft(controlInboxPanel).dy, greaterThan(320));
-    expect(find.byKey(const ValueKey('top-bar-queue-state-chip')), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('top-bar-queue-state-chip')),
+      findsWidgets,
+    );
     expect(find.text('Queue Full'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('top-bar-priority-chip')).first);
@@ -2321,467 +3075,502 @@ void main() {
     expect(find.text('Queue shape'), findsOneWidget);
     expect(find.text('1 timing'), findsOneWidget);
     expect(find.text('1 validation'), findsOneWidget);
-    expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-501')),
+      findsOneWidget,
+    );
   });
 
-  testWidgets(
-    'live operations control inbox queue-state chip cycles queue modes',
-    (tester) async {
-      String? profiledClientId;
-      String? profiledSiteId;
-      String? profiledSignal;
+  testWidgets('live operations control inbox queue-state chip cycles queue modes', (
+    tester,
+  ) async {
+    String? profiledClientId;
+    String? profiledSiteId;
+    String? profiledSignal;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            clientCommsSnapshot: LiveClientCommsSnapshot(
-              clientId: 'CLIENT-001',
-              siteId: 'SITE-SANDTON',
-              clientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 1,
-              clientInboundCount: 1,
-              latestClientMessage:
-                  'Hi ONYX, are we still waiting on the patrol update?',
-              latestPendingDraft:
-                  'We are checking the latest patrol position now and will send the next verified update shortly.',
-              telegramHealthLabel: 'ok',
-              smsFallbackLabel: 'SMS standby',
-              voiceReadinessLabel: 'VoIP staged',
-            ),
-            controlInboxSnapshot: LiveControlInboxSnapshot(
-              selectedClientId: 'CLIENT-001',
-              selectedSiteId: 'SITE-SANDTON',
-              selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 2,
-              selectedScopePendingCount: 1,
-              telegramHealthLabel: 'degraded',
-              pendingDrafts: [
-                LiveControlInboxDraft(
-                  updateId: 502,
-                  clientId: 'CLIENT-VALLEE',
-                  siteId: 'SITE-RESIDENCE',
-                  sourceText:
-                      'Please confirm if the response team has already arrived.',
-                  draftText:
-                      'Command is confirming arrival now and will share the verified position as soon as it is locked.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
-                  clientVoiceProfileLabel: 'Concise',
-                ),
-                LiveControlInboxDraft(
-                  updateId: 501,
-                  clientId: 'CLIENT-001',
-                  siteId: 'SITE-SANDTON',
-                  sourceText:
-                      'Hi ONYX, are we still waiting on the patrol update?',
-                  draftText:
-                      'We are checking the latest patrol position now and will send the next verified update shortly.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
-                  clientVoiceProfileLabel: 'Validation-heavy',
-                  usesLearnedApprovalStyle: true,
-                  matchesSelectedScope: true,
-                ),
-              ],
-            ),
-            onSetLaneVoiceProfileForScope:
-                (clientId, siteId, profileSignal) async {
-                  profiledClientId = clientId;
-                  profiledSiteId = siteId;
-                  profiledSignal = profileSignal;
-                },
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          clientCommsSnapshot: LiveClientCommsSnapshot(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            clientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 1,
+            clientInboundCount: 1,
+            latestClientMessage:
+                'Hi ONYX, are we still waiting on the patrol update?',
+            latestPendingDraft:
+                'We are checking the latest patrol position now and will send the next verified update shortly.',
+            telegramHealthLabel: 'ok',
+            smsFallbackLabel: 'SMS standby',
+            voiceReadinessLabel: 'VoIP staged',
+          ),
+          controlInboxSnapshot: LiveControlInboxSnapshot(
+            selectedClientId: 'CLIENT-001',
+            selectedSiteId: 'SITE-SANDTON',
+            selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 2,
+            selectedScopePendingCount: 1,
+            telegramHealthLabel: 'degraded',
+            pendingDrafts: [
+              LiveControlInboxDraft(
+                updateId: 502,
+                clientId: 'CLIENT-VALLEE',
+                siteId: 'SITE-RESIDENCE',
+                sourceText:
+                    'Please confirm if the response team has already arrived.',
+                draftText:
+                    'Command is confirming arrival now and will share the verified position as soon as it is locked.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                clientVoiceProfileLabel: 'Concise',
+              ),
+              LiveControlInboxDraft(
+                updateId: 501,
+                clientId: 'CLIENT-001',
+                siteId: 'SITE-SANDTON',
+                sourceText:
+                    'Hi ONYX, are we still waiting on the patrol update?',
+                draftText:
+                    'We are checking the latest patrol position now and will send the next verified update shortly.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                clientVoiceProfileLabel: 'Validation-heavy',
+                usesLearnedApprovalStyle: true,
+                matchesSelectedScope: true,
+              ),
+            ],
+          ),
+          onSetLaneVoiceProfileForScope:
+              (clientId, siteId, profileSignal) async {
+                profiledClientId = clientId;
+                profiledSiteId = siteId;
+                profiledSignal = profileSignal;
+              },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final queueStateChip = find.byKey(
+      const ValueKey('control-inbox-queue-state-chip'),
+    );
+    expect(queueStateChip, findsOneWidget);
+    expect(find.text('Queue Full'), findsWidgets);
+    expect(
+      find.descendant(
+        of: queueStateChip,
+        matching: find.byIcon(Icons.inbox_rounded),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(queueStateChip);
+    await tester.tap(queueStateChip);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Queue High priority'), findsWidgets);
+    expect(
+      find.descendant(
+        of: queueStateChip,
+        matching: find.byIcon(Icons.priority_high_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-filtered-chip')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-502')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsNothing);
+
+    await tester.tap(queueStateChip);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Queue Full'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('control-inbox-filtered-chip')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-501')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('control-inbox-summary-pill-timing')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Queue Timing only'), findsWidgets);
+    expect(
+      find.descendant(
+        of: queueStateChip,
+        matching: find.byIcon(Icons.schedule_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsNothing);
+
+    await tester.tap(queueStateChip);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Queue High priority'), findsWidgets);
+    expect(find.byKey(const ValueKey('top-bar-cue-filter-chip')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-502')),
+      findsOneWidget,
+    );
+
+    await tester.tap(queueStateChip);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Queue Full'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('control-inbox-filtered-chip')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-draft-501')),
+      findsOneWidget,
+    );
+
+    expect(profiledClientId, isNull);
+    expect(profiledSiteId, isNull);
+    expect(profiledSignal, isNull);
+  });
+
+  testWidgets('live operations shows queue-state first-run hint until queue interaction', (
+    tester,
+  ) async {
+    LiveOperationsPage.debugResetQueueStateHintSession();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          clientCommsSnapshot: LiveClientCommsSnapshot(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            clientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 1,
+            clientInboundCount: 1,
+            latestClientMessage:
+                'Hi ONYX, are we still waiting on the patrol update?',
+            latestPendingDraft:
+                'We are checking the latest patrol position now and will send the next verified update shortly.',
+            telegramHealthLabel: 'ok',
+            smsFallbackLabel: 'SMS standby',
+            voiceReadinessLabel: 'VoIP staged',
+          ),
+          controlInboxSnapshot: LiveControlInboxSnapshot(
+            selectedClientId: 'CLIENT-001',
+            selectedSiteId: 'SITE-SANDTON',
+            selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 2,
+            selectedScopePendingCount: 1,
+            telegramHealthLabel: 'degraded',
+            pendingDrafts: [
+              LiveControlInboxDraft(
+                updateId: 502,
+                clientId: 'CLIENT-VALLEE',
+                siteId: 'SITE-RESIDENCE',
+                sourceText:
+                    'Please confirm if the response team has already arrived.',
+                draftText:
+                    'Command is confirming arrival now and will share the verified position as soon as it is locked.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                clientVoiceProfileLabel: 'Concise',
+              ),
+              LiveControlInboxDraft(
+                updateId: 501,
+                clientId: 'CLIENT-001',
+                siteId: 'SITE-SANDTON',
+                sourceText:
+                    'Hi ONYX, are we still waiting on the patrol update?',
+                draftText:
+                    'We are checking the latest patrol position now and will send the next verified update shortly.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                clientVoiceProfileLabel: 'Validation-heavy',
+                matchesSelectedScope: true,
+              ),
+            ],
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final queueStateChip = find.byKey(
-        const ValueKey('control-inbox-queue-state-chip'),
-      );
-      expect(queueStateChip, findsOneWidget);
-      expect(find.text('Queue Full'), findsWidgets);
-      expect(
-        find.descendant(
-          of: queueStateChip,
-          matching: find.byIcon(Icons.inbox_rounded),
-        ),
-        findsOneWidget,
-      );
+    expect(
+      find.byKey(const ValueKey('control-inbox-queue-hint')),
+      findsOneWidget,
+    );
+    expect(find.text('Hide tip'), findsOneWidget);
 
-      await tester.ensureVisible(queueStateChip);
-      await tester.tap(queueStateChip);
-      await tester.pumpAndSettle();
+    final queueStateChip = find.byKey(
+      const ValueKey('control-inbox-queue-state-chip'),
+    );
+    await tester.ensureVisible(queueStateChip);
+    await tester.tap(queueStateChip);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Queue High priority'), findsWidgets);
-      expect(
-        find.descendant(
-          of: queueStateChip,
-          matching: find.byIcon(Icons.priority_high_rounded),
-        ),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey('control-inbox-filtered-chip')), findsOneWidget);
-      expect(find.byKey(const ValueKey('control-inbox-draft-502')), findsOneWidget);
-      expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('control-inbox-queue-hint')),
+      findsNothing,
+    );
+    expect(find.text('Queue High priority'), findsWidgets);
 
-      await tester.tap(queueStateChip);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Queue Full'), findsWidgets);
-      expect(find.byKey(const ValueKey('control-inbox-filtered-chip')), findsNothing);
-      expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsOneWidget);
-
-      await tester.tap(
-        find.byKey(const ValueKey('control-inbox-summary-pill-timing')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Queue Timing only'), findsWidgets);
-      expect(
-        find.descendant(
-          of: queueStateChip,
-          matching: find.byIcon(Icons.schedule_rounded),
-        ),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsNothing);
-
-      await tester.tap(queueStateChip);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Queue High priority'), findsWidgets);
-      expect(find.byKey(const ValueKey('top-bar-cue-filter-chip')), findsNothing);
-      expect(find.byKey(const ValueKey('control-inbox-draft-502')), findsOneWidget);
-
-      await tester.tap(queueStateChip);
-      await tester.pumpAndSettle();
-
-      expect(find.text('Queue Full'), findsWidgets);
-      expect(find.byKey(const ValueKey('control-inbox-filtered-chip')), findsNothing);
-      expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsOneWidget);
-
-      expect(profiledClientId, isNull);
-      expect(profiledSiteId, isNull);
-      expect(profiledSignal, isNull);
-    },
-  );
-
-  testWidgets(
-    'live operations shows queue-state first-run hint until queue interaction',
-    (tester) async {
-      LiveOperationsPage.debugResetQueueStateHintSession();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            clientCommsSnapshot: LiveClientCommsSnapshot(
-              clientId: 'CLIENT-001',
-              siteId: 'SITE-SANDTON',
-              clientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 1,
-              clientInboundCount: 1,
-              latestClientMessage:
-                  'Hi ONYX, are we still waiting on the patrol update?',
-              latestPendingDraft:
-                  'We are checking the latest patrol position now and will send the next verified update shortly.',
-              telegramHealthLabel: 'ok',
-              smsFallbackLabel: 'SMS standby',
-              voiceReadinessLabel: 'VoIP staged',
-            ),
-            controlInboxSnapshot: LiveControlInboxSnapshot(
-              selectedClientId: 'CLIENT-001',
-              selectedSiteId: 'SITE-SANDTON',
-              selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 2,
-              selectedScopePendingCount: 1,
-              telegramHealthLabel: 'degraded',
-              pendingDrafts: [
-                LiveControlInboxDraft(
-                  updateId: 502,
-                  clientId: 'CLIENT-VALLEE',
-                  siteId: 'SITE-RESIDENCE',
-                  sourceText:
-                      'Please confirm if the response team has already arrived.',
-                  draftText:
-                      'Command is confirming arrival now and will share the verified position as soon as it is locked.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
-                  clientVoiceProfileLabel: 'Concise',
-                ),
-                LiveControlInboxDraft(
-                  updateId: 501,
-                  clientId: 'CLIENT-001',
-                  siteId: 'SITE-SANDTON',
-                  sourceText:
-                      'Hi ONYX, are we still waiting on the patrol update?',
-                  draftText:
-                      'We are checking the latest patrol position now and will send the next verified update shortly.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
-                  clientVoiceProfileLabel: 'Validation-heavy',
-                  matchesSelectedScope: true,
-                ),
-              ],
-            ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          clientCommsSnapshot: LiveClientCommsSnapshot(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            clientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 1,
+            clientInboundCount: 1,
+            latestClientMessage:
+                'Hi ONYX, are we still waiting on the patrol update?',
+            latestPendingDraft:
+                'We are checking the latest patrol position now and will send the next verified update shortly.',
+            telegramHealthLabel: 'ok',
+            smsFallbackLabel: 'SMS standby',
+            voiceReadinessLabel: 'VoIP staged',
+          ),
+          controlInboxSnapshot: LiveControlInboxSnapshot(
+            selectedClientId: 'CLIENT-001',
+            selectedSiteId: 'SITE-SANDTON',
+            selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 2,
+            selectedScopePendingCount: 1,
+            telegramHealthLabel: 'degraded',
+            pendingDrafts: [
+              LiveControlInboxDraft(
+                updateId: 502,
+                clientId: 'CLIENT-VALLEE',
+                siteId: 'SITE-RESIDENCE',
+                sourceText:
+                    'Please confirm if the response team has already arrived.',
+                draftText:
+                    'Command is confirming arrival now and will share the verified position as soon as it is locked.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                clientVoiceProfileLabel: 'Concise',
+              ),
+              LiveControlInboxDraft(
+                updateId: 501,
+                clientId: 'CLIENT-001',
+                siteId: 'SITE-SANDTON',
+                sourceText:
+                    'Hi ONYX, are we still waiting on the patrol update?',
+                draftText:
+                    'We are checking the latest patrol position now and will send the next verified update shortly.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                clientVoiceProfileLabel: 'Validation-heavy',
+                matchesSelectedScope: true,
+              ),
+            ],
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsOneWidget);
-      expect(find.text('Hide tip'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('control-inbox-queue-hint')),
+      findsNothing,
+    );
+  });
 
-      final queueStateChip = find.byKey(
-        const ValueKey('control-inbox-queue-state-chip'),
-      );
-      await tester.ensureVisible(queueStateChip);
-      await tester.tap(queueStateChip);
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsNothing);
-      expect(find.text('Queue High priority'), findsWidgets);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            clientCommsSnapshot: LiveClientCommsSnapshot(
-              clientId: 'CLIENT-001',
-              siteId: 'SITE-SANDTON',
-              clientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 1,
-              clientInboundCount: 1,
-              latestClientMessage:
-                  'Hi ONYX, are we still waiting on the patrol update?',
-              latestPendingDraft:
-                  'We are checking the latest patrol position now and will send the next verified update shortly.',
-              telegramHealthLabel: 'ok',
-              smsFallbackLabel: 'SMS standby',
-              voiceReadinessLabel: 'VoIP staged',
-            ),
-            controlInboxSnapshot: LiveControlInboxSnapshot(
-              selectedClientId: 'CLIENT-001',
-              selectedSiteId: 'SITE-SANDTON',
-              selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 2,
-              selectedScopePendingCount: 1,
-              telegramHealthLabel: 'degraded',
-              pendingDrafts: [
-                LiveControlInboxDraft(
-                  updateId: 502,
-                  clientId: 'CLIENT-VALLEE',
-                  siteId: 'SITE-RESIDENCE',
-                  sourceText:
-                      'Please confirm if the response team has already arrived.',
-                  draftText:
-                      'Command is confirming arrival now and will share the verified position as soon as it is locked.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
-                  clientVoiceProfileLabel: 'Concise',
-                ),
-                LiveControlInboxDraft(
-                  updateId: 501,
-                  clientId: 'CLIENT-001',
-                  siteId: 'SITE-SANDTON',
-                  sourceText:
-                      'Hi ONYX, are we still waiting on the patrol update?',
-                  draftText:
-                      'We are checking the latest patrol position now and will send the next verified update shortly.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
-                  clientVoiceProfileLabel: 'Validation-heavy',
-                  matchesSelectedScope: true,
-                ),
-              ],
-            ),
+  testWidgets('live operations can show the queue hint again after hiding it', (
+    tester,
+  ) async {
+    LiveOperationsPage.debugResetQueueStateHintSession();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          clientCommsSnapshot: LiveClientCommsSnapshot(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            clientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 1,
+            clientInboundCount: 1,
+            latestClientMessage:
+                'Hi ONYX, are we still waiting on the patrol update?',
+            latestPendingDraft:
+                'We are checking the latest patrol position now and will send the next verified update shortly.',
+            telegramHealthLabel: 'ok',
+            smsFallbackLabel: 'SMS standby',
+            voiceReadinessLabel: 'VoIP staged',
+          ),
+          controlInboxSnapshot: LiveControlInboxSnapshot(
+            selectedClientId: 'CLIENT-001',
+            selectedSiteId: 'SITE-SANDTON',
+            selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 2,
+            selectedScopePendingCount: 1,
+            telegramHealthLabel: 'degraded',
+            pendingDrafts: [
+              LiveControlInboxDraft(
+                updateId: 502,
+                clientId: 'CLIENT-VALLEE',
+                siteId: 'SITE-RESIDENCE',
+                sourceText:
+                    'Please confirm if the response team has already arrived.',
+                draftText:
+                    'Command is confirming arrival now and will share the verified position as soon as it is locked.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                clientVoiceProfileLabel: 'Concise',
+              ),
+              LiveControlInboxDraft(
+                updateId: 501,
+                clientId: 'CLIENT-001',
+                siteId: 'SITE-SANDTON',
+                sourceText:
+                    'Hi ONYX, are we still waiting on the patrol update?',
+                draftText:
+                    'We are checking the latest patrol position now and will send the next verified update shortly.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                clientVoiceProfileLabel: 'Validation-heavy',
+                matchesSelectedScope: true,
+              ),
+            ],
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsNothing);
-    },
-  );
+    final queueStateChip = find.byKey(
+      const ValueKey('control-inbox-queue-state-chip'),
+    );
+    await tester.ensureVisible(queueStateChip);
+    await tester.tap(queueStateChip);
+    await tester.pumpAndSettle();
 
-  testWidgets(
-    'live operations can show the queue hint again after hiding it',
-    (tester) async {
-      LiveOperationsPage.debugResetQueueStateHintSession();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            clientCommsSnapshot: LiveClientCommsSnapshot(
-              clientId: 'CLIENT-001',
-              siteId: 'SITE-SANDTON',
-              clientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 1,
-              clientInboundCount: 1,
-              latestClientMessage:
-                  'Hi ONYX, are we still waiting on the patrol update?',
-              latestPendingDraft:
-                  'We are checking the latest patrol position now and will send the next verified update shortly.',
-              telegramHealthLabel: 'ok',
-              smsFallbackLabel: 'SMS standby',
-              voiceReadinessLabel: 'VoIP staged',
-            ),
-            controlInboxSnapshot: LiveControlInboxSnapshot(
-              selectedClientId: 'CLIENT-001',
-              selectedSiteId: 'SITE-SANDTON',
-              selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 2,
-              selectedScopePendingCount: 1,
-              telegramHealthLabel: 'degraded',
-              pendingDrafts: [
-                LiveControlInboxDraft(
-                  updateId: 502,
-                  clientId: 'CLIENT-VALLEE',
-                  siteId: 'SITE-RESIDENCE',
-                  sourceText:
-                      'Please confirm if the response team has already arrived.',
-                  draftText:
-                      'Command is confirming arrival now and will share the verified position as soon as it is locked.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
-                  clientVoiceProfileLabel: 'Concise',
-                ),
-                LiveControlInboxDraft(
-                  updateId: 501,
-                  clientId: 'CLIENT-001',
-                  siteId: 'SITE-SANDTON',
-                  sourceText:
-                      'Hi ONYX, are we still waiting on the patrol update?',
-                  draftText:
-                      'We are checking the latest patrol position now and will send the next verified update shortly.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
-                  clientVoiceProfileLabel: 'Validation-heavy',
-                  matchesSelectedScope: true,
-                ),
-              ],
-            ),
+    expect(
+      find.byKey(const ValueKey('control-inbox-queue-hint')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-show-queue-hint')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('control-inbox-show-queue-hint')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('control-inbox-queue-hint')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('control-inbox-show-queue-hint')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('live operations queue-state chips explain queue modes on long press', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          clientCommsSnapshot: LiveClientCommsSnapshot(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            clientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 1,
+            clientInboundCount: 1,
+            latestClientMessage:
+                'Hi ONYX, are we still waiting on the patrol update?',
+            latestPendingDraft:
+                'We are checking the latest patrol position now and will send the next verified update shortly.',
+            telegramHealthLabel: 'ok',
+            smsFallbackLabel: 'SMS standby',
+            voiceReadinessLabel: 'VoIP staged',
+          ),
+          controlInboxSnapshot: LiveControlInboxSnapshot(
+            selectedClientId: 'CLIENT-001',
+            selectedSiteId: 'SITE-SANDTON',
+            selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
+            pendingApprovalCount: 2,
+            selectedScopePendingCount: 1,
+            telegramHealthLabel: 'degraded',
+            pendingDrafts: [
+              LiveControlInboxDraft(
+                updateId: 502,
+                clientId: 'CLIENT-VALLEE',
+                siteId: 'SITE-RESIDENCE',
+                sourceText:
+                    'Please confirm if the response team has already arrived.',
+                draftText:
+                    'Command is confirming arrival now and will share the verified position as soon as it is locked.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                clientVoiceProfileLabel: 'Concise',
+              ),
+              LiveControlInboxDraft(
+                updateId: 501,
+                clientId: 'CLIENT-001',
+                siteId: 'SITE-SANDTON',
+                sourceText:
+                    'Hi ONYX, are we still waiting on the patrol update?',
+                draftText:
+                    'We are checking the latest patrol position now and will send the next verified update shortly.',
+                providerLabel: 'OpenAI',
+                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                clientVoiceProfileLabel: 'Validation-heavy',
+                matchesSelectedScope: true,
+              ),
+            ],
           ),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final queueStateChip = find.byKey(
-        const ValueKey('control-inbox-queue-state-chip'),
-      );
-      await tester.ensureVisible(queueStateChip);
-      await tester.tap(queueStateChip);
-      await tester.pumpAndSettle();
+    final queueStateChip = find.byKey(
+      const ValueKey('control-inbox-queue-state-chip'),
+    );
 
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsNothing);
-      expect(
-        find.byKey(const ValueKey('control-inbox-show-queue-hint')),
-        findsOneWidget,
-      );
+    await tester.ensureVisible(queueStateChip);
+    await tester.longPress(queueStateChip);
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey('control-inbox-show-queue-hint')),
-      );
-      await tester.pumpAndSettle();
+    expect(
+      find.text(
+        'Queue Full is showing every pending reply. Tap to narrow the inbox to the high-priority queue.',
+      ),
+      findsOneWidget,
+    );
 
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('control-inbox-show-queue-hint')),
-        findsNothing,
-      );
-    },
-  );
+    await tester.tap(queueStateChip);
+    await tester.pumpAndSettle();
 
-  testWidgets(
-    'live operations queue-state chips explain queue modes on long press',
-    (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            clientCommsSnapshot: LiveClientCommsSnapshot(
-              clientId: 'CLIENT-001',
-              siteId: 'SITE-SANDTON',
-              clientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 1,
-              clientInboundCount: 1,
-              latestClientMessage:
-                  'Hi ONYX, are we still waiting on the patrol update?',
-              latestPendingDraft:
-                  'We are checking the latest patrol position now and will send the next verified update shortly.',
-              telegramHealthLabel: 'ok',
-              smsFallbackLabel: 'SMS standby',
-              voiceReadinessLabel: 'VoIP staged',
-            ),
-            controlInboxSnapshot: LiveControlInboxSnapshot(
-              selectedClientId: 'CLIENT-001',
-              selectedSiteId: 'SITE-SANDTON',
-              selectedScopeClientVoiceProfileLabel: 'Validation-heavy',
-              pendingApprovalCount: 2,
-              selectedScopePendingCount: 1,
-              telegramHealthLabel: 'degraded',
-              pendingDrafts: [
-                LiveControlInboxDraft(
-                  updateId: 502,
-                  clientId: 'CLIENT-VALLEE',
-                  siteId: 'SITE-RESIDENCE',
-                  sourceText:
-                      'Please confirm if the response team has already arrived.',
-                  draftText:
-                      'Command is confirming arrival now and will share the verified position as soon as it is locked.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
-                  clientVoiceProfileLabel: 'Concise',
-                ),
-                LiveControlInboxDraft(
-                  updateId: 501,
-                  clientId: 'CLIENT-001',
-                  siteId: 'SITE-SANDTON',
-                  sourceText:
-                      'Hi ONYX, are we still waiting on the patrol update?',
-                  draftText:
-                      'We are checking the latest patrol position now and will send the next verified update shortly.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
-                  clientVoiceProfileLabel: 'Validation-heavy',
-                  matchesSelectedScope: true,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.longPress(queueStateChip);
+    await tester.pumpAndSettle();
 
-      final queueStateChip = find.byKey(
-        const ValueKey('control-inbox-queue-state-chip'),
-      );
-
-      await tester.ensureVisible(queueStateChip);
-      await tester.longPress(queueStateChip);
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text(
-          'Queue Full is showing every pending reply. Tap to narrow the inbox to the high-priority queue.',
-        ),
-        findsOneWidget,
-      );
-
-      await tester.tap(queueStateChip);
-      await tester.pumpAndSettle();
-
-      await tester.longPress(queueStateChip);
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text(
-          'Queue High priority is showing only sensitive and timing replies. Tap to return to the full queue.',
-        ),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(
+      find.text(
+        'Queue High priority is showing only sensitive and timing replies. Tap to return to the full queue.',
+      ),
+      findsOneWidget,
+    );
+  });
 
   testWidgets(
     'live operations top-bar cue filter chip widens priority filters and jumps to control inbox',
@@ -2847,10 +3636,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final controlInboxPanel = find.byKey(const ValueKey('control-inbox-panel'));
+      final controlInboxPanel = find.byKey(
+        const ValueKey('control-inbox-panel'),
+      );
       expect(tester.getTopLeft(controlInboxPanel).dy, greaterThan(320));
 
-      await tester.tap(find.byKey(const ValueKey('top-bar-priority-chip')).first);
+      await tester.tap(
+        find.byKey(const ValueKey('top-bar-priority-chip')).first,
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(
@@ -2867,9 +3660,9 @@ void main() {
         findsOneWidget,
       );
 
-      final topBarCueChip = find.byKey(
-        const ValueKey('top-bar-cue-filter-chip'),
-      ).first;
+      final topBarCueChip = find
+          .byKey(const ValueKey('top-bar-cue-filter-chip'))
+          .first;
       await tester.ensureVisible(topBarCueChip);
       await tester.pumpAndSettle();
       await tester.drag(find.byType(Scrollable).first, const Offset(0, 260));
@@ -2882,7 +3675,10 @@ void main() {
 
       expect(tester.getTopLeft(controlInboxPanel).dy, lessThan(320));
       expect(find.text('Queue High priority'), findsWidgets);
-      expect(find.byKey(const ValueKey('top-bar-cue-filter-chip')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('top-bar-cue-filter-chip')),
+        findsNothing,
+      );
       expect(find.text('Show all replies (1)'), findsWidgets);
       expect(
         find.text(
@@ -2890,15 +3686,26 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsNothing);
-      expect(find.byKey(const ValueKey('control-inbox-draft-502')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('control-inbox-draft-501')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('control-inbox-draft-502')),
+        findsOneWidget,
+      );
 
-      await tester.tap(find.byKey(const ValueKey('top-bar-priority-chip')).first);
+      await tester.tap(
+        find.byKey(const ValueKey('top-bar-priority-chip')).first,
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Queue Full'), findsWidgets);
       expect(find.text('1 validation'), findsOneWidget);
-      expect(find.byKey(const ValueKey('control-inbox-draft-501')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('control-inbox-draft-501')),
+        findsOneWidget,
+      );
     },
   );
 
@@ -2984,7 +3791,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('control-inbox-priority-badge')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('control-inbox-priority-badge')),
+        findsOneWidget,
+      );
       expect(find.text('Sensitive 1'), findsOneWidget);
       expect(find.text('1 sensitive'), findsOneWidget);
     },

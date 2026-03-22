@@ -1954,12 +1954,27 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         });
       }
     }
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final ultrawideSurface = isUltrawideLayout(
+      context,
+      viewportWidth: viewportWidth,
+    );
+    final widescreenSurface = isWidescreenLayout(
+      context,
+      viewportWidth: viewportWidth,
+    );
+    final surfaceMaxWidth = ultrawideSurface
+        ? viewportWidth
+        : widescreenSurface
+        ? viewportWidth * 0.94
+        : 1540.0;
     return OnyxPageScaffold(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Center(
+        child: Align(
+          alignment: Alignment.topCenter,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1540),
+            constraints: BoxConstraints(maxWidth: surfaceMaxWidth),
             child: compactLayout
                 ? SingleChildScrollView(
                     child: Column(
@@ -2139,7 +2154,10 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                             .toList(growable: false),
                                   ),
                                   const SizedBox(height: 14),
-                                  _buildScreenPanel(),
+                                  _guardScreenWorkspace(
+                                    showAdvancedSyncConsole:
+                                        showAdvancedSyncConsole,
+                                  ),
                                 ],
                               ),
                             );
@@ -2358,23 +2376,14 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                       ),
                                     ),
                                   ),
-                                  historyRows(embeddedScroll: false),
-                                  if (hiddenHistoryOperationRows > 0) ...[
-                                    const SizedBox(height: 8),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: OnyxTruncationHint(
-                                        visibleCount:
-                                            visibleHistoryOperationRows.length,
-                                        totalCount:
-                                            visibleHistoryOperations.length,
-                                        subject: 'operations',
-                                      ),
+                                  _historyOperationWorkspace(
+                                    operations: visibleHistoryOperations,
+                                    hiddenOperationCount:
+                                        hiddenHistoryOperationRows,
+                                    buildRows: (embeddedScroll) => historyRows(
+                                      embeddedScroll: embeddedScroll,
                                     ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  _operationDetailPanel(
-                                    visibleHistoryOperations,
+                                    stackPanels: true,
                                   ),
                                 ],
                               ),
@@ -2573,7 +2582,10 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                             .toList(growable: false),
                                   ),
                                   const SizedBox(height: 14),
-                                  _buildScreenPanel(),
+                                  _guardScreenWorkspace(
+                                    showAdvancedSyncConsole:
+                                        showAdvancedSyncConsole,
+                                  ),
                                 ],
                               ),
                             );
@@ -2792,29 +2804,14 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                       ),
                                     ),
                                   ),
-                                  if (stackPanels)
-                                    historyRows(embeddedScroll: false)
-                                  else
-                                    SizedBox(
-                                      height: 380,
-                                      child: historyRows(embeddedScroll: true),
+                                  _historyOperationWorkspace(
+                                    operations: visibleHistoryOperations,
+                                    hiddenOperationCount:
+                                        hiddenHistoryOperationRows,
+                                    buildRows: (embeddedScroll) => historyRows(
+                                      embeddedScroll: embeddedScroll,
                                     ),
-                                  if (hiddenHistoryOperationRows > 0) ...[
-                                    const SizedBox(height: 8),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: OnyxTruncationHint(
-                                        visibleCount:
-                                            visibleHistoryOperationRows.length,
-                                        totalCount:
-                                            visibleHistoryOperations.length,
-                                        subject: 'operations',
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 8),
-                                  _operationDetailPanel(
-                                    visibleHistoryOperations,
+                                    stackPanels: stackPanels,
                                   ),
                                 ],
                               ),
@@ -2835,12 +2832,316 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                               );
                             }
 
-                            return Row(
+                            final guardScreenFlowBody = Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(flex: 7, child: guardScreenFlowPanel),
-                                const SizedBox(width: 10),
-                                Expanded(flex: 5, child: syncHistoryPanel),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: _screensForRole(widget.operatorRole)
+                                      .map(
+                                        (screen) => switch (screen) {
+                                          _GuardMobileScreen.shiftStart =>
+                                            _screenChip(
+                                              'Shift Start',
+                                              _GuardMobileScreen.shiftStart,
+                                            ),
+                                          _GuardMobileScreen.dispatch =>
+                                            _screenChip(
+                                              'Dispatch',
+                                              _GuardMobileScreen.dispatch,
+                                            ),
+                                          _GuardMobileScreen.status =>
+                                            _screenChip(
+                                              'Status',
+                                              _GuardMobileScreen.status,
+                                            ),
+                                          _GuardMobileScreen.checkpoint =>
+                                            _screenChip(
+                                              'Checkpoint',
+                                              _GuardMobileScreen.checkpoint,
+                                            ),
+                                          _GuardMobileScreen.panic =>
+                                            _screenChip(
+                                              'Panic',
+                                              _GuardMobileScreen.panic,
+                                            ),
+                                          _GuardMobileScreen.sync =>
+                                            _screenChip(
+                                              'Sync',
+                                              _GuardMobileScreen.sync,
+                                            ),
+                                        },
+                                      )
+                                      .toList(growable: false),
+                                ),
+                                const SizedBox(height: 14),
+                                _guardScreenWorkspace(
+                                  showAdvancedSyncConsole:
+                                      showAdvancedSyncConsole,
+                                ),
+                              ],
+                            );
+
+                            final syncHistoryBody = Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: [
+                                    _historyChip(
+                                      label: 'Queued',
+                                      filter: GuardSyncHistoryFilter.queued,
+                                    ),
+                                    _historyChip(
+                                      label: 'Synced',
+                                      filter: GuardSyncHistoryFilter.synced,
+                                    ),
+                                    _historyChip(
+                                      label: 'Failed',
+                                      filter: GuardSyncHistoryFilter.failed,
+                                    ),
+                                    _historyChip(
+                                      label: 'All',
+                                      filter: GuardSyncHistoryFilter.all,
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: GuardSyncOperationModeFilter.values
+                                      .map((mode) {
+                                        final count =
+                                            mode ==
+                                                GuardSyncOperationModeFilter.all
+                                            ? widget.queuedOperations.length
+                                            : widget.queuedOperations
+                                                  .where(
+                                                    (operation) =>
+                                                        _operationModeFor(
+                                                          operation,
+                                                        ) ==
+                                                        mode,
+                                                  )
+                                                  .length;
+                                        return _syncFilterChip(
+                                          label:
+                                              '${_operationModeLabel(mode)}: $count',
+                                          selected:
+                                              widget.operationModeFilter ==
+                                              mode,
+                                          onTap: () {
+                                            unawaited(
+                                              widget
+                                                  .onOperationModeFilterChanged(
+                                                    mode,
+                                                  ),
+                                            );
+                                          },
+                                        );
+                                      })
+                                      .toList(growable: false),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Facade Filter:',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF8EA4C2),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value:
+                                              widget.selectedFacadeId == null ||
+                                                  widget
+                                                      .selectedFacadeId!
+                                                      .isEmpty
+                                              ? _allFacadeFilterValue
+                                              : widget.selectedFacadeId!,
+                                          dropdownColor: const Color(
+                                            0xFF0E1A2B,
+                                          ),
+                                          style: GoogleFonts.inter(
+                                            color: const Color(0xFFDCE9FF),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          items: [
+                                            const DropdownMenuItem<String>(
+                                              value: _allFacadeFilterValue,
+                                              child: Text('All Facades'),
+                                            ),
+                                            ...facadeIdOptions.map(
+                                              (facadeId) =>
+                                                  DropdownMenuItem<String>(
+                                                    value: facadeId,
+                                                    child: Text(facadeId),
+                                                  ),
+                                            ),
+                                          ],
+                                          onChanged: (value) {
+                                            final next =
+                                                value == null ||
+                                                    value ==
+                                                        _allFacadeFilterValue
+                                                ? null
+                                                : value;
+                                            unawaited(
+                                              widget.onFacadeIdFilterChanged(
+                                                next,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: [
+                                    _chip(
+                                      'Scoped Selections',
+                                      widget.scopedSelectionCount.toString(),
+                                      const Color(0xFF8FD1FF),
+                                    ),
+                                    _chip(
+                                      'Active Scope',
+                                      widget.activeScopeKey.trim().isEmpty
+                                          ? 'unknown'
+                                          : widget.activeScopeKey.trim(),
+                                      const Color(0xFFB6C6DD),
+                                    ),
+                                    _chip(
+                                      'Scope Selection',
+                                      widget.activeScopeHasSelection
+                                          ? 'selected'
+                                          : 'none',
+                                      widget.activeScopeHasSelection
+                                          ? const Color(0xFF7FD8A5)
+                                          : const Color(0xFFF1B872),
+                                    ),
+                                  ],
+                                ),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: _submitting
+                                        ? null
+                                        : () async {
+                                            await _withSubmit(
+                                              'Scoped selection keys copied.',
+                                              _copyScopedSelectionKeys,
+                                            );
+                                          },
+                                    child: Text(
+                                      'Copy Scoped Keys',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF89D7FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                _failedOpsMetricsStrip(
+                                  visibleHistoryOperations,
+                                ),
+                                const SizedBox(height: 4),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: _submitting
+                                        ? null
+                                        : () async {
+                                            await _withSubmit(
+                                              'Queue cleared.',
+                                              () {
+                                                return widget.onClearQueue();
+                                              },
+                                            );
+                                            if (!mounted) return;
+                                            setState(() {
+                                              _selectedOperationId = null;
+                                            });
+                                            await widget
+                                                .onSelectedOperationChanged(
+                                                  null,
+                                                );
+                                          },
+                                    child: Text(
+                                      'Clear Queue',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF89D7FF),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                _historyOperationWorkspace(
+                                  operations: visibleHistoryOperations,
+                                  hiddenOperationCount:
+                                      hiddenHistoryOperationRows,
+                                  buildRows: (embeddedScroll) => historyRows(
+                                    embeddedScroll: embeddedScroll,
+                                  ),
+                                  stackPanels: stackPanels,
+                                ),
+                              ],
+                            );
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _guardDesktopWorkspaceStatusBanner(
+                                  visibleHistoryOperations:
+                                      visibleHistoryOperations,
+                                ),
+                                const SizedBox(height: 10),
+                                Expanded(
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        flex: 7,
+                                        child: _workspaceInsetPanel(
+                                          key: const ValueKey(
+                                            'guard-desktop-workspace-panel-flow',
+                                          ),
+                                          title: 'Field Workflow',
+                                          subtitle:
+                                              'Android screens, queue-aware context, and the active field surface stay centered.',
+                                          child: guardScreenFlowBody,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        flex: 5,
+                                        child: _workspaceInsetPanel(
+                                          key: const ValueKey(
+                                            'guard-desktop-workspace-panel-sync',
+                                          ),
+                                          title: 'Sync Command',
+                                          subtitle:
+                                              'History filters, facade scope, and selected-operation detail stay ready on the right.',
+                                          child: syncHistoryBody,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             );
                           },
@@ -4230,16 +4531,16 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
               const SizedBox(height: 4),
               TextButton(
                 onPressed: () async {
-                  final timeline = _recentExportAuditEvents(
-                    filter: _exportAuditFilter,
-                  );
-                  await Clipboard.setData(
-                    ClipboardData(
-                      text: _buildExportAuditTimelineExport(timeline),
-                    ),
-                  );
-                  if (!mounted) return;
-                  _showSnack('Export audit timeline copied');
+                  await _withSubmit('Export audit timeline copied.', () async {
+                    final timeline = _recentExportAuditEvents(
+                      filter: _exportAuditFilter,
+                    );
+                    await Clipboard.setData(
+                      ClipboardData(
+                        text: _buildExportAuditTimelineExport(timeline),
+                      ),
+                    );
+                  });
                 },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -4258,19 +4559,22 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
               const SizedBox(height: 4),
               TextButton(
                 onPressed: () async {
-                  final telemetryAlertTimeline = _recentExportAuditEvents(
-                    limit: widget.recentEvents.length,
-                    filter: _ExportAuditFilter.telemetryAlert,
+                  await _withSubmit(
+                    'Telemetry alerts timeline copied.',
+                    () async {
+                      final telemetryAlertTimeline = _recentExportAuditEvents(
+                        limit: widget.recentEvents.length,
+                        filter: _ExportAuditFilter.telemetryAlert,
+                      );
+                      await Clipboard.setData(
+                        ClipboardData(
+                          text: _buildExportAuditTimelineExport(
+                            telemetryAlertTimeline,
+                          ),
+                        ),
+                      );
+                    },
                   );
-                  await Clipboard.setData(
-                    ClipboardData(
-                      text: _buildExportAuditTimelineExport(
-                        telemetryAlertTimeline,
-                      ),
-                    ),
-                  );
-                  if (!mounted) return;
-                  _showSnack('Telemetry alerts timeline copied');
                 },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -4354,13 +4658,18 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                 onPressed: filteredEvents.isEmpty
                     ? null
                     : () async {
-                        await Clipboard.setData(
-                          ClipboardData(
-                            text: _buildFilteredEventRowsExport(filteredEvents),
-                          ),
+                        await _withSubmit(
+                          'Filtered event rows copied.',
+                          () async {
+                            await Clipboard.setData(
+                              ClipboardData(
+                                text: _buildFilteredEventRowsExport(
+                                  filteredEvents,
+                                ),
+                              ),
+                            );
+                          },
                         );
-                        if (!mounted) return;
-                        _showSnack('Filtered event rows copied');
                       },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -4463,13 +4772,18 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                 onPressed: filteredMedia.isEmpty
                     ? null
                     : () async {
-                        await Clipboard.setData(
-                          ClipboardData(
-                            text: _buildFilteredMediaRowsExport(filteredMedia),
-                          ),
+                        await _withSubmit(
+                          'Filtered media rows copied.',
+                          () async {
+                            await Clipboard.setData(
+                              ClipboardData(
+                                text: _buildFilteredMediaRowsExport(
+                                  filteredMedia,
+                                ),
+                              ),
+                            );
+                          },
                         );
-                        if (!mounted) return;
-                        _showSnack('Filtered media rows copied');
                       },
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
@@ -4537,6 +4851,10 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                 filteredEvents: filteredEvents,
                 filteredMedia: filteredMedia,
               ),
+              if (_lastActionStatus != null) ...[
+                const SizedBox(height: 10),
+                _syncActionStatusCard(),
+              ],
             ],
           ),
           actions: [
@@ -4676,66 +4994,66 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
             _actionButton(
               label: 'Copy Sync Report',
               onPressed: () async {
-                final generatedAtUtc = DateTime.now().toUtc();
-                await Clipboard.setData(
-                  ClipboardData(
-                    text: _buildSyncReport(
-                      filteredEvents: filteredEvents,
-                      filteredMedia: filteredMedia,
+                await _withSubmit('Sync report copied.', () async {
+                  final generatedAtUtc = DateTime.now().toUtc();
+                  await Clipboard.setData(
+                    ClipboardData(
+                      text: _buildSyncReport(
+                        filteredEvents: filteredEvents,
+                        filteredMedia: filteredMedia,
+                      ),
                     ),
-                  ),
-                );
-                if (widget.onSyncReportCopied != null) {
-                  await widget.onSyncReportCopied!(
-                    generatedAtUtc: generatedAtUtc,
-                    scopeKey: widget.activeScopeKey,
-                    facadeMode: widget.operationModeFilter.name,
-                    eventFilter: _filterLabel(_eventFilter).toLowerCase(),
-                    mediaFilter: _filterLabel(_mediaFilter).toLowerCase(),
                   );
-                }
-                if (!mounted) return;
-                _showSnack('Sync report copied');
+                  if (widget.onSyncReportCopied != null) {
+                    await widget.onSyncReportCopied!(
+                      generatedAtUtc: generatedAtUtc,
+                      scopeKey: widget.activeScopeKey,
+                      facadeMode: widget.operationModeFilter.name,
+                      eventFilter: _filterLabel(_eventFilter).toLowerCase(),
+                      mediaFilter: _filterLabel(_mediaFilter).toLowerCase(),
+                    );
+                  }
+                });
               },
             ),
             _actionButton(
               label: 'Copy Shift Replay Summary',
               onPressed: () async {
-                final generatedAtUtc = DateTime.now().toUtc();
-                final replayText = _buildShiftReplaySummary();
-                await Clipboard.setData(ClipboardData(text: replayText));
-                if (widget.onShiftReplaySummaryCopied != null) {
-                  await widget.onShiftReplaySummaryCopied!(
-                    generatedAtUtc: generatedAtUtc,
-                    shiftId: activeShiftId,
-                    eventRows: filteredEvents.length,
-                    mediaRows: filteredMedia.length,
-                  );
-                }
-                if (!mounted) return;
-                _showSnack('Shift replay summary copied');
+                await _withSubmit('Shift replay summary copied.', () async {
+                  final generatedAtUtc = DateTime.now().toUtc();
+                  final replayText = _buildShiftReplaySummary();
+                  await Clipboard.setData(ClipboardData(text: replayText));
+                  if (widget.onShiftReplaySummaryCopied != null) {
+                    await widget.onShiftReplaySummaryCopied!(
+                      generatedAtUtc: generatedAtUtc,
+                      shiftId: activeShiftId,
+                      eventRows: filteredEvents.length,
+                      mediaRows: filteredMedia.length,
+                    );
+                  }
+                });
               },
             ),
             _actionButton(
               label: 'Dispatch Closeout Packet',
               onPressed: () async {
-                final generatedAtUtc = DateTime.now().toUtc();
-                await Clipboard.setData(
-                  ClipboardData(
-                    text: _buildDispatchCloseoutPacket(
-                      filteredEvents: filteredEvents,
-                      filteredMedia: filteredMedia,
+                await _withSubmit('Dispatch closeout packet copied.', () async {
+                  final generatedAtUtc = DateTime.now().toUtc();
+                  await Clipboard.setData(
+                    ClipboardData(
+                      text: _buildDispatchCloseoutPacket(
+                        filteredEvents: filteredEvents,
+                        filteredMedia: filteredMedia,
+                      ),
                     ),
-                  ),
-                );
-                await widget.onDispatchCloseoutPacketCopied(
-                  generatedAtUtc: generatedAtUtc,
-                  scopeKey: widget.activeScopeKey,
-                  facadeMode: widget.operationModeFilter.name,
-                  readinessState: _shiftCloseoutReadinessLabel(activeShiftId),
-                );
-                if (!mounted) return;
-                _showSnack('Dispatch closeout packet copied');
+                  );
+                  await widget.onDispatchCloseoutPacketCopied(
+                    generatedAtUtc: generatedAtUtc,
+                    scopeKey: widget.activeScopeKey,
+                    facadeMode: widget.operationModeFilter.name,
+                    readinessState: _shiftCloseoutReadinessLabel(activeShiftId),
+                  );
+                });
               },
             ),
             _actionButton(
@@ -4758,11 +5076,14 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                   _showSnack('No operation rows available in this filter.');
                   return;
                 }
-                await Clipboard.setData(
-                  ClipboardData(text: _operationDetailText(operation)),
+                await _withSubmit(
+                  'Selected operation detail copied.',
+                  () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: _operationDetailText(operation)),
+                    );
+                  },
                 );
-                if (!mounted) return;
-                _showSnack('Selected operation detail copied');
               },
             ),
             _actionButton(
@@ -5351,6 +5672,697 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
     );
   }
 
+  Widget _workspaceInsetPanel({
+    Key? key,
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFF091321),
+        border: Border.all(color: const Color(0xFF1E3248)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFE7F1FF),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA5C6),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+
+  String _screenWorkspaceTitle(_GuardMobileScreen screen) {
+    return switch (screen) {
+      _GuardMobileScreen.shiftStart => 'Shift Verification',
+      _GuardMobileScreen.dispatch => switch (widget.operatorRole) {
+        GuardMobileOperatorRole.reaction => 'Incident Response',
+        GuardMobileOperatorRole.supervisor => 'Dispatch Oversight',
+        GuardMobileOperatorRole.guard => 'Dispatch Queue',
+      },
+      _GuardMobileScreen.status => switch (widget.operatorRole) {
+        GuardMobileOperatorRole.reaction => 'Response Milestones',
+        GuardMobileOperatorRole.supervisor => 'Status Overrides',
+        GuardMobileOperatorRole.guard => 'Duty Status',
+      },
+      _GuardMobileScreen.checkpoint => 'Checkpoint Sweep',
+      _GuardMobileScreen.panic => 'Emergency Lane',
+      _GuardMobileScreen.sync => 'Sync Command',
+    };
+  }
+
+  String _screenWorkspaceSubtitle(_GuardMobileScreen screen) {
+    return switch (screen) {
+      _GuardMobileScreen.shiftStart =>
+        'Identity and shift gate before patrol is live.',
+      _GuardMobileScreen.dispatch => switch (widget.operatorRole) {
+        GuardMobileOperatorRole.reaction =>
+          'Accept, arrive, and clear the active reaction incident.',
+        GuardMobileOperatorRole.supervisor =>
+          'Drive supervised overrides and coaching acknowledgement.',
+        GuardMobileOperatorRole.guard =>
+          'Acknowledge dispatch and move into field response.',
+      },
+      _GuardMobileScreen.status =>
+        'Push live duty-state transitions into the queue.',
+      _GuardMobileScreen.checkpoint =>
+        'Capture checkpoint proof and patrol media from the route.',
+      _GuardMobileScreen.panic =>
+        'Escalate panic flow and apply governed outcome labels.',
+      _GuardMobileScreen.sync =>
+        'Review sync health, telemetry, and operation backlog.',
+    };
+  }
+
+  Color _screenWorkspaceAccent(_GuardMobileScreen screen) {
+    return switch (screen) {
+      _GuardMobileScreen.shiftStart => const Color(0xFF7FD8A5),
+      _GuardMobileScreen.dispatch => const Color(0xFF69C3FF),
+      _GuardMobileScreen.status => const Color(0xFFF1B872),
+      _GuardMobileScreen.checkpoint => const Color(0xFF8FD1FF),
+      _GuardMobileScreen.panic => const Color(0xFFFF8D9A),
+      _GuardMobileScreen.sync => const Color(0xFFB2A5FF),
+    };
+  }
+
+  String _screenWorkspaceState(_GuardMobileScreen screen) {
+    if (_screen == screen) {
+      return 'active';
+    }
+    if (screen == _GuardMobileScreen.sync &&
+        _syncHealthLabel().toLowerCase() == 'at risk') {
+      return 'watch';
+    }
+    if (screen == _GuardMobileScreen.panic && widget.failedEventCount > 0) {
+      return 'alert';
+    }
+    return 'ready';
+  }
+
+  String _workspaceActionSummary() {
+    final status = _lastActionStatus?.trim();
+    if (status == null || status.isEmpty) {
+      return 'Awaiting the next queue action.';
+    }
+    if (status.startsWith('Guard action failed:')) {
+      return 'Failure recorded in the operator log.';
+    }
+    return status;
+  }
+
+  Widget _syncActionStatusCard() {
+    return Container(
+      key: const ValueKey('guard-sync-action-status'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF12243B), Color(0xFF17314D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFF2F5F8E)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LATEST ACTION',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FCFFF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            _lastActionStatus!,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _screenWorkspaceRailCard(_GuardMobileScreen screen) {
+    final selected = _screen == screen;
+    final accent = _screenWorkspaceAccent(screen);
+    return InkWell(
+      key: ValueKey('guard-screen-card-${screen.name}'),
+      borderRadius: BorderRadius.circular(12),
+      onTap: () {
+        setState(() {
+          _screen = screen;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? accent.withValues(alpha: 0.16)
+              : const Color(0xFF0E1A2B),
+          border: Border.all(
+            color: selected ? accent : const Color(0xFF223244),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _screenWorkspaceTitle(screen),
+                    style: GoogleFonts.inter(
+                      color: selected ? accent : const Color(0xFFE7F1FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: accent.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    _screenWorkspaceState(screen).toUpperCase(),
+                    style: GoogleFonts.inter(
+                      color: accent,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _screenWorkspaceSubtitle(screen),
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA5C6),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _workspaceCommandButton({
+    required Key key,
+    required String label,
+    required String successMessage,
+    required Future<void> Function() action,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton(
+        key: key,
+        onPressed: _submitting
+            ? null
+            : () async {
+                await _withSubmit(successMessage, action);
+              },
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF132E4E),
+          side: const BorderSide(color: Color(0xFF66C5FF)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          minimumSize: const Size(0, 42),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF66C5FF),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _guardDesktopWorkspaceStatusBanner({
+    required List<GuardSyncOperation> visibleHistoryOperations,
+  }) {
+    GuardSyncOperation? selectedOperation;
+    if (_selectedOperationId != null) {
+      for (final operation in widget.queuedOperations) {
+        if (operation.operationId == _selectedOperationId) {
+          selectedOperation = operation;
+          break;
+        }
+      }
+    }
+    return Container(
+      key: const ValueKey('guard-desktop-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF101D30), Color(0xFF162740)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF26405C)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0x1A66C5FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0x5566C5FF)),
+                ),
+                child: const Icon(
+                  Icons.phone_android_rounded,
+                  color: Color(0xFFD8F2FF),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'GUARD DESKTOP WORKSPACE',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF8FAFD4),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_screenWorkspaceTitle(_screen)} is active while ${widget.historyFilter.name.toUpperCase()} history and ${_syncHealthLabel()} sync health stay visible.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFEAF4FF),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      selectedOperation == null
+                          ? '${visibleHistoryOperations.length} visible operation${visibleHistoryOperations.length == 1 ? '' : 's'} in the current queue view.'
+                          : 'Selected operation ${selectedOperation.operationId} is ready for full runtime inspection.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFFB4C8E1),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                'Active Screen',
+                _screenWorkspaceTitle(_screen),
+                _screenWorkspaceAccent(_screen),
+              ),
+              _chip('Sync Health', _syncHealthLabel(), _syncHealthColor()),
+              _chip(
+                'History',
+                widget.historyFilter.name.toUpperCase(),
+                const Color(0xFF8FD1FF),
+              ),
+              _chip(
+                'Mode',
+                _operationModeLabel(widget.operationModeFilter),
+                const Color(0xFFB2A5FF),
+              ),
+              if (selectedOperation != null)
+                _chip(
+                  'Selected Op',
+                  selectedOperation.operationId,
+                  const Color(0xFFF1B872),
+                ),
+              _workspaceBannerActionChip(
+                key: const ValueKey('guard-desktop-workspace-focus-dispatch'),
+                label: 'Dispatch Screen',
+                accent: const Color(0xFF69C3FF),
+                successMessage: 'Dispatch screen opened.',
+                action: () async {
+                  setState(() {
+                    _screen = _GuardMobileScreen.dispatch;
+                  });
+                },
+              ),
+              _workspaceBannerActionChip(
+                key: const ValueKey('guard-desktop-workspace-focus-sync'),
+                label: 'Sync Screen',
+                accent: const Color(0xFFB2A5FF),
+                successMessage: 'Sync screen opened.',
+                action: () async {
+                  setState(() {
+                    _screen = _GuardMobileScreen.sync;
+                  });
+                },
+              ),
+              _workspaceBannerActionChip(
+                key: const ValueKey('guard-desktop-workspace-focus-failed'),
+                label: 'Failed Ops',
+                accent: const Color(0xFFFF8D9A),
+                successMessage: 'Failed operations focused.',
+                action: () async {
+                  setState(() {
+                    _screen = _GuardMobileScreen.sync;
+                  });
+                  await widget.onHistoryFilterChanged(
+                    GuardSyncHistoryFilter.failed,
+                  );
+                },
+              ),
+              _workspaceBannerActionChip(
+                key: const ValueKey('guard-desktop-workspace-copy-scoped-keys'),
+                label: 'Copy Scoped Keys',
+                accent: const Color(0xFF8FD1FF),
+                successMessage: 'Scoped selection keys copied.',
+                action: _copyScopedSelectionKeys,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workspaceBannerActionChip({
+    required Key key,
+    required String label,
+    required Color accent,
+    required String successMessage,
+    required Future<void> Function() action,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: _submitting
+          ? null
+          : () async {
+              await _withSubmit(successMessage, action);
+            },
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: accent.withValues(alpha: 0.52)),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: accent,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _guardScreenWorkspace({required bool showAdvancedSyncConsole}) {
+    final activeShiftId = widget.activeShiftId.trim();
+    final rail = _workspaceInsetPanel(
+      key: const ValueKey('guard-workspace-rail'),
+      title: 'Workflow Rail',
+      subtitle:
+          'Choose the active Android surface without leaving the shell timeline.',
+      child: Column(
+        children: [
+          for (
+            var index = 0;
+            index < _screensForRole(widget.operatorRole).length;
+            index++
+          ) ...[
+            _screenWorkspaceRailCard(
+              _screensForRole(widget.operatorRole)[index],
+            ),
+            if (index != _screensForRole(widget.operatorRole).length - 1)
+              const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+    final contextPanel = _workspaceInsetPanel(
+      key: const ValueKey('guard-workspace-context'),
+      title: 'Command Context',
+      subtitle:
+          'Keep queue pressure, shift posture, and sync posture visible while you work the active screen.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _chip(
+                'Active Screen',
+                _screenWorkspaceTitle(_screen),
+                _screenWorkspaceAccent(_screen),
+              ),
+              _chip(
+                'Queue Depth',
+                widget.queueDepth.toString(),
+                const Color(0xFF8FD1FF),
+              ),
+              _chip('Sync Health', _syncHealthLabel(), _syncHealthColor()),
+              _chip(
+                'Shift Scope',
+                activeShiftId.isEmpty ? 'none' : activeShiftId,
+                const Color(0xFFB6C6DD),
+              ),
+              _chip(
+                'Pending Load',
+                '${widget.pendingEventCount}E / ${widget.pendingMediaCount}M',
+                const Color(0xFF7FD8A5),
+              ),
+              if (showAdvancedSyncConsole)
+                _chip(
+                  'Failed Ops',
+                  '${widget.failedEventCount + widget.failedMediaCount}',
+                  widget.failedEventCount + widget.failedMediaCount > 0
+                      ? const Color(0xFFFF8D9A)
+                      : const Color(0xFF7FD8A5),
+                ),
+            ],
+          ),
+          if (widget.syncStatusLabel != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Sync link: ${widget.syncStatusLabel}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9AB1D2),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (_lastActionStatus != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Last queue action: ${_workspaceActionSummary()}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA5C6),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _workspaceCommandButton(
+            key: const ValueKey('guard-workspace-focus-dispatch'),
+            label: 'Dispatch Workspace',
+            successMessage: 'Dispatch workspace opened.',
+            action: () async {
+              setState(() {
+                _screen = _GuardMobileScreen.dispatch;
+              });
+            },
+          ),
+          const SizedBox(height: 8),
+          _workspaceCommandButton(
+            key: const ValueKey('guard-workspace-focus-sync'),
+            label: 'Open Sync Workspace',
+            successMessage: 'Sync workspace opened.',
+            action: () async {
+              setState(() {
+                _screen = _GuardMobileScreen.sync;
+              });
+            },
+          ),
+          if (showAdvancedSyncConsole) ...[
+            const SizedBox(height: 8),
+            _workspaceCommandButton(
+              key: const ValueKey('guard-workspace-focus-failed'),
+              label: 'Focus Failed Ops',
+              successMessage: 'Failed operations lane opened.',
+              action: () async {
+                setState(() {
+                  _screen = _GuardMobileScreen.sync;
+                });
+                await widget.onHistoryFilterChanged(
+                  GuardSyncHistoryFilter.failed,
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            _workspaceCommandButton(
+              key: const ValueKey('guard-workspace-copy-scope-map'),
+              label: 'Copy Scope Map',
+              successMessage: 'Scoped selection keys copied.',
+              action: _copyScopedSelectionKeys,
+            ),
+          ],
+        ],
+      ),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked =
+            widget.guardOnlyExperience || constraints.maxWidth < 1120;
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              rail,
+              const SizedBox(height: 10),
+              _buildScreenPanel(),
+              const SizedBox(height: 10),
+              contextPanel,
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 270, child: rail),
+            const SizedBox(width: 10),
+            Expanded(flex: 6, child: _buildScreenPanel()),
+            const SizedBox(width: 10),
+            SizedBox(width: 310, child: contextPanel),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _historyOperationWorkspace({
+    required List<GuardSyncOperation> operations,
+    required int hiddenOperationCount,
+    required Widget Function(bool embeddedScroll) buildRows,
+    required bool stackPanels,
+  }) {
+    final listPanel = _workspaceInsetPanel(
+      key: const ValueKey('guard-sync-operations-list'),
+      title: 'Operation Queue',
+      subtitle:
+          'Review the filtered sync backlog and select a row for full runtime context.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (stackPanels)
+            buildRows(false)
+          else
+            SizedBox(height: 380, child: buildRows(true)),
+          if (hiddenOperationCount > 0) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OnyxTruncationHint(
+                visibleCount: operations.take(_maxHistoryOperationRows).length,
+                totalCount: operations.length,
+                subject: 'operations',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+    final detailPanel = _operationDetailPanel(operations);
+    if (stackPanels || detailPanel is SizedBox) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          listPanel,
+          if (detailPanel is! SizedBox) ...[
+            const SizedBox(height: 8),
+            detailPanel,
+          ],
+        ],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 5, child: listPanel),
+        const SizedBox(width: 10),
+        Expanded(flex: 4, child: detailPanel),
+      ],
+    );
+  }
+
   Widget _field({
     required String label,
     required String value,
@@ -5489,6 +6501,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       GuardSyncOperationStatus.failed => const Color(0xFFFF8D9A),
     };
     return InkWell(
+      key: ValueKey('guard-history-operation-${operation.operationId}'),
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(10),
@@ -5561,6 +6574,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
     }
     final operationContext = _operationRuntimeContext(operation);
     return Container(
+      key: const ValueKey('guard-sync-operation-detail'),
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -5748,17 +6762,11 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          message,
-          style: GoogleFonts.inter(
-            color: const Color(0xFFE7F1FF),
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        backgroundColor: const Color(0xFF0E203A),
-      ),
-    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _lastActionStatus = message;
+    });
   }
 }

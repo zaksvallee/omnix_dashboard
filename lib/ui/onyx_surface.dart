@@ -296,6 +296,128 @@ class OnyxSectionCard extends StatelessWidget {
   }
 }
 
+class OnyxViewportWorkspaceLayout extends StatelessWidget {
+  final EdgeInsetsGeometry padding;
+  final double maxWidth;
+  final Widget header;
+  final Widget body;
+  final double spacing;
+  final bool lockToViewport;
+
+  const OnyxViewportWorkspaceLayout({
+    super.key,
+    required this.padding,
+    required this.maxWidth,
+    required this.header,
+    required this.body,
+    this.spacing = 12,
+    this.lockToViewport = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedPadding = padding.resolve(Directionality.of(context));
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final shouldLock = lockToViewport && constraints.hasBoundedHeight;
+        final constrainedContent = OnyxCommandSurface(
+          compactDesktopWidth: maxWidth,
+          viewportWidth: constraints.maxWidth,
+          child: shouldLock
+              ? SizedBox(
+                  height: _availableViewportHeight(
+                    constraints.maxHeight,
+                    resolvedPadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      header,
+                      SizedBox(height: spacing),
+                      Expanded(child: body),
+                    ],
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    header,
+                    SizedBox(height: spacing),
+                    body,
+                  ],
+                ),
+        );
+        if (shouldLock) {
+          return Padding(padding: resolvedPadding, child: constrainedContent);
+        }
+        return SingleChildScrollView(
+          padding: resolvedPadding,
+          child: constrainedContent,
+        );
+      },
+    );
+  }
+
+  double _availableViewportHeight(
+    double viewportHeight,
+    EdgeInsets resolvedPadding,
+  ) {
+    final availableHeight = viewportHeight - resolvedPadding.vertical;
+    return availableHeight > 0 ? availableHeight : 0;
+  }
+}
+
+class OnyxCommandSurface extends StatelessWidget {
+  final Widget child;
+  final double compactDesktopWidth;
+  final double? viewportWidth;
+  final AlignmentGeometry alignment;
+
+  const OnyxCommandSurface({
+    super.key,
+    required this.child,
+    required this.compactDesktopWidth,
+    this.viewportWidth,
+    this.alignment = Alignment.topCenter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final resolvedViewportWidth = viewportWidth ?? constraints.maxWidth;
+        final resolvedMaxWidth = commandSurfaceMaxWidth(
+          context,
+          compactDesktopWidth: compactDesktopWidth,
+          viewportWidth: resolvedViewportWidth,
+        );
+        return Align(
+          alignment: alignment,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: resolvedMaxWidth),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
+Widget onyxBoundedPanelBody({
+  required BuildContext context,
+  required BoxConstraints constraints,
+  required Widget child,
+  bool flexibleChild = false,
+}) {
+  if (flexibleChild) {
+    return Expanded(child: child);
+  }
+  if (constraints.hasBoundedHeight && !isHandsetLayout(context)) {
+    return Expanded(child: SingleChildScrollView(child: child));
+  }
+  return child;
+}
+
 class OnyxTruncationHint extends StatelessWidget {
   final int visibleCount;
   final int totalCount;

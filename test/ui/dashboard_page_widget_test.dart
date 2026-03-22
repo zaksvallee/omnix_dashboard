@@ -4,8 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
+import 'package:omnix_dashboard/domain/events/execution_completed.dart';
+import 'package:omnix_dashboard/domain/events/execution_denied.dart';
+import 'package:omnix_dashboard/domain/events/guard_checked_in.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
+import 'package:omnix_dashboard/domain/events/patrol_completed.dart';
 import 'package:omnix_dashboard/domain/guard/guard_ops_event.dart';
 import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/dashboard_page.dart';
@@ -16,6 +20,21 @@ void main() {
       find.widgetWithText(TextButton, label),
     );
     expect(button.onPressed, isNull, reason: '$label should be disabled');
+  }
+
+  void expectTextButtonEnabled(WidgetTester tester, String label) {
+    final button = tester.widget<TextButton>(
+      find.widgetWithText(TextButton, label),
+    );
+    expect(button.onPressed, isNotNull, reason: '$label should be enabled');
+  }
+
+  void expectRailMetric(String label, String value) {
+    final row = find.ancestor(of: find.text(label), matching: find.byType(Row));
+    expect(
+      find.descendant(of: row.first, matching: find.text(value)),
+      findsOneWidget,
+    );
   }
 
   testWidgets('dashboard stays stable on phone viewport', (tester) async {
@@ -405,17 +424,17 @@ void main() {
     await tester.tap(find.text('Diagnostics and coaching telemetry'));
     await tester.pumpAndSettle();
     expect(find.text('Policy denied'), findsOneWidget);
-    expect(find.text('4'), findsOneWidget);
     expect(find.text('Denied (24h)'), findsOneWidget);
-    expect(find.text('3'), findsOneWidget);
     expect(find.text('Denied (7d)'), findsOneWidget);
-    expect(find.text('6'), findsOneWidget);
     expect(find.text('Coaching Ack'), findsOneWidget);
-    expect(find.text('5'), findsOneWidget);
     expect(find.text('Coaching Snooze'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
     expect(find.text('Snooze Expiry'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
+    expectRailMetric('Policy denied', '4');
+    expectRailMetric('Denied (24h)', '3');
+    expectRailMetric('Denied (7d)', '6');
+    expectRailMetric('Coaching Ack', '5');
+    expectRailMetric('Coaching Snooze', '2');
+    expectRailMetric('Snooze Expiry', '1');
     expect(find.text('Recent Coaching Telemetry'), findsOneWidget);
     expect(find.textContaining('acknowledged @ sync by guard'), findsOneWidget);
     expect(find.textContaining('Policy denied (latest):'), findsOneWidget);
@@ -484,12 +503,12 @@ void main() {
     expectTextButtonDisabled(tester, 'Download Policy JSON');
     expectTextButtonDisabled(tester, 'Download Policy CSV');
     expectTextButtonDisabled(tester, 'Download Coaching JSON');
-    expectTextButtonDisabled(tester, 'Share Policy Pack');
-    expectTextButtonDisabled(tester, 'Share Coaching Pack');
-    expectTextButtonDisabled(tester, 'Share Site Activity Pack');
-    expectTextButtonDisabled(tester, 'Share Site Activity Telegram');
-    expectTextButtonDisabled(tester, 'Share Failure Trace');
-    expectTextButtonDisabled(tester, 'Email Failure Trace');
+    expectTextButtonEnabled(tester, 'Share Policy Pack');
+    expectTextButtonEnabled(tester, 'Share Coaching Pack');
+    expectTextButtonEnabled(tester, 'Share Site Activity Pack');
+    expectTextButtonEnabled(tester, 'Share Site Activity Telegram');
+    expectTextButtonEnabled(tester, 'Share Failure Trace');
+    expectTextButtonEnabled(tester, 'Email Failure Trace');
 
     await tester.ensureVisible(find.text('Open Guard Sync'));
     await tester.tap(find.text('Open Guard Sync'));
@@ -639,6 +658,12 @@ void main() {
     await tester.tap(find.text('Advanced export and share'));
     await tester.pumpAndSettle();
 
+    expect(
+      find.byKey(const ValueKey('dashboard-advanced-export-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('Export relay ready'), findsOneWidget);
+
     await tester.tap(find.text('Copy Site Activity JSON'));
     await tester.pump();
 
@@ -663,6 +688,7 @@ void main() {
         '"currentShiftCaseFileCommand": "/activitycase json CLIENT-1 SITE-1 2026-03-09"',
       ),
     );
+    expect(find.text('Site activity JSON copied'), findsOneWidget);
 
     await tester.tap(find.text('Copy Site Activity CSV'));
     await tester.pump();
@@ -679,7 +705,81 @@ void main() {
         'current_case_file_command,/activitycase json CLIENT-1 SITE-1 2026-03-09',
       ),
     );
+    expect(find.text('Site activity CSV copied'), findsOneWidget);
   });
+
+  testWidgets(
+    'dashboard stages site activity pack when share bridge is unavailable',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? copiedPayload;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      final store = InMemoryEventStore();
+      store.append(
+        IntelligenceReceived(
+          eventId: 'evt-activity-share-1',
+          sequence: 1,
+          version: 1,
+          occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+          intelligenceId: 'intel-activity-share-1',
+          provider: 'hikvision_dvr_monitor_only',
+          sourceType: 'dvr',
+          externalId: 'ext-activity-share-1',
+          clientId: 'CLIENT-1',
+          regionId: 'REGION-1',
+          siteId: 'SITE-1',
+          cameraId: 'gate-cam',
+          objectLabel: 'vehicle',
+          objectConfidence: 0.92,
+          plateNumber: 'CA111111',
+          headline: 'Known visitor vehicle entered',
+          summary: 'Known visitor vehicle entered the gate lane.',
+          riskScore: 58,
+          snapshotUrl: 'https://edge.example.com/vehicle.jpg',
+          canonicalHash: 'hash-activity-share-1',
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: DashboardPage(eventStore: store)),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Advanced export and share'));
+      await tester.tap(find.text('Advanced export and share'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Share Site Activity Pack'));
+      await tester.pump();
+
+      expect(copiedPayload, isNotNull);
+      expect(copiedPayload, startsWith('ONYX Site Activity Truth'));
+      expect(copiedPayload, contains('"siteActivity"'));
+      expect(find.text('Site activity pack staged'), findsOneWidget);
+      expect(
+        find.textContaining('copied for manual handoff'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('dashboard copies site activity telegram summary', (
     tester,
@@ -927,6 +1027,7 @@ void main() {
 
     expect(find.text('Copy Site Activity Review JSON'), findsOneWidget);
     expect(find.text('Open Site Activity Events Review'), findsOneWidget);
+    expect(find.text('Export relay ready'), findsOneWidget);
 
     await tester.tap(find.text('Copy Site Activity Review JSON'));
     await tester.pump();
@@ -938,12 +1039,238 @@ void main() {
     expect(copiedPayload, contains('"ACTIVITY-11"'));
     expect(copiedPayload, contains('"selectedEventId": "ACTIVITY-11"'));
     expect(copiedPayload, contains('"evidenceEventIds": ['));
+    expect(find.text('Review JSON copied'), findsOneWidget);
 
     await tester.tap(find.text('Open Site Activity Events Review'));
     await tester.pumpAndSettle();
 
     expect(openedEventIds, equals(const ['ACTIVITY-7', 'ACTIVITY-11']));
     expect(openedSelectedEventId, 'ACTIVITY-11');
+    expect(find.text('Events review opened'), findsOneWidget);
+  });
+
+  testWidgets(
+    'dashboard stages failure trace mail when mail bridge is unavailable',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? copiedPayload;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DashboardPage(
+            eventStore: InMemoryEventStore(),
+            guardLastFailureReason: 'event sync timeout',
+            guardFailedEvents: 1,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Advanced export and share'));
+      await tester.tap(find.text('Advanced export and share'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Email Failure Trace'));
+      await tester.pump();
+
+      expect(copiedPayload, isNotNull);
+      expect(copiedPayload, startsWith('Subject: ONYX Guard Sync Failure Trace'));
+      expect(copiedPayload, contains('event sync timeout'));
+      expect(find.text('Failure trace mail staged'), findsOneWidget);
+      expect(
+        find.textContaining('mail-ready failure trace draft was copied'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('dashboard workspace switches modes and filters lanes', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1600, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = InMemoryEventStore();
+    store.append(
+      IntelligenceReceived(
+        eventId: 'SIG-INT-1',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 10, 0),
+        intelligenceId: 'INT-WS-1',
+        provider: 'newsapi.org',
+        sourceType: 'news',
+        externalId: 'signal-1',
+        clientId: 'CLIENT-RISK',
+        regionId: 'REGION-1',
+        siteId: 'SITE-RISK',
+        headline: 'Escalating perimeter chatter',
+        summary: 'High-risk perimeter activity detected.',
+        riskScore: 84,
+        canonicalHash: 'hash-signal-1',
+      ),
+    );
+    store.append(
+      GuardCheckedIn(
+        eventId: 'SIG-FIELD-1',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 10, 5),
+        guardId: 'GUARD-1',
+        clientId: 'CLIENT-STRONG',
+        regionId: 'REGION-1',
+        siteId: 'SITE-STRONG',
+      ),
+    );
+    store.append(
+      PatrolCompleted(
+        eventId: 'SIG-PATROL-1',
+        sequence: 3,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 10, 8),
+        guardId: 'GUARD-1',
+        routeId: 'R-1',
+        clientId: 'CLIENT-STRONG',
+        regionId: 'REGION-1',
+        siteId: 'SITE-STRONG',
+        durationSeconds: 600,
+      ),
+    );
+    store.append(
+      DecisionCreated(
+        eventId: 'DSP-RISK-1',
+        sequence: 4,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 10, 10),
+        dispatchId: 'DSP-RISK',
+        clientId: 'CLIENT-RISK',
+        regionId: 'REGION-1',
+        siteId: 'SITE-RISK',
+      ),
+    );
+    store.append(
+      ExecutionDenied(
+        eventId: 'DSP-RISK-2',
+        sequence: 5,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 10, 14),
+        dispatchId: 'DSP-RISK',
+        clientId: 'CLIENT-RISK',
+        regionId: 'REGION-1',
+        siteId: 'SITE-RISK',
+        operatorId: 'OP-1',
+        reason: 'Awaiting secondary confirmation',
+      ),
+    );
+    store.append(
+      DecisionCreated(
+        eventId: 'DSP-SAFE-1',
+        sequence: 6,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 10, 16),
+        dispatchId: 'DSP-SAFE',
+        clientId: 'CLIENT-STRONG',
+        regionId: 'REGION-1',
+        siteId: 'SITE-STRONG',
+      ),
+    );
+    store.append(
+      ExecutionCompleted(
+        eventId: 'DSP-SAFE-2',
+        sequence: 7,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 10, 10, 20),
+        dispatchId: 'DSP-SAFE',
+        clientId: 'CLIENT-STRONG',
+        regionId: 'REGION-1',
+        siteId: 'SITE-STRONG',
+        success: true,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: DashboardPage(eventStore: store)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('dashboard-workspace-status-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dashboard-workspace-panel-signals')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('dashboard-workspace-banner-open-dispatch-risk'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('dashboard-workspace-panel-dispatch')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dashboard-dispatch-card-DSP-RISK')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dashboard-dispatch-card-DSP-SAFE')),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('dashboard-workspace-banner-open-site-watch')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('dashboard-site-card-SITE-RISK')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dashboard-site-card-SITE-STRONG')),
+      findsNothing,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('dashboard-workspace-banner-open-live-intel')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('dashboard-workspace-panel-signals')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dashboard-signal-filter-intel')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dashboard-site-filter-watch')),
+      findsNothing,
+    );
   });
 
   testWidgets('dashboard guard sync card respects alert thresholds', (

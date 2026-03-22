@@ -199,11 +199,25 @@ void main() {
     expect(find.text('Push Notifications'), findsOneWidget);
     expect(find.text('Push Delivery Queue'), findsOneWidget);
     expect(find.text('Push Queue Ready'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('client-delivery-telemetry-strip')),
+      findsOneWidget,
+    );
     expect(find.text('Push Sync: standing by'), findsOneWidget);
     expect(find.text('Last Sync: none • Retries: 0'), findsOneWidget);
     expect(find.text('Backend Probe: idle • Last Run: none'), findsOneWidget);
     expect(find.text('Backend Probe History: no runs yet.'), findsOneWidget);
     expect(find.text('Push Sync History: no attempts yet.'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('client-delivery-push-sync-empty-recovery')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('client-delivery-backend-probe-empty-recovery'),
+      ),
+      findsOneWidget,
+    );
     expect(find.widgetWithText(TextButton, 'Retry Push Sync'), findsNothing);
     expect(find.widgetWithText(TextButton, 'Run Backend Probe'), findsNothing);
     expect(
@@ -249,7 +263,11 @@ void main() {
     expect(find.text('Dispatch'), findsWidgets);
     expect(find.text('Tap to collapse'), findsOneWidget);
     expect(find.text('Opened • 10:20 UTC'), findsOneWidget);
-    await tester.tap(find.widgetWithText(TextButton, 'Open Incident').first);
+    final openIncidentButton = find
+        .widgetWithText(TextButton, 'Open Incident')
+        .first;
+    await tester.ensureVisible(openIncidentButton);
+    await tester.tap(openIncidentButton);
     await tester.pumpAndSettle();
     expect(find.text('Incident Detail'), findsOneWidget);
     expect(richDetailLine('Reference: DISP-001'), findsOneWidget);
@@ -274,22 +292,73 @@ void main() {
     );
     await tester.tap(find.widgetWithText(TextButton, 'Close'));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.campaign_rounded), findsNWidgets(2));
-    expect(find.byIcon(Icons.flash_on_rounded), findsNWidgets(2));
+    expect(find.byIcon(Icons.campaign_rounded), findsAtLeastNWidgets(2));
+    expect(find.byIcon(Icons.flash_on_rounded), findsAtLeastNWidgets(2));
     expect(find.text('Residents'), findsOneWidget);
     expect(find.text('Room Focus: Residents'), findsOneWidget);
     expect(find.text('Showing pending: Residents'), findsOneWidget);
-    expect(find.text('Show all'), findsOneWidget);
+    final bannerScopeToggle = find.byKey(
+      const ValueKey('client-comms-toggle-scope'),
+    );
+    expect(
+      find.descendant(of: bannerScopeToggle, matching: find.text('Show all')),
+      findsOneWidget,
+    );
     expect(find.text('ONYX • 10:20 UTC'), findsOneWidget);
     expect(find.text('Unread Alerts'), findsOneWidget);
     expect(find.text('Direct Chat'), findsOneWidget);
     expect(find.text('Client Acks Pending'), findsOneWidget);
     expect(
-      find.textContaining('Target: Client Ack • Bridge: In-app • 10:20 UTC'),
+      find.byKey(const ValueKey('client-delivery-workspace-status-banner')),
+      findsOneWidget,
+    );
+    final selectedDeliveryCard = find.byKey(
+      const ValueKey('client-delivery-workspace-selected-card'),
+    );
+    expect(selectedDeliveryCard, findsOneWidget);
+    expect(
+      find.descendant(
+        of: selectedDeliveryCard,
+        matching: find.text('Client Ack'),
+      ),
       findsOneWidget,
     );
     expect(
-      find.textContaining('Target: Resident Seen • Bridge: In-app • 10:15 UTC'),
+      find.descendant(of: selectedDeliveryCard, matching: find.text('In-app')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: selectedDeliveryCard,
+        matching: find.text('10:20 UTC'),
+      ),
+      findsOneWidget,
+    );
+    final deliveryQueuePanel = find.byKey(
+      const ValueKey('client-delivery-workspace-panel-queue'),
+    );
+    expect(deliveryQueuePanel, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('client-delivery-queue-command-deck')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: deliveryQueuePanel,
+        matching: find.text('Resident Seen'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: deliveryQueuePanel, matching: find.text('In-app')),
+      findsWidgets,
+    );
+    expect(
+      find.descendant(of: deliveryQueuePanel, matching: find.text('10:15 UTC')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('client-notifications-command-deck')),
       findsOneWidget,
     );
     expect(find.text('Queued'), findsWidgets);
@@ -299,34 +368,44 @@ void main() {
     expect(find.text('Client informed in Residents'), findsOneWidget);
     expect(
       find.widgetWithText(OutlinedButton, 'Request ETA for Residents'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.widgetWithText(OutlinedButton, 'Review Advisory for Residents'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.widgetWithText(TextButton, 'Send Advisory to Residents'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.text(
         'Give this dispatch reply a quick client review before it goes to Residents.',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.widgetWithText(TextButton, 'Review client draft for Residents'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(find.text('Send secure client update...'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Send'), findsOneWidget);
+    final notificationPrimaryAction = find.byKey(
+      const ValueKey('client-notifications-primary-action'),
+    );
+    await tester.ensureVisible(notificationPrimaryAction);
+    await tester.tap(notificationPrimaryAction);
+    await tester.pump();
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller?.text,
+      'Please share the latest ETA for security response activated in Residents.',
+    );
     final openClientReviewButton = find.widgetWithText(
       TextButton,
       'Review client draft for Residents',
     );
-    await tester.ensureVisible(openClientReviewButton);
-    await tester.tap(openClientReviewButton);
+    await tester.ensureVisible(openClientReviewButton.first);
+    await tester.tap(openClientReviewButton.first);
     await tester.pump();
     expect(
       find.text('Client review draft is open for Residents'),
@@ -442,6 +521,459 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'client app page routes room workspace actions through the new comms shell',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var retryRuns = 0;
+      var probeRuns = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: [
+              IntelligenceReceived(
+                eventId: 'intel-workspace-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 4, 10, 15),
+                intelligenceId: 'INT-WS-001',
+                provider: 'newsapi.org',
+                sourceType: 'news',
+                externalId: 'EXT-WS-001',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+                headline: 'Client advisory issued',
+                summary: 'Residents should remain alert near the east gate.',
+                riskScore: 78,
+                canonicalHash: 'hash-ws-1',
+              ),
+              DecisionCreated(
+                eventId: 'dispatch-workspace-1',
+                sequence: 2,
+                version: 1,
+                occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+                dispatchId: 'DISP-001',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+              ),
+            ],
+            initialManualMessages: [
+              ClientAppMessage(
+                author: 'Client',
+                body: 'Trustees would like the next checkpoint update.',
+                occurredAt: DateTime.utc(2026, 3, 4, 10, 25),
+                roomKey: 'Trustees',
+              ),
+            ],
+            initialPushQueue: [
+              ClientAppPushDeliveryItem(
+                messageKey: 'delivery-1',
+                title: 'Telegram Sync Retry',
+                body: 'Residents push delivery is waiting for operator retry.',
+                occurredAt: DateTime.utc(2026, 3, 4, 10, 27),
+                targetChannel: ClientAppAcknowledgementChannel.resident,
+                priority: true,
+                status: ClientPushDeliveryStatus.queued,
+              ),
+            ],
+            pushSyncHistory: [
+              ClientPushSyncAttempt(
+                occurredAt: DateTime.utc(2026, 3, 4, 10, 28),
+                status: 'failed',
+                failureReason: 'timeout',
+                queueSize: 1,
+              ),
+            ],
+            backendProbeHistory: [
+              ClientBackendProbeAttempt(
+                occurredAt: DateTime.utc(2026, 3, 4, 10, 29),
+                status: 'ok',
+              ),
+            ],
+            onRetryPushSync: () async {
+              retryRuns += 1;
+            },
+            onRunBackendProbe: () async {
+              probeRuns += 1;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('client-comms-workspace-panel-rooms')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-comms-workspace-panel-chat')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-comms-workspace-panel-context')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-comms-command-receipt')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-comms-focus-banner')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-room-rail-command-deck')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-chat-composer-command-deck')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-delivery-workspace-panel-queue')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-delivery-workspace-panel-board')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-delivery-workspace-panel-incident')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-delivery-command-receipt')),
+        findsOneWidget,
+      );
+
+      final trusteesRoom = find.byKey(
+        const ValueKey('client-comms-banner-room-Trustees'),
+      );
+      await tester.ensureVisible(trusteesRoom);
+      await tester.tap(trusteesRoom);
+      await tester.pumpAndSettle();
+      expect(find.text('Room Focus: Trustees'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('client-room-Trustees-primary-action')),
+        findsOneWidget,
+      );
+
+      final recommendedDraftAction = find.byKey(
+        const ValueKey('client-chat-command-deck-primary-action'),
+      );
+      await tester.ensureVisible(recommendedDraftAction);
+      await tester.tap(recommendedDraftAction);
+      await tester.pump();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller?.text,
+        'Trustee review requested for Trustees',
+      );
+
+      final toggleScope = find.byKey(
+        const ValueKey('client-room-rail-toggle-scope'),
+      );
+      await tester.ensureVisible(toggleScope);
+      await tester.tap(toggleScope);
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: toggleScope, matching: find.text('Show pending')),
+        findsOneWidget,
+      );
+
+      final focusComposerAction = find.byKey(
+        const ValueKey('client-room-rail-focus-composer'),
+      );
+      await tester.ensureVisible(focusComposerAction);
+      await tester.tap(focusComposerAction);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).focusNode?.hasFocus,
+        isTrue,
+      );
+
+      final openThreadAction = find.byKey(
+        const ValueKey('client-room-rail-open-thread'),
+      );
+      await tester.ensureVisible(openThreadAction);
+      await tester.tap(openThreadAction);
+      await tester.pumpAndSettle();
+      expect(find.text('Incident Detail'), findsOneWidget);
+      await tester.tap(find.widgetWithText(TextButton, 'Close'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('incident thread.'), findsWidgets);
+      expect(find.byType(SnackBar), findsNothing);
+
+      final deliveryItem = find.byKey(
+        const ValueKey('client-delivery-queue-item-delivery-1'),
+      );
+      await tester.ensureVisible(deliveryItem);
+      await tester.tap(deliveryItem);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('client-delivery-queue-primary-action')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: deliveryItem,
+          matching: find.text('Current focus'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey('client-delivery-workspace-selected-card'),
+          ),
+          matching: find.text('Telegram Sync Retry'),
+        ),
+        findsOneWidget,
+      );
+
+      final retrySyncAction = find.byKey(
+        const ValueKey('client-delivery-retry-sync'),
+      );
+      await tester.ensureVisible(retrySyncAction);
+      await tester.tap(retrySyncAction);
+      await tester.pump();
+      expect(retryRuns, 1);
+
+      final runProbeAction = find.byKey(
+        const ValueKey('client-delivery-run-probe'),
+      );
+      await tester.ensureVisible(runProbeAction);
+      await tester.tap(runProbeAction);
+      await tester.pump();
+      expect(probeRuns, 1);
+    },
+  );
+
+  testWidgets(
+    'client app page pins empty incident handoff feedback in the desktop rails',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: <DispatchEvent>[],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('client-comms-command-receipt')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-delivery-command-receipt')),
+        findsOneWidget,
+      );
+
+      final openThreadAction = find.byKey(
+        const ValueKey('client-comms-open-thread'),
+      );
+      await tester.ensureVisible(openThreadAction);
+      await tester.tap(openThreadAction);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('No incident thread is ready for this lane yet.'),
+        findsWidgets,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'client app delivery workspace empty states expose recovery pivots',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var retryRuns = 0;
+      var probeRuns = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: const <DispatchEvent>[],
+            onRetryPushSync: () async {
+              retryRuns += 1;
+            },
+            onRunBackendProbe: () async {
+              probeRuns += 1;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('client-delivery-queue-empty-recovery')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-delivery-selected-empty-recovery')),
+        findsOneWidget,
+      );
+
+      final retryAction = find.byKey(
+        const ValueKey('client-delivery-recovery-retry-sync'),
+      );
+      await tester.ensureVisible(retryAction.first);
+      await tester.tap(retryAction.first);
+      await tester.pump();
+      expect(retryRuns, 1);
+
+      final probeAction = find.byKey(
+        const ValueKey('client-delivery-recovery-run-probe'),
+      );
+      await tester.ensureVisible(probeAction.first);
+      await tester.tap(probeAction.first);
+      await tester.pump();
+      expect(probeRuns, 1);
+
+      final openThreadAction = find.byKey(
+        const ValueKey('client-delivery-recovery-open-thread'),
+      );
+      await tester.ensureVisible(openThreadAction.first);
+      await tester.tap(openThreadAction.first);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('No incident thread is ready for this lane yet.'),
+        findsWidgets,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'client app incident workspace empty state exposes recovery pivots',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: <DispatchEvent>[],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final recoveryDeck = find.byKey(
+        const ValueKey('client-incident-feed-empty-recovery'),
+      );
+      expect(recoveryDeck, findsOneWidget);
+
+      final toggleScopeAction = find.byKey(
+        const ValueKey('client-incident-feed-empty-toggle-scope'),
+      );
+      expect(
+        find.descendant(of: toggleScopeAction, matching: find.text('Show all')),
+        findsOneWidget,
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('client-incident-feed-empty-open-first')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('client-incident-feed-empty-open-first')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('No incident thread is ready for this lane yet.'),
+        findsWidgets,
+      );
+
+      await tester.ensureVisible(toggleScopeAction);
+      await tester.tap(toggleScopeAction);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: toggleScopeAction,
+          matching: find.text('Show pending'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'client app communications empty recoveries expose scoped pivots',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: <DispatchEvent>[],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('client-notifications-empty-recovery')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('client-chat-empty-recovery')),
+        findsOneWidget,
+      );
+
+      final notificationsScopeToggle = find.byKey(
+        const ValueKey('client-notifications-empty-toggle-scope'),
+      );
+      await tester.ensureVisible(notificationsScopeToggle);
+      await tester.tap(notificationsScopeToggle);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Alarm triggers, arrivals, closures, and intelligence advisories. Showing all notifications • current lane: Residents',
+        ),
+        findsOneWidget,
+      );
+
+      final chatOpenThread = find.byKey(
+        const ValueKey('client-chat-empty-open-thread'),
+      );
+      await tester.ensureVisible(chatOpenThread);
+      await tester.tap(chatOpenThread);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('No incident thread is ready for this lane yet.'),
+        findsWidgets,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+    },
+  );
 
   testWidgets('client app page restores and emits client draft state', (
     tester,
@@ -637,7 +1169,9 @@ void main() {
     expect(find.text('Telegram response generated for client.'), findsWidgets);
     expect(find.text('ONYX AI • Residents • 10:26 UTC'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Telegram'));
+    final telegramChip = find.widgetWithText(ChoiceChip, 'Telegram');
+    await tester.ensureVisible(telegramChip);
+    await tester.tap(telegramChip);
     await tester.pumpAndSettle();
 
     expect(find.text('Client • Residents • 10:25 UTC'), findsNothing);
@@ -695,16 +1229,35 @@ void main() {
       ),
     );
 
-    expect(find.text('Client Ack'), findsNWidgets(2));
+    final clientAckAction = find.widgetWithText(TextButton, 'Client Ack');
+    expect(clientAckAction, findsWidgets);
+    final selectedDeliveryCard = find.byKey(
+      const ValueKey('client-delivery-workspace-selected-card'),
+    );
+    expect(selectedDeliveryCard, findsOneWidget);
     expect(
-      find.textContaining('Target: Client Ack • Bridge: In-app • 10:20 UTC'),
+      find.descendant(
+        of: selectedDeliveryCard,
+        matching: find.text('Client Ack'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: selectedDeliveryCard, matching: find.text('In-app')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: selectedDeliveryCard,
+        matching: find.text('10:20 UTC'),
+      ),
       findsOneWidget,
     );
     expect(find.text('Queued'), findsWidgets);
-    expect(find.text('Control Ack'), findsNothing);
-    expect(find.text('Resident Seen'), findsNothing);
-    await tester.ensureVisible(find.text('Client Ack').first);
-    await tester.tap(find.text('Client Ack').first);
+    expect(find.widgetWithText(TextButton, 'Control Ack'), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Resident Seen'), findsNothing);
+    await tester.ensureVisible(clientAckAction.first);
+    await tester.tap(clientAckAction.first);
     await tester.pump();
 
     expect(acknowledgements, hasLength(1));
@@ -713,9 +1266,14 @@ void main() {
       ClientAppAcknowledgementChannel.client,
     );
     expect(acknowledgements.first.acknowledgedBy, 'Client');
-    expect(find.text('Client Ack'), findsNothing);
     expect(find.textContaining('Client Ack by Client at'), findsNWidgets(2));
-    expect(find.text('Delivered'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: selectedDeliveryCard,
+        matching: find.text('Delivered'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('control role only shows control acknowledgement action', (
@@ -779,9 +1337,9 @@ void main() {
       ),
     );
 
-    expect(find.text('Client Ack'), findsNothing);
-    expect(find.text('Control Ack'), findsNWidgets(4));
-    expect(find.text('Resident Seen'), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Client Ack'), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Control Ack'), findsWidgets);
+    expect(find.widgetWithText(TextButton, 'Resident Seen'), findsNothing);
     expect(find.text('Open Alerts'), findsOneWidget);
     expect(find.text('Active Incident Timeline'), findsOneWidget);
     expect(find.text('Desk Thread'), findsOneWidget);
@@ -827,21 +1385,21 @@ void main() {
     );
     expect(
       find.widgetWithText(OutlinedButton, 'Open Dispatch for Resident Feed'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(find.widgetWithText(TextButton, 'Send Now'), findsNothing);
     expect(
       find.text(
         'Give this dispatch reply a quick review before it goes to Resident Feed.',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.widgetWithText(
         TextButton,
         'Review dispatch draft for Resident Feed',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(find.text('Log a resident-lane control update...'), findsOneWidget);
     expect(
@@ -854,8 +1412,8 @@ void main() {
       TextButton,
       'Review dispatch draft for Resident Feed',
     );
-    await tester.ensureVisible(openDispatchDraftButton);
-    await tester.tap(openDispatchDraftButton);
+    await tester.ensureVisible(openDispatchDraftButton.first);
+    await tester.tap(openDispatchDraftButton.first);
     await tester.pump();
     expect(
       find.text('Dispatch draft is open for Resident Feed'),
@@ -987,8 +1545,8 @@ void main() {
       find.text('Security has been notified and updates are in progress.'),
       findsOneWidget,
     );
-    expect(find.text('Control Ack'), findsNothing);
-    expect(find.text('Resident Seen'), findsWidgets);
+    expect(find.widgetWithText(TextButton, 'Control Ack'), findsNothing);
+    expect(find.widgetWithText(TextButton, 'Resident Seen'), findsWidgets);
     expect(find.text('Resident Seen Pending'), findsOneWidget);
   });
 
@@ -1032,27 +1590,28 @@ void main() {
         OutlinedButton,
         'Draft Community Alert for Community',
       ),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.widgetWithText(TextButton, 'Post Advisory to Community'),
-      findsOneWidget,
+      findsWidgets,
     );
-    await tester.tap(
-      find.widgetWithText(
-        OutlinedButton,
-        'Draft Community Alert for Community',
-      ),
+    final draftCommunityAlertButton = find.byKey(
+      const ValueKey('client-delivery-open-draft'),
     );
+    await tester.ensureVisible(draftCommunityAlertButton);
+    await tester.tap(draftCommunityAlertButton);
     await tester.pump();
-    final residentComposer = tester.widget<TextField>(find.byType(TextField));
+    final residentComposer = tester.widget<TextField>(
+      find.byType(TextField).first,
+    );
     expect(
       residentComposer.controller?.text,
       'Resident is preparing a community alert for Community.',
     );
     tester
         .widget<TextButton>(
-          find.widgetWithText(TextButton, 'Post Advisory to Community'),
+          find.widgetWithText(TextButton, 'Post Advisory to Community').first,
         )
         .onPressed!
         .call();
@@ -1060,11 +1619,11 @@ void main() {
     expect(find.text('Community alert posted to Community'), findsOneWidget);
     expect(
       find.widgetWithText(TextButton, 'View Resident Reply'),
-      findsOneWidget,
+      findsWidgets,
     );
     tester
         .widget<TextButton>(
-          find.widgetWithText(TextButton, 'View Resident Reply'),
+          find.widgetWithText(TextButton, 'View Resident Reply').first,
         )
         .onPressed!
         .call();
@@ -1109,7 +1668,18 @@ void main() {
     final noThreadButton = tester.widget<TextButton>(
       find.widgetWithText(TextButton, 'Choose a Thread'),
     );
-    expect(noThreadButton.onPressed, isNull);
+    expect(noThreadButton.onPressed, isNotNull);
+
+    final chooseThreadAction = find.widgetWithText(TextButton, 'Choose a Thread');
+    await tester.ensureVisible(chooseThreadAction);
+    await tester.tap(chooseThreadAction);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('No incident thread is ready for this lane yet.'),
+      findsWidgets,
+    );
+    expect(find.byType(SnackBar), findsNothing);
   });
 
   testWidgets('client app restores show-all room override', (tester) async {
@@ -1163,7 +1733,16 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Target (current lane): Security Desk'), findsWidgets);
-    expect(find.text('Show pending'), findsOneWidget);
+    final restoredScopeToggle = find.byKey(
+      const ValueKey('client-comms-toggle-scope'),
+    );
+    expect(
+      find.descendant(
+        of: restoredScopeToggle,
+        matching: find.text('Show pending'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Security response activated'), findsWidgets);
   });
 
@@ -1414,7 +1993,16 @@ void main() {
 
     expect(find.text('Room Focus: Security Desk'), findsOneWidget);
     expect(find.text('Showing pending: Security Desk'), findsOneWidget);
-    expect(find.text('Show all'), findsOneWidget);
+    final emptyNotificationsScopeToggle = find.byKey(
+      const ValueKey('client-notifications-empty-toggle-scope'),
+    );
+    expect(
+      find.descendant(
+        of: emptyNotificationsScopeToggle,
+        matching: find.text('Show all'),
+      ),
+      findsOneWidget,
+    );
     expect(
       find.text(
         'Client notifications will appear here when this lane updates.',
@@ -1426,24 +2014,48 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Show all'));
-    await tester.pump();
+    final notificationsScopeToggle = find.byKey(
+      const ValueKey('client-notifications-empty-toggle-scope'),
+    );
+    await tester.ensureVisible(notificationsScopeToggle);
+    await tester.tap(notificationsScopeToggle);
+    await tester.pumpAndSettle();
 
     expect(
       find.text('Showing all notifications • current lane: Security Desk'),
       findsOneWidget,
     );
     expect(find.text('Target (current lane): Security Desk'), findsWidgets);
-    expect(find.text('Show pending'), findsOneWidget);
+    final liveScopeToggle = find.byKey(
+      const ValueKey('client-comms-toggle-scope'),
+    );
+    expect(
+      find.descendant(
+        of: liveScopeToggle,
+        matching: find.text('Show pending'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Security response activated'), findsWidgets);
     expect(find.text('ONYX • 10:20 UTC'), findsOneWidget);
 
-    await tester.tap(find.text('Residents').first);
+    final residentsRoom = find.text('Residents').first;
+    await tester.ensureVisible(residentsRoom);
+    await tester.tap(residentsRoom);
     await tester.pump();
 
     expect(find.text('Room Focus: Residents'), findsOneWidget);
     expect(find.text('Showing pending: Residents'), findsOneWidget);
-    expect(find.text('Show all'), findsOneWidget);
+    final roomRailScopeToggle = find.byKey(
+      const ValueKey('client-room-rail-toggle-scope'),
+    );
+    expect(
+      find.descendant(
+        of: roomRailScopeToggle,
+        matching: find.text('Show all'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Security response activated'), findsWidgets);
     expect(find.text('ONYX • 10:20 UTC'), findsOneWidget);
     expect(find.textContaining('Control Ack by Control at'), findsNWidgets(2));
@@ -1494,7 +2106,9 @@ void main() {
     expect(find.text('On Site • 10:25 UTC'), findsOneWidget);
     expect(find.text('Opened • 10:20 UTC'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(TextButton, 'Open Incident'));
+    final openIncidentAction = find.widgetWithText(TextButton, 'Open Incident');
+    await tester.ensureVisible(openIncidentAction);
+    await tester.tap(openIncidentAction);
     await tester.pumpAndSettle();
     expect(find.text('Incident Detail'), findsOneWidget);
     expect(find.text('2 events'), findsWidgets);
@@ -1531,7 +2145,9 @@ void main() {
       ),
     );
 
-    await tester.tap(find.widgetWithText(TextButton, 'Open Thread'));
+    final openThreadButton = find.widgetWithText(TextButton, 'Open Thread');
+    await tester.ensureVisible(openThreadButton);
+    await tester.tap(openThreadButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Dispatched'), findsOneWidget);
@@ -1645,11 +2261,37 @@ void main() {
 
     expect(find.text('DISP-002'), findsOneWidget);
     expect(find.text('DISP-001'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('client-incident-command-deck')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('client-incident-command-deck')),
+        matching: find.text('Focus DISP-001'),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('Tap to expand'), findsOneWidget);
     expect(find.text('Tap to collapse'), findsOneWidget);
     expect(find.text('Opened • 10:30 UTC'), findsNothing);
     expect(find.text('On Site • 10:25 UTC'), findsOneWidget);
     expect(find.text('Opened • 10:20 UTC'), findsOneWidget);
+
+    final secondIncidentRow = find.byKey(
+      const ValueKey('client-incident-row-DISP-002'),
+    );
+    await tester.ensureVisible(secondIncidentRow);
+    await tester.tap(secondIncidentRow);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('client-incident-command-deck')),
+        matching: find.text('Focus DISP-002'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('push sync history rows render when provided', (tester) async {
@@ -1679,12 +2321,84 @@ void main() {
       ),
     );
 
+    expect(
+      find.byKey(const ValueKey('client-delivery-push-sync-history-card')),
+      findsOneWidget,
+    );
     expect(find.text('Push Sync History'), findsOneWidget);
     expect(
       find.textContaining('10:30 UTC • needs review • queue:2 • timeout'),
       findsOneWidget,
     );
     expect(find.textContaining('10:31 UTC • synced • queue:0'), findsOneWidget);
+  });
+
+  testWidgets('delivery telemetry empty recovery decks expose command pivots', (
+    tester,
+  ) async {
+    var retryRuns = 0;
+    var probeRuns = 0;
+    var clearRuns = 0;
+
+    await tester.binding.setSurfaceSize(const Size(1600, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: const [],
+          onRetryPushSync: () async {
+            retryRuns += 1;
+          },
+          onRunBackendProbe: () async {
+            probeRuns += 1;
+          },
+          onClearBackendProbeHistory: () async {
+            clearRuns += 1;
+          },
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('client-delivery-push-sync-empty-recovery')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('client-delivery-backend-probe-empty-recovery'),
+      ),
+      findsOneWidget,
+    );
+
+    final retrySyncAction = find.byKey(
+      const ValueKey('client-delivery-push-sync-empty-retry-sync'),
+    );
+    await tester.ensureVisible(retrySyncAction);
+    await tester.tap(retrySyncAction);
+    await tester.pump();
+    expect(retryRuns, 1);
+
+    final runProbeAction = find.byKey(
+      const ValueKey('client-delivery-backend-probe-empty-run-probe'),
+    );
+    await tester.ensureVisible(runProbeAction);
+    await tester.tap(runProbeAction);
+    await tester.pump();
+    expect(probeRuns, 1);
+
+    final clearProbeAction = find.byKey(
+      const ValueKey('client-delivery-backend-probe-empty-clear-history'),
+    );
+    await tester.ensureVisible(clearProbeAction);
+    await tester.tap(clearProbeAction);
+    await tester.pumpAndSettle();
+    expect(find.text('Clear Probe History?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Clear'));
+    await tester.pumpAndSettle();
+    expect(clearRuns, 1);
   });
 
   testWidgets('push sync strip renders telegram health when provided', (
@@ -1739,8 +2453,7 @@ void main() {
             ClientPushSyncAttempt(
               occurredAt: DateTime.utc(2026, 3, 5, 10, 30),
               status: 'sms-fallback-ok',
-              failureReason:
-                  'sms:bulksms sent 2/2 after telegram blocked.',
+              failureReason: 'sms:bulksms sent 2/2 after telegram blocked.',
               queueSize: 2,
             ),
           ],
@@ -1759,10 +2472,7 @@ void main() {
       find.textContaining('10:30 UTC • sms fallback sent • queue:2'),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('BulkSMS reached 2/2 contacts'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('BulkSMS reached 2/2 contacts'), findsOneWidget);
   });
 
   testWidgets('backend probe button triggers callback when provided', (
@@ -1806,6 +2516,10 @@ void main() {
       find.text('Backend Probe: ok • Last Run: 11:00 UTC'),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('client-delivery-backend-probe-history-card')),
+      findsOneWidget,
+    );
     expect(find.text('Backend Probe History'), findsOneWidget);
     expect(
       find.textContaining('10:59 UTC • failed • network timeout'),
@@ -1813,17 +2527,25 @@ void main() {
     );
     expect(find.textContaining('11:00 UTC • ok'), findsOneWidget);
     expect(
-      find.widgetWithText(TextButton, 'Run Backend Probe'),
+      find.byKey(const ValueKey('client-delivery-telemetry-run-probe')),
       findsOneWidget,
     );
     expect(
-      find.widgetWithText(TextButton, 'Clear Probe History'),
+      find.byKey(const ValueKey('client-delivery-telemetry-clear-probe')),
       findsOneWidget,
     );
-    await tester.tap(find.widgetWithText(TextButton, 'Run Backend Probe'));
+    final runBackendProbeButton = find.byKey(
+      const ValueKey('client-delivery-telemetry-run-probe'),
+    );
+    await tester.ensureVisible(runBackendProbeButton);
+    await tester.tap(runBackendProbeButton);
     await tester.pump();
     expect(probeRuns, 1);
-    await tester.tap(find.widgetWithText(TextButton, 'Clear Probe History'));
+    final clearProbeHistoryButton = find.byKey(
+      const ValueKey('client-delivery-telemetry-clear-probe'),
+    );
+    await tester.ensureVisible(clearProbeHistoryButton);
+    await tester.tap(clearProbeHistoryButton);
     await tester.pumpAndSettle();
     expect(find.text('Clear Probe History?'), findsOneWidget);
     await tester.tap(find.widgetWithText(TextButton, 'Clear'));
@@ -1866,6 +2588,7 @@ void main() {
       expect(openFirstAction, findsOneWidget);
       expect(find.text('Choose an Incident'), findsOneWidget);
 
+      await tester.ensureVisible(openFirstAction);
       await tester.tap(openFirstAction);
       await tester.pumpAndSettle();
 

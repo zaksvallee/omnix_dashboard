@@ -13,6 +13,25 @@ class VideoFleetScopeHealthCard extends StatelessWidget {
   final List<Widget> primaryChips;
   final List<Widget> secondaryChips;
   final List<Widget> actionChildren;
+  final Widget? headerChild;
+  final Widget? identityChild;
+  final bool hideDefaultEndpoint;
+  final bool hideDefaultLastSeen;
+  final String? primaryGroupLabel;
+  final Color? primaryGroupAccent;
+  final Key? primaryGroupKey;
+  final String? secondaryGroupLabel;
+  final Color? secondaryGroupAccent;
+  final Key? secondaryGroupKey;
+  final String? contextGroupLabel;
+  final Color? contextGroupAccent;
+  final Key? contextGroupKey;
+  final String? latestGroupLabel;
+  final Color? latestGroupAccent;
+  final Key? latestGroupKey;
+  final String? actionsGroupLabel;
+  final Color? actionsGroupAccent;
+  final Key? actionsGroupKey;
   final String? noteText;
   final String? latestText;
   final String? statusDetailText;
@@ -37,6 +56,25 @@ class VideoFleetScopeHealthCard extends StatelessWidget {
     required this.primaryChips,
     required this.secondaryChips,
     required this.actionChildren,
+    this.headerChild,
+    this.identityChild,
+    this.hideDefaultEndpoint = false,
+    this.hideDefaultLastSeen = false,
+    this.primaryGroupLabel,
+    this.primaryGroupAccent,
+    this.primaryGroupKey,
+    this.secondaryGroupLabel,
+    this.secondaryGroupAccent,
+    this.secondaryGroupKey,
+    this.contextGroupLabel,
+    this.contextGroupAccent,
+    this.contextGroupKey,
+    this.latestGroupLabel,
+    this.latestGroupAccent,
+    this.latestGroupKey,
+    this.actionsGroupLabel,
+    this.actionsGroupAccent,
+    this.actionsGroupKey,
     required this.decoration,
     required this.constraints,
     this.padding = const EdgeInsets.all(10),
@@ -63,68 +101,220 @@ class VideoFleetScopeHealthCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (headerChild != null) ...[
+                  headerChild!,
+                  const SizedBox(height: 10),
+                ],
                 Text(title, style: titleStyle),
-                const SizedBox(height: 4),
-                Text(endpointLabel, style: endpointStyle),
-                const SizedBox(height: 8),
-                Wrap(spacing: 6, runSpacing: 6, children: primaryChips),
-                const SizedBox(height: 8),
-                Text(
-                  lastSeenLabel.startsWith(':')
-                      ? 'Last seen$lastSeenLabel'
-                      : 'Last seen $lastSeenLabel',
-                  style: lastSeenStyle,
-                ),
-                if ((statusDetailText ?? '').trim().isNotEmpty) ...[
+                if (identityChild != null) ...[
                   const SizedBox(height: 6),
+                  identityChild!,
+                ] else if (!hideDefaultEndpoint) ...[
+                  const SizedBox(height: 4),
+                  Text(endpointLabel, style: endpointStyle),
+                ],
+                const SizedBox(height: 8),
+                _chipGroup(
+                  children: primaryChips,
+                  label: primaryGroupLabel,
+                  accent: primaryGroupAccent,
+                  groupKey: primaryGroupKey,
+                ),
+                if (!hideDefaultLastSeen) ...[
+                  const SizedBox(height: 8),
                   Text(
-                    statusDetailText!,
-                    style: statusDetailStyle ?? noteStyle,
+                    lastSeenLabel.startsWith(':')
+                        ? 'Last seen$lastSeenLabel'
+                        : 'Last seen $lastSeenLabel',
+                    style: lastSeenStyle,
                   ),
                 ],
-                if ((noteText ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(noteText!, style: noteStyle),
-                ],
-                if ((latestText ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  if (onLatestTap == null)
-                    Text(
-                      latestText!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: latestStyle,
-                    )
-                  else
-                    InkWell(
-                      onTap: onLatestTap,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Text(
-                          latestText!,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: latestStyle.copyWith(
-                            decoration: TextDecoration.underline,
-                            decorationColor: latestStyle.color,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+                ..._buildContextSection(),
+                ..._buildLatestSection(),
                 if (secondaryChips.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Wrap(spacing: 6, runSpacing: 6, children: secondaryChips),
+                  _chipGroup(
+                    children: secondaryChips,
+                    label: secondaryGroupLabel,
+                    accent: secondaryGroupAccent,
+                    groupKey: secondaryGroupKey,
+                  ),
                 ],
-                if (actionChildren.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Wrap(spacing: 8, runSpacing: 8, children: actionChildren),
-                ],
+                ..._buildActionsSection(),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _chipGroup({
+    required List<Widget> children,
+    String? label,
+    Color? accent,
+    Key? groupKey,
+  }) {
+    if (children.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if ((label ?? '').trim().isEmpty) {
+      return Wrap(spacing: 6, runSpacing: 6, children: children);
+    }
+    final groupAccent = accent ?? const Color(0xFF9AB1CF);
+    return Container(
+      key: groupKey,
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: groupAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: groupAccent.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label!,
+            style: lastSeenStyle.copyWith(
+              color: groupAccent,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 6, children: children),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildContextSection() {
+    final contextChildren = <Widget>[];
+    if ((statusDetailText ?? '').trim().isNotEmpty) {
+      contextChildren.add(
+        Text(statusDetailText!, style: statusDetailStyle ?? noteStyle),
+      );
+    }
+    if ((noteText ?? '').trim().isNotEmpty) {
+      if (contextChildren.isNotEmpty) {
+        contextChildren.add(const SizedBox(height: 8));
+      }
+      contextChildren.add(Text(noteText!, style: noteStyle));
+    }
+    if (contextChildren.isEmpty) {
+      return const <Widget>[];
+    }
+    return [
+      const SizedBox(height: 8),
+      if ((contextGroupLabel ?? '').trim().isNotEmpty)
+        _contentGroup(
+          children: contextChildren,
+          label: contextGroupLabel!,
+          accent: contextGroupAccent,
+          groupKey: contextGroupKey,
+        )
+      else
+        ...contextChildren,
+    ];
+  }
+
+  List<Widget> _buildLatestSection() {
+    if ((latestText ?? '').trim().isEmpty) {
+      return const <Widget>[];
+    }
+    final latestChild = onLatestTap == null
+        ? Text(
+            latestText!,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: latestStyle,
+          )
+        : InkWell(
+            onTap: onLatestTap,
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Text(
+                latestText!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: latestStyle.copyWith(
+                  decoration: TextDecoration.underline,
+                  decorationColor: latestStyle.color,
+                ),
+              ),
+            ),
+          );
+    return [
+      const SizedBox(height: 8),
+      if ((latestGroupLabel ?? '').trim().isNotEmpty)
+        _contentGroup(
+          children: [latestChild],
+          label: latestGroupLabel!,
+          accent: latestGroupAccent,
+          groupKey: latestGroupKey,
+        )
+      else
+        latestChild,
+    ];
+  }
+
+  List<Widget> _buildActionsSection() {
+    if (actionChildren.isEmpty) {
+      return const <Widget>[];
+    }
+    final actionsWrap = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: actionChildren,
+    );
+    return [
+      const SizedBox(height: 10),
+      if ((actionsGroupLabel ?? '').trim().isNotEmpty)
+        _contentGroup(
+          children: [actionsWrap],
+          label: actionsGroupLabel!,
+          accent: actionsGroupAccent,
+          groupKey: actionsGroupKey,
+        )
+      else
+        actionsWrap,
+    ];
+  }
+
+  Widget _contentGroup({
+    required List<Widget> children,
+    required String label,
+    Color? accent,
+    Key? groupKey,
+  }) {
+    final groupAccent = accent ?? const Color(0xFF9AB1CF);
+    return Container(
+      key: groupKey,
+      width: double.infinity,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: groupAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: groupAccent.withValues(alpha: 0.24)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: lastSeenStyle.copyWith(
+              color: groupAccent,
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...children,
+        ],
       ),
     );
   }

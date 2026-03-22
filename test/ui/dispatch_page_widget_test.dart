@@ -353,8 +353,197 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('DSP-1001'), findsOneWidget);
-    expect(find.text('DSP-2001'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('dispatch-card-DSP-2001')),
+      findsOneWidget,
+    );
     expect(find.text('DSP-3001'), findsNothing);
+  });
+
+  testWidgets(
+    'dispatch page renders desktop workspace shell and routes banner actions',
+    (tester) async {
+      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      String? openedReportDispatchId;
+
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          onOpenReportForDispatch: (dispatchId) {
+            openedReportDispatchId = dispatchId;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('dispatch-workspace-status-banner')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-workspace-panel-rail')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-workspace-panel-board')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-workspace-panel-context')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-workspace-command-receipt')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-workspace-focus-card')),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-workspace-filter-cleared')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('dispatch-selected-board')),
+          matching: find.text('DSP-2439'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-workspace-focus-open-report')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedReportDispatchId, 'DSP-2439');
+    },
+  );
+
+  testWidgets(
+    'dispatch page recovers mission focus when the selected lane becomes empty',
+    (tester) async {
+      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = DateTime.now().toUtc();
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          clientId: 'CLIENT-RECOVERY',
+          siteId: 'SITE-RECOVERY',
+          events: [
+            DecisionCreated(
+              eventId: 'dispatch-recovery-decision',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 3)),
+              dispatchId: 'DSP-RECOVERY',
+              clientId: 'CLIENT-RECOVERY',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-RECOVERY',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('dispatch-workspace-focus-card')),
+          matching: find.text('DSP-RECOVERY • SITE-RECOVERY'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-workspace-filter-cleared')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('No mission is pinned in the board.'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey('dispatch-workspace-focus-open-active-lanes'),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(
+          const ValueKey('dispatch-workspace-focus-open-active-lanes'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('dispatch-selected-board')),
+          matching: find.text('DSP-RECOVERY'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('dispatch queue filter retargets the selected mission board', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      buildPage(onGenerate: () {}, onIngestFeeds: () {}, onExecute: (_) {}),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('dispatch-selected-board')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('dispatch-selected-board')),
+        matching: find.text('DSP-2441'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('dispatch-queue-filter-cleared')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('dispatch-queue-filter-cleared')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('dispatch-card-DSP-2439')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('dispatch-selected-board')),
+        matching: find.text('DSP-2439'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('dispatch page restores watch action focus from parent state', (
@@ -740,7 +929,7 @@ void main() {
       find.byKey(const ValueKey('dispatch-partner-progress-card-DSP-8821')),
       findsOneWidget,
     );
-    expect(find.text('PARTNER PROGRESSION'), findsOneWidget);
+    expect(find.text('PARTNER PROGRESSION'), findsWidgets);
     expect(
       find.textContaining('PARTNER • Alpha • Latest ALL CLEAR'),
       findsOneWidget,
@@ -755,23 +944,23 @@ void main() {
     );
     expect(
       find.byKey(const ValueKey('dispatch-partner-progress-DSP-8821-accepted')),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.byKey(const ValueKey('dispatch-partner-progress-DSP-8821-onSite')),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.byKey(const ValueKey('dispatch-partner-progress-DSP-8821-allClear')),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.byKey(
         const ValueKey('dispatch-partner-progress-DSP-8821-cancelled'),
       ),
-      findsOneWidget,
+      findsWidgets,
     );
-    expect(find.text('Pending'), findsOneWidget);
+    expect(find.text('Pending'), findsWidgets);
   });
 
   testWidgets('dispatch page shows radio queue diagnostics', (tester) async {
@@ -1250,6 +1439,46 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-summary-command')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-summary-tile-flagged-id')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-scope-command-SITE-A')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-scope-identity-SITE-A')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-scope-posture-SITE-A')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-scope-context-SITE-A')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-scope-latest-SITE-A')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-scope-feed-SITE-A')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-scope-actions-SITE-A')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('dispatch-fleet-scope-command-SITE-B')),
+        findsOneWidget,
+      );
       expect(find.text('Window 18:00-06:00'), findsNWidgets(2));
       expect(find.text('Phase IN WINDOW'), findsNWidgets(2));
       expect(
@@ -1276,6 +1505,12 @@ void main() {
       tappedDispatchClientId = null;
       tappedDispatchSiteId = null;
       tappedDispatchReference = null;
+      await tester.ensureVisible(
+        find.textContaining(
+          'Flagged identity: Face PERSON-44 91.2% • Plate CA123456 96.4%',
+        ),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(
         find.textContaining(
           'Flagged identity: Face PERSON-44 91.2% • Plate CA123456 96.4%',
@@ -1285,6 +1520,8 @@ void main() {
       expect(tappedDispatchClientId, 'CLIENT-A');
       expect(tappedDispatchSiteId, 'SITE-A');
       expect(tappedDispatchReference, 'INT-VALLEE-1');
+      await tester.ensureVisible(find.text('Clear'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Clear'));
       await tester.pumpAndSettle();
 
@@ -1349,7 +1586,7 @@ void main() {
       expect(tappedDispatchReference, 'INT-VALLEE-1');
       expect(
         find.textContaining('Recent action: 21:13 UTC • Camera 2'),
-        findsNothing,
+        findsOneWidget,
       );
       expect(find.text('Latest: 21:14 UTC • Vehicle motion'), findsNothing);
       await tester.ensureVisible(find.text('Clear'));
@@ -1380,6 +1617,13 @@ void main() {
   testWidgets('temporary identity summary opens incident-backed dispatch scope detail', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     String? tappedDispatchClientId;
     String? tappedDispatchSiteId;
     String? tappedDispatchReference;
@@ -1460,6 +1704,12 @@ void main() {
     await tester.tap(find.text('Extend 2h'));
     await tester.pumpAndSettle();
     expect(extendedSite, 'MS Vallee Residence');
+    expect(
+      find.byKey(const ValueKey('dispatch-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('Extended MS Vallee Residence.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
     await tester.tap(find.text('Expire now'));
     await tester.pumpAndSettle();
     expect(find.text('Expire Temporary Approval?'), findsOneWidget);
@@ -1472,6 +1722,8 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Expire now'));
     await tester.pumpAndSettle();
     expect(expiredSite, 'MS Vallee Residence');
+    expect(find.text('Expired MS Vallee Residence.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
     await tester.ensureVisible(
       find.textContaining(
         'Temporary identity until 2026-03-15 18:00 UTC: Face VISITOR-01 93.1% • Plate CA777777 97.4%',
@@ -1545,6 +1797,12 @@ void main() {
         find.text('Focused identity policy: Allowlisted identity matches'),
         findsOneWidget,
       );
+      await tester.ensureVisible(
+        find.textContaining(
+          'Allowlisted identity: Face RESIDENT-01 94.1% • Plate CA111111 98.0%',
+        ),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(
         find.textContaining(
           'Allowlisted identity: Face RESIDENT-01 94.1% • Plate CA111111 98.0%',
