@@ -140,6 +140,7 @@ import 'ui/client_intelligence_reports_page.dart';
 import 'presentation/reports/report_preview_controller.dart';
 import 'ui/client_app_page.dart';
 import 'ui/clients_page.dart';
+import 'ui/controller_login_page.dart';
 import 'ui/dispatch_page.dart';
 import 'ui/events_review_page.dart';
 import 'ui/governance_page.dart';
@@ -1175,6 +1176,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final Future<GuardMobileOpsService> _guardMobileOpsServiceFuture;
   late final Future<OfflineIncidentSpoolService>
   _offlineIncidentSpoolServiceFuture;
+  late bool _showControllerLoginGate =
+      widget.initialRouteOverride == null && _appMode == OnyxAppMode.controller;
+  ControllerLoginAccount? _signedInAccount;
+  DateTime? _signedInAt;
 
   OnyxRoute _route = OnyxRoute.dashboard;
   String _eventsSourceFilter = '';
@@ -1206,6 +1211,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   VideoFleetWatchActionDrilldown? _adminWatchActionDrilldown;
   MonitoringIdentityPolicyAuditSource? _adminIdentityPolicyAuditSourceFilter;
   bool _adminIdentityPolicyAuditExpanded = true;
+  static const List<ControllerLoginAccount> _controllerDemoAccounts =
+      <ControllerLoginAccount>[
+        ControllerLoginAccount(
+          username: 'admin',
+          password: 'onyx123',
+          displayName: 'Emily Davis',
+          roleLabel: 'Admin',
+          accessLabel: 'Full Access',
+          landingRoute: OnyxRoute.dashboard,
+        ),
+        ControllerLoginAccount(
+          username: 'supervisor',
+          password: 'onyx123',
+          displayName: 'Mike Wilson',
+          roleLabel: 'Supervisor',
+          accessLabel: 'Reports',
+          landingRoute: OnyxRoute.reports,
+        ),
+        ControllerLoginAccount(
+          username: 'controller1',
+          password: 'onyx123',
+          displayName: 'John Smith',
+          roleLabel: 'Controller',
+          accessLabel: 'Operations',
+          landingRoute: OnyxRoute.dashboard,
+        ),
+      ];
 
   late final String _selectedClient = _resolvedScopeValue(
     _clientIdEnv,
@@ -22964,7 +22996,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         activeIncidentCount: _activeIncidentCount(events),
         aiActionCount: _pendingAiActionCount(events),
         guardsOnlineCount: _guardsOnlineCount(events),
-        operatorLabel: service.operator.operatorId,
+        operatorLabel:
+            _signedInAccount?.displayName ?? service.operator.operatorId,
+        operatorRoleLabel: _signedInAccount?.roleLabel ?? '',
+        operatorShiftLabel: _signedInShiftLabel(),
         complianceIssuesCount: _complianceIssuesCount(),
         tacticalSosAlerts: _tacticalSosAlerts(),
         intelTickerItems: _intelTickerItems(events),
@@ -22986,11 +23021,71 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxAppMode.guard => _buildGuardPage(),
       OnyxAppMode.client => _buildClientPage(events),
     };
+    final home = _showControllerLoginGate
+        ? ControllerLoginPage(
+            demoAccounts: _controllerDemoAccounts,
+            onAuthenticated: _handleControllerAuthenticated,
+            onResetRequested: _resetControllerPreviewSession,
+          )
+        : modeHome;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       navigatorKey: _navigatorKey,
-      home: modeHome,
+      home: home,
     );
+  }
+
+  void _handleControllerAuthenticated(ControllerLoginAccount account) {
+    _cancelDemoAutopilot();
+    setState(() {
+      _signedInAccount = account;
+      _signedInAt = DateTime.now();
+      _showControllerLoginGate = false;
+      _route = account.landingRoute;
+      _eventsSourceFilter = '';
+      _eventsProviderFilter = '';
+      _eventsSelectedEventId = '';
+      _eventsScopedEventIds = const <String>[];
+      _eventsScopedMode = '';
+      _reportShellState = const ReportShellState();
+      _operationsFocusIncidentReference = '';
+    });
+  }
+
+  void _resetControllerPreviewSession() {
+    _cancelDemoAutopilot();
+    setState(() {
+      _signedInAccount = null;
+      _signedInAt = null;
+      _route = OnyxRoute.dashboard;
+      _eventsSourceFilter = '';
+      _eventsProviderFilter = '';
+      _eventsSelectedEventId = '';
+      _eventsScopedEventIds = const <String>[];
+      _eventsScopedMode = '';
+      _reportShellState = const ReportShellState();
+      _operationsFocusIncidentReference = '';
+      _operationsRouteClientId = _selectedClient;
+      _operationsRouteSiteId = _selectedSite;
+      _tacticalRouteClientId = _selectedClient;
+      _tacticalRouteSiteId = _selectedSite;
+      _ledgerRouteClientId = _selectedClient;
+      _ledgerRouteSiteId = _selectedSite;
+      _dispatchSelectedDispatchId = null;
+      _dispatchRouteClientId = _selectedClient;
+      _dispatchRouteSiteId = _selectedSite;
+    });
+  }
+
+  String _signedInShiftLabel() {
+    final signedInAt = _signedInAt;
+    if (signedInAt == null || _signedInAccount == null) {
+      return '';
+    }
+    final elapsed = DateTime.now().difference(signedInAt);
+    final hours = elapsed.inHours;
+    final minutes = elapsed.inMinutes.remainder(60);
+    return '${hours}h ${minutes}m';
   }
 
   int _activeIncidentCount(List<DispatchEvent> events) {
@@ -23887,7 +23982,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       stepIntervalSeconds: 5,
       flowLabel: 'Full Tour',
       title:
-          'Operations -> Tactical -> Dispatches -> Events -> Ledger -> Governance -> Clients -> Reports',
+          'Operations -> Tactical -> Dispatches -> Events -> OB Log -> Governance -> Clients -> Reports',
       completionLabel: 'Reports reached for',
     );
   }
@@ -24080,7 +24175,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxRoute.guards => 'Guards',
       OnyxRoute.dispatches => 'Dispatches',
       OnyxRoute.events => 'Events',
-      OnyxRoute.ledger => 'Ledger',
+      OnyxRoute.ledger => 'OB Log',
       OnyxRoute.reports => 'Reports',
       OnyxRoute.admin => 'Admin',
     };
@@ -24105,7 +24200,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxRoute.guards => 'Field force state and sync health.',
       OnyxRoute.dispatches => 'Execute with focused dispatch context.',
       OnyxRoute.events => 'Replay immutable incident timeline.',
-      OnyxRoute.ledger => 'Confirm evidence chain integrity.',
+      OnyxRoute.ledger =>
+        'Review clean operational records and linked continuity.',
       OnyxRoute.reports => 'Demonstrate export and report proof.',
       OnyxRoute.admin => 'Demo seeding and runtime controls.',
     };

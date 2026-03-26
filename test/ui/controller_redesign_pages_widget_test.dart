@@ -69,12 +69,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Client Communications'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Push Delivery Queue'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Push Delivery Queue'), findsOneWidget);
+    expect(find.text('MESSAGE HISTORY'), findsOneWidget);
   });
 
   testWidgets('sites controller page renders grid workspace', (tester) async {
@@ -191,7 +186,9 @@ void main() {
     expect(selectedIdText.data, 'DEC-1');
   });
 
-  testWidgets('sovereign ledger page renders chain controls', (tester) async {
+  testWidgets('sovereign ledger page renders occurrence book workspace', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         home: SovereignLedgerPage(clientId: 'CLIENT-001', events: sampleEvents),
@@ -199,8 +196,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Sovereign Ledger'), findsOneWidget);
-    expect(find.text('Chain Controls'), findsOneWidget);
+    expect(find.text('Occurrence Book'), findsOneWidget);
+    expect(find.text('OB Entries'), findsOneWidget);
+    expect(find.text('Selected Record'), findsOneWidget);
   });
 
   testWidgets('client intelligence reports page renders generation lanes', (
@@ -219,6 +217,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Reports & Documentation'), findsOneWidget);
-    expect(find.text('Deterministic Generation'), findsOneWidget);
+    expect(find.textContaining('shift story ONYX assembles'), findsOneWidget);
   });
 }

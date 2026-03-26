@@ -136,12 +136,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sites & Deployment'), findsOneWidget);
-    expect(find.byKey(const ValueKey('sites-overview-grid')), findsOneWidget);
+    expect(find.byKey(const ValueKey('sites-overview-grid')), findsNothing);
     expect(
       find.byKey(const ValueKey('sites-overview-selected-card')),
       findsOneWidget,
     );
-    expect(find.text('Site Operations Workspace'), findsOneWidget);
+    expect(find.text('Site Operations Workspace'), findsNothing);
     expect(find.text('SITE-SANDTON'), findsWidgets);
     expect(find.text('SITE-BRYANSTON'), findsWidgets);
     expect(find.text('Dispatch Outcome Mix'), findsOneWidget);
@@ -283,9 +283,7 @@ void main() {
     );
     final pageScrollable = find.byType(Scrollable).first;
 
-    await tester.tap(
-      find.byKey(const ValueKey('sites-workspace-banner-open-watch')),
-    );
+    await tester.tap(find.byKey(const ValueKey('sites-roster-filter-watch')));
     await tester.pumpAndSettle();
 
     expect(
@@ -326,7 +324,7 @@ void main() {
     );
 
     await tester.tap(
-      find.byKey(const ValueKey('sites-workspace-banner-open-outcomes')),
+      find.byKey(const ValueKey('sites-workspace-view-outcomes')),
     );
     await tester.pumpAndSettle();
 

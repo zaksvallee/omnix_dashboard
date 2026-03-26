@@ -26,7 +26,7 @@ bool allowEmbeddedPanelScroll(
 
 bool isWidescreenLayout(
   BuildContext context, {
-  double widthBreakpoint = 2200,
+  double widthBreakpoint = 2560,
   double? viewportWidth,
 }) {
   if (isHandsetLayout(context)) {
@@ -38,7 +38,7 @@ bool isWidescreenLayout(
 
 bool isUltrawideLayout(
   BuildContext context, {
-  double widthBreakpoint = 3000,
+  double widthBreakpoint = 3440,
   double? viewportWidth,
 }) {
   if (isHandsetLayout(context)) {
@@ -52,8 +52,8 @@ double commandSurfaceMaxWidth(
   BuildContext context, {
   required double compactDesktopWidth,
   double? viewportWidth,
-  double widescreenBreakpoint = 2200,
-  double ultrawideBreakpoint = 3000,
+  double widescreenBreakpoint = 2560,
+  double ultrawideBreakpoint = 3440,
   double widescreenFillFactor = 0.92,
 }) {
   final width = viewportWidth ?? MediaQuery.sizeOf(context).width;

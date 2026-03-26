@@ -77,10 +77,10 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, viewport) {
-          const contentPadding = EdgeInsets.all(10);
+          const contentPadding = EdgeInsets.all(6);
           final useScrollFallback =
               isHandsetLayout(context) ||
-              viewport.maxHeight < 720 ||
+              viewport.maxHeight < 700 ||
               viewport.maxWidth < 980;
           final boundedDesktopSurface =
               !useScrollFallback &&
@@ -101,58 +101,20 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               : 1540.0;
 
           Widget buildSurfaceBody({required bool expandedPanels}) {
-            final kpiRow = LayoutBuilder(
-              builder: (context, constraints) {
-                final maxWidth = constraints.maxWidth;
-                final width = maxWidth < 920
-                    ? (maxWidth - 8) / 2
-                    : (maxWidth - 24) / 4;
-                return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _kpiCard(
-                      width: width,
-                      label: 'TOTAL SITES',
-                      value: '${allSites.length}',
-                      icon: Icons.apartment_rounded,
-                      iconColor: const Color(0xFF22D3EE),
-                    ),
-                    _kpiCard(
-                      width: width,
-                      label: 'STRONG POSTURE',
-                      value: '$strongCount',
-                      icon: Icons.check_circle_outline_rounded,
-                      iconColor: const Color(0xFF22D3EE),
-                    ),
-                    _kpiCard(
-                      width: width,
-                      label: 'AT RISK',
-                      value: '$atRiskCount',
-                      icon: Icons.warning_amber_rounded,
-                      iconColor: const Color(0xFF22D3EE),
-                    ),
-                    _kpiCard(
-                      width: width,
-                      label: 'TOTAL GUARDS',
-                      value: '$totalGuards',
-                      icon: Icons.shield_outlined,
-                      iconColor: const Color(0xFF22D3EE),
-                    ),
-                  ],
-                );
-              },
-            );
-
             Widget buildWorkspaceShell({required bool expandedPanels}) {
               return LayoutBuilder(
                 builder: (context, constraints) {
                   final stacked = constraints.maxWidth < 1240;
-                  final roster = _rosterPane(allSites, filteredSites);
+                  final roster = _rosterPane(
+                    allSites,
+                    filteredSites,
+                    shellless: !stacked,
+                  );
                   final workspace = _workspacePane(
                     selected,
                     filteredSites.length,
                     allSites.length,
+                    shellless: !stacked,
                   );
 
                   if (stacked) {
@@ -160,13 +122,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       return ListView(
                         children: [
                           roster,
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 5),
                           workspace,
                         ],
                       );
                     }
                     return Column(
-                      children: [roster, const SizedBox(height: 8), workspace],
+                      children: [roster, const SizedBox(height: 5), workspace],
                     );
                   }
 
@@ -179,7 +141,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                             ? SingleChildScrollView(child: roster)
                             : roster,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 5),
                       Expanded(
                         flex: 8,
                         child: expandedPanels
@@ -192,13 +154,15 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _workspaceStatusBanner(
-                          context: context,
-                          allSites: allSites,
-                          visibleSites: filteredSites,
-                          selected: selected,
-                        ),
-                        const SizedBox(height: 8),
+                        if (stacked) ...[
+                          _workspaceStatusBanner(
+                            context: context,
+                            allSites: allSites,
+                            visibleSites: filteredSites,
+                            selected: selected,
+                          ),
+                          const SizedBox(height: 5),
+                        ],
                         Expanded(child: workspaceShell),
                       ],
                     );
@@ -206,13 +170,15 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _workspaceStatusBanner(
-                        context: context,
-                        allSites: allSites,
-                        visibleSites: filteredSites,
-                        selected: selected,
-                      ),
-                      const SizedBox(height: 8),
+                      if (stacked) ...[
+                        _workspaceStatusBanner(
+                          context: context,
+                          allSites: allSites,
+                          visibleSites: filteredSites,
+                          selected: selected,
+                        ),
+                        const SizedBox(height: 5),
+                      ],
                       workspaceShell,
                     ],
                   );
@@ -224,8 +190,6 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  kpiRow,
-                  const SizedBox(height: 8),
                   Expanded(child: buildWorkspaceShell(expandedPanels: true)),
                 ],
               );
@@ -233,25 +197,32 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                kpiRow,
-                const SizedBox(height: 8),
-                buildWorkspaceShell(expandedPanels: false),
-              ],
+              children: [buildWorkspaceShell(expandedPanels: false)],
             );
           }
+
+          final wideDesktopWorkspace = viewport.maxWidth >= 1240;
 
           return OnyxViewportWorkspaceLayout(
             padding: contentPadding,
             maxWidth: surfaceMaxWidth,
             lockToViewport: boundedDesktopSurface,
-            spacing: 14,
+            spacing: 8,
             header: _heroHeader(
               selected: selected,
               totalSites: allSites.length,
               strongCount: strongCount,
               atRiskCount: atRiskCount,
               totalGuards: totalGuards,
+              workspaceBanner: wideDesktopWorkspace
+                  ? _workspaceStatusBanner(
+                      context: context,
+                      allSites: allSites,
+                      visibleSites: filteredSites,
+                      selected: selected,
+                      shellless: true,
+                    )
+                  : null,
             ),
             body: buildSurfaceBody(expandedPanels: boundedDesktopSurface),
           );
@@ -359,140 +330,74 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     required List<_SiteViewModel> allSites,
     required List<_SiteViewModel> visibleSites,
     required _SiteViewModel selected,
+    bool shellless = false,
   }) {
     final watchCount = _siteCountForFilter(allSites, _SiteLaneFilter.watch);
     final strongCount = _siteCountForFilter(allSites, _SiteLaneFilter.strong);
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            _workspaceStatusPill(
+              icon: Icons.apartment_rounded,
+              label: '${visibleSites.length} Visible',
+              accent: const Color(0xFF63BDFF),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.radar_outlined,
+              label: 'Lane ${_laneLabel(_siteLaneFilter)}',
+              accent: _laneAccent(_siteLaneFilter),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.flag_outlined,
+              label: 'Focus ${selected.id}',
+              accent: _statusColor(selected.status),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.warning_amber_rounded,
+              label: '$watchCount Watch',
+              accent: watchCount > 0
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF94A3B8),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.verified_outlined,
+              label: '$strongCount Strong',
+              accent: const Color(0xFF22D3EE),
+            ),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Lane pivots stay pinned in the roster, while response, coverage, checkpoints, tactical, settings, and roster actions stay anchored to the selected-site workspace below.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF9AB1CF),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('sites-workspace-status-banner'),
+        child: content,
+      );
+    }
     return Container(
       key: const ValueKey('sites-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF223244)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusPill(
-                icon: Icons.apartment_rounded,
-                label: '${visibleSites.length} Visible',
-                accent: const Color(0xFF63BDFF),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.radar_outlined,
-                label: 'Lane ${_laneLabel(_siteLaneFilter)}',
-                accent: _laneAccent(_siteLaneFilter),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.dashboard_customize_outlined,
-                label: 'View ${_workspaceViewTitle(_workspaceView)}',
-                accent: _workspaceAccent(_workspaceView),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.flag_outlined,
-                label: 'Focus ${selected.id}',
-                accent: _statusColor(selected.status),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.warning_amber_rounded,
-                label: '$watchCount Watch',
-                accent: watchCount > 0
-                    ? const Color(0xFFF59E0B)
-                    : const Color(0xFF94A3B8),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.verified_outlined,
-                label: '$strongCount Strong',
-                accent: const Color(0xFF22D3EE),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-all'),
-                label: 'All Sites',
-                selected: _siteLaneFilter == _SiteLaneFilter.all,
-                accent: _laneAccent(_SiteLaneFilter.all),
-                onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-watch'),
-                label: 'Watch Lane',
-                selected: _siteLaneFilter == _SiteLaneFilter.watch,
-                accent: _laneAccent(_SiteLaneFilter.watch),
-                onTap: watchCount == 0
-                    ? null
-                    : () => _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-response'),
-                label: 'Response View',
-                selected: _workspaceView == _SiteWorkspaceView.response,
-                accent: _workspaceAccent(_SiteWorkspaceView.response),
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.response),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-coverage'),
-                label: 'Coverage View',
-                selected: _workspaceView == _SiteWorkspaceView.coverage,
-                accent: _workspaceAccent(_SiteWorkspaceView.coverage),
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.coverage),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-checkpoints'),
-                label: 'Checkpoints View',
-                selected: _workspaceView == _SiteWorkspaceView.checkpoints,
-                accent: _workspaceAccent(_SiteWorkspaceView.checkpoints),
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.checkpoints),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-tactical'),
-                label: 'Open Tactical',
-                selected: false,
-                accent: const Color(0xFF93C5FD),
-                onTap: () => _openTacticalForSite(context, selected),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-settings'),
-                label: 'Site Settings',
-                selected: false,
-                accent: const Color(0xFFA78BFA),
-                onTap: widget.onOpenSiteSettings == null
-                    ? null
-                    : () => _openSiteSettings(selected),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-roster'),
-                label: 'Guard Roster',
-                selected: false,
-                accent: const Color(0xFF34D399),
-                onTap: widget.onOpenGuardRoster == null
-                    ? null
-                    : () => _openGuardRoster(selected),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${selected.displayName} stays pinned to the command board while lane pivots, tactical handoffs, and coverage views stay in sync.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
+      child: content,
     );
   }
 
@@ -502,125 +407,74 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     required int strongCount,
     required int atRiskCount,
     required int totalGuards,
+    Widget? workspaceBanner,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF102338), Color(0xFF0B151F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return OnyxStoryHero(
+      eyebrow: 'SITE POSTURE',
+      title: 'Sites & Deployment',
+      subtitle:
+          'See current site posture, direct weak points, and move to the next operational action quickly.',
+      icon: Icons.apartment_rounded,
+      gradientColors: const [Color(0xFF102338), Color(0xFF0B151F)],
+      metrics: [
+        OnyxStoryMetric(
+          value: selected.id,
+          label: 'focus',
+          foreground: Color(0xFF8FD1FF),
+          background: Color(0x1A8FD1FF),
+          border: Color(0x668FD1FF),
         ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF22405F)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 920;
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF38BDF8), Color(0xFF2563EB)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.apartment_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Sites & Deployment',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 22 : 26,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Deployment posture, tactical entry points, and site-level operational command.',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF95A9C7),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _heroChip('Total Sites', '$totalSites'),
-                  _heroChip('Strong', '$strongCount'),
-                  _heroChip('At Risk', '$atRiskCount'),
-                  _heroChip('Focus', selected.displayName),
-                  _heroChip('Active Guards', '$totalGuards'),
-                ],
-              ),
-            ],
-          );
-          final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.end,
-            children: [
-              _heroActionButton(
-                key: const ValueKey('sites-view-tactical-button'),
-                icon: Icons.open_in_new,
-                label: 'View Tactical',
-                accent: const Color(0xFF93C5FD),
-                onPressed: () => _openTacticalForSite(context, selected),
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 16), actions],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: titleBlock),
-              const SizedBox(width: 16),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220),
-                child: actions,
-              ),
-            ],
-          );
-        },
-      ),
+        OnyxStoryMetric(
+          value: '$strongCount',
+          label: 'strong',
+          foreground: const Color(0xFF34D399),
+          background: const Color(0x1A34D399),
+          border: const Color(0x6634D399),
+        ),
+        OnyxStoryMetric(
+          value: '$atRiskCount',
+          label: 'need review',
+          foreground: atRiskCount > 0
+              ? const Color(0xFFF59E0B)
+              : const Color(0xFF9AB1CF),
+          background: atRiskCount > 0
+              ? const Color(0x1AF59E0B)
+              : const Color(0x1A94A3B8),
+          border: atRiskCount > 0
+              ? const Color(0x66F59E0B)
+              : const Color(0x6694A3B8),
+        ),
+        OnyxStoryMetric(
+          value: '$totalGuards',
+          label: 'on site',
+          foreground: const Color(0xFF22D3EE),
+          background: const Color(0x1A22D3EE),
+          border: const Color(0x6622D3EE),
+        ),
+        OnyxStoryMetric(
+          value: '$totalSites',
+          label: 'sites',
+          foreground: const Color(0xFFEAF4FF),
+          background: const Color(0x14000000),
+          border: const Color(0x3322405F),
+        ),
+      ],
+      actions: [
+        _heroActionButton(
+          key: const ValueKey('sites-view-tactical-button'),
+          icon: Icons.open_in_new,
+          label: 'View Tactical',
+          accent: const Color(0xFF93C5FD),
+          onPressed: () => _openTacticalForSite(context, selected),
+        ),
+      ],
+      banner: workspaceBanner,
     );
   }
 
   Widget _heroChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -633,7 +487,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 11,
+                fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -641,7 +495,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE8F1FF),
-                fontSize: 11,
+                fontSize: 9,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -661,15 +515,15 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 14),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+        textStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
       ),
     );
   }
@@ -721,177 +575,138 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     );
   }
 
-  Widget _kpiCard({
-    required double width,
-    required String label,
-    required String value,
-    required IconData icon,
-    required Color iconColor,
-  }) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1E2A3A)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF6F839C),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.7,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
-                    fontSize: 54,
-                    height: 0.95,
-                    fontWeight: FontWeight.w300,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: const Color(0xFF142132),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: iconColor, size: 18),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _rosterPane(
     List<_SiteViewModel> allSites,
-    List<_SiteViewModel> visibleSites,
-  ) {
+    List<_SiteViewModel> visibleSites, {
+    bool shellless = false,
+  }) {
     final watchingCount = _siteCountForFilter(allSites, _SiteLaneFilter.watch);
     final visibleCount = visibleSites.length;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1E2A3A)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'SITE ROSTER',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF7B8FA8),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.0,
-                ),
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'SITE ROSTER',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF7B8FA8),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
               ),
-              const Spacer(),
-              InkWell(
-                key: const ValueKey('sites-add-site-button'),
-                borderRadius: BorderRadius.circular(10),
-                onTap: widget.onAddSite == null ? null : _openAddSite,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: widget.onAddSite == null
-                        ? const Color(0xFF1D2937)
-                        : const Color(0xFF3B82F6),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: widget.onAddSite == null
-                          ? const Color(0xFF314154)
-                          : const Color(0x80448FFF),
-                    ),
-                  ),
-                  child: Text(
-                    'ADD SITE',
-                    style: GoogleFonts.inter(
-                      color: widget.onAddSite == null
-                          ? const Color(0xFF8EA4C2)
-                          : const Color(0xFFEAF1FB),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            visibleCount == 0
-                ? 'No sites match the active lane. Switch lanes to recover the roster.'
-                : '$visibleCount of ${allSites.length} sites are in the active command lane.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
             ),
+            const Spacer(),
+            InkWell(
+              key: const ValueKey('sites-add-site-button'),
+              borderRadius: BorderRadius.circular(10),
+              onTap: widget.onAddSite == null ? null : _openAddSite,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: widget.onAddSite == null
+                      ? const Color(0xFF1D2937)
+                      : const Color(0xFF3B82F6),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: widget.onAddSite == null
+                        ? const Color(0xFF314154)
+                        : const Color(0x80448FFF),
+                  ),
+                ),
+                child: Text(
+                  'ADD SITE',
+                  style: GoogleFonts.inter(
+                    color: widget.onAddSite == null
+                        ? const Color(0xFF8EA4C2)
+                        : const Color(0xFFEAF1FB),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          visibleCount == 0
+              ? 'No sites match the active lane. Switch lanes to recover the roster.'
+              : '$visibleCount of ${allSites.length} sites are in the active command lane.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _rosterFilterChip(
+              key: const ValueKey('sites-roster-filter-all'),
+              label: 'All',
+              count: allSites.length,
+              selected: _siteLaneFilter == _SiteLaneFilter.all,
+              onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
+            ),
+            _rosterFilterChip(
+              key: const ValueKey('sites-roster-filter-healthy'),
+              label: 'Healthy',
+              count: _siteCountForFilter(allSites, _SiteLaneFilter.healthy),
+              selected: _siteLaneFilter == _SiteLaneFilter.healthy,
+              onTap: () =>
+                  _setSiteLaneFilter(allSites, _SiteLaneFilter.healthy),
+            ),
+            _rosterFilterChip(
+              key: const ValueKey('sites-roster-filter-watch'),
+              label: 'Watch',
+              count: watchingCount,
+              selected: _siteLaneFilter == _SiteLaneFilter.watch,
+              onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
+            ),
+            _rosterFilterChip(
+              key: const ValueKey('sites-roster-filter-strong'),
+              label: 'Strong',
+              count: _siteCountForFilter(allSites, _SiteLaneFilter.strong),
+              selected: _siteLaneFilter == _SiteLaneFilter.strong,
+              onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.strong),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            color: const Color(0xFF101923),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF253345)),
+          ),
+          child: Row(
             children: [
-              _rosterFilterChip(
-                key: const ValueKey('sites-roster-filter-all'),
-                label: 'All',
-                count: allSites.length,
-                selected: _siteLaneFilter == _SiteLaneFilter.all,
-                onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
+              Expanded(
+                child: _rosterSignal(
+                  label: 'WATCH POSTS',
+                  value: '$watchingCount',
+                  accent: const Color(0xFFF59E0B),
+                ),
               ),
-              _rosterFilterChip(
-                key: const ValueKey('sites-roster-filter-healthy'),
-                label: 'Healthy',
-                count: _siteCountForFilter(allSites, _SiteLaneFilter.healthy),
-                selected: _siteLaneFilter == _SiteLaneFilter.healthy,
-                onTap: () =>
-                    _setSiteLaneFilter(allSites, _SiteLaneFilter.healthy),
-              ),
-              _rosterFilterChip(
-                key: const ValueKey('sites-roster-filter-watch'),
-                label: 'Watch',
-                count: watchingCount,
-                selected: _siteLaneFilter == _SiteLaneFilter.watch,
-                onTap: () =>
-                    _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
-              ),
-              _rosterFilterChip(
-                key: const ValueKey('sites-roster-filter-strong'),
-                label: 'Strong',
-                count: _siteCountForFilter(allSites, _SiteLaneFilter.strong),
-                selected: _siteLaneFilter == _SiteLaneFilter.strong,
-                onTap: () =>
-                    _setSiteLaneFilter(allSites, _SiteLaneFilter.strong),
+              const SizedBox(width: 5),
+              Expanded(
+                child: _rosterSignal(
+                  label: 'VISIBLE NOW',
+                  value: '$visibleCount',
+                  accent: const Color(0xFF38BDF8),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+        ),
+        const SizedBox(height: 6),
+        if (visibleSites.isEmpty)
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
@@ -900,53 +715,34 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF253345)),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _rosterSignal(
-                    label: 'WATCH POSTS',
-                    value: '$watchingCount',
-                    accent: const Color(0xFFF59E0B),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _rosterSignal(
-                    label: 'VISIBLE NOW',
-                    value: '$visibleCount',
-                    accent: const Color(0xFF38BDF8),
-                  ),
-                ),
-              ],
+            child: Text(
+              'No sites are currently in this lane. Choose another lane to continue issuing commands.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFD9E7FA),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+                height: 1.5,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          if (visibleSites.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF101923),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF253345)),
-              ),
-              child: Text(
-                'No sites are currently in this lane. Choose another lane to continue issuing commands.',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFD9E7FA),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  height: 1.5,
-                ),
-              ),
-            )
-          else
-            for (final site in visibleSites) ...[
-              _rosterRow(site),
-              const SizedBox(height: 8),
-            ],
-        ],
+          )
+        else
+          for (final site in visibleSites) ...[
+            _rosterRow(site),
+            const SizedBox(height: 5),
+          ],
+      ],
+    );
+    if (shellless) {
+      return Padding(padding: const EdgeInsets.all(2), child: body);
+    }
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E141C),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1E2A3A)),
       ),
+      child: body,
     );
   }
 
@@ -970,7 +766,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       borderRadius: BorderRadius.circular(14),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
@@ -980,7 +776,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 )
               : null,
           color: selected ? null : const Color(0xFF0D131A),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? const Color(0xFF2A6F8A) : const Color(0xFF1F2B3B),
           ),
@@ -992,19 +788,19 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     color: status.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(9),
                   ),
                   child: Icon(
                     _statusIcon(site.status),
                     color: const Color(0xFFEAF1FB),
-                    size: 20,
+                    size: 16,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1013,25 +809,25 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                         site.displayName,
                         style: GoogleFonts.inter(
                           color: const Color(0xFFEAF1FB),
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 1),
                       Text(
                         site.location,
                         style: GoogleFonts.inter(
                           color: const Color(0xFF9BB0C8),
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 4),
                       Text(
                         site.id,
                         style: GoogleFonts.inter(
                           color: const Color(0xFF6F839C),
-                          fontSize: 10,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.8,
                         ),
@@ -1039,11 +835,11 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 _statusBadge(site.status),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -1056,7 +852,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 _siteMetricChip('Response', '${site.responseRate.round()}%'),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Row(
               children: [
                 Expanded(
@@ -1066,7 +862,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                     color: const Color(0xFF22D3EE),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 7),
                 Expanded(
                   child: _progressMeter(
                     label: 'Checkpoints',
@@ -1085,8 +881,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
   Widget _workspacePane(
     _SiteViewModel site,
     int visibleSiteCount,
-    int totalSiteCount,
-  ) {
+    int totalSiteCount, {
+    bool shellless = false,
+  }) {
     final guardFill = _percent(site.guardsActive, site.guardsTotal);
     final checkpointFill = _percent(
       site.checkpointsCompleted,
@@ -1095,264 +892,282 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     final focusCopy = visibleSiteCount == 0
         ? 'No sites match this lane right now. Holding ${site.displayName} in focus so command context stays intact.'
         : '$visibleSiteCount of $totalSiteCount sites are visible in the current lane. ${_siteDirective(site)}';
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF1E2A3A)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 980;
+            final title = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'SITE OPERATIONS WORKSPACE',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7B8FA8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        site.displayName,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFEAF1FB),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    _statusBadge(site.status),
+                  ],
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${site.location}  •  ${site.id}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFA5B6CB),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            );
+            final actions = Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _miniButton(
+                  'VIEW ON MAP',
+                  key: const ValueKey('sites-view-on-map-button'),
+                  primary: true,
+                  enabled: widget.onOpenMapForSite != null,
+                  onTap: () {
+                    logUiAction(
+                      'sites.view_on_map',
+                      context: {
+                        'site_id': site.id,
+                        'site_name': site.displayName,
+                      },
+                    );
+                    widget.onOpenMapForSite!.call(site.id, site.displayName);
+                  },
+                ),
+                _miniButton(
+                  'SITE SETTINGS',
+                  key: const ValueKey('sites-site-settings-button'),
+                  enabled: widget.onOpenSiteSettings != null,
+                  onTap: () => _openSiteSettings(site),
+                ),
+                _miniButton(
+                  'GUARD ROSTER',
+                  key: const ValueKey('sites-guard-roster-button'),
+                  enabled: widget.onOpenGuardRoster != null,
+                  onTap: () => _openGuardRoster(site),
+                ),
+              ],
+            );
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [title, const SizedBox(height: 8), actions],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: title),
+                const SizedBox(width: 7),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 336),
+                  child: actions,
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(7),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF11273A), Color(0xFF0D1620)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF27425D)),
+          ),
+          child: LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxWidth < 980;
-              final title = Column(
+              final compact = constraints.maxWidth < 920;
+              final overview = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'SITE OPERATIONS WORKSPACE',
+                    'COMMAND FOCUS',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF7B8FA8),
-                      fontSize: 11,
+                      color: const Color(0xFF8EA4C2),
+                      fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 1.0,
+                      letterSpacing: 0.9,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          site.displayName,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF1FB),
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      _statusBadge(site.status),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Text(
-                    '${site.location}  •  ${site.id}',
+                    focusCopy,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFA5B6CB),
-                      fontSize: 11,
+                      color: const Color(0xFFF4F8FF),
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w600,
+                      height: 1.5,
                     ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _siteMetricChip(
+                        'Response',
+                        '${site.responseRate.round()}%',
+                      ),
+                      _siteMetricChip('Coverage', '$guardFill%'),
+                      _siteMetricChip('Checkpoints', '$checkpointFill%'),
+                      _siteMetricChip('Last Incident', site.lastIncident),
+                    ],
                   ),
                 ],
               );
-              final actions = Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _miniButton(
-                    'VIEW ON MAP',
-                    key: const ValueKey('sites-view-on-map-button'),
-                    primary: true,
-                    enabled: widget.onOpenMapForSite != null,
-                    onTap: () {
-                      logUiAction(
-                        'sites.view_on_map',
-                        context: {
-                          'site_id': site.id,
-                          'site_name': site.displayName,
-                        },
-                      );
-                      widget.onOpenMapForSite!.call(site.id, site.displayName);
-                    },
-                  ),
-                  _miniButton(
-                    'SITE SETTINGS',
-                    key: const ValueKey('sites-site-settings-button'),
-                    enabled: widget.onOpenSiteSettings != null,
-                    onTap: () => _openSiteSettings(site),
-                  ),
-                  _miniButton(
-                    'GUARD ROSTER',
-                    key: const ValueKey('sites-guard-roster-button'),
-                    enabled: widget.onOpenGuardRoster != null,
-                    onTap: () => _openGuardRoster(site),
-                  ),
-                ],
+              final directive = Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: const Color(0x14000000),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0x33527AA6)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _commandDetailRow(
+                      label: 'Directive',
+                      value: _siteDirective(site),
+                      accent: _statusColor(site.status),
+                    ),
+                    const SizedBox(height: 6),
+                    _commandDetailRow(
+                      label: 'Lane State',
+                      value: _workspaceViewTitle(_workspaceView),
+                      accent: const Color(0xFF38BDF8),
+                    ),
+                    const SizedBox(height: 6),
+                    _commandDetailRow(
+                      label: 'Watchline',
+                      value: _siteRiskNarrative(site),
+                      accent: const Color(0xFFF59E0B),
+                    ),
+                  ],
+                ),
               );
               if (compact) {
                 return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [title, const SizedBox(height: 12), actions],
+                  children: [overview, const SizedBox(height: 6), directive],
                 );
               }
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(child: title),
-                  const SizedBox(width: 12),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: actions,
-                  ),
+                  Expanded(flex: 5, child: overview),
+                  const SizedBox(width: 7),
+                  Expanded(flex: 4, child: directive),
                 ],
               );
             },
           ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF11273A), Color(0xFF0D1620)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF27425D)),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _workspaceViewChip(
+              key: const ValueKey('sites-workspace-view-response'),
+              label: 'Response',
+              selected: _workspaceView == _SiteWorkspaceView.response,
+              onTap: () => _setWorkspaceView(_SiteWorkspaceView.response),
             ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 920;
-                final overview = Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'COMMAND FOCUS',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.9,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      focusCopy,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFF4F8FF),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _siteMetricChip(
-                          'Response',
-                          '${site.responseRate.round()}%',
-                        ),
-                        _siteMetricChip('Coverage', '$guardFill%'),
-                        _siteMetricChip('Checkpoints', '$checkpointFill%'),
-                        _siteMetricChip('Last Incident', site.lastIncident),
-                      ],
-                    ),
-                  ],
-                );
-                final directive = Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0x14000000),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0x33527AA6)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _commandDetailRow(
-                        label: 'Directive',
-                        value: _siteDirective(site),
-                        accent: _statusColor(site.status),
-                      ),
-                      const SizedBox(height: 10),
-                      _commandDetailRow(
-                        label: 'Lane State',
-                        value: _workspaceViewTitle(_workspaceView),
-                        accent: const Color(0xFF38BDF8),
-                      ),
-                      const SizedBox(height: 10),
-                      _commandDetailRow(
-                        label: 'Watchline',
-                        value: _siteRiskNarrative(site),
-                        accent: const Color(0xFFF59E0B),
-                      ),
-                    ],
-                  ),
-                );
-                if (compact) {
-                  return Column(
-                    children: [overview, const SizedBox(height: 12), directive],
-                  );
-                }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 5, child: overview),
-                    const SizedBox(width: 12),
-                    Expanded(flex: 4, child: directive),
-                  ],
-                );
-              },
+            _workspaceViewChip(
+              key: const ValueKey('sites-workspace-view-coverage'),
+              label: 'Coverage',
+              selected: _workspaceView == _SiteWorkspaceView.coverage,
+              onTap: () => _setWorkspaceView(_SiteWorkspaceView.coverage),
             ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceViewChip(
-                key: const ValueKey('sites-workspace-view-response'),
-                label: 'Response',
-                selected: _workspaceView == _SiteWorkspaceView.response,
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.response),
-              ),
-              _workspaceViewChip(
-                key: const ValueKey('sites-workspace-view-coverage'),
-                label: 'Coverage',
-                selected: _workspaceView == _SiteWorkspaceView.coverage,
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.coverage),
-              ),
-              _workspaceViewChip(
-                key: const ValueKey('sites-workspace-view-checkpoints'),
-                label: 'Checkpoints',
-                selected: _workspaceView == _SiteWorkspaceView.checkpoints,
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.checkpoints),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _workspaceDeck(site, visibleSiteCount, totalSiteCount),
-        ],
+            _workspaceViewChip(
+              key: const ValueKey('sites-workspace-view-checkpoints'),
+              label: 'Checkpoints',
+              selected: _workspaceView == _SiteWorkspaceView.checkpoints,
+              onTap: () => _setWorkspaceView(_SiteWorkspaceView.checkpoints),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final shelllessSections = constraints.maxWidth >= 980;
+            return _workspaceDeck(
+              site,
+              visibleSiteCount,
+              totalSiteCount,
+              shelllessSections: shelllessSections,
+            );
+          },
+        ),
+      ],
+    );
+    if (shellless) {
+      return Padding(padding: const EdgeInsets.all(2), child: body);
+    }
+    return Container(
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0E141C),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1E2A3A)),
       ),
+      child: body,
     );
   }
 
   Widget _workspaceDeck(
     _SiteViewModel site,
     int visibleSiteCount,
-    int totalSiteCount,
-  ) {
+    int totalSiteCount, {
+    required bool shelllessSections,
+  }) {
     return switch (_workspaceView) {
       _SiteWorkspaceView.response => _responseWorkspace(
         site,
         visibleSiteCount,
         totalSiteCount,
+        shelllessSections: shelllessSections,
       ),
       _SiteWorkspaceView.coverage => _coverageWorkspace(
         site,
         visibleSiteCount,
         totalSiteCount,
+        shelllessSections: shelllessSections,
       ),
       _SiteWorkspaceView.checkpoints => _checkpointWorkspace(
         site,
         visibleSiteCount,
         totalSiteCount,
+        shelllessSections: shelllessSections,
       ),
     };
   }
@@ -1360,8 +1175,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
   Widget _responseWorkspace(
     _SiteViewModel site,
     int visibleSiteCount,
-    int totalSiteCount,
-  ) {
+    int totalSiteCount, {
+    required bool shelllessSections,
+  }) {
     final guardFill = _percent(site.guardsActive, site.guardsTotal);
     final checkpointFill = _percent(
       site.checkpointsCompleted,
@@ -1405,6 +1221,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         _workspaceSplitCards(
           left: _panelCard(
             title: 'RESPONSE COMMAND BOARD',
+            shellless: shelllessSections,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1451,7 +1268,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   _siteRiskNarrative(site),
                   style: GoogleFonts.inter(
                     color: const Color(0xFFD6E2F2),
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     height: 1.5,
                   ),
@@ -1461,6 +1278,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           ),
           right: _panelCard(
             title: 'DISPATCH OUTCOME MIX (30 DAYS)',
+            shellless: shelllessSections,
             child: Column(
               children: [
                 _outcomeBar(
@@ -1493,6 +1311,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         const SizedBox(height: 10),
         _panelCard(
           title: 'OPERATIONAL PULSE',
+          shellless: shelllessSections,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 780;
@@ -1559,8 +1378,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
   Widget _coverageWorkspace(
     _SiteViewModel site,
     int visibleSiteCount,
-    int totalSiteCount,
-  ) {
+    int totalSiteCount, {
+    required bool shelllessSections,
+  }) {
     final guardFill = _percent(site.guardsActive, site.guardsTotal);
     final checkpointFill = _percent(
       site.checkpointsCompleted,
@@ -1615,6 +1435,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         _workspaceSplitCards(
           left: _panelCard(
             title: 'COVERAGE GRID',
+            shellless: shelllessSections,
             child: Column(
               children: [
                 _progressMeter(
@@ -1647,6 +1468,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           ),
           right: _panelCard(
             title: 'SHIFT DISTRIBUTION',
+            shellless: shelllessSections,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1679,6 +1501,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         const SizedBox(height: 10),
         _panelCard(
           title: 'FIELD READINESS',
+          shellless: shelllessSections,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 780;
@@ -1743,8 +1566,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
   Widget _checkpointWorkspace(
     _SiteViewModel site,
     int visibleSiteCount,
-    int totalSiteCount,
-  ) {
+    int totalSiteCount, {
+    required bool shelllessSections,
+  }) {
     final checkpointFill = _percent(
       site.checkpointsCompleted,
       site.checkpointsTotal,
@@ -1795,6 +1619,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         _workspaceSplitCards(
           left: _panelCard(
             title: 'CHECKPOINT COMMAND BOARD',
+            shellless: shelllessSections,
             child: Column(
               children: [
                 _progressMeter(
@@ -1831,6 +1656,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           ),
           right: _panelCard(
             title: 'ASSURANCE TRACK',
+            shellless: shelllessSections,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1863,6 +1689,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         const SizedBox(height: 10),
         _panelCard(
           title: 'FOLLOW-THROUGH',
+          shellless: shelllessSections,
           child: LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 780;
@@ -1926,10 +1753,10 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final cell = width < 760 ? (width - 8) / 2 : (width - 24) / 4;
+        final cell = width < 760 ? (width - 6) / 2 : (width - 18) / 4;
         return Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 6,
+          runSpacing: 6,
           children: [
             for (final metric in metrics)
               _smallKpiCard(
@@ -1950,13 +1777,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       builder: (context, constraints) {
         final stacked = constraints.maxWidth < 980;
         if (stacked) {
-          return Column(children: [left, const SizedBox(height: 10), right]);
+          return Column(children: [left, const SizedBox(height: 7), right]);
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(flex: 5, child: left),
-            const SizedBox(width: 10),
+            const SizedBox(width: 7),
             Expanded(flex: 4, child: right),
           ],
         );
@@ -1977,7 +1804,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF113245) : const Color(0xFF101923),
           borderRadius: BorderRadius.circular(999),
@@ -1994,13 +1821,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 color: selected
                     ? const Color(0xFFEAF1FB)
                     : const Color(0xFF9BB0C8),
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: selected
                     ? const Color(0xFF0F2532)
@@ -2011,7 +1838,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 '$count',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFEAF1FB),
-                  fontSize: 10,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -2034,7 +1861,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF123244) : const Color(0xFF111822),
           borderRadius: BorderRadius.circular(999),
@@ -2046,7 +1873,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           label,
           style: GoogleFonts.inter(
             color: selected ? const Color(0xFFEAF1FB) : const Color(0xFF9BB0C8),
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -2066,17 +1893,17 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           label,
           style: GoogleFonts.inter(
             color: const Color(0xFF6F839C),
-            fontSize: 10,
+            fontSize: 9.5,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 2),
         Text(
           value,
           style: GoogleFonts.inter(
             color: accent,
-            fontSize: 18,
+            fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -2087,7 +1914,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
   Widget _statusBadge(_SiteStatus status) {
     final color = _statusColor(status);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
@@ -2097,7 +1924,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         _statusLabel(status).toUpperCase(),
         style: GoogleFonts.inter(
           color: const Color(0xFFEAF1FB),
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.8,
         ),
@@ -2107,7 +1934,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
 
   Widget _siteMetricChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFF101923),
         borderRadius: BorderRadius.circular(999),
@@ -2120,7 +1947,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               text: '$label ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF7D93B1),
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2128,7 +1955,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFEAF1FB),
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2153,7 +1980,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 label,
                 style: GoogleFonts.inter(
                   color: const Color(0xFFA5B6CB),
-                  fontSize: 11,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2162,17 +1989,17 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               '$percent%',
               style: GoogleFonts.inter(
                 color: const Color(0xFFEAF1FB),
-                fontSize: 11,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 3),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: SizedBox(
-            height: 8,
+            height: 6,
             child: LinearProgressIndicator(
               value: percent / 100,
               backgroundColor: const Color(0xFF0A0E14),
@@ -2196,22 +2023,22 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           label.toUpperCase(),
           style: GoogleFonts.inter(
             color: const Color(0xFF6F839C),
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           value,
           style: GoogleFonts.inter(
             color: const Color(0xFFEAF1FB),
-            fontSize: 12,
+            fontSize: 10.5,
             fontWeight: FontWeight.w700,
             height: 1.45,
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Container(
           width: 54,
           height: 3,
@@ -2230,7 +2057,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFF111F33),
         borderRadius: BorderRadius.circular(999),
@@ -2239,58 +2066,17 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: accent),
-          const SizedBox(width: 6),
+          Icon(icon, size: 13, color: accent),
+          const SizedBox(width: 4),
           Text(
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFFE8F1FF),
-              fontSize: 11,
+              fontSize: 9,
               fontWeight: FontWeight.w700,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _workspaceBannerAction({
-    required Key key,
-    required String label,
-    required bool selected,
-    required Color accent,
-    required VoidCallback? onTap,
-  }) {
-    final enabled = onTap != null;
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          color: !enabled
-              ? const Color(0xFF1D2937)
-              : selected
-              ? accent.withValues(alpha: 0.2)
-              : const Color(0xFF111F33),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: !enabled
-                ? const Color(0xFF314154)
-                : selected
-                ? accent.withValues(alpha: 0.75)
-                : accent.withValues(alpha: 0.35),
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: !enabled ? const Color(0xFF8EA4C2) : const Color(0xFFEAF1FB),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
       ),
     );
   }
@@ -2310,14 +2096,6 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       _SiteLaneFilter.healthy => const Color(0xFF22D3EE),
       _SiteLaneFilter.watch => const Color(0xFFF59E0B),
       _SiteLaneFilter.strong => const Color(0xFF34D399),
-    };
-  }
-
-  Color _workspaceAccent(_SiteWorkspaceView view) {
-    return switch (view) {
-      _SiteWorkspaceView.response => const Color(0xFF63BDFF),
-      _SiteWorkspaceView.coverage => const Color(0xFF34D399),
-      _SiteWorkspaceView.checkpoints => const Color(0xFFA78BFA),
     };
   }
 
@@ -2393,7 +2171,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       onTap: enabled ? onTap : null,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: enabled
               ? (primary ? const Color(0xFF3B82F6) : const Color(0xFF111822))
@@ -2409,7 +2187,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           text,
           style: GoogleFonts.inter(
             color: enabled ? const Color(0xFFEAF1FB) : const Color(0xFF8EA4C2),
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -2426,10 +2204,10 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
   }) {
     return Container(
       width: width,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+      padding: const EdgeInsets.fromLTRB(7, 7, 7, 7),
       decoration: BoxDecoration(
         color: const Color(0xFF111822),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF2A374A)),
       ),
       child: Column(
@@ -2439,27 +2217,27 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             title,
             style: GoogleFonts.inter(
               color: const Color(0xFF7D93B1),
-              fontSize: 11,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             value,
             style: GoogleFonts.inter(
               color: const Color(0xFFEAF1FB),
-              fontSize: 41,
+              fontSize: 30,
               height: 0.95,
               fontWeight: FontWeight.w300,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 1),
           Text(
             helper,
             style: GoogleFonts.inter(
               color: helperColor,
-              fontSize: 11,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2468,13 +2246,35 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     );
   }
 
-  Widget _panelCard({required String title, required Widget child}) {
+  Widget _panelCard({
+    required String title,
+    required Widget child,
+    bool shellless = false,
+  }) {
+    if (shellless) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9BB0CE),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 5),
+          child,
+        ],
+      );
+    }
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: const Color(0xFF111822),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF2A374A)),
       ),
       child: Column(
@@ -2484,12 +2284,12 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             title,
             style: GoogleFonts.inter(
               color: const Color(0xFF9BB0CE),
-              fontSize: 11,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           child,
         ],
       ),
@@ -2505,7 +2305,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               label,
               style: GoogleFonts.inter(
                 color: const Color(0xFFD9E7FA),
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -2514,17 +2314,17 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               '$percent%',
               style: GoogleFonts.inter(
                 color: const Color(0xFFEAF1FB),
-                fontSize: 12,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: SizedBox(
-            height: 8,
+            height: 7,
             child: LinearProgressIndicator(
               value: percent / 100,
               backgroundColor: const Color(0xFF0A0E14),
@@ -2556,13 +2356,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 metric.value,
                 style: GoogleFonts.inter(
                   color: metric.color,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
         ],
       ],
     );

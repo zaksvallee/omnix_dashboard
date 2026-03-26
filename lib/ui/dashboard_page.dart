@@ -447,7 +447,7 @@ class _DesktopDashboard extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, viewport) {
-        const contentPadding = EdgeInsets.all(10);
+        const contentPadding = EdgeInsets.all(1.22);
         final useScrollFallback =
             viewport.maxHeight < 720 || viewport.maxWidth < 1180;
         final boundedDesktopSurface =
@@ -479,15 +479,19 @@ class _DesktopDashboard extends StatelessWidget {
             if (embedScroll) {
               return ListView(
                 padding: EdgeInsets.zero,
-                children: [workspace, const SizedBox(height: 10), rightRail],
+                children: [workspace, const SizedBox(height: 1.5), rightRail],
               );
             }
             return Column(
-              children: [workspace, const SizedBox(height: 10), rightRail],
+              children: [workspace, const SizedBox(height: 1.5), rightRail],
             );
           }
 
-          final railWidth = ultrawideSurface ? 380.0 : 336.0;
+          final railWidth = ultrawideSurface
+              ? 156.0
+              : widescreenSurface
+              ? 136.0
+              : 118.0;
           final leftColumn = embedScroll
               ? SingleChildScrollView(primary: false, child: workspace)
               : workspace;
@@ -498,8 +502,8 @@ class _DesktopDashboard extends StatelessWidget {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 8, child: leftColumn),
-              const SizedBox(width: 10),
+              Expanded(flex: 30, child: leftColumn),
+              const SizedBox(width: 0.06),
               SizedBox(width: railWidth, child: rightColumn),
             ],
           );
@@ -509,12 +513,8 @@ class _DesktopDashboard extends StatelessWidget {
           padding: contentPadding,
           maxWidth: surfaceMaxWidth,
           lockToViewport: boundedDesktopSurface,
-          spacing: 10,
-          header: _ExecutiveSummary(
-            snapshot: snapshot,
-            threat: threat,
-            triage: triage,
-          ),
+          spacing: 0.18,
+          header: const SizedBox.shrink(),
           body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
         );
       },
@@ -603,16 +603,16 @@ class _CompactDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(7),
       children: [
         _ExecutiveSummary(snapshot: snapshot, threat: threat, triage: triage),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _DashboardOperationsWorkspace(
           snapshot: snapshot,
           triage: triage,
           threat: threat,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _RightRail(
           snapshot: snapshot,
           threat: threat,
@@ -668,7 +668,7 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+      padding: const EdgeInsets.fromLTRB(4.5, 2.3, 4.5, 1.7),
       decoration: const BoxDecoration(
         color: Color(0xFF0A0D14),
         border: Border(bottom: BorderSide(color: Color(0xFF24354A))),
@@ -680,7 +680,7 @@ class _TopBar extends StatelessWidget {
             'Command Dashboard',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE8F1FF),
-              fontSize: compact ? 22 : 26,
+              fontSize: compact ? 12.9 : 14.8,
               fontWeight: FontWeight.w700,
             ),
           );
@@ -688,12 +688,15 @@ class _TopBar extends StatelessWidget {
             'Real-time operational control • AI-powered human-parallel execution.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 12,
+              fontSize: 6.8,
               fontWeight: FontWeight.w600,
             ),
           );
           final statusChip = Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 4.0,
+              vertical: 1.55,
+            ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               border: Border.all(color: threat.accent.withValues(alpha: 0.8)),
@@ -705,7 +708,7 @@ class _TopBar extends StatelessWidget {
                 color: threat.accent,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.0,
-                fontSize: 16,
+                fontSize: 8.2,
               ),
             ),
           );
@@ -715,12 +718,12 @@ class _TopBar extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 headerTitle,
-                const SizedBox(height: 2),
+                const SizedBox(height: 0.55),
                 headerSubtitle,
-                const SizedBox(height: 10),
+                const SizedBox(height: 1.5),
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 2.0,
+                  runSpacing: 2.0,
                   children: [
                     _HeaderStat(
                       label: 'Last Event',
@@ -746,22 +749,22 @@ class _TopBar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     headerTitle,
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 0.65),
                     headerSubtitle,
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 1.9),
               _HeaderStat(
                 label: 'Last Event',
                 value: _formatTimestamp(snapshot.lastEventAtUtc),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 1.2),
               _HeaderStat(
                 label: 'Pressure',
                 value: snapshot.controllerPressureIndex.toStringAsFixed(1),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 1.2),
               statusChip,
             ],
           );
@@ -786,24 +789,60 @@ class _ExecutiveSummary extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 1200;
-        return _DashboardCard(
-          title: 'KPI Band',
-          subtitle: 'Live operational indicators for command decisions',
+        final compact = constraints.maxWidth < 960;
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(0.62, 0.46, 0.62, 0.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E1A2B),
+            borderRadius: BorderRadius.circular(3.0),
+            border: Border.all(color: const Color(0xFF243549)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x12000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Wrap(
+                spacing: 0.24,
+                runSpacing: 0.12,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'KPI Band',
+                    style: GoogleFonts.rajdhani(
+                      color: const Color(0xFFE8F1FF),
+                      fontSize: compact ? 6.7 : 7.0,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    'Triage posture: A ${triage.advisoryCount} • W ${triage.watchCount} • DC ${triage.dispatchCandidateCount} • Esc ${triage.escalateCount}',
+                    style: GoogleFonts.inter(
+                      color: threat.accent,
+                      fontSize: 4.25,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 0.18),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                padding: const EdgeInsets.fromLTRB(0.34, 0.2, 0.34, 0.2),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(2.45),
                   border: Border.all(color: const Color(0xFF223244)),
-                  color: const Color(0xFF0E1A2B),
+                  color: const Color(0xFF0C1727),
                 ),
                 child: Wrap(
-                  spacing: 18,
-                  runSpacing: 8,
+                  spacing: 0.12,
+                  runSpacing: 0.05,
                   children: [
                     _SummaryStripItem(
                       label: 'Active Incidents',
@@ -831,64 +870,41 @@ class _ExecutiveSummary extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              if (compact) ...[
-                _KpiBandTile(
-                  label: 'Average Response',
-                  value:
-                      '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
-                  helper: 'Across all arrived dispatches',
-                ),
-                const SizedBox(height: 8),
-                _KpiBandTile(
-                  label: 'High-Risk Intel',
-                  value: snapshot.highRiskIntelligence.toString(),
-                  helper: 'Signals above 70 risk',
-                ),
-                const SizedBox(height: 8),
-                _KpiBandTile(
-                  label: 'Field Activity',
-                  value:
-                      '${snapshot.totalCheckIns} check-ins • ${snapshot.totalPatrols} patrols',
-                  helper: 'Current field movement',
-                ),
-              ] else
-                Row(
-                  children: [
-                    Expanded(
-                      child: _KpiBandTile(
-                        label: 'Average Response',
-                        value:
-                            '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
-                        helper: 'Across all arrived dispatches',
-                      ),
+              const SizedBox(height: 0.08),
+              Wrap(
+                spacing: 0.24,
+                runSpacing: 0.08,
+                children: [
+                  Text(
+                    'High-risk intel ${snapshot.highRiskIntelligence}',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8AA2C0),
+                      fontSize: 4.0,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _KpiBandTile(
-                        label: 'High-Risk Intel',
-                        value: snapshot.highRiskIntelligence.toString(),
-                        helper: 'Signals above 70 risk',
-                      ),
+                  ),
+                  Text(
+                    'Field ${snapshot.totalCheckIns} check-ins • ${snapshot.totalPatrols} patrols',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF7088A9),
+                      fontSize: 4.0,
+                      fontWeight: FontWeight.w700,
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _KpiBandTile(
-                        label: 'Field Activity',
-                        value:
-                            '${snapshot.totalCheckIns} check-ins • ${snapshot.totalPatrols} patrols',
-                        helper: 'Current field movement',
-                      ),
-                    ),
-                  ],
-                ),
-              const SizedBox(height: 8),
-              _KpiBandTile(
-                label: 'Triage Posture',
-                value:
-                    'A ${triage.advisoryCount} • W ${triage.watchCount} • DC ${triage.dispatchCandidateCount} • Esc ${triage.escalateCount}',
-                helper: 'Top triage signals: ${triage.topSignalsSummary}',
+                  ),
+                ],
               ),
+              if (triage.topSignalsSummary.isNotEmpty) ...[
+                const SizedBox(height: 0.04),
+                Text(
+                  'Top triage signals: ${triage.topSignalsSummary}',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7D93B1),
+                    fontSize: 4.2,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -913,7 +929,7 @@ class _SummaryStripItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 206,
+      width: 33.0,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -921,27 +937,27 @@ class _SummaryStripItem extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8FA6C5),
-              fontSize: 10,
+              fontSize: 3.7,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0.06),
           Text(
             value,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE8F2FF),
-              fontSize: 38,
+              fontSize: 7.8,
               height: 0.88,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0.1),
           Text(
             helper,
             style: GoogleFonts.inter(
               color: helperColor,
-              fontSize: 11,
+              fontSize: 3.45,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1013,25 +1029,18 @@ class _DashboardOperationsWorkspaceState
       title: 'Command Workspace',
       subtitle:
           'Selectable operational lanes that turn the dashboard body into a live command board.',
+      shellless: !isHandsetLayout(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _workspaceFocusBanner(focus),
-          const SizedBox(height: 12),
           _workspaceStatusBanner(
+            focus: focus,
             signalItems: signalItems,
             dispatchItems: dispatchItems,
             siteItems: siteItems,
-            visibleSignals: visibleSignals,
-            visibleDispatches: visibleDispatches,
-            visibleSites: visibleSites,
-            selectedSignal: selectedSignal,
-            selectedDispatch: selectedDispatch,
-            selectedSite: selectedSite,
+            summaryOnly: !isHandsetLayout(context),
           ),
-          const SizedBox(height: 10),
-          _activeFilterRow(signalItems, dispatchItems, siteItems),
-          const SizedBox(height: 12),
+          const SizedBox(height: 0.08),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 1160;
@@ -1071,15 +1080,15 @@ class _DashboardOperationsWorkspaceState
               };
               if (stacked) {
                 return Column(
-                  children: [lane, const SizedBox(height: 10), detail],
+                  children: [lane, const SizedBox(height: 0.1), detail],
                 );
               }
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 4, child: lane),
-                  const SizedBox(width: 10),
-                  Expanded(flex: 6, child: detail),
+                  Expanded(flex: 22, child: lane),
+                  const SizedBox(width: 0.08),
+                  Expanded(flex: 78, child: detail),
                 ],
               );
             },
@@ -1135,22 +1144,12 @@ class _DashboardOperationsWorkspaceState
   }
 
   Widget _workspaceStatusBanner({
+    required _DashboardFocusModel focus,
     required List<_DashboardSignalItem> signalItems,
     required List<_DashboardDispatchItem> dispatchItems,
     required List<SiteHealthSnapshot> siteItems,
-    required List<_DashboardSignalItem> visibleSignals,
-    required List<_DashboardDispatchItem> visibleDispatches,
-    required List<SiteHealthSnapshot> visibleSites,
-    required _DashboardSignalItem? selectedSignal,
-    required _DashboardDispatchItem? selectedDispatch,
-    required SiteHealthSnapshot? selectedSite,
+    bool summaryOnly = false,
   }) {
-    final selectedLabel = switch (_mode) {
-      _DashboardWorkspaceMode.signals => selectedSignal?.title ?? 'none',
-      _DashboardWorkspaceMode.dispatch =>
-        selectedDispatch?.dispatchId ?? 'none',
-      _DashboardWorkspaceMode.sites => selectedSite?.siteId ?? 'none',
-    };
     final activeLaneLabel = switch (_mode) {
       _DashboardWorkspaceMode.signals => switch (_signalLane) {
         _DashboardSignalLane.all => 'Signals • All',
@@ -1174,126 +1173,146 @@ class _DashboardOperationsWorkspaceState
     return Container(
       key: const ValueKey('dashboard-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(0.24),
       decoration: BoxDecoration(
         color: const Color(0xFF0B1521),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(2.15),
         border: Border.all(color: const Color(0xFF27425D)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 1080;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _workspaceStatusChip(
-                label: activeLaneLabel,
-                accent: const Color(0xFF8FD1FF),
+              _workspaceFocusSummary(
+                focus,
+                compact: constraints.maxWidth < 920,
               ),
-              _workspaceStatusChip(
-                label: 'Selected $selectedLabel',
-                accent: const Color(0xFFF6C067),
+              const SizedBox(height: 0.12),
+              Wrap(
+                spacing: 0.12,
+                runSpacing: 0.12,
+                children: [
+                  _workspaceStatusChip(
+                    label: activeLaneLabel,
+                    accent: const Color(0xFF8FD1FF),
+                  ),
+                  _workspaceStatusChip(
+                    label: 'Threat ${widget.threat.label}',
+                    accent: widget.threat.accent,
+                  ),
+                  _WorkspaceModeChip(
+                    widgetKey: const ValueKey(
+                      'dashboard-workspace-mode-signals',
+                    ),
+                    label: 'Signals',
+                    selected: _mode == _DashboardWorkspaceMode.signals,
+                    onTap: () => _setMode(_DashboardWorkspaceMode.signals),
+                  ),
+                  _WorkspaceModeChip(
+                    widgetKey: const ValueKey(
+                      'dashboard-workspace-mode-dispatch',
+                    ),
+                    label: 'Dispatch',
+                    selected: _mode == _DashboardWorkspaceMode.dispatch,
+                    onTap: () => _setMode(_DashboardWorkspaceMode.dispatch),
+                  ),
+                  _WorkspaceModeChip(
+                    widgetKey: const ValueKey('dashboard-workspace-mode-sites'),
+                    label: 'Sites',
+                    selected: _mode == _DashboardWorkspaceMode.sites,
+                    onTap: () => _setMode(_DashboardWorkspaceMode.sites),
+                  ),
+                  if (!summaryOnly) ...[
+                    _workspaceStatusAction(
+                      key: const ValueKey(
+                        'dashboard-workspace-banner-open-live-intel',
+                      ),
+                      label: 'Live Intel',
+                      selected:
+                          _mode == _DashboardWorkspaceMode.signals &&
+                          _signalLane == _DashboardSignalLane.intelligence,
+                      accent: const Color(0xFF63BDFF),
+                      onTap: () => _focusSignalLaneAction(
+                        signalItems,
+                        _DashboardSignalLane.intelligence,
+                      ),
+                    ),
+                    _workspaceStatusAction(
+                      key: const ValueKey(
+                        'dashboard-workspace-banner-open-dispatch-risk',
+                      ),
+                      label: 'Risk Dispatch',
+                      selected:
+                          _mode == _DashboardWorkspaceMode.dispatch &&
+                          _dispatchLane == _DashboardDispatchLane.risk,
+                      accent: const Color(0xFFFF8E9A),
+                      onTap: () => _focusDispatchLaneAction(
+                        dispatchItems,
+                        _DashboardDispatchLane.risk,
+                      ),
+                    ),
+                    _workspaceStatusAction(
+                      key: const ValueKey(
+                        'dashboard-workspace-banner-open-site-watch',
+                      ),
+                      label: 'Watch Sites',
+                      selected:
+                          _mode == _DashboardWorkspaceMode.sites &&
+                          _siteLane == _DashboardSiteLane.watch,
+                      accent: const Color(0xFF8EF3C0),
+                      onTap: () => _focusSiteLaneAction(
+                        siteItems,
+                        _DashboardSiteLane.watch,
+                      ),
+                    ),
+                  ],
+                  if (!compact)
+                    ..._activeFilterChips(
+                      signalItems,
+                      dispatchItems,
+                      siteItems,
+                    ),
+                ],
               ),
-              _workspaceStatusChip(
-                label: 'Signals ${visibleSignals.length}/${signalItems.length}',
-                accent: const Color(0xFF63BDFF),
+              const SizedBox(height: 0.1),
+              Text(
+                'Triage posture: A ${widget.triage.advisoryCount} • W ${widget.triage.watchCount} • DC ${widget.triage.dispatchCandidateCount} • Esc ${widget.triage.escalateCount}',
+                style: GoogleFonts.inter(
+                  color: widget.threat.accent,
+                  fontSize: compact ? 4.0 : 4.2,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              _workspaceStatusChip(
-                label:
-                    'Dispatch ${visibleDispatches.length}/${dispatchItems.length}',
-                accent: const Color(0xFFFF8E9A),
-              ),
-              _workspaceStatusChip(
-                label: 'Sites ${visibleSites.length}/${siteItems.length}',
-                accent: const Color(0xFF8EF3C0),
-              ),
-              _workspaceStatusChip(
-                label: 'Threat ${widget.threat.label}',
-                accent: widget.threat.accent,
-              ),
+              if (widget.triage.topSignalsSummary.isNotEmpty) ...[
+                const SizedBox(height: 0.04),
+                Text(
+                  'Top triage signals: ${widget.triage.topSignalsSummary}',
+                  maxLines: compact ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7D93B1),
+                    fontSize: compact ? 3.95 : 4.1,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+              if (compact) ...[
+                const SizedBox(height: 0.12),
+                _activeFilterRow(signalItems, dispatchItems, siteItems),
+              ],
             ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _WorkspaceModeChip(
-                widgetKey: const ValueKey('dashboard-workspace-mode-signals'),
-                label: 'Signals',
-                selected: _mode == _DashboardWorkspaceMode.signals,
-                onTap: () => _setMode(_DashboardWorkspaceMode.signals),
-              ),
-              _WorkspaceModeChip(
-                widgetKey: const ValueKey('dashboard-workspace-mode-dispatch'),
-                label: 'Dispatch',
-                selected: _mode == _DashboardWorkspaceMode.dispatch,
-                onTap: () => _setMode(_DashboardWorkspaceMode.dispatch),
-              ),
-              _WorkspaceModeChip(
-                widgetKey: const ValueKey('dashboard-workspace-mode-sites'),
-                label: 'Sites',
-                selected: _mode == _DashboardWorkspaceMode.sites,
-                onTap: () => _setMode(_DashboardWorkspaceMode.sites),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusAction(
-                key: const ValueKey(
-                  'dashboard-workspace-banner-open-live-intel',
-                ),
-                label: 'Live Intel',
-                selected:
-                    _mode == _DashboardWorkspaceMode.signals &&
-                    _signalLane == _DashboardSignalLane.intelligence,
-                accent: const Color(0xFF63BDFF),
-                onTap: () => _focusSignalLaneAction(
-                  signalItems,
-                  _DashboardSignalLane.intelligence,
-                ),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey(
-                  'dashboard-workspace-banner-open-dispatch-risk',
-                ),
-                label: 'Risk Dispatch',
-                selected:
-                    _mode == _DashboardWorkspaceMode.dispatch &&
-                    _dispatchLane == _DashboardDispatchLane.risk,
-                accent: const Color(0xFFFF8E9A),
-                onTap: () => _focusDispatchLaneAction(
-                  dispatchItems,
-                  _DashboardDispatchLane.risk,
-                ),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey(
-                  'dashboard-workspace-banner-open-site-watch',
-                ),
-                label: 'Watch Sites',
-                selected:
-                    _mode == _DashboardWorkspaceMode.sites &&
-                    _siteLane == _DashboardSiteLane.watch,
-                accent: const Color(0xFF8EF3C0),
-                onTap: () =>
-                    _focusSiteLaneAction(siteItems, _DashboardSiteLane.watch),
-              ),
-            ],
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
   Widget _workspaceStatusChip({required String label, required Color accent}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 0.98, vertical: 0.3),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
@@ -1303,7 +1322,7 @@ class _DashboardOperationsWorkspaceState
         label,
         style: GoogleFonts.inter(
           color: accent,
-          fontSize: 10.5,
+          fontSize: 4.2,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -1323,7 +1342,7 @@ class _DashboardOperationsWorkspaceState
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 0.86, vertical: 0.34),
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
@@ -1339,7 +1358,7 @@ class _DashboardOperationsWorkspaceState
           label,
           style: GoogleFonts.inter(
             color: selected ? accent : const Color(0xFFEAF2FF),
-            fontSize: 10.5,
+            fontSize: 4.2,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1352,114 +1371,113 @@ class _DashboardOperationsWorkspaceState
     List<_DashboardDispatchItem> dispatchItems,
     List<SiteHealthSnapshot> siteItems,
   ) {
+    return Wrap(
+      spacing: 0.58,
+      runSpacing: 0.58,
+      children: _activeFilterChips(signalItems, dispatchItems, siteItems),
+    );
+  }
+
+  List<Widget> _activeFilterChips(
+    List<_DashboardSignalItem> signalItems,
+    List<_DashboardDispatchItem> dispatchItems,
+    List<SiteHealthSnapshot> siteItems,
+  ) {
     return switch (_mode) {
-      _DashboardWorkspaceMode.signals => Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-signal-filter-all'),
-            label: 'All',
-            value: '${signalItems.length}',
-            selected: _signalLane == _DashboardSignalLane.all,
-            onTap: () => _setSignalLane(_DashboardSignalLane.all),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-signal-filter-intel'),
-            label: 'Intel',
-            value:
-                '${_signalCount(signalItems, _DashboardSignalLane.intelligence)}',
-            selected: _signalLane == _DashboardSignalLane.intelligence,
-            onTap: () => _setSignalLane(_DashboardSignalLane.intelligence),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-signal-filter-field'),
-            label: 'Field',
-            value: '${_signalCount(signalItems, _DashboardSignalLane.field)}',
-            selected: _signalLane == _DashboardSignalLane.field,
-            onTap: () => _setSignalLane(_DashboardSignalLane.field),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-signal-filter-closures'),
-            label: 'Closures',
-            value:
-                '${_signalCount(signalItems, _DashboardSignalLane.closures)}',
-            selected: _signalLane == _DashboardSignalLane.closures,
-            onTap: () => _setSignalLane(_DashboardSignalLane.closures),
-          ),
-        ],
-      ),
-      _DashboardWorkspaceMode.dispatch => Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-dispatch-filter-all'),
-            label: 'All',
-            value: '${dispatchItems.length}',
-            selected: _dispatchLane == _DashboardDispatchLane.all,
-            onTap: () => _setDispatchLane(_DashboardDispatchLane.all),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-dispatch-filter-open'),
-            label: 'Open',
-            value:
-                '${_dispatchCount(dispatchItems, _DashboardDispatchLane.open)}',
-            selected: _dispatchLane == _DashboardDispatchLane.open,
-            onTap: () => _setDispatchLane(_DashboardDispatchLane.open),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-dispatch-filter-risk'),
-            label: 'Risk',
-            value:
-                '${_dispatchCount(dispatchItems, _DashboardDispatchLane.risk)}',
-            selected: _dispatchLane == _DashboardDispatchLane.risk,
-            onTap: () => _setDispatchLane(_DashboardDispatchLane.risk),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-dispatch-filter-resolved'),
-            label: 'Resolved',
-            value:
-                '${_dispatchCount(dispatchItems, _DashboardDispatchLane.resolved)}',
-            selected: _dispatchLane == _DashboardDispatchLane.resolved,
-            onTap: () => _setDispatchLane(_DashboardDispatchLane.resolved),
-          ),
-        ],
-      ),
-      _DashboardWorkspaceMode.sites => Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-site-filter-all'),
-            label: 'All',
-            value: '${siteItems.length}',
-            selected: _siteLane == _DashboardSiteLane.all,
-            onTap: () => _setSiteLane(_DashboardSiteLane.all),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-site-filter-active'),
-            label: 'Active',
-            value: '${_siteCount(siteItems, _DashboardSiteLane.active)}',
-            selected: _siteLane == _DashboardSiteLane.active,
-            onTap: () => _setSiteLane(_DashboardSiteLane.active),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-site-filter-watch'),
-            label: 'Watch',
-            value: '${_siteCount(siteItems, _DashboardSiteLane.watch)}',
-            selected: _siteLane == _DashboardSiteLane.watch,
-            onTap: () => _setSiteLane(_DashboardSiteLane.watch),
-          ),
-          _WorkspaceFilterChip(
-            widgetKey: const ValueKey('dashboard-site-filter-strong'),
-            label: 'Strong',
-            value: '${_siteCount(siteItems, _DashboardSiteLane.strong)}',
-            selected: _siteLane == _DashboardSiteLane.strong,
-            onTap: () => _setSiteLane(_DashboardSiteLane.strong),
-          ),
-        ],
-      ),
+      _DashboardWorkspaceMode.signals => [
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-signal-filter-all'),
+          label: 'All',
+          value: '${signalItems.length}',
+          selected: _signalLane == _DashboardSignalLane.all,
+          onTap: () => _setSignalLane(_DashboardSignalLane.all),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-signal-filter-intel'),
+          label: 'Intel',
+          value:
+              '${_signalCount(signalItems, _DashboardSignalLane.intelligence)}',
+          selected: _signalLane == _DashboardSignalLane.intelligence,
+          onTap: () => _setSignalLane(_DashboardSignalLane.intelligence),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-signal-filter-field'),
+          label: 'Field',
+          value: '${_signalCount(signalItems, _DashboardSignalLane.field)}',
+          selected: _signalLane == _DashboardSignalLane.field,
+          onTap: () => _setSignalLane(_DashboardSignalLane.field),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-signal-filter-closures'),
+          label: 'Closures',
+          value: '${_signalCount(signalItems, _DashboardSignalLane.closures)}',
+          selected: _signalLane == _DashboardSignalLane.closures,
+          onTap: () => _setSignalLane(_DashboardSignalLane.closures),
+        ),
+      ],
+      _DashboardWorkspaceMode.dispatch => [
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-dispatch-filter-all'),
+          label: 'All',
+          value: '${dispatchItems.length}',
+          selected: _dispatchLane == _DashboardDispatchLane.all,
+          onTap: () => _setDispatchLane(_DashboardDispatchLane.all),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-dispatch-filter-open'),
+          label: 'Open',
+          value:
+              '${_dispatchCount(dispatchItems, _DashboardDispatchLane.open)}',
+          selected: _dispatchLane == _DashboardDispatchLane.open,
+          onTap: () => _setDispatchLane(_DashboardDispatchLane.open),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-dispatch-filter-risk'),
+          label: 'Risk',
+          value:
+              '${_dispatchCount(dispatchItems, _DashboardDispatchLane.risk)}',
+          selected: _dispatchLane == _DashboardDispatchLane.risk,
+          onTap: () => _setDispatchLane(_DashboardDispatchLane.risk),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-dispatch-filter-resolved'),
+          label: 'Resolved',
+          value:
+              '${_dispatchCount(dispatchItems, _DashboardDispatchLane.resolved)}',
+          selected: _dispatchLane == _DashboardDispatchLane.resolved,
+          onTap: () => _setDispatchLane(_DashboardDispatchLane.resolved),
+        ),
+      ],
+      _DashboardWorkspaceMode.sites => [
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-site-filter-all'),
+          label: 'All',
+          value: '${siteItems.length}',
+          selected: _siteLane == _DashboardSiteLane.all,
+          onTap: () => _setSiteLane(_DashboardSiteLane.all),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-site-filter-active'),
+          label: 'Active',
+          value: '${_siteCount(siteItems, _DashboardSiteLane.active)}',
+          selected: _siteLane == _DashboardSiteLane.active,
+          onTap: () => _setSiteLane(_DashboardSiteLane.active),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-site-filter-watch'),
+          label: 'Watch',
+          value: '${_siteCount(siteItems, _DashboardSiteLane.watch)}',
+          selected: _siteLane == _DashboardSiteLane.watch,
+          onTap: () => _setSiteLane(_DashboardSiteLane.watch),
+        ),
+        _WorkspaceFilterChip(
+          widgetKey: const ValueKey('dashboard-site-filter-strong'),
+          label: 'Strong',
+          value: '${_siteCount(siteItems, _DashboardSiteLane.strong)}',
+          selected: _siteLane == _DashboardSiteLane.strong,
+          onTap: () => _setSiteLane(_DashboardSiteLane.strong),
+        ),
+      ],
     };
   }
 
@@ -1854,6 +1872,7 @@ class _DashboardOperationsWorkspaceState
       title: 'Signal Lane',
       subtitle:
           '${visibleItems.length} of ${allItems.length} signals are in the active live lane.',
+      shellless: !isHandsetLayout(context),
       child: visibleItems.isEmpty
           ? const _MutedLabel(label: 'No signals match the active lane.')
           : Column(
@@ -1875,7 +1894,7 @@ class _DashboardOperationsWorkspaceState
                       });
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                 ],
                 if (visibleItems.length > 6)
                   OnyxTruncationHint(
@@ -1899,6 +1918,7 @@ class _DashboardOperationsWorkspaceState
       title: 'Dispatch Lane',
       subtitle:
           '${visibleItems.length} of ${allItems.length} dispatch chains are in the active command lane.',
+      shellless: !isHandsetLayout(context),
       child: visibleItems.isEmpty
           ? const _MutedLabel(
               label: 'No dispatch chains match the active lane.',
@@ -1922,7 +1942,7 @@ class _DashboardOperationsWorkspaceState
                       });
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                 ],
                 if (visibleItems.length > 6)
                   OnyxTruncationHint(
@@ -1946,6 +1966,7 @@ class _DashboardOperationsWorkspaceState
       title: 'Site Lane',
       subtitle:
           '${visibleItems.length} of ${allItems.length} sites are visible in the active posture lane.',
+      shellless: !isHandsetLayout(context),
       child: visibleItems.isEmpty
           ? const _MutedLabel(label: 'No sites match the active posture lane.')
           : Column(
@@ -1965,7 +1986,7 @@ class _DashboardOperationsWorkspaceState
                       });
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                 ],
                 if (visibleItems.length > 5)
                   OnyxTruncationHint(
@@ -1988,6 +2009,7 @@ class _DashboardOperationsWorkspaceState
       title: 'Signal Board',
       subtitle:
           'Selected signal context and operating guidance for the current live lane.',
+      shellless: !isHandsetLayout(context),
       child: selected == null
           ? const _MutedLabel(
               label: 'Select a signal to inspect its command context.',
@@ -2002,7 +2024,7 @@ class _DashboardOperationsWorkspaceState
                   subtitle: selected.subtitle,
                   narrative: selected.detail,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _workspaceMetricGrid([
                   _WorkspaceMetricTileData(
                     label: 'Visible signals',
@@ -2029,7 +2051,7 @@ class _DashboardOperationsWorkspaceState
                     accent: widget.threat.accent,
                   ),
                 ]),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _workspaceNarrativeSplit(
                   leftTitle: 'Signal Directive',
                   leftBody: selected.detail,
@@ -2037,7 +2059,7 @@ class _DashboardOperationsWorkspaceState
                   rightBody:
                       'A ${widget.triage.advisoryCount} • W ${widget.triage.watchCount} • DC ${widget.triage.dispatchCandidateCount} • Esc ${widget.triage.escalateCount}. Top signals: ${widget.triage.topSignalsSummary}.',
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _workspaceSupportList(
                   title: 'Supporting live reads',
                   rows: visibleItems
@@ -2061,6 +2083,7 @@ class _DashboardOperationsWorkspaceState
       title: 'Dispatch Board',
       subtitle:
           'Selected dispatch chain with the exact operational posture for this lane.',
+      shellless: !isHandsetLayout(context),
       child: selected == null
           ? const _MutedLabel(
               label:
@@ -2076,7 +2099,7 @@ class _DashboardOperationsWorkspaceState
                   subtitle: selected.scope,
                   narrative: selected.directive,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _workspaceMetricGrid([
                   _WorkspaceMetricTileData(
                     label: 'Visible chains',
@@ -2106,7 +2129,7 @@ class _DashboardOperationsWorkspaceState
                     accent: const Color(0xFF8EF3C0),
                   ),
                 ]),
-                const SizedBox(height: 10),
+                const SizedBox(height: 7),
                 _workspaceNarrativeSplit(
                   leftTitle: 'Chain Summary',
                   leftBody: selected.summary,
@@ -2114,7 +2137,7 @@ class _DashboardOperationsWorkspaceState
                   rightBody:
                       'Controller pressure is ${widget.snapshot.controllerPressureIndex.toStringAsFixed(1)} with ${widget.snapshot.totalFailed} failed and ${widget.snapshot.totalDenied} denied dispatches in the broader board.',
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 7),
                 _workspaceSupportList(
                   title: 'Related dispatch context',
                   rows: visibleItems
@@ -2138,6 +2161,7 @@ class _DashboardOperationsWorkspaceState
       title: 'Site Board',
       subtitle:
           'Selected site posture with deployment stress, response tempo, and lane context.',
+      shellless: !isHandsetLayout(context),
       child: selected == null
           ? const _MutedLabel(
               label: 'Select a site to inspect its current posture board.',
@@ -2152,7 +2176,7 @@ class _DashboardOperationsWorkspaceState
                   subtitle: '${selected.clientId} • ${selected.regionId}',
                   narrative: _siteNarrative(selected),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _workspaceMetricGrid([
                   _WorkspaceMetricTileData(
                     label: 'Health',
@@ -2181,7 +2205,7 @@ class _DashboardOperationsWorkspaceState
                     accent: const Color(0xFF63BDFF),
                   ),
                 ]),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _workspaceNarrativeSplit(
                   leftTitle: 'Deployment Read',
                   leftBody: _siteNarrative(selected),
@@ -2189,7 +2213,7 @@ class _DashboardOperationsWorkspaceState
                   rightBody:
                       '${visibleItems.length} of ${allItems.length} sites are visible in the active lane. Patrols ${selected.patrolsCompleted} • Check-ins ${selected.guardCheckIns} • Closed incidents ${selected.incidentsClosed}.',
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 _workspaceSupportList(
                   title: 'Adjacent site pressure',
                   rows: visibleItems
@@ -2207,90 +2231,76 @@ class _DashboardOperationsWorkspaceState
     );
   }
 
-  Widget _workspaceFocusBanner(_DashboardFocusModel model) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF10273D), Color(0xFF0C1420)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  Widget _workspaceFocusSummary(
+    _DashboardFocusModel model, {
+    required bool compact,
+  }) {
+    final summary = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          model.eyebrow,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8AA2C0),
+            fontSize: 3.3,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
+          ),
         ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF27425D)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final stacked = constraints.maxWidth < 980;
-          final summary = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                model.eyebrow,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF8AA2C0),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                model.title,
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFEAF2FF),
-                  fontSize: 30,
-                  height: 0.95,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                model.narrative,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFD4E1F3),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  height: 1.45,
-                ),
-              ),
-            ],
-          );
-          final metrics = Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.end,
-            children: [
-              for (final metric in model.metrics)
-                _focusMetricPill(metric: metric),
-            ],
-          );
-          if (stacked) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [summary, const SizedBox(height: 12), metrics],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: summary),
-              const SizedBox(width: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 360),
-                child: metrics,
-              ),
-            ],
-          );
-        },
-      ),
+        const SizedBox(height: 0.0),
+        Text(
+          model.title,
+          style: GoogleFonts.rajdhani(
+            color: const Color(0xFFEAF2FF),
+            fontSize: 7.0,
+            height: 0.95,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 0.01),
+        Text(
+          model.narrative,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFD4E1F3),
+            fontSize: 3.4,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+    final metrics = Wrap(
+      spacing: 0.18,
+      runSpacing: 0.14,
+      alignment: WrapAlignment.end,
+      children: [
+        for (final metric in model.metrics) _focusMetricPill(metric: metric),
+      ],
+    );
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [summary, const SizedBox(height: 0.04), metrics],
+      );
+    }
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: summary),
+        const SizedBox(width: 0.04),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 64),
+          child: metrics,
+        ),
+      ],
     );
   }
 
   Widget _focusMetricPill({required _DashboardFocusMetric metric}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 0.5, vertical: 0.2),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -2303,7 +2313,7 @@ class _DashboardOperationsWorkspaceState
               text: '${metric.label} ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 10,
+                fontSize: 3.6,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2311,7 +2321,7 @@ class _DashboardOperationsWorkspaceState
               text: metric.value,
               style: GoogleFonts.inter(
                 color: metric.accent,
-                fontSize: 10,
+                fontSize: 3.6,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -2326,14 +2336,46 @@ class _DashboardOperationsWorkspaceState
     required String title,
     required String subtitle,
     required Widget child,
+    bool shellless = false,
   }) {
+    if (shellless) {
+      return SizedBox(
+        key: key,
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: GoogleFonts.rajdhani(
+                color: const Color(0xFFEAF2FF),
+                fontSize: 9.9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 0.24),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF7D93B1),
+                fontSize: 5.5,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 1.5),
+            child,
+          ],
+        ),
+      );
+    }
     return Container(
       key: key,
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(2.6),
       decoration: BoxDecoration(
         color: const Color(0xFF0B1421),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6.0),
         border: Border.all(color: const Color(0xFF243549)),
       ),
       child: Column(
@@ -2343,21 +2385,21 @@ class _DashboardOperationsWorkspaceState
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF2FF),
-              fontSize: 20,
+              fontSize: 9.9,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 0.24),
           Text(
             subtitle,
             style: GoogleFonts.inter(
               color: const Color(0xFF7D93B1),
-              fontSize: 11,
+              fontSize: 5.5,
               fontWeight: FontWeight.w600,
-              height: 1.35,
+              height: 1.3,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 1.5),
           child,
         ],
       ),
@@ -2373,21 +2415,21 @@ class _DashboardOperationsWorkspaceState
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(3.35),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF102337), Color(0xFF0C131C)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6.2),
         border: Border.all(color: const Color(0xFF28415B)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 2.2, vertical: 1.0),
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(999),
@@ -2397,39 +2439,39 @@ class _DashboardOperationsWorkspaceState
               eyebrow,
               style: GoogleFonts.inter(
                 color: accent,
-                fontSize: 10,
+                fontSize: 5.4,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.8,
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 1.1),
           Text(
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF2FF),
-              fontSize: 28,
+              fontSize: 13.8,
               height: 0.95,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0.75),
           Text(
             subtitle,
             style: GoogleFonts.inter(
               color: const Color(0xFF89A0BE),
-              fontSize: 11,
+              fontSize: 6.1,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 1.0),
           Text(
             narrative,
             style: GoogleFonts.inter(
               color: const Color(0xFFD9E7FA),
-              fontSize: 12,
+              fontSize: 6.0,
               fontWeight: FontWeight.w600,
-              height: 1.45,
+              height: 1.35,
             ),
           ),
         ],
@@ -2441,10 +2483,10 @@ class _DashboardOperationsWorkspaceState
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final cell = width < 760 ? (width - 8) / 2 : (width - 24) / 4;
+        final cell = width < 760 ? (width - 2.7) / 2 : (width - 8.1) / 4;
         return Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 0.9,
+          runSpacing: 0.9,
           children: [
             for (final metric in metrics)
               _workspaceMetricTile(width: cell, metric: metric),
@@ -2460,10 +2502,10 @@ class _DashboardOperationsWorkspaceState
   }) {
     return Container(
       width: width,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(2.45),
       decoration: BoxDecoration(
         color: const Color(0xFF111C2B),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(5.9),
         border: Border.all(color: const Color(0xFF243549)),
       ),
       child: Column(
@@ -2473,27 +2515,27 @@ class _DashboardOperationsWorkspaceState
             metric.label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8AA2C0),
-              fontSize: 10,
+              fontSize: 5.1,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0.4),
           Text(
             metric.value,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF2FF),
-              fontSize: 28,
+              fontSize: 11.9,
               height: 0.95,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0.3),
           Text(
             metric.helper,
             style: GoogleFonts.inter(
               color: metric.accent,
-              fontSize: 11,
+              fontSize: 5.1,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2513,13 +2555,13 @@ class _DashboardOperationsWorkspaceState
         final left = _workspaceTextBlock(title: leftTitle, body: leftBody);
         final right = _workspaceTextBlock(title: rightTitle, body: rightBody);
         if (constraints.maxWidth < 820) {
-          return Column(children: [left, const SizedBox(height: 8), right]);
+          return Column(children: [left, const SizedBox(height: 0.82), right]);
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: left),
-            const SizedBox(width: 8),
+            const SizedBox(width: 0.82),
             Expanded(child: right),
           ],
         );
@@ -2530,10 +2572,10 @@ class _DashboardOperationsWorkspaceState
   Widget _workspaceTextBlock({required String title, required String body}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(2.5),
       decoration: BoxDecoration(
         color: const Color(0xFF111C2B),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(5.9),
         border: Border.all(color: const Color(0xFF243549)),
       ),
       child: Column(
@@ -2543,18 +2585,18 @@ class _DashboardOperationsWorkspaceState
             title,
             style: GoogleFonts.inter(
               color: const Color(0xFFE8F1FF),
-              fontSize: 12,
+              fontSize: 6.0,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 0.56),
           Text(
             body,
             style: GoogleFonts.inter(
               color: const Color(0xFF8BA1BF),
-              fontSize: 12,
+              fontSize: 5.5,
               fontWeight: FontWeight.w600,
-              height: 1.45,
+              height: 1.35,
             ),
           ),
         ],
@@ -2569,10 +2611,10 @@ class _DashboardOperationsWorkspaceState
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(2.6),
       decoration: BoxDecoration(
         color: const Color(0xFF111C2B),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(6.1),
         border: Border.all(color: const Color(0xFF243549)),
       ),
       child: Column(
@@ -2582,17 +2624,17 @@ class _DashboardOperationsWorkspaceState
             title,
             style: GoogleFonts.inter(
               color: const Color(0xFFE8F1FF),
-              fontSize: 12,
+              fontSize: 6.2,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 0.68),
           if (rows.isEmpty)
             _MutedLabel(label: emptyLabel)
           else
             for (final row in rows) ...[
               _workspaceSupportRow(row: row),
-              const SizedBox(height: 8),
+              const SizedBox(height: 0.68),
             ],
         ],
       ),
@@ -2604,21 +2646,21 @@ class _DashboardOperationsWorkspaceState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 8,
-          height: 8,
-          margin: const EdgeInsets.only(top: 4),
+          width: 1.6,
+          height: 1.6,
+          margin: const EdgeInsets.only(top: 1.1),
           decoration: const BoxDecoration(
             color: Color(0xFF63BDFF),
             shape: BoxShape.circle,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 1.5),
         Expanded(
           child: Text(
             row,
             style: GoogleFonts.inter(
               color: const Color(0xFFD7E4F7),
-              fontSize: 12,
+              fontSize: 6.1,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
@@ -2788,7 +2830,7 @@ class _WorkspaceModeChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 1.7, vertical: 0.86),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF123244) : const Color(0xFF111C2B),
           borderRadius: BorderRadius.circular(999),
@@ -2800,7 +2842,7 @@ class _WorkspaceModeChip extends StatelessWidget {
           label,
           style: GoogleFonts.inter(
             color: selected ? const Color(0xFFEAF2FF) : const Color(0xFF8EA4C2),
-            fontSize: 11,
+            fontSize: 5.0,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -2832,7 +2874,7 @@ class _WorkspaceFilterChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 1.8, vertical: 0.95),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF10273A) : const Color(0xFF111C2B),
           borderRadius: BorderRadius.circular(999),
@@ -2849,13 +2891,16 @@ class _WorkspaceFilterChip extends StatelessWidget {
                 color: selected
                     ? const Color(0xFFEAF2FF)
                     : const Color(0xFF8EA4C2),
-                fontSize: 11,
+                fontSize: 4.9,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 0.8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 1.2,
+                vertical: 0.34,
+              ),
               decoration: BoxDecoration(
                 color: selected
                     ? const Color(0xFF0E1C2A)
@@ -2866,7 +2911,7 @@ class _WorkspaceFilterChip extends StatelessWidget {
                 value,
                 style: GoogleFonts.inter(
                   color: const Color(0xFFEAF2FF),
-                  fontSize: 10,
+                  fontSize: 5.1,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -2904,11 +2949,11 @@ class _WorkspaceListCard extends StatelessWidget {
     return InkWell(
       key: widgetKey,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(11),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(3.95),
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
@@ -2918,7 +2963,7 @@ class _WorkspaceListCard extends StatelessWidget {
                 )
               : null,
           color: selected ? null : const Color(0xFF111C2B),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(8.0),
           border: Border.all(
             color: selected ? accent : const Color(0xFF243549),
           ),
@@ -2927,12 +2972,12 @@ class _WorkspaceListCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 10,
-              height: 10,
-              margin: const EdgeInsets.only(top: 4),
+              width: 4.2,
+              height: 4.2,
+              margin: const EdgeInsets.only(top: 1.6),
               decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 2.5),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2941,38 +2986,40 @@ class _WorkspaceListCard extends StatelessWidget {
                     eyebrow,
                     style: GoogleFonts.inter(
                       color: accent,
-                      fontSize: 10,
+                      fontSize: 6.7,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.8,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 1.0),
                   Text(
                     title,
                     style: GoogleFonts.inter(
                       color: const Color(0xFFEAF2FF),
-                      fontSize: 12,
+                      fontSize: 7.7,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 0.65),
                   Text(
                     subtitle,
                     style: GoogleFonts.inter(
                       color: const Color(0xFF8EA4C2),
-                      fontSize: 11,
+                      fontSize: 6.6,
                       fontWeight: FontWeight.w600,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 2.9),
             Text(
               trailing,
               style: GoogleFonts.rajdhani(
                 color: accent,
-                fontSize: 18,
+                fontSize: 10.3,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -3784,32 +3831,42 @@ class _RightRail extends StatelessWidget {
     return Column(
       children: [
         _DashboardCard(
-          title: 'Threat Readout',
-          subtitle: 'Condensed command view with readable actions.',
+          title: 'Command Snapshot',
+          subtitle:
+              'Threat posture and operational mix without a second support shell.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${threat.label} posture',
-                style: GoogleFonts.rajdhani(
-                  color: threat.accent,
-                  fontSize: 25,
+                'Threat Readout',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 7.2,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 0.8),
+              Text(
+                '${threat.label} posture',
+                style: GoogleFonts.rajdhani(
+                  color: threat.accent,
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 1.0),
               Text(
                 snapshot.totalFailed > 0
                     ? '${snapshot.totalFailed} failed executions need operator review before workload normalises.'
                     : 'No failed executions currently expanding operational risk.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFD2DEEE),
-                  fontSize: 13,
+                  fontSize: 6.9,
                   fontWeight: FontWeight.w600,
-                  height: 1.4,
+                  height: 1.35,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 1.7),
               _RailMetricRow(
                 label: 'Active sites',
                 value: activeCount.toString(),
@@ -3823,36 +3880,46 @@ class _RightRail extends StatelessWidget {
                 value:
                     '${snapshot.averageResponseMinutes.toStringAsFixed(1)} min',
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        _DashboardCard(
-          title: 'Operational Mix',
-          subtitle: 'Core signal buckets without visual clutter.',
-          child: Column(
-            children: [
+              const SizedBox(height: 2.2),
+              Container(
+                width: double.infinity,
+                height: 0.2,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF223244),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 1.6),
+              Text(
+                'Operational Mix',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 7.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 0.9),
               _MixBar(
                 label: 'Executed',
                 value: snapshot.totalExecuted,
                 total: snapshot.totalDecisions,
                 accent: const Color(0xFF7AF2B5),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 1.7),
               _MixBar(
                 label: 'Denied',
                 value: snapshot.totalDenied,
                 total: snapshot.totalDecisions,
                 accent: const Color(0xFFFFC27A),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 1.7),
               _MixBar(
                 label: 'Failed',
                 value: snapshot.totalFailed,
                 total: snapshot.totalDecisions,
                 accent: const Color(0xFFFF8D95),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 1.7),
               _MixBar(
                 label: 'High-risk intel',
                 value: snapshot.highRiskIntelligence,
@@ -3862,7 +3929,7 @@ class _RightRail extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 1.8),
         _DashboardCard(
           title: 'Guard Sync Health',
           subtitle: 'Queue pressure and failure trace from Android guard sync.',
@@ -3871,14 +3938,14 @@ class _RightRail extends StatelessWidget {
             children: [
               if (guardAlerts.isNotEmpty) ...[
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 2.2,
+                  runSpacing: 2.2,
                   children: guardAlerts
                       .map(
                         (alert) => Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: 4.1,
+                            vertical: 1.7,
                           ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(999),
@@ -3891,7 +3958,7 @@ class _RightRail extends StatelessWidget {
                             alert.label,
                             style: GoogleFonts.inter(
                               color: alert.color,
-                              fontSize: 10,
+                              fontSize: 7.8,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -3899,7 +3966,7 @@ class _RightRail extends StatelessWidget {
                       )
                       .toList(growable: false),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 2.5),
               ],
               _RailMetricRow(
                 label: 'Backend mode',
@@ -3929,12 +3996,12 @@ class _RightRail extends StatelessWidget {
               if (guardSyncStatusLabel != null &&
                   guardSyncStatusLabel!.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 10),
+                  padding: const EdgeInsets.only(top: 6),
                   child: Text(
                     guardSyncStatusLabel!,
                     style: GoogleFonts.inter(
                       color: const Color(0xFF8FD1FF),
-                      fontSize: 11,
+                      fontSize: 9.0,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -3942,17 +4009,17 @@ class _RightRail extends StatelessWidget {
               if (guardLastFailureReason != null &&
                   guardLastFailureReason!.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     'Last failure: $guardLastFailureReason',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFFFB2B8),
-                      fontSize: 11,
+                      fontSize: 9.0,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2.5),
               Theme(
                 data: Theme.of(
                   context,
@@ -3966,13 +4033,13 @@ class _RightRail extends StatelessWidget {
                     'Diagnostics and coaching telemetry',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF8FD1FF),
-                      fontSize: 11,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.only(top: 3),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -4003,35 +4070,35 @@ class _RightRail extends StatelessWidget {
                           if (guardOutcomePolicyDeniedLastReason != null &&
                               guardOutcomePolicyDeniedLastReason!.isNotEmpty)
                             Padding(
-                              padding: const EdgeInsets.only(top: 6),
+                              padding: const EdgeInsets.only(top: 4),
                               child: Text(
                                 'Policy denied (latest): $guardOutcomePolicyDeniedLastReason',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFFF5C27A),
-                                  fontSize: 11,
+                                  fontSize: 9.4,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
                           if (guardCoachingRecentHistory.isNotEmpty) ...[
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 5),
                             Text(
                               'Recent Coaching Telemetry',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF8FD1FF),
-                                fontSize: 11,
+                                fontSize: 9.4,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 3),
                             ...visibleCoachingHistory.map(
                               (entry) => Padding(
-                                padding: const EdgeInsets.only(bottom: 3),
+                                padding: const EdgeInsets.only(bottom: 2),
                                 child: Text(
                                   entry,
                                   style: GoogleFonts.inter(
                                     color: const Color(0xFFB8CBE7),
-                                    fontSize: 10,
+                                    fontSize: 9.0,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
@@ -4043,26 +4110,26 @@ class _RightRail extends StatelessWidget {
                                 totalCount: guardCoachingRecentHistory.length,
                                 subject: 'coaching rows',
                                 hiddenDescriptor: 'additional rows',
-                                fontSize: 10,
+                                fontSize: 9.4,
                                 color: const Color(0xFF8EA5C6),
                               ),
                           ],
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 5),
                           Text(
                             'Recent Failure Trace',
                             style: GoogleFonts.inter(
                               color: const Color(0xFF8FD1FF),
-                              fontSize: 11,
+                              fontSize: 9.4,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           if (recentFailureTraces.isEmpty)
                             Text(
                               'No recent failure trace.',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF95A9C6),
-                                fontSize: 11,
+                                fontSize: 9.4,
                                 fontWeight: FontWeight.w600,
                               ),
                             )
@@ -4074,62 +4141,66 @@ class _RightRail extends StatelessWidget {
                                   'Events',
                                   style: GoogleFonts.inter(
                                     color: const Color(0xFF9FB6D5),
-                                    fontSize: 10,
+                                    fontSize: 9.0,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 1.5),
                                 if (recentEventFailureTraces.isEmpty)
                                   Text(
                                     'No event failures.',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFF95A9C6),
-                                      fontSize: 10,
+                                      fontSize: 9.0,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   )
                                 else
                                   ...recentEventFailureTraces.map(
                                     (trace) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 3),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 1.5,
+                                      ),
                                       child: Text(
                                         trace,
                                         style: GoogleFonts.inter(
                                           color: const Color(0xFFFFC7CC),
-                                          fontSize: 10,
+                                          fontSize: 9.0,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
                                   ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 2),
                                 Text(
                                   'Media',
                                   style: GoogleFonts.inter(
                                     color: const Color(0xFF9FB6D5),
-                                    fontSize: 10,
+                                    fontSize: 9.0,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 1.5),
                                 if (recentMediaFailureTraces.isEmpty)
                                   Text(
                                     'No media failures.',
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFF95A9C6),
-                                      fontSize: 10,
+                                      fontSize: 9.0,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   )
                                 else
                                   ...recentMediaFailureTraces.map(
                                     (trace) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 3),
+                                      padding: const EdgeInsets.only(
+                                        bottom: 1.5,
+                                      ),
                                       child: Text(
                                         trace,
                                         style: GoogleFonts.inter(
                                           color: const Color(0xFFFFC7CC),
-                                          fontSize: 10,
+                                          fontSize: 9.0,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -4143,12 +4214,12 @@ class _RightRail extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 5),
               if (onOpenGuardSync != null ||
                   onClearGuardOutcomePolicyTelemetry != null)
                 Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                  spacing: 5,
+                  runSpacing: 5,
                   children: [
                     if (onOpenGuardSync != null)
                       OutlinedButton(
@@ -4157,11 +4228,11 @@ class _RightRail extends StatelessWidget {
                           side: const BorderSide(color: Color(0xFF23547C)),
                           foregroundColor: const Color(0xFF8FD1FF),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
+                            horizontal: 8,
+                            vertical: 6,
                           ),
                           textStyle: GoogleFonts.inter(
-                            fontSize: 11,
+                            fontSize: 9.4,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -4174,11 +4245,11 @@ class _RightRail extends StatelessWidget {
                           side: const BorderSide(color: Color(0xFF6D4B25)),
                           foregroundColor: const Color(0xFFF5C27A),
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
+                            horizontal: 8,
+                            vertical: 6,
                           ),
                           textStyle: GoogleFonts.inter(
-                            fontSize: 11,
+                            fontSize: 9.4,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -4186,7 +4257,7 @@ class _RightRail extends StatelessWidget {
                       ),
                   ],
                 ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2.5),
               Theme(
                 data: Theme.of(
                   context,
@@ -4200,7 +4271,7 @@ class _RightRail extends StatelessWidget {
                     'Advanced export and share',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF8FD1FF),
-                      fontSize: 11,
+                      fontSize: 9.0,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -4230,23 +4301,41 @@ class _RightRail extends StatelessWidget {
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        _DashboardCard(
-          title: 'Morning Sovereign Report',
-          subtitle:
-              'Automated 06:00 generation with forensic replay of the 22:00-06:00 command window.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              const SizedBox(height: 5),
+              Container(
+                width: double.infinity,
+                height: 0.2,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF223244),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 2.2),
+              Text(
+                'Morning Sovereign Report',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 7.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 0.8),
+              Text(
+                'Automated 06:00 generation with forensic replay of the 22:00-06:00 command window.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF7D93B1),
+                  fontSize: 4.2,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 2.2),
               if (sovereignReport == null)
                 Text(
                   'No morning report generated yet.',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF95A9C6),
-                    fontSize: 11,
+                    fontSize: 7.0,
                     fontWeight: FontWeight.w600,
                   ),
                 )
@@ -4386,51 +4475,70 @@ class _RightRail extends StatelessWidget {
                   .trim()
                   .isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
+                  padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     morningSovereignReportAutoStatusLabel!.trim(),
                     style: GoogleFonts.inter(
                       color: const Color(0xFF9FB6D5),
-                      fontSize: 10,
+                      fontSize: 8.3,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               Text(
                 governanceGenerationEnabled
                     ? 'Generation and delivery controls moved to Governance screen.'
                     : 'Governance screen is the control point for morning report generation and delivery.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF9FB6D5),
-                  fontSize: 11,
+                  fontSize: 8.7,
                   fontWeight: FontWeight.w600,
                 ),
               ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 10),
-        _DashboardCard(
-          title: 'Command Notes',
-          subtitle: 'Readable guidance instead of dense stacked labels.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+              const SizedBox(height: 5),
+              Container(
+                width: double.infinity,
+                height: 0.2,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF223244),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 2.2),
+              Text(
+                'Command Notes',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF8FD1FF),
+                  fontSize: 7.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 0.8),
+              Text(
+                'Readable guidance instead of dense stacked labels.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF7D93B1),
+                  fontSize: 4.2,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 2.2),
               _NoteRow(
                 label: 'Dispatch cadence',
                 detail: snapshot.totalDenied > 0
                     ? 'Review denial causes and tighten authority routing.'
                     : 'Dispatch authority flow is clean.',
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               _NoteRow(
                 label: 'Field readiness',
                 detail: snapshot.totalCheckIns > 0 || snapshot.totalPatrols > 0
                     ? 'Field teams are active and reporting.'
                     : 'No field check-ins or patrol completions yet.',
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 4),
               _NoteRow(
                 label: 'Intel posture',
                 detail: snapshot.totalIntelligenceReceived > 0
@@ -4608,9 +4716,9 @@ class _DashboardAdvancedExportPanelState
     required List<Widget> children,
   }) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         color: const Color(0x12000000),
         border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
@@ -4621,12 +4729,12 @@ class _DashboardAdvancedExportPanelState
             title,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 10.5,
+              fontSize: 8.6,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2.5),
           ...children,
         ],
       ),
@@ -4639,20 +4747,30 @@ class _DashboardAdvancedExportPanelState
     required Future<void> Function()? onPressed,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: TextButton(
-        onPressed: onPressed == null ? null : () async => onPressed(),
-        style: TextButton.styleFrom(
-          padding: EdgeInsets.zero,
-          minimumSize: const Size(0, 0),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: color,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
+      padding: const EdgeInsets.only(top: 2.1),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          onPressed: onPressed == null ? null : () async => onPressed(),
+          style: TextButton.styleFrom(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 1.25,
+              vertical: 1.35,
+            ),
+            minimumSize: const Size(0, 18),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: 8.4,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ),
@@ -4663,9 +4781,9 @@ class _DashboardAdvancedExportPanelState
     return Container(
       key: const ValueKey('dashboard-advanced-export-receipt'),
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         color: _receipt.accent.withValues(alpha: 0.12),
         border: Border.all(color: _receipt.accent.withValues(alpha: 0.35)),
       ),
@@ -4673,18 +4791,18 @@ class _DashboardAdvancedExportPanelState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 30,
-            height: 30,
+            width: 20,
+            height: 20,
             decoration: BoxDecoration(
               color: _receipt.accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(6),
               border: Border.all(
                 color: _receipt.accent.withValues(alpha: 0.28),
               ),
             ),
-            child: Icon(_receipt.icon, size: 16, color: _receipt.accent),
+            child: Icon(_receipt.icon, size: 11, color: _receipt.accent),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 5),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -4693,11 +4811,11 @@ class _DashboardAdvancedExportPanelState
                   'Last handoff',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF9FB6D5),
-                    fontSize: 10,
+                    fontSize: 8.2,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 1.6),
                 Text(
                   _receipt.headline,
                   key: const ValueKey(
@@ -4705,11 +4823,11 @@ class _DashboardAdvancedExportPanelState
                   ),
                   style: GoogleFonts.inter(
                     color: const Color(0xFFE7F0FF),
-                    fontSize: 11.5,
+                    fontSize: 9.1,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1.2),
                 Text(
                   _receipt.detail,
                   key: const ValueKey(
@@ -4717,7 +4835,7 @@ class _DashboardAdvancedExportPanelState
                   ),
                   style: GoogleFonts.inter(
                     color: const Color(0xFFB8CBE7),
-                    fontSize: 10.5,
+                    fontSize: 8.6,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
@@ -4735,12 +4853,12 @@ class _DashboardAdvancedExportPanelState
     const cyan = Color(0xFF8FD1FF);
     const gold = Color(0xFFF5C27A);
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.only(top: 2.1),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _receiptPanel(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           _section(
             title: 'Site Activity Handoff',
             accent: cyan,
@@ -4855,7 +4973,7 @@ class _DashboardAdvancedExportPanelState
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           _section(
             title: 'Failure Trace',
             accent: cyan,
@@ -4937,7 +5055,7 @@ class _DashboardAdvancedExportPanelState
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           _section(
             title: 'Policy Telemetry',
             accent: gold,
@@ -5028,7 +5146,7 @@ class _DashboardAdvancedExportPanelState
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           _section(
             title: 'Coaching Telemetry',
             accent: cyan,
@@ -5117,16 +5235,16 @@ class _HeaderStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 1.9, vertical: 1.0),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(5.8),
         color: const Color(0xFF0E1A2B),
         border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
+            blurRadius: 6,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -5134,28 +5252,28 @@ class _HeaderStat extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 22,
-            height: 3,
+            width: 7.4,
+            height: 1.28,
             decoration: BoxDecoration(
               color: const Color(0xFF56B9FF),
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0.92),
           Text(
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF7D93B1),
-              fontSize: 9,
+              fontSize: 4.9,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0.56),
           Text(
             value,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE7F0FF),
-              fontSize: 16,
+              fontSize: 7.6,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -5169,27 +5287,32 @@ class _DashboardCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget child;
+  final bool shellless;
 
   const _DashboardCard({
     required this.title,
     required this.subtitle,
     required this.child,
+    this.shellless = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (shellless) {
+      return child;
+    }
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(1.0),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(3.05),
         border: Border.all(color: const Color(0xFF243549)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x12000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
         ],
       ),
@@ -5197,105 +5320,37 @@ class _DashboardCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 3,
+            width: 10.4,
+            height: 1.32,
             decoration: BoxDecoration(
               color: const Color(0xFF3C79BB),
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 0.14),
           Text(
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE8F1FF),
-              fontSize: 18,
+              fontSize: 7.4,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 3),
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 0.1),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF7D93B1),
+                fontSize: 4.2,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 0.22),
+          ] else
+            const SizedBox(height: 0.12),
           child,
-        ],
-      ),
-    );
-  }
-}
-
-class _KpiBandTile extends StatelessWidget {
-  final String label;
-  final String value;
-  final String helper;
-
-  const _KpiBandTile({
-    required this.label,
-    required this.value,
-    required this.helper,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        color: const Color(0xFF0E1A2B),
-        border: Border.all(color: const Color(0xFF223244)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 24,
-            height: 3,
-            decoration: BoxDecoration(
-              color: const Color(0xFF4C8AD1),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8AA2C0),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF2FF),
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            helper,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7088A9),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ],
       ),
     );
@@ -5311,7 +5366,7 @@ class _RailMetricRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 0.34),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -5320,12 +5375,12 @@ class _RailMetricRow extends StatelessWidget {
               label,
               style: GoogleFonts.inter(
                 color: const Color(0xFF8AA2C0),
-                fontSize: 11,
+                fontSize: 4.9,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 0.9),
           Flexible(
             flex: 2,
             child: Text(
@@ -5336,7 +5391,7 @@ class _RailMetricRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.rajdhani(
                 color: const Color(0xFFEAF2FF),
-                fontSize: 18,
+                fontSize: 7.9,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -5373,7 +5428,7 @@ class _MixBar extends StatelessWidget {
                 label,
                 style: GoogleFonts.inter(
                   color: const Color(0xFF9AB0CC),
-                  fontSize: 11,
+                  fontSize: 7.2,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -5382,18 +5437,18 @@ class _MixBar extends StatelessWidget {
               '$value',
               style: GoogleFonts.rajdhani(
                 color: accent,
-                fontSize: 18,
+                fontSize: 11.0,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 1.0),
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
             value: fraction,
-            minHeight: 6,
+            minHeight: 3.0,
             backgroundColor: const Color(0xFF13253E),
             valueColor: AlwaysStoppedAnimation<Color>(accent),
           ),
@@ -5418,16 +5473,16 @@ class _NoteRow extends StatelessWidget {
           label,
           style: GoogleFonts.inter(
             color: const Color(0xFFE8F1FF),
-            fontSize: 12,
+            fontSize: 9.4,
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 3),
+        const SizedBox(height: 1.1),
         Text(
           detail,
           style: GoogleFonts.inter(
             color: const Color(0xFF8BA1BF),
-            fontSize: 12,
+            fontSize: 8.9,
             fontWeight: FontWeight.w600,
             height: 1.35,
           ),
@@ -5450,7 +5505,7 @@ class _MutedLabel extends StatelessWidget {
         label,
         style: GoogleFonts.inter(
           color: const Color(0xFF7D93B1),
-          fontSize: 12,
+          fontSize: 10.6,
           fontWeight: FontWeight.w600,
         ),
       ),

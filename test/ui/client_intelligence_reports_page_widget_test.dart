@@ -124,11 +124,16 @@ void main() {
       findsOneWidget,
     );
 
+    expect(
+      find.byKey(const ValueKey('reports-workspace-open-governance')),
+      findsNothing,
+    );
+
     await tester.ensureVisible(
-      find.byKey(const ValueKey('reports-workspace-focus-open-governance')),
+      find.byKey(const ValueKey('reports-routed-view-governance-button')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('reports-workspace-focus-open-governance')),
+      find.byKey(const ValueKey('reports-routed-view-governance-button')),
     );
     await tester.pumpAndSettle();
 
@@ -137,11 +142,16 @@ void main() {
       equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
     );
 
+    expect(
+      find.byKey(const ValueKey('reports-workspace-open-active')),
+      findsNothing,
+    );
+
     await tester.ensureVisible(
-      find.byKey(const ValueKey('reports-workspace-focus-open-active')),
+      find.byKey(const ValueKey('reports-selected-preview-button')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('reports-workspace-focus-open-active')),
+      find.byKey(const ValueKey('reports-selected-preview-button')),
     );
     await tester.pumpAndSettle();
 
@@ -153,11 +163,9 @@ void main() {
     );
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('reports-workspace-banner-filter-alerts')),
+      find.byKey(const ValueKey('reports-kpi-alerts')),
     );
-    await tester.tap(
-      find.byKey(const ValueKey('reports-workspace-banner-filter-alerts')),
-    );
+    await tester.tap(find.byKey(const ValueKey('reports-kpi-alerts')));
     await tester.pumpAndSettle();
 
     expect(
@@ -1600,10 +1608,7 @@ void main() {
             initialPartnerScopeSiteId: 'SITE-SANDTON',
             initialPartnerScopePartnerLabel: 'PARTNER • Alpha',
             onOpenGovernanceForScope: (clientId, siteId) {
-              openedGovernanceScope = {
-                'clientId': clientId,
-                'siteId': siteId,
-              };
+              openedGovernanceScope = {'clientId': clientId, 'siteId': siteId};
             },
           ),
         ),
@@ -1629,7 +1634,9 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('reports-partner-scope-recovery-open-activity')),
+        find.byKey(
+          const ValueKey('reports-partner-scope-recovery-open-activity'),
+        ),
         findsOneWidget,
       );
       expect(
@@ -1672,563 +1679,545 @@ void main() {
     },
   );
 
-  testWidgets(
-    'client reports empty partner drill-in exposes recovery pivots',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('client reports empty partner drill-in exposes recovery pivots', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final store = InMemoryEventStore();
-      store.append(
-        buildTestReportGenerated(
-          eventId: 'RPT-DRILL-EMPTY-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 2, 0),
-          clientId: 'CLIENT-001',
-          siteId: 'SITE-SANDTON',
-          reportSchemaVersion: 2,
-          projectionVersion: 2,
-          eventRangeStart: 1,
-          eventRangeEnd: 3,
-          eventCount: 3,
+    final store = InMemoryEventStore();
+    store.append(
+      buildTestReportGenerated(
+        eventId: 'RPT-DRILL-EMPTY-1',
+        occurredAt: DateTime.utc(2026, 3, 15, 2, 0),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        reportSchemaVersion: 2,
+        projectionVersion: 2,
+        eventRangeStart: 1,
+        eventRangeEnd: 3,
+        eventCount: 3,
+      ),
+    );
+
+    Map<String, String>? openedGovernanceScope;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: store,
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          morningSovereignReportHistory: const <SovereignReport>[],
+          initialPartnerScopeClientId: 'CLIENT-001',
+          initialPartnerScopeSiteId: 'SITE-SANDTON',
+          initialPartnerScopePartnerLabel: 'PARTNER • Alpha',
+          onOpenGovernanceForScope: (clientId, siteId) {
+            openedGovernanceScope = {'clientId': clientId, 'siteId': siteId};
+          },
         ),
-      );
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      Map<String, String>? openedGovernanceScope;
+    final openDrillInButton = find.byKey(
+      const ValueKey('reports-partner-scorecard-open-drill-in'),
+    );
+    await tester.ensureVisible(openDrillInButton);
+    await tester.tap(openDrillInButton);
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ClientIntelligenceReportsPage(
-            store: store,
-            selectedClient: 'CLIENT-001',
-            selectedSite: 'SITE-SANDTON',
-            morningSovereignReportHistory: const <SovereignReport>[],
-            initialPartnerScopeClientId: 'CLIENT-001',
-            initialPartnerScopeSiteId: 'SITE-SANDTON',
-            initialPartnerScopePartnerLabel: 'PARTNER • Alpha',
-            onOpenGovernanceForScope: (clientId, siteId) {
-              openedGovernanceScope = {
-                'clientId': clientId,
-                'siteId': siteId,
-              };
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    expect(find.text('Partner Scorecard Drill-In'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reports-partner-drill-in-recovery-card')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('No scorecard history has landed for this partner scope yet.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('reports-partner-drill-in-recovery-open-activity'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('reports-partner-drill-in-recovery-open-governance'),
+      ),
+      findsOneWidget,
+    );
 
-      final openDrillInButton = find.byKey(
-        const ValueKey('reports-partner-scorecard-open-drill-in'),
-      );
-      await tester.ensureVisible(openDrillInButton);
-      await tester.tap(openDrillInButton);
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(
+        const ValueKey('reports-partner-drill-in-recovery-open-activity'),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Partner Scorecard Drill-In'), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('reports-partner-drill-in-recovery-card')),
-        findsOneWidget,
-      );
-      expect(
-        find.text('No scorecard history has landed for this partner scope yet.'),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(
-          const ValueKey('reports-partner-drill-in-recovery-open-activity'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(
-          const ValueKey('reports-partner-drill-in-recovery-open-governance'),
-        ),
-        findsOneWidget,
-      );
-
-      await tester.tap(
-        find.byKey(
-          const ValueKey('reports-partner-drill-in-recovery-open-activity'),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Partner Scorecard Drill-In'), findsNothing);
-      expect(find.text('Visitor / Activity Truth'), findsOneWidget);
-      expect(
-        find.byKey(
-          const ValueKey(
-            'reports-site-activity-quiet-recovery-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
-          ),
-        ),
-        findsOneWidget,
-      );
-
-      await tester.tap(
-        find.byKey(const ValueKey('reports-site-activity-truth-close')),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.ensureVisible(openDrillInButton);
-      await tester.tap(openDrillInButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(
-        find.byKey(
-          const ValueKey('reports-partner-drill-in-recovery-open-governance'),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Partner Scorecard Drill-In'), findsNothing);
-      expect(
-        openedGovernanceScope,
-        equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
-      );
-    },
-  );
-
-  testWidgets(
-    'client reports thin comparison lane exposes recovery pivots',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      final store = InMemoryEventStore();
-      store.append(
-        buildTestReportGenerated(
-          eventId: 'RPT-CMP-RECOVERY-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 2, 20),
-          clientId: 'CLIENT-001',
-          siteId: 'SITE-SANDTON',
-          reportSchemaVersion: 2,
-          projectionVersion: 2,
-          eventRangeStart: 1,
-          eventRangeEnd: 3,
-          eventCount: 3,
-        ),
-      );
-
-      final currentReport = SovereignReport(
-        date: '2026-03-15',
-        generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 1,
-          hashVerified: true,
-          integrityScore: 99,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 0,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 1,
-          driftDetected: 0,
-          avgMatchScore: 100,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-        partnerProgression: SovereignReportPartnerProgression(
-          dispatchCount: 1,
-          declarationCount: 0,
-          acceptedCount: 0,
-          onSiteCount: 0,
-          allClearCount: 0,
-          cancelledCount: 0,
-          summaryLine: '',
-          scoreboardRows: [
-            SovereignReportPartnerScoreboardRow(
-              clientId: 'CLIENT-001',
-              siteId: 'SITE-SANDTON',
-              partnerLabel: 'PARTNER • Alpha',
-              dispatchCount: 1,
-              strongCount: 1,
-              onTrackCount: 0,
-              watchCount: 0,
-              criticalCount: 0,
-              averageAcceptedDelayMinutes: 4,
-              averageOnSiteDelayMinutes: 9,
-              summaryLine:
-                  'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 9.0m',
-            ),
-          ],
-        ),
-      );
-
-      Map<String, String>? openedGovernanceScope;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ClientIntelligenceReportsPage(
-            store: store,
-            selectedClient: 'CLIENT-001',
-            selectedSite: 'SITE-SANDTON',
-            morningSovereignReportHistory: [currentReport],
-            onOpenGovernanceForScope: (clientId, siteId) {
-              openedGovernanceScope = {
-                'clientId': clientId,
-                'siteId': siteId,
-              };
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(
-          const ValueKey(
-            'reports-partner-comparison-recovery-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
-          ),
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('BASELINE FORMING'), findsOneWidget);
-
-      final openActivityButton = find.byKey(
+    expect(find.text('Partner Scorecard Drill-In'), findsNothing);
+    expect(find.text('Visitor / Activity Truth'), findsOneWidget);
+    expect(
+      find.byKey(
         const ValueKey(
-          'reports-partner-comparison-recovery-open-activity-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+          'reports-site-activity-quiet-recovery-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
         ),
-      );
-      await tester.ensureVisible(openActivityButton);
-      await tester.tap(openActivityButton);
-      await tester.pumpAndSettle();
+      ),
+      findsOneWidget,
+    );
 
-      expect(find.text('Visitor / Activity Truth'), findsOneWidget);
-      expect(
-        find.byKey(
-          const ValueKey(
-            'reports-site-activity-quiet-recovery-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+    await tester.tap(
+      find.byKey(const ValueKey('reports-site-activity-truth-close')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(openDrillInButton);
+    await tester.tap(openDrillInButton);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(
+        const ValueKey('reports-partner-drill-in-recovery-open-governance'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Partner Scorecard Drill-In'), findsNothing);
+    expect(
+      openedGovernanceScope,
+      equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
+    );
+  });
+
+  testWidgets('client reports thin comparison lane exposes recovery pivots', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = InMemoryEventStore();
+    store.append(
+      buildTestReportGenerated(
+        eventId: 'RPT-CMP-RECOVERY-1',
+        occurredAt: DateTime.utc(2026, 3, 15, 2, 20),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        reportSchemaVersion: 2,
+        projectionVersion: 2,
+        eventRangeStart: 1,
+        eventRangeEnd: 3,
+        eventCount: 3,
+      ),
+    );
+
+    final currentReport = SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 1,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 0,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 0,
+        acceptedCount: 0,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4,
+            averageOnSiteDelayMinutes: 9,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 9.0m',
           ),
+        ],
+      ),
+    );
+
+    Map<String, String>? openedGovernanceScope;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: store,
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          morningSovereignReportHistory: [currentReport],
+          onOpenGovernanceForScope: (clientId, siteId) {
+            openedGovernanceScope = {'clientId': clientId, 'siteId': siteId};
+          },
         ),
-        findsOneWidget,
-      );
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey('reports-site-activity-truth-close')),
-      );
-      await tester.pumpAndSettle();
-
-      final openGovernanceButton = find.byKey(
+    expect(
+      find.byKey(
         const ValueKey(
-          'reports-partner-comparison-recovery-open-governance-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+          'reports-partner-comparison-recovery-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
         ),
-      );
-      await tester.ensureVisible(openGovernanceButton);
-      await tester.tap(openGovernanceButton);
-      await tester.pumpAndSettle();
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('BASELINE FORMING'), findsOneWidget);
 
-      expect(
-        openedGovernanceScope,
-        equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
-      );
-    },
-  );
+    final openActivityButton = find.byKey(
+      const ValueKey(
+        'reports-partner-comparison-recovery-open-activity-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+      ),
+    );
+    await tester.ensureVisible(openActivityButton);
+    await tester.tap(openActivityButton);
+    await tester.pumpAndSettle();
 
-  testWidgets(
-    'client reports comparison shell exposes command banner pivots',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+    expect(find.text('Visitor / Activity Truth'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey(
+          'reports-site-activity-quiet-recovery-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+        ),
+      ),
+      findsOneWidget,
+    );
 
-      final store = InMemoryEventStore();
-      store.append(
-        buildTestReportGenerated(
-          eventId: 'RPT-CMP-SHELL-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 3, 10),
-          clientId: 'CLIENT-001',
-          siteId: 'SITE-SANDTON',
-          reportSchemaVersion: 2,
-          projectionVersion: 2,
-          eventRangeStart: 1,
-          eventRangeEnd: 3,
-          eventCount: 3,
-        ),
-      );
+    await tester.tap(
+      find.byKey(const ValueKey('reports-site-activity-truth-close')),
+    );
+    await tester.pumpAndSettle();
 
-      final currentReport = SovereignReport(
-        date: '2026-03-15',
-        generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 1,
-          hashVerified: true,
-          integrityScore: 99,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 0,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 1,
-          driftDetected: 0,
-          avgMatchScore: 100,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-        partnerProgression: SovereignReportPartnerProgression(
-          dispatchCount: 1,
-          declarationCount: 0,
-          acceptedCount: 0,
-          onSiteCount: 0,
-          allClearCount: 0,
-          cancelledCount: 0,
-          summaryLine: '',
-          scoreboardRows: [
-            SovereignReportPartnerScoreboardRow(
-              clientId: 'CLIENT-001',
-              siteId: 'SITE-SANDTON',
-              partnerLabel: 'PARTNER • Alpha',
-              dispatchCount: 1,
-              strongCount: 1,
-              onTrackCount: 0,
-              watchCount: 0,
-              criticalCount: 0,
-              averageAcceptedDelayMinutes: 4,
-              averageOnSiteDelayMinutes: 9,
-              summaryLine:
-                  'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 9.0m',
-            ),
-          ],
-        ),
-      );
+    final openGovernanceButton = find.byKey(
+      const ValueKey(
+        'reports-partner-comparison-recovery-open-governance-CLIENT-001/SITE-SANDTON/PARTNER • Alpha',
+      ),
+    );
+    await tester.ensureVisible(openGovernanceButton);
+    await tester.tap(openGovernanceButton);
+    await tester.pumpAndSettle();
 
-      Map<String, String>? openedGovernanceScope;
+    expect(
+      openedGovernanceScope,
+      equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
+    );
+  });
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ClientIntelligenceReportsPage(
-            store: store,
-            selectedClient: 'CLIENT-001',
-            selectedSite: 'SITE-SANDTON',
-            morningSovereignReportHistory: [currentReport],
-            onOpenGovernanceForScope: (clientId, siteId) {
-              openedGovernanceScope = {
-                'clientId': clientId,
-                'siteId': siteId,
-              };
-            },
+  testWidgets('client reports comparison shell exposes command banner pivots', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = InMemoryEventStore();
+    store.append(
+      buildTestReportGenerated(
+        eventId: 'RPT-CMP-SHELL-1',
+        occurredAt: DateTime.utc(2026, 3, 15, 3, 10),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        reportSchemaVersion: 2,
+        projectionVersion: 2,
+        eventRangeStart: 1,
+        eventRangeEnd: 3,
+        eventCount: 3,
+      ),
+    );
+
+    final currentReport = SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 1,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 0,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 0,
+        acceptedCount: 0,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4,
+            averageOnSiteDelayMinutes: 9,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 9.0m',
           ),
+        ],
+      ),
+    );
+
+    Map<String, String>? openedGovernanceScope;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: store,
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          morningSovereignReportHistory: [currentReport],
+          onOpenGovernanceForScope: (clientId, siteId) {
+            openedGovernanceScope = {'clientId': clientId, 'siteId': siteId};
+          },
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(
-          const ValueKey('reports-partner-comparison-command-banner'),
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('COMPARISON COMMAND'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reports-partner-comparison-command-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('COMPARISON COMMAND'), findsOneWidget);
 
-      final openReceiptsButton = find.byKey(
-        const ValueKey('reports-partner-comparison-command-open-receipts'),
-      );
-      await tester.ensureVisible(openReceiptsButton);
-      await tester.tap(openReceiptsButton);
-      await tester.pumpAndSettle();
+    final openReceiptsButton = find.byKey(
+      const ValueKey('reports-partner-comparison-command-open-receipts'),
+    );
+    await tester.ensureVisible(openReceiptsButton);
+    await tester.tap(openReceiptsButton);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
-      expect(
-        find.textContaining(
-          'Recovered comparison shell around RPT-CMP-SHELL-1.',
-        ),
-        findsWidgets,
-      );
+    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(
+      find.textContaining('Recovered comparison shell around RPT-CMP-SHELL-1.'),
+      findsWidgets,
+    );
 
-      final focusLeaderButton = find.byKey(
-        const ValueKey('reports-partner-comparison-command-focus-leader'),
-      );
-      await tester.ensureVisible(focusLeaderButton);
-      await tester.tap(focusLeaderButton);
-      await tester.pumpAndSettle();
+    final focusLeaderButton = find.byKey(
+      const ValueKey('reports-partner-comparison-command-focus-leader'),
+    );
+    await tester.ensureVisible(focusLeaderButton);
+    await tester.tap(focusLeaderButton);
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('reports-partner-scope-banner')),
-        findsOneWidget,
-      );
-      expect(
-        find.text('CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
-        findsWidgets,
-      );
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
+      findsWidgets,
+    );
 
-      final openGovernanceButton = find.byKey(
-        const ValueKey('reports-partner-comparison-command-open-governance'),
-      );
-      await tester.ensureVisible(openGovernanceButton);
-      await tester.tap(openGovernanceButton);
-      await tester.pumpAndSettle();
+    final openGovernanceButton = find.byKey(
+      const ValueKey('reports-partner-comparison-command-open-governance'),
+    );
+    await tester.ensureVisible(openGovernanceButton);
+    await tester.tap(openGovernanceButton);
+    await tester.pumpAndSettle();
 
-      expect(
-        openedGovernanceScope,
-        equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
-      );
-    },
-  );
+    expect(
+      openedGovernanceScope,
+      equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
+    );
+  });
 
-  testWidgets(
-    'client reports scorecard lanes command banner exposes pivots',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('client reports scorecard lanes command banner exposes pivots', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      final store = InMemoryEventStore();
-      store.append(
-        buildTestReportGenerated(
-          eventId: 'RPT-LANES-SHELL-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 3, 30),
-          clientId: 'CLIENT-001',
-          siteId: 'SITE-SANDTON',
-          reportSchemaVersion: 2,
-          projectionVersion: 2,
-          eventRangeStart: 1,
-          eventRangeEnd: 3,
-          eventCount: 3,
-        ),
-      );
+    final store = InMemoryEventStore();
+    store.append(
+      buildTestReportGenerated(
+        eventId: 'RPT-LANES-SHELL-1',
+        occurredAt: DateTime.utc(2026, 3, 15, 3, 30),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        reportSchemaVersion: 2,
+        projectionVersion: 2,
+        eventRangeStart: 1,
+        eventRangeEnd: 3,
+        eventCount: 3,
+      ),
+    );
 
-      final currentReport = SovereignReport(
-        date: '2026-03-15',
-        generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 1,
-          hashVerified: true,
-          integrityScore: 99,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 0,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 1,
-          driftDetected: 0,
-          avgMatchScore: 100,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-        partnerProgression: SovereignReportPartnerProgression(
-          dispatchCount: 1,
-          declarationCount: 0,
-          acceptedCount: 0,
-          onSiteCount: 0,
-          allClearCount: 0,
-          cancelledCount: 0,
-          summaryLine: '',
-          scoreboardRows: [
-            SovereignReportPartnerScoreboardRow(
-              clientId: 'CLIENT-001',
-              siteId: 'SITE-SANDTON',
-              partnerLabel: 'PARTNER • Alpha',
-              dispatchCount: 1,
-              strongCount: 1,
-              onTrackCount: 0,
-              watchCount: 0,
-              criticalCount: 0,
-              averageAcceptedDelayMinutes: 4,
-              averageOnSiteDelayMinutes: 9,
-              summaryLine:
-                  'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 9.0m',
-            ),
-          ],
-        ),
-      );
-
-      Map<String, String>? openedGovernanceScope;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ClientIntelligenceReportsPage(
-            store: store,
-            selectedClient: 'CLIENT-001',
-            selectedSite: 'SITE-SANDTON',
-            morningSovereignReportHistory: [currentReport],
-            onOpenGovernanceForScope: (clientId, siteId) {
-              openedGovernanceScope = {
-                'clientId': clientId,
-                'siteId': siteId,
-              };
-            },
+    final currentReport = SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 1,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 0,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 0,
+        acceptedCount: 0,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4,
+            averageOnSiteDelayMinutes: 9,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 9.0m',
           ),
+        ],
+      ),
+    );
+
+    Map<String, String>? openedGovernanceScope;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: store,
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          morningSovereignReportHistory: [currentReport],
+          onOpenGovernanceForScope: (clientId, siteId) {
+            openedGovernanceScope = {'clientId': clientId, 'siteId': siteId};
+          },
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('reports-partner-lanes-command-banner')),
-        findsOneWidget,
-      );
-      expect(find.text('SCORECARD COMMAND'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('reports-partner-lanes-command-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('SCORECARD COMMAND'), findsOneWidget);
 
-      final openReceiptsButton = find.byKey(
-        const ValueKey('reports-partner-lanes-command-open-receipts'),
-      );
-      await tester.ensureVisible(openReceiptsButton);
-      await tester.tap(openReceiptsButton);
-      await tester.pumpAndSettle();
+    final openReceiptsButton = find.byKey(
+      const ValueKey('reports-partner-lanes-command-open-receipts'),
+    );
+    await tester.ensureVisible(openReceiptsButton);
+    await tester.tap(openReceiptsButton);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
-      expect(
-        find.textContaining('Recovered scorecard lanes around RPT-LANES-SHELL-1.'),
-        findsWidgets,
-      );
+    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Recovered scorecard lanes around RPT-LANES-SHELL-1.',
+      ),
+      findsWidgets,
+    );
 
-      final focusLeaderButton = find.byKey(
-        const ValueKey('reports-partner-lanes-command-focus-leader'),
-      );
-      await tester.ensureVisible(focusLeaderButton);
-      await tester.tap(focusLeaderButton);
-      await tester.pumpAndSettle();
+    final focusLeaderButton = find.byKey(
+      const ValueKey('reports-partner-lanes-command-focus-leader'),
+    );
+    await tester.ensureVisible(focusLeaderButton);
+    await tester.tap(focusLeaderButton);
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('reports-partner-scope-banner')),
-        findsOneWidget,
-      );
-      expect(
-        find.text('CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
-        findsWidgets,
-      );
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('CLIENT-001/SITE-SANDTON • PARTNER • Alpha'),
+      findsWidgets,
+    );
 
-      final openGovernanceButton = find.byKey(
-        const ValueKey('reports-partner-lanes-command-open-governance'),
-      );
-      await tester.ensureVisible(openGovernanceButton);
-      await tester.tap(openGovernanceButton);
-      await tester.pumpAndSettle();
+    final openGovernanceButton = find.byKey(
+      const ValueKey('reports-partner-lanes-command-open-governance'),
+    );
+    await tester.ensureVisible(openGovernanceButton);
+    await tester.tap(openGovernanceButton);
+    await tester.pumpAndSettle();
 
-      expect(
-        openedGovernanceScope,
-        equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
-      );
+    expect(
+      openedGovernanceScope,
+      equals({'clientId': 'CLIENT-001', 'siteId': 'SITE-SANDTON'}),
+    );
 
-      final clearFocusButton = find.byKey(
-        const ValueKey('reports-partner-lanes-command-clear-focus'),
-      );
-      await tester.ensureVisible(clearFocusButton);
-      await tester.tap(clearFocusButton);
-      await tester.pumpAndSettle();
+    final clearFocusButton = find.byKey(
+      const ValueKey('reports-partner-lanes-command-clear-focus'),
+    );
+    await tester.ensureVisible(clearFocusButton);
+    await tester.tap(clearFocusButton);
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('reports-partner-scope-banner')),
-        findsNothing,
-      );
-    },
-  );
+    expect(
+      find.byKey(const ValueKey('reports-partner-scope-banner')),
+      findsNothing,
+    );
+  });
 
   testWidgets('client reports lane cards expose richer command actions', (
     tester,
@@ -2313,10 +2302,7 @@ void main() {
           selectedSite: 'SITE-SANDTON',
           morningSovereignReportHistory: [currentReport],
           onOpenGovernanceForScope: (clientId, siteId) {
-            openedGovernanceScope = {
-              'clientId': clientId,
-              'siteId': siteId,
-            };
+            openedGovernanceScope = {'clientId': clientId, 'siteId': siteId};
           },
         ),
       ),
@@ -2337,7 +2323,9 @@ void main() {
     expect(find.text('Open Selected Receipt'), findsOneWidget);
     expect(find.text('Open Receipt Lane'), findsWidgets);
     expect(
-      find.textContaining('Recovered lane PARTNER • Alpha around RPT-LANE-ROW-1.'),
+      find.textContaining(
+        'Recovered lane PARTNER • Alpha around RPT-LANE-ROW-1.',
+      ),
       findsWidgets,
     );
 
@@ -2352,7 +2340,9 @@ void main() {
 
     expect(find.text('Open Selected Receipt'), findsOneWidget);
     expect(
-      find.textContaining('Recovered lane PARTNER • Alpha around RPT-LANE-ROW-1.'),
+      find.textContaining(
+        'Recovered lane PARTNER • Alpha around RPT-LANE-ROW-1.',
+      ),
       findsWidgets,
     );
 
@@ -6124,7 +6114,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final copyAction = find.byKey(const ValueKey('reports-review-copy-button'));
+    final copyAction = find.byKey(
+      const ValueKey('reports-selected-copy-button'),
+    );
     await tester.ensureVisible(copyAction);
     await tester.tap(copyAction);
     await tester.pumpAndSettle();
@@ -6524,7 +6516,9 @@ void main() {
         findsOneWidget,
       );
 
-      final previewReportAction = find.text('Preview Report').first;
+      final previewReportAction = find.byKey(
+        const ValueKey('reports-routed-generate-button'),
+      );
       await tester.ensureVisible(previewReportAction);
       await tester.tap(previewReportAction);
       await tester.pumpAndSettle();
@@ -6624,7 +6618,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final previewReportAction = find.text('Preview Report').first;
+      final previewReportAction = find.byKey(
+        const ValueKey('reports-routed-generate-button'),
+      );
       await tester.ensureVisible(previewReportAction);
       await tester.tap(previewReportAction);
       await tester.pumpAndSettle();
@@ -6703,7 +6699,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final previewReportAction = find.text('Preview Report').first;
+      final previewReportAction = find.byKey(
+        const ValueKey('reports-routed-generate-button'),
+      );
       await tester.ensureVisible(previewReportAction);
       await tester.tap(previewReportAction);
       await tester.pumpAndSettle();
@@ -6773,7 +6771,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final previewReportAction = find.text('Preview Report').first;
+      final previewReportAction = find.byKey(
+        const ValueKey('reports-routed-generate-button'),
+      );
       await tester.ensureVisible(previewReportAction);
       await tester.tap(previewReportAction);
       await tester.pump();

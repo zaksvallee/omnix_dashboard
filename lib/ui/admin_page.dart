@@ -1449,20 +1449,32 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ? constraints.maxWidth * 0.94
               : 1520.0;
           _desktopWorkspaceActive = useDesktopWorkspace;
+          final entityTotal = _guards.length + _sites.length + _clients.length;
           return OnyxViewportWorkspaceLayout(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
             maxWidth: surfaceMaxWidth,
             lockToViewport: useEmbeddedPanels,
             header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _adminHeroHeader(),
-                const SizedBox(height: 12),
+                _adminHeroHeader(
+                  workspaceBanner: useDesktopWorkspace
+                      ? _adminWorkspaceStatusBanner(
+                          entityTotal: entityTotal,
+                          shellless: true,
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 8),
                 _tabBar(),
               ],
             ),
             body: useDesktopWorkspace
-                ? _adminWorkspaceShell(useEmbeddedPanels: useEmbeddedPanels)
+                ? _adminWorkspaceShell(
+                    useEmbeddedPanels: useEmbeddedPanels,
+                    entityTotal: entityTotal,
+                    mergeWorkspaceBannerIntoHero: true,
+                  )
                 : _activeTabBody(),
           );
         },
@@ -1470,34 +1482,31 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
-  Widget _adminHeroHeader() {
+  Widget _adminHeroHeader({Widget? workspaceBanner}) {
     final bridgeTone = _telegramBridgeTone();
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 980;
         final actionButtons = Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 6,
+          runSpacing: 6,
           children: [
             OutlinedButton.icon(
               key: _adminExportDataButtonKey,
               onPressed: _openAdminExportFlow,
-              icon: const Icon(Icons.download_rounded, size: 16),
+              icon: const Icon(Icons.download_rounded, size: 14),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF8FD1FF),
                 side: const BorderSide(color: Color(0xFF35506F)),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                 ),
               ),
               label: Text(
                 'Export Data',
                 style: GoogleFonts.inter(
-                  fontSize: 12,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1505,22 +1514,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
             FilledButton.icon(
               key: _adminImportCsvButtonKey,
               onPressed: _directorySaving ? null : _openAdminImportCsvFlow,
-              icon: const Icon(Icons.upload_rounded, size: 16),
+              icon: const Icon(Icons.upload_rounded, size: 14),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF2B5E93),
                 foregroundColor: const Color(0xFFEAF4FF),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(9),
                 ),
               ),
               label: Text(
                 'Import CSV',
                 style: GoogleFonts.inter(
-                  fontSize: 12,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1533,30 +1539,30 @@ class _AdministrationPageState extends State<AdministrationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 60,
-                height: 60,
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFF475569), Color(0xFF334155)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(10),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x33334155),
-                      blurRadius: 18,
+                      blurRadius: 16,
                       spreadRadius: 1,
                     ),
                   ],
                 ),
                 child: const Icon(
                   Icons.settings_rounded,
-                  size: 30,
+                  size: 20,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1565,24 +1571,24 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       'Administration',
                       style: GoogleFonts.rajdhani(
                         color: const Color(0xFFEAF4FF),
-                        fontSize: 30,
+                        fontSize: compact ? 20 : 22,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       'System configuration, AI training, and operational controls',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF93A9C6),
-                        fontSize: 13,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 5),
                     Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                      spacing: 4,
+                      runSpacing: 4,
                       children: [
                         _adminHeaderChip(
                           label: bridgeTone.$1,
@@ -1628,14 +1634,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF111722), Color(0xFF0D1117)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFF223244)),
           ),
           child: compact
@@ -1646,16 +1652,29 @@ class _AdministrationPageState extends State<AdministrationPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [titleBlock],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 6),
                     actionButtons,
+                    if (workspaceBanner != null) ...[
+                      const SizedBox(height: 6),
+                      workspaceBanner,
+                    ],
                   ],
                 )
-              : Row(
+              : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    titleBlock,
-                    const SizedBox(width: 16),
-                    actionButtons,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        titleBlock,
+                        const SizedBox(width: 8),
+                        actionButtons,
+                      ],
+                    ),
+                    if (workspaceBanner != null) ...[
+                      const SizedBox(height: 6),
+                      workspaceBanner,
+                    ],
                   ],
                 ),
         );
@@ -1663,39 +1682,45 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
-  Widget _adminWorkspaceShell({required bool useEmbeddedPanels}) {
-    final entityTotal = _guards.length + _sites.length + _clients.length;
+  Widget _adminWorkspaceShell({
+    required bool useEmbeddedPanels,
+    required int entityTotal,
+    required bool mergeWorkspaceBannerIntoHero,
+  }) {
     final workspaceRow = Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 320,
+          width: 260,
           child: _adminWorkspacePanel(
             key: const ValueKey('admin-workspace-panel-rail'),
             title: 'Command Rail',
             subtitle:
                 'Pivot between live boards, control scopes, and desktop command tools without leaving the active command surface.',
+            shellless: useEmbeddedPanels,
             child: _adminOpsRail(),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 5),
         Expanded(
           flex: 6,
           child: _adminWorkspacePanel(
             key: const ValueKey('admin-workspace-panel-active'),
             title: _adminWorkspaceTitle(),
             subtitle: _adminWorkspaceSubtitle(),
+            shellless: useEmbeddedPanels,
             child: _activeTabBody(),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 5),
         SizedBox(
-          width: 320,
+          width: 260,
           child: _adminWorkspacePanel(
             key: const ValueKey('admin-workspace-panel-context'),
             title: 'Context Deck',
             subtitle:
                 'Keep bridge posture, queue pressure, and the next command pivots visible while the active admin board stays locked in focus.',
+            shellless: useEmbeddedPanels,
             child: _adminWorkspaceContextRail(),
           ),
         ),
@@ -1704,8 +1729,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _adminWorkspaceStatusBanner(entityTotal: entityTotal),
-        const SizedBox(height: 12),
+        if (!mergeWorkspaceBannerIntoHero) ...[
+          _adminWorkspaceStatusBanner(entityTotal: entityTotal),
+          const SizedBox(height: 8),
+        ],
         if (useEmbeddedPanels) Expanded(child: workspaceRow) else workspaceRow,
       ],
     );
@@ -1716,25 +1743,32 @@ class _AdministrationPageState extends State<AdministrationPage> {
     required String title,
     required String subtitle,
     required Widget child,
+    bool shellless = false,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (shellless) {
+          final body = constraints.hasBoundedHeight && !isHandsetLayout(context)
+              ? SingleChildScrollView(child: child)
+              : child;
+          return KeyedSubtree(key: key, child: body);
+        }
         return Container(
           key: key,
           decoration: BoxDecoration(
             color: const Color(0xFF111823),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFF223244)),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x22000000),
-                blurRadius: 18,
+                blurRadius: 16,
                 offset: Offset(0, 10),
               ),
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1742,21 +1776,21 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   title,
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFEAF4FF),
-                    fontSize: 22,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 3),
                 Text(
                   subtitle,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF93A9C6),
-                    fontSize: 12,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w600,
-                    height: 1.4,
+                    height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 6),
                 onyxBoundedPanelBody(
                   context: context,
                   constraints: constraints,
@@ -1770,168 +1804,102 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
-  Widget _adminWorkspaceStatusBanner({required int entityTotal}) {
+  Widget _adminWorkspaceStatusBanner({
+    required int entityTotal,
+    bool shellless = false,
+  }) {
     final bridgeTone = _telegramBridgeTone();
     final aiDraftCount = widget.telegramAiPendingDrafts.length;
     final auditCount = widget.clientCommsAuditViews.length;
     final intakeCount = widget.initialTelegramIdentityIntakes.length;
     final watchScopeCount = widget.fleetScopeHealth.length;
+    final bannerChild = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            _adminWorkspaceChip(
+              'Current Focus: ${_adminWorkspaceTitle()}',
+              accent: const Color(0xFF8FD1FF),
+            ),
+            _adminWorkspaceChip(
+              '$entityTotal Directory Footprint',
+              accent: const Color(0xFF7FD8A5),
+            ),
+            _adminWorkspaceChip(
+              '$aiDraftCount AI Draft${aiDraftCount == 1 ? '' : 's'} Queued',
+              accent: aiDraftCount > 0
+                  ? const Color(0xFFF1B872)
+                  : const Color(0xFF8FD1FF),
+            ),
+            _adminWorkspaceChip(
+              '$auditCount Client Audit${auditCount == 1 ? '' : 's'} Queued',
+              accent: auditCount > 0
+                  ? const Color(0xFF67E8F9)
+                  : const Color(0xFF8EA4C2),
+            ),
+            _adminWorkspaceChip(
+              '$intakeCount Identity Intake${intakeCount == 1 ? '' : 's'} Queued',
+              accent: intakeCount > 0
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF94A3B8),
+            ),
+            _adminWorkspaceChip(
+              '$watchScopeCount Recovery Scope${watchScopeCount == 1 ? '' : 's'} Queued',
+              accent: watchScopeCount > 0
+                  ? const Color(0xFF22D3EE)
+                  : const Color(0xFF8EA4C2),
+            ),
+            _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          '${_adminWorkspaceSubtitle()} ${widget.telegramBridgeHealthDetail ?? _telegramBridgeUpdatedAtLabel()}',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF93A9C6),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w600,
+            height: 1.38,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Directory pivots, AI review, and watch recovery now stay pinned in the left command rail so the hero banner can stay summary-first.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w600,
+            height: 1.38,
+          ),
+        ),
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('admin-workspace-status-banner'),
+        child: bannerChild,
+      );
+    }
     return Container(
       key: const ValueKey('admin-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF111823),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x22000000),
-            blurRadius: 18,
+            blurRadius: 16,
             offset: Offset(0, 10),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _adminWorkspaceChip(
-                'Current Focus: ${_adminWorkspaceTitle()}',
-                accent: const Color(0xFF8FD1FF),
-              ),
-              _adminWorkspaceChip(
-                '$entityTotal Directory Footprint',
-                accent: const Color(0xFF7FD8A5),
-              ),
-              _adminWorkspaceChip(
-                '$aiDraftCount AI Draft${aiDraftCount == 1 ? '' : 's'} Queued',
-                accent: aiDraftCount > 0
-                    ? const Color(0xFFF1B872)
-                    : const Color(0xFF8FD1FF),
-              ),
-              _adminWorkspaceChip(
-                '$auditCount Client Audit${auditCount == 1 ? '' : 's'} Queued',
-                accent: auditCount > 0
-                    ? const Color(0xFF67E8F9)
-                    : const Color(0xFF8EA4C2),
-              ),
-              _adminWorkspaceChip(
-                '$intakeCount Identity Intake${intakeCount == 1 ? '' : 's'} Queued',
-                accent: intakeCount > 0
-                    ? const Color(0xFFF59E0B)
-                    : const Color(0xFF94A3B8),
-              ),
-              _adminWorkspaceChip(
-                '$watchScopeCount Recovery Scope${watchScopeCount == 1 ? '' : 's'} Queued',
-                accent: watchScopeCount > 0
-                    ? const Color(0xFF22D3EE)
-                    : const Color(0xFF8EA4C2),
-              ),
-              _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${_adminWorkspaceSubtitle()} ${widget.telegramBridgeHealthDetail ?? _telegramBridgeUpdatedAtLabel()}',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF93A9C6),
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _adminWorkspaceBannerAction(
-                key: const ValueKey('admin-workspace-banner-open-directory'),
-                label: 'Directory Board',
-                accent: const Color(0xFF8FD1FF),
-                selected: _activeTab != _AdminTab.system,
-                onTap: () => _setActiveTab(_lastEntityTab),
-              ),
-              _adminWorkspaceBannerAction(
-                key: const ValueKey('admin-workspace-banner-open-system'),
-                label: 'Control Board',
-                accent: const Color(0xFF7FD8A5),
-                selected:
-                    _activeTab == _AdminTab.system &&
-                    _activeSystemSection == _AdminSystemSection.systemControls,
-                onTap: () => _focusAdminSystemSection(
-                  _AdminSystemSection.systemControls,
-                ),
-              ),
-              _adminWorkspaceBannerAction(
-                key: const ValueKey('admin-workspace-banner-open-ai-comms'),
-                label: 'AI Queue',
-                accent: const Color(0xFFF1B872),
-                selected:
-                    _activeTab == _AdminTab.system &&
-                    _activeSystemSection ==
-                        _AdminSystemSection.aiCommunications,
-                onTap: () => _focusAdminSystemSection(
-                  _AdminSystemSection.aiCommunications,
-                ),
-              ),
-              _adminWorkspaceBannerAction(
-                key: const ValueKey(
-                  'admin-workspace-banner-open-watch-identity',
-                ),
-                label: 'Watch Identity',
-                accent: const Color(0xFF22D3EE),
-                selected:
-                    _activeTab == _AdminTab.system &&
-                    _activeSystemSection == _AdminSystemSection.watchIdentity,
-                onTap: () =>
-                    _focusAdminSystemSection(_AdminSystemSection.watchIdentity),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _adminWorkspaceBannerAction({
-    required Key key,
-    required String label,
-    required Color accent,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? accent.withValues(alpha: 0.18)
-              : const Color(0xFF0C1117),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected
-                ? accent.withValues(alpha: 0.55)
-                : const Color(0x332B425F),
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFFEAF4FF),
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
+      child: bannerChild,
     );
   }
 
@@ -1946,10 +1914,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             color: const Color(0xFF0C1117),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(9),
             border: Border.all(color: const Color(0x332B425F)),
           ),
           child: Column(
@@ -1959,34 +1927,34 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 'CONTEXT SNAPSHOT',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF8EA4C2),
-                  fontSize: 11,
+                  fontSize: 9,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 _adminWorkspaceTitle(),
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFEAF4FF),
-                  fontSize: 24,
+                  fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 _adminWorkspaceSubtitle(),
                 style: GoogleFonts.inter(
                   color: const Color(0xFF93A9C6),
-                  fontSize: 11.5,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w600,
-                  height: 1.4,
+                  height: 1.35,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 5),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
                   _adminWorkspaceChip(
@@ -2002,7 +1970,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         _adminWorkspaceContextMetric(
           label: 'AI Draft Queue',
           value: aiDraftCount.toString(),
@@ -2013,7 +1981,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ? const Color(0xFFF1B872)
               : const Color(0xFF8FD1FF),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceContextMetric(
           label: 'Identity Intake Queue',
           value: intakeCount.toString(),
@@ -2024,7 +1992,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ? const Color(0xFFF59E0B)
               : const Color(0xFF94A3B8),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceContextMetric(
           label: 'Recovery Scope Queue',
           value: watchCount.toString(),
@@ -2035,7 +2003,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ? const Color(0xFF22D3EE)
               : const Color(0xFF8EA4C2),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceContextMetric(
           label: 'Client Audit Queue',
           value: auditCount.toString(),
@@ -2046,33 +2014,33 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ? const Color(0xFF67E8F9)
               : const Color(0xFF8EA4C2),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 6),
         _adminWorkspaceCommandReceiptCard(),
-        const SizedBox(height: 14),
+        const SizedBox(height: 6),
         Text(
           'COMMAND PIVOTS',
           style: GoogleFonts.inter(
             color: const Color(0xFF8EA4C2),
-            fontSize: 11,
+            fontSize: 9,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceContextQuickAction(
           key: const ValueKey('admin-workspace-context-open-guards'),
           label: 'Open Guard Roster',
           accent: const Color(0xFF8FD1FF),
           onPressed: () => _setActiveTab(_AdminTab.guards),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceContextQuickAction(
           key: const ValueKey('admin-workspace-context-open-sites'),
           label: 'Open Site Footprint',
           accent: const Color(0xFF7FD8A5),
           onPressed: () => _setActiveTab(_AdminTab.sites),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceContextQuickAction(
           key: const ValueKey('admin-workspace-context-open-ai-comms'),
           label: 'Open AI Queue',
@@ -2092,10 +2060,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0x332B425F)),
       ),
       child: Column(
@@ -2105,7 +2073,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 10.5,
+              fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.4,
             ),
@@ -2115,7 +2083,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             value,
             style: GoogleFonts.rajdhani(
               color: accent,
-              fontSize: 26,
+              fontSize: 17,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2124,9 +2092,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFF93A9C6),
-              fontSize: 11,
+              fontSize: 9.5,
               fontWeight: FontWeight.w600,
-              height: 1.35,
+              height: 1.32,
             ),
           ),
         ],
@@ -2139,10 +2107,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return Container(
       key: const ValueKey('admin-workspace-command-receipt'),
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: receipt.accent.withValues(alpha: 0.4)),
       ),
       child: Column(
@@ -2152,14 +2120,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
             'LATEST COMMAND',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 11,
+              fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
             decoration: BoxDecoration(
               color: receipt.accent.withValues(alpha: 0.16),
               borderRadius: BorderRadius.circular(999),
@@ -2169,29 +2137,29 @@ class _AdministrationPageState extends State<AdministrationPage> {
               receipt.label,
               style: GoogleFonts.inter(
                 color: receipt.accent,
-                fontSize: 10.5,
+                fontSize: 9,
                 fontWeight: FontWeight.w800,
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             receipt.headline,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF4FF),
-              fontSize: 24,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
               height: 1,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             receipt.detail,
             style: GoogleFonts.inter(
               color: const Color(0xFF93A9C6),
-              fontSize: 11.5,
+              fontSize: 9.5,
               fontWeight: FontWeight.w600,
-              height: 1.4,
+              height: 1.35,
             ),
           ),
         ],
@@ -2213,14 +2181,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
         style: OutlinedButton.styleFrom(
           foregroundColor: accent,
           side: BorderSide(color: accent.withValues(alpha: 0.45)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w700),
+          style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -2233,10 +2199,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             color: const Color(0xFF0C1117),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(9),
             border: Border.all(color: const Color(0x332B425F)),
           ),
           child: Column(
@@ -2246,7 +2212,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 'COMMAND FOCUS',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF8EA4C2),
-                  fontSize: 11,
+                  fontSize: 9,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 0.5,
                 ),
@@ -2256,14 +2222,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 _adminWorkspaceTitle(),
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFEAF4FF),
-                  fontSize: 24,
+                  fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   _adminWorkspaceChip(
                     'Seed Source: ${_directoryLoadedFromSupabase ? 'Supabase' : 'Local'}',
@@ -2285,17 +2251,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         Text(
           'BOARD PIVOTS',
           style: GoogleFonts.inter(
             color: const Color(0xFF8EA4C2),
-            fontSize: 11,
+            fontSize: 9,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceAction(
           key: const ValueKey('admin-workspace-open-entity'),
           label: 'Directory Board',
@@ -2304,7 +2270,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           selected: _activeTab != _AdminTab.system,
           onTap: () => _setActiveTab(_lastEntityTab),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceAction(
           key: const ValueKey('admin-workspace-open-ai-comms'),
           label: 'AI Queue',
@@ -2316,7 +2282,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           onTap: () =>
               _focusAdminSystemSection(_AdminSystemSection.aiCommunications),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         _adminWorkspaceAction(
           key: const ValueKey('admin-workspace-open-system-controls'),
           label: 'Control Board',
@@ -2328,7 +2294,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           onTap: () =>
               _focusAdminSystemSection(_AdminSystemSection.systemControls),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         _adminWorkspaceAction(
           key: const ValueKey('admin-workspace-open-watch-identity'),
           label: 'Watch Identity',
@@ -2340,17 +2306,17 @@ class _AdministrationPageState extends State<AdministrationPage> {
           onTap: () =>
               _focusAdminSystemSection(_AdminSystemSection.watchIdentity),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 8),
         Text(
           'COMMAND TOOLS',
           style: GoogleFonts.inter(
             color: const Color(0xFF8EA4C2),
-            fontSize: 11,
+            fontSize: 9.5,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.5,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         if (_activeTab == _AdminTab.system) ...[
           SizedBox(
             width: double.infinity,
@@ -2361,12 +2327,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF245B72),
                 foregroundColor: const Color(0xFFEAF4FF),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
               label: Text(
@@ -2374,13 +2337,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
         ],
         SizedBox(
           width: double.infinity,
@@ -2391,9 +2354,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF8FD1FF),
               side: const BorderSide(color: Color(0xFF35506F)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
             label: Text(
@@ -2401,13 +2364,13 @@ class _AdministrationPageState extends State<AdministrationPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 5),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
@@ -2417,9 +2380,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF2B5E93),
               foregroundColor: const Color(0xFFEAF4FF),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
             label: Text(
@@ -2427,7 +2390,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2459,10 +2422,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         width: double.infinity,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
           color: selected ? const Color(0x1422D3EE) : const Color(0xFF0C1117),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? const Color(0x6622D3EE) : const Color(0x332B425F),
           ),
@@ -2476,18 +2439,18 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 color: selected
                     ? const Color(0xFFEAF4FF)
                     : const Color(0xFFB6C3D6),
-                fontSize: 12,
+                fontSize: 10,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               detail,
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 11,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w600,
-                height: 1.35,
+                height: 1.32,
               ),
             ),
           ],
@@ -2498,7 +2461,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Widget _adminWorkspaceChip(String label, {required Color accent}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -2508,7 +2471,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         label,
         style: GoogleFonts.inter(
           color: accent,
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -2621,7 +2584,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     required Color border,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(999),
@@ -2631,7 +2594,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         label,
         style: GoogleFonts.inter(
           color: foreground,
-          fontSize: 10.5,
+          fontSize: 9,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -20690,7 +20653,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         if (_openClientLaneAction(clientId: clientId, siteId: siteId) != null)
           _SuccessDialogQuickAction(
             icon: Icons.person_outline_rounded,
-            label: 'Open Client Lane',
+            label: 'Open Client View',
             onTap: _openClientLaneAction(clientId: clientId, siteId: siteId)!,
             foregroundColor: const Color(0xFFBFD7F2),
             borderColor: const Color(0xFF35506F),

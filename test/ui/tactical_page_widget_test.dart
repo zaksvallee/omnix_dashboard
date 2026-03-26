@@ -158,14 +158,10 @@ void main() {
       );
 
       await tester.ensureVisible(
-        find.byKey(
-          const ValueKey('tactical-lens-comparison-review-matches'),
-        ),
+        find.byKey(const ValueKey('tactical-lens-comparison-review-matches')),
       );
       await tester.tap(
-        find.byKey(
-          const ValueKey('tactical-lens-comparison-review-matches'),
-        ),
+        find.byKey(const ValueKey('tactical-lens-comparison-review-matches')),
       );
       await tester.pumpAndSettle();
 
@@ -192,17 +188,17 @@ void main() {
       );
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('tactical-workspace-cycle-filter')),
+        find.byKey(const ValueKey('tactical-map-filter-button')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('tactical-workspace-cycle-filter')),
+        find.byKey(const ValueKey('tactical-map-filter-button')),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('Filter: Responding'), findsOneWidget);
 
       await tester.tap(
-        find.byKey(const ValueKey('tactical-workspace-open-dispatches')),
+        find.byKey(const ValueKey('tactical-open-dispatches-button')),
       );
       await tester.pumpAndSettle();
 
@@ -413,9 +409,7 @@ void main() {
     expect(find.text('FR Matches • 1'), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byKey(
-          const ValueKey('tactical-verification-signal-counters'),
-        ),
+        of: find.byKey(const ValueKey('tactical-verification-signal-counters')),
         matching: find.text('Signals • 4'),
       ),
       findsOneWidget,
@@ -450,13 +444,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('tactical-active-track-card')),
-          matching: find.text('Vehicle R-12'),
-        ),
-        findsOneWidget,
-      );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('tactical-active-track-card')),
+        matching: find.text('Vehicle R-12'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('tactical-map-focus-queue-assets')),
@@ -466,8 +460,8 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey('tactical-map-focus-queue-assets')),
     );
-      await tester.pumpAndSettle();
-      expect(find.text('Snapshots ready'), findsOneWidget);
+    await tester.pumpAndSettle();
+    expect(find.text('Snapshots ready'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('tactical-map-filter-button')),
@@ -559,9 +553,7 @@ void main() {
     expect(find.text('DVR Signal Counters (6h)'), findsOneWidget);
     expect(
       find.descendant(
-        of: find.byKey(
-          const ValueKey('tactical-verification-signal-counters'),
-        ),
+        of: find.byKey(const ValueKey('tactical-verification-signal-counters')),
         matching: find.text('Signals • 2'),
       ),
       findsOneWidget,
@@ -894,7 +886,10 @@ void main() {
       expect(tacticalClientId, 'CLIENT-B');
       expect(tacticalSiteId, 'SITE-B');
       expect(tacticalReference, 'INT-BETA-1');
-      expect(find.text('Opened suppressed review in tactical lane.'), findsOneWidget);
+      expect(
+        find.text('Opened suppressed review in tactical lane.'),
+        findsOneWidget,
+      );
 
       await tester.tap(
         find.byKey(const ValueKey('tactical-suppressed-focus-open-dispatch')),
@@ -904,7 +899,10 @@ void main() {
       expect(dispatchClientId, 'CLIENT-B');
       expect(dispatchSiteId, 'SITE-B');
       expect(dispatchReference, 'INT-BETA-1');
-      expect(find.text('Opened suppressed review in dispatch lane.'), findsOneWidget);
+      expect(
+        find.text('Opened suppressed review in dispatch lane.'),
+        findsOneWidget,
+      );
       expect(find.byType(SnackBar), findsNothing);
     },
   );
@@ -1149,388 +1147,390 @@ void main() {
     },
   );
 
-  testWidgets(
-    'tactical fleet focus card routes lead lane actions',
-    (tester) async {
-      tester.view.physicalSize = const Size(1680, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+  testWidgets('tactical fleet focus card routes lead lane actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
-      String? tappedTacticalClientId;
-      String? tappedTacticalSiteId;
-      String? tappedTacticalReference;
-      String? tappedDispatchClientId;
-      String? tappedDispatchSiteId;
-      String? tappedDispatchReference;
+    String? tappedTacticalClientId;
+    String? tappedTacticalSiteId;
+    String? tappedTacticalReference;
+    String? tappedDispatchClientId;
+    String? tappedDispatchSiteId;
+    String? tappedDispatchReference;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: TacticalPage(
-            events: const [],
-            fleetScopeHealth: const [
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-A',
-                siteId: 'SITE-A',
-                siteName: 'MS Vallee Residence',
-                endpointLabel: '192.168.8.105',
-                statusLabel: 'LIVE',
-                watchLabel: 'ACTIVE',
-                recentEvents: 2,
-                lastSeenLabel: '21:14 UTC',
-                freshnessLabel: 'Fresh',
-                isStale: false,
-                alertCount: 1,
-                latestIncidentReference: 'INT-VALLEE-1',
-                latestEventLabel: 'Vehicle motion',
-                latestEventTimeLabel: '21:14 UTC',
-                latestCameraLabel: 'Camera 1',
-                latestRiskScore: 84,
-                actionHistory: [
-                  '21:13 UTC • Camera 2 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
-                ],
-              ),
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-B',
-                siteId: 'SITE-B',
-                siteName: 'Beta Watch',
-                endpointLabel: '192.168.8.106',
-                statusLabel: 'WATCH READY',
-                watchLabel: 'SCHEDULED',
-                recentEvents: 0,
-                lastSeenLabel: 'idle',
-                freshnessLabel: 'Idle',
-                isStale: false,
-              ),
-            ],
-            onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
-              tappedTacticalClientId = clientId;
-              tappedTacticalSiteId = siteId;
-              tappedTacticalReference = incidentReference;
-            },
-            onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
-              tappedDispatchClientId = clientId;
-              tappedDispatchSiteId = siteId;
-              tappedDispatchReference = incidentReference;
-            },
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TacticalPage(
+          events: const [],
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIVE',
+              watchLabel: 'ACTIVE',
+              recentEvents: 2,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+              alertCount: 1,
+              latestIncidentReference: 'INT-VALLEE-1',
+              latestEventLabel: 'Vehicle motion',
+              latestEventTimeLabel: '21:14 UTC',
+              latestCameraLabel: 'Camera 1',
+              latestRiskScore: 84,
+              actionHistory: [
+                '21:13 UTC • Camera 2 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
+              ],
+            ),
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-B',
+              siteId: 'SITE-B',
+              siteName: 'Beta Watch',
+              endpointLabel: '192.168.8.106',
+              statusLabel: 'WATCH READY',
+              watchLabel: 'SCHEDULED',
+              recentEvents: 0,
+              lastSeenLabel: 'idle',
+              freshnessLabel: 'Idle',
+              isStale: false,
+            ),
+          ],
+          onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
+            tappedTacticalClientId = clientId;
+            tappedTacticalSiteId = siteId;
+            tappedTacticalReference = incidentReference;
+          },
+          onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+            tappedDispatchClientId = clientId;
+            tappedDispatchSiteId = siteId;
+            tappedDispatchReference = incidentReference;
+          },
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-focus-card')),
-        findsOneWidget,
-      );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-focus-card')),
+      findsOneWidget,
+    );
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('tactical-fleet-focus-open-drilldown')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-focus-open-drilldown')),
-      );
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('tactical-fleet-focus-open-drilldown')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-focus-open-drilldown')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
-      expect(
-        find.text('Alert actions foregrounded in fleet command rail.'),
-        findsOneWidget,
-      );
+    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+    expect(
+      find.text('Alert actions foregrounded in fleet command rail.'),
+      findsOneWidget,
+    );
 
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-focus-open-tactical')),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-focus-open-tactical')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(tappedTacticalClientId, 'CLIENT-A');
-      expect(tappedTacticalSiteId, 'SITE-A');
-      expect(tappedTacticalReference, 'INT-VALLEE-1');
-      expect(find.text('Opened lead fleet scope in tactical lane.'), findsOneWidget);
+    expect(tappedTacticalClientId, 'CLIENT-A');
+    expect(tappedTacticalSiteId, 'SITE-A');
+    expect(tappedTacticalReference, 'INT-VALLEE-1');
+    expect(
+      find.text('Opened lead fleet scope in tactical lane.'),
+      findsOneWidget,
+    );
 
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-focus-open-dispatch')),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-focus-open-dispatch')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(tappedDispatchClientId, 'CLIENT-A');
-      expect(tappedDispatchSiteId, 'SITE-A');
-      expect(tappedDispatchReference, 'INT-VALLEE-1');
-      expect(find.text('Opened lead fleet scope in dispatch lane.'), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
-    },
-  );
+    expect(tappedDispatchClientId, 'CLIENT-A');
+    expect(tappedDispatchSiteId, 'SITE-A');
+    expect(tappedDispatchReference, 'INT-VALLEE-1');
+    expect(
+      find.text('Opened lead fleet scope in dispatch lane.'),
+      findsOneWidget,
+    );
+    expect(find.byType(SnackBar), findsNothing);
+  });
 
-  testWidgets(
-    'tactical fleet summary command deck routes lane pivots',
-    (tester) async {
-      tester.view.physicalSize = const Size(1680, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+  testWidgets('tactical fleet summary command deck routes lane pivots', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: TacticalPage(
-            events: const [],
-            fleetScopeHealth: const [
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-A',
-                siteId: 'SITE-A',
-                siteName: 'MS Vallee Residence',
-                endpointLabel: '192.168.8.105',
-                statusLabel: 'LIVE',
-                watchLabel: 'ACTIVE',
-                recentEvents: 2,
-                lastSeenLabel: '21:14 UTC',
-                freshnessLabel: 'Fresh',
-                isStale: false,
-                alertCount: 1,
-                latestIncidentReference: 'INT-VALLEE-1',
-                actionHistory: [
-                  '21:13 UTC • Camera 2 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
-                ],
-              ),
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-B',
-                siteId: 'SITE-B',
-                siteName: 'Beta Watch',
-                endpointLabel: '192.168.8.106',
-                statusLabel: 'WATCH READY',
-                watchLabel: 'SCHEDULED',
-                recentEvents: 0,
-                lastSeenLabel: 'idle',
-                freshnessLabel: 'Idle',
-                isStale: false,
-                repeatCount: 2,
-                suppressedCount: 3,
-                watchActivationGapLabel: 'MISSED START',
-              ),
-            ],
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TacticalPage(
+          events: const [],
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIVE',
+              watchLabel: 'ACTIVE',
+              recentEvents: 2,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+              alertCount: 1,
+              latestIncidentReference: 'INT-VALLEE-1',
+              actionHistory: [
+                '21:13 UTC • Camera 2 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
+              ],
+            ),
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-B',
+              siteId: 'SITE-B',
+              siteName: 'Beta Watch',
+              endpointLabel: '192.168.8.106',
+              statusLabel: 'WATCH READY',
+              watchLabel: 'SCHEDULED',
+              recentEvents: 0,
+              lastSeenLabel: 'idle',
+              freshnessLabel: 'Idle',
+              isStale: false,
+              repeatCount: 2,
+              suppressedCount: 3,
+              watchActivationGapLabel: 'MISSED START',
+            ),
+          ],
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-summary-command')),
-        findsOneWidget,
-      );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-summary-command')),
+      findsOneWidget,
+    );
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('tactical-fleet-summary-primary')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-summary-primary')),
-      );
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('tactical-fleet-summary-primary')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-summary-primary')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
-      expect(
-        find.text('Alert actions foregrounded in fleet command rail.'),
-        findsOneWidget,
-      );
+    expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+    expect(
+      find.text('Alert actions foregrounded in fleet command rail.'),
+      findsOneWidget,
+    );
 
-      await tester.ensureVisible(
-        find.byKey(
-          const ValueKey('tactical-fleet-summary-secondary-repeat'),
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('tactical-fleet-summary-secondary-repeat')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-summary-secondary-repeat')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Focused watch action: Repeat updates'), findsOneWidget);
+    expect(
+      find.text('Repeat updates foregrounded in fleet command rail.'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('tactical-fleet-summary-clear')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-summary-clear')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cleared focused fleet watch action.'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('tactical fleet scope cards expose command actions and receipts', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    String? tappedTacticalClientId;
+    String? tappedTacticalSiteId;
+    String? tappedTacticalReference;
+    String? tappedDispatchClientId;
+    String? tappedDispatchSiteId;
+    String? tappedDispatchReference;
+    String? recoveredClientId;
+    String? recoveredSiteId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TacticalPage(
+          events: const [],
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIVE',
+              watchLabel: 'ACTIVE',
+              recentEvents: 2,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+              alertCount: 1,
+              latestIncidentReference: 'INT-VALLEE-1',
+              latestEventLabel: 'Vehicle motion',
+              latestEventTimeLabel: '21:14 UTC',
+              latestCameraLabel: 'Camera 1',
+              latestRiskScore: 84,
+              actionHistory: [
+                '21:13 UTC • Camera 2 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
+              ],
+            ),
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-B',
+              siteId: 'SITE-B',
+              siteName: 'Beta Watch',
+              endpointLabel: '192.168.8.106',
+              statusLabel: 'WATCH READY',
+              watchLabel: 'SCHEDULED',
+              recentEvents: 0,
+              lastSeenLabel: 'idle',
+              freshnessLabel: 'Idle',
+              isStale: false,
+              repeatCount: 2,
+              watchActivationGapLabel: 'MISSED START',
+              lastRecoveryLabel: 'ADMIN • Resynced • 21:08 UTC',
+            ),
+          ],
+          onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
+            tappedTacticalClientId = clientId;
+            tappedTacticalSiteId = siteId;
+            tappedTacticalReference = incidentReference;
+          },
+          onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+            tappedDispatchClientId = clientId;
+            tappedDispatchSiteId = siteId;
+            tappedDispatchReference = incidentReference;
+          },
+          onRecoverFleetWatchScope: (clientId, siteId) {
+            recoveredClientId = clientId;
+            recoveredSiteId = siteId;
+          },
         ),
-      );
-      await tester.tap(
-        find.byKey(
-          const ValueKey('tactical-fleet-summary-secondary-repeat'),
-        ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Focused watch action: Repeat updates'), findsOneWidget);
-      expect(
-        find.text('Repeat updates foregrounded in fleet command rail.'),
-        findsOneWidget,
-      );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-scope-command-SITE-A')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-scope-identity-SITE-A')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-scope-posture-SITE-A')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-scope-context-SITE-A')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-scope-latest-SITE-A')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-scope-feed-SITE-A')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-scope-actions-SITE-A')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('tactical-fleet-scope-command-SITE-B')),
+      findsOneWidget,
+    );
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('tactical-fleet-summary-clear')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-summary-clear')),
-      );
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('tactical-fleet-detail-SITE-A')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-detail-SITE-A')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.text('Cleared focused fleet watch action.'), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
-    },
-  );
+    expect(
+      find.text('Focused fleet scope detail for MS Vallee Residence.'),
+      findsOneWidget,
+    );
 
-  testWidgets(
-    'tactical fleet scope cards expose command actions and receipts',
-    (tester) async {
-      tester.view.physicalSize = const Size(1680, 1200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-tactical-SITE-A')),
+    );
+    await tester.pumpAndSettle();
 
-      String? tappedTacticalClientId;
-      String? tappedTacticalSiteId;
-      String? tappedTacticalReference;
-      String? tappedDispatchClientId;
-      String? tappedDispatchSiteId;
-      String? tappedDispatchReference;
-      String? recoveredClientId;
-      String? recoveredSiteId;
+    expect(tappedTacticalClientId, 'CLIENT-A');
+    expect(tappedTacticalSiteId, 'SITE-A');
+    expect(tappedTacticalReference, 'INT-VALLEE-1');
+    expect(
+      find.text('Opened MS Vallee Residence in tactical lane.'),
+      findsOneWidget,
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: TacticalPage(
-            events: const [],
-            fleetScopeHealth: const [
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-A',
-                siteId: 'SITE-A',
-                siteName: 'MS Vallee Residence',
-                endpointLabel: '192.168.8.105',
-                statusLabel: 'LIVE',
-                watchLabel: 'ACTIVE',
-                recentEvents: 2,
-                lastSeenLabel: '21:14 UTC',
-                freshnessLabel: 'Fresh',
-                isStale: false,
-                alertCount: 1,
-                latestIncidentReference: 'INT-VALLEE-1',
-                latestEventLabel: 'Vehicle motion',
-                latestEventTimeLabel: '21:14 UTC',
-                latestCameraLabel: 'Camera 1',
-                latestRiskScore: 84,
-                actionHistory: [
-                  '21:13 UTC • Camera 2 • Monitoring Alert • Client alert sent because vehicle activity was detected and confidence remained medium.',
-                ],
-              ),
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-B',
-                siteId: 'SITE-B',
-                siteName: 'Beta Watch',
-                endpointLabel: '192.168.8.106',
-                statusLabel: 'WATCH READY',
-                watchLabel: 'SCHEDULED',
-                recentEvents: 0,
-                lastSeenLabel: 'idle',
-                freshnessLabel: 'Idle',
-                isStale: false,
-                repeatCount: 2,
-                watchActivationGapLabel: 'MISSED START',
-                lastRecoveryLabel: 'ADMIN • Resynced • 21:08 UTC',
-              ),
-            ],
-            onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
-              tappedTacticalClientId = clientId;
-              tappedTacticalSiteId = siteId;
-              tappedTacticalReference = incidentReference;
-            },
-            onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
-              tappedDispatchClientId = clientId;
-              tappedDispatchSiteId = siteId;
-              tappedDispatchReference = incidentReference;
-            },
-            onRecoverFleetWatchScope: (clientId, siteId) {
-              recoveredClientId = clientId;
-              recoveredSiteId = siteId;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-dispatch-SITE-A')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-scope-command-SITE-A')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-scope-identity-SITE-A')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-scope-posture-SITE-A')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-scope-context-SITE-A')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-scope-latest-SITE-A')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-scope-feed-SITE-A')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-scope-actions-SITE-A')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('tactical-fleet-scope-command-SITE-B')),
-        findsOneWidget,
-      );
+    expect(tappedDispatchClientId, 'CLIENT-A');
+    expect(tappedDispatchSiteId, 'SITE-A');
+    expect(tappedDispatchReference, 'INT-VALLEE-1');
+    expect(
+      find.text('Opened MS Vallee Residence in dispatch lane.'),
+      findsOneWidget,
+    );
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('tactical-fleet-detail-SITE-A')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-detail-SITE-A')),
-      );
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('tactical-fleet-resync-SITE-B')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-fleet-resync-SITE-B')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.text('Focused fleet scope detail for MS Vallee Residence.'),
-        findsOneWidget,
-      );
-
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-tactical-SITE-A')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(tappedTacticalClientId, 'CLIENT-A');
-      expect(tappedTacticalSiteId, 'SITE-A');
-      expect(tappedTacticalReference, 'INT-VALLEE-1');
-      expect(
-        find.text('Opened MS Vallee Residence in tactical lane.'),
-        findsOneWidget,
-      );
-
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-dispatch-SITE-A')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(tappedDispatchClientId, 'CLIENT-A');
-      expect(tappedDispatchSiteId, 'SITE-A');
-      expect(tappedDispatchReference, 'INT-VALLEE-1');
-      expect(
-        find.text('Opened MS Vallee Residence in dispatch lane.'),
-        findsOneWidget,
-      );
-
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('tactical-fleet-resync-SITE-B')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('tactical-fleet-resync-SITE-B')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(recoveredClientId, 'CLIENT-B');
-      expect(recoveredSiteId, 'SITE-B');
-      expect(find.text('Triggered coverage resync for Beta Watch.'), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
-    },
-  );
+    expect(recoveredClientId, 'CLIENT-B');
+    expect(recoveredSiteId, 'SITE-B');
+    expect(
+      find.text('Triggered coverage resync for Beta Watch.'),
+      findsOneWidget,
+    );
+    expect(find.byType(SnackBar), findsNothing);
+  });
 
   testWidgets('tactical page narrows fleet health to the scoped lane', (
     tester,

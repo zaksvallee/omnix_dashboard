@@ -310,7 +310,7 @@ void main() {
     );
 
     await tester.tap(
-      find.byKey(const ValueKey('events-workspace-banner-open-intelligence')),
+      find.byKey(const ValueKey('events-lane-filter-intelligence')),
     );
     await tester.pumpAndSettle();
 
@@ -333,9 +333,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('events-workspace-banner-open-ledger')),
-    );
+    await tester.tap(find.byKey(const ValueKey('events-view-ledger-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('Ledger Link Ready'), findsOneWidget);

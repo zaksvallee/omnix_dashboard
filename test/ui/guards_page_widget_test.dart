@@ -118,8 +118,11 @@ void main() {
 
     expect(openedReportSiteId, 'WTF-MAIN');
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('guards-activity-focus-attention')),
+    );
     await tester.tap(
-      find.byKey(const ValueKey('guards-workspace-banner-open-attention')),
+      find.byKey(const ValueKey('guards-activity-focus-attention')),
     );
     await tester.pumpAndSettle();
 
@@ -351,7 +354,7 @@ void main() {
   testWidgets('guards page shows disabled readiness for unavailable actions', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    await tester.binding.setSurfaceSize(const Size(1200, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     String? copiedContact;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -374,7 +377,7 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(
         home: MediaQuery(
-          data: MediaQueryData(size: Size(1440, 980)),
+          data: MediaQueryData(size: Size(1200, 980)),
           child: GuardsPage(events: <DispatchEvent>[]),
         ),
       ),
@@ -422,7 +425,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(copiedContact, '+27 82 555 0441');
     expect(find.text('Thabo Mokoena contact copied.'), findsOneWidget);
-    expect(find.byType(SnackBar), findsNothing);
+    expect(find.byType(SnackBar), findsOneWidget);
 
     final callButton = find.widgetWithText(OutlinedButton, 'Call').first;
     await tester.ensureVisible(callButton);

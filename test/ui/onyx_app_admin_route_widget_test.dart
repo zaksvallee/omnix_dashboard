@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/application/telegram_bridge_service.dart';
+import 'package:omnix_dashboard/domain/events/decision_created.dart';
+import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/main.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
@@ -59,48 +61,45 @@ class _SuccessfulTelegramBridgeStub implements TelegramBridgeService {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets(
-    'onyx app exports system admin data from the hero action',
-    (tester) async {
-      String? copiedPayload;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+  testWidgets('onyx app exports system admin data from the hero action', (
+    tester,
+  ) async {
+    String? copiedPayload;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final args = call.arguments as Map<dynamic, dynamic>;
-            copiedPayload = args['text'] as String?;
-          }
-          return null;
-        },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
-        ),
-      );
+        null,
+      ),
+    );
 
-      await prepareAdminRouteTest(tester);
+    await prepareAdminRouteTest(tester);
 
-      await pumpAdminRouteApp(
-        tester,
-        key: const ValueKey('admin-export-route-app'),
-        initialAdminTab: AdministrationPageTab.system,
-      );
-      await openAdminSystemAnchor(tester, 'System Information');
+    await pumpAdminRouteApp(
+      tester,
+      key: const ValueKey('admin-export-route-app'),
+      initialAdminTab: AdministrationPageTab.system,
+    );
+    await openAdminSystemAnchor(tester, 'System Information');
 
-      final exportButton = find.byKey(
-        const ValueKey('admin-export-data-button'),
-      );
-      await tester.ensureVisible(exportButton);
-      await tester.tap(exportButton);
-      await tester.pumpAndSettle();
+    final exportButton = find.byKey(const ValueKey('admin-export-data-button'));
+    await tester.ensureVisible(exportButton);
+    await tester.tap(exportButton);
+    await tester.pumpAndSettle();
 
-      expect(copiedPayload, isNotNull);
-      expect(copiedPayload, contains('"operator_id"'));
-      expect(copiedPayload, contains('"telegram_bridge_health_label"'));
-    },
-  );
+    expect(copiedPayload, isNotNull);
+    expect(copiedPayload, contains('"operator_id"'));
+    expect(copiedPayload, contains('"telegram_bridge_health_label"'));
+  });
 
   testWidgets(
     'onyx app opens the admin csv import dialog from the hero action',
@@ -208,10 +207,7 @@ void main() {
       await tester.tap(find.text('Stage VoIP Call'));
       await tester.pumpAndSettle();
 
-      await pumpAdminRouteApp(
-        tester,
-        key: const ValueKey('admin-app'),
-      );
+      await pumpAdminRouteApp(tester, key: const ValueKey('admin-app'));
       await openAdminClientCommsAudit(tester);
 
       expect(find.text('Client Comms Audit'), findsOneWidget);
@@ -225,198 +221,182 @@ void main() {
     },
   );
 
-  testWidgets(
-    'onyx app opens reports from admin client demo ready action',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens reports from admin client demo ready action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.clients,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.clients,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Demo Mode'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo Mode'));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pumpAndSettle();
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/7',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
+    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/7');
+    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+        ? demoReadyButton.first
+        : fallbackDemoReadyButton.first;
+    await tester.ensureVisible(demoReadyFinder);
+    await tester.tap(demoReadyFinder);
+    await tester.pumpAndSettle();
 
-      final createClientReadyFinder = find.text('Create Client (Ready)').last;
-      await tester.ensureVisible(createClientReadyFinder);
-      await tester.tap(createClientReadyFinder);
-      await tester.pumpAndSettle();
+    final createClientReadyFinder = find.text('Create Client (Ready)').last;
+    await tester.ensureVisible(createClientReadyFinder);
+    await tester.tap(createClientReadyFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Client Demo Ready'), findsOneWidget);
+    expect(find.text('Client Demo Ready'), findsOneWidget);
 
-      final openReportsButton = find.byKey(
-        const ValueKey('admin-create-success-support-open-reports'),
-      );
-      await tester.ensureVisible(openReportsButton);
-      await tester.tap(openReportsButton);
-      await tester.pumpAndSettle();
+    final openReportsButton = find.byKey(
+      const ValueKey('admin-create-success-support-open-reports'),
+    );
+    await tester.ensureVisible(openReportsButton);
+    await tester.tap(openReportsButton);
+    await tester.pumpAndSettle();
 
-      expect(find.byType(ClientIntelligenceReportsPage), findsOneWidget);
-    },
-  );
+    expect(find.byType(ClientIntelligenceReportsPage), findsOneWidget);
+  });
 
-  testWidgets(
-    'onyx app opens dispatches from admin site demo ready action',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens dispatches from admin site demo ready action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.sites,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.sites,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Demo Mode'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo Mode'));
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+    await tester.tap(find.byIcon(Icons.add_rounded).first);
+    await tester.pumpAndSettle();
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/6',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
+    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/6');
+    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+        ? demoReadyButton.first
+        : fallbackDemoReadyButton.first;
+    await tester.ensureVisible(demoReadyFinder);
+    await tester.tap(demoReadyFinder);
+    await tester.pumpAndSettle();
 
-      final createSiteReadyFinder = find.text('Create Site (Ready)').last;
-      await tester.ensureVisible(createSiteReadyFinder);
-      await tester.tap(createSiteReadyFinder);
-      await tester.pumpAndSettle();
+    final createSiteReadyFinder = find.text('Create Site (Ready)').last;
+    await tester.ensureVisible(createSiteReadyFinder);
+    await tester.tap(createSiteReadyFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Site Demo Ready'), findsOneWidget);
+    expect(find.text('Site Demo Ready'), findsOneWidget);
 
-      await tester.tap(find.text('Open Dispatches'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Dispatches'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(DispatchPage), findsOneWidget);
-    },
-  );
+    expect(find.byType(DispatchPage), findsOneWidget);
+  });
 
-  testWidgets(
-    'onyx app opens governance from admin client demo ready action',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens governance from admin client demo ready action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.clients,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.clients,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Demo Mode'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo Mode'));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pumpAndSettle();
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/7',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
+    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/7');
+    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+        ? demoReadyButton.first
+        : fallbackDemoReadyButton.first;
+    await tester.ensureVisible(demoReadyFinder);
+    await tester.tap(demoReadyFinder);
+    await tester.pumpAndSettle();
 
-      final createClientReadyFinder = find.text('Create Client (Ready)').last;
-      await tester.ensureVisible(createClientReadyFinder);
-      await tester.tap(createClientReadyFinder);
-      await tester.pumpAndSettle();
+    final createClientReadyFinder = find.text('Create Client (Ready)').last;
+    await tester.ensureVisible(createClientReadyFinder);
+    await tester.tap(createClientReadyFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Client Demo Ready'), findsOneWidget);
+    expect(find.text('Client Demo Ready'), findsOneWidget);
 
-      await tester.tap(find.text('Open Governance'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Governance'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(GovernancePage), findsOneWidget);
-    },
-  );
+    expect(find.byType(GovernancePage), findsOneWidget);
+  });
 
-  testWidgets(
-    'onyx app opens operations from admin client demo ready action',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens operations from admin client demo ready action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.clients,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.clients,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Demo Mode'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo Mode'));
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.add_rounded));
+    await tester.pumpAndSettle();
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/7',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
+    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/7');
+    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+        ? demoReadyButton.first
+        : fallbackDemoReadyButton.first;
+    await tester.ensureVisible(demoReadyFinder);
+    await tester.tap(demoReadyFinder);
+    await tester.pumpAndSettle();
 
-      final createClientReadyFinder = find.text('Create Client (Ready)').last;
-      await tester.ensureVisible(createClientReadyFinder);
-      await tester.tap(createClientReadyFinder);
-      await tester.pumpAndSettle();
+    final createClientReadyFinder = find.text('Create Client (Ready)').last;
+    await tester.ensureVisible(createClientReadyFinder);
+    await tester.tap(createClientReadyFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Client Demo Ready'), findsOneWidget);
+    expect(find.text('Client Demo Ready'), findsOneWidget);
 
-      await tester.tap(find.text('Open Operations'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Operations'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(LiveOperationsPage), findsOneWidget);
-    },
-  );
+    expect(find.byType(LiveOperationsPage), findsOneWidget);
+  });
 
   testWidgets(
     'onyx app opens client communications from admin client demo ready action',
@@ -466,151 +446,137 @@ void main() {
     },
   );
 
-  testWidgets(
-    'onyx app opens tactical from admin site demo ready action',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens tactical from admin site demo ready action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.sites,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.sites,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Demo Mode'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo Mode'));
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+    await tester.tap(find.byIcon(Icons.add_rounded).first);
+    await tester.pumpAndSettle();
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/6',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
+    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/6');
+    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+        ? demoReadyButton.first
+        : fallbackDemoReadyButton.first;
+    await tester.ensureVisible(demoReadyFinder);
+    await tester.tap(demoReadyFinder);
+    await tester.pumpAndSettle();
 
-      final createSiteReadyFinder = find.text('Create Site (Ready)').last;
-      await tester.ensureVisible(createSiteReadyFinder);
-      await tester.tap(createSiteReadyFinder);
-      await tester.pumpAndSettle();
+    final createSiteReadyFinder = find.text('Create Site (Ready)').last;
+    await tester.ensureVisible(createSiteReadyFinder);
+    await tester.tap(createSiteReadyFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Site Demo Ready'), findsOneWidget);
+    expect(find.text('Site Demo Ready'), findsOneWidget);
 
-      await tester.tap(find.text('Open Tactical'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Tactical'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(TacticalPage), findsOneWidget);
-    },
-  );
+    expect(find.byType(TacticalPage), findsOneWidget);
+  });
 
-  testWidgets(
-    'onyx app opens operations from admin site demo ready action',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens operations from admin site demo ready action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.sites,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.sites,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Demo Mode'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo Mode'));
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+    await tester.tap(find.byIcon(Icons.add_rounded).first);
+    await tester.pumpAndSettle();
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/6',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
+    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/6');
+    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+        ? demoReadyButton.first
+        : fallbackDemoReadyButton.first;
+    await tester.ensureVisible(demoReadyFinder);
+    await tester.tap(demoReadyFinder);
+    await tester.pumpAndSettle();
 
-      final createSiteReadyFinder = find.text('Create Site (Ready)').last;
-      await tester.ensureVisible(createSiteReadyFinder);
-      await tester.tap(createSiteReadyFinder);
-      await tester.pumpAndSettle();
+    final createSiteReadyFinder = find.text('Create Site (Ready)').last;
+    await tester.ensureVisible(createSiteReadyFinder);
+    await tester.tap(createSiteReadyFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Site Demo Ready'), findsOneWidget);
+    expect(find.text('Site Demo Ready'), findsOneWidget);
 
-      await tester.tap(find.text('Open Operations'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Operations'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(LiveOperationsPage), findsOneWidget);
-    },
-  );
+    expect(find.byType(LiveOperationsPage), findsOneWidget);
+  });
 
-  testWidgets(
-    'onyx app opens tactical from admin employee demo ready action',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens tactical from admin employee demo ready action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.guards,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.guards,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Demo Mode'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo Mode'));
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
+    await tester.tap(find.byIcon(Icons.add_rounded).first);
+    await tester.pumpAndSettle();
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/6',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
+    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/6');
+    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
+    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
+        ? demoReadyButton.first
+        : fallbackDemoReadyButton.first;
+    await tester.ensureVisible(demoReadyFinder);
+    await tester.tap(demoReadyFinder);
+    await tester.pumpAndSettle();
 
-      final createEmployeeReadyFinder = find.text(
-        'Create Employee (Ready)',
-      ).last;
-      await tester.ensureVisible(createEmployeeReadyFinder);
-      await tester.tap(createEmployeeReadyFinder);
-      await tester.pumpAndSettle();
+    final createEmployeeReadyFinder = find.text('Create Employee (Ready)').last;
+    await tester.ensureVisible(createEmployeeReadyFinder);
+    await tester.tap(createEmployeeReadyFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Employee Demo Ready'), findsOneWidget);
+    expect(find.text('Employee Demo Ready'), findsOneWidget);
 
-      await tester.tap(find.text('Open Tactical'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Open Tactical'));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(TacticalPage), findsOneWidget);
-    },
-  );
+    expect(find.byType(TacticalPage), findsOneWidget);
+  });
 
   testWidgets(
     'onyx app opens dispatches from admin employee demo ready action',
@@ -646,9 +612,9 @@ void main() {
       await tester.tap(demoReadyFinder);
       await tester.pumpAndSettle();
 
-      final createEmployeeReadyFinder = find.text(
-        'Create Employee (Ready)',
-      ).last;
+      final createEmployeeReadyFinder = find
+          .text('Create Employee (Ready)')
+          .last;
       await tester.ensureVisible(createEmployeeReadyFinder);
       await tester.tap(createEmployeeReadyFinder);
       await tester.pumpAndSettle();
@@ -696,9 +662,9 @@ void main() {
       await tester.tap(demoReadyFinder);
       await tester.pumpAndSettle();
 
-      final createEmployeeReadyFinder = find.text(
-        'Create Employee (Ready)',
-      ).last;
+      final createEmployeeReadyFinder = find
+          .text('Create Employee (Ready)')
+          .last;
       await tester.ensureVisible(createEmployeeReadyFinder);
       await tester.tap(createEmployeeReadyFinder);
       await tester.pumpAndSettle();
@@ -712,35 +678,33 @@ void main() {
     },
   );
 
-  testWidgets(
-    'onyx app opens operations from admin build demo stack action',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('onyx app opens operations from admin build demo stack action', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.guards,
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(
+      OnyxApp(
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.guards,
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Demo Mode'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('Demo Mode'));
+    await tester.pumpAndSettle();
 
-      final buildDemoStackFinder = find.widgetWithText(
-        FilledButton,
-        'Build Demo Stack',
-      ).first;
-      await tester.ensureVisible(buildDemoStackFinder);
-      await tester.tap(buildDemoStackFinder);
-      await tester.pumpAndSettle();
+    final buildDemoStackFinder = find
+        .widgetWithText(FilledButton, 'Build Demo Stack')
+        .first;
+    await tester.ensureVisible(buildDemoStackFinder);
+    await tester.tap(buildDemoStackFinder);
+    await tester.pumpAndSettle();
 
-      expect(find.byType(LiveOperationsPage), findsOneWidget);
-    },
-  );
+    expect(find.byType(LiveOperationsPage), findsOneWidget);
+  });
 
   testWidgets(
     'onyx app restores limited watch drilldown into admin after restart',
@@ -1237,26 +1201,35 @@ void main() {
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);
       expect(
-        find.byKey(const ValueKey('admin-reset-live-ops-queue-hint-audit-button')),
+        find.byKey(
+          const ValueKey('admin-reset-live-ops-queue-hint-audit-button'),
+        ),
         findsOneWidget,
       );
 
       await tester.tap(
-        find.byKey(const ValueKey('admin-reset-live-ops-queue-hint-audit-button')),
+        find.byKey(
+          const ValueKey('admin-reset-live-ops-queue-hint-audit-button'),
+        ),
       );
       await tester.pumpAndSettle();
       expect(find.text('Live Ops tip will show again.'), findsOneWidget);
 
       await tester.pumpWidget(
         OnyxApp(
-          key: const ValueKey('dashboard-after-admin-reset-live-ops-queue-hint'),
+          key: const ValueKey(
+            'dashboard-after-admin-reset-live-ops-queue-hint',
+          ),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('control-inbox-queue-hint')),
+        findsOneWidget,
+      );
       expect(find.text('Hide tip'), findsOneWidget);
     },
   );
@@ -1578,9 +1551,7 @@ void main() {
     (tester) async {
       await prepareAdminRouteTest(tester);
 
-      await seedWaterfallPushPressure(
-        messageKey: 'waterfall-admin-push-1',
-      );
+      await seedWaterfallPushPressure(messageKey: 'waterfall-admin-push-1');
 
       await pumpAndOpenAdminClientCommsAudit(
         tester,
@@ -1891,10 +1862,9 @@ void main() {
       );
 
       expect(find.text('Pending ONYX Draft'), findsOneWidget);
-      final approveButton = find.widgetWithText(
-        FilledButton,
-        'Approve + Send',
-      ).first;
+      final approveButton = find
+          .widgetWithText(FilledButton, 'Approve + Send')
+          .first;
       await tester.ensureVisible(approveButton);
       await tester.tap(approveButton);
       await tester.pumpAndSettle();

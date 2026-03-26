@@ -7,6 +7,7 @@ import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/application/sms_delivery_service.dart';
 import 'package:omnix_dashboard/application/telegram_bridge_service.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
+import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/main.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
@@ -108,6 +109,18 @@ class _SuccessfulSmsDeliveryStub implements SmsDeliveryService {
   }
 }
 
+Future<void> _openLiveOpsDetailedWorkspaceIfPresent(WidgetTester tester) async {
+  final toggle = find.byKey(
+    const ValueKey('live-operations-toggle-detailed-workspace'),
+  );
+  if (toggle.evaluate().isEmpty) {
+    return;
+  }
+  await tester.ensureVisible(toggle);
+  await tester.tap(toggle);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -129,7 +142,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('INCIDENT QUEUE'), findsOneWidget);
+      expect(find.text('CommandCenter'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('live-operations-command-center-hero')),
+        findsOneWidget,
+      );
       expect(tester.takeException(), isNull);
     },
   );
@@ -206,6 +223,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       await tester.scrollUntilVisible(
         find.byKey(const Key('incident-card-INC-DSP-LOW')),
@@ -259,9 +277,23 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.enterText(
+        find.byKey(const ValueKey('controller-login-username')),
+        'admin',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('controller-login-password')),
+        'onyx123',
+      );
+      await tester.tap(find.byKey(const ValueKey('controller-login-submit')));
+      await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
+
       expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
 
-      await tester.tap(find.text('Open Client Lane').first);
+      final openClientLaneAction = find.text('Open Client Lane').first;
+      await tester.ensureVisible(openClientLaneAction);
+      await tester.tap(openClientLaneAction);
       await tester.pumpAndSettle();
 
       expect(openedClientId, 'CLIENT-MS-VALLEE');
@@ -314,6 +346,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
       await tester.ensureVisible(find.text('Latest SMS fallback').first);
@@ -347,6 +380,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
       expect(find.text('Latest VoIP stage'), findsWidgets);
@@ -389,6 +423,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
       expect(find.text('Latest VoIP stage'), findsNothing);
@@ -420,6 +455,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
       expect(find.text('Learned style 1'), findsWidgets);
@@ -450,6 +486,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
       expect(find.text('Lane voice Reassuring'), findsWidgets);
@@ -489,6 +526,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
       expect(find.text('Pending ONYX Draft'), findsOneWidget);
@@ -547,7 +585,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('CONTROL INBOX'), findsOneWidget);
-      expect(find.byKey(const ValueKey('control-inbox-priority-badge')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('control-inbox-priority-badge')),
+        findsOneWidget,
+      );
       expect(find.text('High priority 1'), findsOneWidget);
       expect(
         find.textContaining('Waterfall response team has already arrived'),
@@ -575,7 +616,10 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('control-inbox-filtered-chip')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('control-inbox-filtered-chip')),
+        findsOneWidget,
+      );
       expect(find.text('Filtered 1'), findsOneWidget);
     },
   );
@@ -599,7 +643,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('CONTROL INBOX'), findsOneWidget);
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('control-inbox-queue-hint')),
+        findsNothing,
+      );
       expect(find.text('Hide tip'), findsNothing);
     },
   );
@@ -622,14 +669,22 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsNothing);
-
-      await tester.tap(
-        find.byKey(const ValueKey('control-inbox-show-queue-hint')),
+      expect(
+        find.byKey(const ValueKey('control-inbox-queue-hint')),
+        findsNothing,
       );
+
+      final showQueueHintAction = find.byKey(
+        const ValueKey('control-inbox-show-queue-hint'),
+      );
+      await tester.ensureVisible(showQueueHintAction);
+      await tester.tap(showQueueHintAction);
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('control-inbox-queue-hint')),
+        findsOneWidget,
+      );
 
       await tester.pumpWidget(
         OnyxApp(
@@ -640,7 +695,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('control-inbox-queue-hint')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('control-inbox-queue-hint')),
+        findsOneWidget,
+      );
       expect(find.text('Hide tip'), findsOneWidget);
     },
   );
@@ -938,10 +996,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Pending ONYX Draft'), findsOneWidget);
-      final approveButton = find.widgetWithText(
-        FilledButton,
-        'Approve + Send',
-      ).first;
+      final approveButton = find
+          .widgetWithText(FilledButton, 'Approve + Send')
+          .first;
       await tester.ensureVisible(approveButton);
       await tester.tap(approveButton);
       await tester.pumpAndSettle();
@@ -981,7 +1038,11 @@ void main() {
       final reviewButton = find.textContaining(
         'Review dispatch draft for Resident Feed',
       );
-      await tester.ensureVisible(reviewButton.first);
+      await tester.scrollUntilVisible(
+        reviewButton.first,
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(reviewButton.first);
       await tester.pumpAndSettle();
 
@@ -1023,20 +1084,38 @@ void main() {
     'onyx app shows off-scope client-lane learned approval style in live operations after restart',
     (tester) async {
       SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      await tester.binding.setSurfaceSize(const Size(1440, 1800));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       await pumpClientControlSourceApp(
         tester,
-        key: const ValueKey('live-ops-offscope-cross-surface-learn-clients-app'),
+        key: const ValueKey(
+          'live-ops-offscope-cross-surface-learn-clients-app',
+        ),
         clientId: 'CLIENT-MS-VALLEE',
         siteId: 'WTF-MAIN',
+        initialStoreEventsOverride: <DispatchEvent>[
+          DecisionCreated(
+            eventId: 'evt-DISP-WTF-LEARN-1',
+            sequence: 1,
+            version: 1,
+            occurredAt: DateTime.utc(2026, 3, 19, 6, 41),
+            dispatchId: 'DISP-WTF-LEARN-1',
+            clientId: 'CLIENT-MS-VALLEE',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'WTF-MAIN',
+          ),
+        ],
       );
 
       final reviewButton = find.textContaining(
         'Review dispatch draft for Resident Feed',
       );
-      await tester.ensureVisible(reviewButton.first);
+      await tester.scrollUntilVisible(
+        reviewButton.first,
+        400,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(reviewButton.first);
       await tester.pumpAndSettle();
 
@@ -1049,13 +1128,22 @@ void main() {
         FilledButton,
         'Log Dispatch Review for Resident Feed',
       );
-      await tester.ensureVisible(sendReviewedDraftButton);
+      await tester.scrollUntilVisible(
+        sendReviewedDraftButton,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(sendReviewedDraftButton);
+      await tester.pumpAndSettle();
+
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
       await tester.pumpAndSettle();
 
       await tester.pumpWidget(
         OnyxApp(
-          key: const ValueKey('live-ops-offscope-cross-surface-learn-dashboard-app'),
+          key: const ValueKey(
+            'live-ops-offscope-cross-surface-learn-dashboard-app',
+          ),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
           initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
@@ -1231,7 +1319,9 @@ void main() {
 
       await tester.pumpWidget(
         OnyxApp(
-          key: const ValueKey('live-ops-offscope-telegram-health-dashboard-app'),
+          key: const ValueKey(
+            'live-ops-offscope-telegram-health-dashboard-app',
+          ),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
           initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
@@ -1372,7 +1462,9 @@ void main() {
       expect(find.text('Client Comms Audit'), findsOneWidget);
       expect(find.text('LATEST VOIP STAGE'), findsWidgets);
       expect(
-        find.textContaining('Asterisk staged a call for Waterfall command desk.'),
+        find.textContaining(
+          'Asterisk staged a call for Waterfall command desk.',
+        ),
         findsWidgets,
       );
 
@@ -1391,7 +1483,9 @@ void main() {
       expect(find.textContaining('WTF-MAIN'), findsWidgets);
       expect(find.text('Latest VoIP stage'), findsWidgets);
       expect(
-        find.textContaining('Asterisk staged a call for Waterfall command desk.'),
+        find.textContaining(
+          'Asterisk staged a call for Waterfall command desk.',
+        ),
         findsWidgets,
       );
     },
@@ -1447,7 +1541,9 @@ void main() {
 
       await tester.pumpWidget(
         OnyxApp(
-          key: const ValueKey('live-ops-cross-surface-clear-voice-dashboard-app'),
+          key: const ValueKey(
+            'live-ops-cross-surface-clear-voice-dashboard-app',
+          ),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
         ),
@@ -1515,7 +1611,10 @@ void main() {
       );
       await openAdminClientCommsAudit(tester);
 
-      final reassuringButton = find.widgetWithText(OutlinedButton, 'Reassuring');
+      final reassuringButton = find.widgetWithText(
+        OutlinedButton,
+        'Reassuring',
+      );
       await tester.ensureVisible(reassuringButton.first);
       await tester.tap(reassuringButton.first);
       await tester.pumpAndSettle();

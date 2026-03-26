@@ -774,10 +774,7 @@ void main() {
       expect(copiedPayload, startsWith('ONYX Site Activity Truth'));
       expect(copiedPayload, contains('"siteActivity"'));
       expect(find.text('Site activity pack staged'), findsOneWidget);
-      expect(
-        find.textContaining('copied for manual handoff'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('copied for manual handoff'), findsOneWidget);
     },
   );
 
@@ -1088,11 +1085,15 @@ void main() {
       await tester.tap(find.text('Advanced export and share'));
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(find.text('Email Failure Trace'));
       await tester.tap(find.text('Email Failure Trace'));
       await tester.pump();
 
       expect(copiedPayload, isNotNull);
-      expect(copiedPayload, startsWith('Subject: ONYX Guard Sync Failure Trace'));
+      expect(
+        copiedPayload,
+        startsWith('Subject: ONYX Guard Sync Failure Trace'),
+      );
       expect(copiedPayload, contains('event sync timeout'));
       expect(find.text('Failure trace mail staged'), findsOneWidget);
       expect(
@@ -1221,9 +1222,12 @@ void main() {
     );
 
     await tester.tap(
-      find.byKey(
-        const ValueKey('dashboard-workspace-banner-open-dispatch-risk'),
-      ),
+      find.byKey(const ValueKey('dashboard-workspace-mode-dispatch')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('dashboard-dispatch-filter-risk')),
     );
     await tester.pumpAndSettle();
 
@@ -1241,8 +1245,11 @@ void main() {
     );
 
     await tester.tap(
-      find.byKey(const ValueKey('dashboard-workspace-banner-open-site-watch')),
+      find.byKey(const ValueKey('dashboard-workspace-mode-sites')),
     );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('dashboard-site-filter-watch')));
     await tester.pumpAndSettle();
 
     expect(
@@ -1255,7 +1262,12 @@ void main() {
     );
 
     await tester.tap(
-      find.byKey(const ValueKey('dashboard-workspace-banner-open-live-intel')),
+      find.byKey(const ValueKey('dashboard-workspace-mode-signals')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('dashboard-signal-filter-intel')),
     );
     await tester.pumpAndSettle();
 
@@ -1367,7 +1379,10 @@ void main() {
       MaterialApp(home: DashboardPage(eventStore: store)),
     );
 
-    expect(find.text('A 0 • W 1 • DC 1 • Esc 1'), findsOneWidget);
+    expect(
+      find.text('Triage posture: A 0 • W 1 • DC 1 • Esc 1'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Top triage signals:'), findsOneWidget);
   });
 }

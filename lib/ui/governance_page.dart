@@ -937,8 +937,9 @@ class _GovernancePageState extends State<GovernancePage> {
                 : 0.94,
           );
           return OnyxViewportWorkspaceLayout(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+            padding: const EdgeInsets.fromLTRB(6, 6, 6, 7),
             maxWidth: surfaceMaxWidth,
+            spacing: 5,
             lockToViewport: useEmbeddedPanels,
             header: _heroHeader(
               report: report,
@@ -982,7 +983,7 @@ class _GovernancePageState extends State<GovernancePage> {
     return Column(
       children: [
         _reportViewStrip(report: report),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, constraints) {
             final stacked = constraints.maxWidth < 1180;
@@ -992,37 +993,37 @@ class _GovernancePageState extends State<GovernancePage> {
                   report: report,
                   compliance: compliance,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _nonBlockersSurface(compliance: compliance),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _partnerDispatchChainSurface(report: report),
               ],
             );
             final secondary = Column(
               children: [
                 _complianceSummarySurface(report: report),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _quickActionsSurface(report: report),
               ],
             );
             if (stacked) {
               return Column(
-                children: [primary, const SizedBox(height: 12), secondary],
+                children: [primary, const SizedBox(height: 8), secondary],
               );
             }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(flex: 7, child: primary),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(flex: 4, child: secondary),
               ],
             );
           },
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _readinessSignalsSurface(report: report),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _governanceSupportDeck(
           report: report,
           vigilance: vigilance,
@@ -1048,20 +1049,18 @@ class _GovernancePageState extends State<GovernancePage> {
     final legacyBoardContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _reportViewStrip(report: report),
-        const SizedBox(height: 12),
         _readinessBlockersSurface(report: report, compliance: compliance),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         _nonBlockersSurface(compliance: compliance),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _partnerDispatchChainSurface(report: report),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _readinessSignalsSurface(report: report),
       ],
     );
-    final opsRailWidth = useEmbeddedPanels ? 272.0 : 292.0;
-    final contextRailWidth = useEmbeddedPanels ? 304.0 : 320.0;
-    final workspaceGap = useEmbeddedPanels ? 8.0 : 10.0;
+    final opsRailWidth = useEmbeddedPanels ? 208.0 : 220.0;
+    final contextRailWidth = useEmbeddedPanels ? 232.0 : 244.0;
+    final workspaceGap = 3.0;
     final workspaceRow = Row(
       crossAxisAlignment: useEmbeddedPanels
           ? CrossAxisAlignment.stretch
@@ -1074,6 +1073,7 @@ class _GovernancePageState extends State<GovernancePage> {
             title: 'Governance Ops Rail',
             subtitle:
                 'Keep the active scope, report mode, and route handoffs visible while the report board stays anchored.',
+            shellless: useEmbeddedPanels,
             child: _governanceOpsRail(
               report: report,
               readiness: readiness,
@@ -1090,18 +1090,23 @@ class _GovernancePageState extends State<GovernancePage> {
             subtitle:
                 'Readiness blockers, partner chain posture, and report intelligence stay in one review lane.',
             flexibleChild: useEmbeddedPanels,
+            shellless: useEmbeddedPanels,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final splitBoard =
                     useEmbeddedPanels && constraints.maxWidth >= 980;
                 if (!splitBoard) {
-                  return legacyBoardContent;
+                  if (!useEmbeddedPanels) {
+                    return legacyBoardContent;
+                  }
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.zero,
+                    child: legacyBoardContent,
+                  );
                 }
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _reportViewStrip(report: report),
-                    const SizedBox(height: 10),
                     Expanded(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1118,7 +1123,7 @@ class _GovernancePageState extends State<GovernancePage> {
                               ],
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 4),
                           Expanded(
                             flex: 5,
                             child: _governanceBoardLane(
@@ -1145,6 +1150,7 @@ class _GovernancePageState extends State<GovernancePage> {
             title: 'Oversight Context Rail',
             subtitle:
                 'Summary lanes, command actions, and the active report snapshot stay within reach.',
+            shellless: useEmbeddedPanels,
             child: _governanceContextRail(
               report: report,
               includeSupportDeck: useEmbeddedPanels,
@@ -1161,7 +1167,7 @@ class _GovernancePageState extends State<GovernancePage> {
       children: [
         if (useEmbeddedPanels) Expanded(child: workspaceRow) else workspaceRow,
         if (!useEmbeddedPanels) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           _governanceSupportDeck(
             report: report,
             vigilance: vigilance,
@@ -1178,7 +1184,7 @@ class _GovernancePageState extends State<GovernancePage> {
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemBuilder: (context, index) => children[index],
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      separatorBuilder: (context, index) => const SizedBox(height: 6),
       itemCount: children.length,
     );
   }
@@ -1200,18 +1206,18 @@ class _GovernancePageState extends State<GovernancePage> {
                     flex: 6,
                     child: _vigilanceCard(vigilance: vigilance, now: now),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(flex: 6, child: _fleetCard(fleet: fleet)),
                 ],
               )
             : Column(
                 children: [
                   _vigilanceCard(vigilance: vigilance, now: now),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   _fleetCard(fleet: fleet),
                 ],
               ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _morningReportCard(report: report),
       ],
     );
@@ -1223,15 +1229,24 @@ class _GovernancePageState extends State<GovernancePage> {
     required String subtitle,
     required Widget child,
     bool flexibleChild = false,
+    bool shellless = false,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (shellless) {
+          final shelllessBody = flexibleChild
+              ? child
+              : constraints.hasBoundedHeight && !isHandsetLayout(context)
+              ? SingleChildScrollView(child: child)
+              : child;
+          return KeyedSubtree(key: key, child: shelllessBody);
+        }
         return Container(
           key: key,
           width: double.infinity,
           decoration: BoxDecoration(
             color: const Color(0xFF111A26),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFF223548)),
             boxShadow: const [
               BoxShadow(
@@ -1242,7 +1257,7 @@ class _GovernancePageState extends State<GovernancePage> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(5),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1250,21 +1265,23 @@ class _GovernancePageState extends State<GovernancePage> {
                   title,
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFEAF4FF),
-                    fontSize: 18,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   subtitle,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF92A6C1),
-                    fontSize: 10,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 4),
                 onyxBoundedPanelBody(
                   context: context,
                   constraints: constraints,
@@ -1285,8 +1302,6 @@ class _GovernancePageState extends State<GovernancePage> {
     required int complianceCritical,
   }) {
     final visibleEvents = _visibleGovernanceEvents().length;
-    final canOpenEvents = _canOpenGovernanceEventsReview();
-    final canOpenLedger = _canOpenGovernanceLedger(report);
     final scopeLabel = _hasPartnerScopeFocus
         ? '${_partnerScopeClientId!} / ${_partnerScopeSiteId!} / ${_partnerScopePartnerLabel!}'
         : _hasScopeFocus
@@ -1299,146 +1314,120 @@ class _GovernancePageState extends State<GovernancePage> {
         : report.reportDate.trim().isEmpty
         ? 'Morning Sovereign'
         : 'Morning Sovereign ${report.reportDate}';
+    final oversightSummary = SizedBox(
+      width: double.infinity,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 1),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'ACTIVE OVERSIGHT',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              reportLabel,
+              style: GoogleFonts.rajdhani(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              scopeLabel,
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA4C2),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 3),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                _governanceWorkspaceChip(
+                  label: 'Readiness',
+                  value: '$readiness%',
+                  accent: readiness >= 90
+                      ? const Color(0xFF34D399)
+                      : const Color(0xFFF59E0B),
+                ),
+                _governanceWorkspaceChip(
+                  label: 'Critical',
+                  value: '$complianceCritical',
+                  accent: complianceCritical == 0
+                      ? const Color(0xFF34D399)
+                      : const Color(0xFFEF4444),
+                ),
+                _governanceWorkspaceChip(
+                  label: 'Events',
+                  value: '$visibleEvents',
+                  accent: const Color(0xFF67E8F9),
+                ),
+              ],
+            ),
+            if (_focusedSceneActionLabel(report) != null) ...[
+              const SizedBox(height: 5),
+              Text(
+                'Focused scene action: ${_focusedSceneActionLabel(report)!}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEAF4FF),
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if ((_focusedSceneActionDetailValue(report) ?? '')
+                  .trim()
+                  .isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  _focusedSceneActionDetailValue(report)!,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF92D6E9),
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
+        KeyedSubtree(
           key: const ValueKey('governance-workspace-status-banner'),
-          width: double.infinity,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0C1117),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0x332B425F)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ACTIVE OVERSIGHT',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF8EA4C2),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                reportLabel,
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFEAF4FF),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                scopeLabel,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF8EA4C2),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _governanceWorkspaceChip(
-                    label: 'Readiness',
-                    value: '$readiness%',
-                    accent: readiness >= 90
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFFF59E0B),
-                  ),
-                  _governanceWorkspaceChip(
-                    label: 'Critical',
-                    value: '$complianceCritical',
-                    accent: complianceCritical == 0
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFFEF4444),
-                  ),
-                  _governanceWorkspaceChip(
-                    label: 'Events',
-                    value: '$visibleEvents',
-                    accent: const Color(0xFF67E8F9),
-                  ),
-                ],
-              ),
-              if (_focusedSceneActionLabel(report) != null) ...[
-                const SizedBox(height: 8),
-                Text(
-                  'Focused scene action: ${_focusedSceneActionLabel(report)!}',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if ((_focusedSceneActionDetailValue(report) ?? '')
-                    .trim()
-                    .isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _focusedSceneActionDetailValue(report)!,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF92D6E9),
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ],
-            ],
-          ),
+          child: oversightSummary,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         Text(
-          'COMMAND ACTIONS',
+          'Event review, report workspace, ledger continuity, and morning report refresh stay pinned in the hero and quick-actions board so this rail can stay status-first.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
+            color: const Color(0xFF9CB2D1),
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
           ),
         ),
-        const SizedBox(height: 8),
-        _governanceActionButton(
-          key: const ValueKey('governance-workspace-open-events'),
-          label: canOpenEvents ? 'Open Event Review' : 'Recover Event Scope',
-          onTap: _openGovernanceEventsAction(report),
-        ),
-        const SizedBox(height: 8),
-        _governanceActionButton(
-          key: const ValueKey('governance-workspace-open-reports'),
-          label: 'Open Report Workspace',
-          onTap: _openPrimaryGovernanceReports(report),
-        ),
-        const SizedBox(height: 8),
-        _governanceActionButton(
-          key: const ValueKey('governance-workspace-open-ledger'),
-          label: canOpenLedger
-              ? 'Open Ledger Continuity'
-              : 'Recover Ledger Continuity',
-          onTap: _openGovernanceLedgerAction(report),
-        ),
-        if (widget.onGenerateMorningSovereignReport != null) ...[
-          const SizedBox(height: 8),
-          _governanceActionButton(
-            key: const ValueKey('governance-workspace-generate-report'),
-            label: _generatingMorningReport
-                ? 'Generating Morning Report'
-                : 'Refresh Morning Report',
-            onTap: _generatingMorningReport ? null : _generateMorningReport,
-          ),
-        ],
         if (_activeSceneActionFocus != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           _governanceActionButton(
             key: const ValueKey('governance-workspace-clear-focus'),
             label: 'Clear Scene Focus',
@@ -1446,20 +1435,20 @@ class _GovernancePageState extends State<GovernancePage> {
           ),
         ],
         if (_hasSceneActionFocusOptions(report)) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             'SCENE FOCUS',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 5,
+            runSpacing: 5,
             children: [
               if (report.latestActionTaken.trim().isNotEmpty)
                 _sceneActionFocusChip(
@@ -1501,7 +1490,7 @@ class _GovernancePageState extends State<GovernancePage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -1514,7 +1503,7 @@ class _GovernancePageState extends State<GovernancePage> {
               text: '$label ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 9,
+                fontSize: 8,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1522,7 +1511,7 @@ class _GovernancePageState extends State<GovernancePage> {
               text: value,
               style: GoogleFonts.inter(
                 color: accent,
-                fontSize: 9,
+                fontSize: 8,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -1565,14 +1554,14 @@ class _GovernancePageState extends State<GovernancePage> {
                     ? const Color(0xFFF59E0B)
                     : const Color(0xFF22C55E),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _governanceKeyValueRow(
                 'Scene Posture',
                 report.topScenePosture.trim().isEmpty
                     ? 'No scene posture captured'
                     : report.topScenePosture,
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 5),
               _governanceKeyValueRow(
                 'Override Pressure',
                 report.overrideReasonSummary.trim().isEmpty
@@ -1582,7 +1571,7 @@ class _GovernancePageState extends State<GovernancePage> {
               const SizedBox(height: 6),
               _governanceKeyValueRow('Receipt Summary', receiptSummary),
               if (!hasReceiptSummary) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 _governanceRecoveryDeck(
                   key: const ValueKey('governance-context-receipt-recovery'),
                   title: 'Receipt summary pending',
@@ -1623,7 +1612,7 @@ class _GovernancePageState extends State<GovernancePage> {
                 ),
               ],
               if (!canOpenEvents) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 _governanceRecoveryDeck(
                   key: const ValueKey('governance-context-events-recovery'),
                   title: 'Event trail awaiting new signals',
@@ -1666,12 +1655,12 @@ class _GovernancePageState extends State<GovernancePage> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _complianceSummarySurface(report: report),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _quickActionsSurface(report: report),
         if (includeSupportDeck && now != null && fleet != null) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           _governanceSupportDeck(
             report: report,
             vigilance: vigilance,
@@ -1692,7 +1681,7 @@ class _GovernancePageState extends State<GovernancePage> {
           label,
           style: GoogleFonts.inter(
             color: const Color(0xFF8EA4C2),
-            fontSize: 9.5,
+            fontSize: 9,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.45,
           ),
@@ -1702,7 +1691,7 @@ class _GovernancePageState extends State<GovernancePage> {
           value,
           style: GoogleFonts.inter(
             color: const Color(0xFFEAF4FF),
-            fontSize: 10.5,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
             height: 1.35,
           ),
@@ -1907,14 +1896,14 @@ class _GovernancePageState extends State<GovernancePage> {
         : 'GLOBAL READINESS';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF122237), Color(0xFF0C1727)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: LayoutBuilder(
@@ -1927,10 +1916,10 @@ class _GovernancePageState extends State<GovernancePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 50,
-                    height: 50,
+                    width: 28,
+                    height: 28,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(8),
                       gradient: const LinearGradient(
                         colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
                         begin: Alignment.topLeft,
@@ -1940,10 +1929,10 @@ class _GovernancePageState extends State<GovernancePage> {
                     child: const Icon(
                       Icons.verified_user_outlined,
                       color: Colors.white,
-                      size: 26,
+                      size: 15,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1952,16 +1941,16 @@ class _GovernancePageState extends State<GovernancePage> {
                           'Governance & Compliance',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 20 : 24,
+                            fontSize: compact ? 14.5 : 16,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 2),
                         Text(
                           'Sovereign reporting, readiness monitoring, and evidence compliance.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF95A9C7),
-                            fontSize: 12,
+                            fontSize: 8.5,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1970,10 +1959,10 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 3),
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 3,
+                runSpacing: 3,
                 children: [
                   _heroChip('Report View', reportViewLabel),
                   _heroChip('Scope', scopeLabel),
@@ -1996,13 +1985,13 @@ class _GovernancePageState extends State<GovernancePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 3),
               _commandReceiptPanel(),
             ],
           );
           final actions = Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             alignment: WrapAlignment.end,
             children: [
               _heroActionButton(
@@ -2030,16 +2019,16 @@ class _GovernancePageState extends State<GovernancePage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 12), actions],
+              children: [titleBlock, const SizedBox(height: 3), actions],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: titleBlock),
-              const SizedBox(width: 12),
+              const SizedBox(width: 3),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 292),
+                constraints: const BoxConstraints(maxWidth: 204),
                 child: actions,
               ),
             ],
@@ -2052,7 +2041,7 @@ class _GovernancePageState extends State<GovernancePage> {
   Widget _heroChip(String label, String value, {Color? accent}) {
     final resolvedAccent = accent ?? const Color(0xFFE8F1FF);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2.5),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -2065,7 +2054,7 @@ class _GovernancePageState extends State<GovernancePage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 10,
+                fontSize: 8,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2073,7 +2062,7 @@ class _GovernancePageState extends State<GovernancePage> {
               text: value,
               style: GoogleFonts.inter(
                 color: resolvedAccent,
-                fontSize: 10,
+                fontSize: 8,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -2087,10 +2076,10 @@ class _GovernancePageState extends State<GovernancePage> {
     return Container(
       key: const ValueKey('governance-command-receipt'),
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: _commandReceipt.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: _commandReceipt.accent.withValues(alpha: 0.3),
         ),
@@ -2099,22 +2088,22 @@ class _GovernancePageState extends State<GovernancePage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 18,
+            height: 18,
             decoration: BoxDecoration(
               color: _commandReceipt.accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(5),
               border: Border.all(
                 color: _commandReceipt.accent.withValues(alpha: 0.28),
               ),
             ),
             child: Icon(
               _commandReceipt.icon,
-              size: 16,
+              size: 9,
               color: _commandReceipt.accent,
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2123,7 +2112,7 @@ class _GovernancePageState extends State<GovernancePage> {
                   'Last command',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF8EA4C2),
-                    fontSize: 9.5,
+                    fontSize: 7.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -2133,9 +2122,11 @@ class _GovernancePageState extends State<GovernancePage> {
                   key: const ValueKey('governance-command-receipt-headline'),
                   style: GoogleFonts.inter(
                     color: const Color(0xFFEAF4FF),
-                    fontSize: 11,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.w800,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -2143,10 +2134,12 @@ class _GovernancePageState extends State<GovernancePage> {
                   key: const ValueKey('governance-command-receipt-detail'),
                   style: GoogleFonts.inter(
                     color: const Color(0xFFB6C8E2),
-                    fontSize: 10,
+                    fontSize: 7.5,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -2166,7 +2159,7 @@ class _GovernancePageState extends State<GovernancePage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 16),
+      icon: Icon(icon, size: 14),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
@@ -2174,12 +2167,12 @@ class _GovernancePageState extends State<GovernancePage> {
         disabledBackgroundColor: const Color(0x12000000),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
         textStyle: GoogleFonts.inter(
-          fontSize: 11.5,
+          fontSize: 8.5,
           fontWeight: FontWeight.w700,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }
@@ -2195,28 +2188,28 @@ class _GovernancePageState extends State<GovernancePage> {
         : 'All';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1726),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF243548)),
       ),
       child: Wrap(
-        spacing: 10,
-        runSpacing: 8,
+        spacing: 5,
+        runSpacing: 5,
         crossAxisAlignment: WrapCrossAlignment.center,
         alignment: WrapAlignment.spaceBetween,
         children: [
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 4,
+            runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'REPORT VIEW:',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF7F93AE),
-                  fontSize: 11,
+                  fontSize: 8.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                 ),
@@ -2234,15 +2227,15 @@ class _GovernancePageState extends State<GovernancePage> {
             ],
           ),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 4,
+            runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'SCOPE:',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF7F93AE),
-                  fontSize: 11,
+                  fontSize: 8.5,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                 ),
@@ -2269,10 +2262,10 @@ class _GovernancePageState extends State<GovernancePage> {
     required bool active,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: active ? const Color(0xFF112A22) : const Color(0xFF0D1522),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(
           color: active ? const Color(0xFF22C55E) : const Color(0xFF2B3B4C),
         ),
@@ -2282,15 +2275,15 @@ class _GovernancePageState extends State<GovernancePage> {
         children: [
           Icon(
             icon,
-            size: 14,
+            size: 10,
             color: active ? const Color(0xFF22E39E) : const Color(0xFFD2DCEC),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           Text(
             label,
             style: GoogleFonts.inter(
               color: active ? const Color(0xFF22E39E) : const Color(0xFFDCE6F5),
-              fontSize: 12,
+              fontSize: 9,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -2301,10 +2294,10 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Widget _reportScopePill({required String label, required bool active}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: active ? const Color(0xFF241A41) : const Color(0xFF0D1522),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(
           color: active ? const Color(0xFF8B5CF6) : const Color(0xFF2B3B4C),
         ),
@@ -2313,7 +2306,7 @@ class _GovernancePageState extends State<GovernancePage> {
         label,
         style: GoogleFonts.inter(
           color: active ? const Color(0xFFD9B8FF) : const Color(0xFFDCE6F5),
-          fontSize: 12,
+          fontSize: 9,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -2362,10 +2355,10 @@ class _GovernancePageState extends State<GovernancePage> {
                 actionLabel: 'Resolve',
                 onTap: () => _resolveComplianceIssue(issue),
               ),
-              if (issue != blockers.take(2).last) const SizedBox(height: 10),
+              if (issue != blockers.take(2).last) const SizedBox(height: 8),
             ],
           if (report.latestActionTaken.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             _governanceInfoCallout(
               title: 'Latest action focus',
               detail: report.latestActionTaken,
@@ -2405,7 +2398,7 @@ class _GovernancePageState extends State<GovernancePage> {
                 footer: 'Guards',
                 accent: const Color(0xFFF59E0B),
               ),
-              if (issue != nonBlockers.take(2).last) const SizedBox(height: 10),
+              if (issue != nonBlockers.take(2).last) const SizedBox(height: 8),
             ],
         ],
       ),
@@ -2432,10 +2425,10 @@ class _GovernancePageState extends State<GovernancePage> {
                   'Partner dispatch escalation is available, but no active chains are currently staged. Use the scoped recovery actions below to keep the current governance lane moving.',
               accent: const Color(0xFF8EA4C2),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 if (hasScopedEvents)
                   _governanceMiniAction(
@@ -2463,7 +2456,7 @@ class _GovernancePageState extends State<GovernancePage> {
             for (final chain in report.partnerDispatchChains.take(3)) ...[
               _partnerDispatchChainRow(chain),
               if (chain != report.partnerDispatchChains.take(3).last)
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
             ],
           ],
         ],
@@ -2492,7 +2485,7 @@ class _GovernancePageState extends State<GovernancePage> {
                 ? _openGovernanceEventsReview
                 : null,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _governanceSummaryCard(
             label: report.generatedReports > 0 ? 'PENDING' : 'READY',
             category: 'Reporting',
@@ -2505,7 +2498,7 @@ class _GovernancePageState extends State<GovernancePage> {
             buttonLabel: 'View Report ${report.reportDate}',
             onTap: _openPrimaryGovernanceReports(report),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _governanceSummaryCard(
             label: report.totalBlocked == 0 ? 'VERIFIED' : 'FAILED',
             category: 'Response-Time',
@@ -2537,13 +2530,13 @@ class _GovernancePageState extends State<GovernancePage> {
             label: canOpenEvents ? 'View All Events' : 'Recover Event Scope',
             onTap: _openGovernanceEventsAction(report),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _governanceActionButton(
             key: const ValueKey('governance-quick-view-reports-button'),
             label: 'View All Reports',
             onTap: _openPrimaryGovernanceReports(report),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           _governanceActionButton(
             key: const ValueKey('governance-quick-view-ledger-button'),
             label: canOpenLedger ? 'View Ledger' : 'Recover Ledger Continuity',
@@ -2642,8 +2635,8 @@ class _GovernancePageState extends State<GovernancePage> {
       subtitle:
           'Global posture, synthetic escalation pressure, and report policy signals',
       child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
+        spacing: 8,
+        runSpacing: 8,
         children: [
           _reportMetric(
             key: const ValueKey('governance-metric-global-readiness'),
@@ -2718,14 +2711,14 @@ class _GovernancePageState extends State<GovernancePage> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: const Color(0xFF0C1522),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2737,17 +2730,17 @@ class _GovernancePageState extends State<GovernancePage> {
                         title,
                         style: GoogleFonts.inter(
                           color: const Color(0xFFF4F8FF),
-                          fontSize: 15,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       if (subtitle != null && subtitle.trim().isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           subtitle,
                           style: GoogleFonts.inter(
                             color: const Color(0xFF8EA4C2),
-                            fontSize: 12,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -2755,13 +2748,13 @@ class _GovernancePageState extends State<GovernancePage> {
                     ],
                   ),
                 ),
-                if (trailing != null) ...[const SizedBox(width: 10), trailing],
+                if (trailing != null) ...[const SizedBox(width: 6), trailing],
               ],
             ),
           ),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(10),
             decoration: const BoxDecoration(
               border: Border(top: BorderSide(color: Color(0xFF1B2A3D))),
             ),
@@ -2774,17 +2767,17 @@ class _GovernancePageState extends State<GovernancePage> {
 
   Widget _statusBadge(String label, {required Color color}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
           color: color,
-          fontSize: 11,
+          fontSize: 9.5,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.6,
         ),
@@ -2803,10 +2796,10 @@ class _GovernancePageState extends State<GovernancePage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: accent.withValues(alpha: 0.45)),
       ),
       child: Column(
@@ -2824,32 +2817,32 @@ class _GovernancePageState extends State<GovernancePage> {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
             title,
             style: GoogleFonts.inter(
               color: const Color(0xFFF5F8FF),
-              fontSize: 15,
+              fontSize: 13.5,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Text(
             footer,
             style: GoogleFonts.inter(
               color: const Color(0xFF94A8C4),
-              fontSize: 11,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFFD3DDED),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
-              height: 1.45,
+              height: 1.4,
             ),
           ),
         ],
@@ -2864,10 +2857,10 @@ class _GovernancePageState extends State<GovernancePage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
       child: Column(
@@ -2877,18 +2870,18 @@ class _GovernancePageState extends State<GovernancePage> {
             title,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 14,
+              fontSize: 12.5,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFFD8E2F0),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
-              height: 1.45,
+              height: 1.4,
             ),
           ),
         ],
@@ -2906,14 +2899,14 @@ class _GovernancePageState extends State<GovernancePage> {
     return Container(
       key: key,
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [accent.withValues(alpha: 0.18), const Color(0xFF101A28)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(11),
         border: Border.all(color: accent.withValues(alpha: 0.34)),
       ),
       child: Column(
@@ -2923,24 +2916,24 @@ class _GovernancePageState extends State<GovernancePage> {
             title.toUpperCase(),
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.55,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFFD9E7F6),
-              fontSize: 10.5,
+              fontSize: 9.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
             ),
           ),
           if (actions.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(spacing: 8, runSpacing: 8, children: actions),
+            const SizedBox(height: 6),
+            Wrap(spacing: 5, runSpacing: 5, children: actions),
           ],
         ],
       ),
@@ -2957,37 +2950,37 @@ class _GovernancePageState extends State<GovernancePage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.09),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: accent.withValues(alpha: 0.32)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _statusBadge(label, color: accent),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Text(
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFFEAF2FF),
-              fontSize: 13,
+              fontSize: 11.5,
               fontWeight: FontWeight.w700,
-              height: 1.45,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Text(
             category.toUpperCase(),
             style: GoogleFonts.inter(
               color: const Color(0xFF7E91AC),
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           _governanceActionButton(label: buttonLabel, onTap: onTap),
         ],
       ),
@@ -3007,10 +3000,8 @@ class _GovernancePageState extends State<GovernancePage> {
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFEAF2FF),
           side: const BorderSide(color: Color(0xFF304256)),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         ),
         child: Row(
           children: [
@@ -3018,12 +3009,12 @@ class _GovernancePageState extends State<GovernancePage> {
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  fontSize: 13,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, size: 18),
+            const Icon(Icons.chevron_right_rounded, size: 14),
           ],
         ),
       ),
@@ -3042,12 +3033,12 @@ class _GovernancePageState extends State<GovernancePage> {
       style: TextButton.styleFrom(
         foregroundColor: accent,
         backgroundColor: accent.withValues(alpha: 0.12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
+        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -3207,31 +3198,45 @@ class _GovernancePageState extends State<GovernancePage> {
             ],
           ),
           const SizedBox(height: 7),
-          Row(
-            children: [
-              Text(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compactStatusRow = constraints.maxWidth < 120;
+              final statusText = Text(
                 'Status: ${status.name.toUpperCase()}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(
                   color: color,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
-              ),
-              const Spacer(),
-              Flexible(
-                child: Text(
-                  actionLabel,
-                  textAlign: TextAlign.right,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: color.withValues(alpha: 0.9),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
-                  ),
+              );
+              final actionText = Text(
+                actionLabel,
+                textAlign: compactStatusRow ? TextAlign.left : TextAlign.right,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: color.withValues(alpha: 0.9),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.3,
                 ),
-              ),
-            ],
+              );
+              if (compactStatusRow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [statusText, const SizedBox(height: 2), actionText],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: statusText),
+                  const SizedBox(width: 6),
+                  Flexible(child: actionText),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -7427,7 +7432,7 @@ class _GovernancePageState extends State<GovernancePage> {
     VoidCallback? onTap,
   }) {
     final content = Container(
-      padding: const EdgeInsets.all(9),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(8),
@@ -7440,16 +7445,16 @@ class _GovernancePageState extends State<GovernancePage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 9.5,
+              fontSize: 9,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             value,
             style: GoogleFonts.inter(
               color: color,
-              fontSize: 12.5,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -7458,17 +7463,17 @@ class _GovernancePageState extends State<GovernancePage> {
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFF9CB2D1),
-              fontSize: 9.5,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (onTap != null) ...[
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
               'Tap to drill in',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8FD1FF),
-                fontSize: 9.5,
+                fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -7478,7 +7483,7 @@ class _GovernancePageState extends State<GovernancePage> {
     );
     return SizedBox(
       key: key,
-      width: 236,
+      width: 224,
       child: onTap == null
           ? content
           : InkWell(

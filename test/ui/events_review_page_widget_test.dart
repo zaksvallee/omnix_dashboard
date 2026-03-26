@@ -255,10 +255,10 @@ void main() {
     );
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('events-workspace-banner-focus-ai-decision')),
+      find.byKey(const ValueKey('events-workspace-focus-ai-decision')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('events-workspace-banner-focus-ai-decision')),
+      find.byKey(const ValueKey('events-workspace-focus-ai-decision')),
     );
     await tester.pumpAndSettle();
 
@@ -275,28 +275,28 @@ void main() {
     expect(find.text('Alarm requires human escalation.'), findsNothing);
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('events-selected-focus-open-governance')),
+      find.byKey(const ValueKey('events-workspace-open-governance')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('events-selected-focus-open-governance')),
+      find.byKey(const ValueKey('events-workspace-open-governance')),
     );
     await tester.pumpAndSettle();
     expect(governanceOpened, isTrue);
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('events-selected-focus-open-ledger')),
+      find.byKey(const ValueKey('events-workspace-open-ledger')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('events-selected-focus-open-ledger')),
+      find.byKey(const ValueKey('events-workspace-open-ledger')),
     );
     await tester.pumpAndSettle();
     expect(openedLedgerFocus, 'INT-WS-1');
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('events-selected-focus-copy')),
+      find.byKey(const ValueKey('events-workspace-copy-selected')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('events-selected-focus-copy')),
+      find.byKey(const ValueKey('events-workspace-copy-selected')),
     );
     await tester.pump();
     expect(copiedClipboardPayload, contains('"eventId": "INT-WS-1"'));

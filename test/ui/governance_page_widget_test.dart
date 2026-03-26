@@ -211,19 +211,28 @@ void main() {
       find.byKey(const ValueKey('governance-workspace-panel-context')),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('governance-command-receipt')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('governance-command-receipt')),
+      findsOneWidget,
+    );
     expect(find.text('Governance relay ready'), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-view-events-button')),
+    );
     await tester.tap(
-      find.byKey(const ValueKey('governance-workspace-open-events')),
+      find.byKey(const ValueKey('governance-view-events-button')),
     );
     await tester.pumpAndSettle();
     expect(openedEventIds, ['evt-workspace-1']);
     expect(openedSelectedEventId, 'evt-workspace-1');
     expect(find.text('Events review opened'), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-quick-view-reports-button')),
+    );
     await tester.tap(
-      find.byKey(const ValueKey('governance-workspace-open-reports')),
+      find.byKey(const ValueKey('governance-quick-view-reports-button')),
     );
     await tester.pumpAndSettle();
     expect(openedReportsClientId, 'CLIENT-1');
@@ -232,7 +241,7 @@ void main() {
     expect(find.text('Report workspace opened'), findsOneWidget);
 
     await tester.tap(
-      find.byKey(const ValueKey('governance-workspace-open-ledger')),
+      find.byKey(const ValueKey('governance-quick-view-ledger-button')),
     );
     await tester.pumpAndSettle();
     expect(openedLedgerClientId, 'CLIENT-1');
@@ -240,10 +249,10 @@ void main() {
     expect(find.text('Ledger continuity opened'), findsOneWidget);
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('governance-workspace-generate-report')),
+      find.byKey(const ValueKey('governance-generate-report-button')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('governance-workspace-generate-report')),
+      find.byKey(const ValueKey('governance-generate-report-button')),
     );
     await tester.pumpAndSettle();
     expect(generatedReportCount, 1);
@@ -255,134 +264,136 @@ void main() {
     await tester.pumpAndSettle();
     expect(focusChanges.last, GovernanceSceneActionFocus.latestAction);
 
-    await tester.tap(find.byKey(const ValueKey('governance-workspace-clear-focus')));
+    await tester.tap(
+      find.byKey(const ValueKey('governance-workspace-clear-focus')),
+    );
     await tester.pumpAndSettle();
     expect(focusChanges.last, isNull);
   });
 
-  testWidgets(
-    'governance desktop recovery decks keep empty scope actionable',
-    (tester) async {
-      tester.view.physicalSize = const Size(1440, 980);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+  testWidgets('governance desktop recovery decks keep empty scope actionable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
-      var reportsOpenCount = 0;
-      String? openedReportsClientId;
-      String? openedReportsSiteId;
-      var generatedReportCount = 0;
+    var reportsOpenCount = 0;
+    String? openedReportsClientId;
+    String? openedReportsSiteId;
+    var generatedReportCount = 0;
 
-      final report = SovereignReport(
-        date: '2026-03-10',
-        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 12,
-          hashVerified: true,
-          integrityScore: 99,
+    final report = SovereignReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 12,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 4,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 2,
+        driftDetected: 0,
+        avgMatchScore: 96,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 0,
+        trackedConfigurationReports: 0,
+        legacyConfigurationReports: 0,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 0,
+        omittedAiDecisionLogReports: 0,
+        omittedGuardMetricsReports: 0,
+        headline: '',
+        summaryLine: '',
+        latestReportSummary: '',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const <DispatchEvent>[],
+          morningSovereignReport: report,
+          initialScopeClientId: 'CLIENT-1',
+          initialScopeSiteId: 'SITE-42',
+          onOpenReportsForScope: (clientId, siteId) {
+            reportsOpenCount += 1;
+            openedReportsClientId = clientId;
+            openedReportsSiteId = siteId;
+          },
+          onGenerateMorningSovereignReport: () async {
+            generatedReportCount += 1;
+          },
         ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 4,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 2,
-          driftDetected: 0,
-          avgMatchScore: 96,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-        receiptPolicy: const SovereignReportReceiptPolicy(
-          generatedReports: 0,
-          trackedConfigurationReports: 0,
-          legacyConfigurationReports: 0,
-          fullyIncludedReports: 0,
-          reportsWithOmittedSections: 0,
-          omittedAiDecisionLogReports: 0,
-          omittedGuardMetricsReports: 0,
-          headline: '',
-          summaryLine: '',
-          latestReportSummary: '',
-        ),
-      );
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GovernancePage(
-            events: const <DispatchEvent>[],
-            morningSovereignReport: report,
-            initialScopeClientId: 'CLIENT-1',
-            initialScopeSiteId: 'SITE-42',
-            onOpenReportsForScope: (clientId, siteId) {
-              reportsOpenCount += 1;
-              openedReportsClientId = clientId;
-              openedReportsSiteId = siteId;
-            },
-            onGenerateMorningSovereignReport: () async {
-              generatedReportCount += 1;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    expect(find.text('Recover Event Scope'), findsOneWidget);
+    expect(find.text('Recover Ledger Continuity'), findsOneWidget);
+    expect(find.text('RECEIPT SUMMARY PENDING'), findsOneWidget);
+    expect(find.text('EVENT TRAIL AWAITING NEW SIGNALS'), findsOneWidget);
 
-      expect(find.text('Recover Event Scope'), findsNWidgets(2));
-      expect(find.text('Recover Ledger Continuity'), findsNWidgets(2));
-      expect(find.text('RECEIPT SUMMARY PENDING'), findsOneWidget);
-      expect(find.text('EVENT TRAIL AWAITING NEW SIGNALS'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-quick-view-events-button')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-quick-view-events-button')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const ValueKey('governance-workspace-open-events')),
-      );
-      await tester.pumpAndSettle();
+    expect(reportsOpenCount, 1);
+    expect(openedReportsClientId, 'CLIENT-1');
+    expect(openedReportsSiteId, 'SITE-42');
+    expect(find.text('Report workspace opened'), findsOneWidget);
 
-      expect(reportsOpenCount, 1);
-      expect(openedReportsClientId, 'CLIENT-1');
-      expect(openedReportsSiteId, 'SITE-42');
-      expect(find.text('Report workspace opened'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-quick-view-ledger-button')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-quick-view-ledger-button')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('governance-quick-view-ledger-button')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('governance-quick-view-ledger-button')),
-      );
-      await tester.pumpAndSettle();
+    expect(reportsOpenCount, 2);
 
-      expect(reportsOpenCount, 2);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-context-events-open-reports')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-context-events-open-reports')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('governance-context-events-open-reports')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('governance-context-events-open-reports')),
-      );
-      await tester.pumpAndSettle();
+    expect(reportsOpenCount, 3);
 
-      expect(reportsOpenCount, 3);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-context-receipt-refresh-report')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-context-receipt-refresh-report')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(
-          const ValueKey('governance-context-receipt-refresh-report'),
-        ),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('governance-context-receipt-refresh-report')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(generatedReportCount, 1);
-      expect(find.text('Morning report generated'), findsOneWidget);
-    },
-  );
+    expect(generatedReportCount, 1);
+    expect(find.text('Morning report generated'), findsOneWidget);
+  });
 
   testWidgets(
     'governance empty partner chain surface routes scoped recovery actions',
@@ -590,7 +601,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('governance-view-events-button')));
+    await tester.tap(
+      find.byKey(const ValueKey('governance-view-events-button')),
+    );
     await tester.pumpAndSettle();
 
     expect(openedEventIds, ['evt-scope-1']);
@@ -652,9 +665,7 @@ void main() {
     expect(openedSiteId, 'SITE-VALLEE');
   });
 
-  testWidgets('governance readiness blockers resolve in place', (
-    tester,
-  ) async {
+  testWidgets('governance readiness blockers resolve in place', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(home: GovernancePage(events: <DispatchEvent>[])),
     );
@@ -1023,9 +1034,7 @@ void main() {
     expect(copiedPayload, contains('"shadowSiteCount": 1'));
     expect(copiedPayload, contains('"sites": ['));
     expect(
-      find.byKey(
-        const ValueKey('governance-global-readiness-shadow-receipt'),
-      ),
+      find.byKey(const ValueKey('governance-global-readiness-shadow-receipt')),
       findsOneWidget,
     );
     expect(find.text('Shadow dossier copied'), findsWidgets);
@@ -2498,10 +2507,7 @@ void main() {
       find.text('Workflow: ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
       findsWidgets,
     );
-    expect(
-      find.text('SLA: accepted in 5.0m • on site in 13.0m'),
-      findsWidgets,
-    );
+    expect(find.text('SLA: accepted in 5.0m • on site in 13.0m'), findsWidgets);
     expect(find.text('STRONG'), findsWidgets);
     expect(
       find.text(
@@ -2511,10 +2517,7 @@ void main() {
     );
     expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);
     expect(find.textContaining('Incomplete visit • CA123456'), findsOneWidget);
-    expect(
-      find.text('Workflow: ENTRY -> SERVICE (INCOMPLETE)'),
-      findsWidgets,
-    );
+    expect(find.text('Workflow: ENTRY -> SERVICE (INCOMPLETE)'), findsWidgets);
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(find.text('Download Morning CSV'), findsOneWidget);
     expectTextButtonDisabled(tester, 'Download Morning JSON');
@@ -2926,140 +2929,137 @@ void main() {
     );
   });
 
-  testWidgets(
-    'governance receipt policy empty shift exposes recovery pivots',
-    (tester) async {
-      String? openedReportsClientId;
-      String? openedReportsSiteId;
-      String? openedLedgerClientId;
-      String? openedLedgerSiteId;
-      var generatedReportCount = 0;
+  testWidgets('governance receipt policy empty shift exposes recovery pivots', (
+    tester,
+  ) async {
+    String? openedReportsClientId;
+    String? openedReportsSiteId;
+    String? openedLedgerClientId;
+    String? openedLedgerSiteId;
+    var generatedReportCount = 0;
 
-      final report = SovereignReport(
-        date: '2026-03-10',
-        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 10,
-          hashVerified: true,
-          integrityScore: 99,
+    final report = SovereignReport(
+      date: '2026-03-10',
+      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
+      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      receiptPolicy: const SovereignReportReceiptPolicy(
+        generatedReports: 0,
+        trackedConfigurationReports: 0,
+        legacyConfigurationReports: 0,
+        fullyIncludedReports: 0,
+        reportsWithOmittedSections: 0,
+        omittedAiDecisionLogReports: 0,
+        omittedGuardMetricsReports: 0,
+        headline: '',
+        summaryLine: '',
+        latestReportSummary: '',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const <DispatchEvent>[],
+          morningSovereignReport: report,
+          initialScopeClientId: 'CLIENT-1',
+          initialScopeSiteId: 'SITE-42',
+          onOpenReportsForScope: (clientId, siteId) {
+            openedReportsClientId = clientId;
+            openedReportsSiteId = siteId;
+          },
+          onOpenLedgerForScope: (clientId, siteId) {
+            openedLedgerClientId = clientId;
+            openedLedgerSiteId = siteId;
+          },
+          onGenerateMorningSovereignReport: () async {
+            generatedReportCount += 1;
+          },
         ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 1,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 1,
-          driftDetected: 0,
-          avgMatchScore: 100,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-        receiptPolicy: const SovereignReportReceiptPolicy(
-          generatedReports: 0,
-          trackedConfigurationReports: 0,
-          legacyConfigurationReports: 0,
-          fullyIncludedReports: 0,
-          reportsWithOmittedSections: 0,
-          omittedAiDecisionLogReports: 0,
-          omittedGuardMetricsReports: 0,
-          headline: '',
-          summaryLine: '',
-          latestReportSummary: '',
-        ),
-      );
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GovernancePage(
-            events: const <DispatchEvent>[],
-            morningSovereignReport: report,
-            initialScopeClientId: 'CLIENT-1',
-            initialScopeSiteId: 'SITE-42',
-            onOpenReportsForScope: (clientId, siteId) {
-              openedReportsClientId = clientId;
-              openedReportsSiteId = siteId;
-            },
-            onOpenLedgerForScope: (clientId, siteId) {
-              openedLedgerClientId = clientId;
-              openedLedgerSiteId = siteId;
-            },
-            onGenerateMorningSovereignReport: () async {
-              generatedReportCount += 1;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-metric-receipt-policy')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-metric-receipt-policy')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('governance-metric-receipt-policy')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('governance-metric-receipt-policy')),
-      );
-      await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('governance-receipt-policy-empty-recovery')),
+      findsOneWidget,
+    );
+    expect(find.text('RECEIPT LANE RECOVERY READY'), findsOneWidget);
 
-      expect(
-        find.byKey(const ValueKey('governance-receipt-policy-empty-recovery')),
-        findsOneWidget,
-      );
-      expect(find.text('RECEIPT LANE RECOVERY READY'), findsOneWidget);
+    await tester.tap(
+      find.byKey(
+        const ValueKey('governance-receipt-policy-empty-open-reports'),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(
-          const ValueKey('governance-receipt-policy-empty-open-reports'),
-        ),
-      );
-      await tester.pumpAndSettle();
+    expect(openedReportsClientId, 'CLIENT-1');
+    expect(openedReportsSiteId, 'SITE-42');
+    expect(find.text('Report workspace opened'), findsOneWidget);
 
-      expect(openedReportsClientId, 'CLIENT-1');
-      expect(openedReportsSiteId, 'SITE-42');
-      expect(find.text('Report workspace opened'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-metric-receipt-policy')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-metric-receipt-policy')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('governance-metric-receipt-policy')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('governance-metric-receipt-policy')),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('governance-receipt-policy-empty-open-ledger')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(
-          const ValueKey('governance-receipt-policy-empty-open-ledger'),
-        ),
-      );
-      await tester.pumpAndSettle();
+    expect(openedLedgerClientId, 'CLIENT-1');
+    expect(openedLedgerSiteId, 'SITE-42');
+    expect(find.text('Ledger continuity opened'), findsOneWidget);
 
-      expect(openedLedgerClientId, 'CLIENT-1');
-      expect(openedLedgerSiteId, 'SITE-42');
-      expect(find.text('Ledger continuity opened'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-metric-receipt-policy')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-metric-receipt-policy')),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('governance-metric-receipt-policy')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('governance-metric-receipt-policy')),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(
+        const ValueKey('governance-receipt-policy-empty-refresh-report'),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(
-          const ValueKey('governance-receipt-policy-empty-refresh-report'),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(generatedReportCount, 1);
-      expect(find.text('Morning report generated'), findsOneWidget);
-    },
-  );
+    expect(generatedReportCount, 1);
+    expect(find.text('Morning report generated'), findsOneWidget);
+  });
 
   testWidgets('governance page shows listener alarm metric from audit events', (
     tester,
@@ -3344,9 +3344,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.byKey(
-          const ValueKey('governance-listener-parity-empty-recovery'),
-        ),
+        find.byKey(const ValueKey('governance-listener-parity-empty-recovery')),
         findsOneWidget,
       );
       expect(find.text('LISTENER PARITY PENDING'), findsOneWidget);
@@ -3726,8 +3724,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-quick-view-reports-button')),
+      );
       await tester.tap(
-        find.byKey(const ValueKey('governance-workspace-open-reports')),
+        find.byKey(const ValueKey('governance-quick-view-reports-button')),
       );
       await tester.pumpAndSettle();
 
@@ -3735,7 +3736,9 @@ void main() {
       expect(openedSiteId, 'SITE-42');
       expect(find.text('Report workspace opened'), findsOneWidget);
       expect(
-        find.textContaining('keeping Partner Alpha as the active partner context'),
+        find.textContaining(
+          'keeping Partner Alpha as the active partner context',
+        ),
         findsOneWidget,
       );
     },
@@ -3813,8 +3816,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-quick-view-reports-button')),
+      );
       await tester.tap(
-        find.byKey(const ValueKey('governance-workspace-open-reports')),
+        find.byKey(const ValueKey('governance-quick-view-reports-button')),
       );
       await tester.pumpAndSettle();
 
@@ -6536,7 +6542,9 @@ void main() {
 
     expect(copiedPayload, isNotNull);
     expect(
-      find.text('Morning report JSON copied for command review with Recent actions focus'),
+      find.text(
+        'Morning report JSON copied for command review with Recent actions focus',
+      ),
       findsOneWidget,
     );
     expect(copiedPayload, contains('"focusedLens"'));

@@ -152,6 +152,8 @@ class _ClientsPageState extends State<ClientsPage> {
               : 1760.0;
           final communicationsBoard = Column(
             children: [
+              _messageHistoryCard(rows),
+              const SizedBox(height: 8),
               _roomThreadContextCard(
                 currentClient: currentClient,
                 currentSite: currentSite,
@@ -172,8 +174,6 @@ class _ClientsPageState extends State<ClientsPage> {
                     backendProbeLower.contains('ok'),
                 pendingAsks: pendingAsks,
               ),
-              const SizedBox(height: 8),
-              _messageHistoryCard(rows),
             ],
           );
           final contextRail = Column(
@@ -237,9 +237,9 @@ class _ClientsPageState extends State<ClientsPage> {
                 );
 
           return OnyxViewportWorkspaceLayout(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
             maxWidth: surfaceMaxWidth,
-            spacing: 8,
+            spacing: 6,
             lockToViewport: boundedDesktopSurface,
             header: _heroHeader(
               currentClient: currentClient,
@@ -247,6 +247,21 @@ class _ClientsPageState extends State<ClientsPage> {
               unreadAlerts: unreadAlerts,
               pendingAsks: pendingAsks,
               directUpdates: directUpdates,
+              desktopStatusCard: desktopWorkspace
+                  ? _clientsWorkspaceStatusBanner(
+                      currentClient: currentClient,
+                      currentSite: currentSite,
+                      unreadAlerts: unreadAlerts,
+                      pendingAsks: pendingAsks,
+                      directUpdates: directUpdates,
+                      activeIncidents: activeIncidents,
+                      reviewEventId: reviewEventId,
+                      pushRetryAvailable: widget.onRetryPushSync != null,
+                      roomRoutingAvailable:
+                          widget.onOpenClientRoomForScope != null,
+                      shellless: true,
+                    )
+                  : null,
             ),
             body: body,
           );
@@ -273,22 +288,32 @@ class _ClientsPageState extends State<ClientsPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final workspaceWidth = constraints.maxWidth;
-        final ultrawideWorkspace = workspaceWidth >= 2600;
-        final widescreenWorkspace = workspaceWidth >= 2000;
-        final railGap = ultrawideWorkspace ? 10.0 : 6.0;
+        final stretchPanels =
+            constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
+        final ultrawideWorkspace = isUltrawideLayout(
+          context,
+          viewportWidth: workspaceWidth,
+        );
+        final widescreenWorkspace = isWidescreenLayout(
+          context,
+          viewportWidth: workspaceWidth,
+        );
+        final railGap = ultrawideWorkspace ? 8.0 : 6.0;
         final leftRailWidth = ultrawideWorkspace
-            ? 326.0
+            ? 276.0
             : widescreenWorkspace
-            ? 306.0
-            : 292.0;
+            ? 264.0
+            : 248.0;
         final rightRailWidth = ultrawideWorkspace
-            ? 308.0
+            ? 260.0
             : widescreenWorkspace
-            ? 292.0
-            : 280.0;
+            ? 248.0
+            : 232.0;
 
         return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: stretchPanels
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.start,
           children: [
             SizedBox(
               width: leftRailWidth,
@@ -297,21 +322,10 @@ class _ClientsPageState extends State<ClientsPage> {
                 title: 'Client Ops Rail',
                 subtitle:
                     'Keep lane selection, active room state, and live communications handoffs visible while the message board stays anchored.',
+                shellless: true,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _clientsWorkspaceStatusBanner(
-                      currentClient: currentClient,
-                      currentSite: currentSite,
-                      unreadAlerts: unreadAlerts,
-                      pendingAsks: pendingAsks,
-                      directUpdates: directUpdates,
-                      activeIncidents: activeIncidents,
-                      reviewEventId: reviewEventId,
-                      pushRetryAvailable: pushRetryAvailable,
-                      roomRoutingAvailable: roomRoutingAvailable,
-                    ),
-                    const SizedBox(height: 10),
                     _activeLanesSection(
                       currentClient: currentClient,
                       currentSite: currentSite,
@@ -319,49 +333,15 @@ class _ClientsPageState extends State<ClientsPage> {
                       sites: sites,
                       pendingAsks: pendingAsks,
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Text(
-                      'COMMAND ACTIONS',
+                      'Draft review, room routing, push retry, and message history now stay pinned in the communications board so this rail can stay lane-first.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
+                        color: const Color(0xFF9CB2D1),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    _clientsWorkspaceActionButton(
-                      key: const ValueKey('clients-workspace-open-review'),
-                      label: 'Review Draft Queue',
-                      enabled: true,
-                      onTap: () => _reviewPendingDrafts(reviewEventId),
-                    ),
-                    const SizedBox(height: 8),
-                    _clientsWorkspaceActionButton(
-                      key: const ValueKey(
-                        'clients-workspace-open-residents-room',
-                      ),
-                      label: 'Open Residents Room',
-                      enabled: roomRoutingAvailable,
-                      onTap: roomRoutingAvailable
-                          ? () => _openClientRoom('Residents')
-                          : null,
-                    ),
-                    const SizedBox(height: 8),
-                    _clientsWorkspaceActionButton(
-                      key: const ValueKey('clients-workspace-retry-sync'),
-                      label: pendingAsks > 0
-                          ? 'Review Or Retry Push Sync'
-                          : 'Retry Push Sync',
-                      enabled: pushRetryAvailable,
-                      onTap: pushRetryAvailable ? _retryPushSync : null,
-                    ),
-                    const SizedBox(height: 8),
-                    _clientsWorkspaceActionButton(
-                      key: const ValueKey('clients-workspace-open-history'),
-                      label: 'Jump To Message History',
-                      enabled: true,
-                      onTap: _scrollToMessageHistory,
                     ),
                   ],
                 ),
@@ -374,6 +354,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 title: 'Communications Board',
                 subtitle:
                     'Selected room context, channel posture, and the live incident feed stay together in one command surface.',
+                shellless: true,
                 child: communicationsBoard,
               ),
             ),
@@ -385,12 +366,14 @@ class _ClientsPageState extends State<ClientsPage> {
                 title: 'Draft & Voice Rail',
                 subtitle:
                     'Pending reviews, learned tone, and pinned delivery posture remain visible while lane context changes.',
+                shellless: true,
                 child: Column(
                   children: [
                     _clientsWorkspaceSnapshot(
                       pendingAsks: pendingAsks,
                       unreadAlerts: unreadAlerts,
                       activeIncidents: activeIncidents,
+                      shellless: true,
                     ),
                     const SizedBox(height: 8),
                     contextRail,
@@ -409,15 +392,23 @@ class _ClientsPageState extends State<ClientsPage> {
     required String title,
     required String subtitle,
     required Widget child,
+    bool shellless = false,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (shellless) {
+          final shelllessBody =
+              constraints.hasBoundedHeight && !isHandsetLayout(context)
+              ? SingleChildScrollView(child: child)
+              : child;
+          return KeyedSubtree(key: key, child: shelllessBody);
+        }
         return Container(
           key: key,
           width: double.infinity,
           decoration: BoxDecoration(
             color: const Color(0xFF111A26),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: const Color(0xFF223548)),
             boxShadow: const [
               BoxShadow(
@@ -428,7 +419,7 @@ class _ClientsPageState extends State<ClientsPage> {
             ],
           ),
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -436,21 +427,23 @@ class _ClientsPageState extends State<ClientsPage> {
                   title,
                   style: GoogleFonts.rajdhani(
                     color: const Color(0xFFEAF4FF),
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF92A6C1),
-                    fontSize: 10.5,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 onyxBoundedPanelBody(
                   context: context,
                   constraints: constraints,
@@ -474,151 +467,99 @@ class _ClientsPageState extends State<ClientsPage> {
     required String? reviewEventId,
     required bool pushRetryAvailable,
     required bool roomRoutingAvailable,
+    bool shellless = false,
   }) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ACTIVE COMMUNICATIONS',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          currentClient.name,
+          style: GoogleFonts.rajdhani(
+            color: const Color(0xFFEAF4FF),
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '${currentClient.code} / ${currentSite.code}',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _clientsWorkspaceChip(
+              label: 'Alerts',
+              value: '$unreadAlerts',
+              accent: unreadAlerts > 0
+                  ? const Color(0xFFFBBF24)
+                  : const Color(0xFF8EA4C2),
+            ),
+            _clientsWorkspaceChip(
+              label: 'Drafts',
+              value: '$pendingAsks',
+              accent: pendingAsks > 0
+                  ? const Color(0xFFFBBF24)
+                  : const Color(0xFF8EA4C2),
+            ),
+            _clientsWorkspaceChip(
+              label: 'Feed',
+              value: '$directUpdates',
+              accent: const Color(0xFF67E8F9),
+            ),
+            _clientsWorkspaceChip(
+              label: 'Incidents',
+              value: '$activeIncidents',
+              accent: activeIncidents > 0
+                  ? const Color(0xFF34D399)
+                  : const Color(0xFF8EA4C2),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Live room routing, draft review, and push retry stay pinned in the communications board while this banner tracks lane status.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF9CB2D1),
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('clients-workspace-status-banner'),
+        child: content,
+      );
+    }
     return Container(
       key: const ValueKey('clients-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0x332B425F)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ACTIVE COMMUNICATIONS',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            currentClient.name,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${currentClient.code} / ${currentSite.code}',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _clientsWorkspaceChip(
-                label: 'Alerts',
-                value: '$unreadAlerts',
-                accent: unreadAlerts > 0
-                    ? const Color(0xFFFBBF24)
-                    : const Color(0xFF8EA4C2),
-              ),
-              _clientsWorkspaceChip(
-                label: 'Drafts',
-                value: '$pendingAsks',
-                accent: pendingAsks > 0
-                    ? const Color(0xFFFBBF24)
-                    : const Color(0xFF8EA4C2),
-              ),
-              _clientsWorkspaceChip(
-                label: 'Feed',
-                value: '$directUpdates',
-                accent: const Color(0xFF67E8F9),
-              ),
-              _clientsWorkspaceChip(
-                label: 'Incidents',
-                value: '$activeIncidents',
-                accent: activeIncidents > 0
-                    ? const Color(0xFF34D399)
-                    : const Color(0xFF8EA4C2),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _clientsWorkspaceStatusAction(
-                key: const ValueKey('clients-workspace-banner-open-review'),
-                label: 'Review Draft Queue',
-                accent: pendingAsks > 0
-                    ? const Color(0xFFFBBF24)
-                    : const Color(0xFF8FD1FF),
-                enabled: true,
-                onTap: () => _reviewPendingDrafts(reviewEventId),
-              ),
-              _clientsWorkspaceStatusAction(
-                key: const ValueKey(
-                  'clients-workspace-banner-open-residents-room',
-                ),
-                label: 'Open Residents Room',
-                accent: const Color(0xFF67E8F9),
-                enabled: roomRoutingAvailable,
-                onTap: roomRoutingAvailable
-                    ? () => _openClientRoom('Residents')
-                    : null,
-              ),
-              _clientsWorkspaceStatusAction(
-                key: const ValueKey('clients-workspace-banner-retry-sync'),
-                label: pushRetryAvailable
-                    ? 'Review Or Retry Push Sync'
-                    : 'Push Sync View Only',
-                accent: const Color(0xFFC084FC),
-                enabled: pushRetryAvailable,
-                onTap: pushRetryAvailable ? _retryPushSync : null,
-              ),
-              _clientsWorkspaceStatusAction(
-                key: const ValueKey('clients-workspace-banner-open-history'),
-                label: 'Jump To Message History',
-                accent: const Color(0xFF34D399),
-                enabled: true,
-                onTap: _scrollToMessageHistory,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _clientsWorkspaceStatusAction({
-    required Key key,
-    required String label,
-    required Color accent,
-    required bool enabled,
-    required VoidCallback? onTap,
-  }) {
-    return OutlinedButton(
-      key: key,
-      onPressed: enabled ? onTap : null,
-      style: OutlinedButton.styleFrom(
-        foregroundColor: enabled ? accent : const Color(0xFF6B7A90),
-        side: BorderSide(
-          color: enabled
-              ? accent.withValues(alpha: 0.34)
-              : const Color(0xFF25313F),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(fontSize: 10.5, fontWeight: FontWeight.w800),
-      ),
+      child: content,
     );
   }
 
@@ -626,42 +567,50 @@ class _ClientsPageState extends State<ClientsPage> {
     required int pendingAsks,
     required int unreadAlerts,
     required int activeIncidents,
+    bool shellless = false,
   }) {
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'WORKSPACE SNAPSHOT',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _clientsWorkspaceSnapshotRow('Pending approvals', '$pendingAsks'),
+        const SizedBox(height: 5),
+        _clientsWorkspaceSnapshotRow('Unread alerts', '$unreadAlerts'),
+        const SizedBox(height: 5),
+        _clientsWorkspaceSnapshotRow(
+          'Active lane incidents',
+          '$activeIncidents',
+        ),
+        const SizedBox(height: 5),
+        _clientsWorkspaceSnapshotRow(
+          'Pinned voice',
+          'Voice • $_selectedPinnedVoice',
+        ),
+      ],
+    );
+    if (shellless) {
+      return content;
+    }
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1117),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0x332B425F)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'WORKSPACE SNAPSHOT',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _clientsWorkspaceSnapshotRow('Pending approvals', '$pendingAsks'),
-          const SizedBox(height: 5),
-          _clientsWorkspaceSnapshotRow('Unread alerts', '$unreadAlerts'),
-          const SizedBox(height: 5),
-          _clientsWorkspaceSnapshotRow(
-            'Active lane incidents',
-            '$activeIncidents',
-          ),
-          const SizedBox(height: 5),
-          _clientsWorkspaceSnapshotRow(
-            'Pinned voice',
-            'Voice • $_selectedPinnedVoice',
-          ),
-        ],
+        children: [content],
       ),
     );
   }
@@ -674,7 +623,7 @@ class _ClientsPageState extends State<ClientsPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 10.5,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -683,7 +632,7 @@ class _ClientsPageState extends State<ClientsPage> {
           value,
           style: GoogleFonts.inter(
             color: const Color(0xFFEAF4FF),
-            fontSize: 10.5,
+            fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -697,7 +646,7 @@ class _ClientsPageState extends State<ClientsPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -710,7 +659,7 @@ class _ClientsPageState extends State<ClientsPage> {
               text: '$label ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -718,49 +667,10 @@ class _ClientsPageState extends State<ClientsPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: accent,
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w800,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _clientsWorkspaceActionButton({
-    Key? key,
-    required String label,
-    required VoidCallback? onTap,
-    required bool enabled,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        key: key,
-        onPressed: enabled ? onTap : null,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFFEAF2FF),
-          side: BorderSide(
-            color: enabled ? const Color(0xFF304256) : const Color(0xFF25313F),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded, size: 18),
           ],
         ),
       ),
@@ -773,183 +683,97 @@ class _ClientsPageState extends State<ClientsPage> {
     required int unreadAlerts,
     required int pendingAsks,
     required int directUpdates,
+    Widget? desktopStatusCard,
   }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 1180;
-        final chips = Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            _heroChip(
-              label: currentClient.code,
-              foreground: const Color(0xFF8FD1FF),
-              background: const Color(0x1A8FD1FF),
-              border: const Color(0x668FD1FF),
+    final snapshotCard = Container(
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1117),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF223244)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Lane Snapshot',
+            style: GoogleFonts.inter(
+              color: const Color(0xFFEAF4FF),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
             ),
-            _heroChip(
-              label: currentSite.code,
-              foreground: const Color(0xFF22D3EE),
-              background: const Color(0x1A22D3EE),
-              border: const Color(0x6622D3EE),
-            ),
-            _heroChip(
-              label: '$pendingAsks Pending Ask${pendingAsks == 1 ? '' : 's'}',
-              foreground: pendingAsks > 0
-                  ? const Color(0xFFF59E0B)
-                  : const Color(0xFF9AB1CF),
-              background: pendingAsks > 0
-                  ? const Color(0x1AF59E0B)
-                  : const Color(0x1A94A3B8),
-              border: pendingAsks > 0
-                  ? const Color(0x66F59E0B)
-                  : const Color(0x6694A3B8),
-            ),
-            _heroChip(
-              label:
-                  '$unreadAlerts Unread Alert${unreadAlerts == 1 ? '' : 's'}',
-              foreground: unreadAlerts > 0
-                  ? const Color(0xFFF87171)
-                  : const Color(0xFF9AB1CF),
-              background: unreadAlerts > 0
-                  ? const Color(0x1AF87171)
-                  : const Color(0x1A94A3B8),
-              border: unreadAlerts > 0
-                  ? const Color(0x66F87171)
-                  : const Color(0x6694A3B8),
-            ),
-          ],
-        );
-        final titleBlock = Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF2563EB), Color(0xFF0891B2)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x332563EB),
-                      blurRadius: 12,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.business_center_rounded,
-                  size: 22,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Client Communications',
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFEAF4FF),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Lane management, incident visibility, and direct client notification status.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF93A9C6),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    chips,
-                  ],
-                ),
-              ),
-            ],
           ),
-        );
-        final snapshotCard = Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0D1117),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF223244)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Lane Snapshot',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF4FF),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${currentClient.name} • ${currentSite.name}',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF9BB0CE),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '$directUpdates total updates in the visible incident feed',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF8FD1FF),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        );
-
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF111722), Color(0xFF0D1117)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+          const SizedBox(height: 3),
+          Text(
+            '${currentClient.name} • ${currentSite.name}',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9BB0CE),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
             ),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF223244)),
           ),
-          child: compact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [titleBlock]),
-                    const SizedBox(height: 10),
-                    snapshotCard,
-                  ],
-                )
-              : Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    titleBlock,
-                    const SizedBox(width: 12),
-                    SizedBox(width: 240, child: snapshotCard),
-                  ],
-                ),
-        );
-      },
+          const SizedBox(height: 5),
+          Text(
+            '$directUpdates visible updates in the current communication lane',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+    return OnyxStoryHero(
+      eyebrow: 'CLIENT LANE',
+      title: 'Client Communications',
+      subtitle:
+          'Approve drafts, send updates, and keep the client aligned without leaving the incident story.',
+      icon: Icons.business_center_rounded,
+      gradientColors: const [Color(0xFF111722), Color(0xFF0D1117)],
+      metrics: [
+        OnyxStoryMetric(
+          value: currentClient.code,
+          label: 'client',
+          foreground: const Color(0xFF8FD1FF),
+          background: const Color(0x1A8FD1FF),
+          border: const Color(0x668FD1FF),
+        ),
+        OnyxStoryMetric(
+          value: currentSite.code,
+          label: 'site',
+          foreground: const Color(0xFF22D3EE),
+          background: const Color(0x1A22D3EE),
+          border: const Color(0x6622D3EE),
+        ),
+        OnyxStoryMetric(
+          value: '$pendingAsks',
+          label: 'pending',
+          foreground: pendingAsks > 0
+              ? const Color(0xFFF59E0B)
+              : const Color(0xFF9AB1CF),
+          background: pendingAsks > 0
+              ? const Color(0x1AF59E0B)
+              : const Color(0x1A94A3B8),
+          border: pendingAsks > 0
+              ? const Color(0x66F59E0B)
+              : const Color(0x6694A3B8),
+        ),
+        OnyxStoryMetric(
+          value: '$unreadAlerts',
+          label: 'needs review',
+          foreground: unreadAlerts > 0
+              ? const Color(0xFFF87171)
+              : const Color(0xFF9AB1CF),
+          background: unreadAlerts > 0
+              ? const Color(0x1AF87171)
+              : const Color(0x1A94A3B8),
+          border: unreadAlerts > 0
+              ? const Color(0x66F87171)
+              : const Color(0x6694A3B8),
+        ),
+      ],
+      banner: desktopStatusCard ?? snapshotCard,
     );
   }
 
@@ -1181,10 +1005,10 @@ class _ClientsPageState extends State<ClientsPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -1194,12 +1018,12 @@ class _ClientsPageState extends State<ClientsPage> {
             'ACTIVE LANES',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 10.5,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 920;
@@ -1220,15 +1044,15 @@ class _ClientsPageState extends State<ClientsPage> {
                         lane.site.id,
                         source: 'active_lane_card',
                       ),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
                         width: width,
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
                           color: lane.active
                               ? const Color(0xFF15263C)
                               : const Color(0xFF0D1117),
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: lane.active
                                 ? const Color(0xFF1F7AE0)
@@ -1245,7 +1069,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                     lane.client.name,
                                     style: GoogleFonts.inter(
                                       color: const Color(0xFFF8FBFF),
-                                      fontSize: 15,
+                                      fontSize: 13.5,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
@@ -1272,7 +1096,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                       color: lane.active
                                           ? const Color(0xFF8FD1FF)
                                           : const Color(0xFF9BB0CE),
-                                      fontSize: 9.5,
+                                      fontSize: 9,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
@@ -1294,7 +1118,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                       '${lane.pendingDrafts}',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFFBBF24),
-                                        fontSize: 11.5,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
@@ -1302,20 +1126,20 @@ class _ClientsPageState extends State<ClientsPage> {
                                 ],
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
                               '${lane.client.code} • ${lane.site.name}',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF95A6BE),
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 5,
+                                horizontal: 7,
+                                vertical: 4,
                               ),
                               decoration: BoxDecoration(
                                 color: const Color(0x331A0F3F),
@@ -1328,12 +1152,12 @@ class _ClientsPageState extends State<ClientsPage> {
                                 '# ROOM-${lane.site.code}',
                                 style: GoogleFonts.robotoMono(
                                   color: const Color(0xFFC084FC),
-                                  fontSize: 10.5,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Wrap(
                               spacing: 6,
                               runSpacing: 6,
@@ -1359,7 +1183,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 10),
+                            const SizedBox(height: 8),
                             Text(
                               lane.active
                                   ? 'This lane is currently driving the client communications workspace.'
@@ -1368,7 +1192,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                 color: lane.active
                                     ? const Color(0xFF9ED9E8)
                                     : const Color(0xFF8EA4C2),
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
                                 height: 1.35,
                               ),
@@ -1396,10 +1220,10 @@ class _ClientsPageState extends State<ClientsPage> {
     final roomRoutingAvailable = widget.onOpenClientRoomForScope != null;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -1409,7 +1233,7 @@ class _ClientsPageState extends State<ClientsPage> {
             'ROOM & THREAD CONTEXT',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF4FF),
-              fontSize: 22,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1417,11 +1241,11 @@ class _ClientsPageState extends State<ClientsPage> {
             'Active communication channels',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 11.5,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 940;
@@ -1473,7 +1297,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 return Column(
                   children: [
                     selectors[0],
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     selectors[1],
                   ],
                 );
@@ -1481,13 +1305,13 @@ class _ClientsPageState extends State<ClientsPage> {
               return Row(
                 children: [
                   Expanded(child: selectors[0]),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(child: selectors[1]),
                 ],
               );
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 940;
@@ -1507,25 +1331,25 @@ class _ClientsPageState extends State<ClientsPage> {
               );
               if (stacked) {
                 return Column(
-                  children: [roomCard, const SizedBox(height: 8), threadCard],
+                  children: [roomCard, const SizedBox(height: 6), threadCard],
                 );
               }
               return Row(
                 children: [
                   Expanded(child: roomCard),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(child: threadCard),
                 ],
               );
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: const Color(0xFF123140),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFF1F617C)),
             ),
             child: Column(
@@ -1535,16 +1359,16 @@ class _ClientsPageState extends State<ClientsPage> {
                   'Thread Active',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF5DE1FF),
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   'All messages are scoped to the active incident thread. Client responses route to ${currentClient.name}.',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF9ED9E8),
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
                   ),
@@ -1552,7 +1376,7 @@ class _ClientsPageState extends State<ClientsPage> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 760;
@@ -1582,7 +1406,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   children: [
                     for (var i = 0; i < children.length; i++) ...[
                       children[i],
-                      if (i != children.length - 1) const SizedBox(height: 6),
+                      if (i != children.length - 1) const SizedBox(height: 4),
                     ],
                   ],
                 );
@@ -1590,9 +1414,9 @@ class _ClientsPageState extends State<ClientsPage> {
               return Row(
                 children: [
                   Expanded(child: children[0]),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(child: children[1]),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Expanded(child: children[2]),
                 ],
               );
@@ -1621,10 +1445,10 @@ class _ClientsPageState extends State<ClientsPage> {
     required ValueChanged<String?> onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -1634,7 +1458,7 @@ class _ClientsPageState extends State<ClientsPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 10.5,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
             ),
@@ -1647,7 +1471,7 @@ class _ClientsPageState extends State<ClientsPage> {
               iconEnabledColor: const Color(0xFF9BB0CE),
               style: GoogleFonts.inter(
                 color: const Color(0xFFEAF1FB),
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
               items: items,
@@ -1667,10 +1491,10 @@ class _ClientsPageState extends State<ClientsPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -1680,23 +1504,23 @@ class _ClientsPageState extends State<ClientsPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 10.5,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           Text(
             value,
             style: mono
                 ? GoogleFonts.robotoMono(
                     color: accent,
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   )
                 : GoogleFonts.inter(
                     color: accent,
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
           ),
@@ -1718,10 +1542,10 @@ class _ClientsPageState extends State<ClientsPage> {
     final pushRetryAvailable = widget.onRetryPushSync != null;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -1731,7 +1555,7 @@ class _ClientsPageState extends State<ClientsPage> {
             'COMMUNICATION CHANNELS',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF4FF),
-              fontSize: 22,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1739,14 +1563,14 @@ class _ClientsPageState extends State<ClientsPage> {
             _selectedClientId ?? '',
             style: GoogleFonts.inter(
               color: const Color(0xFF7F91AA),
-              fontSize: 11.5,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 5,
+            runSpacing: 5,
             children: [
               _channelChip(
                 label: telegramBlocked ? 'Telegram Blocked' : 'Telegram Ready',
@@ -1822,14 +1646,14 @@ class _ClientsPageState extends State<ClientsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           if (voipStaged || voipReady)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: const Color(0xFF3A210E),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: const Color(0xFF80511D)),
               ),
               child: Column(
@@ -1839,23 +1663,23 @@ class _ClientsPageState extends State<ClientsPage> {
                     voipReady ? 'VoIP Call Active' : 'VoIP Call Staged',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFFBBF24),
-                      fontSize: 13,
+                      fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 3),
                   Text(
                     voipReady
                         ? 'Voice call is actively engaging the client escalation path.'
                         : 'Voice call queued for high-priority incident escalation. Ready to dial.',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFD7B47C),
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final stacked = constraints.maxWidth < 620;
@@ -1924,15 +1748,15 @@ class _ClientsPageState extends State<ClientsPage> {
                 ],
               ),
             ),
-          if (voipStaged || voipReady) const SizedBox(height: 10),
+          if (voipStaged || voipReady) const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: backendProbeHealthy
                   ? const Color(0xFF123425)
                   : const Color(0xFF22181A),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: backendProbeHealthy
                     ? const Color(0xFF1D7A55)
@@ -1948,11 +1772,11 @@ class _ClientsPageState extends State<ClientsPage> {
                     color: backendProbeHealthy
                         ? const Color(0xFF34D399)
                         : const Color(0xFFF87171),
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 3),
                 Text(
                   backendProbeHealthy
                       ? 'Healthy • Last probe 5s ago'
@@ -1961,12 +1785,12 @@ class _ClientsPageState extends State<ClientsPage> {
                     color: backendProbeHealthy
                         ? const Color(0xFF9CE5C8)
                         : const Color(0xFFD7A1A8),
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 InkWell(
                   key: const ValueKey('clients-retry-push-sync-action'),
                   borderRadius: BorderRadius.circular(12),
@@ -1994,7 +1818,7 @@ class _ClientsPageState extends State<ClientsPage> {
                         color: pushRetryAvailable
                             ? const Color(0xFFFBBF24)
                             : const Color(0xFF6B7A90),
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -2019,17 +1843,17 @@ class _ClientsPageState extends State<ClientsPage> {
     return InkWell(
       key: key,
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(9),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: filled
               ? enabled
                     ? const Color(0xFF5A340D)
                     : const Color(0xFF1B222B)
               : const Color(0xFF0D1117),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(9),
           border: Border.all(
             color: filled
                 ? enabled
@@ -2043,7 +1867,7 @@ class _ClientsPageState extends State<ClientsPage> {
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
             color: enabled ? accent : const Color(0xFF6B7A90),
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -2059,10 +1883,10 @@ class _ClientsPageState extends State<ClientsPage> {
     required Color border,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: border),
       ),
       child: Row(
@@ -2074,7 +1898,7 @@ class _ClientsPageState extends State<ClientsPage> {
             label,
             style: GoogleFonts.inter(
               color: foreground,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -2087,10 +1911,10 @@ class _ClientsPageState extends State<ClientsPage> {
     return Container(
       key: _messageHistoryKey,
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -2100,7 +1924,7 @@ class _ClientsPageState extends State<ClientsPage> {
             'MESSAGE HISTORY',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF4FF),
-              fontSize: 22,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2109,12 +1933,15 @@ class _ClientsPageState extends State<ClientsPage> {
             'Recent client communications',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 11.5,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 10),
-          for (final row in rows) ...[_feedRow(row), const SizedBox(height: 8)],
+          const SizedBox(height: 6),
+          for (int i = 0; i < rows.length; i++) ...[
+            _feedRow(rows[i]),
+            if (i != rows.length - 1) const SizedBox(height: 6),
+          ],
         ],
       ),
     );
@@ -2135,7 +1962,7 @@ class _ClientsPageState extends State<ClientsPage> {
             '$pendingAsks',
             style: GoogleFonts.inter(
               color: const Color(0xFFFBBF24),
-              fontSize: 36,
+              fontSize: 30,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -2302,7 +2129,7 @@ class _ClientsPageState extends State<ClientsPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(16),

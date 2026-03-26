@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import '../application/report_entry_context.dart';
 import '../application/monitoring_scene_review_store.dart';
-import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -20,9 +18,20 @@ import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
-import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
-import 'ui_action_logger.dart';
+
+const _obSurfaceFill = Color(0xFF0E1A2B);
+const _obSurfaceElevated = Color(0xFF111F33);
+const _obSurfaceSoft = Color(0xFF13263A);
+const _obInputFill = Color(0xFF0A1626);
+const _obBorder = Color(0xFF223244);
+const _obBorderStrong = Color(0xFF33506F);
+const _obTextPrimary = Color(0xFFEAF4FF);
+const _obTextSecondary = Color(0xFF8EA4C2);
+const _obTextMuted = Color(0xFF6F84A3);
+const _obBlueAccent = Color(0xFF8FD1FF);
+const _obBlueAccentStrong = Color(0xFF19B4E5);
+const _obButtonFill = Color(0xFF15324B);
 
 class SovereignLedgerPage extends StatefulWidget {
   final String clientId;
@@ -49,1322 +58,655 @@ class SovereignLedgerPage extends StatefulWidget {
   State<SovereignLedgerPage> createState() => _SovereignLedgerPageState();
 }
 
-enum _LedgerFocusState { none, exact, scopeBacked, seeded }
-
-class _LedgerCommandReceipt {
-  final String label;
-  final String message;
-  final String detail;
-  final Color accent;
-
-  const _LedgerCommandReceipt({
-    required this.label,
-    required this.message,
-    required this.detail,
-    required this.accent,
-  });
-}
-
 class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
-  static const _defaultCommandReceipt = _LedgerCommandReceipt(
-    label: 'LEDGER READY',
-    message: 'Verification and export actions stay pinned in this rail.',
+  static const _defaultCommandReceipt = _ObCommandReceipt(
+    label: 'OB READY',
+    message:
+        'ONYX turns real-world chaos into clear decisions and clean records.',
     detail:
-        'Lane pivots, continuity checks, and export handoffs remain visible while you keep reviewing the selected ledger entry.',
-    accent: Color(0xFF8FD1FF),
+        'AI, telemetry, and evidence continuity stay behind the scenes while controllers only work from the clean record that matters now.',
+    accent: Color(0xFF19B4E5),
   );
+
+  late final TextEditingController _searchController;
+  late final TextEditingController _guardNameController;
+  late final TextEditingController _callsignController;
+  late final TextEditingController _locationController;
+  late final TextEditingController _descriptionController;
+
+  final List<_ObEntryView> _manualEntries = <_ObEntryView>[];
+
+  String _searchQuery = '';
   String? _selectedEntryId;
-  _ChainIntegrity _integrity = _ChainIntegrity.pending;
-  _LedgerLaneFilter _laneFilter = _LedgerLaneFilter.all;
-  _LedgerWorkspaceView _workspaceView = _LedgerWorkspaceView.caseFile;
-  _LedgerCommandReceipt _commandReceipt = _defaultCommandReceipt;
+  String _draftPresetKey = '';
+  String _draftSite = '';
+  DateTime _draftOccurredAt = DateTime.now().toUtc();
+  bool _draftFlagged = false;
+  bool _composerOpen = false;
   bool _desktopWorkspaceActive = false;
+  _ObCategory _categoryFilter = _ObCategory.all;
+  _ObCategory _draftCategory = _ObCategory.patrol;
+  _ObWorkspaceView _workspaceView = _ObWorkspaceView.record;
+  _ChainIntegrity _integrity = _ChainIntegrity.pending;
+  _ObCommandReceipt _commandReceipt = _defaultCommandReceipt;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+    _guardNameController = TextEditingController();
+    _callsignController = TextEditingController();
+    _locationController = TextEditingController();
+    _descriptionController = TextEditingController();
+    _resetDraft();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _guardNameController.dispose();
+    _callsignController.dispose();
+    _locationController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final scopeClientId = (widget.initialScopeClientId ?? '').trim();
     final scopeSiteId = (widget.initialScopeSiteId ?? '').trim();
-    final hasScopeFocus = scopeClientId.isNotEmpty && scopeSiteId.isNotEmpty;
-    final entries = _buildLedgerEntries(
+    final focusReference = widget.initialFocusReference.trim();
+    final generatedEntries = _buildObEntries(
       widget.events,
-      clientId: scopeClientId,
+      clientId: scopeClientId.isEmpty ? widget.clientId : scopeClientId,
       siteId: scopeSiteId,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
     );
-    var list = entries.isEmpty ? _fallbackEntries : entries;
-    final focusReference = widget.initialFocusReference.trim();
-    final hasFocusReference = focusReference.isNotEmpty;
-    var focusState = _LedgerFocusState.none;
-    if (hasFocusReference) {
-      final focusResolution = _resolveFocusSelection(
-        entries: list,
-        focusReference: focusReference,
-      );
-      if (focusResolution.entryId != null) {
-        _selectedEntryId = focusResolution.entryId;
-        focusState = focusResolution.state;
-      } else {
-        list = _injectFocusedLedgerEntry(
-          entries: list,
-          focusReference: focusReference,
-        );
-        final seededFocusId = _resolveFocusEntryId(
-          entries: list,
-          focusReference: focusReference,
-        );
-        if (seededFocusId != null) {
-          _selectedEntryId = seededFocusId;
-        }
-        focusState = _LedgerFocusState.seeded;
-      }
-    }
-
-    final effectiveLane = _effectiveLaneForEntries(list);
-    final filteredEntries = list
-        .where((entry) => _matchesLaneFilter(entry, effectiveLane))
+    final baseEntries = generatedEntries.isEmpty
+        ? _fallbackEntries
+        : generatedEntries;
+    final allEntries = <_ObEntryView>[..._manualEntries, ...baseEntries]
+      ..sort(_sortEntriesDescending);
+    final guardPresets = _buildGuardPresets(allEntries);
+    final siteOptions = _buildSiteOptions(allEntries);
+    final filteredEntries = allEntries
+        .where(
+          (entry) =>
+              _matchesCategory(entry, _categoryFilter) &&
+              _matchesSearch(entry, _searchQuery),
+        )
         .toList(growable: false);
-    final selectedPool = filteredEntries.isEmpty ? list : filteredEntries;
-    _selectedEntryId ??= selectedPool.first.id;
-    if (!selectedPool.any((entry) => entry.id == _selectedEntryId)) {
-      _selectedEntryId = selectedPool.first.id;
-    }
+    final selectedPool = filteredEntries.isNotEmpty
+        ? filteredEntries
+        : allEntries;
+    _selectedEntryId = _resolveSelectedEntryId(
+      entries: selectedPool,
+      currentId: _selectedEntryId,
+      focusReference: focusReference,
+    );
     final selected = selectedPool.firstWhere(
       (entry) => entry.id == _selectedEntryId,
       orElse: () => selectedPool.first,
     );
-    final linkedEntries = _linkedEntriesForSelected(list, selected);
-
-    final verifiedEntries = list.where((entry) => entry.verified).length;
-    final pendingEntries = list.length - verifiedEntries;
+    final relatedEntries = _relatedEntriesForSelected(allEntries, selected);
+    final hasScopeFocus = scopeClientId.isNotEmpty && scopeSiteId.isNotEmpty;
+    final totalEntries = allEntries.length;
+    final todayEntries = allEntries
+        .where(
+          (entry) => _isSameUtcDate(entry.occurredAt, DateTime.now().toUtc()),
+        )
+        .length;
+    final incidentEntries = allEntries.where((entry) => entry.incident).length;
+    final flaggedEntries = allEntries.where((entry) => entry.flagged).length;
 
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final desktopWorkspace = constraints.maxWidth >= 1240;
-          final boundedDesktopSurface =
-              desktopWorkspace && allowEmbeddedPanelScroll(context);
-          final ultrawideSurface = isUltrawideLayout(
-            context,
-            viewportWidth: constraints.maxWidth,
-          );
-          final widescreenSurface = isWidescreenLayout(
-            context,
-            viewportWidth: constraints.maxWidth,
-          );
-          final surfaceMaxWidth = ultrawideSurface
-              ? constraints.maxWidth
-              : widescreenSurface
-              ? constraints.maxWidth * 0.94
-              : 1760.0;
+          final dualColumnLayout = constraints.maxWidth >= 1100;
+          final maxWidth = constraints.maxWidth >= 1760
+              ? 1660.0
+              : constraints.maxWidth * 0.975;
+          _desktopWorkspaceActive = dualColumnLayout;
 
-          final workspaceSection = OnyxSectionCard(
-            title: 'Ledger Workspace',
-            subtitle:
-                'Lane-driven review for evidence continuity, report receipts, scene posture, and focus-linked handoff actions.',
-            flexibleChild: boundedDesktopSurface,
-            child: LayoutBuilder(
-              builder: (context, workspaceConstraints) {
-                final useThreeColumnLayout =
-                    workspaceConstraints.maxWidth >= 1260;
-                final useTwoColumnLayout = workspaceConstraints.maxWidth >= 900;
-                final useEmbeddedPanels =
-                    useTwoColumnLayout && allowEmbeddedPanelScroll(context);
-                _desktopWorkspaceActive = useTwoColumnLayout;
-                final workspace = _ledgerWorkspace(
-                  entries: list,
-                  filteredEntries: filteredEntries,
-                  selected: selected,
-                  linkedEntries: linkedEntries,
-                  effectiveLane: effectiveLane,
-                  hiddenEntries: list.length - filteredEntries.length,
-                  useEmbeddedPanels: useEmbeddedPanels,
-                  useThreeColumnLayout: useThreeColumnLayout,
-                );
-                if (!useTwoColumnLayout) {
-                  return workspace;
-                }
-                if (boundedDesktopSurface && useEmbeddedPanels) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _workspaceStatusBanner(
-                        context,
-                        entries: list,
-                        filteredEntries: filteredEntries,
-                        selected: selected,
-                        linkedEntries: linkedEntries,
-                        effectiveLane: effectiveLane,
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(child: workspace),
-                    ],
-                  );
-                }
-                final workspaceShell = useEmbeddedPanels
-                    ? SizedBox(
-                        height: useThreeColumnLayout ? 736 : 680,
-                        child: workspace,
-                      )
-                    : workspace;
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          return Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  constraints.maxWidth >= 900 ? 18 : 12,
+                  14,
+                  constraints.maxWidth >= 900 ? 18 : 12,
+                  18,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _workspaceStatusBanner(
-                      context,
-                      entries: list,
-                      filteredEntries: filteredEntries,
+                    _buildHeroPanel(
+                      context: context,
                       selected: selected,
-                      linkedEntries: linkedEntries,
-                      effectiveLane: effectiveLane,
+                      totalEntries: totalEntries,
+                      todayEntries: todayEntries,
+                      incidentEntries: incidentEntries,
+                      flaggedEntries: flaggedEntries,
+                      hasScopeFocus: hasScopeFocus,
+                      scopeClientId: scopeClientId,
+                      scopeSiteId: scopeSiteId,
+                      focusReference: focusReference,
+                      guardPresets: guardPresets,
                     ),
-                    const SizedBox(height: 12),
-                    workspaceShell,
-                  ],
-                );
-              },
-            ),
-          );
-
-          final body = Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _integritySummaryBar(
-                verifiedEntries: verifiedEntries,
-                pendingEntries: pendingEntries,
-              ),
-              if (hasFocusReference) ...[
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _focusBannerBackground(focusState),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _focusBannerBorder(focusState)),
-                  ),
-                  child: Text(
-                    'Focus ${_focusBannerLabel(focusState)} • $focusReference',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF1FB),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-              if (hasScopeFocus) ...[
-                const SizedBox(height: 10),
-                Container(
-                  key: const ValueKey('ledger-scope-banner'),
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0x141C3C57),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0x4435506F)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Scope focus active',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8FD1FF),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$scopeClientId/$scopeSiteId',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF1FB),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    if (_composerOpen) ...[
+                      const SizedBox(height: 14),
+                      _buildComposerPanel(
+                        context: context,
+                        guardPresets: guardPresets,
+                        siteOptions: siteOptions,
+                        currentEntries: allEntries,
                       ),
                     ],
-                  ),
+                    const SizedBox(height: 14),
+                    if (dualColumnLayout)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 7,
+                            child: _buildEntriesPanel(
+                              entries: filteredEntries,
+                              selected: selected,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            flex: 5,
+                            child: _buildDetailPanel(
+                              context: context,
+                              entries: allEntries,
+                              selected: selected,
+                              relatedEntries: relatedEntries,
+                            ),
+                          ),
+                        ],
+                      )
+                    else ...[
+                      _buildEntriesPanel(
+                        entries: filteredEntries,
+                        selected: selected,
+                      ),
+                      const SizedBox(height: 14),
+                      _buildDetailPanel(
+                        context: context,
+                        entries: allEntries,
+                        selected: selected,
+                        relatedEntries: relatedEntries,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
-              const SizedBox(height: 10),
-              _workspaceCommandBar(list),
-              const SizedBox(height: 10),
-              if (boundedDesktopSurface)
-                Expanded(child: workspaceSection)
-              else
-                workspaceSection,
-            ],
-          );
-
-          return OnyxViewportWorkspaceLayout(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-            maxWidth: surfaceMaxWidth,
-            spacing: 10,
-            lockToViewport: boundedDesktopSurface,
-            header: _heroHeader(
-              entries: list,
-              selected: selected,
-              totalEntries: list.length,
-              verifiedEntries: verifiedEntries,
+              ),
             ),
-            body: body,
           );
         },
       ),
     );
   }
 
-  Widget _heroHeader({
-    required List<_LedgerEntryView> entries,
-    required _LedgerEntryView selected,
+  Widget _buildHeroPanel({
+    required BuildContext context,
+    required _ObEntryView selected,
     required int totalEntries,
-    required int verifiedEntries,
+    required int todayEntries,
+    required int incidentEntries,
+    required int flaggedEntries,
+    required bool hasScopeFocus,
+    required String scopeClientId,
+    required String scopeSiteId,
+    required String focusReference,
+    required List<_GuardPreset> guardPresets,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF241238), Color(0xFF111827)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    final heroBannerChildren = <Widget>[
+      _buildHeroStatusChip(label: _integrity.label, color: _integrity.color),
+      if (focusReference.isNotEmpty)
+        _buildContextChip(
+          label: 'Focus: $focusReference',
+          color: const Color(0xFF6A63FF),
         ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF433267)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1080;
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFA78BFA), Color(0xFF7C3AED)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.account_tree_outlined,
-                      color: Colors.white,
-                      size: 26,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Sovereign Ledger',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 22 : 24,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Evidence continuity, verification state, and immutable event-chain review for the current focus.',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF95A9C7),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+      if (hasScopeFocus)
+        Container(
+          key: const ValueKey('ledger-scope-banner'),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: _obSurfaceElevated,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _obBorder),
+          ),
+          child: Text(
+            '${_displayClientLabel(scopeClientId)} / ${_displaySiteLabel(scopeSiteId)}',
+            style: GoogleFonts.inter(
+              color: _obBlueAccent,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+    ];
+
+    return _surfacePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          OnyxStoryHero(
+            eyebrow: 'CLEAN RECORD',
+            title: 'Occurrence Book',
+            subtitle:
+                'Every controller note, guard update, and system fact lands once and stays linked to the shift story.',
+            icon: Icons.menu_book_rounded,
+            gradientColors: const [Color(0xFF102338), Color(0xFF0B151F)],
+            metrics: [
+              OnyxStoryMetric(
+                value: selected.recordCode,
+                label: 'focus',
+                foreground: const Color(0xFF8FD1FF),
+                background: const Color(0x1A8FD1FF),
+                border: const Color(0x668FD1FF),
               ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _heroChip('Integrity', _integrity.label),
-                  _heroChip('Entries', '$totalEntries'),
-                  _heroChip('Verified', '$verifiedEntries'),
-                  _heroChip(
-                    'Focus',
-                    (selected.dispatchId ?? '').trim().isNotEmpty
-                        ? selected.dispatchId!
-                        : selected.id,
-                  ),
-                ],
+              OnyxStoryMetric(
+                value: '$todayEntries',
+                label: 'today',
+                foreground: const Color(0xFF7A7CFF),
+                background: const Color(0x1A7A7CFF),
+                border: const Color(0x667A7CFF),
+              ),
+              OnyxStoryMetric(
+                value: '$incidentEntries',
+                label: 'incident',
+                foreground: const Color(0xFFF87171),
+                background: const Color(0x1AF87171),
+                border: const Color(0x66F87171),
+              ),
+              OnyxStoryMetric(
+                value: '$flaggedEntries',
+                label: 'flagged',
+                foreground: flaggedEntries > 0
+                    ? const Color(0xFFFBBF24)
+                    : const Color(0xFF9AB1CF),
+                background: flaggedEntries > 0
+                    ? const Color(0x1AF59E0B)
+                    : const Color(0x1494A3B8),
+                border: flaggedEntries > 0
+                    ? const Color(0x66F59E0B)
+                    : const Color(0x6694A3B8),
+              ),
+              OnyxStoryMetric(
+                value: '$totalEntries',
+                label: 'entries',
+                foreground: const Color(0xFFEAF4FF),
+                background: const Color(0x14000000),
+                border: const Color(0x3322405F),
               ),
             ],
-          );
-          final actions = Wrap(
+            actions: [
+              OutlinedButton.icon(
+                key: const ValueKey('ledger-hero-view-events-button'),
+                onPressed:
+                    selected.linkedEventIds.isEmpty ||
+                        widget.onOpenEventsForScope == null
+                    ? null
+                    : () => _openSelectedEvents(selected, label: 'OPEN EVENTS'),
+                style: _secondaryButtonStyle(),
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                label: const Text('View Events'),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('ledger-hero-verify-button'),
+                onPressed: () => _runIntegrityCheck(
+                  _manualEntries.isNotEmpty
+                      ? <_ObEntryView>[..._manualEntries, selected]
+                      : <_ObEntryView>[selected],
+                ),
+                style: _secondaryButtonStyle(),
+                icon: const Icon(Icons.verified_rounded, size: 18),
+                label: const Text('Verify Chain'),
+              ),
+              FilledButton.icon(
+                key: const ValueKey('ledger-open-composer'),
+                onPressed: () => _openComposer(guardPresets),
+                style: _primaryButtonStyle(),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('New OB Entry'),
+              ),
+            ],
+            banner: heroBannerChildren.isEmpty
+                ? null
+                : Wrap(spacing: 8, runSpacing: 8, children: heroBannerChildren),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            decoration: BoxDecoration(
+              color: _obInputFill,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _obBorder),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _searchQuery = value.trim()),
+              style: GoogleFonts.inter(
+                color: _obTextPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Search entries...',
+                hintStyle: GoogleFonts.inter(
+                  color: _obTextMuted,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+                border: InputBorder.none,
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: _obTextMuted,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 16,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
             spacing: 10,
             runSpacing: 10,
-            alignment: WrapAlignment.end,
-            children: [
-              _heroActionButton(
-                key: const ValueKey('ledger-hero-view-events-button'),
-                icon: Icons.open_in_new,
-                label: 'View Events',
-                accent: const Color(0xFF93C5FD),
-                onPressed: () => _openEventsForSelectedEntry(selected),
-              ),
-              _heroActionButton(
-                key: const ValueKey('ledger-hero-verify-button'),
-                icon: Icons.verified_rounded,
-                label: 'Verify Chain',
-                accent: const Color(0xFF59D79B),
-                onPressed: () => _runIntegrityCheck(
-                  entries,
-                  action: 'ledger.hero_verify_chain',
-                  extraContext: const {'from_hero': true},
-                ),
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 16), actions],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: titleBlock),
-              const SizedBox(width: 16),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
-                child: actions,
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _heroChip(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0x14000000),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x33000000)),
-      ),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _heroActionButton({
-    required Key key,
-    required IconData icon,
-    required String label,
-    required Color accent,
-    required VoidCallback onPressed,
-  }) {
-    return FilledButton.tonalIcon(
-      key: key,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: accent.withValues(alpha: 0.12),
-        foregroundColor: accent,
-        side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    );
-  }
-
-  void _openEventsForSelectedEntry(_LedgerEntryView selected) {
-    final eventId = (selected.payload['eventId'] ?? '').toString().trim();
-    if (widget.onOpenEventsForScope != null && eventId.isNotEmpty) {
-      widget.onOpenEventsForScope!(<String>[eventId], eventId);
-      logUiAction(
-        'ledger.hero_view_events',
-        context: {'entry_id': selected.id, 'event_id': eventId},
-      );
-      return;
-    }
-    logUiAction('ledger.hero_view_events', context: {'entry_id': selected.id});
-    _showActionMessage(
-      'Open Event Review to inspect ${eventId.isEmpty ? selected.id : eventId}.',
-    );
-  }
-
-  void _openEntryInEventReview(_LedgerEntryView selected) {
-    final eventId = (selected.payload['eventId'] ?? '').toString().trim();
-    if (widget.onOpenEventsForScope != null && eventId.isNotEmpty) {
-      widget.onOpenEventsForScope!(<String>[eventId], eventId);
-      logUiAction(
-        'ledger.view_in_event_review',
-        context: {'entry_id': selected.id, 'event_id': eventId},
-      );
-      return;
-    }
-    logUiAction(
-      'ledger.view_in_event_review',
-      context: {'entry_id': selected.id},
-    );
-    _showActionMessage(
-      'Open Event Review to inspect ${eventId.isEmpty ? selected.id : eventId}.',
-    );
-  }
-
-  String? _resolveFocusEntryId({
-    required List<_LedgerEntryView> entries,
-    required String focusReference,
-  }) {
-    for (final entry in entries) {
-      final payloadEventId = (entry.payload['eventId'] ?? '').toString().trim();
-      final payloadIntelligenceId = (entry.payload['intelligenceId'] ?? '')
-          .toString()
-          .trim();
-      final payloadDispatchId = (entry.payload['dispatchId'] ?? '')
-          .toString()
-          .trim();
-      if (entry.id == focusReference ||
-          (entry.dispatchId ?? '').trim() == focusReference ||
-          payloadEventId == focusReference ||
-          payloadIntelligenceId == focusReference ||
-          payloadDispatchId == focusReference) {
-        return entry.id;
-      }
-    }
-    return null;
-  }
-
-  ({String? entryId, _LedgerFocusState state}) _resolveFocusSelection({
-    required List<_LedgerEntryView> entries,
-    required String focusReference,
-  }) {
-    final exactEntryId = _resolveFocusEntryId(
-      entries: entries,
-      focusReference: focusReference,
-    );
-    if (exactEntryId != null) {
-      return (entryId: exactEntryId, state: _LedgerFocusState.exact);
-    }
-    final focusScope = _scopeForFocusReference(focusReference);
-    if (focusScope != null) {
-      for (final entry in entries) {
-        if (_entryMatchesScope(
-          entry,
-          clientId: focusScope.$1,
-          siteId: focusScope.$2,
-        )) {
-          return (entryId: entry.id, state: _LedgerFocusState.scopeBacked);
-        }
-      }
-    }
-    return (entryId: null, state: _LedgerFocusState.seeded);
-  }
-
-  (String, String)? _scopeForFocusReference(String focusReference) {
-    final normalizedReference = focusReference.trim();
-    if (normalizedReference.isEmpty) {
-      return null;
-    }
-    DispatchEvent? matchedEvent;
-    for (final event in widget.events) {
-      final dispatchId = (_eventDispatchId(event) ?? '').trim();
-      final matchesDispatch =
-          dispatchId.isNotEmpty &&
-          (dispatchId == normalizedReference ||
-              'INC-$dispatchId' == normalizedReference);
-      final matchesEventId = event.eventId.trim() == normalizedReference;
-      final matchesIntelligenceId =
-          event is IntelligenceReceived &&
-          event.intelligenceId.trim() == normalizedReference;
-      if (!matchesDispatch && !matchesEventId && !matchesIntelligenceId) {
-        continue;
-      }
-      if (matchedEvent == null ||
-          event.occurredAt.isAfter(matchedEvent.occurredAt)) {
-        matchedEvent = event;
-      }
-    }
-    if (matchedEvent == null) {
-      return null;
-    }
-    final clientId = _eventClientId(matchedEvent).trim();
-    final siteId = _eventSiteId(matchedEvent).trim();
-    if (clientId.isEmpty || siteId.isEmpty) {
-      return null;
-    }
-    return (clientId, siteId);
-  }
-
-  bool _entryMatchesScope(
-    _LedgerEntryView entry, {
-    required String clientId,
-    required String siteId,
-  }) {
-    final entryClientId = (entry.payload['clientId'] ?? '').toString().trim();
-    final entrySiteId = (entry.payload['siteId'] ?? '').toString().trim();
-    return entryClientId == clientId && entrySiteId == siteId;
-  }
-
-  String _focusBannerLabel(_LedgerFocusState state) {
-    return switch (state) {
-      _LedgerFocusState.none => 'IDLE',
-      _LedgerFocusState.exact => 'LINKED',
-      _LedgerFocusState.scopeBacked => 'SCOPE-BACKED',
-      _LedgerFocusState.seeded => 'SEEDED',
-    };
-  }
-
-  Color _focusBannerBackground(_LedgerFocusState state) {
-    return switch (state) {
-      _LedgerFocusState.none => const Color(0x22192331),
-      _LedgerFocusState.exact => const Color(0x2234D399),
-      _LedgerFocusState.scopeBacked => const Color(0x223C79BB),
-      _LedgerFocusState.seeded => const Color(0x333C79BB),
-    };
-  }
-
-  Color _focusBannerBorder(_LedgerFocusState state) {
-    return switch (state) {
-      _LedgerFocusState.none => const Color(0x66435A76),
-      _LedgerFocusState.exact => const Color(0x6634D399),
-      _LedgerFocusState.scopeBacked => const Color(0x665FAAFF),
-      _LedgerFocusState.seeded => const Color(0x665FAAFF),
-    };
-  }
-
-  List<_LedgerEntryView> _injectFocusedLedgerEntry({
-    required List<_LedgerEntryView> entries,
-    required String focusReference,
-  }) {
-    if (entries.isEmpty) return entries;
-    var maxSequence = 0;
-    for (final entry in entries) {
-      if (entry.sequence > maxSequence) {
-        maxSequence = entry.sequence;
-      }
-    }
-    final previousHash = entries.first.hash;
-    final timestamp = DateTime.now().toUtc();
-    final payload = <String, dynamic>{
-      'eventId': focusReference,
-      'sequence': maxSequence + 1,
-      'version': 2,
-      'type': 'SEEDED_LEDGER_FOCUS',
-      'clientId': widget.clientId,
-      'regionId': 'REGION-GAUTENG',
-      'siteId': (widget.initialScopeSiteId ?? '').trim().isEmpty
-          ? 'UNSCOPED-LANE'
-          : widget.initialScopeSiteId!.trim(),
-      'occurredAt': timestamp.toIso8601String(),
-      'summary': 'Focused lane is waiting for the live ledger feed to arrive.',
-      'dispatchId': null,
-      'seededFocus': true,
-    };
-    final hash = sha256
-        .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
-        .toString();
-    final seeded = _LedgerEntryView(
-      id: 'LED-SEED-$focusReference',
-      sequence: maxSequence + 1,
-      type: 'INCIDENT',
-      title: 'Focused lane is waiting for the live ledger feed to arrive.',
-      site: (widget.initialScopeSiteId ?? '').trim().isEmpty
-          ? 'Focused Lane'
-          : widget.initialScopeSiteId!.trim(),
-      dispatchId: null,
-      timestamp: timestamp,
-      hash: hash,
-      previousHash: previousHash,
-      verified: true,
-      typeColor: _typeColor('INCIDENT'),
-      payload: payload,
-    );
-    return [seeded, ...entries];
-  }
-
-  Widget _integritySummaryBar({
-    required int verifiedEntries,
-    required int pendingEntries,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101820),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 10,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
-            'CHAIN INTEGRITY:',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7F91A8),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.0,
-            ),
-          ),
-          _statusPill(
-            icon: Icons.verified_rounded,
-            label: '$verifiedEntries Verified',
-            accent: _ChainIntegrity.intact.color,
-          ),
-          _statusPill(
-            icon: Icons.schedule_rounded,
-            label: '$pendingEntries Pending',
-            accent: _ChainIntegrity.pending.color,
-          ),
-          _statusPill(
-            icon: Icons.filter_alt_outlined,
-            label:
-                'Incident: ${widget.initialFocusReference.trim().isEmpty ? "Global" : widget.initialFocusReference.trim()}',
-            accent: const Color(0xFF9CA3AF),
+            children: _ObCategory.values
+                .map(
+                  (category) => _buildFilterChip(
+                    category: category,
+                    selected: _categoryFilter == category,
+                    onTap: () {
+                      setState(() {
+                        _categoryFilter = category;
+                        if (!_composerOpen) {
+                          return;
+                        }
+                        if (category != _ObCategory.all) {
+                          _draftCategory = category;
+                        }
+                      });
+                    },
+                  ),
+                )
+                .toList(growable: false),
           ),
         ],
       ),
     );
   }
 
-  Widget _statusPill({
-    required IconData icon,
-    required String label,
-    required Color accent,
+  Widget _buildComposerPanel({
+    required BuildContext context,
+    required List<_GuardPreset> guardPresets,
+    required List<String> siteOptions,
+    required List<_ObEntryView> currentEntries,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: accent),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: accent,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    final activePreset = _resolvePresetByKey(guardPresets, _draftPresetKey);
+    final selectedSite = siteOptions.contains(_draftSite)
+        ? _draftSite
+        : siteOptions.first;
+    final twoColumn = MediaQuery.sizeOf(context).width >= 1100;
 
-  Widget _workspaceCommandBar(List<_LedgerEntryView> entries) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: onyxWorkspaceSurfaceDecoration(),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 960;
-          final title = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return _surfacePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
               Text(
-                'Ledger Commands',
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFE6F0FF),
-                  fontSize: 18,
+                'New OB Entry',
+                style: GoogleFonts.inter(
+                  color: _obTextPrimary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                _formatUtcTimestamp(_draftOccurredAt),
+                style: GoogleFonts.inter(
+                  color: _obTextPrimary,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Quick integrity and export actions stay in reach while the main workspace handles review and continuity.',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF8EA5C6),
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          );
-          final actions = Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            alignment: WrapAlignment.end,
-            children: [
-              FilledButton.tonalIcon(
-                key: const ValueKey('ledger-context-verify-chain'),
-                onPressed: () =>
-                    _runIntegrityCheck(entries, action: 'ledger.verify_chain'),
-                icon: const Icon(Icons.verified_rounded, size: 18),
-                label: const Text('VERIFY CHAIN'),
-              ),
-              FilledButton.tonalIcon(
-                key: const ValueKey('ledger-context-export-ledger'),
-                onPressed: () => _exportLedger(entries),
-                icon: const Icon(Icons.ios_share_rounded, size: 18),
-                label: const Text('EXPORT LEDGER'),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF101A2B),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0xFF223244)),
-                ),
-                child: Text(
-                  'SOURCE ONYX CORE',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF8FD1FF),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [title, const SizedBox(height: 12), actions],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: title),
-              const SizedBox(width: 16),
-              Flexible(child: actions),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _workspaceStatusBanner(
-    BuildContext context, {
-    required List<_LedgerEntryView> entries,
-    required List<_LedgerEntryView> filteredEntries,
-    required _LedgerEntryView selected,
-    required List<_LedgerEntryView> linkedEntries,
-    required _LedgerLaneFilter effectiveLane,
-  }) {
-    final reportEntry = _firstEntryForLane(entries, _LedgerLaneFilter.reports);
-    final intelligenceEntry = _firstEntryForLane(
-      entries,
-      _LedgerLaneFilter.intelligence,
-    );
-    final attentionEntry = _firstEntryForLane(
-      entries,
-      _LedgerLaneFilter.attention,
-    );
-    return Container(
-      key: const ValueKey('ledger-workspace-status-banner'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusPill(
-                icon: Icons.filter_list_rounded,
-                label: '${filteredEntries.length} Visible',
-                accent: const Color(0xFF59D79B),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.radar_outlined,
-                label: 'Lane ${effectiveLane.label}',
-                accent: effectiveLane.accent,
-              ),
-              _workspaceStatusPill(
-                icon: Icons.dashboard_customize_outlined,
-                label: 'View ${_workspaceView.label}',
-                accent: _workspaceView.accent,
-              ),
-              _workspaceStatusPill(
-                icon: Icons.flag_outlined,
-                label: 'Focus ${selected.id}',
-                accent: selected.typeColor,
-              ),
-              _workspaceStatusPill(
-                icon: Icons.link_outlined,
-                label: '${linkedEntries.length} Linked',
-                accent: linkedEntries.isEmpty
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF22D3EE),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.verified_outlined,
-                label: _integrity.label,
-                accent: _integrity.color,
-              ),
             ],
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-all'),
-                label: 'All Entries',
-                selected: effectiveLane == _LedgerLaneFilter.all,
-                accent: _LedgerLaneFilter.all.accent,
-                onTap: () =>
-                    _setLedgerLaneFilter(_LedgerLaneFilter.all, entries),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-reports'),
-                label: 'Reports Lane',
-                selected: effectiveLane == _LedgerLaneFilter.reports,
-                accent: _LedgerLaneFilter.reports.accent,
-                onTap: reportEntry == null
-                    ? null
-                    : () => _setLedgerLaneFilter(
-                        _LedgerLaneFilter.reports,
-                        entries,
-                      ),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-attention'),
-                label: 'Attention Lane',
-                selected: effectiveLane == _LedgerLaneFilter.attention,
-                accent: _LedgerLaneFilter.attention.accent,
-                onTap: attentionEntry == null
-                    ? null
-                    : () => _setLedgerLaneFilter(
-                        _LedgerLaneFilter.attention,
-                        entries,
-                      ),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-case-file'),
-                label: 'Case File',
-                selected: _workspaceView == _LedgerWorkspaceView.caseFile,
-                accent: _LedgerWorkspaceView.caseFile.accent,
-                onTap: () =>
-                    _setLedgerWorkspaceView(_LedgerWorkspaceView.caseFile),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-evidence'),
-                label: 'Evidence View',
-                selected: _workspaceView == _LedgerWorkspaceView.evidence,
-                accent: _LedgerWorkspaceView.evidence.accent,
-                onTap: () =>
-                    _setLedgerWorkspaceView(_LedgerWorkspaceView.evidence),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-chain'),
-                label: 'Chain View',
-                selected: _workspaceView == _LedgerWorkspaceView.chain,
-                accent: _LedgerWorkspaceView.chain.accent,
-                onTap: () =>
-                    _setLedgerWorkspaceView(_LedgerWorkspaceView.chain),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-verify-chain'),
-                label: 'Verify Chain',
-                selected: false,
-                accent: const Color(0xFF59D79B),
-                onTap: () =>
-                    _runIntegrityCheck(entries, action: 'ledger.verify_chain'),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-events'),
-                label: 'Open Events',
-                selected: false,
-                accent: const Color(0xFF93C5FD),
-                onTap: () => _openEventsForSelectedEntry(selected),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey(
-                  'ledger-workspace-banner-open-intelligence',
-                ),
-                label: 'AI Evidence',
-                selected: effectiveLane == _LedgerLaneFilter.intelligence,
-                accent: _LedgerLaneFilter.intelligence.accent,
-                onTap: intelligenceEntry == null
-                    ? null
-                    : () => _setLedgerLaneFilter(
-                        _LedgerLaneFilter.intelligence,
-                        entries,
-                      ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'The selected ledger focus stays pinned while lane pivots, case-board swaps, integrity reruns, and event handoffs stay available from the workspace shell.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _ledgerWorkspace({
-    required List<_LedgerEntryView> entries,
-    required List<_LedgerEntryView> filteredEntries,
-    required _LedgerEntryView selected,
-    required List<_LedgerEntryView> linkedEntries,
-    required _LedgerLaneFilter effectiveLane,
-    required int hiddenEntries,
-    required bool useEmbeddedPanels,
-    required bool useThreeColumnLayout,
-  }) {
-    final viewportWidth = MediaQuery.sizeOf(context).width;
-    final ultrawideWorkspace = viewportWidth >= 2600;
-    final widescreenWorkspace = viewportWidth >= 2000;
-    final railGap = ultrawideWorkspace ? 12.0 : 10.0;
-    final laneRailWidth = ultrawideWorkspace
-        ? 336.0
-        : widescreenWorkspace
-        ? 324.0
-        : 320.0;
-    final contextRailWidth = ultrawideWorkspace
-        ? 312.0
-        : widescreenWorkspace
-        ? 304.0
-        : 296.0;
-
-    if (useThreeColumnLayout && useEmbeddedPanels) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: laneRailWidth,
-            child: _ledgerLaneRail(
-              entries: entries,
-              filteredEntries: filteredEntries,
-              effectiveLane: effectiveLane,
-              useExpandedBody: true,
-            ),
-          ),
-          SizedBox(width: railGap),
-          Expanded(
-            flex: 2,
-            child: _selectedEntryBoard(
-              entries: entries,
-              selected: selected,
-              linkedEntries: linkedEntries,
-              useExpandedBody: true,
-            ),
-          ),
-          SizedBox(width: railGap),
-          SizedBox(
-            width: contextRailWidth,
-            child: _ledgerContextRail(
-              entries: entries,
-              filteredEntries: filteredEntries,
-              selected: selected,
-              linkedEntries: linkedEntries,
-              hiddenEntries: hiddenEntries,
-              useExpandedBody: true,
-            ),
-          ),
-        ],
-      );
-    }
-
-    if (useEmbeddedPanels) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: laneRailWidth,
-            child: _ledgerLaneRail(
-              entries: entries,
-              filteredEntries: filteredEntries,
-              effectiveLane: effectiveLane,
-              useExpandedBody: true,
-            ),
-          ),
-          SizedBox(width: railGap),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _selectedEntryBoard(
-                    entries: entries,
-                    selected: selected,
-                    linkedEntries: linkedEntries,
-                    useExpandedBody: true,
-                  ),
-                ),
-                SizedBox(height: railGap),
-                SizedBox(
-                  height: ultrawideWorkspace ? 244 : 228,
-                  child: _ledgerContextRail(
-                    entries: entries,
-                    filteredEntries: filteredEntries,
-                    selected: selected,
-                    linkedEntries: linkedEntries,
-                    hiddenEntries: hiddenEntries,
-                    useExpandedBody: false,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _ledgerLaneRail(
-          entries: entries,
-          filteredEntries: filteredEntries,
-          effectiveLane: effectiveLane,
-          useExpandedBody: false,
-        ),
-        const SizedBox(height: 12),
-        _selectedEntryBoard(
-          entries: entries,
-          selected: selected,
-          linkedEntries: linkedEntries,
-          useExpandedBody: false,
-        ),
-        const SizedBox(height: 12),
-        _ledgerContextRail(
-          entries: entries,
-          filteredEntries: filteredEntries,
-          selected: selected,
-          linkedEntries: linkedEntries,
-          hiddenEntries: hiddenEntries,
-          useExpandedBody: false,
-        ),
-      ],
-    );
-  }
-
-  Widget _ledgerLaneRail({
-    required List<_LedgerEntryView> entries,
-    required List<_LedgerEntryView> filteredEntries,
-    required _LedgerLaneFilter effectiveLane,
-    required bool useExpandedBody,
-  }) {
-    final list = filteredEntries.isEmpty
-        ? _emptyLaneState()
-        : ListView.separated(
-            shrinkWrap: !useExpandedBody,
-            primary: useExpandedBody,
-            physics: useExpandedBody
-                ? null
-                : const NeverScrollableScrollPhysics(),
-            itemCount: filteredEntries.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final entry = filteredEntries[index];
-              return _entryCard(
-                entry,
-                isSelected: entry.id == _selectedEntryId,
-              );
-            },
-          );
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: onyxWorkspaceSurfaceDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Ledger Lanes',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE6F0FF),
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Shift between the full chain, receipt-heavy rows, AI evidence, continuity milestones, and items that need operator attention.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C6),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _LedgerLaneFilter.values
-                .map((lane) => _laneChip(lane, entries, effectiveLane))
-                .toList(),
-          ),
-          const SizedBox(height: 12),
-          if (useExpandedBody) Expanded(child: list) else list,
-        ],
-      ),
-    );
-  }
-
-  Widget _emptyLaneState() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: onyxSelectableRowSurfaceDecoration(isSelected: false),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'No entries in this lane yet.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFFE6F0FF),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Return to the full ledger stream to recover the wider continuity stack.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C6),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-          if (_laneFilter != _LedgerLaneFilter.all) ...[
-            const SizedBox(height: 10),
-            FilledButton.tonalIcon(
-              key: const ValueKey('ledger-empty-reset-lane'),
-              onPressed: () =>
-                  _setLedgerLaneFilter(_LedgerLaneFilter.all, const []),
-              icon: const Icon(Icons.restart_alt_rounded, size: 18),
-              label: const Text('Reset Lane'),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _laneChip(
-    _LedgerLaneFilter lane,
-    List<_LedgerEntryView> entries,
-    _LedgerLaneFilter effectiveLane,
-  ) {
-    final selected = lane == effectiveLane;
-    final matchingEntries = entries
-        .where((entry) => _matchesLaneFilter(entry, lane))
-        .toList(growable: false);
-    return InkWell(
-      key: ValueKey('ledger-lane-filter-${lane.key}'),
-      onTap: () => _setLedgerLaneFilter(lane, entries),
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? lane.accent.withValues(alpha: 0.16)
-              : const Color(0xFF0B1930),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected
-                ? lane.accent.withValues(alpha: 0.42)
-                : const Color(0xFF223244),
-          ),
-        ),
-        child: Text(
-          '${lane.label} ${matchingEntries.length}',
-          style: GoogleFonts.inter(
-            color: selected ? lane.accent : const Color(0xFF9AB1CF),
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _entryCard(_LedgerEntryView entry, {required bool isSelected}) {
-    final eventId = (entry.payload['eventId'] ?? '').toString().trim();
-    final reportConfiguration = _reportConfigurationPayloadForEntry(entry);
-    final sceneReview = _sceneReviewPayloadForEntry(entry);
-    return InkWell(
-      key: ValueKey('ledger-entry-card-${entry.id}'),
-      onTap: () => _focusEntry(entry),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: onyxSelectableRowSurfaceDecoration(isSelected: isSelected),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+          const SizedBox(height: 18),
+          if (twoColumn)
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: BoxDecoration(
-                    color: entry.typeColor,
-                    shape: BoxShape.circle,
+                Expanded(
+                  child: _buildDropdownField(
+                    label: 'Guard (quick select)',
+                    value: activePreset.key,
+                    items: guardPresets
+                        .map(
+                          (preset) => DropdownMenuItem<String>(
+                            value: preset.key,
+                            child: Text(
+                              '${preset.callsign} - ${preset.guardName}',
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      final preset = _resolvePresetByKey(guardPresets, value);
+                      setState(() => _applyGuardPreset(preset));
+                    },
                   ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildDropdownField(
+                    label: 'Site',
+                    value: selectedSite,
+                    items: siteOptions
+                        .map(
+                          (site) => DropdownMenuItem<String>(
+                            value: site,
+                            child: Text(site),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() => _draftSite = value);
+                    },
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            _buildDropdownField(
+              label: 'Guard (quick select)',
+              value: activePreset.key,
+              items: guardPresets
+                  .map(
+                    (preset) => DropdownMenuItem<String>(
+                      value: preset.key,
+                      child: Text('${preset.callsign} - ${preset.guardName}'),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                final preset = _resolvePresetByKey(guardPresets, value);
+                setState(() => _applyGuardPreset(preset));
+              },
+            ),
+            const SizedBox(height: 14),
+            _buildDropdownField(
+              label: 'Site',
+              value: selectedSite,
+              items: siteOptions
+                  .map(
+                    (site) => DropdownMenuItem<String>(
+                      value: site,
+                      child: Text(site),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(() => _draftSite = value);
+              },
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (twoColumn)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildTextField(
+                    controller: _guardNameController,
+                    label: 'Guard Name',
+                    hintText: 'Full name',
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildTextField(
+                    controller: _callsignController,
+                    label: 'Callsign',
+                    hintText: 'e.g. Echo-3',
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            _buildTextField(
+              controller: _guardNameController,
+              label: 'Guard Name',
+              hintText: 'Full name',
+            ),
+            const SizedBox(height: 14),
+            _buildTextField(
+              controller: _callsignController,
+              label: 'Callsign',
+              hintText: 'e.g. Echo-3',
+            ),
+          ],
+          const SizedBox(height: 14),
+          if (twoColumn)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildDropdownField(
+                    label: 'Category',
+                    value: _draftCategory.storageKey,
+                    items: _ObCategory.values
+                        .where((category) => category != _ObCategory.all)
+                        .map(
+                          (category) => DropdownMenuItem<String>(
+                            value: category.storageKey,
+                            child: Text(category.label.toUpperCase()),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(
+                        () => _draftCategory = _ObCategory.values.firstWhere(
+                          (category) => category.storageKey == value,
+                          orElse: () => _ObCategory.patrol,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _buildReadOnlyField(
+                    label: 'Occurred At',
+                    value: _formatComposerTimestamp(_draftOccurredAt),
+                  ),
+                ),
+              ],
+            )
+          else ...[
+            _buildDropdownField(
+              label: 'Category',
+              value: _draftCategory.storageKey,
+              items: _ObCategory.values
+                  .where((category) => category != _ObCategory.all)
+                  .map(
+                    (category) => DropdownMenuItem<String>(
+                      value: category.storageKey,
+                      child: Text(category.label.toUpperCase()),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) {
+                if (value == null) {
+                  return;
+                }
+                setState(
+                  () => _draftCategory = _ObCategory.values.firstWhere(
+                    (category) => category.storageKey == value,
+                    orElse: () => _ObCategory.patrol,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            _buildReadOnlyField(
+              label: 'Occurred At',
+              value: _formatComposerTimestamp(_draftOccurredAt),
+            ),
+          ],
+          const SizedBox(height: 14),
+          _buildTextField(
+            controller: _locationController,
+            label: 'Location Detail',
+            hintText: 'e.g. North Gate, Zone 4',
+            fieldKey: const ValueKey('ledger-form-location'),
+          ),
+          const SizedBox(height: 14),
+          _buildTextField(
+            controller: _descriptionController,
+            label: 'Entry Description *',
+            hintText: 'Describe the occurrence in detail...',
+            maxLines: 5,
+            fieldKey: const ValueKey('ledger-form-description'),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _obSurfaceSoft,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _obBorder),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.auto_fix_high_rounded,
+                  color: _obBlueAccentStrong,
+                  size: 18,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -1372,1349 +714,1085 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        entry.title,
+                        'Refine quietly in the background',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFE6F0FF),
-                          fontSize: 13,
+                          color: _obTextPrimary,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          height: 1.35,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
-                        '$eventId • ${_clock(entry.timestamp)} UTC',
+                        'ONYX can tighten wording before save, but the controller still only sees one clean entry form.',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF8EA5C6),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                          color: _obTextSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
                         ),
                       ),
                     ],
                   ),
                 ),
-                if (isSelected)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0x129FD9FF),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0x409FD9FF)),
-                    ),
-                    child: Text(
-                      'FOCUS',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF9FD9FF),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
+                const SizedBox(width: 10),
+                Checkbox(
+                  value: _draftFlagged,
+                  activeColor: const Color(0xFFF39A19),
+                  onChanged: (value) {
+                    setState(() => _draftFlagged = value ?? false);
+                  },
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                _typeChip(entry.type, entry.typeColor),
-                if (entry.verified)
-                  _typeChip('VERIFIED', const Color(0xFF10B981)),
-                if ((entry.site ?? '').trim().isNotEmpty)
-                  _pill('Site ${entry.site!}'),
-                if ((entry.dispatchId ?? '').trim().isNotEmpty)
-                  _pill('Dispatch ${entry.dispatchId!}'),
-                if (reportConfiguration != null)
-                  _pill(
-                    ((reportConfiguration['tracked'] ?? false) as bool)
-                        ? 'Receipt Tracked'
-                        : 'Legacy config',
-                  ),
-                if (sceneReview != null) _pill('Scene Review'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _pill(String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111822),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF2A374A)),
-      ),
-      child: Text(
-        text,
-        style: GoogleFonts.inter(
-          color: const Color(0xFF9BB0CE),
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-
-  Widget _selectedEntryBoard({
-    required List<_LedgerEntryView> entries,
-    required _LedgerEntryView selected,
-    required List<_LedgerEntryView> linkedEntries,
-    required bool useExpandedBody,
-  }) {
-    final panel = switch (_workspaceView) {
-      _LedgerWorkspaceView.caseFile => SingleChildScrollView(
-        key: const ValueKey('ledger-workspace-panel-case-file'),
-        child: _caseFilePanel(selected),
-      ),
-      _LedgerWorkspaceView.evidence => SingleChildScrollView(
-        key: const ValueKey('ledger-workspace-panel-evidence'),
-        child: _evidencePanel(selected, linkedEntries),
-      ),
-      _LedgerWorkspaceView.chain => SingleChildScrollView(
-        key: const ValueKey('ledger-workspace-panel-chain'),
-        child: _chainPanel(selected, entries),
-      ),
-    };
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: onyxWorkspaceSurfaceDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Selected Entry',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE7F1FF),
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
-            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'A full fidelity case board for the active ledger entry, including report receipts, scene evidence, and cryptographic continuity.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C5),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _entryFocusBanner(selected),
-          const SizedBox(height: 10),
-          _entryWorkspaceActions(selected),
-          const SizedBox(height: 10),
+          const SizedBox(height: 18),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _LedgerWorkspaceView.values
-                .map((view) => _workspaceChip(view))
-                .toList(),
-          ),
-          const SizedBox(height: 12),
-          if (useExpandedBody) Expanded(child: panel) else panel,
-        ],
-      ),
-    );
-  }
-
-  Widget _entryFocusBanner(_LedgerEntryView selected) {
-    final summary = (selected.payload['summary'] ?? selected.title)
-        .toString()
-        .trim();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            selected.typeColor.withValues(alpha: 0.18),
-            const Color(0xFF101A2B),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: selected.typeColor.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'ACTIVE LEDGER FOCUS',
-            style: GoogleFonts.inter(
-              color: selected.typeColor,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            selected.id,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFF4F8FF),
-              fontSize: 30,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            summary,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFD8E4F5),
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 12,
+            runSpacing: 12,
             children: [
-              _pill('Lane ${_preferredLaneForEntry(selected).label}'),
-              _pill('Sequence #${selected.sequence}'),
-              if ((selected.site ?? '').trim().isNotEmpty)
-                _pill('Site ${selected.site!}'),
-              if ((selected.dispatchId ?? '').trim().isNotEmpty)
-                _pill('Dispatch ${selected.dispatchId!}'),
-              _pill('Integrity ${selected.verified ? "Verified" : "Pending"}'),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _workspaceChip(_LedgerWorkspaceView view) {
-    final selected = _workspaceView == view;
-    return InkWell(
-      key: ValueKey('ledger-workspace-view-${view.key}'),
-      onTap: () => _setLedgerWorkspaceView(view),
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected
-              ? view.accent.withValues(alpha: 0.16)
-              : const Color(0xFF0B1930),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: selected
-                ? view.accent.withValues(alpha: 0.45)
-                : const Color(0xFF223244),
-          ),
-        ),
-        child: Text(
-          view.label,
-          style: GoogleFonts.inter(
-            color: selected ? view.accent : const Color(0xFF9DB1CF),
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _entryWorkspaceActions(_LedgerEntryView selected) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        FilledButton.tonalIcon(
-          key: const ValueKey('ledger-entry-view-event-review'),
-          onPressed: () => _openEntryInEventReview(selected),
-          icon: const Icon(Icons.open_in_new_rounded, size: 18),
-          label: const Text('VIEW IN EVENT REVIEW'),
-        ),
-        FilledButton.tonalIcon(
-          key: const ValueKey('ledger-entry-export-data'),
-          onPressed: () => _exportEntryData(selected),
-          icon: const Icon(Icons.download_rounded, size: 18),
-          label: const Text('EXPORT ENTRY DATA'),
-        ),
-      ],
-    );
-  }
-
-  Widget _caseFilePanel(_LedgerEntryView selected) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Ledger Entry',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF8EA4C2),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          selected.id,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF1FB),
-                            fontSize: 37,
-                            fontWeight: FontWeight.w700,
-                            height: 0.95,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      _typeChip(selected.type, selected.typeColor),
-                      if (selected.verified)
-                        _typeChip('VERIFIED', const Color(0xFF10B981)),
-                    ],
-                  ),
-                ],
+              FilledButton.icon(
+                key: const ValueKey('ledger-form-submit'),
+                onPressed: () => _submitEntry(
+                  guardPresets: guardPresets,
+                  currentEntries: currentEntries,
+                ),
+                style: _primaryButtonStyle(),
+                icon: const Icon(Icons.menu_book_rounded, size: 18),
+                label: const Text('Submit Entry'),
               ),
-              const SizedBox(height: 6),
-              Text(
-                selected.title,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFD9E7FA),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Divider(color: Color(0x332A374A), height: 1),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(child: _kvMini('SEQUENCE', '#${selected.sequence}')),
-                  const SizedBox(width: 18),
-                  Expanded(
-                    child: _kvMini(
-                      'TIMESTAMP (UTC)',
-                      _fullTimestamp(selected.timestamp),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _blockTitle('CONTEXT'),
-              const SizedBox(height: 8),
-              if (selected.site != null) _contextRow('Site', selected.site!),
-              if (selected.dispatchId != null)
-                _contextRow('Dispatch ID', selected.dispatchId!),
-              _contextRow('Type', selected.type),
-            ],
-          ),
-        ),
-        if (_reportConfigurationPayloadForEntry(selected) != null) ...[
-          const SizedBox(height: 8),
-          _detailCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _blockTitle('REPORT CONFIGURATION'),
-                const SizedBox(height: 8),
-                _contextRow(
-                  'Config',
-                  ((_reportConfigurationPayloadForEntry(selected)!['tracked'] ??
-                              false)
-                          as bool)
-                      ? 'Tracked'
-                      : 'Legacy',
-                ),
-                _contextRow(
-                  'Branding',
-                  (_reportConfigurationPayloadForEntry(
-                            selected,
-                          )!['branding_mode_label'] ??
-                          '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Branding Source',
-                  (_reportConfigurationPayloadForEntry(
-                            selected,
-                          )!['branding_source_label'] ??
-                          '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Branding Summary',
-                  (_reportConfigurationPayloadForEntry(
-                            selected,
-                          )!['branding_summary'] ??
-                          '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Summary',
-                  (_reportConfigurationPayloadForEntry(selected)!['summary'] ??
-                          '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Included',
-                  (_reportConfigurationPayloadForEntry(
-                            selected,
-                          )!['included_sections_label'] ??
-                          '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Omitted',
-                  (_reportConfigurationPayloadForEntry(
-                            selected,
-                          )!['omitted_sections_label'] ??
-                          '')
-                      .toString(),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (_sceneReviewPayloadForEntry(selected) != null) ...[
-          const SizedBox(height: 8),
-          _detailCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _blockTitle('SCENE REVIEW'),
-                const SizedBox(height: 8),
-                _contextRow(
-                  'Source',
-                  (_sceneReviewPayloadForEntry(selected)!['source_label'] ?? '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Posture',
-                  (_sceneReviewPayloadForEntry(selected)!['posture_label'] ??
-                          '')
-                      .toString(),
-                ),
-                if (((_sceneReviewPayloadForEntry(
-                              selected,
-                            )!['decision_label'] ??
-                            '')
-                        .toString()
-                        .trim())
-                    .isNotEmpty)
-                  _contextRow(
-                    'Action',
-                    (_sceneReviewPayloadForEntry(selected)!['decision_label'] ??
-                            '')
-                        .toString(),
-                  ),
-                _contextRow(
-                  'Reviewed At',
-                  (_sceneReviewPayloadForEntry(selected)!['reviewed_at_utc'] ??
-                          '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Summary',
-                  (_sceneReviewPayloadForEntry(selected)!['summary'] ?? '')
-                      .toString(),
-                ),
-                if (((_sceneReviewPayloadForEntry(
-                              selected,
-                            )!['decision_summary'] ??
-                            '')
-                        .toString()
-                        .trim())
-                    .isNotEmpty)
-                  _contextRow(
-                    'Decision Detail',
-                    (_sceneReviewPayloadForEntry(
-                              selected,
-                            )!['decision_summary'] ??
-                            '')
-                        .toString(),
-                  ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 8),
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _blockTitle('CRYPTOGRAPHIC CHAIN'),
-              const SizedBox(height: 8),
-              _hashBlock(
-                'Current Hash',
-                selected.hash,
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 6),
-              const Center(
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 14,
-                  color: Color(0x668EA4C2),
-                ),
-              ),
-              const SizedBox(height: 6),
-              _hashBlock(
-                'Previous Hash',
-                selected.previousHash,
-                const Color(0xFF22D3EE),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _blockTitle('VERIFICATION STATUS'),
-              const SizedBox(height: 8),
-              _verifyLine(
-                'Hash integrity verified',
-                'Entry matches cryptographic signature',
-              ),
-              _verifyLine(
-                'Chain linkage confirmed',
-                'Previous hash reference is valid',
-              ),
-              _verifyLine(
-                'Timestamp sequence valid',
-                'Entry follows chronological order',
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _evidencePanel(
-    _LedgerEntryView selected,
-    List<_LedgerEntryView> linkedEntries,
-  ) {
-    final payload = selected.payload;
-    final sceneReview = _sceneReviewPayloadForEntry(selected);
-    final reportConfiguration = _reportConfigurationPayloadForEntry(selected);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _blockTitle('EVIDENCE SNAPSHOT'),
-              const SizedBox(height: 8),
-              _contextRow(
-                'Event ID',
-                (payload['eventId'] ?? selected.id).toString(),
-              ),
-              _contextRow('Client', (payload['clientId'] ?? '').toString()),
-              _contextRow('Site', (payload['siteId'] ?? '').toString()),
-              if ((payload['provider'] ?? '').toString().trim().isNotEmpty)
-                _contextRow('Provider', payload['provider'].toString()),
-              if ((payload['sourceType'] ?? '').toString().trim().isNotEmpty)
-                _contextRow('Source', payload['sourceType'].toString()),
-              if ((payload['riskScore'] ?? '').toString().trim().isNotEmpty)
-                _contextRow('Risk Score', payload['riskScore'].toString()),
-              if ((payload['evidenceRecordHash'] ?? '')
-                  .toString()
-                  .trim()
-                  .isNotEmpty)
-                _contextRow(
-                  'Evidence Hash',
-                  payload['evidenceRecordHash'].toString(),
-                ),
-            ],
-          ),
-        ),
-        if (sceneReview != null) ...[
-          const SizedBox(height: 8),
-          _detailCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _blockTitle('SCENE REVIEW'),
-                const SizedBox(height: 8),
-                _contextRow(
-                  'Source',
-                  (sceneReview['source_label'] ?? '').toString(),
-                ),
-                _contextRow(
-                  'Posture',
-                  (sceneReview['posture_label'] ?? '').toString(),
-                ),
-                if ((sceneReview['decision_label'] ?? '')
-                    .toString()
-                    .trim()
-                    .isNotEmpty)
-                  _contextRow(
-                    'Action',
-                    (sceneReview['decision_label'] ?? '').toString(),
-                  ),
-                _contextRow(
-                  'Decision Detail',
-                  (sceneReview['decision_summary'] ??
-                          sceneReview['summary'] ??
-                          '')
-                      .toString(),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (reportConfiguration != null) ...[
-          const SizedBox(height: 8),
-          _detailCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _blockTitle('REPORT RECEIPT'),
-                const SizedBox(height: 8),
-                _contextRow(
-                  'Config',
-                  ((reportConfiguration['tracked'] ?? false) as bool)
-                      ? 'Tracked'
-                      : 'Legacy',
-                ),
-                _contextRow(
-                  'Brand Source',
-                  (reportConfiguration['branding_source_label'] ?? '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Included',
-                  (reportConfiguration['included_sections_label'] ?? '')
-                      .toString(),
-                ),
-                _contextRow(
-                  'Omitted',
-                  (reportConfiguration['omitted_sections_label'] ?? '')
-                      .toString(),
-                ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 8),
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _blockTitle('LINKED CONTINUITY'),
-              const SizedBox(height: 8),
-              if (linkedEntries.isEmpty)
-                Text(
-                  'No adjacent ledger entries share this dispatch or site scope.',
+              TextButton(
+                key: const ValueKey('ledger-form-cancel'),
+                onPressed: () {
+                  setState(() {
+                    _composerOpen = false;
+                    _resetDraft(presets: guardPresets);
+                  });
+                },
+                child: Text(
+                  'Cancel',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA5C6),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
+                    color: _obTextPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
-                )
-              else
-                ...linkedEntries.map(_linkedEntryMiniCard),
+                ),
+              ),
             ],
           ),
-        ),
-        const SizedBox(height: 8),
-        _outlineButton(
-          'COPY ENTRY EXPORT',
-          onTap: () => _exportEntryData(selected),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _chainPanel(
-    _LedgerEntryView selected,
-    List<_LedgerEntryView> entries,
-  ) {
-    final hasScopeLane =
-        _preferredLaneForEntry(selected) != _LedgerLaneFilter.all;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _blockTitle('CHAIN STATUS'),
-              const SizedBox(height: 8),
-              _contextRow('Integrity', _integrity.label),
-              _contextRow('Sequence', '#${selected.sequence}'),
-              _contextRow(
-                'Next Reference',
-                selected.previousHash == 'GENESIS' ? 'GENESIS' : 'HASH LINKED',
-              ),
-              _contextRow(
-                'Lane',
-                hasScopeLane
-                    ? _preferredLaneForEntry(selected).label
-                    : 'All Entries',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _blockTitle('CRYPTOGRAPHIC CHAIN'),
-              const SizedBox(height: 8),
-              _hashBlock(
-                'Current Hash',
-                selected.hash,
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 6),
-              _hashBlock(
-                'Previous Hash',
-                selected.previousHash,
-                const Color(0xFF22D3EE),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        _detailCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _blockTitle('VERIFICATION RUNBOOK'),
-              const SizedBox(height: 8),
-              _verifyLine(
-                'Integrity replay is available',
-                'Rerun the chain to confirm this entry still links to the adjacent ledger stack.',
-              ),
-              _verifyLine(
-                'Operator export is available',
-                'Copy the selected entry or the full ledger without leaving the current workspace.',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        _outlineButton(
-          'RERUN INTEGRITY CHECK',
-          onTap: () {
-            _runIntegrityCheck(
-              entries,
-              action: 'ledger.workspace_verify_chain',
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _ledgerContextRail({
-    required List<_LedgerEntryView> entries,
-    required List<_LedgerEntryView> filteredEntries,
-    required _LedgerEntryView selected,
-    required List<_LedgerEntryView> linkedEntries,
-    required int hiddenEntries,
-    required bool useExpandedBody,
+  Widget _buildEntriesPanel({
+    required List<_ObEntryView> entries,
+    required _ObEntryView selected,
   }) {
-    final latestReport = _firstEntryForLane(entries, _LedgerLaneFilter.reports);
-    final attentionEntry = _firstEntryForLane(
-      entries,
-      _LedgerLaneFilter.attention,
-    );
-    final continuityCard = Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: onyxPanelSurfaceDecoration(),
+    return _surfacePanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _blockTitle('CONTINUITY STATUS'),
-          const SizedBox(height: 8),
-          _contextMetric(
-            'Integrity',
-            _integrity.label,
-            accent: _integrity.color,
-          ),
-          _contextMetric(
-            'Visible',
-            '${filteredEntries.length}',
-            accent: const Color(0xFF59D79B),
-          ),
-          _contextMetric(
-            'Hidden',
-            '$hiddenEntries',
-            accent: hiddenEntries > 0
-                ? const Color(0xFFF6C067)
-                : const Color(0xFF8EA5C6),
-          ),
-          _contextMetric(
-            'Focus',
-            _preferredLaneForEntry(selected).label,
-            accent: _preferredLaneForEntry(selected).accent,
-          ),
-        ],
-      ),
-    );
-    final actionsCard = Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: onyxPanelSurfaceDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _blockTitle('WORKSPACE ACTIONS'),
-          const SizedBox(height: 8),
-          _outlineButton(
-            'VERIFY CHAIN',
-            onTap: () =>
-                _runIntegrityCheck(entries, action: 'ledger.verify_chain'),
-          ),
-          const SizedBox(height: 6),
-          _outlineButton('EXPORT LEDGER', onTap: () => _exportLedger(entries)),
-          const SizedBox(height: 6),
-          _contextActionButton(
-            key: const ValueKey('ledger-context-focus-reports'),
-            label: 'FOCUS REPORT RECEIPTS',
-            enabled: latestReport != null,
-            onTap: () {
-              if (latestReport == null) {
-                _showActionMessage(
-                  'No report receipts are visible in the current ledger scope.',
-                );
-                return;
-              }
-              _focusEntry(latestReport, lane: _LedgerLaneFilter.reports);
-            },
-          ),
-          const SizedBox(height: 6),
-          _contextActionButton(
-            key: const ValueKey('ledger-context-focus-attention'),
-            label: 'FOCUS ATTENTION',
-            enabled: attentionEntry != null,
-            onTap: () {
-              if (attentionEntry == null) {
-                _showActionMessage(
-                  'No attention items are visible in the current ledger scope.',
-                );
-                return;
-              }
-              _focusEntry(attentionEntry, lane: _LedgerLaneFilter.attention);
-            },
-          ),
-          if (_laneFilter != _LedgerLaneFilter.all) ...[
-            const SizedBox(height: 6),
-            _contextActionButton(
-              key: const ValueKey('ledger-context-reset-lane'),
-              label: 'SHOW ALL ENTRIES',
-              onTap: () => _setLedgerLaneFilter(_LedgerLaneFilter.all, entries),
+          Text(
+            'OB Entries',
+            style: GoogleFonts.inter(
+              color: _obTextPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
             ),
-          ],
-        ],
-      ),
-    );
-    final linkedScopeCard = Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: onyxPanelSurfaceDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _blockTitle('LINKED SCOPE'),
-          const SizedBox(height: 8),
-          if (linkedEntries.isEmpty)
-            Text(
-              'No adjacent rows share the active dispatch or site scope.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8EA5C6),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            entries.isEmpty
+                ? 'No entries match the current search or category filter.'
+                : '${entries.length} entries in the current view.',
+            style: GoogleFonts.inter(
+              color: _obTextSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (entries.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: _obSurfaceElevated,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _obBorder),
+              ),
+              child: Text(
+                'Try a different search term or widen the category filter to bring records back into view.',
+                style: GoogleFonts.inter(
+                  color: _obTextSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
               ),
             )
           else
-            ...linkedEntries.map(_linkedEntryMiniCard),
+            Column(
+              children: [
+                for (var i = 0; i < entries.length; i++) ...[
+                  _buildEntryCard(
+                    entry: entries[i],
+                    selected: entries[i].id == selected.id,
+                  ),
+                  if (i != entries.length - 1) const SizedBox(height: 12),
+                ],
+              ],
+            ),
         ],
       ),
     );
-    final body = useExpandedBody
-        ? SingleChildScrollView(
+  }
+
+  Widget _buildEntryCard({
+    required _ObEntryView entry,
+    required bool selected,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('ledger-entry-card-${entry.id}'),
+        borderRadius: BorderRadius.circular(22),
+        onTap: () {
+          setState(() {
+            _selectedEntryId = entry.id;
+            _workspaceView = _ObWorkspaceView.record;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: selected ? _obSurfaceSoft : _obSurfaceElevated,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: selected ? _obBlueAccent : _obBorder,
+              width: selected ? 1.6 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(
+                  0xFF0B2740,
+                ).withValues(alpha: selected ? 0.08 : 0.04),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 720;
+              final content = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        entry.recordCode,
+                        style: GoogleFonts.inter(
+                          color: _obTextPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      _buildBadge(
+                        label: entry.category.label.toUpperCase(),
+                        backgroundColor: entry.accent.withValues(alpha: 0.12),
+                        foregroundColor: entry.accent,
+                      ),
+                      _buildBadge(
+                        label: entry.statusLabel,
+                        backgroundColor: _obBlueAccentStrong.withValues(
+                          alpha: 0.14,
+                        ),
+                        foregroundColor: _obBlueAccent,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    entry.title,
+                    style: GoogleFonts.inter(
+                      color: _obTextPrimary,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    entry.description,
+                    style: GoogleFonts.inter(
+                      color: _obTextSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '${entry.callsign}  ·  ${entry.guardLabel}  ·  ${entry.siteLabel}  ·  ${entry.locationDetail}',
+                    style: GoogleFonts.inter(
+                      color: _obTextPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              );
+
+              final iconColumn = Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Icon(
+                    entry.verified
+                        ? Icons.check_circle_rounded
+                        : Icons.pending_rounded,
+                    color: entry.verified
+                        ? const Color(0xFF2BB973)
+                        : const Color(0xFFF39A19),
+                    size: 22,
+                  ),
+                  const SizedBox(height: 12),
+                  Icon(
+                    entry.flagged
+                        ? Icons.flag_rounded
+                        : Icons.outlined_flag_rounded,
+                    color: entry.flagged
+                        ? const Color(0xFFF39A19)
+                        : _obTextMuted,
+                    size: 22,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _formatUtcTimestamp(entry.occurredAt),
+                    style: GoogleFonts.inter(
+                      color: _obTextPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.end,
+                  ),
+                ],
+              );
+
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [content, const SizedBox(height: 14), iconColumn],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: content),
+                  const SizedBox(width: 14),
+                  SizedBox(width: 200, child: iconColumn),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailPanel({
+    required BuildContext context,
+    required List<_ObEntryView> entries,
+    required _ObEntryView selected,
+    required List<_ObEntryView> relatedEntries,
+  }) {
+    return _surfacePanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            key: const ValueKey('ledger-workspace-status-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _obSurfaceElevated,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _obBorder),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Selected Record',
+                        style: GoogleFonts.inter(
+                          color: _obBlueAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${selected.recordCode} · ${selected.category.label}',
+                        style: GoogleFonts.inter(
+                          color: _obTextPrimary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _buildHeroStatusChip(
+                  label: _integrity.label,
+                  color: _integrity.color,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            key: const ValueKey('ledger-workspace-command-receipt'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _commandReceipt.accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: _commandReceipt.accent.withValues(alpha: 0.24),
+              ),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                continuityCard,
-                const SizedBox(height: 10),
-                actionsCard,
-                const SizedBox(height: 10),
-                linkedScopeCard,
+                Text(
+                  _commandReceipt.label,
+                  style: GoogleFonts.inter(
+                    color: _commandReceipt.accent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _commandReceipt.message,
+                  style: GoogleFonts.inter(
+                    color: _obTextPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _commandReceipt.detail,
+                  style: GoogleFonts.inter(
+                    color: _obTextSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
+                  ),
+                ),
               ],
             ),
-          )
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              continuityCard,
-              const SizedBox(height: 10),
-              actionsCard,
-              const SizedBox(height: 10),
-              linkedScopeCard,
+              FilledButton.icon(
+                key: const ValueKey('ledger-context-verify-chain'),
+                onPressed: () => _runIntegrityCheck(entries),
+                style: _primaryButtonStyle(
+                  backgroundColor: _obButtonFill,
+                  foregroundColor: _obBlueAccent,
+                ),
+                icon: const Icon(Icons.verified_rounded, size: 18),
+                label: const Text('Verify Chain'),
+              ),
+              FilledButton.icon(
+                key: const ValueKey('ledger-context-export-ledger'),
+                onPressed: () => _exportLedger(entries),
+                style: _primaryButtonStyle(
+                  backgroundColor: _obButtonFill,
+                  foregroundColor: _obBlueAccent,
+                ),
+                icon: const Icon(Icons.download_rounded, size: 18),
+                label: const Text('Export OB Log'),
+              ),
             ],
-          );
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildWorkspaceChip(
+                key: const ValueKey('ledger-workspace-view-case-file'),
+                label: 'Record',
+                selected: _workspaceView == _ObWorkspaceView.record,
+                onTap: () =>
+                    setState(() => _workspaceView = _ObWorkspaceView.record),
+              ),
+              _buildWorkspaceChip(
+                key: const ValueKey('ledger-workspace-view-chain'),
+                label: 'Chain',
+                selected: _workspaceView == _ObWorkspaceView.chain,
+                onTap: () =>
+                    setState(() => _workspaceView = _ObWorkspaceView.chain),
+              ),
+              _buildWorkspaceChip(
+                key: const ValueKey('ledger-workspace-view-trace'),
+                label: 'Linked',
+                selected: _workspaceView == _ObWorkspaceView.linked,
+                onTap: () =>
+                    setState(() => _workspaceView = _ObWorkspaceView.linked),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_workspaceView == _ObWorkspaceView.record)
+            _buildRecordView(selected)
+          else if (_workspaceView == _ObWorkspaceView.chain)
+            _buildChainView(selected)
+          else
+            _buildLinkedView(
+              context: context,
+              selected: selected,
+              relatedEntries: relatedEntries,
+            ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildRecordView(_ObEntryView selected) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: onyxWorkspaceSurfaceDecoration(),
+      key: const ValueKey('ledger-workspace-panel-case-file'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _obSurfaceElevated,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _obBorder),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Continuity Rail',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE6F0FF),
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Integrity actions, lane pivots, and linked continuity anchors for the current selection.',
+            'Record Detail',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C6),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
+              color: _obTextPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 12),
-          if (_desktopWorkspaceActive) ...[
-            _workspaceCommandReceiptCard(),
-            const SizedBox(height: 12),
+          _buildDetailGrid(
+            items: [
+              _DetailItem(label: 'Record', value: selected.recordCode),
+              _DetailItem(label: 'Category', value: selected.category.label),
+              _DetailItem(label: 'Guard', value: selected.guardLabel),
+              _DetailItem(label: 'Callsign', value: selected.callsign),
+              _DetailItem(label: 'Site', value: selected.siteLabel),
+              _DetailItem(
+                label: 'Occurred',
+                value: _formatUtcTimestamp(selected.occurredAt),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            selected.locationDetail,
+            style: GoogleFonts.inter(
+              color: _obBlueAccent,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            selected.description,
+            style: GoogleFonts.inter(
+              color: _obTextSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              FilledButton.icon(
+                key: const ValueKey('ledger-entry-export-data'),
+                onPressed: () => _exportEntryData(selected),
+                style: _primaryButtonStyle(
+                  backgroundColor: _obButtonFill,
+                  foregroundColor: _obBlueAccent,
+                ),
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                label: const Text('Export Entry'),
+              ),
+              FilledButton.icon(
+                key: const ValueKey('ledger-entry-view-event-review'),
+                onPressed:
+                    selected.linkedEventIds.isEmpty ||
+                        widget.onOpenEventsForScope == null
+                    ? null
+                    : () => _openSelectedEvents(
+                        selected,
+                        label: 'VIEW EVENT REVIEW',
+                      ),
+                style: _primaryButtonStyle(
+                  backgroundColor: _obButtonFill,
+                  foregroundColor: _obBlueAccent,
+                ),
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                label: const Text('View Event Review'),
+              ),
+            ],
+          ),
+          if (selected.sceneReview != null) ...[
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _obSurfaceSoft,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _obBorderStrong),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SCENE REVIEW',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF6B63FF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    selected.sceneReview!.sourceLabel,
+                    style: GoogleFonts.inter(
+                      color: _obTextPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (selected.sceneReview!.decisionLabel
+                      .trim()
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      selected.sceneReview!.decisionLabel,
+                      style: GoogleFonts.inter(
+                        color: _obTextPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                  if (selected.sceneReview!.decisionSummary
+                      .trim()
+                      .isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      selected.sceneReview!.decisionSummary,
+                      style: GoogleFonts.inter(
+                        color: _obTextSecondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Text(
+                    selected.sceneReview!.summary,
+                    style: GoogleFonts.inter(
+                      color: _obTextSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
-          if (useExpandedBody) Expanded(child: body) else body,
         ],
       ),
     );
   }
 
-  Widget _workspaceCommandReceiptCard() {
-    final receipt = _commandReceipt;
+  Widget _buildChainView(_ObEntryView selected) {
     return Container(
-      key: const ValueKey('ledger-workspace-command-receipt'),
+      key: const ValueKey('ledger-workspace-panel-chain'),
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: receipt.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: receipt.accent.withValues(alpha: 0.34)),
+        color: _obSurfaceElevated,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _obBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'LATEST COMMAND',
+            'Record Integrity',
             style: GoogleFonts.inter(
-              color: receipt.accent,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            receipt.label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 12,
+              color: _obTextPrimary,
+              fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            receipt.message,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            receipt.detail,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _contextMetric(String label, String value, {required Color accent}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8EA5C6),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: accent.withValues(alpha: 0.34)),
-            ),
-            child: Text(
-              value,
-              style: GoogleFonts.inter(
-                color: accent,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _contextActionButton({
-    required Key key,
-    required String label,
-    required VoidCallback onTap,
-    bool enabled = true,
-  }) {
-    return InkWell(
-      key: key,
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: enabled ? const Color(0xFF0D1117) : const Color(0xFF10161F),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: enabled ? const Color(0xFF2A374A) : const Color(0xFF1C2532),
-          ),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: enabled ? const Color(0xFFD9E7FA) : const Color(0xFF6F829A),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _linkedEntryMiniCard(_LedgerEntryView entry) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
-        key: ValueKey('ledger-linked-entry-${entry.id}'),
-        onTap: () => _focusEntry(entry, lane: _preferredLaneForEntry(entry)),
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(10),
-          decoration: onyxSelectableRowSurfaceDecoration(isSelected: false),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                entry.title,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFE6F0FF),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _typeChip(entry.type, entry.typeColor),
-                  _pill(entry.id),
-                  if ((entry.dispatchId ?? '').trim().isNotEmpty)
-                    _pill('Dispatch ${entry.dispatchId!}'),
-                ],
+          const SizedBox(height: 12),
+          _buildDetailGrid(
+            items: [
+              _DetailItem(label: 'Chain State', value: _integrity.label),
+              _DetailItem(
+                label: 'Record State',
+                value: selected.verified ? 'VERIFIED' : 'PENDING',
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          _buildHashPanel(
+            label: 'Current Hash',
+            value: selected.hash,
+            color: const Color(0xFF19B26D),
+          ),
+          const SizedBox(height: 12),
+          _buildHashPanel(
+            label: 'Previous Hash',
+            value: selected.previousHash,
+            color: const Color(0xFF11A4DA),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'The chain remains available for audit, but the controller workflow stays simple: review the note, decide on the next action, and move on.',
+            style: GoogleFonts.inter(
+              color: _obTextSecondary,
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLinkedView({
+    required BuildContext context,
+    required _ObEntryView selected,
+    required List<_ObEntryView> relatedEntries,
+  }) {
+    return Container(
+      key: const ValueKey('ledger-workspace-panel-trace'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _obSurfaceElevated,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _obBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Linked Context',
+            style: GoogleFonts.inter(
+              color: _obTextPrimary,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (selected.linkedEventIds.isEmpty)
+            Text(
+              'No linked events are attached to this OB entry yet.',
+              style: GoogleFonts.inter(
+                color: _obTextSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: selected.linkedEventIds
+                  .map(
+                    (eventId) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _obSurfaceSoft,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: _obBorderStrong),
+                      ),
+                      child: Text(
+                        eventId,
+                        style: GoogleFonts.inter(
+                          color: _obBlueAccent,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(growable: false),
+            ),
+          if (relatedEntries.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Text(
+              'Related Entries',
+              style: GoogleFonts.inter(
+                color: _obBlueAccent,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Column(
+              children: [
+                for (var i = 0; i < relatedEntries.length; i++) ...[
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        setState(() {
+                          _selectedEntryId = relatedEntries[i].id;
+                          _workspaceView = _ObWorkspaceView.record;
+                        });
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: _obSurfaceSoft,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: _obBorder),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    relatedEntries[i].recordCode,
+                                    style: GoogleFonts.inter(
+                                      color: _obTextPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    relatedEntries[i].title,
+                                    style: GoogleFonts.inter(
+                                      color: _obTextSecondary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(
+                              Icons.chevron_right_rounded,
+                              color: _obTextMuted,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (i != relatedEntries.length - 1)
+                    const SizedBox(height: 10),
+                ],
+              ],
+            ),
+          ],
+          if (selected.sceneReview != null) ...[
+            const SizedBox(height: 18),
+            Text(
+              'Scene posture: ${selected.sceneReview!.postureLabel}',
+              style: GoogleFonts.inter(
+                color: _obTextSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required String value,
+    required String label,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _obSurfaceElevated,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _obBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: color,
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: _obTextPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeroStatusChip({required String label, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.24)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
         ),
       ),
     );
   }
 
-  Widget _detailCard({required Widget child}) {
+  Widget _buildContextChip({required String label, required Color color}) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: child,
-    );
-  }
-
-  Widget _typeChip(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Text(
-        text,
+        label,
         style: GoogleFonts.inter(
           color: color,
-          fontSize: 10,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 
-  Widget _blockTitle(String text) {
-    return Text(
-      text,
-      style: GoogleFonts.inter(
-        color: const Color(0xFF9BB0CE),
-        fontSize: 11,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.7,
-      ),
-    );
-  }
-
-  Widget _kvMini(String key, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          key,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            color: const Color(0xFFEAF1FB),
-            fontSize: 30,
-            fontWeight: FontWeight.w700,
-            height: 0.95,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _contextRow(String key, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 92,
-            child: Text(
-              key,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9BB0CE),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _hashBlock(String label, String hash, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(8),
+  Widget _buildFilterChip({
+    required _ObCategory category,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    final color = category == _ObCategory.all
+        ? _obBlueAccentStrong
+        : category.accent;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('ledger-lane-filter-${category.storageKey}'),
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
-            color: const Color(0xFF0A0E14),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFF223244)),
+            color: selected
+                ? color.withValues(alpha: 0.16)
+                : _obSurfaceElevated,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? color.withValues(alpha: 0.22) : _obBorder,
+            ),
           ),
           child: Text(
-            hash,
-            style: GoogleFonts.robotoMono(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+            category.label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: selected ? color : _obTextPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _verifyLine(String title, String detail) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 4),
-            child: Icon(Icons.circle, size: 6, color: Color(0xFF10B981)),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  detail,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF9BB0CE),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _outlineButton(String label, {Key? key, required VoidCallback onTap}) {
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D1117),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF2A374A)),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
-            color: const Color(0xFFD9E7FA),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
           ),
         ),
       ),
     );
   }
 
-  Widget _workspaceStatusPill({
-    required IconData icon,
+  Widget _buildBadge({
     required String label,
-    required Color accent,
+    required Color backgroundColor,
+    required Color foregroundColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF111F33),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.35)),
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: foregroundColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWorkspaceChip({
+    required Key key,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: key,
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? _obSurfaceSoft : _obSurfaceElevated,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: selected ? _obBlueAccent : _obBorder),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.inter(
+              color: selected ? _obBlueAccent : _obTextPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailGrid({required List<_DetailItem> items}) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: items
+          .map(
+            (item) => Container(
+              width: 190,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _obSurfaceElevated,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _obBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.label,
+                    style: GoogleFonts.inter(
+                      color: _obTextMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    item.value,
+                    style: GoogleFonts.inter(
+                      color: _obTextPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  Widget _buildHashPanel({
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _obSurfaceElevated,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _obBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 15, color: accent),
-          const SizedBox(width: 6),
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: color,
               fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _hashPreview(value),
+            style: GoogleFonts.robotoMono(
+              color: _obTextPrimary,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2723,300 +1801,376 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     );
   }
 
-  Widget _workspaceStatusAction({
-    required Key key,
+  Widget _buildDropdownField({
     required String label,
-    required bool selected,
-    required Color accent,
-    required VoidCallback? onTap,
+    required String value,
+    required List<DropdownMenuItem<String>> items,
+    required ValueChanged<String?> onChanged,
   }) {
-    final enabled = onTap != null;
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          color: !enabled
-              ? const Color(0xFF1D2937)
-              : selected
-              ? accent.withValues(alpha: 0.2)
-              : const Color(0xFF111F33),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: !enabled
-                ? const Color(0xFF314154)
-                : selected
-                ? accent.withValues(alpha: 0.75)
-                : accent.withValues(alpha: 0.35),
-          ),
-        ),
-        child: Text(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
           label,
           style: GoogleFonts.inter(
-            color: !enabled ? const Color(0xFF8EA4C2) : const Color(0xFFEAF1FB),
-            fontSize: 11,
+            color: _obTextPrimary,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
         ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String>(
+          initialValue: items.any((item) => item.value == value)
+              ? value
+              : items.first.value,
+          onChanged: onChanged,
+          style: GoogleFonts.inter(
+            color: _obTextPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: _fieldDecoration(),
+          items: items,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hintText,
+    int maxLines = 1,
+    Key? fieldKey,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: _obTextPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          key: fieldKey,
+          controller: controller,
+          maxLines: maxLines,
+          style: GoogleFonts.inter(
+            color: _obTextPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+          decoration: _fieldDecoration(hintText: hintText),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadOnlyField({required String label, required String value}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            color: _obTextPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 17),
+          decoration: BoxDecoration(
+            color: _obInputFill,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _obBorder),
+          ),
+          child: Text(
+            value,
+            style: GoogleFonts.inter(
+              color: _obTextPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _fieldDecoration({String? hintText}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: GoogleFonts.inter(
+        color: _obTextMuted,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
       ),
+      filled: true,
+      fillColor: _obInputFill,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: _obBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: _obBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: _obBlueAccent),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     );
   }
 
-  void _exportLedger(List<_LedgerEntryView> entries) {
-    final payload = entries.map(_entryToJson).toList(growable: false);
-    final pretty = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: pretty));
-    logUiAction('ledger.export_all', context: {'entries': entries.length});
-    _showActionMessage(
-      'Ledger export copied (${entries.length} entries).',
-      label: 'EXPORT LEDGER',
-      detail:
-          'The full continuity payload is on the clipboard while the active ledger selection stays in place.',
-      accent: const Color(0xFF8FD1FF),
+  BoxDecoration _panelDecoration() {
+    return BoxDecoration(
+      color: _obSurfaceFill,
+      borderRadius: BorderRadius.circular(26),
+      border: Border.all(color: _obBorder),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF0B2740).withValues(alpha: 0.06),
+          blurRadius: 24,
+          offset: const Offset(0, 12),
+        ),
+      ],
     );
   }
 
-  void _setLedgerLaneFilter(
-    _LedgerLaneFilter lane,
-    List<_LedgerEntryView> entries,
-  ) {
-    if (_laneFilter == lane) {
-      return;
-    }
-    final matchingEntries = entries
-        .where((entry) => _matchesLaneFilter(entry, lane))
-        .toList(growable: false);
-    setState(() {
-      _laneFilter = lane;
-      if (matchingEntries.isNotEmpty &&
-          !matchingEntries.any((entry) => entry.id == _selectedEntryId)) {
-        _selectedEntryId = matchingEntries.first.id;
-      }
-    });
+  Widget _surfacePanel({required Widget child}) {
+    return Container(
+      decoration: _panelDecoration(),
+      padding: const EdgeInsets.all(18),
+      child: child,
+    );
   }
 
-  void _setLedgerWorkspaceView(_LedgerWorkspaceView view) {
-    if (_workspaceView == view) {
-      return;
-    }
-    setState(() {
-      _workspaceView = view;
-    });
-  }
-
-  void _focusEntry(
-    _LedgerEntryView entry, {
-    _LedgerLaneFilter? lane,
-    _LedgerWorkspaceView? view,
+  ButtonStyle _primaryButtonStyle({
+    Color backgroundColor = _obButtonFill,
+    Color foregroundColor = _obBlueAccent,
   }) {
+    return FilledButton.styleFrom(
+      backgroundColor: backgroundColor,
+      foregroundColor: foregroundColor,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800),
+    );
+  }
+
+  ButtonStyle _secondaryButtonStyle() {
+    return OutlinedButton.styleFrom(
+      foregroundColor: _obTextPrimary,
+      side: const BorderSide(color: _obBorder),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800),
+    );
+  }
+
+  void _openComposer(List<_GuardPreset> guardPresets) {
     setState(() {
+      _composerOpen = true;
+      _workspaceView = _ObWorkspaceView.record;
+      _draftOccurredAt = DateTime.now().toUtc();
+      _resetDraft(presets: guardPresets);
+    });
+  }
+
+  void _resetDraft({List<_GuardPreset> presets = const []}) {
+    final source = presets.isEmpty ? _defaultGuardPresets : presets;
+    final preset = source.first;
+    _applyGuardPreset(preset);
+    _draftCategory = _categoryFilter == _ObCategory.all
+        ? _ObCategory.patrol
+        : _categoryFilter;
+    _draftOccurredAt = DateTime.now().toUtc();
+    _draftFlagged = false;
+    _locationController.clear();
+    _descriptionController.clear();
+  }
+
+  void _applyGuardPreset(_GuardPreset preset) {
+    _draftPresetKey = preset.key;
+    _draftSite = preset.siteLabel;
+    _guardNameController.text = preset.guardName;
+    _callsignController.text = preset.callsign;
+  }
+
+  void _submitEntry({
+    required List<_GuardPreset> guardPresets,
+    required List<_ObEntryView> currentEntries,
+  }) {
+    final description = _descriptionController.text.trim();
+    if (description.isEmpty) {
+      _showActionMessage(
+        'Entry description required.',
+        label: 'SUBMIT ENTRY',
+        detail:
+            'Add the operational note before saving it into the occurrence book.',
+        accent: const Color(0xFFF39A19),
+      );
+      return;
+    }
+
+    final nextSequence = _nextSequence(currentEntries);
+    final nextRecordNumber = _nextRecordNumber(currentEntries);
+    final previousHash = currentEntries.isEmpty
+        ? 'GENESIS'
+        : currentEntries.first.hash;
+    final payload = <String, Object?>{
+      'source': 'manual_ob_entry',
+      'clientId': widget.clientId,
+      'site': _draftSite,
+      'guard_name': _guardNameController.text.trim(),
+      'callsign': _callsignController.text.trim(),
+      'location_detail': _locationController.text.trim(),
+      'description': description,
+      'category': _draftCategory.storageKey,
+      'flagged': _draftFlagged,
+      'refined': true,
+    };
+    final hash = sha256
+        .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
+        .toString();
+    final entry = _ObEntryView(
+      id: 'MAN-$nextSequence',
+      sequence: nextSequence,
+      recordCode: 'OB-$nextRecordNumber',
+      title: _manualEntryTitle(_draftCategory, description),
+      description: description,
+      category: _draftCategory,
+      occurredAt: _draftOccurredAt,
+      siteLabel: _draftSite.trim().isEmpty
+          ? _defaultGuardPresets.first.siteLabel
+          : _draftSite,
+      guardLabel: _guardNameController.text.trim(),
+      callsign: _callsignController.text.trim(),
+      locationDetail: _locationController.text.trim().isEmpty
+          ? 'Controller desk note'
+          : _locationController.text.trim(),
+      incident:
+          _draftCategory == _ObCategory.incident ||
+          _draftCategory == _ObCategory.alarm,
+      flagged: _draftFlagged,
+      verified: false,
+      statusLabel: 'SUBMITTED',
+      linkedEventIds: const <String>[],
+      hash: hash,
+      previousHash: previousHash,
+      accent: _draftCategory.accent,
+      payload: payload,
+    );
+
+    setState(() {
+      _manualEntries.insert(0, entry);
       _selectedEntryId = entry.id;
-      if (lane != null) {
-        _laneFilter = lane;
-      }
-      if (view != null) {
-        _workspaceView = view;
-      }
+      _composerOpen = false;
+      _workspaceView = _ObWorkspaceView.record;
+      _resetDraft(presets: guardPresets);
     });
+
+    _showActionMessage(
+      'OB entry submitted (${entry.recordCode}).',
+      label: 'SUBMIT ENTRY',
+      detail:
+          'The note is now pinned to the occurrence book and available for handover, review, and audit continuity.',
+      accent: entry.accent,
+    );
   }
 
-  void _runIntegrityCheck(
-    List<_LedgerEntryView> entries, {
-    required String action,
-    Map<String, Object?> extraContext = const {},
-  }) {
+  void _openSelectedEvents(_ObEntryView entry, {required String label}) {
+    if (widget.onOpenEventsForScope == null || entry.linkedEventIds.isEmpty) {
+      _showActionMessage(
+        'No linked events available for ${entry.recordCode}.',
+        label: label,
+        detail:
+            'This entry is currently a clean standalone record in the OB log.',
+        accent: const Color(0xFFF39A19),
+      );
+      return;
+    }
+
+    widget.onOpenEventsForScope!(
+      entry.linkedEventIds,
+      entry.linkedEventIds.first,
+    );
+    _showActionMessage(
+      'Linked events opened (${entry.recordCode}).',
+      label: label,
+      detail:
+          'The related event scope has been handed off without leaving the occurrence-book context behind.',
+      accent: const Color(0xFF19B4E5),
+    );
+  }
+
+  void _runIntegrityCheck(List<_ObEntryView> entries) {
     final intact = _verifyChain(entries);
     setState(() {
       _integrity = intact
           ? _ChainIntegrity.intact
           : _ChainIntegrity.compromised;
     });
-    logUiAction(
-      action,
-      context: <String, Object?>{
-        'entries': entries.length,
-        'result': intact ? 'intact' : 'compromised',
-        ...extraContext,
-      },
-    );
     _showActionMessage(
       intact
           ? 'Chain verification returned intact.'
           : 'Chain verification detected a continuity mismatch.',
       label: 'VERIFY CHAIN',
       detail:
-          'Continuity state remains pinned in the ledger rail so operators can keep reviewing linked entries.',
-      accent: intact ? const Color(0xFF59D79B) : const Color(0xFFFCA5A5),
+          'Continuity state remains visible while the operational view stays simple for the controller.',
+      accent: intact ? const Color(0xFF19B26D) : const Color(0xFFF44B4B),
     );
   }
 
-  void _exportEntryData(_LedgerEntryView entry) {
+  void _exportLedger(List<_ObEntryView> entries) {
+    final pretty = const JsonEncoder.withIndent(
+      '  ',
+    ).convert(entries.map(_entryToJson).toList(growable: false));
+    Clipboard.setData(ClipboardData(text: pretty));
+    _showActionMessage(
+      'Ledger export copied (${entries.length} entries).',
+      label: 'EXPORT LEDGER',
+      detail:
+          'The full occurrence-book payload is on the clipboard while the clean controller view remains in place.',
+      accent: const Color(0xFF19B4E5),
+    );
+  }
+
+  void _exportEntryData(_ObEntryView entry) {
     final pretty = const JsonEncoder.withIndent(
       '  ',
     ).convert(_entryToJson(entry));
     Clipboard.setData(ClipboardData(text: pretty));
-    logUiAction('ledger.export_entry', context: {'entry_id': entry.id});
     _showActionMessage(
       'Entry export copied (${entry.id}).',
       label: 'EXPORT ENTRY',
       detail:
-          'The focused ledger row payload is on the clipboard while its case-board context stays pinned.',
-      accent: entry.typeColor,
+          'The focused entry payload is on the clipboard while its selected record stays pinned in view.',
+      accent: entry.accent,
     );
-  }
-
-  Map<String, Object?> _entryToJson(_LedgerEntryView entry) {
-    return {
-      'id': entry.id,
-      'sequence': entry.sequence,
-      'type': entry.type,
-      'title': entry.title,
-      'timestamp_utc': entry.timestamp.toIso8601String(),
-      'verified': entry.verified,
-      'hash': entry.hash,
-      'previous_hash': entry.previousHash,
-      'site': entry.site,
-      'dispatch_id': entry.dispatchId,
-      'payload': entry.payload,
-    };
-  }
-
-  Map<String, Object?>? _sceneReviewPayloadForEntry(_LedgerEntryView entry) {
-    final payload = entry.payload['sceneReview'];
-    if (payload is! Map) {
-      return null;
-    }
-    final mapped = payload.map(
-      (key, value) => MapEntry(key.toString(), value as Object?),
-    );
-    if ((mapped['source_label'] ?? '').toString().trim().isEmpty &&
-        (mapped['summary'] ?? '').toString().trim().isEmpty) {
-      return null;
-    }
-    return mapped;
-  }
-
-  Map<String, Object?>? _reportConfigurationPayloadForEntry(
-    _LedgerEntryView entry,
-  ) {
-    final payload = entry.payload['reportConfiguration'];
-    if (payload is! Map) {
-      return null;
-    }
-    final mapped = payload.map(
-      (key, value) => MapEntry(key.toString(), value as Object?),
-    );
-    final summary = (mapped['summary'] ?? '').toString().trim();
-    if (summary.isEmpty) {
-      return null;
-    }
-    return mapped;
-  }
-
-  _LedgerLaneFilter _effectiveLaneForEntries(List<_LedgerEntryView> entries) {
-    if (entries.any((entry) => _matchesLaneFilter(entry, _laneFilter))) {
-      return _laneFilter;
-    }
-    return _LedgerLaneFilter.all;
-  }
-
-  bool _matchesLaneFilter(_LedgerEntryView entry, _LedgerLaneFilter lane) {
-    switch (lane) {
-      case _LedgerLaneFilter.all:
-        return true;
-      case _LedgerLaneFilter.reports:
-        return entry.type == 'REPORT';
-      case _LedgerLaneFilter.intelligence:
-        return entry.type == 'AI ACTION' ||
-            (entry.payload['intelligenceId'] ?? '')
-                .toString()
-                .trim()
-                .isNotEmpty ||
-            _sceneReviewPayloadForEntry(entry) != null;
-      case _LedgerLaneFilter.continuity:
-        return entry.type == 'DISPATCH' ||
-            entry.type == 'CHECKPOINT' ||
-            entry.type == 'REVIEW' ||
-            entry.type == 'GUARD ACTION' ||
-            (entry.dispatchId ?? '').trim().isNotEmpty;
-      case _LedgerLaneFilter.attention:
-        return entry.type == 'INCIDENT' ||
-            entry.type == 'ALARM' ||
-            _sceneReviewPayloadForEntry(entry) != null ||
-            _reportConfigurationPayloadForEntry(entry) != null ||
-            !entry.verified;
-    }
-  }
-
-  _LedgerLaneFilter _preferredLaneForEntry(_LedgerEntryView entry) {
-    if (_matchesLaneFilter(entry, _LedgerLaneFilter.reports)) {
-      return _LedgerLaneFilter.reports;
-    }
-    if (_matchesLaneFilter(entry, _LedgerLaneFilter.intelligence)) {
-      return _LedgerLaneFilter.intelligence;
-    }
-    if (_matchesLaneFilter(entry, _LedgerLaneFilter.attention)) {
-      return _LedgerLaneFilter.attention;
-    }
-    if (_matchesLaneFilter(entry, _LedgerLaneFilter.continuity)) {
-      return _LedgerLaneFilter.continuity;
-    }
-    return _LedgerLaneFilter.all;
-  }
-
-  _LedgerEntryView? _firstEntryForLane(
-    List<_LedgerEntryView> entries,
-    _LedgerLaneFilter lane,
-  ) {
-    for (final entry in entries) {
-      if (_matchesLaneFilter(entry, lane)) {
-        return entry;
-      }
-    }
-    return null;
-  }
-
-  List<_LedgerEntryView> _linkedEntriesForSelected(
-    List<_LedgerEntryView> entries,
-    _LedgerEntryView selected,
-  ) {
-    final dispatchId = (selected.dispatchId ?? '').trim();
-    final site = (selected.site ?? '').trim();
-    final eventId = (selected.payload['eventId'] ?? '').toString().trim();
-    return entries
-        .where((entry) {
-          if (entry.id == selected.id) {
-            return false;
-          }
-          final entryDispatchId = (entry.dispatchId ?? '').trim();
-          final entrySite = (entry.site ?? '').trim();
-          final entryEventId = (entry.payload['eventId'] ?? '')
-              .toString()
-              .trim();
-          return (dispatchId.isNotEmpty && entryDispatchId == dispatchId) ||
-              (site.isNotEmpty && entrySite == site) ||
-              (eventId.isNotEmpty && entryEventId == eventId);
-        })
-        .take(3)
-        .toList(growable: false);
   }
 
   void _showActionMessage(
     String message, {
-    String label = 'LEDGER ACTION',
-    String? detail,
-    Color accent = const Color(0xFF8FD1FF),
+    required String label,
+    required String detail,
+    required Color accent,
   }) {
     if (_desktopWorkspaceActive) {
       setState(() {
-        _commandReceipt = _LedgerCommandReceipt(
+        _commandReceipt = _ObCommandReceipt(
           label: label,
           message: message,
-          detail:
-              detail ??
-              'The latest ledger command remains pinned in the continuity rail.',
+          detail: detail,
           accent: accent,
         );
       });
@@ -3033,93 +2187,92 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   }
 }
 
-enum _ChainIntegrity { intact, pending, compromised }
+enum _ObCategory {
+  all,
+  patrol,
+  incident,
+  handover,
+  visitor,
+  maintenance,
+  vehicle,
+  alarm,
+  other,
+}
 
-enum _LedgerLaneFilter { all, reports, intelligence, continuity, attention }
-
-extension on _LedgerLaneFilter {
-  String get key {
-    switch (this) {
-      case _LedgerLaneFilter.all:
-        return 'all';
-      case _LedgerLaneFilter.reports:
-        return 'reports';
-      case _LedgerLaneFilter.intelligence:
-        return 'intelligence';
-      case _LedgerLaneFilter.continuity:
-        return 'continuity';
-      case _LedgerLaneFilter.attention:
-        return 'attention';
-    }
-  }
-
+extension on _ObCategory {
   String get label {
     switch (this) {
-      case _LedgerLaneFilter.all:
+      case _ObCategory.all:
         return 'All';
-      case _LedgerLaneFilter.reports:
-        return 'Reports';
-      case _LedgerLaneFilter.intelligence:
-        return 'AI Evidence';
-      case _LedgerLaneFilter.continuity:
-        return 'Continuity';
-      case _LedgerLaneFilter.attention:
-        return 'Attention';
+      case _ObCategory.patrol:
+        return 'Patrol';
+      case _ObCategory.incident:
+        return 'Incident';
+      case _ObCategory.handover:
+        return 'Handover';
+      case _ObCategory.visitor:
+        return 'Visitor';
+      case _ObCategory.maintenance:
+        return 'Maintenance';
+      case _ObCategory.vehicle:
+        return 'Vehicle';
+      case _ObCategory.alarm:
+        return 'Alarm';
+      case _ObCategory.other:
+        return 'Other';
+    }
+  }
+
+  String get storageKey {
+    switch (this) {
+      case _ObCategory.all:
+        return 'all';
+      case _ObCategory.patrol:
+        return 'patrol';
+      case _ObCategory.incident:
+        return 'incident';
+      case _ObCategory.handover:
+        return 'handover';
+      case _ObCategory.visitor:
+        return 'visitor';
+      case _ObCategory.maintenance:
+        return 'maintenance';
+      case _ObCategory.vehicle:
+        return 'vehicle';
+      case _ObCategory.alarm:
+        return 'alarm';
+      case _ObCategory.other:
+        return 'other';
     }
   }
 
   Color get accent {
     switch (this) {
-      case _LedgerLaneFilter.all:
-        return const Color(0xFF9FD9FF);
-      case _LedgerLaneFilter.reports:
-        return const Color(0xFFC084FC);
-      case _LedgerLaneFilter.intelligence:
-        return const Color(0xFF22D3EE);
-      case _LedgerLaneFilter.continuity:
-        return const Color(0xFF34D399);
-      case _LedgerLaneFilter.attention:
-        return const Color(0xFFF87171);
+      case _ObCategory.all:
+        return const Color(0xFF19B4E5);
+      case _ObCategory.patrol:
+        return const Color(0xFF33B878);
+      case _ObCategory.incident:
+        return const Color(0xFFF44B4B);
+      case _ObCategory.handover:
+        return const Color(0xFF6A63FF);
+      case _ObCategory.visitor:
+        return const Color(0xFF9C66E6);
+      case _ObCategory.maintenance:
+        return const Color(0xFF1DA2C9);
+      case _ObCategory.vehicle:
+        return const Color(0xFFF39A19);
+      case _ObCategory.alarm:
+        return const Color(0xFFF0672B);
+      case _ObCategory.other:
+        return const Color(0xFF73879B);
     }
   }
 }
 
-enum _LedgerWorkspaceView { caseFile, evidence, chain }
+enum _ObWorkspaceView { record, chain, linked }
 
-extension on _LedgerWorkspaceView {
-  String get key {
-    switch (this) {
-      case _LedgerWorkspaceView.caseFile:
-        return 'case-file';
-      case _LedgerWorkspaceView.evidence:
-        return 'evidence';
-      case _LedgerWorkspaceView.chain:
-        return 'chain';
-    }
-  }
-
-  String get label {
-    switch (this) {
-      case _LedgerWorkspaceView.caseFile:
-        return 'Case File';
-      case _LedgerWorkspaceView.evidence:
-        return 'Evidence';
-      case _LedgerWorkspaceView.chain:
-        return 'Chain';
-    }
-  }
-
-  Color get accent {
-    switch (this) {
-      case _LedgerWorkspaceView.caseFile:
-        return const Color(0xFF9FD9FF);
-      case _LedgerWorkspaceView.evidence:
-        return const Color(0xFF59D79B);
-      case _LedgerWorkspaceView.chain:
-        return const Color(0xFFC084FC);
-    }
-  }
-}
+enum _ChainIntegrity { intact, pending, compromised }
 
 extension on _ChainIntegrity {
   String get label {
@@ -3136,345 +2289,597 @@ extension on _ChainIntegrity {
   Color get color {
     switch (this) {
       case _ChainIntegrity.intact:
-        return const Color(0xFF10B981);
+        return const Color(0xFF19B26D);
       case _ChainIntegrity.pending:
-        return const Color(0xFFF59E0B);
+        return const Color(0xFFF39A19);
       case _ChainIntegrity.compromised:
-        return const Color(0xFFEF4444);
+        return const Color(0xFFF44B4B);
     }
   }
 }
 
-class _LedgerEntryView {
-  final String id;
-  final int sequence;
-  final String type;
-  final String title;
-  final String? site;
-  final String? dispatchId;
-  final DateTime timestamp;
-  final String hash;
-  final String previousHash;
-  final bool verified;
-  final Color typeColor;
-  final Map<String, dynamic> payload;
+class _GuardPreset {
+  final String key;
+  final String callsign;
+  final String guardName;
+  final String siteLabel;
 
-  const _LedgerEntryView({
-    required this.id,
-    required this.sequence,
-    required this.type,
-    required this.title,
-    required this.site,
-    required this.dispatchId,
-    required this.timestamp,
-    required this.hash,
-    required this.previousHash,
-    required this.verified,
-    required this.typeColor,
-    required this.payload,
+  const _GuardPreset({
+    required this.key,
+    required this.callsign,
+    required this.guardName,
+    required this.siteLabel,
   });
 }
 
-final List<_LedgerEntryView> _fallbackEntries = [
-  _LedgerEntryView(
-    id: 'LED-8842',
-    sequence: 8842,
-    type: 'AI ACTION',
-    title: 'AI approved dispatch for breach detection',
-    site: 'Sandton Estate',
-    dispatchId: 'DSP-2441',
-    timestamp: DateTime.utc(2024, 3, 10, 22, 14, 32),
-    hash: 'a3d4f8e9c2b1a5d6e7f8g9h0i1j2k3l4',
-    previousHash: 'b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6',
-    verified: true,
-    typeColor: Color(0xFFC084FC),
-    payload: {
-      'decision': 'APPROVE_DISPATCH',
-      'confidence': 0.94,
-      'incidentId': 'INC-8829-QX',
-    },
+class _DetailItem {
+  final String label;
+  final String value;
+
+  const _DetailItem({required this.label, required this.value});
+}
+
+class _ObCommandReceipt {
+  final String label;
+  final String message;
+  final String detail;
+  final Color accent;
+
+  const _ObCommandReceipt({
+    required this.label,
+    required this.message,
+    required this.detail,
+    required this.accent,
+  });
+}
+
+class _ObEntryView {
+  final String id;
+  final int sequence;
+  final String recordCode;
+  final String title;
+  final String description;
+  final _ObCategory category;
+  final DateTime occurredAt;
+  final String siteLabel;
+  final String guardLabel;
+  final String callsign;
+  final String locationDetail;
+  final bool incident;
+  final bool flagged;
+  final bool verified;
+  final String statusLabel;
+  final List<String> linkedEventIds;
+  final String hash;
+  final String previousHash;
+  final Color accent;
+  final Map<String, Object?> payload;
+  final MonitoringSceneReviewRecord? sceneReview;
+
+  const _ObEntryView({
+    required this.id,
+    required this.sequence,
+    required this.recordCode,
+    required this.title,
+    required this.description,
+    required this.category,
+    required this.occurredAt,
+    required this.siteLabel,
+    required this.guardLabel,
+    required this.callsign,
+    required this.locationDetail,
+    required this.incident,
+    required this.flagged,
+    required this.verified,
+    required this.statusLabel,
+    required this.linkedEventIds,
+    required this.hash,
+    required this.previousHash,
+    required this.accent,
+    required this.payload,
+    this.sceneReview,
+  });
+}
+
+const List<_GuardPreset> _defaultGuardPresets = [
+  _GuardPreset(
+    key: 'charlie-4',
+    callsign: 'Charlie-4',
+    guardName: 'Tom Brown',
+    siteLabel: 'Riverside Estate',
   ),
-  _LedgerEntryView(
-    id: 'LED-8841',
-    sequence: 8841,
-    type: 'INCIDENT',
-    title: 'P1-CRITICAL breach detection incident created',
-    site: 'Sandton Estate',
-    dispatchId: null,
-    timestamp: DateTime.utc(2024, 3, 10, 22, 14, 28),
-    hash: 'b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6',
-    previousHash: 'c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7',
-    verified: true,
-    typeColor: Color(0xFFEF4444),
-    payload: {'priority': 'P1-CRITICAL', 'type': 'Breach Detection'},
+  _GuardPreset(
+    key: 'echo-3',
+    callsign: 'Echo-3',
+    guardName: 'John Smith',
+    siteLabel: 'Midrand Logistics Hub',
+  ),
+  _GuardPreset(
+    key: 'alpha-2',
+    callsign: 'Alpha-2',
+    guardName: 'Nandi Khumalo',
+    siteLabel: 'Sector C',
   ),
 ];
 
-List<_LedgerEntryView> _buildLedgerEntries(
+final List<_ObEntryView> _fallbackEntries = [
+  _ObEntryView(
+    id: 'LED-1',
+    sequence: 2441,
+    recordCode: 'OB-2441',
+    title: 'Patrol Irregularity - Sector B',
+    description:
+        'Checkpoint missed during the night shift. Controller note saved after guard callback and handover review.',
+    category: _ObCategory.incident,
+    occurredAt: DateTime.utc(2026, 3, 25, 15, 48),
+    siteLabel: 'Riverside Estate',
+    guardLabel: 'Tom Brown',
+    callsign: 'Charlie-4',
+    locationDetail: 'Sector B',
+    incident: true,
+    flagged: false,
+    verified: true,
+    statusLabel: 'SUBMITTED',
+    linkedEventIds: ['INC-2438'],
+    hash: 'a7f3e9d2c1b4f8a6e9c2b1a5d6e7f8a6',
+    previousHash: '8e2f4a9d1c6b7e3f0a1b2c3d4e5f6a7b',
+    accent: Color(0xFFF44B4B),
+    payload: {
+      'source': 'fallback',
+      'site': 'Riverside Estate',
+      'guard_name': 'Tom Brown',
+      'callsign': 'Charlie-4',
+      'description':
+          'Checkpoint missed during the night shift. Controller note saved after guard callback and handover review.',
+      'category': 'incident',
+    },
+  ),
+  _ObEntryView(
+    id: 'LED-2',
+    sequence: 2440,
+    recordCode: 'OB-2440',
+    title: 'Gate lock delay resolved',
+    description:
+        'Guard delayed while fixing the outer gate lock. Patrol resumed and controller cleared the action-required queue.',
+    category: _ObCategory.patrol,
+    occurredAt: DateTime.utc(2026, 3, 25, 15, 43),
+    siteLabel: 'Midrand Logistics Hub',
+    guardLabel: 'John Smith',
+    callsign: 'Echo-3',
+    locationDetail: 'Main vehicle gate',
+    incident: false,
+    flagged: false,
+    verified: true,
+    statusLabel: 'SUBMITTED',
+    linkedEventIds: ['PATROL-119'],
+    hash: '8e2f4a9d1c6b7e3f0a1b2c3d4e5f6a7b',
+    previousHash: '3d9a7e2f4c1b8e6a0d4e5f6a7b8c9d0e',
+    accent: Color(0xFF33B878),
+    payload: {
+      'source': 'fallback',
+      'site': 'Midrand Logistics Hub',
+      'guard_name': 'John Smith',
+      'callsign': 'Echo-3',
+      'description':
+          'Guard delayed while fixing the outer gate lock. Patrol resumed and controller cleared the action-required queue.',
+      'category': 'patrol',
+    },
+  ),
+  _ObEntryView(
+    id: 'LED-3',
+    sequence: 2439,
+    recordCode: 'OB-2439',
+    title: 'Suspicious Vehicle - Main Gate',
+    description:
+        'White vehicle observed loitering outside the main gate for an extended period after a client call.',
+    category: _ObCategory.vehicle,
+    occurredAt: DateTime.utc(2026, 3, 25, 9, 22),
+    siteLabel: 'Main Gate',
+    guardLabel: 'Controller Desk',
+    callsign: 'Command',
+    locationDetail: 'Outer approach lane',
+    incident: false,
+    flagged: false,
+    verified: true,
+    statusLabel: 'SUBMITTED',
+    linkedEventIds: ['VEH-091'],
+    hash: '3d9a7e2f4c1b8e6a0d4e5f6a7b8c9d0e',
+    previousHash: '1f6c8a4e9d2b7e3a4b5c6d7e8f9a0b1c',
+    accent: Color(0xFFF39A19),
+    payload: {
+      'source': 'fallback',
+      'site': 'Main Gate',
+      'guard_name': 'Controller Desk',
+      'callsign': 'Command',
+      'description':
+          'White vehicle observed loitering outside the main gate for an extended period after a client call.',
+      'category': 'vehicle',
+    },
+  ),
+];
+
+List<_ObEntryView> _buildObEntries(
   List<DispatchEvent> events, {
-  String? clientId,
-  String? siteId,
+  String clientId = '',
+  String siteId = '',
   Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId =
       const {},
 }) {
   if (events.isEmpty) {
-    return const [];
+    return const <_ObEntryView>[];
   }
 
-  final normalizedClientId = (clientId ?? '').trim();
-  final normalizedSiteId = (siteId ?? '').trim();
-  final sorted = [...events]..sort((a, b) => a.sequence.compareTo(b.sequence));
+  final normalizedClientId = clientId.trim();
+  final normalizedSiteId = siteId.trim();
+  final ordered = [...events]..sort((a, b) => a.sequence.compareTo(b.sequence));
   var previousHash = 'GENESIS';
-  final built = <_LedgerEntryView>[];
+  final built = <_ObEntryView>[];
 
-  for (final event in sorted) {
+  for (final event in ordered) {
     if (normalizedClientId.isNotEmpty &&
-        normalizedSiteId.isNotEmpty &&
-        (_eventClientId(event).trim() != normalizedClientId ||
-            _eventSiteId(event).trim() != normalizedSiteId)) {
+        _eventClientId(event).trim() != normalizedClientId) {
       continue;
     }
-    final payload = _ledgerPayloadForEvent(
-      event,
-      sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
-    );
+    if (normalizedSiteId.isNotEmpty &&
+        _eventSiteId(event).trim() != normalizedSiteId) {
+      continue;
+    }
 
+    final sceneReview = event is IntelligenceReceived
+        ? sceneReviewByIntelligenceId[event.intelligenceId.trim()]
+        : null;
+    final category = _categoryForEvent(event);
+    final payload = _payloadForEvent(event, sceneReview: sceneReview);
     final hash = sha256
         .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
         .toString();
 
     built.add(
-      _LedgerEntryView(
+      _ObEntryView(
         id: 'LED-${event.sequence}',
         sequence: event.sequence,
-        type: _ledgerType(event),
-        title: _eventTitle(event),
-        site: _eventSiteId(event),
-        dispatchId: _eventDispatchId(event),
-        timestamp: event.occurredAt.toUtc(),
+        recordCode: 'OB-${2400 + event.sequence}',
+        title: _titleForEvent(event),
+        description: _descriptionForEvent(event, sceneReview: sceneReview),
+        category: category,
+        occurredAt: event.occurredAt.toUtc(),
+        siteLabel: _displaySiteLabel(_eventSiteId(event)),
+        guardLabel: _guardLabelForEvent(event),
+        callsign: _callsignForEvent(event),
+        locationDetail: _locationForEvent(event),
+        incident: _isIncidentEvent(event),
+        flagged: _isFlaggedEvent(event, sceneReview: sceneReview),
+        verified: true,
+        statusLabel: 'SUBMITTED',
+        linkedEventIds: <String>[event.eventId],
         hash: hash,
         previousHash: previousHash,
-        verified: true,
-        typeColor: _typeColor(_ledgerType(event)),
+        accent: category.accent,
         payload: payload,
+        sceneReview: sceneReview,
       ),
     );
-
     previousHash = hash;
   }
 
-  final newestFirst = built.reversed.toList(growable: false);
-  return newestFirst;
+  return built.reversed.toList(growable: false);
 }
 
-Map<String, Object?> _ledgerPayloadForEvent(
+Map<String, Object?> _payloadForEvent(
   DispatchEvent event, {
-  required Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId,
+  MonitoringSceneReviewRecord? sceneReview,
 }) {
   final payload = <String, Object?>{
-    'eventId': event.eventId,
+    'event_id': event.eventId,
     'sequence': event.sequence,
-    'version': event.version,
-    'type': _rawEventType(event),
-    'clientId': _eventClientId(event),
-    'regionId': _eventRegionId(event),
-    'siteId': _eventSiteId(event),
-    'occurredAt': event.occurredAt.toUtc().toIso8601String(),
-    'summary': _eventTitle(event),
+    'type': event.runtimeType.toString(),
+    'occurred_at_utc': event.occurredAt.toUtc().toIso8601String(),
+    'client_id': _eventClientId(event),
+    'site_id': _eventSiteId(event),
+    'summary': _titleForEvent(event),
   };
+
   if (event is IntelligenceReceived) {
-    payload['intelligenceId'] = event.intelligenceId;
+    payload['intelligence_id'] = event.intelligenceId;
     payload['provider'] = event.provider;
-    payload['sourceType'] = event.sourceType;
-    payload['riskScore'] = event.riskScore;
-    if ((event.cameraId ?? '').trim().isNotEmpty) {
-      payload['cameraId'] = event.cameraId!.trim();
-    }
-    if ((event.objectLabel ?? '').trim().isNotEmpty) {
-      payload['objectLabel'] = event.objectLabel!.trim();
-    }
-    if (event.objectConfidence != null) {
-      payload['objectConfidence'] = event.objectConfidence;
-    }
-    if ((event.evidenceRecordHash ?? '').trim().isNotEmpty) {
-      payload['evidenceRecordHash'] = event.evidenceRecordHash!.trim();
-    }
-    final review = sceneReviewByIntelligenceId[event.intelligenceId.trim()];
-    if (review != null) {
-      payload['sceneReview'] = <String, Object?>{
-        'source_label': review.sourceLabel,
-        'posture_label': review.postureLabel,
-        if (review.decisionLabel.trim().isNotEmpty)
-          'decision_label': review.decisionLabel,
-        if (review.decisionSummary.trim().isNotEmpty)
-          'decision_summary': review.decisionSummary,
-        'summary': review.summary,
-        'reviewed_at_utc': review.reviewedAtUtc.toIso8601String(),
-        if (review.evidenceRecordHash.trim().isNotEmpty)
-          'evidence_record_hash': review.evidenceRecordHash,
-      };
-    }
+    payload['source_type'] = event.sourceType;
+    payload['risk_score'] = event.riskScore;
+    payload['headline'] = event.headline;
+    payload['summary_text'] = event.summary;
+  } else if (event is PatrolCompleted) {
+    payload['guard_id'] = event.guardId;
+    payload['route_id'] = event.routeId;
+    payload['duration_seconds'] = event.durationSeconds;
+  } else if (event is GuardCheckedIn) {
+    payload['guard_id'] = event.guardId;
+  } else if (event is DecisionCreated) {
+    payload['dispatch_id'] = event.dispatchId;
+  } else if (event is ResponseArrived) {
+    payload['dispatch_id'] = event.dispatchId;
+    payload['guard_id'] = event.guardId;
+  } else if (event is IncidentClosed) {
+    payload['dispatch_id'] = event.dispatchId;
+    payload['resolution_type'] = event.resolutionType;
+  } else if (event is ExecutionCompleted) {
+    payload['dispatch_id'] = event.dispatchId;
+    payload['success'] = event.success;
+  } else if (event is ExecutionDenied) {
+    payload['dispatch_id'] = event.dispatchId;
+    payload['operator_id'] = event.operatorId;
+    payload['reason'] = event.reason;
   } else if (event is ReportGenerated) {
-    final tracked = _hasTrackedReportSectionConfiguration(event);
-    final included = _includedReportSectionLabels(event.sectionConfiguration);
-    final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
     payload['month'] = event.month;
-    payload['contentHash'] = event.contentHash;
-    payload['pdfHash'] = event.pdfHash;
-    payload['eventRangeStart'] = event.eventRangeStart;
-    payload['eventRangeEnd'] = event.eventRangeEnd;
-    payload['eventCount'] = event.eventCount;
-    payload['reportSchemaVersion'] = event.reportSchemaVersion;
-    payload['projectionVersion'] = event.projectionVersion;
-    payload['reportConfiguration'] = <String, Object?>{
-      'tracked': tracked,
-      'summary': _reportSectionConfigurationDetail(event),
-      'investigation_context_label': _reportInvestigationContextLabel(event),
-      'investigation_context_key': event.investigationContextKey.trim().isEmpty
-          ? 'routine_review'
-          : event.investigationContextKey.trim(),
-      'branding_mode_label': _reportBrandingModeLabel(event),
-      'branding_summary': _reportBrandingDetail(event),
-      'branding_source_label': _reportBrandingSourceLabel(event),
-      'included_sections': included,
-      'omitted_sections': omitted,
-      'included_sections_label': tracked
-          ? (included.isEmpty ? 'None' : included.join(', '))
-          : 'Legacy receipt',
-      'omitted_sections_label': tracked
-          ? (omitted.isEmpty ? 'None' : omitted.join(', '))
-          : 'Not captured',
-      'includeTimeline': event.includeTimeline,
-      'includeDispatchSummary': event.includeDispatchSummary,
-      'includeCheckpointCompliance': event.includeCheckpointCompliance,
-      'includeAiDecisionLog': event.includeAiDecisionLog,
-      'includeGuardMetrics': event.includeGuardMetrics,
+    payload['event_count'] = event.eventCount;
+    payload['report_schema_version'] = event.reportSchemaVersion;
+  } else if (event is PartnerDispatchStatusDeclared) {
+    payload['dispatch_id'] = event.dispatchId;
+    payload['partner_label'] = event.partnerLabel;
+    payload['status'] = event.status.name;
+  } else if (event is VehicleVisitReviewRecorded) {
+    payload['vehicle_label'] = event.vehicleLabel;
+    payload['status'] = event.effectiveStatusLabel;
+    payload['workflow_summary'] = event.workflowSummary;
+  }
+
+  if (sceneReview != null) {
+    payload['sceneReview'] = <String, Object?>{
+      'source_label': sceneReview.sourceLabel,
+      'posture_label': sceneReview.postureLabel,
+      if (sceneReview.decisionLabel.trim().isNotEmpty)
+        'decision_label': sceneReview.decisionLabel,
+      if (sceneReview.decisionSummary.trim().isNotEmpty)
+        'decision_summary': sceneReview.decisionSummary,
+      'summary': sceneReview.summary,
+      'reviewed_at_utc': sceneReview.reviewedAtUtc.toIso8601String(),
+      if (sceneReview.evidenceRecordHash.trim().isNotEmpty)
+        'evidence_record_hash': sceneReview.evidenceRecordHash,
     };
   }
+
   return payload;
 }
 
-bool _verifyChain(List<_LedgerEntryView> entries) {
-  for (var i = 0; i < entries.length; i++) {
-    final current = entries[i];
-    final next = i + 1 < entries.length ? entries[i + 1] : null;
-    if (next == null) {
-      continue;
-    }
-    if (current.previousHash != next.hash &&
-        current.previousHash != 'GENESIS') {
-      return false;
-    }
+String _titleForEvent(DispatchEvent event) {
+  if (event is IntelligenceReceived) {
+    return event.headline.trim().isEmpty
+        ? 'AI observation logged'
+        : event.headline;
   }
-  return true;
-}
-
-String _ledgerType(DispatchEvent event) {
-  if (event is DecisionCreated) return 'INCIDENT';
-  if (event is ResponseArrived) return 'DISPATCH';
-  if (event is PartnerDispatchStatusDeclared) return 'DISPATCH';
-  if (event is VehicleVisitReviewRecorded) return 'REVIEW';
-  if (event is GuardCheckedIn) return 'CHECKPOINT';
-  if (event is ExecutionDenied) return 'ALARM';
-  if (event is IntelligenceReceived) return 'AI ACTION';
-  if (event is PatrolCompleted) return 'GUARD ACTION';
-  if (event is ExecutionCompleted) return 'DISPATCH';
-  if (event is IncidentClosed) return 'INCIDENT';
-  if (event is ReportGenerated) return 'REPORT';
-  return 'SYSTEM';
-}
-
-Color _typeColor(String type) {
-  switch (type) {
-    case 'INCIDENT':
-      return const Color(0xFFEF4444);
-    case 'DISPATCH':
-      return const Color(0xFF10B981);
-    case 'CHECKPOINT':
-      return const Color(0xFF22D3EE);
-    case 'REVIEW':
-      return const Color(0xFF38BDF8);
-    case 'ALARM':
-      return const Color(0xFFF59E0B);
-    case 'AI ACTION':
-      return const Color(0xFFC084FC);
-    case 'GUARD ACTION':
-      return const Color(0xFF3B82F6);
-    case 'REPORT':
-      return const Color(0xFFC084FC);
-    default:
-      return const Color(0xFF9BB0CE);
-  }
-}
-
-String _eventTitle(DispatchEvent event) {
-  if (event is DecisionCreated) {
-    return '${event.clientId}/${event.siteId} dispatch ${event.dispatchId} created';
-  }
-  if (event is ResponseArrived) {
-    return '${event.guardId} arrived for ${event.dispatchId}';
-  }
-  if (event is PartnerDispatchStatusDeclared) {
-    return '${event.partnerLabel} declared ${event.status.name} for ${event.dispatchId}';
-  }
-  if (event is VehicleVisitReviewRecorded) {
-    if (!event.reviewed && event.statusOverride.trim().isEmpty) {
-      return '${event.vehicleLabel} review cleared';
-    }
-    if (event.statusOverride.trim().isNotEmpty) {
-      return '${event.vehicleLabel} marked ${event.effectiveStatusLabel}';
-    }
-    return '${event.vehicleLabel} marked reviewed';
+  if (event is PatrolCompleted) {
+    return 'Patrol completed - ${_displaySiteLabel(event.siteId)}';
   }
   if (event is GuardCheckedIn) {
-    return '${event.guardId} checkpoint scan completed';
+    return 'Shift handover captured';
   }
-  if (event is IntelligenceReceived) {
-    return event.headline;
+  if (event is DecisionCreated) {
+    return 'Controller dispatched response';
+  }
+  if (event is ResponseArrived) {
+    return '${_callsignFromGuardId(event.guardId)} arrived on site';
+  }
+  if (event is IncidentClosed) {
+    return 'Incident closed - ${_displaySiteLabel(event.siteId)}';
   }
   if (event is ExecutionCompleted) {
     return event.success
-        ? 'Armed response dispatch initiated'
-        : '${event.dispatchId} execution failed';
+        ? 'Alarm workflow completed'
+        : 'Alarm workflow closed with errors';
   }
   if (event is ExecutionDenied) {
-    return 'Perimeter alarm activation detected';
-  }
-  if (event is PatrolCompleted) {
-    return '${event.guardId} completed route ${event.routeId}';
-  }
-  if (event is IncidentClosed) {
-    return '${event.dispatchId} closed for ${event.siteId}';
+    return 'Alarm trigger denied for execution';
   }
   if (event is ReportGenerated) {
-    final tracked = _hasTrackedReportSectionConfiguration(event);
-    final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
-    final brandingHeadline = _reportBrandingHeadline(event);
-    final investigationHeadline = _reportInvestigationHeadline(event);
-    final configSummary = !tracked
-        ? 'legacy receipt config'
-        : omitted.isEmpty
-        ? 'all sections included'
-        : '${omitted.length} sections omitted';
-    return '${event.siteId} ${event.month} • $configSummary${brandingHeadline == null ? '' : ' • $brandingHeadline'}${investigationHeadline == null ? '' : ' • $investigationHeadline'} • range ${event.eventRangeStart}-${event.eventRangeEnd}';
+    return 'Shift report generated';
+  }
+  if (event is PartnerDispatchStatusDeclared) {
+    return '${event.partnerLabel} updated dispatch status';
+  }
+  if (event is VehicleVisitReviewRecorded) {
+    return '${event.vehicleLabel} visit reviewed';
   }
   return event.eventId;
 }
 
-String? _eventDispatchId(DispatchEvent event) {
-  if (event is DecisionCreated) return event.dispatchId;
-  if (event is ResponseArrived) return event.dispatchId;
-  if (event is PartnerDispatchStatusDeclared) return event.dispatchId;
-  if (event is VehicleVisitReviewRecorded) return event.primaryEventId;
-  if (event is ExecutionCompleted) return event.dispatchId;
-  if (event is ExecutionDenied) return event.dispatchId;
-  if (event is IncidentClosed) return event.dispatchId;
-  if (event is ReportGenerated) return null;
-  return null;
+String _descriptionForEvent(
+  DispatchEvent event, {
+  MonitoringSceneReviewRecord? sceneReview,
+}) {
+  if (event is IntelligenceReceived) {
+    if (sceneReview != null && sceneReview.decisionSummary.trim().isNotEmpty) {
+      return sceneReview.decisionSummary;
+    }
+    return event.summary.trim().isEmpty
+        ? 'AI surfaced a new item for controller review.'
+        : event.summary;
+  }
+  if (event is PatrolCompleted) {
+    return '${_displayGuardLabel(event.guardId)} completed route ${_displayRouteLabel(event.routeId)} in ${_durationLabel(event.durationSeconds)}.';
+  }
+  if (event is GuardCheckedIn) {
+    return '${_displayGuardLabel(event.guardId)} checked in for the current shift and handover continuity was recorded.';
+  }
+  if (event is DecisionCreated) {
+    return 'Dispatch ${event.dispatchId} was opened for ${_displaySiteLabel(event.siteId)} after controller review.';
+  }
+  if (event is ResponseArrived) {
+    return '${_displayGuardLabel(event.guardId)} arrived for dispatch ${event.dispatchId} and the response timeline was updated.';
+  }
+  if (event is IncidentClosed) {
+    return 'Incident ${event.dispatchId} closed as ${_humanizeIdentifier(event.resolutionType)}.';
+  }
+  if (event is ExecutionCompleted) {
+    return event.success
+        ? 'Execution completed successfully and the action was sealed into the record.'
+        : 'Execution reported a failure and requires review.';
+  }
+  if (event is ExecutionDenied) {
+    return event.reason.trim().isEmpty
+        ? 'Execution was denied and the alarm record now needs operator review.'
+        : event.reason;
+  }
+  if (event is ReportGenerated) {
+    return 'Generated report for ${_displaySiteLabel(event.siteId)} using ${event.eventCount} source events.';
+  }
+  if (event is PartnerDispatchStatusDeclared) {
+    return '${event.partnerLabel} marked the dispatch as ${event.status.name}.';
+  }
+  if (event is VehicleVisitReviewRecorded) {
+    return event.workflowSummary.trim().isEmpty
+        ? '${event.vehicleLabel} review recorded.'
+        : event.workflowSummary;
+  }
+  return 'Operational record created.';
 }
 
-String _rawEventType(DispatchEvent event) =>
-    event.runtimeType.toString().toUpperCase();
+_ObCategory _categoryForEvent(DispatchEvent event) {
+  if (event is PatrolCompleted) {
+    return _ObCategory.patrol;
+  }
+  if (event is GuardCheckedIn || event is ReportGenerated) {
+    return _ObCategory.handover;
+  }
+  if (event is VehicleVisitReviewRecorded) {
+    return _ObCategory.vehicle;
+  }
+  if (event is ExecutionCompleted || event is ExecutionDenied) {
+    return _ObCategory.alarm;
+  }
+  if (event is DecisionCreated ||
+      event is ResponseArrived ||
+      event is IncidentClosed ||
+      event is PartnerDispatchStatusDeclared) {
+    return _ObCategory.incident;
+  }
+  if (event is IntelligenceReceived) {
+    final narrative = '${event.headline} ${event.summary}'.toLowerCase();
+    if (narrative.contains('vehicle') || narrative.contains('car')) {
+      return _ObCategory.vehicle;
+    }
+    if (narrative.contains('alarm') ||
+        narrative.contains('breach') ||
+        narrative.contains('distress') ||
+        narrative.contains('movement') ||
+        narrative.contains('intrusion')) {
+      return _ObCategory.incident;
+    }
+  }
+  return _ObCategory.other;
+}
+
+String _guardLabelForEvent(DispatchEvent event) {
+  if (event is PatrolCompleted) {
+    return _displayGuardLabel(event.guardId);
+  }
+  if (event is GuardCheckedIn) {
+    return _displayGuardLabel(event.guardId);
+  }
+  if (event is ResponseArrived) {
+    return _displayGuardLabel(event.guardId);
+  }
+  if (event is PartnerDispatchStatusDeclared) {
+    return event.actorLabel.trim().isEmpty
+        ? event.partnerLabel
+        : event.actorLabel;
+  }
+  if (event is VehicleVisitReviewRecorded) {
+    return event.actorLabel.trim().isEmpty
+        ? 'Controller Desk'
+        : event.actorLabel;
+  }
+  if (event is IntelligenceReceived) {
+    return 'ONYX AI';
+  }
+  return 'Controller Desk';
+}
+
+String _callsignForEvent(DispatchEvent event) {
+  if (event is PatrolCompleted) {
+    return _callsignFromGuardId(event.guardId);
+  }
+  if (event is GuardCheckedIn) {
+    return _callsignFromGuardId(event.guardId);
+  }
+  if (event is ResponseArrived) {
+    return _callsignFromGuardId(event.guardId);
+  }
+  if (event is PartnerDispatchStatusDeclared) {
+    return event.partnerLabel;
+  }
+  if (event is VehicleVisitReviewRecorded) {
+    return event.actorLabel.trim().isEmpty ? 'Command' : event.actorLabel;
+  }
+  if (event is IntelligenceReceived) {
+    return 'AI Watch';
+  }
+  return 'Command';
+}
+
+String _locationForEvent(DispatchEvent event) {
+  if (event is IntelligenceReceived) {
+    if ((event.zone ?? '').trim().isNotEmpty) {
+      return _humanizeIdentifier(event.zone!);
+    }
+    if ((event.cameraId ?? '').trim().isNotEmpty) {
+      return _humanizeIdentifier(event.cameraId!);
+    }
+    return 'Restricted zone review';
+  }
+  if (event is PatrolCompleted) {
+    return 'Route ${_displayRouteLabel(event.routeId)}';
+  }
+  if (event is GuardCheckedIn) {
+    return 'Shift handover desk';
+  }
+  if (event is DecisionCreated) {
+    return 'Controller desk';
+  }
+  if (event is ResponseArrived) {
+    return _displaySiteLabel(event.siteId);
+  }
+  if (event is IncidentClosed) {
+    return _displaySiteLabel(event.siteId);
+  }
+  if (event is ExecutionCompleted || event is ExecutionDenied) {
+    return 'Alarm response lane';
+  }
+  if (event is ReportGenerated) {
+    return 'Shift report archive';
+  }
+  if (event is PartnerDispatchStatusDeclared) {
+    return event.sourceChannel;
+  }
+  if (event is VehicleVisitReviewRecorded) {
+    return event.reasonLabel.trim().isEmpty
+        ? _displaySiteLabel(event.siteId)
+        : event.reasonLabel;
+  }
+  return 'Operations';
+}
+
+bool _isIncidentEvent(DispatchEvent event) {
+  return event is DecisionCreated ||
+      event is ResponseArrived ||
+      event is IncidentClosed ||
+      event is ExecutionCompleted ||
+      event is ExecutionDenied ||
+      (event is IntelligenceReceived && event.riskScore >= 75);
+}
+
+bool _isFlaggedEvent(
+  DispatchEvent event, {
+  MonitoringSceneReviewRecord? sceneReview,
+}) {
+  if (sceneReview != null) {
+    return true;
+  }
+  if (event is IntelligenceReceived) {
+    return event.riskScore >= 90;
+  }
+  if (event is ExecutionDenied) {
+    return true;
+  }
+  return false;
+}
 
 String _eventClientId(DispatchEvent event) {
   if (event is DecisionCreated) return event.clientId;
@@ -3488,22 +2893,7 @@ String _eventClientId(DispatchEvent event) {
   if (event is PatrolCompleted) return event.clientId;
   if (event is IncidentClosed) return event.clientId;
   if (event is ReportGenerated) return event.clientId;
-  return 'CLIENT-UNKNOWN';
-}
-
-String _eventRegionId(DispatchEvent event) {
-  if (event is DecisionCreated) return event.regionId;
-  if (event is ResponseArrived) return event.regionId;
-  if (event is PartnerDispatchStatusDeclared) return event.regionId;
-  if (event is VehicleVisitReviewRecorded) return event.regionId;
-  if (event is GuardCheckedIn) return event.regionId;
-  if (event is ExecutionCompleted) return event.regionId;
-  if (event is ExecutionDenied) return event.regionId;
-  if (event is IntelligenceReceived) return event.regionId;
-  if (event is PatrolCompleted) return event.regionId;
-  if (event is IncidentClosed) return event.regionId;
-  if (event is ReportGenerated) return 'REGION-UNKNOWN';
-  return 'REGION-UNKNOWN';
+  return '';
 }
 
 String _eventSiteId(DispatchEvent event) {
@@ -3518,119 +2908,315 @@ String _eventSiteId(DispatchEvent event) {
   if (event is PatrolCompleted) return event.siteId;
   if (event is IncidentClosed) return event.siteId;
   if (event is ReportGenerated) return event.siteId;
-  return 'SITE-UNKNOWN';
+  return '';
 }
 
-bool _hasTrackedReportSectionConfiguration(ReportGenerated event) {
-  return event.reportSchemaVersion >= 3;
+Map<String, Object?> _entryToJson(_ObEntryView entry) {
+  return <String, Object?>{
+    'id': entry.id,
+    'record_code': entry.recordCode,
+    'sequence': entry.sequence,
+    'category': entry.category.storageKey,
+    'title': entry.title,
+    'description': entry.description,
+    'occurred_at_utc': entry.occurredAt.toIso8601String(),
+    'site': entry.siteLabel,
+    'guard': entry.guardLabel,
+    'callsign': entry.callsign,
+    'location_detail': entry.locationDetail,
+    'incident': entry.incident,
+    'flagged': entry.flagged,
+    'verified': entry.verified,
+    'status': entry.statusLabel,
+    'linked_event_ids': entry.linkedEventIds,
+    'hash': entry.hash,
+    'previous_hash': entry.previousHash,
+    if (entry.sceneReview != null)
+      'sceneReview': <String, Object?>{
+        'source_label': entry.sceneReview!.sourceLabel,
+        'posture_label': entry.sceneReview!.postureLabel,
+        if (entry.sceneReview!.decisionLabel.trim().isNotEmpty)
+          'decision_label': entry.sceneReview!.decisionLabel,
+        if (entry.sceneReview!.decisionSummary.trim().isNotEmpty)
+          'decision_summary': entry.sceneReview!.decisionSummary,
+        'summary': entry.sceneReview!.summary,
+        'reviewed_at_utc': entry.sceneReview!.reviewedAtUtc.toIso8601String(),
+        if (entry.sceneReview!.evidenceRecordHash.trim().isNotEmpty)
+          'evidence_record_hash': entry.sceneReview!.evidenceRecordHash,
+      },
+    'payload': entry.payload,
+  };
 }
 
-List<String> _includedReportSectionLabels(
-  ReportSectionConfiguration configuration,
+List<_ObEntryView> _relatedEntriesForSelected(
+  List<_ObEntryView> entries,
+  _ObEntryView selected,
 ) {
-  return <String>[
-    if (configuration.includeTimeline) 'Incident Timeline',
-    if (configuration.includeDispatchSummary) 'Dispatch Summary',
-    if (configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
-    if (configuration.includeAiDecisionLog) 'AI Decision Log',
-    if (configuration.includeGuardMetrics) 'Guard Metrics',
-  ];
+  return entries
+      .where(
+        (entry) =>
+            entry.id != selected.id &&
+            (entry.siteLabel == selected.siteLabel ||
+                entry.guardLabel == selected.guardLabel),
+      )
+      .take(3)
+      .toList(growable: false);
 }
 
-List<String> _omittedReportSectionLabels(
-  ReportSectionConfiguration configuration,
-) {
-  return <String>[
-    if (!configuration.includeTimeline) 'Incident Timeline',
-    if (!configuration.includeDispatchSummary) 'Dispatch Summary',
-    if (!configuration.includeCheckpointCompliance) 'Checkpoint Compliance',
-    if (!configuration.includeAiDecisionLog) 'AI Decision Log',
-    if (!configuration.includeGuardMetrics) 'Guard Metrics',
-  ];
-}
-
-String _reportSectionConfigurationDetail(ReportGenerated event) {
-  if (!_hasTrackedReportSectionConfiguration(event)) {
-    return 'Legacy receipt. Per-section report configuration was not captured for this generated report.';
+List<_GuardPreset> _buildGuardPresets(List<_ObEntryView> entries) {
+  final presetsByKey = <String, _GuardPreset>{};
+  for (final entry in entries) {
+    if (entry.guardLabel == 'Controller Desk' ||
+        entry.guardLabel == 'ONYX AI') {
+      continue;
+    }
+    final preset = _GuardPreset(
+      key: '${entry.callsign}|${entry.guardLabel}|${entry.siteLabel}',
+      callsign: entry.callsign,
+      guardName: entry.guardLabel,
+      siteLabel: entry.siteLabel,
+    );
+    presetsByKey.putIfAbsent(preset.key, () => preset);
   }
-  final included = _includedReportSectionLabels(event.sectionConfiguration);
-  final omitted = _omittedReportSectionLabels(event.sectionConfiguration);
-  final includedLabel = included.isEmpty ? 'None' : included.join(', ');
-  final omittedLabel = omitted.isEmpty ? 'None' : omitted.join(', ');
-  return 'Included: $includedLabel. Omitted: $omittedLabel.';
-}
-
-String _reportBrandingModeLabel(ReportGenerated event) {
-  if (!event.brandingConfiguration.isConfigured) {
-    return 'Standard ONYX';
+  for (final preset in _defaultGuardPresets) {
+    presetsByKey.putIfAbsent(preset.key, () => preset);
   }
-  return event.brandingUsesOverride ? 'Custom Override' : 'Default Partner';
+  return presetsByKey.values.toList(growable: false);
 }
 
-String _reportBrandingSourceLabel(ReportGenerated event) {
-  final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
-  if (sourceLabel.isEmpty) {
-    return event.brandingConfiguration.isConfigured
-        ? 'Configured partner branding'
-        : 'ONYX';
+List<String> _buildSiteOptions(List<_ObEntryView> entries) {
+  final sites = <String>{};
+  for (final entry in entries) {
+    if (entry.siteLabel.trim().isNotEmpty) {
+      sites.add(entry.siteLabel);
+    }
   }
-  return sourceLabel;
+  for (final preset in _defaultGuardPresets) {
+    sites.add(preset.siteLabel);
+  }
+  final ordered = sites.toList()..sort();
+  return ordered;
 }
 
-String? _reportBrandingHeadline(ReportGenerated event) {
-  if (!event.brandingConfiguration.isConfigured) {
+_GuardPreset _resolvePresetByKey(List<_GuardPreset> presets, String key) {
+  for (final preset in presets) {
+    if (preset.key == key) {
+      return preset;
+    }
+  }
+  return presets.isNotEmpty ? presets.first : _defaultGuardPresets.first;
+}
+
+bool _matchesCategory(_ObEntryView entry, _ObCategory filter) {
+  return filter == _ObCategory.all || entry.category == filter;
+}
+
+bool _matchesSearch(_ObEntryView entry, String query) {
+  final normalized = query.trim().toLowerCase();
+  if (normalized.isEmpty) {
+    return true;
+  }
+  final haystack = [
+    entry.recordCode,
+    entry.title,
+    entry.description,
+    entry.siteLabel,
+    entry.guardLabel,
+    entry.callsign,
+    entry.locationDetail,
+    ...entry.linkedEventIds,
+  ].join(' ').toLowerCase();
+  return haystack.contains(normalized);
+}
+
+String? _resolveSelectedEntryId({
+  required List<_ObEntryView> entries,
+  required String? currentId,
+  required String focusReference,
+}) {
+  if (entries.isEmpty) {
     return null;
   }
-  return event.brandingUsesOverride
-      ? 'custom branding override'
-      : 'default partner branding';
-}
-
-String _reportBrandingDetail(ReportGenerated event) {
-  if (!event.brandingConfiguration.isConfigured) {
-    return 'Branding: standard ONYX identity.';
+  if (currentId != null && entries.any((entry) => entry.id == currentId)) {
+    return currentId;
   }
-  final sourceLabel = event.brandingConfiguration.sourceLabel.trim();
-  if (event.brandingUsesOverride) {
-    return sourceLabel.isNotEmpty
-        ? 'Branding: custom override from default partner lane $sourceLabel.'
-        : 'Branding: custom override was used for this receipt.';
+  final normalizedFocus = focusReference.trim().toLowerCase();
+  if (normalizedFocus.isNotEmpty) {
+    for (final entry in entries) {
+      final fields = [
+        entry.recordCode,
+        entry.title,
+        entry.description,
+        entry.siteLabel,
+        ...entry.linkedEventIds,
+      ].join(' ').toLowerCase();
+      if (fields.contains(normalizedFocus)) {
+        return entry.id;
+      }
+    }
   }
-  return sourceLabel.isNotEmpty
-      ? 'Branding: default partner lane $sourceLabel.'
-      : 'Branding: configured partner label was used.';
+  for (final entry in entries) {
+    if (entry.linkedEventIds.isNotEmpty) {
+      return entry.id;
+    }
+  }
+  return entries.first.id;
 }
 
-ReportEntryContext? _reportInvestigationContext(ReportGenerated event) {
-  return ReportEntryContext.fromStorageValue(event.investigationContextKey);
+int _sortEntriesDescending(_ObEntryView a, _ObEntryView b) {
+  final byTime = b.occurredAt.compareTo(a.occurredAt);
+  if (byTime != 0) {
+    return byTime;
+  }
+  return b.sequence.compareTo(a.sequence);
 }
 
-String? _reportInvestigationHeadline(ReportGenerated event) {
-  return switch (_reportInvestigationContext(event)) {
-    ReportEntryContext.governanceBrandingDrift => 'governance handoff',
-    null => null,
+bool _verifyChain(List<_ObEntryView> entries) {
+  if (entries.length < 2) {
+    return true;
+  }
+  final ordered = [...entries]..sort(_sortEntriesDescending);
+  for (var i = 0; i < ordered.length - 1; i++) {
+    if (ordered[i].previousHash != ordered[i + 1].hash) {
+      return false;
+    }
+  }
+  return true;
+}
+
+int _nextSequence(List<_ObEntryView> entries) {
+  var maxSequence = 2441;
+  for (final entry in entries) {
+    if (entry.sequence > maxSequence) {
+      maxSequence = entry.sequence;
+    }
+  }
+  return maxSequence + 1;
+}
+
+int _nextRecordNumber(List<_ObEntryView> entries) {
+  var maxRecordNumber = 2441;
+  final matcher = RegExp(r'(\d+)$');
+  for (final entry in entries) {
+    final match = matcher.firstMatch(entry.recordCode);
+    if (match == null) {
+      continue;
+    }
+    final value = int.tryParse(match.group(1)!);
+    if (value != null && value > maxRecordNumber) {
+      maxRecordNumber = value;
+    }
+  }
+  return maxRecordNumber + 1;
+}
+
+String _manualEntryTitle(_ObCategory category, String description) {
+  final clean = description.trim();
+  if (clean.isEmpty) {
+    return '${category.label} entry';
+  }
+  final words = clean.split(RegExp(r'\s+'));
+  final headline = words.take(6).join(' ');
+  return headline[0].toUpperCase() + headline.substring(1);
+}
+
+bool _isSameUtcDate(DateTime a, DateTime b) {
+  final left = a.toUtc();
+  final right = b.toUtc();
+  return left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
+}
+
+String _formatUtcTimestamp(DateTime dateTime) {
+  final utc = dateTime.toUtc();
+  return '${utc.year.toString().padLeft(4, '0')}-${utc.month.toString().padLeft(2, '0')}-${utc.day.toString().padLeft(2, '0')} ${utc.hour.toString().padLeft(2, '0')}:${utc.minute.toString().padLeft(2, '0')} UTC';
+}
+
+String _formatComposerTimestamp(DateTime dateTime) {
+  final utc = dateTime.toUtc();
+  return '${utc.year.toString().padLeft(4, '0')}/${utc.month.toString().padLeft(2, '0')}/${utc.day.toString().padLeft(2, '0')}, ${utc.hour.toString().padLeft(2, '0')}:${utc.minute.toString().padLeft(2, '0')}';
+}
+
+String _hashPreview(String value) {
+  if (value.length <= 24) {
+    return value;
+  }
+  return '${value.substring(0, 24)}...';
+}
+
+String _displayClientLabel(String raw) {
+  if (raw.trim().isEmpty) {
+    return 'Client';
+  }
+  return _humanizeIdentifier(raw);
+}
+
+String _displaySiteLabel(String raw) {
+  final normalized = raw.trim();
+  const overrides = <String, String>{
+    'SITE-SANDTON': 'Sandton Estate',
+    'SITE-MIDRAND': 'Midrand Logistics Hub',
+    'SITE-NORTH-GATE': 'North Gate',
+    'SITE-RIVERSIDE': 'Riverside Estate',
   };
+  if (normalized.isEmpty) {
+    return 'Unassigned Site';
+  }
+  return overrides[normalized] ?? _humanizeIdentifier(normalized);
 }
 
-String _reportInvestigationContextLabel(ReportGenerated event) {
-  return switch (_reportInvestigationContext(event)) {
-    ReportEntryContext.governanceBrandingDrift => 'Governance Handoff',
-    null => 'Routine Review',
-  };
+String _displayGuardLabel(String raw) {
+  final normalized = raw.trim();
+  if (normalized.isEmpty) {
+    return 'Unassigned Guard';
+  }
+  return _humanizeIdentifier(normalized);
 }
 
-String _clock(DateTime value) {
-  final utc = value.toUtc();
-  var h = utc.hour;
-  final m = utc.minute.toString().padLeft(2, '0');
-  final s = utc.second.toString().padLeft(2, '0');
-  final suffix = h >= 12 ? 'PM' : 'AM';
-  h = h % 12;
-  if (h == 0) h = 12;
-  return '$h:$m:$s $suffix';
+String _callsignFromGuardId(String raw) {
+  final digits = RegExp(r'(\d+)').firstMatch(raw.trim())?.group(1);
+  if (digits != null && digits.isNotEmpty) {
+    return 'Echo-$digits';
+  }
+  return _humanizeIdentifier(raw);
 }
 
-String _fullTimestamp(DateTime value) {
-  final utc = value.toUtc();
-  return '${utc.month}/${utc.day}/${utc.year}, ${_clock(utc)}';
+String _displayRouteLabel(String raw) {
+  final normalized = raw.trim();
+  if (normalized.isEmpty) {
+    return 'Route';
+  }
+  return _humanizeIdentifier(normalized);
+}
+
+String _durationLabel(int seconds) {
+  if (seconds <= 0) {
+    return '0m';
+  }
+  final minutes = (seconds / 60).round();
+  return '${minutes}m';
+}
+
+String _humanizeIdentifier(String raw) {
+  final normalized = raw
+      .replaceAll(RegExp(r'[_-]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (normalized.isEmpty) {
+    return raw;
+  }
+  return normalized
+      .split(' ')
+      .map((word) {
+        if (word.isEmpty) {
+          return word;
+        }
+        final lower = word.toLowerCase();
+        if (lower.length <= 2 && lower == word.toUpperCase()) {
+          return word;
+        }
+        return lower[0].toUpperCase() + lower.substring(1);
+      })
+      .join(' ');
 }

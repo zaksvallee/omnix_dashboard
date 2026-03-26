@@ -18,10 +18,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.reports,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.reports),
     );
     await tester.pumpAndSettle();
 
@@ -42,10 +39,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.reports,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.reports),
     );
     await tester.pumpAndSettle();
 
@@ -61,29 +55,27 @@ void main() {
     expect(find.byType(ReportPreviewPage), findsOneWidget);
   });
 
-  testWidgets('onyx app opens sovereign ledger from routed events hero action', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets(
+    'onyx app opens sovereign ledger from routed events hero action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.events,
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.events),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
+      expect(find.text('Events & Forensic Timeline'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey('events-routed-view-ledger-button')),
-    );
-    await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('events-routed-view-ledger-button')),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byType(SovereignLedgerPage), findsOneWidget);
-  });
+      expect(find.byType(SovereignLedgerPage), findsOneWidget);
+    },
+  );
 
   testWidgets('onyx app opens governance from routed events hero action', (
     tester,
@@ -92,10 +84,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.events,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.events),
     );
     await tester.pumpAndSettle();
 
@@ -132,7 +121,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Sovereign Ledger'), findsOneWidget);
+    expect(find.text('Occurrence Book'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('ledger-hero-view-events-button')),
@@ -146,28 +135,24 @@ void main() {
     expect(find.byType(EventsReviewPage), findsOneWidget);
   });
 
-  testWidgets('onyx app verifies the routed ledger chain from the hero action', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets(
+    'onyx app verifies the routed ledger chain from the hero action',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.ledger,
-      ),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.ledger),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Sovereign Ledger'), findsOneWidget);
-    expect(find.text('INTACT'), findsNothing);
+      expect(find.text('Occurrence Book'), findsOneWidget);
+      expect(find.text('INTACT'), findsNothing);
 
-    await tester.tap(
-      find.byKey(const ValueKey('ledger-hero-verify-button')),
-    );
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ledger-hero-verify-button')));
+      await tester.pumpAndSettle();
 
-    expect(find.text('INTACT'), findsWidgets);
-  });
+      expect(find.text('INTACT'), findsWidgets);
+    },
+  );
 }

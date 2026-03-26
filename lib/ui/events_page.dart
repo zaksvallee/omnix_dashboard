@@ -114,10 +114,10 @@ class _EventsPageState extends State<EventsPage> {
       body: OnyxPageScaffold(
         child: LayoutBuilder(
           builder: (context, viewport) {
-            const contentPadding = EdgeInsets.all(8);
+            const contentPadding = EdgeInsets.all(5);
             final useScrollFallback =
                 handsetLayout ||
-                viewport.maxHeight < 720 ||
+                viewport.maxHeight < 680 ||
                 viewport.maxWidth < 980;
             final boundedDesktopSurface =
                 !useScrollFallback &&
@@ -136,6 +136,8 @@ class _EventsPageState extends State<EventsPage> {
                 : widescreenSurface
                 ? viewport.maxWidth
                 : 1540.0;
+            final mergeWorkspaceBannerIntoHero =
+                boundedDesktopSurface && !handsetLayout;
 
             final hero = _heroHeader(
               context,
@@ -143,10 +145,48 @@ class _EventsPageState extends State<EventsPage> {
               filteredCount: laneFiltered.length,
               selectedCount: selected == null ? 0 : 1,
               laneLabel: _laneFilter.label,
+              workspaceBanner: mergeWorkspaceBannerIntoHero
+                  ? _workspaceStatusBanner(
+                      context,
+                      filteredRows: filtered,
+                      visibleRows: visibleRows,
+                      selected: selected,
+                      relatedRows: relatedRows,
+                      shellless: true,
+                    )
+                  : null,
             );
 
             Widget buildSurfaceBody({required bool expandedPanels}) {
               final content = <Widget>[
+                if (!boundedDesktopSurface) ...[
+                  const OnyxPageHeader(
+                    title: 'Event Review',
+                    subtitle:
+                        'A lane-driven command workspace for forensic review, evidence checks, and event-chain tracing.',
+                  ),
+                  const SizedBox(height: _spaceSm),
+                ] else ...[
+                  Text(
+                    'Event Review',
+                    style: GoogleFonts.rajdhani(
+                      color: const Color(0xFFEAF4FF),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                if (!handsetLayout && !mergeWorkspaceBannerIntoHero) ...[
+                  _workspaceStatusBanner(
+                    context,
+                    filteredRows: filtered,
+                    visibleRows: visibleRows,
+                    selected: selected,
+                    relatedRows: relatedRows,
+                  ),
+                  const SizedBox(height: _spaceSm),
+                ],
                 _overviewGrid(
                   totalCount: forensicRows.length,
                   filteredCount: laneFiltered.length,
@@ -159,24 +199,6 @@ class _EventsPageState extends State<EventsPage> {
                   relatedRows: relatedRows,
                 ),
                 const SizedBox(height: _spaceSm),
-                if (!boundedDesktopSurface) ...[
-                  const OnyxPageHeader(
-                    title: 'Event Review',
-                    subtitle:
-                        'A lane-driven command workspace for forensic review, evidence checks, and event-chain tracing.',
-                  ),
-                  const SizedBox(height: _spaceSm),
-                ],
-                if (!handsetLayout) ...[
-                  _workspaceStatusBanner(
-                    context,
-                    filteredRows: filtered,
-                    visibleRows: visibleRows,
-                    selected: selected,
-                    relatedRows: relatedRows,
-                  ),
-                  const SizedBox(height: _spaceSm),
-                ],
               ];
 
               if (expandedPanels) {
@@ -228,7 +250,7 @@ class _EventsPageState extends State<EventsPage> {
               padding: contentPadding,
               maxWidth: surfaceMaxWidth,
               lockToViewport: boundedDesktopSurface,
-              spacing: _spaceSm,
+              spacing: 5,
               header: hero,
               body: buildSurfaceBody(expandedPanels: boundedDesktopSurface),
             );
@@ -244,18 +266,19 @@ class _EventsPageState extends State<EventsPage> {
     required int filteredCount,
     required int selectedCount,
     required String laneLabel,
+    Widget? workspaceBanner,
   }) {
     final windowLabel = _timeWindow.label;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(9),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF171736), Color(0xFF10172A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF2A3150)),
       ),
       child: LayoutBuilder(
@@ -268,10 +291,10 @@ class _EventsPageState extends State<EventsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 38,
-                    height: 38,
+                    width: 28,
+                    height: 28,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(8),
                       gradient: const LinearGradient(
                         colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
                         begin: Alignment.topLeft,
@@ -281,10 +304,10 @@ class _EventsPageState extends State<EventsPage> {
                     child: const Icon(
                       Icons.timeline_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 13,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 7),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,16 +316,16 @@ class _EventsPageState extends State<EventsPage> {
                           'Events & Forensic Timeline',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 17 : 20,
+                            fontSize: compact ? 14 : 16,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           'Immutable event log with forensic filtering and audit trails.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF95A9C7),
-                            fontSize: 10.5,
+                            fontSize: 9,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -311,10 +334,10 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   _heroChip('Window', windowLabel),
                   _heroChip('Lane', laneLabel),
@@ -349,18 +372,35 @@ class _EventsPageState extends State<EventsPage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 8), actions],
+              children: [
+                titleBlock,
+                const SizedBox(height: 4),
+                actions,
+                if (workspaceBanner != null) ...[
+                  const SizedBox(height: 4),
+                  workspaceBanner,
+                ],
+              ],
             );
           }
-          return Row(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: titleBlock),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 260),
-                child: actions,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: titleBlock),
+                  const SizedBox(width: 4),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 208),
+                    child: actions,
+                  ),
+                ],
               ),
+              if (workspaceBanner != null) ...[
+                const SizedBox(height: 4),
+                workspaceBanner,
+              ],
             ],
           );
         },
@@ -370,7 +410,7 @@ class _EventsPageState extends State<EventsPage> {
 
   Widget _heroChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -383,7 +423,7 @@ class _EventsPageState extends State<EventsPage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 9.5,
+                fontSize: 8.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -391,7 +431,7 @@ class _EventsPageState extends State<EventsPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE8F1FF),
-                fontSize: 9.5,
+                fontSize: 8.5,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -411,18 +451,15 @@ class _EventsPageState extends State<EventsPage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 16),
+      icon: Icon(icon, size: 15),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        textStyle: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        textStyle: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
       ),
     );
   }
@@ -444,17 +481,17 @@ class _EventsPageState extends State<EventsPage> {
             ? 2
             : 1;
         final aspectRatio = constraints.maxWidth >= 1800
-            ? 3.0
+            ? 3.95
             : columns == 4
-            ? 2.55
+            ? 3.65
             : columns == 2
-            ? 2.2
+            ? 2.9
             : 2.2;
         return GridView.count(
           key: const ValueKey('events-overview-grid'),
           crossAxisCount: columns,
-          mainAxisSpacing: 6,
-          crossAxisSpacing: 6,
+          mainAxisSpacing: 5,
+          crossAxisSpacing: 5,
           childAspectRatio: aspectRatio,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -585,14 +622,14 @@ class _EventsPageState extends State<EventsPage> {
 
     return Container(
       key: const ValueKey('events-overview-selected-card'),
-      padding: const EdgeInsets.all(9),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [accent.withValues(alpha: 0.16), const Color(0xFF101A2B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.34)),
       ),
       child: SingleChildScrollView(
@@ -603,73 +640,59 @@ class _EventsPageState extends State<EventsPage> {
             Row(
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 22,
+                  height: 22,
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(7),
                   ),
                   child: Icon(
                     Icons.visibility_outlined,
                     color: accent,
-                    size: 16,
+                    size: 12,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        selected == null ? 'FOCUS RECOVERY' : 'CASE IN FOCUS',
-                        style: GoogleFonts.inter(
-                          color: accent,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        'Selected Case',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8EA4C2),
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    selected == null ? 'FOCUS RECOVERY' : 'CASE IN FOCUS',
+                    style: GoogleFonts.inter(
+                      color: accent,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.9,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 3),
             Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.rajdhani(
                 color: const Color(0xFFF4F8FF),
-                fontSize: 16,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               detail,
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
                 color: const Color(0xFFD5E1F2),
-                fontSize: 10,
+                fontSize: 8.5,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 2),
             Wrap(
-              spacing: 5,
-              runSpacing: 5,
+              spacing: 3,
+              runSpacing: 3,
               children: [
                 if (selected != null) ...[
                   _pill(selected.info.label, color: accent),
@@ -685,8 +708,8 @@ class _EventsPageState extends State<EventsPage> {
               ],
             ),
             if (actions.isNotEmpty) ...[
-              const SizedBox(height: 5),
-              Wrap(spacing: 5, runSpacing: 5, children: actions),
+              const SizedBox(height: 2),
+              Wrap(spacing: 3, runSpacing: 3, children: actions),
             ],
           ],
         ),
@@ -702,10 +725,10 @@ class _EventsPageState extends State<EventsPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -714,43 +737,43 @@ class _EventsPageState extends State<EventsPage> {
           Row(
             children: [
               Container(
-                width: 30,
-                height: 30,
+                width: 20,
+                height: 20,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: accent, size: 16),
+                child: Icon(icon, color: accent, size: 10),
               ),
               const Spacer(),
               Text(
                 value,
                 style: GoogleFonts.robotoMono(
                   color: const Color(0xFFF4F8FF),
-                  fontSize: 20,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 5),
           Text(
             title.toUpperCase(),
             style: GoogleFonts.inter(
               color: const Color(0xFF93A5BF),
-              fontSize: 10,
+              fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             detail,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               color: const Color(0xFFD5E1F2),
-              fontSize: 10.5,
+              fontSize: 8.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
@@ -775,14 +798,14 @@ class _EventsPageState extends State<EventsPage> {
         backgroundColor: selected
             ? accent.withValues(alpha: 0.9)
             : accent.withValues(alpha: 0.12),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         minimumSize: const Size(0, 0),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800),
+        style: GoogleFonts.inter(fontSize: 8.5, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -846,138 +869,77 @@ class _EventsPageState extends State<EventsPage> {
     required List<_ForensicRow> visibleRows,
     required _ForensicRow? selected,
     required List<_ForensicRow> relatedRows,
+    bool shellless = false,
   }) {
+    final bannerContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            _workspaceStatusPill(
+              icon: Icons.timeline_outlined,
+              label: '${visibleRows.length} Visible',
+              accent: const Color(0xFF63BDFF),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.radar_outlined,
+              label: 'Lane ${_laneFilter.label}',
+              accent: _laneFilter.accent,
+            ),
+            _workspaceStatusPill(
+              icon: Icons.dashboard_customize_outlined,
+              label: 'View ${_workspaceView.label}',
+              accent: _workspaceView.accent,
+            ),
+            _workspaceStatusPill(
+              icon: Icons.flag_outlined,
+              label: 'Focus ${selected?.event.eventId ?? 'None'}',
+              accent: selected?.info.color ?? const Color(0xFF94A3B8),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.link_outlined,
+              label: '${relatedRows.length} Linked',
+              accent: relatedRows.isEmpty
+                  ? const Color(0xFF94A3B8)
+                  : const Color(0xFF59D79B),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.schedule_outlined,
+              label: _timeWindow.label,
+              accent: const Color(0xFFF6C067),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'Lane pivots stay pinned in the event rail, while evidence, chain, linked-focus, and governance or ledger routing stay anchored to the selected-event workspace and hero actions.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF9AB1CF),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('events-workspace-status-banner'),
+        child: bannerContent,
+      );
+    }
     return Container(
       key: const ValueKey('events-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0xFF223244)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              _workspaceStatusPill(
-                icon: Icons.timeline_outlined,
-                label: '${visibleRows.length} Visible',
-                accent: const Color(0xFF63BDFF),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.radar_outlined,
-                label: 'Lane ${_laneFilter.label}',
-                accent: _laneFilter.accent,
-              ),
-              _workspaceStatusPill(
-                icon: Icons.dashboard_customize_outlined,
-                label: 'View ${_workspaceView.label}',
-                accent: _workspaceView.accent,
-              ),
-              _workspaceStatusPill(
-                icon: Icons.flag_outlined,
-                label: 'Focus ${selected?.event.eventId ?? 'None'}',
-                accent: selected?.info.color ?? const Color(0xFF94A3B8),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.link_outlined,
-                label: '${relatedRows.length} Linked',
-                accent: relatedRows.isEmpty
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF59D79B),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.schedule_outlined,
-                label: _timeWindow.label,
-                accent: const Color(0xFFF6C067),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 5,
-            runSpacing: 5,
-            children: [
-              _workspaceStatusAction(
-                key: const ValueKey('events-workspace-banner-open-all'),
-                label: 'All Events',
-                selected: _laneFilter == _EventLaneFilter.all,
-                accent: _EventLaneFilter.all.accent,
-                onTap: () => _setLaneFilter(_EventLaneFilter.all),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey(
-                  'events-workspace-banner-open-intelligence',
-                ),
-                label: 'Intelligence Lane',
-                selected: _laneFilter == _EventLaneFilter.intelligence,
-                accent: _EventLaneFilter.intelligence.accent,
-                onTap:
-                    _laneCountForFilter(
-                          filteredRows,
-                          _EventLaneFilter.intelligence,
-                        ) ==
-                        0
-                    ? null
-                    : () => _setLaneFilter(_EventLaneFilter.intelligence),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('events-workspace-banner-open-evidence'),
-                label: 'Evidence View',
-                selected: _workspaceView == _EventWorkspaceView.evidence,
-                accent: _EventWorkspaceView.evidence.accent,
-                onTap: () => _setWorkspaceView(_EventWorkspaceView.evidence),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('events-workspace-banner-open-chain'),
-                label: 'Chain View',
-                selected: _workspaceView == _EventWorkspaceView.chain,
-                accent: _EventWorkspaceView.chain.accent,
-                onTap: () => _setWorkspaceView(_EventWorkspaceView.chain),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('events-workspace-banner-focus-linked'),
-                label: 'Focus Linked',
-                selected: false,
-                accent: const Color(0xFF59D79B),
-                onTap: relatedRows.isEmpty
-                    ? null
-                    : () => _focusLinkedEvent(relatedRows),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('events-workspace-banner-open-governance'),
-                label: 'Open Governance',
-                selected: false,
-                accent: const Color(0xFF93C5FD),
-                onTap: () => _openGovernanceDialog(context),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('events-workspace-banner-open-ledger'),
-                label: 'Open Ledger',
-                selected: false,
-                accent: const Color(0xFFA78BFA),
-                onTap: () => _openLedgerDialog(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            selected == null
-                ? 'Hold the current filters to pick a forensic row, then use the workspace strip to pivot lanes, evidence, and linked-chain scope.'
-                : 'The selected forensic scope stays pinned while lane pivots, chain focus, and governance or ledger handoffs remain one step away.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
-        ],
-      ),
+      child: bannerContent,
     );
   }
 
@@ -987,7 +949,7 @@ class _EventsPageState extends State<EventsPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
       decoration: BoxDecoration(
         color: const Color(0xFF111F33),
         borderRadius: BorderRadius.circular(999),
@@ -996,58 +958,17 @@ class _EventsPageState extends State<EventsPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: accent),
-          const SizedBox(width: 3),
+          Icon(icon, size: 10, color: accent),
+          const SizedBox(width: 2),
           Text(
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFFE8F1FF),
-              fontSize: 9.5,
+              fontSize: 8,
               fontWeight: FontWeight.w700,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _workspaceStatusAction({
-    required Key key,
-    required String label,
-    required bool selected,
-    required Color accent,
-    required VoidCallback? onTap,
-  }) {
-    final enabled = onTap != null;
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          color: !enabled
-              ? const Color(0xFF1D2937)
-              : selected
-              ? accent.withValues(alpha: 0.2)
-              : const Color(0xFF111F33),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: !enabled
-                ? const Color(0xFF314154)
-                : selected
-                ? accent.withValues(alpha: 0.75)
-                : accent.withValues(alpha: 0.35),
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: !enabled ? const Color(0xFF8EA4C2) : const Color(0xFFEAF1FB),
-            fontSize: 9.5,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
       ),
     );
   }
@@ -1086,7 +1007,7 @@ class _EventsPageState extends State<EventsPage> {
                     useExpandedBody: false,
                   ),
           ],
-          const SizedBox(height: _spaceSm),
+          const SizedBox(height: 5),
           _contextRail(
             allTypes: allTypes,
             allSites: allSites,
@@ -1103,15 +1024,15 @@ class _EventsPageState extends State<EventsPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final railWidth = constraints.maxWidth >= 1900
-            ? 276.0
+            ? 232.0
             : constraints.maxWidth >= 1460
-            ? 284.0
-            : 266.0;
+            ? 224.0
+            : 212.0;
         final contextWidth = constraints.maxWidth >= 1900
-            ? 238.0
+            ? 196.0
             : constraints.maxWidth >= 1460
-            ? 248.0
-            : 236.0;
+            ? 188.0
+            : 180.0;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1125,7 +1046,7 @@ class _EventsPageState extends State<EventsPage> {
                 useExpandedList: true,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             Expanded(
               child: selected == null
                   ? _emptyDetailPane(filteredRows: filteredRows)
@@ -1135,7 +1056,7 @@ class _EventsPageState extends State<EventsPage> {
                       useExpandedBody: useExpandedPanels,
                     ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 4),
             SizedBox(
               width: contextWidth,
               child: _contextRail(
@@ -1182,7 +1103,7 @@ class _EventsPageState extends State<EventsPage> {
           );
 
     return Container(
-      padding: const EdgeInsets.all(7),
+      padding: const EdgeInsets.all(6),
       decoration: onyxForensicSurfaceCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1200,7 +1121,7 @@ class _EventsPageState extends State<EventsPage> {
             'Review Lanes',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE6F0FF),
-              fontSize: 17,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1209,15 +1130,15 @@ class _EventsPageState extends State<EventsPage> {
             'Lane-focused cards keep the triage rail readable while the selected event expands into a deeper case file.',
             style: GoogleFonts.inter(
               color: const Color(0xFF7E95B4),
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.3,
             ),
           ),
           const SizedBox(height: _spaceSm),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 5,
+            runSpacing: 5,
             children: _EventLaneFilter.values
                 .map(
                   (filter) => _laneFilterChip(
@@ -1229,8 +1150,8 @@ class _EventsPageState extends State<EventsPage> {
           ),
           const SizedBox(height: _spaceSm),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 5,
+            runSpacing: 5,
             children: [
               _pill('${visibleRows.length} visible'),
               _pill('${_activeFilterCount()} advanced filters'),
@@ -1287,9 +1208,9 @@ class _EventsPageState extends State<EventsPage> {
     return InkWell(
       key: ValueKey('events-lane-card-${event.eventId}'),
       onTap: () => _selectEvent(event, openDrawer: openDrawerOnSelect),
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(7),
         decoration: onyxForensicRowDecoration(isSelected: isSelected),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1298,15 +1219,15 @@ class _EventsPageState extends State<EventsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  margin: const EdgeInsets.only(top: 4),
-                  width: 10,
-                  height: 10,
+                  margin: const EdgeInsets.only(top: 3),
+                  width: 9,
+                  height: 9,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: row.info.color,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1315,7 +1236,7 @@ class _EventsPageState extends State<EventsPage> {
                         row.info.label,
                         style: GoogleFonts.rajdhani(
                           color: row.info.color,
-                          fontSize: 15,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1326,7 +1247,7 @@ class _EventsPageState extends State<EventsPage> {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                           color: const Color(0xFF89A0BE),
-                          fontSize: 10,
+                          fontSize: 9.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1336,8 +1257,8 @@ class _EventsPageState extends State<EventsPage> {
                 if (isSelected)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 7,
+                      vertical: 3,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0x129FD9FF),
@@ -1348,17 +1269,17 @@ class _EventsPageState extends State<EventsPage> {
                       'FOCUS',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF9FD9FF),
-                        fontSize: 9.5,
+                        fontSize: 9,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 5,
+              runSpacing: 5,
               children: [
                 _pill('SEQ ${event.sequence}'),
                 if (row.siteId != null) _pill(row.siteId!),
@@ -1366,22 +1287,22 @@ class _EventsPageState extends State<EventsPage> {
                 _pill(chainLabel, color: row.info.color),
               ],
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
               row.info.summary,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE4EEFF),
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
               ),
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             Text(
               'Event ID ${event.eventId}',
               style: GoogleFonts.inter(
                 color: const Color(0xFF7289AA),
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1442,50 +1363,50 @@ class _EventsPageState extends State<EventsPage> {
     final canWidenWindow = _timeWindow != _TimeWindow.all;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 28,
+            width: 24,
             height: 3,
             decoration: BoxDecoration(
               color: const Color(0xFF7FD0FF),
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Text(
             'Scope Snapshot',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE6F0FF),
-              fontSize: 17,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             selected == null
                 ? 'Select a row to pull site, dispatch, and evidence context into this rail.'
                 : 'The current forensic focus keeps its lane, scope, and related chain within reach.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C6),
-              fontSize: 10,
+              fontSize: 8.5,
               fontWeight: FontWeight.w600,
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           LayoutBuilder(
             builder: (context, constraints) {
               final useTwoColumns = constraints.maxWidth >= 220;
               final metricWidth = useTwoColumns
-                  ? (constraints.maxWidth - 6) / 2
+                  ? (constraints.maxWidth - 5) / 2
                   : constraints.maxWidth;
               final metrics = [
                 _contextMetric(label: 'Lane', value: _laneFilter.label),
@@ -1507,8 +1428,8 @@ class _EventsPageState extends State<EventsPage> {
                 ),
               ];
               return Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   for (final metric in metrics)
                     SizedBox(width: metricWidth, child: metric),
@@ -1516,7 +1437,7 @@ class _EventsPageState extends State<EventsPage> {
               );
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           SizedBox(
             width: double.infinity,
             child: FilledButton.tonalIcon(
@@ -1524,12 +1445,12 @@ class _EventsPageState extends State<EventsPage> {
               onPressed: relatedRows.isEmpty
                   ? null
                   : () => _focusLinkedEvent(relatedRows),
-              icon: const Icon(Icons.alt_route_rounded, size: 18),
+              icon: const Icon(Icons.alt_route_rounded, size: 15),
               label: const Text('Focus Linked Event'),
             ),
           ),
           if (selected != null && relatedRows.isEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             _forensicRecoveryDeck(
               key: const ValueKey('events-context-chain-recovery'),
               title: 'Chain Recovery Ready',
@@ -1584,10 +1505,10 @@ class _EventsPageState extends State<EventsPage> {
   Widget _contextMetric({required String label, required String value}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(7),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: const Color(0xFF0B1930),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF1A355A)),
       ),
       child: Column(
@@ -1597,17 +1518,17 @@ class _EventsPageState extends State<EventsPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF7F95B5),
-              fontSize: 9.5,
+              fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
             value,
             style: GoogleFonts.inter(
               color: const Color(0xFFE6F0FF),
-              fontSize: 10.5,
+              fontSize: 9.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1640,7 +1561,7 @@ class _EventsPageState extends State<EventsPage> {
     };
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(6),
       decoration: onyxForensicSurfaceCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1649,7 +1570,7 @@ class _EventsPageState extends State<EventsPage> {
             'Selected Event',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE8F1FF),
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1658,43 +1579,43 @@ class _EventsPageState extends State<EventsPage> {
             'A deeper case file with evidence posture and chain context for the current forensic focus.',
             style: GoogleFonts.inter(
               color: const Color(0xFF7D93B1),
-              fontSize: 10,
+              fontSize: 8.5,
               fontWeight: FontWeight.w600,
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           _selectedEventBanner(row, relatedRows),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 4,
+            runSpacing: 4,
             children: _EventWorkspaceView.values
                 .map((view) => _workspaceViewChip(view))
                 .toList(),
           ),
           if (_lastActionFeedback.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Container(
               key: const ValueKey('events-last-action-feedback'),
               width: double.infinity,
-              padding: const EdgeInsets.all(7),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: const Color(0x122FD6A3),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(9),
                 border: Border.all(color: const Color(0x402FD6A3)),
               ),
               child: Text(
                 _lastActionFeedback,
                 style: GoogleFonts.inter(
                   color: const Color(0xFF9AF3D6),
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           if (useExpandedBody)
             Expanded(child: workspacePanel)
           else
@@ -1711,7 +1632,7 @@ class _EventsPageState extends State<EventsPage> {
     final dispatchId = _dispatchIdForEvent(row.event);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(9),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1721,7 +1642,7 @@ class _EventsPageState extends State<EventsPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: row.info.color.withValues(alpha: 0.28)),
       ),
       child: Column(
@@ -1731,34 +1652,36 @@ class _EventsPageState extends State<EventsPage> {
             'ACTIVE CASE FILE',
             style: GoogleFonts.inter(
               color: row.info.color,
-              fontSize: 9.5,
+              fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             row.info.label,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFF4F8FF),
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             row.info.summary,
             style: GoogleFonts.inter(
               color: const Color(0xFFD8E4F5),
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.3,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 5,
+            runSpacing: 5,
             children: [
               _pill('SEQ ${row.event.sequence}'),
               _pill('UTC ${row.event.occurredAt.toIso8601String()}'),
@@ -1766,7 +1689,7 @@ class _EventsPageState extends State<EventsPage> {
               if (dispatchId != null) _pill(dispatchId, color: row.info.color),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 560;
@@ -1795,7 +1718,7 @@ class _EventsPageState extends State<EventsPage> {
                           .expand(
                             (widget) => <Widget>[
                               widget,
-                              const SizedBox(height: 5),
+                              const SizedBox(height: 4),
                             ],
                           )
                           .toList()
@@ -1808,7 +1731,7 @@ class _EventsPageState extends State<EventsPage> {
                         .expand(
                           (widget) => <Widget>[
                             Expanded(child: widget),
-                            const SizedBox(width: 5),
+                            const SizedBox(width: 4),
                           ],
                         )
                         .toList()
@@ -1828,10 +1751,10 @@ class _EventsPageState extends State<EventsPage> {
     Key? valueKey,
   }) {
     return Container(
-      padding: const EdgeInsets.all(7),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: const Color(0xFF10233D),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Column(
@@ -1841,18 +1764,18 @@ class _EventsPageState extends State<EventsPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C6),
-              fontSize: 9.5,
+              fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           Text(
             value,
             key: valueKey,
             style: GoogleFonts.inter(
               color: const Color(0xFFF4F8FF),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1868,7 +1791,7 @@ class _EventsPageState extends State<EventsPage> {
       onTap: () => _setWorkspaceView(view),
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
         decoration: BoxDecoration(
           color: selected
               ? view.accent.withValues(alpha: 0.16)
@@ -1884,7 +1807,7 @@ class _EventsPageState extends State<EventsPage> {
           view.label,
           style: GoogleFonts.inter(
             color: selected ? view.accent : const Color(0xFF9DB1CF),
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1947,6 +1870,7 @@ class _EventsPageState extends State<EventsPage> {
       key: const ValueKey('events-workspace-panel-casefile'),
       children: content,
       useScrollable: useScrollable,
+      shellless: useScrollable,
     );
   }
 
@@ -2060,6 +1984,7 @@ class _EventsPageState extends State<EventsPage> {
       key: const ValueKey('events-workspace-panel-evidence'),
       children: content,
       useScrollable: useScrollable,
+      shellless: useScrollable,
     );
   }
 
@@ -2183,6 +2108,7 @@ class _EventsPageState extends State<EventsPage> {
       key: const ValueKey('events-workspace-panel-chain'),
       children: content,
       useScrollable: useScrollable,
+      shellless: useScrollable,
     );
   }
 
@@ -2190,22 +2116,27 @@ class _EventsPageState extends State<EventsPage> {
     required Key key,
     required List<Widget> children,
     required bool useScrollable,
+    bool shellless = false,
   }) {
+    final body = useScrollable
+        ? ListView(children: children)
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
+          );
+    if (shellless) {
+      return KeyedSubtree(key: key, child: body);
+    }
     return Container(
       key: key,
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         color: const Color(0xFF0B1526),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(11),
         border: Border.all(color: const Color(0xFF203040)),
       ),
-      child: useScrollable
-          ? ListView(children: children)
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: children,
-            ),
+      child: KeyedSubtree(key: key, child: body),
     );
   }
 
@@ -2219,7 +2150,7 @@ class _EventsPageState extends State<EventsPage> {
       onTap: () => _setLaneFilter(filter),
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: selected
               ? filter.accent.withValues(alpha: 0.16)
@@ -2235,7 +2166,7 @@ class _EventsPageState extends State<EventsPage> {
           '${filter.label} $count',
           style: GoogleFonts.inter(
             color: selected ? filter.accent : const Color(0xFF9DB1CF),
-            fontSize: 11,
+            fontSize: 9,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -2251,10 +2182,10 @@ class _EventsPageState extends State<EventsPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(9),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
@@ -2268,14 +2199,14 @@ class _EventsPageState extends State<EventsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 42,
+            width: 36,
             height: 3,
             decoration: BoxDecoration(
               color: const Color(0xFF3C79BB),
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           LayoutBuilder(
             builder: (context, constraints) {
               final compactHeader = constraints.maxWidth < 720;
@@ -2287,21 +2218,22 @@ class _EventsPageState extends State<EventsPage> {
                         "Forensic Filters",
                         style: GoogleFonts.rajdhani(
                           color: const Color(0xFFE6F0FF),
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
                     _pill("$filteredCount visible"),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     _pill("${_activeFilterCount()} active"),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     TextButton(
                       onPressed: _resetForensicFilters,
                       child: Text(
                         "Reset Filters",
                         style: GoogleFonts.inter(
                           color: const Color(0xFF9FD9FF),
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -2316,13 +2248,13 @@ class _EventsPageState extends State<EventsPage> {
                     "Forensic Filters",
                     style: GoogleFonts.rajdhani(
                       color: const Color(0xFFE6F0FF),
-                      fontSize: 20,
+                      fontSize: 18,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   Wrap(
-                    spacing: 8,
+                    spacing: 6,
                     runSpacing: 6,
                     children: [
                       _pill("$filteredCount visible"),
@@ -2333,6 +2265,7 @@ class _EventsPageState extends State<EventsPage> {
                           "Reset Filters",
                           style: GoogleFonts.inter(
                             color: const Color(0xFF9FD9FF),
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -2359,14 +2292,14 @@ class _EventsPageState extends State<EventsPage> {
                 "Advanced Filters",
                 style: GoogleFonts.inter(
                   color: const Color(0xFF8FD1FF),
-                  fontSize: 11,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               children: [
                 const SizedBox(height: 6),
                 Wrap(
-                  spacing: 8,
+                  spacing: 6,
                   runSpacing: 6,
                   children: [
                     _dropdown(
@@ -2424,13 +2357,13 @@ class _EventsPageState extends State<EventsPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8FA4C5),
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 9),
             decoration: BoxDecoration(
               color: const Color(0xFF0E1A2B),
               borderRadius: BorderRadius.circular(8),
@@ -2443,7 +2376,7 @@ class _EventsPageState extends State<EventsPage> {
                 dropdownColor: const Color(0xFF0E1A2B),
                 style: GoogleFonts.inter(
                   color: const Color(0xFFE5EFFF),
-                  fontSize: 12,
+                  fontSize: 11,
                 ),
                 items: options
                     .map(
@@ -3193,7 +3126,7 @@ class _EventsPageState extends State<EventsPage> {
 
   Widget _pill(String text, {Color? color}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
         borderRadius: BorderRadius.circular(999),
@@ -3203,7 +3136,7 @@ class _EventsPageState extends State<EventsPage> {
         text,
         style: GoogleFonts.inter(
           color: color ?? const Color(0xFF9DB1CF),
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -3230,7 +3163,7 @@ class _EventsPageState extends State<EventsPage> {
         _activeFilterCount() > 0 || _laneFilter != _EventLaneFilter.all;
     return Container(
       key: const ValueKey('events-empty-detail-recovery'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: onyxForensicSurfaceCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3239,23 +3172,23 @@ class _EventsPageState extends State<EventsPage> {
             'Forensic Focus Recovery',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE6F0FF),
-              fontSize: 28,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             hasRowsOutsideLane
                 ? 'The current lane is empty, but scoped forensic rows still exist outside it. Recover the case board by reopening the full stream or pivoting straight into an intelligence-first pass.'
                 : 'The current review scope is empty. Widen the window or reset the full forensic scope so the board can pull a live case file back into focus.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8FA4C5),
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.45,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _forensicRecoveryDeck(
             title: hasRowsOutsideLane
                 ? 'Scoped Rows Still Available'
@@ -3298,12 +3231,12 @@ class _EventsPageState extends State<EventsPage> {
                 ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Text(
             'Selected case boards, evidence posture, and linked-chain context snap back automatically as soon as the rail has a viable row again.',
             style: GoogleFonts.inter(
               color: const Color(0xFF7289AA),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
             ),
@@ -3323,14 +3256,14 @@ class _EventsPageState extends State<EventsPage> {
     return Container(
       key: key,
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [accent.withValues(alpha: 0.16), const Color(0xFF0F1A2B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Column(
@@ -3340,24 +3273,24 @@ class _EventsPageState extends State<EventsPage> {
             title.toUpperCase(),
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFFD7E3F4),
-              fontSize: 12,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
-              height: 1.45,
+              height: 1.4,
             ),
           ),
           if (actions.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: actions),
+            const SizedBox(height: 8),
+            Wrap(spacing: 5, runSpacing: 5, children: actions),
           ],
         ],
       ),
@@ -3376,12 +3309,12 @@ class _EventsPageState extends State<EventsPage> {
       style: TextButton.styleFrom(
         foregroundColor: accent,
         backgroundColor: accent.withValues(alpha: 0.12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
+        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800),
       ),
     );
   }
@@ -3392,10 +3325,10 @@ class _EventsPageState extends State<EventsPage> {
         : null;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF223244)),
         boxShadow: const [
           BoxShadow(
@@ -3416,7 +3349,7 @@ class _EventsPageState extends State<EventsPage> {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3429,23 +3362,23 @@ class _EventsPageState extends State<EventsPage> {
                   color: row.info.color,
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   row.info.label,
                   style: GoogleFonts.rajdhani(
                     color: row.info.color,
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               _pill("SEQ ${row.event.sequence}"),
               _pill("v${row.event.version}"),
@@ -3480,23 +3413,23 @@ class _EventsPageState extends State<EventsPage> {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             row.info.summary,
             style: GoogleFonts.inter(
               color: const Color(0xFFDCE9FF),
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
           ),
           if (reportEvent != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               _reportBrandingAndSectionConfigurationDetail(reportEvent),
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA5C6),
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
               ),

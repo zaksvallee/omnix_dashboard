@@ -310,22 +310,29 @@ class _ClientIntelligenceReportsPageState
               : useWidescreenWorkspace
               ? constraints.maxWidth * 0.92
               : 1760.0;
+          final mergeWorkspaceBannerIntoHero = useDesktopWorkspace;
           return OnyxViewportWorkspaceLayout(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
             maxWidth: surfaceMaxWidth,
-            spacing: 10,
+            spacing: 6,
             lockToViewport: useEmbeddedPanels,
-            header: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _heroHeader(totalReceipts: reportRows.length),
-                const SizedBox(height: 8),
-                _reportStatusStrip(
-                  verifiedCount: verifiedCount,
-                  pendingCount: pendingCount,
-                  pendingSceneCount: pendingSceneCount,
-                ),
-              ],
+            header: _heroHeader(
+              totalReceipts: reportRows.length,
+              verifiedCount: verifiedCount,
+              pendingCount: pendingCount,
+              reviewedCount: reviewedCount,
+              pendingSceneCount: pendingSceneCount,
+              workspaceBanner: mergeWorkspaceBannerIntoHero
+                  ? _reportsWorkspaceStatusBanner(
+                      reportRows: reportRows,
+                      visibleReceipts: visibleReceipts,
+                      activeReceipt: activeReceipt,
+                      previewTargetReceipt: previewTargetReceipt,
+                      hasLiveReceipts: _receipts.isNotEmpty,
+                      summaryOnly: true,
+                      shellless: true,
+                    )
+                  : null,
             ),
             body: useDesktopWorkspace
                 ? _reportsCommandWorkspace(
@@ -335,6 +342,7 @@ class _ClientIntelligenceReportsPageState
                     activeReceipt: activeReceipt,
                     hasLiveReceipts: _receipts.isNotEmpty,
                     useEmbeddedPanels: useEmbeddedPanels,
+                    mergeWorkspaceBannerIntoHero: mergeWorkspaceBannerIntoHero,
                     desktopSupplementalDeck: supplementalDeck,
                   )
                 : Column(
@@ -347,6 +355,7 @@ class _ClientIntelligenceReportsPageState
                         activeReceipt: activeReceipt,
                         hasLiveReceipts: _receipts.isNotEmpty,
                         useEmbeddedPanels: false,
+                        mergeWorkspaceBannerIntoHero: false,
                       ),
                       const SizedBox(height: 8),
                       supplementalDeck,
@@ -365,51 +374,58 @@ class _ClientIntelligenceReportsPageState
     required _ReceiptRow? activeReceipt,
     required bool hasLiveReceipts,
     required bool useEmbeddedPanels,
+    required bool mergeWorkspaceBannerIntoHero,
     Widget? desktopSupplementalDeck,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final stacked = constraints.maxWidth < 1360;
-        final ultrawide = isUltrawideLayout(
-          context,
-          viewportWidth: constraints.maxWidth,
-        );
-        final widescreen = isWidescreenLayout(
-          context,
-          viewportWidth: constraints.maxWidth,
-        );
-        final receiptRailFlex = ultrawide ? 3 : (widescreen ? 4 : 4);
-        final selectedBoardFlex = ultrawide ? 5 : (widescreen ? 5 : 4);
-        final contextRailFlex = ultrawide ? 4 : (widescreen ? 3 : 4);
-        final workspaceGap = ultrawide ? 12.0 : 8.0;
+        const receiptRailFlex = 3;
+        const selectedBoardFlex = 9;
+        const contextRailFlex = 2;
+        const workspaceGap = 6.0;
+        final stretchPanels =
+            constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
         _desktopWorkspaceActive = !stacked;
         final receiptRail = _workspaceDeckPanel(
           key: const ValueKey('reports-workspace-panel-receipts'),
           title: 'Receipt Rail',
           subtitle:
               'Filter, export, and retarget the live receipt lane without leaving the reports board.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _reportsWorkspaceCommandStrip(
-                visibleReceipts: visibleReceipts,
-                totalReceipts: reportRows.length,
-                activeReceipt: activeReceipt,
-              ),
-              const SizedBox(height: 10),
-              _reportWorkbenchSurface(
-                visibleReceipts: visibleReceipts,
-                totalReceipts: reportRows.length,
-                hasLiveReceipts: hasLiveReceipts,
-              ),
-            ],
-          ),
+          shellless: !stacked,
+          child: stacked
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _reportsWorkspaceCommandStrip(
+                      visibleReceipts: visibleReceipts,
+                      totalReceipts: reportRows.length,
+                      activeReceipt: activeReceipt,
+                    ),
+                    const SizedBox(height: 8),
+                    _reportWorkbenchSurface(
+                      visibleReceipts: visibleReceipts,
+                      totalReceipts: reportRows.length,
+                      hasLiveReceipts: hasLiveReceipts,
+                      activeReceipt: activeReceipt,
+                    ),
+                  ],
+                )
+              : _reportWorkbenchSurface(
+                  visibleReceipts: visibleReceipts,
+                  totalReceipts: reportRows.length,
+                  hasLiveReceipts: hasLiveReceipts,
+                  activeReceipt: activeReceipt,
+                  includeWorkspaceControls: true,
+                  shellless: true,
+                ),
         );
         final selectedBoard = _workspaceDeckPanel(
           key: const ValueKey('reports-workspace-panel-selected'),
           title: 'Active Receipt Board',
           subtitle:
               'Focused receipt status, verification posture, and generated output for the current lane.',
+          shellless: !stacked,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -419,14 +435,16 @@ class _ClientIntelligenceReportsPageState
                 previewTargetReceipt: previewTargetReceipt,
                 visibleReceipts: visibleReceipts,
                 hasLiveReceipts: hasLiveReceipts,
+                shellless: !stacked,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               _selectedReportSurface(
                 row: activeReceipt,
                 hasLiveReceipts: hasLiveReceipts,
+                shellless: !stacked,
               ),
               if (useEmbeddedPanels && desktopSupplementalDeck != null) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 desktopSupplementalDeck,
               ],
             ],
@@ -437,29 +455,31 @@ class _ClientIntelligenceReportsPageState
           title: 'Delivery & Handoffs',
           subtitle:
               'Keep preview routing, governance handoff, and generation controls in one command column.',
+          shellless: !stacked,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (_desktopWorkspaceActive) ...[
-                _reportsWorkspaceCommandReceipt(),
-                const SizedBox(height: 10),
-              ],
               _reportsWorkspaceContextSnapshot(
                 reportRows: reportRows,
                 activeReceipt: activeReceipt,
                 previewTargetReceipt: previewTargetReceipt,
                 hasLiveReceipts: hasLiveReceipts,
+                includeCommandReceipt: _desktopWorkspaceActive,
+                summaryOnly: !stacked,
+                shellless: !stacked,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               _reportPreviewSurface(
                 previewTargetReceipt: previewTargetReceipt,
                 activeReceipt: activeReceipt,
                 hasLiveReceipts: hasLiveReceipts,
+                shellless: !stacked,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               _reportOperationsSurface(
                 activeReceipt: activeReceipt,
                 hasLiveReceipts: hasLiveReceipts,
+                shellless: !stacked,
               ),
             ],
           ),
@@ -479,7 +499,9 @@ class _ClientIntelligenceReportsPageState
         }
 
         final workspaceRow = Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: stretchPanels
+              ? CrossAxisAlignment.stretch
+              : CrossAxisAlignment.start,
           children: [
             Expanded(flex: receiptRailFlex, child: receiptRail),
             SizedBox(width: workspaceGap),
@@ -492,14 +514,16 @@ class _ClientIntelligenceReportsPageState
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _reportsWorkspaceStatusBanner(
-              reportRows: reportRows,
-              visibleReceipts: visibleReceipts,
-              activeReceipt: activeReceipt,
-              previewTargetReceipt: previewTargetReceipt,
-              hasLiveReceipts: hasLiveReceipts,
-            ),
-            const SizedBox(height: 8),
+            if (!mergeWorkspaceBannerIntoHero) ...[
+              _reportsWorkspaceStatusBanner(
+                reportRows: reportRows,
+                visibleReceipts: visibleReceipts,
+                activeReceipt: activeReceipt,
+                previewTargetReceipt: previewTargetReceipt,
+                hasLiveReceipts: hasLiveReceipts,
+              ),
+              const SizedBox(height: 8),
+            ],
             if (useEmbeddedPanels)
               Expanded(child: workspaceRow)
             else
@@ -518,17 +542,29 @@ class _ClientIntelligenceReportsPageState
     Key? key,
     required String title,
     required String subtitle,
+    bool shellless = false,
     required Widget child,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (shellless) {
+          return SizedBox(
+            key: key,
+            width: double.infinity,
+            child: onyxBoundedPanelBody(
+              context: context,
+              constraints: constraints,
+              child: child,
+            ),
+          );
+        }
         return Container(
           key: key,
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: const Color(0xFF09111D),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFF1D3046)),
           ),
           child: Column(
@@ -538,7 +574,7 @@ class _ClientIntelligenceReportsPageState
                 title,
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFEAF3FF),
-                  fontSize: 20,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -547,12 +583,14 @@ class _ClientIntelligenceReportsPageState
                 subtitle,
                 style: GoogleFonts.inter(
                   color: const Color(0xFF90A8C9),
-                  fontSize: 11,
+                  fontSize: 9,
                   fontWeight: FontWeight.w600,
-                  height: 1.45,
+                  height: 1.35,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 5),
               onyxBoundedPanelBody(
                 context: context,
                 constraints: constraints,
@@ -620,123 +658,71 @@ class _ClientIntelligenceReportsPageState
     required _ReceiptRow? activeReceipt,
     required _ReceiptRow? previewTargetReceipt,
     required bool hasLiveReceipts,
+    bool summaryOnly = false,
+    bool shellless = false,
   }) {
     final hasPartnerLane = _sitePartnerScoreboardRows.isNotEmpty;
-    final partnerFocusLabel = _hasPartnerScopeFocus
-        ? 'Clear Partner Focus'
-        : 'Focus Top Partner';
-    final partnerFocusAction = _hasPartnerScopeFocus
-        ? _clearPartnerScopeFocus
-        : hasPartnerLane
-        ? () {
-            final lane = _sitePartnerScoreboardRows.first;
-            _setPartnerScopeFocus(
-              clientId: lane.clientId,
-              siteId: lane.siteId,
-              partnerLabel: lane.partnerLabel,
-            );
-          }
-        : null;
-    final governanceAction = _openGovernanceScopeAction(
-      clientId: widget.selectedClient,
-      siteId: widget.selectedSite,
-    );
-    final recoveryFilters = _receiptHistoryRecoveryFilters(reportRows);
-    final recoveryAction = reportRows.isEmpty
-        ? null
-        : () => _recoverReceiptWorkspace(
-            reportRows,
-            filter: ReportReceiptSceneFilter.all,
-          );
-    final previewAction = previewTargetReceipt != null
-        ? () => _previewReceipt(previewTargetReceipt, hasLiveReceipts)
-        : activeReceipt != null
-        ? () => _previewReceipt(activeReceipt, hasLiveReceipts)
-        : recoveryAction;
-    final previewLabel = previewTargetReceipt != null
-        ? 'Open Staged Target'
-        : activeReceipt != null
-        ? 'Open Active Receipt'
-        : 'Recover Receipt Lane';
-    final previewSummary = previewTargetReceipt != null
-        ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()}.'
-        : activeReceipt != null
-        ? 'Receipt ${activeReceipt.event.eventId} is ready for governance handoff and preview.'
-        : recoveryFilters.isEmpty
-        ? '${reportRows.length} receipts remain in scope. Recover the lane to reopen the active board.'
-        : '${reportRows.length} receipts remain in scope outside ${_receiptFilter.label.toLowerCase()}. Recover the lane or pivot into ${recoveryFilters.first.label.toLowerCase()} to reopen the active board.';
-    return Container(
-      key: const ValueKey('reports-workspace-status-banner'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF09111D),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF1D3046)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
+    final bannerContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            _partnerScopeChip(
+              label: hasLiveReceipts ? 'Live receipts' : 'Sample receipts',
+              color: hasLiveReceipts
+                  ? const Color(0xFF59D79B)
+                  : const Color(0xFF8EA4C2),
+            ),
+            _partnerScopeChip(
+              label: '${reportRows.length} total',
+              color: const Color(0xFF8FD1FF),
+            ),
+            _partnerScopeChip(
+              label: '${visibleReceipts.length} visible',
+              color: const Color(0xFF59D79B),
+            ),
+            if (activeReceipt != null)
               _partnerScopeChip(
-                label: hasLiveReceipts ? 'Live receipts' : 'Sample receipts',
-                color: hasLiveReceipts
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
-              ),
-              _partnerScopeChip(
-                label: '${reportRows.length} total',
+                label: 'Focused ${activeReceipt.event.eventId}',
                 color: const Color(0xFF8FD1FF),
               ),
+            if (previewTargetReceipt != null)
               _partnerScopeChip(
-                label: '${visibleReceipts.length} visible',
+                label: 'Preview ${previewTargetReceipt.event.eventId}',
                 color: const Color(0xFF59D79B),
               ),
+            _partnerScopeChip(
+              label: _receiptFilter.viewingLabel,
+              color: _receiptFilter.bannerBorderColor,
+            ),
+            if (_hasPartnerScopeFocus)
               _partnerScopeChip(
-                label: _receiptFilter.viewingLabel,
-                color: _receiptFilter.bannerBorderColor,
+                label: 'Partner scope active',
+                color: const Color(0xFF59D79B),
               ),
-              _partnerScopeChip(
-                label: 'Scope ${widget.selectedSite}',
-                color: const Color(0xFFF6C067),
-              ),
-              if (activeReceipt != null)
-                _partnerScopeChip(
-                  label: 'Focused ${activeReceipt.event.eventId}',
-                  color: const Color(0xFF8FD1FF),
-                ),
-              if (previewTargetReceipt != null)
-                _partnerScopeChip(
-                  label: 'Preview ${previewTargetReceipt.event.eventId}',
-                  color: const Color(0xFF59D79B),
-                ),
-              _partnerScopeChip(
-                label: _hasPartnerScopeFocus
-                    ? 'Partner scope active'
-                    : 'Partner scope idle',
-                color: _hasPartnerScopeFocus
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
+          ],
+        ),
+        const SizedBox(height: 5),
+        if (summaryOnly)
           Text(
-            previewSummary,
+            hasPartnerLane
+                ? 'Receipt filters and partner focus stay pinned in the receipt rail, while governance and preview pivots stay anchored to the focused board and context rail below.'
+                : 'Receipt filters stay pinned in the receipt rail, while governance and preview pivots stay anchored to the focused board and context rail below.',
             style: GoogleFonts.inter(
               color: const Color(0xFF9CB2D1),
-              fontSize: 10.5,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.45,
             ),
-          ),
-          const SizedBox(height: 12),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          )
+        else
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 5,
+            runSpacing: 5,
             children: [
               _workspaceStatusAction(
                 key: const ValueKey('reports-workspace-banner-filter-all'),
@@ -766,90 +752,145 @@ class _ClientIntelligenceReportsPageState
               ),
               _workspaceStatusAction(
                 key: const ValueKey('reports-workspace-banner-partner-focus'),
-                label: partnerFocusLabel,
+                label: _hasPartnerScopeFocus
+                    ? 'Clear Partner Focus'
+                    : 'Focus Top Partner',
                 selected: _hasPartnerScopeFocus,
                 accent: const Color(0xFF67E8F9),
-                onTap: partnerFocusAction,
+                onTap: _hasPartnerScopeFocus
+                    ? _clearPartnerScopeFocus
+                    : hasPartnerLane
+                    ? () {
+                        final lane = _sitePartnerScoreboardRows.first;
+                        _setPartnerScopeFocus(
+                          clientId: lane.clientId,
+                          siteId: lane.siteId,
+                          partnerLabel: lane.partnerLabel,
+                        );
+                      }
+                    : null,
               ),
               _workspaceStatusAction(
                 key: const ValueKey('reports-workspace-banner-open-governance'),
                 label: 'Governance Scope',
-                selected: governanceAction != null,
-                accent: governanceAction != null
-                    ? const Color(0xFF22D3EE)
-                    : const Color(0xFF8EA4C2),
-                onTap: governanceAction,
+                selected: true,
+                accent: const Color(0xFF22D3EE),
+                onTap: _openGovernanceScopeAction(
+                  clientId: widget.selectedClient,
+                  siteId: widget.selectedSite,
+                ),
               ),
               _workspaceStatusAction(
                 key: const ValueKey('reports-workspace-banner-open-preview'),
-                label: previewLabel,
+                label: previewTargetReceipt != null
+                    ? 'Open Staged Target'
+                    : activeReceipt != null
+                    ? 'Open Active Receipt'
+                    : 'Recover Receipt Lane',
                 selected: previewTargetReceipt != null || activeReceipt != null,
-                accent: previewAction != null
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
-                onTap: previewAction,
+                accent: const Color(0xFF59D79B),
+                onTap: previewTargetReceipt != null
+                    ? () =>
+                          _previewReceipt(previewTargetReceipt, hasLiveReceipts)
+                    : activeReceipt != null
+                    ? () => _previewReceipt(activeReceipt, hasLiveReceipts)
+                    : reportRows.isEmpty
+                    ? null
+                    : () => _recoverReceiptWorkspace(
+                        reportRows,
+                        filter: ReportReceiptSceneFilter.all,
+                      ),
               ),
             ],
           ),
-        ],
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('reports-workspace-status-banner'),
+        child: bannerContent,
+      );
+    }
+    return Container(
+      key: const ValueKey('reports-workspace-status-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF09111D),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF1D3046)),
       ),
+      child: bannerContent,
     );
   }
 
-  Widget _reportsWorkspaceCommandReceipt() {
+  Widget _reportsWorkspaceCommandReceipt({bool shellless = false}) {
     final receipt = _commandReceipt;
+    final receiptContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'LATEST COMMAND',
+          style: GoogleFonts.inter(
+            color: receipt.accent,
+            fontSize: 8.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          receipt.label,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 3),
+        Text(
+          receipt.message,
+          style: GoogleFonts.inter(
+            color: const Color(0xFFEAF4FF),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            height: 1.35,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 3),
+        Text(
+          receipt.detail,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF9AB1CF),
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('reports-workspace-command-receipt'),
+        child: receiptContent,
+      );
+    }
     return Container(
       key: const ValueKey('reports-workspace-command-receipt'),
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: receipt.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: receipt.accent.withValues(alpha: 0.34)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'LATEST COMMAND',
-            style: GoogleFonts.inter(
-              color: receipt.accent,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            receipt.label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            receipt.message,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            receipt.detail,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
+      child: receiptContent,
     );
   }
 
@@ -866,7 +907,7 @@ class _ClientIntelligenceReportsPageState
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
         decoration: BoxDecoration(
           color: onTap == null
               ? const Color(0xFF0D1724)
@@ -890,7 +931,7 @@ class _ClientIntelligenceReportsPageState
                 : selected
                 ? accent
                 : const Color(0xFFEAF3FF),
-            fontSize: 10.5,
+            fontSize: 9,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -903,6 +944,44 @@ class _ClientIntelligenceReportsPageState
     required int totalReceipts,
     required _ReceiptRow? activeReceipt,
   }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF102337),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF29425F)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 5,
+            runSpacing: 5,
+            children: [
+              _partnerScopeChip(
+                label: '${visibleReceipts.length} of $totalReceipts visible',
+                color: const Color(0xFF59D79B),
+              ),
+              _partnerScopeChip(
+                label: _receiptFilter.viewingLabel,
+                color: _receiptFilter.bannerBorderColor,
+              ),
+              if (activeReceipt != null)
+                _partnerScopeChip(
+                  label: 'Focused ${activeReceipt.event.eventId}',
+                  color: const Color(0xFFF6C067),
+                ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          _reportsWorkspaceCommandActions(),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportsWorkspaceCommandActions() {
     final hasPartnerLane = _sitePartnerScoreboardRows.isNotEmpty;
     final partnerFocusLabel = _hasPartnerScopeFocus
         ? 'Clear Partner Focus'
@@ -919,72 +998,33 @@ class _ClientIntelligenceReportsPageState
             );
           }
         : null;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF102337),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF29425F)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _partnerScopeChip(
-                label: '$totalReceipts total',
-                color: const Color(0xFF8FD1FF),
-              ),
-              _partnerScopeChip(
-                label: '${visibleReceipts.length} visible',
-                color: const Color(0xFF59D79B),
-              ),
-              _partnerScopeChip(
-                label: _receiptFilter.viewingLabel,
-                color: _receiptFilter.bannerBorderColor,
-              ),
-              if (activeReceipt != null)
-                _partnerScopeChip(
-                  label: 'Focused ${activeReceipt.event.eventId}',
-                  color: const Color(0xFFF6C067),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceQuickButton(
-                key: const ValueKey('reports-workspace-filter-all'),
-                label: 'All Receipts',
-                onTap: () =>
-                    toggleReportReceiptFilter(ReportReceiptSceneFilter.all),
-              ),
-              _workspaceQuickButton(
-                key: const ValueKey('reports-workspace-filter-alerts'),
-                label: 'Focus Alerts',
-                onTap: () =>
-                    toggleReportReceiptFilter(ReportReceiptSceneFilter.alerts),
-              ),
-              _workspaceQuickButton(
-                key: const ValueKey('reports-workspace-filter-scene-pending'),
-                label: 'Scene Pending',
-                onTap: () =>
-                    toggleReportReceiptFilter(ReportReceiptSceneFilter.pending),
-              ),
-              _workspaceQuickButton(
-                key: const ValueKey('reports-workspace-partner-focus'),
-                label: partnerFocusLabel,
-                onTap: partnerFocusAction,
-              ),
-            ],
-          ),
-        ],
-      ),
+    return Wrap(
+      spacing: 5,
+      runSpacing: 5,
+      children: [
+        _workspaceQuickButton(
+          key: const ValueKey('reports-workspace-filter-all'),
+          label: 'All Receipts',
+          onTap: () => toggleReportReceiptFilter(ReportReceiptSceneFilter.all),
+        ),
+        _workspaceQuickButton(
+          key: const ValueKey('reports-workspace-filter-alerts'),
+          label: 'Focus Alerts',
+          onTap: () =>
+              toggleReportReceiptFilter(ReportReceiptSceneFilter.alerts),
+        ),
+        _workspaceQuickButton(
+          key: const ValueKey('reports-workspace-filter-scene-pending'),
+          label: 'Scene Pending',
+          onTap: () =>
+              toggleReportReceiptFilter(ReportReceiptSceneFilter.pending),
+        ),
+        _workspaceQuickButton(
+          key: const ValueKey('reports-workspace-partner-focus'),
+          label: partnerFocusLabel,
+          onTap: partnerFocusAction,
+        ),
+      ],
     );
   }
 
@@ -994,6 +1034,7 @@ class _ClientIntelligenceReportsPageState
     required _ReceiptRow? previewTargetReceipt,
     required List<_ReceiptRow> visibleReceipts,
     required bool hasLiveReceipts,
+    bool shellless = false,
   }) {
     final recoveryFilters = _receiptHistoryRecoveryFilters(reportRows);
     final sceneCount = activeReceipt?.sceneReviewSummary?.totalReviews ?? 0;
@@ -1017,16 +1058,264 @@ class _ClientIntelligenceReportsPageState
     final activeLabel = activeReceipt == null
         ? 'Recover Active Board'
         : 'Open Active Receipt';
-    final eventsAction = activeReceipt == null
-        ? null
-        : () => _openEventsForReceiptPolicyRow(activeReceipt);
     final recoveryHeadline = recoveryFilters.isEmpty
         ? '${reportRows.length} receipts remain in scope for this board.'
         : '${reportRows.length} receipts remain in scope outside ${_receiptFilter.label.toLowerCase()}. Pivot back into the full board or jump straight into ${recoveryFilters.first.label.toLowerCase()}.';
+    final summaryOnly = shellless && activeReceipt != null;
+    final focusContent = summaryOnly
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 5,
+                runSpacing: 5,
+                children: [
+                  _partnerScopeChip(
+                    label: activeReceipt.event.eventId,
+                    color: activeAccent,
+                  ),
+                  _partnerScopeChip(
+                    label: activeReceipt.replayVerified
+                        ? 'Verified'
+                        : 'Pending',
+                    color: activeReceipt.replayVerified
+                        ? const Color(0xFF59D79B)
+                        : const Color(0xFFF6C067),
+                  ),
+                  if (previewTargetReceipt != null)
+                    _partnerScopeChip(
+                      label: 'Preview ${previewTargetReceipt.event.eventId}',
+                      color: const Color(0xFFF6C067),
+                    ),
+                  _partnerScopeChip(
+                    label: 'Scenes: $sceneCount',
+                    color: activeAccent,
+                  ),
+                  _partnerScopeChip(
+                    label: 'Output: ${_outputMode.label}',
+                    color: const Color(0xFFB9C6D8),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                previewTargetReceipt != null
+                    ? 'Focused receipt ${activeReceipt.event.eventId} stays anchored to the selected board while preview target ${previewTargetReceipt.event.eventId} remains staged for ${_previewSurface.label.toLowerCase()} below.'
+                    : 'Focused receipt ${activeReceipt.event.eventId} stays anchored to the selected board, while events handoff, receipt copy, and governance review stay pinned to the board and context surfaces below.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9CB2D1),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 30,
+                    height: 30,
+                    decoration: BoxDecoration(
+                      color: activeAccent.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      activeReceipt == null
+                          ? Icons.restore_rounded
+                          : Icons.description_rounded,
+                      color: activeAccent,
+                      size: 15,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          activeReceipt == null
+                              ? 'RECEIPT BOARD RECOVERY'
+                              : 'RECEIPT IN FOCUS',
+                          style: GoogleFonts.inter(
+                            color: activeAccent,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          activeReceipt == null
+                              ? 'Active Receipt Board'
+                              : activeReceipt.event.eventId,
+                          style: GoogleFonts.rajdhani(
+                            color: const Color(0xFFE8F1FF),
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            height: 0.95,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (activeReceipt != null)
+                    _partnerScopeChip(
+                      label: activeReceipt.replayVerified
+                          ? 'Verified'
+                          : 'Pending',
+                      color: activeReceipt.replayVerified
+                          ? const Color(0xFF59D79B)
+                          : const Color(0xFFF6C067),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                activeReceipt == null
+                    ? 'Receipt lane recovery ready.'
+                    : _receiptPolicyHistoryHeadline(activeReceipt.event),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFE8F1FF),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 5,
+                runSpacing: 5,
+                children: [
+                  if (activeReceipt == null)
+                    _partnerScopeChip(
+                      label: '${reportRows.length} scoped',
+                      color: const Color(0xFF8FD1FF),
+                    ),
+                  if (previewTargetReceipt != null)
+                    _partnerScopeChip(
+                      label: 'Preview: ${previewTargetReceipt.event.eventId}',
+                      color: const Color(0xFFF6C067),
+                    ),
+                  _partnerScopeChip(
+                    label: 'Scenes: $sceneCount',
+                    color: activeReceipt == null
+                        ? const Color(0xFF59D79B)
+                        : activeAccent,
+                  ),
+                  _partnerScopeChip(
+                    label: 'Output: ${_outputMode.label}',
+                    color: const Color(0xFFB9C6D8),
+                  ),
+                  if (activeReceipt == null)
+                    _partnerScopeChip(
+                      label: '${visibleReceipts.length} lane rows',
+                      color: const Color(0xFF8EA4C2),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Text(
+                activeReceipt == null
+                    ? recoveryHeadline
+                    : previewTargetReceipt != null
+                    ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()} while ${activeReceipt.event.eventId} stays pinned for operator review.'
+                    : 'Focused receipt ${activeReceipt.event.eventId} is ready for preview, events handoff, and governance review from this board.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF9CB2D1),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 5),
+              if (activeReceipt == null)
+                Wrap(
+                  key: const ValueKey('reports-workspace-focus-recovery'),
+                  spacing: 5,
+                  runSpacing: 5,
+                  children: [
+                    _workspaceStatusAction(
+                      key: const ValueKey(
+                        'reports-workspace-focus-open-active',
+                      ),
+                      label: activeLabel,
+                      selected: false,
+                      accent: activeAction != null
+                          ? const Color(0xFF59D79B)
+                          : const Color(0xFF8EA4C2),
+                      onTap: activeAction,
+                    ),
+                    _workspaceStatusAction(
+                      key: const ValueKey(
+                        'reports-workspace-focus-open-governance',
+                      ),
+                      label: 'Governance Scope',
+                      selected: governanceAction != null,
+                      accent: governanceAction != null
+                          ? const Color(0xFF22D3EE)
+                          : const Color(0xFF8EA4C2),
+                      onTap: governanceAction,
+                    ),
+                    _workspaceStatusAction(
+                      key: const ValueKey(
+                        'reports-workspace-focus-recover-all',
+                      ),
+                      label: 'All Receipts',
+                      selected: _receiptFilter == ReportReceiptSceneFilter.all,
+                      accent: const Color(0xFF8FD1FF),
+                      onTap: reportRows.isEmpty
+                          ? null
+                          : () => _recoverReceiptWorkspace(
+                              reportRows,
+                              filter: ReportReceiptSceneFilter.all,
+                            ),
+                    ),
+                    for (final filter in recoveryFilters.take(2))
+                      _workspaceStatusAction(
+                        key: ValueKey<String>(
+                          'reports-workspace-focus-recover-${filter.name}',
+                        ),
+                        label: filter.label,
+                        selected: _receiptFilter == filter,
+                        accent: filter.bannerBorderColor,
+                        onTap: () => _recoverReceiptWorkspace(
+                          reportRows,
+                          filter: filter,
+                        ),
+                      ),
+                  ],
+                )
+              else
+                Text(
+                  previewTargetReceipt != null
+                      ? 'Events handoff, receipt copy, and staged preview target stay pinned in the context rail and preview target surfaces below.'
+                      : 'Events handoff and receipt copy stay pinned in the context rail, while governance and active-board pivots stay anchored to the selected receipt board.',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8EA4C2),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+            ],
+          );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('reports-workspace-focus-card'),
+        child: focusContent,
+      );
+    }
     return Container(
       key: const ValueKey('reports-workspace-focus-card'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1036,217 +1325,10 @@ class _ClientIntelligenceReportsPageState
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: activeAccent.withValues(alpha: 0.34)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: activeAccent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  activeReceipt == null
-                      ? Icons.restore_rounded
-                      : Icons.description_rounded,
-                  color: activeAccent,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      activeReceipt == null
-                          ? 'RECEIPT BOARD RECOVERY'
-                          : 'RECEIPT IN FOCUS',
-                      style: GoogleFonts.inter(
-                        color: activeAccent,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      activeReceipt == null
-                          ? 'Active Receipt Board'
-                          : activeReceipt.event.eventId,
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFE8F1FF),
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        height: 0.95,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (activeReceipt != null)
-                _partnerScopeChip(
-                  label: activeReceipt.replayVerified ? 'Verified' : 'Pending',
-                  color: activeReceipt.replayVerified
-                      ? const Color(0xFF59D79B)
-                      : const Color(0xFFF6C067),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            activeReceipt == null
-                ? 'Receipt lane recovery ready.'
-                : _receiptPolicyHistoryHeadline(activeReceipt.event),
-            style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              if (activeReceipt != null)
-                _partnerScopeChip(
-                  label: 'Focused: ${activeReceipt.event.eventId}',
-                  color: const Color(0xFF8FD1FF),
-                )
-              else
-                _partnerScopeChip(
-                  label: '${reportRows.length} scoped',
-                  color: const Color(0xFF8FD1FF),
-                ),
-              _partnerScopeChip(
-                label: previewTargetReceipt == null
-                    ? 'Preview idle'
-                    : 'Preview: ${previewTargetReceipt.event.eventId}',
-                color: previewTargetReceipt == null
-                    ? const Color(0xFF8EA4C2)
-                    : const Color(0xFFF6C067),
-              ),
-              _partnerScopeChip(
-                label: 'Scenes: $sceneCount',
-                color: activeReceipt == null
-                    ? const Color(0xFF59D79B)
-                    : activeAccent,
-              ),
-              _partnerScopeChip(
-                label: 'Output: ${_outputMode.label}',
-                color: const Color(0xFFB9C6D8),
-              ),
-              _partnerScopeChip(
-                label: '${visibleReceipts.length} lane rows',
-                color: const Color(0xFF8EA4C2),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            activeReceipt == null
-                ? recoveryHeadline
-                : previewTargetReceipt != null
-                ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()} while ${activeReceipt.event.eventId} stays pinned for operator review.'
-                : 'Focused receipt ${activeReceipt.event.eventId} is ready for preview, events handoff, and governance review from this board.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            key: activeReceipt == null
-                ? const ValueKey('reports-workspace-focus-recovery')
-                : null,
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusAction(
-                key: const ValueKey('reports-workspace-focus-open-active'),
-                label: activeLabel,
-                selected: activeReceipt != null,
-                accent: activeAction != null
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
-                onTap: activeAction,
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('reports-workspace-focus-open-governance'),
-                label: 'Governance Scope',
-                selected: governanceAction != null,
-                accent: governanceAction != null
-                    ? const Color(0xFF22D3EE)
-                    : const Color(0xFF8EA4C2),
-                onTap: governanceAction,
-              ),
-              if (activeReceipt != null)
-                _workspaceStatusAction(
-                  key: const ValueKey('reports-workspace-focus-open-events'),
-                  label: 'Open Events',
-                  selected: false,
-                  accent: const Color(0xFF8FD1FF),
-                  onTap: eventsAction,
-                ),
-              if (activeReceipt != null)
-                _workspaceStatusAction(
-                  key: const ValueKey('reports-workspace-focus-copy-receipt'),
-                  label: 'Copy Receipt',
-                  selected: false,
-                  accent: const Color(0xFFC8D2FF),
-                  onTap: () => _copyReceipt(activeReceipt),
-                ),
-              if (previewTargetReceipt != null)
-                _workspaceStatusAction(
-                  key: const ValueKey(
-                    'reports-workspace-focus-open-preview-target',
-                  ),
-                  label: 'Open Staged Target',
-                  selected: true,
-                  accent: const Color(0xFFF6C067),
-                  onTap: () =>
-                      _previewReceipt(previewTargetReceipt, hasLiveReceipts),
-                ),
-              if (activeReceipt == null)
-                _workspaceStatusAction(
-                  key: const ValueKey('reports-workspace-focus-recover-all'),
-                  label: 'All Receipts',
-                  selected: _receiptFilter == ReportReceiptSceneFilter.all,
-                  accent: const Color(0xFF8FD1FF),
-                  onTap: reportRows.isEmpty
-                      ? null
-                      : () => _recoverReceiptWorkspace(
-                          reportRows,
-                          filter: ReportReceiptSceneFilter.all,
-                        ),
-                ),
-              if (activeReceipt == null)
-                for (final filter in recoveryFilters.take(2))
-                  _workspaceStatusAction(
-                    key: ValueKey<String>(
-                      'reports-workspace-focus-recover-${filter.name}',
-                    ),
-                    label: filter.label,
-                    selected: _receiptFilter == filter,
-                    accent: filter.bannerBorderColor,
-                    onTap: () =>
-                        _recoverReceiptWorkspace(reportRows, filter: filter),
-                  ),
-            ],
-          ),
-        ],
-      ),
+      child: focusContent,
     );
   }
 
@@ -1255,6 +1337,9 @@ class _ClientIntelligenceReportsPageState
     required _ReceiptRow? activeReceipt,
     required _ReceiptRow? previewTargetReceipt,
     required bool hasLiveReceipts,
+    bool includeCommandReceipt = false,
+    bool summaryOnly = false,
+    bool shellless = false,
   }) {
     final governanceAction = _openGovernanceScopeAction(
       clientId: widget.selectedClient,
@@ -1269,74 +1354,69 @@ class _ClientIntelligenceReportsPageState
                   filter: ReportReceiptSceneFilter.all,
                 )
         : () => _previewReceipt(activeReceipt, hasLiveReceipts);
-    return Container(
-      key: const ValueKey('reports-workspace-context-snapshot'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF102337),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF29425F)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Context Snapshot',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            ),
+    final contextContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (includeCommandReceipt) ...[
+          _reportsWorkspaceCommandReceipt(shellless: true),
+          const SizedBox(height: 5),
+        ],
+        Text(
+          'Context Snapshot',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8FD1FF),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            _partnerScopeChip(
+              label: _previewSurface.label,
+              color: const Color(0xFF59D79B),
+            ),
+            _partnerScopeChip(
+              label:
+                  _partnerComparisonWindow ==
+                      ReportPartnerComparisonWindow.latestShift
+                  ? 'Latest shift'
+                  : '3-shift baseline',
+              color: const Color(0xFFF6C067),
+            ),
+            if (_hasPartnerScopeFocus)
               _partnerScopeChip(
-                label: _previewSurface.label,
+                label: 'Partner scope active',
                 color: const Color(0xFF59D79B),
               ),
-              _partnerScopeChip(
-                label:
-                    _partnerComparisonWindow ==
-                        ReportPartnerComparisonWindow.latestShift
-                    ? 'Latest shift'
-                    : '3-shift baseline',
-                color: const Color(0xFFF6C067),
-              ),
-              _partnerScopeChip(
-                label: _hasPartnerScopeFocus
-                    ? 'Partner scope active'
-                    : 'Partner scope idle',
-                color: _hasPartnerScopeFocus
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
-              ),
-            ],
+          ],
+        ),
+        const SizedBox(height: 5),
+        Text(
+          previewTargetReceipt != null
+              ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()}.'
+              : activeReceipt != null
+              ? 'Focused receipt ${activeReceipt.event.eventId} is ready for governance handoff and preview.'
+              : recoveryFilters.isEmpty
+              ? '${reportRows.length} scoped receipts remain available for this site lane.'
+              : '${reportRows.length} scoped receipts remain available outside ${_receiptFilter.label.toLowerCase()}. Use the recovery controls to reopen the active board or pivot into ${recoveryFilters.first.label.toLowerCase()}.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF9CB2D1),
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            height: 1.45,
           ),
-          const SizedBox(height: 8),
-          Text(
-            previewTargetReceipt != null
-                ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()}.'
-                : activeReceipt != null
-                ? 'Focused receipt ${activeReceipt.event.eventId} is ready for governance handoff and preview.'
-                : recoveryFilters.isEmpty
-                ? '${reportRows.length} scoped receipts remain available for this site lane.'
-                : '${reportRows.length} scoped receipts remain available outside ${_receiptFilter.label.toLowerCase()}. Use the recovery controls to reopen the active board or pivot into ${recoveryFilters.first.label.toLowerCase()}.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-              height: 1.45,
-            ),
-          ),
-          const SizedBox(height: 10),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 5),
+        if (!summaryOnly || activeReceipt == null)
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 5,
+            runSpacing: 5,
             children: [
               _workspaceQuickButton(
                 key: const ValueKey('reports-workspace-open-governance'),
@@ -1361,9 +1441,37 @@ class _ClientIntelligenceReportsPageState
                       ),
               ),
             ],
+          )
+        else
+          Text(
+            previewTargetReceipt != null
+                ? 'Governance handoff stays pinned in the page header, while the selected receipt and staged target stay anchored to the board and preview surfaces below.'
+                : 'Governance handoff stays pinned in the page header, while selected receipt review stays anchored to the board and preview surfaces below.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
           ),
-        ],
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('reports-workspace-context-snapshot'),
+        child: contextContent,
+      );
+    }
+    return Container(
+      key: const ValueKey('reports-workspace-context-snapshot'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF102337),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF29425F)),
       ),
+      child: contextContent,
     );
   }
 
@@ -1378,141 +1486,106 @@ class _ClientIntelligenceReportsPageState
       style: FilledButton.styleFrom(
         backgroundColor: const Color(0xFF153655),
         side: const BorderSide(color: Color(0xFF63BDFF)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
           color: const Color(0xFFEAF3FF),
-          fontSize: 11,
+          fontSize: 9,
           fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
 
-  Widget _heroHeader({required int totalReceipts}) {
+  Widget _heroHeader({
+    required int totalReceipts,
+    required int verifiedCount,
+    required int pendingCount,
+    required int reviewedCount,
+    required int pendingSceneCount,
+    Widget? workspaceBanner,
+  }) {
     final governanceAction = _openGovernanceScopeAction(
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
     );
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF15283F), Color(0xFF0F1728)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return OnyxStoryHero(
+      eyebrow: 'SHIFT STORY',
+      title: 'Reports & Documentation',
+      subtitle:
+          'Review the shift story ONYX assembles from alarms, dispatches, OB entries, scene reviews, and client communication before it leaves the room.',
+      icon: Icons.description_rounded,
+      gradientColors: const [Color(0xFF15283F), Color(0xFF0F1728)],
+      metrics: [
+        OnyxStoryMetric(
+          value: widget.selectedClient,
+          label: 'client',
+          foreground: const Color(0xFF8FD1FF),
+          background: const Color(0x1A8FD1FF),
+          border: const Color(0x668FD1FF),
         ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF264462)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 920;
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF38BDF8), Color(0xFF14B8A6)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.description_rounded,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Reports & Documentation',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 20 : 24,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Deterministic report generation, replay verification, and governance-linked export readiness.',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF95A9C7),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${widget.selectedClient} / ${widget.selectedSite} • $totalReceipts receipts',
-                style: GoogleFonts.robotoMono(
-                  color: const Color(0xFF6F84A3),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          );
-          final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.end,
-            children: [
-              _heroActionButton(
-                key: const ValueKey('reports-routed-view-governance-button'),
-                icon: Icons.open_in_new,
-                label: 'View Governance',
-                accent: const Color(0xFF93C5FD),
-                onPressed: governanceAction,
-              ),
-              _heroActionButton(
-                key: const ValueKey('reports-routed-generate-button'),
-                icon: Icons.picture_as_pdf_rounded,
-                label: _isGenerating ? 'Generating...' : 'Generate New Report',
-                accent: const Color(0xFF59D79B),
-                onPressed: _isGenerating ? null : _generateReport,
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 12), actions],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: titleBlock),
-              const SizedBox(width: 14),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: actions,
-              ),
-            ],
-          );
-        },
-      ),
+        OnyxStoryMetric(
+          value: widget.selectedSite,
+          label: 'site',
+          foreground: const Color(0xFFCCFBF1),
+          background: const Color(0x1A14B8A6),
+          border: const Color(0x6614B8A6),
+        ),
+        OnyxStoryMetric(
+          value: '$pendingCount',
+          label: 'building',
+          foreground: pendingCount > 0
+              ? const Color(0xFFFBBF24)
+              : const Color(0xFF9AB1CF),
+          background: pendingCount > 0
+              ? const Color(0x1AF59E0B)
+              : const Color(0x1494A3B8),
+          border: pendingCount > 0
+              ? const Color(0x66F59E0B)
+              : const Color(0x6694A3B8),
+        ),
+        OnyxStoryMetric(
+          value: '$verifiedCount',
+          label: 'verified',
+          foreground: const Color(0xFF59D79B),
+          background: const Color(0x1A59D79B),
+          border: const Color(0x6659D79B),
+        ),
+        OnyxStoryMetric(
+          value: '${reviewedCount + pendingSceneCount}',
+          label: 'review lane',
+          foreground: const Color(0xFFEAF4FF),
+          background: const Color(0x14000000),
+          border: const Color(0x3322405F),
+        ),
+        OnyxStoryMetric(
+          value: '$totalReceipts',
+          label: 'reports',
+          foreground: const Color(0xFFEAF4FF),
+          background: const Color(0x14000000),
+          border: const Color(0x3322405F),
+        ),
+      ],
+      actions: [
+        _heroActionButton(
+          key: const ValueKey('reports-routed-view-governance-button'),
+          icon: Icons.open_in_new,
+          label: 'View Governance',
+          accent: const Color(0xFF93C5FD),
+          onPressed: governanceAction,
+        ),
+        _heroActionButton(
+          key: const ValueKey('reports-routed-generate-button'),
+          icon: Icons.picture_as_pdf_rounded,
+          label: _isGenerating ? 'Generating...' : 'Generate New Report',
+          accent: const Color(0xFF59D79B),
+          onPressed: _isGenerating ? null : _generateReport,
+        ),
+      ],
+      banner: workspaceBanner,
     );
   }
 
@@ -1526,7 +1599,7 @@ class _ClientIntelligenceReportsPageState
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 14),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
@@ -1534,135 +1607,12 @@ class _ClientIntelligenceReportsPageState
         disabledBackgroundColor: const Color(0x12000000),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-    );
-  }
-
-  Widget _reportStatusStrip({
-    required int verifiedCount,
-    required int pendingCount,
-    required int pendingSceneCount,
-  }) {
-    final scopeSegments = <({String label, bool active})>[
-      (label: 'All', active: !_hasPartnerScopeFocus),
-      (label: 'Internal', active: false),
-      (label: 'Partner-Scope', active: _hasPartnerScopeFocus),
-    ];
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0C1523),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1120;
-          final left = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                'REPORT STATUS:',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF7F92AE),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.9,
-                ),
-              ),
-              _reportStatusPill(
-                label: '$verifiedCount Verified',
-                color: const Color(0xFF1CD5A7),
-              ),
-              _reportStatusPill(
-                label: '$pendingCount Pending',
-                color: const Color(0xFFF6C067),
-              ),
-              _reportStatusPill(
-                label: '$pendingSceneCount Scene Pending',
-                color: const Color(0xFFEF4444),
-              ),
-            ],
-          );
-          final right = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.end,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text(
-                'SCOPE:',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF7F92AE),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.9,
-                ),
-              ),
-              for (final segment in scopeSegments)
-                _reportScopeChip(label: segment.label, active: segment.active),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [left, const SizedBox(height: 10), right],
-            );
-          }
-          return Row(
-            children: [
-              Expanded(child: left),
-              const SizedBox(width: 14),
-              Flexible(child: right),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _reportStatusPill({required String label, required Color color}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-
-  Widget _reportScopeChip({required String label, bool active = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: active ? const Color(0xFF241A41) : const Color(0xFF0E1726),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: active ? const Color(0xFF8B5CF6) : const Color(0xFF29384A),
-        ),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: active ? const Color(0xFFDAB7FF) : const Color(0xFFD6E2F3),
-          fontSize: 12,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        textStyle: GoogleFonts.inter(
+          fontSize: 9.5,
           fontWeight: FontWeight.w700,
         ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -1671,61 +1621,82 @@ class _ClientIntelligenceReportsPageState
     required List<_ReceiptRow> visibleReceipts,
     required int totalReceipts,
     required bool hasLiveReceipts,
+    required _ReceiptRow? activeReceipt,
+    bool includeWorkspaceControls = false,
+    bool shellless = false,
   }) {
+    final workbenchBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (includeWorkspaceControls) ...[
+          _reportsWorkspaceCommandActions(),
+          const SizedBox(height: 6),
+        ],
+        Text(
+          '${visibleReceipts.length} visible receipt${visibleReceipts.length == 1 ? '' : 's'} of $totalReceipts total',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF8EA4C2),
+            fontSize: 9.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (includeWorkspaceControls && activeReceipt != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Focused receipt ${activeReceipt.event.eventId} stays pinned in the selected board while this rail keeps lane filters and receipt history together.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF9CB2D1),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+        const SizedBox(height: 6),
+        if (_previewReceiptEventId != null) ...[
+          _previewTargetBanner(
+            eventId: _previewReceiptEventId!,
+            row: _targetReceiptByEventId(
+              hasLiveReceipts ? _receipts : _sampleReceipts,
+              _previewReceiptEventId,
+            ),
+            hasLiveReceipts: hasLiveReceipts,
+          ),
+          const SizedBox(height: 8),
+        ],
+        _buildReceiptHistory(),
+      ],
+    );
+    if (shellless) {
+      return workbenchBody;
+    }
     return OnyxSectionCard(
       title: 'REPORT WORKBENCH',
       subtitle: _receiptHistorySubtitle,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            _receiptHistorySubtitle,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${visibleReceipts.length} visible receipt${visibleReceipts.length == 1 ? '' : 's'} of $totalReceipts total',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (_previewReceiptEventId != null) ...[
-            _previewTargetBanner(
-              eventId: _previewReceiptEventId!,
-              row: _targetReceiptByEventId(
-                hasLiveReceipts ? _receipts : _sampleReceipts,
-                _previewReceiptEventId,
-              ),
-              hasLiveReceipts: hasLiveReceipts,
-            ),
-            const SizedBox(height: 12),
-          ],
-          _buildReceiptHistory(),
-        ],
-      ),
+      child: workbenchBody,
     );
   }
 
   Widget _selectedReportSurface({
     required _ReceiptRow? row,
     required bool hasLiveReceipts,
+    bool shellless = false,
   }) {
     if (row == null) {
       final rows = hasLiveReceipts ? _receipts : _sampleReceipts;
+      final recoverySurface = _selectedReportRecoverySurface(
+        rows: rows,
+        hasLiveReceipts: hasLiveReceipts,
+      );
+      if (shellless) {
+        return recoverySurface;
+      }
       return OnyxSectionCard(
         title: 'SELECTED REPORT',
         subtitle: 'Focused receipt preview and verification',
-        child: _selectedReportRecoverySurface(
-          rows: rows,
-          hasLiveReceipts: hasLiveReceipts,
-        ),
+        child: recoverySurface,
       );
     }
     final sceneSummary = row.sceneReviewSummary;
@@ -1733,157 +1704,162 @@ class _ClientIntelligenceReportsPageState
     final period = _periodFromMonth(row.event.month);
     final generatedAt = _formatUtc(row.event.occurredAt);
     final sectionSummary = _receiptSectionConfigurationSummary(row.event);
+    final previewSummary = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _receiptSceneReviewPill(
+              row.replayVerified ? 'Replay Verified' : 'Replay Pending',
+              row.replayVerified
+                  ? const Color(0xFF59D79B)
+                  : const Color(0xFFF6C067),
+            ),
+            _receiptSceneReviewPill(
+              _receiptBrandingLabel(row.event),
+              _receiptBrandingAccent(row.event),
+            ),
+            _receiptSceneReviewPill(
+              sectionSummary,
+              _receiptSectionConfigurationAccent(row.event),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _receiptBrandingSummary(row.event),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF93A6C2),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            height: 1.45,
+          ),
+        ),
+      ],
+    );
+    final reportBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _receiptPolicyHistoryHeadline(row.event),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFFEAF3FF),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Generated $generatedAt',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF93A6C2),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _pillActionButton(
+              label: row.replayVerified ? 'Verified' : 'Verify Report',
+              icon: row.replayVerified
+                  ? Icons.verified_rounded
+                  : Icons.pending_actions_rounded,
+              buttonKey: const ValueKey('reports-selected-verify-button'),
+              filled: row.replayVerified,
+              onTap: _isRefreshing ? null : _loadReceipts,
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 780;
+            final cards = [
+              _selectedReportMetric('LINKED EVENTS', '${row.event.eventCount}'),
+              _selectedReportMetric('SCENE REVIEWS', '$sceneCount'),
+              _selectedReportMetric('OUTPUT MODE', _outputMode.label),
+            ];
+            if (compact) {
+              return Column(
+                children: [
+                  for (var i = 0; i < cards.length; i++) ...[
+                    cards[i],
+                    if (i < cards.length - 1) const SizedBox(height: 6),
+                  ],
+                ],
+              );
+            }
+            return Row(
+              children: [
+                for (var i = 0; i < cards.length; i++) ...[
+                  Expanded(child: cards[i]),
+                  if (i < cards.length - 1) const SizedBox(width: 6),
+                ],
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        if (_desktopWorkspaceActive)
+          previewSummary
+        else
+          OnyxSectionCard(
+            title: 'REPORT PREVIEW',
+            subtitle: 'Section completion status and current delivery shape',
+            child: previewSummary,
+          ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _pillActionButton(
+                label: 'Open Selected Receipt',
+                icon: Icons.visibility_rounded,
+                buttonKey: const ValueKey('reports-selected-preview-button'),
+                onTap: () => _previewReceipt(row, hasLiveReceipts),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: _pillActionButton(
+                label: 'Copy Receipt',
+                icon: Icons.copy_all_rounded,
+                buttonKey: const ValueKey('reports-selected-copy-button'),
+                onTap: () => _copyReceipt(row),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: _pillActionButton(
+                label: 'Download Receipt',
+                icon: Icons.download_rounded,
+                buttonKey: const ValueKey('reports-selected-download-button'),
+                filled: true,
+                onTap: () => _downloadReceipt(row, hasLiveReceipts),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    if (shellless) {
+      return reportBody;
+    }
     return OnyxSectionCard(
       title: 'Morning Sovereign Report • $period',
       subtitle:
           '${_humanizeClient(row.event.clientId)} • ${_humanizeSite(row.event.siteId)}',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _receiptPolicyHistoryHeadline(row.event),
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF3FF),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Generated $generatedAt',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF93A6C2),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _pillActionButton(
-                label: row.replayVerified ? 'Verified' : 'Verify Report',
-                icon: row.replayVerified
-                    ? Icons.verified_rounded
-                    : Icons.pending_actions_rounded,
-                buttonKey: const ValueKey('reports-selected-verify-button'),
-                filled: row.replayVerified,
-                onTap: _isRefreshing ? null : _loadReceipts,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 780;
-              final cards = [
-                _selectedReportMetric(
-                  'LINKED EVENTS',
-                  '${row.event.eventCount}',
-                ),
-                _selectedReportMetric('SCENE REVIEWS', '$sceneCount'),
-                _selectedReportMetric('OUTPUT MODE', _outputMode.label),
-              ];
-              if (compact) {
-                return Column(
-                  children: [
-                    for (var i = 0; i < cards.length; i++) ...[
-                      cards[i],
-                      if (i < cards.length - 1) const SizedBox(height: 8),
-                    ],
-                  ],
-                );
-              }
-              return Row(
-                children: [
-                  for (var i = 0; i < cards.length; i++) ...[
-                    Expanded(child: cards[i]),
-                    if (i < cards.length - 1) const SizedBox(width: 8),
-                  ],
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          OnyxSectionCard(
-            title: 'REPORT PREVIEW',
-            subtitle: 'Section completion status and current delivery shape',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _receiptSceneReviewPill(
-                      row.replayVerified ? 'Replay Verified' : 'Replay Pending',
-                      row.replayVerified
-                          ? const Color(0xFF59D79B)
-                          : const Color(0xFFF6C067),
-                    ),
-                    _receiptSceneReviewPill(
-                      _receiptBrandingLabel(row.event),
-                      _receiptBrandingAccent(row.event),
-                    ),
-                    _receiptSceneReviewPill(
-                      sectionSummary,
-                      _receiptSectionConfigurationAccent(row.event),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _receiptBrandingSummary(row.event),
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF93A6C2),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _pillActionButton(
-                  label: 'Open Selected Receipt',
-                  icon: Icons.visibility_rounded,
-                  buttonKey: const ValueKey('reports-selected-preview-button'),
-                  onTap: () => _previewReceipt(row, hasLiveReceipts),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _pillActionButton(
-                  label: 'Copy Receipt',
-                  icon: Icons.copy_all_rounded,
-                  buttonKey: const ValueKey('reports-selected-copy-button'),
-                  onTap: () => _copyReceipt(row),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _pillActionButton(
-                  label: 'Download Receipt',
-                  icon: Icons.download_rounded,
-                  buttonKey: const ValueKey('reports-selected-download-button'),
-                  filled: true,
-                  onTap: () => _downloadReceipt(row, hasLiveReceipts),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+      child: reportBody,
     );
   }
 
@@ -1915,7 +1891,7 @@ class _ClientIntelligenceReportsPageState
             'No Receipt Selected',
             style: GoogleFonts.inter(
               color: const Color(0xFFEAF3FF),
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1924,12 +1900,12 @@ class _ClientIntelligenceReportsPageState
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFF9CB2D1),
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
               height: 1.45,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 780;
@@ -1958,10 +1934,10 @@ class _ClientIntelligenceReportsPageState
               );
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               FilledButton.tonalIcon(
                 key: const ValueKey('reports-selected-recovery-open-all'),
@@ -1998,10 +1974,10 @@ class _ClientIntelligenceReportsPageState
 
   Widget _selectedReportMetric(String label, String value) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0D1522),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF263648)),
       ),
       child: Column(
@@ -2011,17 +1987,17 @@ class _ClientIntelligenceReportsPageState
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF6E829E),
-              fontSize: 11,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Text(
             value,
             style: GoogleFonts.inter(
               color: const Color(0xFFF2F7FF),
-              fontSize: 18,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -2034,25 +2010,25 @@ class _ClientIntelligenceReportsPageState
     required _ReceiptRow? previewTargetReceipt,
     required _ReceiptRow? activeReceipt,
     required bool hasLiveReceipts,
+    bool shellless = false,
   }) {
-    return OnyxSectionCard(
-      title: 'RELATED VIEWS',
-      subtitle: 'Preview routing, governance handoff, and operational controls',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (_previewSurface == ReportPreviewSurface.dock &&
-              previewTargetReceipt != null) ...[
-            _previewDock(
-              row: previewTargetReceipt,
-              hasLiveReceipts: hasLiveReceipts,
-            ),
-            const SizedBox(height: 12),
-          ],
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
+    final summaryOnly = shellless;
+    final previewBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_previewSurface == ReportPreviewSurface.dock &&
+            previewTargetReceipt != null) ...[
+          _previewDock(
+            row: previewTargetReceipt,
+            hasLiveReceipts: hasLiveReceipts,
+          ),
+          const SizedBox(height: 8),
+        ],
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            if (!summaryOnly)
               _actionButton(
                 key: const ValueKey('reports-related-governance-button'),
                 label: 'View Governance',
@@ -2062,20 +2038,22 @@ class _ClientIntelligenceReportsPageState
                   siteId: widget.selectedSite,
                 ),
               ),
-              _actionButton(
-                key: const ValueKey('reports-related-events-button'),
-                label: 'View Events',
-                icon: Icons.rule_folder_rounded,
-                onTap: activeReceipt == null
-                    ? null
-                    : () => _openEventsForReceiptPolicyRow(activeReceipt),
-              ),
+            _actionButton(
+              key: const ValueKey('reports-related-events-button'),
+              label: 'View Events',
+              icon: Icons.rule_folder_rounded,
+              onTap: activeReceipt == null
+                  ? null
+                  : () => _openEventsForReceiptPolicyRow(activeReceipt),
+            ),
+            if (!summaryOnly)
               _actionButton(
                 key: const ValueKey('reports-related-generate-button'),
                 label: _isGenerating ? 'Generating...' : 'Preview Report',
                 icon: Icons.picture_as_pdf_rounded,
                 onTap: _isGenerating ? null : _generateReport,
               ),
+            if (!summaryOnly)
               _actionButton(
                 key: const ValueKey('reports-related-refresh-button'),
                 label: _isRefreshing
@@ -2084,6 +2062,7 @@ class _ClientIntelligenceReportsPageState
                 icon: Icons.verified_rounded,
                 onTap: _isRefreshing ? null : _loadReceipts,
               ),
+            if (!summaryOnly)
               _actionButton(
                 key: const ValueKey('reports-review-copy-button'),
                 label: 'Copy Receipt',
@@ -2092,154 +2071,187 @@ class _ClientIntelligenceReportsPageState
                     ? null
                     : () => _copyReceipt(activeReceipt),
               ),
-            ],
+          ],
+        ),
+        if (summaryOnly) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Governance handoff and report generation stay pinned in the page header, while verification and receipt copy stay anchored to the selected board below.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
           ),
         ],
-      ),
+      ],
+    );
+    if (shellless) {
+      return previewBody;
+    }
+    return OnyxSectionCard(
+      title: 'RELATED VIEWS',
+      subtitle: 'Preview routing, governance handoff, and operational controls',
+      child: previewBody,
     );
   }
 
   Widget _reportOperationsSurface({
     required _ReceiptRow? activeReceipt,
     required bool hasLiveReceipts,
+    bool shellless = false,
   }) {
+    final summaryOnly = shellless && activeReceipt != null;
+    final operationsBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildDeterministicControls(),
+        const SizedBox(height: 8),
+        if (_currentBrandingConfiguration.isConfigured)
+          Container(
+            key: const ValueKey('reports-branding-summary-card'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF102337),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF29425F)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Client-facing branding',
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF8FD1FF),
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  _currentBrandingConfiguration.primaryLabel,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE8F1FF),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (_currentBrandingConfiguration.endorsementLine
+                    .trim()
+                    .isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _currentBrandingConfiguration.endorsementLine,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF9CB2D1),
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _actionButton(
+                      key: const ValueKey('reports-branding-edit-button'),
+                      label: 'Edit Branding',
+                      icon: Icons.edit_rounded,
+                      onTap: _editBrandingOverrides,
+                    ),
+                    if (_hasBrandingOverride)
+                      _actionButton(
+                        key: const ValueKey('reports-branding-reset-button'),
+                        label: 'Reset Branding',
+                        icon: Icons.restore_rounded,
+                        onTap: _resetBrandingOverrides,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        if (_currentBrandingConfiguration.isConfigured)
+          const SizedBox(height: 8),
+        Text(
+          'SECTION CONFIGURATION',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF7F92AE),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 6),
+        _toggle(
+          label: 'Include incident timeline',
+          value: _includeTimeline,
+          onChanged: (value) =>
+              setReportSectionConfiguration(includeTimeline: value),
+        ),
+        _toggle(
+          label: 'Include dispatch summary',
+          value: _includeDispatchSummary,
+          onChanged: (value) =>
+              setReportSectionConfiguration(includeDispatchSummary: value),
+        ),
+        _toggle(
+          label: 'Include checkpoint compliance',
+          value: _includeCheckpointCompliance,
+          onChanged: (value) =>
+              setReportSectionConfiguration(includeCheckpointCompliance: value),
+        ),
+        _toggle(
+          label: 'Include AI decision log',
+          value: _includeAiDecisionLog,
+          onChanged: (value) =>
+              setReportSectionConfiguration(includeAiDecisionLog: value),
+        ),
+        _toggle(
+          label: 'Include guard performance metrics',
+          value: _includeGuardMetrics,
+          onChanged: (value) =>
+              setReportSectionConfiguration(includeGuardMetrics: value),
+        ),
+        if (activeReceipt != null && !summaryOnly) ...[
+          const SizedBox(height: 10),
+          _generationLane(
+            color: const Color(0xFF59D79B),
+            icon: Icons.visibility_rounded,
+            title: 'Selected Receipt',
+            detail: _receiptPolicyHistoryHeadline(activeReceipt.event),
+            status: activeReceipt.replayVerified ? 'VERIFIED' : 'PENDING',
+            actionText: 'Open Preview',
+            onTap: () => _previewReceipt(activeReceipt, hasLiveReceipts),
+            secondaryActionText: 'Copy Receipt',
+            onSecondaryTap: () => _copyReceipt(activeReceipt),
+            secondaryButtonKey: const ValueKey('reports-selected-copy-inline'),
+          ),
+        ] else if (summaryOnly) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Selected receipt preview and copy stay anchored to the focused board, while this rail keeps generation scope, branding, and preview surface controls together.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8EA4C2),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ],
+    );
+    if (shellless) {
+      return operationsBody;
+    }
     return OnyxSectionCard(
       title: 'DELIVERY CONTROLS',
       subtitle: 'Generation scope, output mode, preview surface, and branding',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDeterministicControls(),
-          const SizedBox(height: 12),
-          if (_currentBrandingConfiguration.isConfigured)
-            Container(
-              key: const ValueKey('reports-branding-summary-card'),
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF102337),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF29425F)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Client-facing branding',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF8FD1FF),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _currentBrandingConfiguration.primaryLabel,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFE8F1FF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (_currentBrandingConfiguration.endorsementLine
-                      .trim()
-                      .isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      _currentBrandingConfiguration.endorsementLine,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF9CB2D1),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _actionButton(
-                        key: const ValueKey('reports-branding-edit-button'),
-                        label: 'Edit Branding',
-                        icon: Icons.edit_rounded,
-                        onTap: _editBrandingOverrides,
-                      ),
-                      if (_hasBrandingOverride)
-                        _actionButton(
-                          key: const ValueKey('reports-branding-reset-button'),
-                          label: 'Reset Branding',
-                          icon: Icons.restore_rounded,
-                          onTap: _resetBrandingOverrides,
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          if (_currentBrandingConfiguration.isConfigured)
-            const SizedBox(height: 12),
-          Text(
-            'SECTION CONFIGURATION',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7F92AE),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _toggle(
-            label: 'Include incident timeline',
-            value: _includeTimeline,
-            onChanged: (value) =>
-                setReportSectionConfiguration(includeTimeline: value),
-          ),
-          _toggle(
-            label: 'Include dispatch summary',
-            value: _includeDispatchSummary,
-            onChanged: (value) =>
-                setReportSectionConfiguration(includeDispatchSummary: value),
-          ),
-          _toggle(
-            label: 'Include checkpoint compliance',
-            value: _includeCheckpointCompliance,
-            onChanged: (value) => setReportSectionConfiguration(
-              includeCheckpointCompliance: value,
-            ),
-          ),
-          _toggle(
-            label: 'Include AI decision log',
-            value: _includeAiDecisionLog,
-            onChanged: (value) =>
-                setReportSectionConfiguration(includeAiDecisionLog: value),
-          ),
-          _toggle(
-            label: 'Include guard performance metrics',
-            value: _includeGuardMetrics,
-            onChanged: (value) =>
-                setReportSectionConfiguration(includeGuardMetrics: value),
-          ),
-          if (activeReceipt != null) ...[
-            const SizedBox(height: 12),
-            _generationLane(
-              color: const Color(0xFF59D79B),
-              icon: Icons.visibility_rounded,
-              title: 'Selected Receipt',
-              detail: _receiptPolicyHistoryHeadline(activeReceipt.event),
-              status: activeReceipt.replayVerified ? 'VERIFIED' : 'PENDING',
-              actionText: 'Open Preview',
-              onTap: () => _previewReceipt(activeReceipt, hasLiveReceipts),
-              secondaryActionText: 'Copy Receipt',
-              onSecondaryTap: () => _copyReceipt(activeReceipt),
-              secondaryButtonKey: const ValueKey(
-                'reports-selected-copy-inline',
-              ),
-            ),
-          ],
-        ],
-      ),
+      child: operationsBody,
     );
   }
 
@@ -5373,7 +5385,7 @@ class _ClientIntelligenceReportsPageState
     Color color = const Color(0xFF8FD1FF),
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -5383,7 +5395,7 @@ class _ClientIntelligenceReportsPageState
         label,
         style: GoogleFonts.inter(
           color: color,
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -9078,6 +9090,7 @@ class _ClientIntelligenceReportsPageState
     return DropdownButtonFormField<String>(
       key: ValueKey<String>(value),
       initialValue: value,
+      isExpanded: true,
       onChanged: onChanged,
       iconEnabledColor: const Color(0xFF8EA4C2),
       dropdownColor: const Color(0xFF0E1A2B),

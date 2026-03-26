@@ -78,10 +78,57 @@ void main() {
     expect(find.text('SITES UNDER WATCH'), findsOneWidget);
   });
 
+  testWidgets('live operations renders command center hero', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: LiveOperationsPage(events: [])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-command-center-hero')),
+      findsOneWidget,
+    );
+    expect(find.text('CommandCenter'), findsOneWidget);
+    expect(find.text('ALARMS'), findsOneWidget);
+    expect(find.text('GUARDS'), findsOneWidget);
+    expect(find.text('RECENT ACTIVITY'), findsOneWidget);
+  });
+
+  testWidgets(
+    'live operations keeps the detailed workspace hidden on standard desktop',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        const MaterialApp(home: LiveOperationsPage(events: [])),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('live-operations-command-center-hero')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-toggle-detailed-workspace')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('live-operations-workspace-panel-rail')),
+        findsNothing,
+      );
+      expect(find.text('INCIDENT QUEUE'), findsNothing);
+    },
+  );
+
   testWidgets('live operations command overview cards pivot workspace state', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.physicalSize = const Size(2240, 1280);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -189,7 +236,7 @@ void main() {
   testWidgets(
     'live operations command overview recovers missing queue and lane handoffs in place',
     (tester) async {
-      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.physicalSize = const Size(2240, 1280);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -306,7 +353,7 @@ void main() {
   testWidgets(
     'live operations renders desktop workspace shell and routes workspace controls',
     (tester) async {
-      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.physicalSize = const Size(2240, 1280);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -535,14 +582,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.text('Guard attention centered on Alpha-5.'), findsOneWidget);
       expect(
-        find.text('Guard attention centered on Alpha-5.'),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(
-          const ValueKey('live-operations-context-focus-guard-chip'),
-        ),
+        find.byKey(const ValueKey('live-operations-context-focus-guard-chip')),
         findsOneWidget,
       );
       expect(find.text('Alpha-5 • 98%'), findsOneWidget);
@@ -553,7 +595,7 @@ void main() {
   testWidgets('live operations recovers empty desktop context tabs in place', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.physicalSize = const Size(2240, 1280);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -657,7 +699,7 @@ void main() {
   testWidgets(
     'live operations verifies pending ledger chain entries in place',
     (tester) async {
-      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.physicalSize = const Size(2240, 1280);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() {
         tester.view.resetPhysicalSize();
@@ -1012,7 +1054,7 @@ void main() {
   });
 
   testWidgets('pause action records a ledger entry', (tester) async {
-    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.physicalSize = const Size(2240, 1280);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -2131,7 +2173,7 @@ void main() {
   testWidgets('live operations shows activity truth and opens scoped events', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.physicalSize = const Size(2240, 1280);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() {
       tester.view.resetPhysicalSize();
@@ -2212,9 +2254,7 @@ void main() {
       activityTruthCard,
       220,
       scrollable: find.descendant(
-        of: find.byKey(
-          const ValueKey('live-operations-details-scroll-view'),
-        ),
+        of: find.byKey(const ValueKey('live-operations-details-scroll-view')),
         matching: find.byType(Scrollable),
       ),
     );
@@ -3639,7 +3679,7 @@ void main() {
       final controlInboxPanel = find.byKey(
         const ValueKey('control-inbox-panel'),
       );
-      expect(tester.getTopLeft(controlInboxPanel).dy, greaterThan(320));
+      expect(tester.getTopLeft(controlInboxPanel).dy, greaterThan(300));
 
       await tester.tap(
         find.byKey(const ValueKey('top-bar-priority-chip')).first,
@@ -3668,7 +3708,7 @@ void main() {
       await tester.drag(find.byType(Scrollable).first, const Offset(0, 260));
       await tester.pumpAndSettle();
 
-      expect(tester.getTopLeft(controlInboxPanel).dy, greaterThan(320));
+      expect(tester.getTopLeft(controlInboxPanel).dy, greaterThan(300));
 
       await tester.tap(topBarCueChip);
       await tester.pumpAndSettle();

@@ -6,14 +6,13 @@ import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
+import 'package:omnix_dashboard/domain/events/patrol_completed.dart';
 import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
-
-import '../fixtures/report_test_receipt.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('sovereign ledger hero view events opens selected entry scope', (
+  testWidgets('occurrence book hero view events opens selected entry scope', (
     tester,
   ) async {
     List<String>? openedEventIds;
@@ -57,7 +56,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Sovereign Ledger'), findsOneWidget);
+    expect(find.text('Occurrence Book'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('ledger-hero-view-events-button')),
@@ -68,11 +67,10 @@ void main() {
     expect(openedSelectedEventId, 'INT-LEDGER-HERO-1');
   });
 
-  testWidgets('sovereign ledger export actions are interactive', (
-    tester,
-  ) async {
+  testWidgets('occurrence book export actions are interactive', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1100));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+
     String? copiedClipboardPayload;
     List<String>? openedEventIds;
     String? openedSelectedEventId;
@@ -149,24 +147,17 @@ void main() {
       findsOneWidget,
     );
 
-    final exportLedger = find.byKey(
-      const ValueKey('ledger-context-export-ledger'),
+    await tester.tap(
+      find.byKey(const ValueKey('ledger-context-export-ledger')),
     );
-    await tester.dragUntilVisible(
-      exportLedger,
-      find.byType(Scrollable).first,
-      const Offset(0, -400),
-    );
-    await tester.tap(exportLedger);
     await tester.pump();
     expect(find.textContaining('Ledger export copied'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
 
-    final exportEntryData = find.byKey(
-      const ValueKey('ledger-entry-export-data'),
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('ledger-entry-export-data')),
     );
-    await tester.ensureVisible(exportEntryData);
-    await tester.tap(exportEntryData);
+    await tester.tap(find.byKey(const ValueKey('ledger-entry-export-data')));
     await tester.pump();
     expect(find.textContaining('Entry export copied'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
@@ -180,21 +171,22 @@ void main() {
       contains('Person visible near the boundary line.'),
     );
 
-    final viewInEventReview = find.byKey(
-      const ValueKey('ledger-entry-view-event-review'),
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('ledger-entry-view-event-review')),
     );
-    await tester.ensureVisible(viewInEventReview);
-    await tester.tap(viewInEventReview);
+    await tester.tap(
+      find.byKey(const ValueKey('ledger-entry-view-event-review')),
+    );
     await tester.pump();
     expect(openedEventIds, <String>['INT-LEDGER-1']);
     expect(openedSelectedEventId, 'INT-LEDGER-1');
     expect(find.text('SCENE REVIEW'), findsOneWidget);
     expect(find.text('openai:gpt-4.1-mini'), findsOneWidget);
     expect(find.text('Escalation Candidate'), findsOneWidget);
-    expect(find.textContaining('Escalated for urgent review'), findsOneWidget);
+    expect(find.textContaining('Escalated for urgent review'), findsWidgets);
   });
 
-  testWidgets('sovereign ledger switches lanes and workspace views', (
+  testWidgets('occurrence book filters categories and switches views', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1100));
@@ -218,14 +210,17 @@ void main() {
         riskScore: 82,
         canonicalHash: 'hash-ops-1',
       ),
-      buildTestReportGenerated(
-        eventId: 'RPT-LEDGER-OPS-1',
+      PatrolCompleted(
+        eventId: 'PATROL-LEDGER-OPS-1',
         sequence: 2,
+        version: 1,
         occurredAt: DateTime.utc(2026, 3, 15, 7, 0),
+        guardId: 'GUARD-3',
+        routeId: 'ROUTE-NORTH',
         clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
         siteId: 'SITE-SANDTON',
-        month: '2026-03',
-        reportSchemaVersion: 3,
+        durationSeconds: 720,
       ),
       DecisionCreated(
         eventId: 'DEC-LEDGER-OPS-1',
@@ -262,162 +257,87 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('ledger-workspace-banner-open-reports')),
-    );
+    await tester.tap(find.byKey(const ValueKey('ledger-lane-filter-patrol')));
     await tester.pumpAndSettle();
 
     expect(
       find.byKey(const ValueKey('ledger-entry-card-LED-2')),
       findsOneWidget,
     );
-    expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
+    expect(find.text('Patrol completed - Sandton Estate'), findsOneWidget);
+    expect(find.text('Controller dispatched response'), findsNothing);
 
-    await tester.tap(
-      find.byKey(const ValueKey('ledger-workspace-banner-open-chain')),
-    );
+    await tester.tap(find.byKey(const ValueKey('ledger-workspace-view-chain')));
     await tester.pumpAndSettle();
 
     expect(
       find.byKey(const ValueKey('ledger-workspace-panel-chain')),
       findsOneWidget,
     );
-    expect(find.text('CHAIN STATUS'), findsOneWidget);
+    expect(find.text('Record Integrity'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey('ledger-workspace-banner-verify-chain')),
-    );
+    await tester.tap(find.byKey(const ValueKey('ledger-context-verify-chain')));
     await tester.pumpAndSettle();
 
     expect(find.text('INTACT'), findsWidgets);
     expect(find.text('Chain verification returned intact.'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
 
-    await tester.tap(
-      find.byKey(const ValueKey('ledger-workspace-banner-open-case-file')),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.byKey(const ValueKey('ledger-workspace-banner-open-attention')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('ledger-entry-card-LED-3')));
+    await tester.tap(find.byKey(const ValueKey('ledger-workspace-view-trace')));
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey('ledger-workspace-panel-case-file')),
+      find.byKey(const ValueKey('ledger-workspace-panel-trace')),
       findsOneWidget,
     );
-    expect(find.text('REPORT CONFIGURATION'), findsNothing);
-    expect(
-      find.textContaining('dispatch DSP-LEDGER-OPS-1 created'),
-      findsWidgets,
-    );
+    expect(find.text('Linked Context'), findsOneWidget);
   });
 
-  testWidgets(
-    'sovereign ledger shows tracked report section configuration for generated receipts',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      final events = <DispatchEvent>[
-        buildTestReportGenerated(
-          eventId: 'RPT-LEDGER-1',
-          sequence: 1,
-          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
-          clientId: 'CLIENT-001',
-          siteId: 'SITE-SANDTON',
-          month: '2026-03',
-          reportSchemaVersion: 3,
-          primaryBrandLabel: 'VISION Tactical',
-          endorsementLine: 'Powered by ONYX',
-          brandingSourceLabel: 'PARTNER • Alpha',
-          brandingUsesOverride: true,
-          investigationContextKey: 'governance_branding_drift',
-          includeAiDecisionLog: false,
-          includeGuardMetrics: false,
-        ),
-      ];
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SovereignLedgerPage(clientId: 'CLIENT-001', events: events),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('REPORT'), findsWidgets);
-      expect(
-        find.textContaining(
-          '2 sections omitted • custom branding override • governance handoff',
-        ),
-        findsWidgets,
-      );
-      expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
-      expect(find.text('Tracked'), findsOneWidget);
-      expect(find.text('Custom Override'), findsOneWidget);
-      expect(find.text('PARTNER • Alpha'), findsWidgets);
-      expect(
-        find.text(
-          'Branding: custom override from default partner lane PARTNER • Alpha.',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.text(
-          'Included: Incident Timeline, Dispatch Summary, Checkpoint Compliance. Omitted: AI Decision Log, Guard Metrics.',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Incident Timeline, Dispatch Summary, Checkpoint Compliance'),
-        findsOneWidget,
-      );
-      expect(find.text('AI Decision Log, Guard Metrics'), findsWidgets);
-    },
-  );
-
-  testWidgets('sovereign ledger labels legacy report receipt configuration', (
+  testWidgets('occurrence book submits a new ob entry from the composer', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1100));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final events = <DispatchEvent>[
-      buildTestReportGenerated(
-        eventId: 'RPT-LEDGER-LEGACY-1',
-        sequence: 1,
-        occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
-        clientId: 'CLIENT-001',
-        siteId: 'SITE-SANDTON',
-        month: '2026-03',
-        reportSchemaVersion: 1,
-      ),
-    ];
-
     await tester.pumpWidget(
-      MaterialApp(
-        home: SovereignLedgerPage(clientId: 'CLIENT-001', events: events),
+      const MaterialApp(
+        home: SovereignLedgerPage(clientId: 'CLIENT-001', events: []),
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('legacy receipt config'), findsWidgets);
-    expect(find.text('REPORT CONFIGURATION'), findsOneWidget);
-    expect(find.text('Legacy'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ledger-open-composer')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('ledger-form-location')),
+      'North Gate',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('ledger-form-description')),
+      'False alarm caused by faulty gate sensor. No intrusion.',
+    );
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('ledger-form-submit')),
+    );
+    await tester.tap(find.byKey(const ValueKey('ledger-form-submit')));
+    await tester.pumpAndSettle();
+
     expect(
-      find.text(
-        'Legacy receipt. Per-section report configuration was not captured for this generated report.',
-      ),
+      find.byKey(const ValueKey('ledger-entry-card-MAN-2442')),
       findsOneWidget,
     );
-    expect(find.text('Legacy receipt'), findsOneWidget);
-    expect(find.text('Not captured'), findsOneWidget);
+    expect(
+      find.textContaining('OB entry submitted (OB-2442).'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('False alarm caused by faulty gate sensor. No intrusion.'),
+      findsWidgets,
+    );
   });
 
-  testWidgets('sovereign ledger narrows entries to the scoped lane', (
+  testWidgets('occurrence book narrows entries to the scoped site', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1100));
@@ -474,71 +394,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('ledger-scope-banner')), findsOneWidget);
-    expect(find.text('Scope focus active'), findsOneWidget);
-    expect(find.text('CLIENT-001/SITE-VALLEE'), findsOneWidget);
+    expect(find.textContaining('Client 001 / Site Vallee'), findsOneWidget);
     expect(find.text('Vallee gate alert'), findsWidgets);
     expect(find.text('Sandton boundary alert'), findsNothing);
-    expect(
-      find.textContaining('Focus LINKED • INTEL-LEDGER-SCOPE-2'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Focus: INTEL-LEDGER-SCOPE-2'), findsOneWidget);
   });
-
-  testWidgets(
-    'sovereign ledger marks incident focus as scope-backed when lane matches',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 1100));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      final events = <DispatchEvent>[
-        DecisionCreated(
-          eventId: 'DEC-LEDGER-SCOPE-1',
-          sequence: 1,
-          version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 8, 0),
-          dispatchId: 'DSP-4401',
-          clientId: 'CLIENT-001',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-VALLEE',
-        ),
-        IntelligenceReceived(
-          eventId: 'INT-LEDGER-SCOPE-3',
-          sequence: 2,
-          version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 8, 5),
-          intelligenceId: 'INTEL-LEDGER-SCOPE-3',
-          provider: 'hikvision_dvr_monitor_only',
-          sourceType: 'dvr',
-          externalId: 'ext-scope-3',
-          clientId: 'CLIENT-001',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-VALLEE',
-          headline: 'Vallee patrol movement',
-          summary: 'Tracked movement near the Vallee patrol corridor.',
-          riskScore: 73,
-          canonicalHash: 'hash-scope-3',
-        ),
-      ];
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SovereignLedgerPage(
-            clientId: 'CLIENT-001',
-            initialScopeClientId: 'CLIENT-001',
-            initialScopeSiteId: 'SITE-VALLEE',
-            events: events,
-            initialFocusReference: 'INC-DSP-4401',
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.textContaining('Focus SCOPE-BACKED • INC-DSP-4401'),
-        findsOneWidget,
-      );
-      expect(find.text('Vallee patrol movement'), findsWidgets);
-      expect(find.textContaining('Focused lane is waiting'), findsNothing);
-    },
-  );
 }

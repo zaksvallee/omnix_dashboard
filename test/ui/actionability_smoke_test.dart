@@ -170,6 +170,6 @@ void main() {
     final noIncidentAction = tester.widget<TextButton>(
       find.byKey(const ValueKey('incident-feed-open-first-action')),
     );
-    expect(noIncidentAction.onPressed, isNull);
+    expect(noIncidentAction.onPressed, isNotNull);
   });
 }

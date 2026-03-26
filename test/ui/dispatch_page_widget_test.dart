@@ -423,7 +423,7 @@ void main() {
       );
 
       await tester.tap(
-        find.byKey(const ValueKey('dispatch-workspace-focus-open-report')),
+        find.byKey(const ValueKey('dispatch-open-report-button')),
       );
       await tester.pumpAndSettle();
 
@@ -506,6 +506,13 @@ void main() {
   testWidgets('dispatch queue filter retargets the selected mission board', (
     tester,
   ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(
       buildPage(onGenerate: () {}, onIngestFeeds: () {}, onExecute: (_) {}),
     );

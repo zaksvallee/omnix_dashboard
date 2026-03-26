@@ -28,8 +28,7 @@ enum _SiteWorkspaceView { command, outcomes, trace }
 
 class _SitesPageState extends State<SitesPage> {
   static const int _maxRosterRows = 12;
-  static const double _spaceXs = 6;
-  static const double _spaceSm = 8;
+  static const double _spaceXs = 4;
 
   String? _selectedSiteKey;
   _SiteLaneFilter _siteLaneFilter = _SiteLaneFilter.all;
@@ -66,7 +65,7 @@ class _SitesPageState extends State<SitesPage> {
         allSites.fold<double>(0, (total, site) => total + site.healthScore) /
         allSites.length;
     final boundedDesktopSurface = _desktopEmbeddedScroll;
-    const contentPadding = EdgeInsets.fromLTRB(8, 8, 8, 10);
+    const contentPadding = EdgeInsets.fromLTRB(0.65, 0.65, 0.65, 1.45);
     final ultrawideSurface = isUltrawideLayout(context);
     final widescreenSurface = isWidescreenLayout(context);
     final surfaceMaxWidth = ultrawideSurface
@@ -75,178 +74,187 @@ class _SitesPageState extends State<SitesPage> {
         ? MediaQuery.sizeOf(context).width * 0.94
         : 1540.0;
 
-    Widget buildHeaderStack({required bool compactForViewport}) {
+    Widget buildHeaderStack({
+      required bool compactForViewport,
+      required bool mergeWorkspaceBannerIntoHero,
+    }) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _heroHeader(context, sites: allSites, selected: selected),
-          const SizedBox(height: _spaceSm),
-          _postureSummaryBar(allSites, visibleCount: sites.length),
-          const SizedBox(height: _spaceSm),
-          _overviewGrid(
+          _heroHeader(
+            context,
             sites: allSites,
             selected: selected,
             activeDispatches: activeDispatches,
             averageHealth: averageHealth,
+            workspaceBanner: mergeWorkspaceBannerIntoHero
+                ? _workspaceStatusBanner(
+                    context,
+                    allSites: allSites,
+                    visibleSites: sites,
+                    selected: selected,
+                    shellless: true,
+                    summaryOnly: true,
+                  )
+                : null,
           ),
-          const SizedBox(height: _spaceSm),
           if (!compactForViewport) ...[
-            const OnyxPageHeader(
-              title: 'Site Command Grid',
-              subtitle:
-                  'Estate-wide posture, dispatch exposure, and site-level operational pressure.',
+            const SizedBox(height: 1.0),
+            _overviewGrid(
+              sites: allSites,
+              activeDispatches: activeDispatches,
+              averageHealth: averageHealth,
             ),
-            const SizedBox(height: _spaceSm),
           ],
-          _workspaceOverviewStrip(
-            allSites: allSites,
-            visibleSites: sites,
-            activeDispatches: activeDispatches,
-            averageHealth: averageHealth,
-          ),
         ],
       );
     }
 
     Widget buildWorkspaceSection({required bool lockToViewport}) {
-      return OnyxSectionCard(
-        title: 'Site Operations Workspace',
-        subtitle:
-            'Filter the roster, hold a selected site in focus, and inspect command, outcome, or trace context.',
-        padding: const EdgeInsets.all(10),
-        flexibleChild: lockToViewport,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final stackVertically = constraints.maxWidth < 1320;
-            final allowEmbeddedWorkspace =
-                lockToViewport || _desktopEmbeddedScroll;
-            final canStretchWorkspace =
-                lockToViewport && constraints.hasBoundedHeight;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final stackVertically = constraints.maxWidth < 1320;
+          final boundedHeight =
+              constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
+          final allowEmbeddedWorkspace = lockToViewport && boundedHeight;
+          final canStretchWorkspace = allowEmbeddedWorkspace;
+          final mergeWorkspaceBannerIntoHero =
+              lockToViewport && !stackVertically;
 
-            Widget buildVerticalWorkspace({required bool embeddedScroll}) {
-              if (!embeddedScroll) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _siteRoster(
-                      allSites,
-                      sites,
-                      selected,
-                      embeddedScroll: false,
-                    ),
-                    const SizedBox(height: _spaceXs),
-                    _siteWorkspace(
-                      allSites,
-                      sites,
-                      selected,
-                      embeddedScroll: false,
-                    ),
-                  ],
-                );
-              }
-              final workspaceColumn = Column(
+          Widget buildVerticalWorkspace({required bool embeddedScroll}) {
+            if (!embeddedScroll) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(
-                    height: 312,
-                    child: _siteRoster(
-                      allSites,
-                      sites,
-                      selected,
-                      embeddedScroll: true,
-                    ),
-                  ),
+                  _siteRoster(allSites, sites, selected, embeddedScroll: false),
                   const SizedBox(height: _spaceXs),
-                  Expanded(
-                    child: _siteWorkspace(
-                      allSites,
-                      sites,
-                      selected,
-                      embeddedScroll: true,
-                    ),
+                  _siteWorkspace(
+                    allSites,
+                    sites,
+                    selected,
+                    embeddedScroll: false,
                   ),
                 ],
               );
-              if (canStretchWorkspace) {
-                return workspaceColumn;
-              }
-              return SizedBox(height: 760, child: workspaceColumn);
             }
-
-            Widget buildHorizontalWorkspace({required bool embeddedScroll}) {
-              final rosterWidth = constraints.maxWidth >= 2100
-                  ? 360.0
-                  : constraints.maxWidth >= 1700
-                  ? 336.0
-                  : 308.0;
-              final workspaceRow = Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: rosterWidth,
-                    child: _siteRoster(
-                      allSites,
-                      sites,
-                      selected,
-                      embeddedScroll: embeddedScroll,
-                    ),
-                  ),
-                  const SizedBox(width: _spaceSm),
-                  Expanded(
-                    child: _siteWorkspace(
-                      allSites,
-                      sites,
-                      selected,
-                      embeddedScroll: embeddedScroll,
-                    ),
-                  ),
-                ],
-              );
-              if (!embeddedScroll || canStretchWorkspace) {
-                return workspaceRow;
-              }
-              return SizedBox(height: 640, child: workspaceRow);
-            }
-
-            final workspaceShell = stackVertically
-                ? buildVerticalWorkspace(embeddedScroll: allowEmbeddedWorkspace)
-                : buildHorizontalWorkspace(
-                    embeddedScroll: allowEmbeddedWorkspace,
-                  );
-
-            if (stackVertically) {
-              return workspaceShell;
-            }
-            if (canStretchWorkspace) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _workspaceStatusBanner(
-                    context,
-                    allSites: allSites,
-                    visibleSites: sites,
-                    selected: selected,
-                  ),
-                  const SizedBox(height: _spaceSm),
-                  Expanded(child: workspaceShell),
-                ],
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            final workspaceColumn = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _workspaceStatusBanner(
-                  context,
-                  allSites: allSites,
-                  visibleSites: sites,
-                  selected: selected,
+                SizedBox(
+                  height: 212,
+                  child: _siteRoster(
+                    allSites,
+                    sites,
+                    selected,
+                    embeddedScroll: true,
+                  ),
                 ),
-                const SizedBox(height: _spaceSm),
-                workspaceShell,
+                const SizedBox(height: 3.0),
+                Expanded(
+                  child: _siteWorkspace(
+                    allSites,
+                    sites,
+                    selected,
+                    embeddedScroll: true,
+                  ),
+                ),
               ],
             );
-          },
-        ),
+            return workspaceColumn;
+          }
+
+          Widget buildHorizontalWorkspace({required bool embeddedScroll}) {
+            final ultrawideWorkspace = isUltrawideLayout(
+              context,
+              viewportWidth: constraints.maxWidth,
+            );
+            final widescreenWorkspace = isWidescreenLayout(
+              context,
+              viewportWidth: constraints.maxWidth,
+            );
+            final rosterWidth = ultrawideWorkspace
+                ? 184.0
+                : widescreenWorkspace
+                ? 172.0
+                : 160.0;
+            final workspaceRow = Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: rosterWidth,
+                  child: _siteRoster(
+                    allSites,
+                    sites,
+                    selected,
+                    embeddedScroll: embeddedScroll,
+                  ),
+                ),
+                const SizedBox(width: _spaceXs),
+                Expanded(
+                  child: _siteWorkspace(
+                    allSites,
+                    sites,
+                    selected,
+                    embeddedScroll: embeddedScroll,
+                  ),
+                ),
+              ],
+            );
+            return workspaceRow;
+          }
+
+          final workspaceShell = stackVertically
+              ? buildVerticalWorkspace(embeddedScroll: allowEmbeddedWorkspace)
+              : buildHorizontalWorkspace(
+                  embeddedScroll: allowEmbeddedWorkspace,
+                );
+
+          final sectionBody = stackVertically
+              ? workspaceShell
+              : canStretchWorkspace
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!mergeWorkspaceBannerIntoHero) ...[
+                      _workspaceStatusBanner(
+                        context,
+                        allSites: allSites,
+                        visibleSites: sites,
+                        selected: selected,
+                      ),
+                      const SizedBox(height: 2.5),
+                    ],
+                    Expanded(child: workspaceShell),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!mergeWorkspaceBannerIntoHero) ...[
+                      _workspaceStatusBanner(
+                        context,
+                        allSites: allSites,
+                        visibleSites: sites,
+                        selected: selected,
+                      ),
+                      const SizedBox(height: 2.5),
+                    ],
+                    workspaceShell,
+                  ],
+                );
+
+          if (!stackVertically) {
+            return sectionBody;
+          }
+          return OnyxSectionCard(
+            title: 'Site Operations Workspace',
+            subtitle:
+                'Hold a selected site in focus and inspect command, outcome, or trace context.',
+            padding: const EdgeInsets.all(1.5),
+            flexibleChild: lockToViewport,
+            child: sectionBody,
+          );
+        },
       );
     }
 
@@ -254,9 +262,19 @@ class _SitesPageState extends State<SitesPage> {
       child: OnyxViewportWorkspaceLayout(
         padding: contentPadding,
         maxWidth: surfaceMaxWidth,
-        spacing: _spaceSm,
+        spacing: 3.5,
         lockToViewport: boundedDesktopSurface,
-        header: buildHeaderStack(compactForViewport: boundedDesktopSurface),
+        header: LayoutBuilder(
+          builder: (context, headerConstraints) {
+            final compactHeaderForViewport = headerConstraints.maxWidth >= 1280;
+            final mergeWorkspaceBannerIntoHero =
+                boundedDesktopSurface && headerConstraints.maxWidth >= 1320;
+            return buildHeaderStack(
+              compactForViewport: compactHeaderForViewport,
+              mergeWorkspaceBannerIntoHero: mergeWorkspaceBannerIntoHero,
+            );
+          },
+        ),
         body: buildWorkspaceSection(lockToViewport: boundedDesktopSurface),
       ),
     );
@@ -266,22 +284,29 @@ class _SitesPageState extends State<SitesPage> {
     BuildContext context, {
     required List<_SiteDrillSnapshot> sites,
     required _SiteDrillSnapshot selected,
+    required int activeDispatches,
+    required double averageHealth,
+    Widget? workspaceBanner,
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(1.1),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF10263C), Color(0xFF0E1728)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(4.75),
         border: Border.all(color: const Color(0xFF274563)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 980;
+          final showHeroChipRow = compact;
+          final heroSummaryLine =
+              '${sites.length} sites • ${_laneLabel(_siteLaneFilter)} lane • '
+              '$activeDispatches dispatches • health ${averageHealth.toStringAsFixed(1)}';
           final titleBlock = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -289,10 +314,10 @@ class _SitesPageState extends State<SitesPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: 16,
+                    height: 16,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(4),
                       gradient: const LinearGradient(
                         colors: [Color(0xFF06B6D4), Color(0xFF2563EB)],
                         begin: Alignment.topLeft,
@@ -302,10 +327,10 @@ class _SitesPageState extends State<SitesPage> {
                     child: const Icon(
                       Icons.business_outlined,
                       color: Colors.white,
-                      size: 26,
+                      size: 9.4,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 2.25),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -314,17 +339,26 @@ class _SitesPageState extends State<SitesPage> {
                           'Sites & Deployment',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 21 : 24,
+                            fontSize: compact ? 10.9 : 12.2,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 0.4),
                         Text(
                           'Site management, watch posture, and operational readiness.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF95A9C7),
-                            fontSize: 12,
+                            fontSize: 5.9,
                             fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 0.18),
+                        Text(
+                          heroSummaryLine,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF8EA4C2),
+                            fontSize: 5.6,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -332,22 +366,24 @@ class _SitesPageState extends State<SitesPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _heroChip('Sites', '${sites.length}'),
-                  _heroChip('Roster', 'Deployment Ready'),
-                  _heroChip('Focus', selected.siteId),
-                  _heroChip('Lane', _laneLabel(_siteLaneFilter)),
-                ],
-              ),
+              if (showHeroChipRow) ...[
+                const SizedBox(height: 0.5),
+                Wrap(
+                  spacing: 0.55,
+                  runSpacing: 0.55,
+                  children: [
+                    _heroChip('Sites', '${sites.length}'),
+                    _heroChip('Lane', _laneLabel(_siteLaneFilter)),
+                    _heroChip('Dispatches', '$activeDispatches'),
+                    _heroChip('Health', averageHealth.toStringAsFixed(1)),
+                  ],
+                ),
+              ],
             ],
           );
           final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 2,
+            runSpacing: 2,
             alignment: WrapAlignment.end,
             children: [
               _heroActionButton(
@@ -362,18 +398,35 @@ class _SitesPageState extends State<SitesPage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 12), actions],
+              children: [
+                titleBlock,
+                const SizedBox(height: 0.85),
+                actions,
+                if (workspaceBanner != null) ...[
+                  const SizedBox(height: 1.0),
+                  workspaceBanner,
+                ],
+              ],
             );
           }
-          return Row(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: titleBlock),
-              const SizedBox(width: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 210),
-                child: actions,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: titleBlock),
+                  const SizedBox(width: 0.75),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 98),
+                    child: actions,
+                  ),
+                ],
               ),
+              if (workspaceBanner != null) ...[
+                const SizedBox(height: 1.0),
+                workspaceBanner,
+              ],
             ],
           );
         },
@@ -383,7 +436,7 @@ class _SitesPageState extends State<SitesPage> {
 
   Widget _heroChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.2),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -396,7 +449,7 @@ class _SitesPageState extends State<SitesPage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 10.5,
+                fontSize: 6.8,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -404,7 +457,7 @@ class _SitesPageState extends State<SitesPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE8F1FF),
-                fontSize: 10.5,
+                fontSize: 6.8,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -424,74 +477,20 @@ class _SitesPageState extends State<SitesPage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 16),
+      icon: Icon(icon, size: 9.5),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  Widget _postureSummaryBar(
-    List<_SiteDrillSnapshot> sites, {
-    required int visibleCount,
-  }) {
-    final strongCount = sites
-        .where((site) => site.healthStatus == 'STRONG')
-        .length;
-    final atRiskCount = sites.where(_siteNeedsWatch).length;
-    final criticalCount = sites
-        .where((site) => site.healthStatus == 'CRITICAL')
-        .length;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F1728),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF253A55)),
-      ),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
-            'SITE POSTURE',
-            style: GoogleFonts.inter(
-              color: const Color(0x669BB0CE),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-            ),
-          ),
-          _statusPill(
-            icon: Icons.check_circle_outline,
-            label: '$strongCount Strong',
-            accent: const Color(0xFF34D399),
-          ),
-          _statusPill(
-            icon: Icons.warning_amber_rounded,
-            label: '$atRiskCount Watch',
-            accent: const Color(0xFFF6C067),
-          ),
-          _statusPill(
-            icon: Icons.visibility_outlined,
-            label: '$visibleCount Visible',
-            accent: const Color(0xFF63BDFF),
-          ),
-          if (criticalCount > 0)
-            _statusPill(
-              icon: Icons.error_outline,
-              label: '$criticalCount Critical',
-              accent: const Color(0xFFF87171),
-            ),
-        ],
+        padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 2.2),
+        textStyle: GoogleFonts.inter(
+          fontSize: 7.0,
+          fontWeight: FontWeight.w700,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5.25),
+        ),
       ),
     );
   }
@@ -502,7 +501,7 @@ class _SitesPageState extends State<SitesPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.5),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -511,13 +510,13 @@ class _SitesPageState extends State<SitesPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: accent),
-          const SizedBox(width: 5),
+          Icon(icon, size: 9.0, color: accent),
+          const SizedBox(width: 1.5),
           Text(
             label,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 10.5,
+              fontSize: 7.3,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -528,27 +527,26 @@ class _SitesPageState extends State<SitesPage> {
 
   Widget _overviewGrid({
     required List<_SiteDrillSnapshot> sites,
-    required _SiteDrillSnapshot selected,
     required int activeDispatches,
     required double averageHealth,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 1200
-            ? 4
+            ? 3
             : constraints.maxWidth >= 760
             ? 2
             : 1;
         return GridView.count(
           key: const ValueKey('sites-overview-grid'),
           crossAxisCount: columns,
-          mainAxisSpacing: 6,
-          crossAxisSpacing: 6,
+          mainAxisSpacing: 1.75,
+          crossAxisSpacing: 1.75,
           childAspectRatio: columns == 4
-              ? 2.0
+              ? 6.0
               : columns == 2
-              ? 2.08
-              : 2.3,
+              ? 5.0
+              : 3.7,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
@@ -575,38 +573,19 @@ class _SitesPageState extends State<SitesPage> {
               icon: Icons.health_and_safety_outlined,
               accent: const Color(0xFFF6C067),
             ),
-            _selectedSiteOverviewCard(
-              context,
-              sites: sites,
-              selected: selected,
-            ),
           ],
         );
       },
     );
   }
 
-  Widget _selectedSiteOverviewCard(
-    BuildContext context, {
-    required List<_SiteDrillSnapshot> sites,
-    required _SiteDrillSnapshot selected,
-  }) {
+  Widget _selectedSiteOverviewCard({required _SiteDrillSnapshot selected}) {
     final statusColor = _statusColor(selected.healthStatus);
-    final laneAction =
-        _siteNeedsWatch(selected) && _siteLaneFilter != _SiteLaneFilter.watch
-        ? _SiteLaneFilter.watch
-        : selected.activeDispatches > 0 &&
-              _siteLaneFilter != _SiteLaneFilter.active
-        ? _SiteLaneFilter.active
-        : _siteLaneFilter != _SiteLaneFilter.all
-        ? _SiteLaneFilter.all
-        : null;
     final responseScore = _responseScore(selected);
-    final patrolScore = _patrolCoverageScore(selected);
 
     return Container(
       key: const ValueKey('sites-overview-selected-card'),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(1.25),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -616,207 +595,91 @@ class _SitesPageState extends State<SitesPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(4.25),
         border: Border.all(color: statusColor.withValues(alpha: 0.34)),
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    Icons.visibility_outlined,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 10.5,
+                height: 10.5,
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Icon(
+                  Icons.visibility_outlined,
+                  color: statusColor,
+                  size: 6.3,
+                ),
+              ),
+              const SizedBox(width: 1.0),
+              Expanded(
+                child: Text(
+                  'SITE IN FOCUS',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
                     color: statusColor,
-                    size: 18,
+                    fontSize: 5.7,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'SITE IN FOCUS',
-                        style: GoogleFonts.inter(
-                          color: statusColor,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Selected Site',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8EA4C2),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              selected.siteId,
-              style: GoogleFonts.rajdhani(
-                color: const Color(0xFFF4F8FF),
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
               ),
+            ],
+          ),
+          const SizedBox(height: 0.4),
+          _tinyPill('Health ${selected.healthStatus}', statusColor),
+          const SizedBox(height: 0.5),
+          Text(
+            selected.siteId,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFF4F8FF),
+              fontSize: 8.6,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${selected.clientId} / ${selected.regionId} is pinned while ${_workspaceViewLabel(_workspaceView).toLowerCase()} stays live for this site.',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFD5E1F2),
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                height: 1.35,
+          ),
+          const SizedBox(height: 0.2),
+          Text(
+            '${selected.clientId} / ${selected.regionId}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFD5E1F2),
+              fontSize: 5.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 0.5),
+          Wrap(
+            spacing: 0.55,
+            runSpacing: 0.55,
+            children: [
+              _tinyPill('Response $responseScore%', const Color(0xFF63BDFF)),
+              _workspaceBannerAction(
+                key: const ValueKey('sites-overview-selected-open-trace'),
+                label: 'Trace',
+                selected: _workspaceView == _SiteWorkspaceView.trace,
+                accent: _workspaceAccent(_SiteWorkspaceView.trace),
+                onTap: () => _setWorkspaceView(_SiteWorkspaceView.trace),
               ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                _tinyPill('Health ${selected.healthStatus}', statusColor),
-                _tinyPill('Response $responseScore%', const Color(0xFF63BDFF)),
-                _tinyPill('Patrol $patrolScore%', const Color(0xFF59D79B)),
-                if (selected.activeDispatches > 0)
-                  _tinyPill(
-                    '${selected.activeDispatches} active',
-                    const Color(0xFFF6C067),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _siteDirective(selected),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF9AB1CF),
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
+              _workspaceBannerAction(
+                key: const ValueKey('sites-overview-selected-open-tactical'),
+                label: 'Tactical',
+                selected: false,
+                accent: const Color(0xFF93C5FD),
+                onTap: () => _showTacticalLinkDialog(context),
               ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                if (laneAction != null)
-                  _workspaceBannerAction(
-                    key: const ValueKey('sites-overview-selected-open-lane'),
-                    label: _laneLabel(laneAction),
-                    selected: false,
-                    accent: _laneAccent(laneAction),
-                    onTap: () => _setSiteLaneFilter(sites, laneAction),
-                  ),
-                _workspaceBannerAction(
-                  key: const ValueKey('sites-overview-selected-open-command'),
-                  label: 'Command',
-                  selected: _workspaceView == _SiteWorkspaceView.command,
-                  accent: _workspaceAccent(_SiteWorkspaceView.command),
-                  onTap: () => _setWorkspaceView(_SiteWorkspaceView.command),
-                ),
-                _workspaceBannerAction(
-                  key: const ValueKey('sites-overview-selected-open-outcomes'),
-                  label: 'Outcomes',
-                  selected: _workspaceView == _SiteWorkspaceView.outcomes,
-                  accent: _workspaceAccent(_SiteWorkspaceView.outcomes),
-                  onTap: () => _setWorkspaceView(_SiteWorkspaceView.outcomes),
-                ),
-                _workspaceBannerAction(
-                  key: const ValueKey('sites-overview-selected-open-trace'),
-                  label: 'Trace',
-                  selected: _workspaceView == _SiteWorkspaceView.trace,
-                  accent: _workspaceAccent(_SiteWorkspaceView.trace),
-                  onTap: () => _setWorkspaceView(_SiteWorkspaceView.trace),
-                ),
-                _workspaceBannerAction(
-                  key: const ValueKey('sites-overview-selected-open-tactical'),
-                  label: 'Tactical',
-                  selected: false,
-                  accent: const Color(0xFF93C5FD),
-                  onTap: () => _showTacticalLinkDialog(context),
-                ),
-              ],
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _workspaceOverviewStrip({
-    required List<_SiteDrillSnapshot> allSites,
-    required List<_SiteDrillSnapshot> visibleSites,
-    required int activeDispatches,
-    required double averageHealth,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        final statWidth = maxWidth < 520
-            ? maxWidth
-            : maxWidth < 760
-            ? (maxWidth - 8) / 2
-            : 236.0;
-        return Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            SizedBox(
-              width: statWidth,
-              child: OnyxSummaryStat(
-                label: 'Visible Sites',
-                value: '${visibleSites.length}/${allSites.length}',
-                accent: const Color(0xFF63BDFF),
-              ),
-            ),
-            SizedBox(
-              width: statWidth,
-              child: OnyxSummaryStat(
-                label: 'Active Dispatches',
-                value: activeDispatches.toString(),
-                accent: const Color(0xFF59D79B),
-              ),
-            ),
-            SizedBox(
-              width: statWidth,
-              child: OnyxSummaryStat(
-                label: 'Average Health',
-                value: averageHealth.toStringAsFixed(1),
-                accent: const Color(0xFFF6C067),
-              ),
-            ),
-            SizedBox(
-              width: statWidth,
-              child: OnyxSummaryStat(
-                label: 'Workspace View',
-                value: _workspaceViewLabel(_workspaceView),
-                accent: const Color(0xFF9AA5FF),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 
@@ -828,10 +691,10 @@ class _SitesPageState extends State<SitesPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(2.25),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(4.25),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -840,13 +703,13 @@ class _SitesPageState extends State<SitesPage> {
           Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 13,
+                height: 13,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(3.5),
                 ),
-                child: Icon(icon, color: accent, size: 18),
+                child: Icon(icon, color: accent, size: 8.4),
               ),
               const Spacer(),
               Flexible(
@@ -854,36 +717,35 @@ class _SitesPageState extends State<SitesPage> {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.end,
                   style: GoogleFonts.robotoMono(
                     color: const Color(0xFFF4F8FF),
-                    fontSize: 20,
+                    fontSize: 10.1,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 1.5),
           Text(
             title.toUpperCase(),
             style: GoogleFonts.inter(
               color: const Color(0xFF93A5BF),
-              fontSize: 9.5,
+              fontSize: 6.6,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
+              letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 0.2),
           Text(
             detail,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               color: const Color(0xFFD5E1F2),
-              fontSize: 11,
+              fontSize: 6.4,
               fontWeight: FontWeight.w600,
-              height: 1.35,
+              height: 1.3,
             ),
           ),
         ],
@@ -927,133 +789,150 @@ class _SitesPageState extends State<SitesPage> {
     required List<_SiteDrillSnapshot> allSites,
     required List<_SiteDrillSnapshot> visibleSites,
     required _SiteDrillSnapshot selected,
+    bool shellless = false,
+    bool summaryOnly = false,
   }) {
     final watchCount = _siteCountForFilter(allSites, _SiteLaneFilter.watch);
-    final activeCount = _siteCountForFilter(allSites, _SiteLaneFilter.active);
-    final strongCount = _siteCountForFilter(allSites, _SiteLaneFilter.strong);
-    return Container(
-      key: const ValueKey('sites-workspace-status-banner'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _statusPill(
-                icon: Icons.apartment_rounded,
-                label: '${visibleSites.length} Visible',
-                accent: const Color(0xFF63BDFF),
-              ),
-              _statusPill(
-                icon: Icons.radar_outlined,
-                label: 'Lane ${_laneLabel(_siteLaneFilter)}',
-                accent: _laneAccent(_siteLaneFilter),
-              ),
-              _statusPill(
-                icon: Icons.dashboard_customize_outlined,
-                label: 'View ${_workspaceViewLabel(_workspaceView)}',
-                accent: _workspaceAccent(_workspaceView),
-              ),
-              _statusPill(
-                icon: Icons.flag_outlined,
-                label: 'Focus ${selected.siteId}',
-                accent: _statusColor(selected.healthStatus),
-              ),
-              _statusPill(
-                icon: Icons.warning_amber_rounded,
-                label: '$watchCount Watch',
-                accent: watchCount > 0
-                    ? const Color(0xFFF6C067)
-                    : const Color(0xFF94A3B8),
-              ),
-              _statusPill(
-                icon: Icons.check_circle_outline,
-                label: '$strongCount Strong',
-                accent: const Color(0xFF34D399),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-all'),
-                label: 'All Sites',
-                selected: _siteLaneFilter == _SiteLaneFilter.all,
-                accent: _laneAccent(_SiteLaneFilter.all),
-                onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-watch'),
-                label: 'Watch Lane',
-                selected: _siteLaneFilter == _SiteLaneFilter.watch,
-                accent: _laneAccent(_SiteLaneFilter.watch),
-                onTap: watchCount == 0
-                    ? null
-                    : () => _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-active'),
-                label: 'Active Lane',
-                selected: _siteLaneFilter == _SiteLaneFilter.active,
-                accent: _laneAccent(_SiteLaneFilter.active),
-                onTap: activeCount == 0
-                    ? null
-                    : () =>
-                          _setSiteLaneFilter(allSites, _SiteLaneFilter.active),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-command'),
-                label: 'Command View',
-                selected: _workspaceView == _SiteWorkspaceView.command,
-                accent: _workspaceAccent(_SiteWorkspaceView.command),
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.command),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-outcomes'),
-                label: 'Outcomes View',
-                selected: _workspaceView == _SiteWorkspaceView.outcomes,
-                accent: _workspaceAccent(_SiteWorkspaceView.outcomes),
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.outcomes),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-trace'),
-                label: 'Trace View',
-                selected: _workspaceView == _SiteWorkspaceView.trace,
-                accent: _workspaceAccent(_SiteWorkspaceView.trace),
-                onTap: () => _setWorkspaceView(_SiteWorkspaceView.trace),
-              ),
-              _workspaceBannerAction(
-                key: const ValueKey('sites-workspace-banner-open-tactical'),
-                label: 'Open Tactical',
-                selected: false,
-                accent: const Color(0xFF93C5FD),
-                onTap: () => _showTacticalLinkDialog(context),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '${selected.siteId} remains pinned in the workspace while lane pivots, outcome review, and tactical handoffs stay synchronized.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showInlineFocusCard = constraints.maxWidth >= 1120;
+        final controls = Wrap(
+          spacing: 0.75,
+          runSpacing: 0.75,
+          children: [
+            _statusPill(
+              icon: Icons.apartment_rounded,
+              label: '${visibleSites.length} Visible',
+              accent: const Color(0xFF63BDFF),
             ),
+            _statusPill(
+              icon: Icons.warning_amber_rounded,
+              label: '$watchCount Watch',
+              accent: watchCount > 0
+                  ? const Color(0xFFF6C067)
+                  : const Color(0xFF94A3B8),
+            ),
+            _workspaceBannerAction(
+              key: const ValueKey('sites-workspace-banner-open-all'),
+              label: 'All',
+              selected: _siteLaneFilter == _SiteLaneFilter.all,
+              accent: _laneAccent(_SiteLaneFilter.all),
+              onTap: () => _setSiteLaneFilter(allSites, _SiteLaneFilter.all),
+            ),
+            _workspaceBannerAction(
+              key: const ValueKey('sites-workspace-banner-open-watch'),
+              label: 'Watch',
+              selected: _siteLaneFilter == _SiteLaneFilter.watch,
+              accent: _laneAccent(_SiteLaneFilter.watch),
+              onTap: watchCount == 0
+                  ? null
+                  : () => _setSiteLaneFilter(allSites, _SiteLaneFilter.watch),
+            ),
+            _workspaceBannerAction(
+              key: const ValueKey('sites-workspace-banner-open-command'),
+              label: 'Command',
+              selected: _workspaceView == _SiteWorkspaceView.command,
+              accent: _workspaceAccent(_SiteWorkspaceView.command),
+              onTap: () => _setWorkspaceView(_SiteWorkspaceView.command),
+            ),
+            _workspaceBannerAction(
+              key: const ValueKey('sites-workspace-banner-open-outcomes'),
+              label: 'Outcomes',
+              selected: _workspaceView == _SiteWorkspaceView.outcomes,
+              accent: _workspaceAccent(_SiteWorkspaceView.outcomes),
+              onTap: () => _setWorkspaceView(_SiteWorkspaceView.outcomes),
+            ),
+            _workspaceBannerAction(
+              key: const ValueKey('sites-workspace-banner-open-trace'),
+              label: 'Trace',
+              selected: _workspaceView == _SiteWorkspaceView.trace,
+              accent: _workspaceAccent(_SiteWorkspaceView.trace),
+              onTap: () => _setWorkspaceView(_SiteWorkspaceView.trace),
+            ),
+            _workspaceBannerAction(
+              key: const ValueKey('sites-workspace-banner-open-tactical'),
+              label: 'Tactical',
+              selected: false,
+              accent: const Color(0xFF93C5FD),
+              onTap: () => _showTacticalLinkDialog(context),
+            ),
+          ],
+        );
+        final focusCard = _selectedSiteOverviewCard(selected: selected);
+        final bannerChild = showInlineFocusCard
+            ? summaryOnly
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Wrap(
+                                spacing: 0.75,
+                                runSpacing: 0.75,
+                                children: [
+                                  _statusPill(
+                                    icon: Icons.apartment_rounded,
+                                    label: '${visibleSites.length} Visible',
+                                    accent: const Color(0xFF63BDFF),
+                                  ),
+                                  _statusPill(
+                                    icon: Icons.warning_amber_rounded,
+                                    label: '$watchCount Watch',
+                                    accent: watchCount > 0
+                                        ? const Color(0xFFF6C067)
+                                        : const Color(0xFF94A3B8),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 0.9),
+                              Text(
+                                'Lane pivots stay pinned in the site roster, while command, outcomes, trace, and tactical handoff stay anchored to the selected-site board below.',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF8EA4C2),
+                                  fontSize: 6.7,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 1.25),
+                        SizedBox(width: 118, child: focusCard),
+                      ],
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: controls),
+                        const SizedBox(width: 1.25),
+                        SizedBox(width: 118, child: focusCard),
+                      ],
+                    )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [controls, const SizedBox(height: 1.0), focusCard],
+              );
+        if (shellless) {
+          return KeyedSubtree(
+            key: const ValueKey('sites-workspace-status-banner'),
+            child: bannerChild,
+          );
+        }
+        return Container(
+          key: const ValueKey('sites-workspace-status-banner'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(1.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0E1A2B),
+            borderRadius: BorderRadius.circular(4.25),
+            border: Border.all(color: const Color(0xFF223244)),
           ),
-        ],
-      ),
+          child: bannerChild,
+        );
+      },
     );
   }
 
@@ -1083,7 +962,7 @@ class _SitesPageState extends State<SitesPage> {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 10, 10, _spaceXs),
+            padding: const EdgeInsets.fromLTRB(2.75, 2.75, 2.75, 1.25),
             child: Row(
               children: [
                 Expanded(
@@ -1091,7 +970,7 @@ class _SitesPageState extends State<SitesPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        width: 28,
+                        width: 20,
                         height: 3,
                         decoration: BoxDecoration(
                           color: const Color(0xFF3C79BB),
@@ -1105,19 +984,19 @@ class _SitesPageState extends State<SitesPage> {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.rajdhani(
                           color: const Color(0xFFDCEAFF),
-                          fontSize: 16,
+                          fontSize: 11.0,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: _spaceSm),
+                const SizedBox(width: 1.75),
                 Text(
                   '${sites.length}/${allSites.length}',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF86A2C8),
-                    fontSize: 11,
+                    fontSize: 7.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1125,7 +1004,7 @@ class _SitesPageState extends State<SitesPage> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+            padding: const EdgeInsets.fromLTRB(2.75, 0, 2.75, 2.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1135,15 +1014,15 @@ class _SitesPageState extends State<SitesPage> {
                       : '${sites.length} sites are visible in the ${_laneLabel(_siteLaneFilter).toLowerCase()} lane.',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF8EA4C2),
-                    fontSize: 10.5,
+                    fontSize: 6.8,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 1.75),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 2.0,
+                  runSpacing: 2.0,
                   children: [
                     _laneFilterChip(
                       key: const ValueKey('sites-roster-filter-all'),
@@ -1188,28 +1067,6 @@ class _SitesPageState extends State<SitesPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _rosterSignal(
-                        label: 'WATCH POSTS',
-                        value:
-                            '${_siteCountForFilter(allSites, _SiteLaneFilter.watch)}',
-                        accent: const Color(0xFFF6C067),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _rosterSignal(
-                        label: 'ACTIVE POSTS',
-                        value:
-                            '${_siteCountForFilter(allSites, _SiteLaneFilter.active)}',
-                        accent: const Color(0xFF63BDFF),
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -1222,14 +1079,14 @@ class _SitesPageState extends State<SitesPage> {
                   Expanded(
                     child: sites.isEmpty
                         ? Padding(
-                            padding: EdgeInsets.all(10),
+                            padding: EdgeInsets.all(5),
                             child: Align(
                               alignment: Alignment.topLeft,
                               child: Text(
                                 'No sites are visible in this lane. Use another lane to continue.',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF7D93B1),
-                                  fontSize: 11.5,
+                                  fontSize: 8.2,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -1239,7 +1096,7 @@ class _SitesPageState extends State<SitesPage> {
                   ),
                   if (hiddenSites > 0)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                      padding: const EdgeInsets.fromLTRB(4, 0, 4, 2.5),
                       child: OnyxTruncationHint(
                         visibleCount: visibleSites.length,
                         totalCount: sites.length,
@@ -1254,14 +1111,14 @@ class _SitesPageState extends State<SitesPage> {
           else ...[
             if (sites.isEmpty)
               Padding(
-                padding: EdgeInsets.all(10),
+                padding: EdgeInsets.all(5),
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: Text(
                     'No sites are visible in this lane. Use another lane to continue.',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF7D93B1),
-                      fontSize: 11.5,
+                      fontSize: 8.6,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1271,7 +1128,7 @@ class _SitesPageState extends State<SitesPage> {
               list,
             if (hiddenSites > 0)
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                padding: const EdgeInsets.fromLTRB(4, 0, 4, 3.5),
                 child: OnyxTruncationHint(
                   visibleCount: visibleSites.length,
                   totalCount: sites.length,
@@ -1296,9 +1153,9 @@ class _SitesPageState extends State<SitesPage> {
     return InkWell(
       key: ValueKey('sites-roster-card-${site.siteId}'),
       onTap: () => _selectSite(site),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.all(9),
+        padding: const EdgeInsets.all(4.0),
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
@@ -1308,7 +1165,7 @@ class _SitesPageState extends State<SitesPage> {
                 )
               : null,
           color: selected ? null : const Color(0xFF0E1A2B),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(6.0),
           border: Border.all(
             color: selected ? const Color(0xFF3476B1) : const Color(0xFF223244),
           ),
@@ -1327,18 +1184,18 @@ class _SitesPageState extends State<SitesPage> {
                         site.siteId,
                         style: GoogleFonts.inter(
                           color: const Color(0xFFE7F0FF),
-                          fontSize: 13,
+                          fontSize: 9.6,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 0.85),
                       Text(
                         '${site.clientId} / ${site.regionId}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                           color: const Color(0xFF93AACE),
-                          fontSize: 11,
+                          fontSize: 7.7,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -1348,10 +1205,10 @@ class _SitesPageState extends State<SitesPage> {
                 _siteStatusBadge(site),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 1.75),
             Wrap(
-              spacing: 5,
-              runSpacing: 5,
+              spacing: 1.75,
+              runSpacing: 1.75,
               children: [
                 _tinyPill(
                   'Health ${site.healthScore.toStringAsFixed(0)}',
@@ -1367,13 +1224,13 @@ class _SitesPageState extends State<SitesPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 1.75),
             _miniProgressBar(
               label: 'Response tempo',
               value: _responseScore(site),
               color: pressureColor,
             ),
-            const SizedBox(height: 5),
+            const SizedBox(height: 1.75),
             _miniProgressBar(
               label: 'Patrol coverage',
               value: _patrolCoverageScore(site),
@@ -1403,37 +1260,40 @@ class _SitesPageState extends State<SitesPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 32,
+                    width: 20,
                     height: 3,
                     decoration: BoxDecoration(
                       color: const Color(0xFF3C79BB),
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 1.5),
                   Text(
                     '${site.clientId} / ${site.regionId} / ${site.siteId}',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFE7F0FF),
-                      fontSize: 18,
+                      fontSize: 9.7,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 0.4),
                   Text(
-                    '${visibleSites.length} visible in ${allSites.length} total sites • ${_workspaceViewLabel(_workspaceView)}',
+                    '${visibleSites.length}/${allSites.length} visible • ${_workspaceViewLabel(_workspaceView)}',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF93AACE),
-                      fontSize: 10.5,
+                      fontSize: 5.9,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 2.0),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 3.25,
+                vertical: 1.2,
+              ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
                 color: statusColor.withValues(alpha: 0.15),
@@ -1444,18 +1304,18 @@ class _SitesPageState extends State<SitesPage> {
                 style: GoogleFonts.rajdhani(
                   color: statusColor,
                   fontWeight: FontWeight.w800,
-                  fontSize: 14,
+                  fontSize: 7.6,
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        _siteFocusBanner(site, visibleSites.length, allSites.length),
-        const SizedBox(height: 10),
+        const SizedBox(height: 0.85),
+        _siteFocusBanner(site),
+        const SizedBox(height: 0.85),
         Wrap(
-          spacing: 6,
-          runSpacing: 6,
+          spacing: 1.0,
+          runSpacing: 1.0,
           children: [
             _workspaceViewChip(
               key: const ValueKey('sites-workspace-view-command'),
@@ -1477,7 +1337,7 @@ class _SitesPageState extends State<SitesPage> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 0.85),
         _workspaceDeck(site),
       ],
     );
@@ -1485,10 +1345,10 @@ class _SitesPageState extends State<SitesPage> {
       decoration: onyxWorkspaceSurfaceDecoration(),
       child: embeddedScroll
           ? SingleChildScrollView(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(1.35),
               child: content,
             )
-          : Padding(padding: const EdgeInsets.all(8), child: content),
+          : Padding(padding: const EdgeInsets.all(1.35), child: content),
     );
   }
 
@@ -1506,8 +1366,8 @@ class _SitesPageState extends State<SitesPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 6,
-          runSpacing: 5,
+          spacing: 4,
+          runSpacing: 3,
           children: [
             _metricCard(
               'Decisions',
@@ -1551,7 +1411,7 @@ class _SitesPageState extends State<SitesPage> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 5),
         LayoutBuilder(
           builder: (context, constraints) {
             final stacked = constraints.maxWidth < 920;
@@ -1586,6 +1446,7 @@ class _SitesPageState extends State<SitesPage> {
                   ),
                 ],
               ),
+              shellless: !stacked,
             );
             final pulsePanel = _panel(
               'Operational Pulse',
@@ -1610,24 +1471,25 @@ class _SitesPageState extends State<SitesPage> {
                   ),
                 ],
               ),
+              shellless: !stacked,
             );
             if (stacked) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [outcomePanel, const SizedBox(height: 8), pulsePanel],
+                children: [outcomePanel, const SizedBox(height: 5), pulsePanel],
               );
             }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: outcomePanel),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 Expanded(child: pulsePanel),
               ],
             );
           },
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         LayoutBuilder(
           builder: (context, constraints) {
             final stacked = constraints.maxWidth < 920;
@@ -1640,12 +1502,12 @@ class _SitesPageState extends State<SitesPage> {
                     _siteDirective(site),
                     style: GoogleFonts.inter(
                       color: const Color(0xFFD7E5F8),
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   _textLine(
                     'Watch posture',
                     _siteNeedsWatch(site)
@@ -1662,14 +1524,19 @@ class _SitesPageState extends State<SitesPage> {
                   ),
                 ],
               ),
+              shellless: !stacked,
             );
-            final tracePanel = _eventTracePanel(site, previewOnly: true);
+            final tracePanel = _eventTracePanel(
+              site,
+              previewOnly: true,
+              shellless: !stacked,
+            );
             if (stacked) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   directivePanel,
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   tracePanel,
                 ],
               );
@@ -1678,7 +1545,7 @@ class _SitesPageState extends State<SitesPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: directivePanel),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Expanded(child: tracePanel),
               ],
             );
@@ -1694,8 +1561,8 @@ class _SitesPageState extends State<SitesPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Wrap(
-          spacing: 6,
-          runSpacing: 5,
+          spacing: 5,
+          runSpacing: 4,
           children: [
             _metricCard(
               'Executed',
@@ -1719,7 +1586,7 @@ class _SitesPageState extends State<SitesPage> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         LayoutBuilder(
           builder: (context, constraints) {
             final stacked = constraints.maxWidth < 920;
@@ -1754,6 +1621,7 @@ class _SitesPageState extends State<SitesPage> {
                   ),
                 ],
               ),
+              shellless: !stacked,
             );
             final pressurePanel = _panel(
               'Outcome Pressure',
@@ -1781,13 +1649,14 @@ class _SitesPageState extends State<SitesPage> {
                   ),
                 ],
               ),
+              shellless: !stacked,
             );
             if (stacked) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   outcomePanel,
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 5),
                   pressurePanel,
                 ],
               );
@@ -1796,7 +1665,7 @@ class _SitesPageState extends State<SitesPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(child: outcomePanel),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Expanded(child: pressurePanel),
               ],
             );
@@ -1814,7 +1683,7 @@ class _SitesPageState extends State<SitesPage> {
         LayoutBuilder(
           builder: (context, constraints) {
             final stacked = constraints.maxWidth < 920;
-            final tracePanel = _eventTracePanel(site);
+            final tracePanel = _eventTracePanel(site, shellless: !stacked);
             final reviewPanel = _panel(
               'Trace Review',
               Column(
@@ -1831,18 +1700,19 @@ class _SitesPageState extends State<SitesPage> {
                   ),
                 ],
               ),
+              shellless: !stacked,
             );
             if (stacked) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [tracePanel, const SizedBox(height: 6), reviewPanel],
+                children: [tracePanel, const SizedBox(height: 5), reviewPanel],
               );
             }
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(flex: 6, child: tracePanel),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Expanded(flex: 4, child: reviewPanel),
               ],
             );
@@ -1852,7 +1722,11 @@ class _SitesPageState extends State<SitesPage> {
     );
   }
 
-  Widget _eventTracePanel(_SiteDrillSnapshot site, {bool previewOnly = false}) {
+  Widget _eventTracePanel(
+    _SiteDrillSnapshot site, {
+    bool previewOnly = false,
+    bool shellless = false,
+  }) {
     final rows = previewOnly
         ? site.recentEvents.take(4).toList()
         : site.recentEvents;
@@ -1917,6 +1791,7 @@ class _SitesPageState extends State<SitesPage> {
                   ),
               ],
             ),
+      shellless: shellless,
     );
   }
 
@@ -2062,7 +1937,7 @@ class _SitesPageState extends State<SitesPage> {
   Widget _siteStatusBadge(_SiteDrillSnapshot site) {
     final color = _statusColor(site.healthStatus);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
@@ -2072,7 +1947,7 @@ class _SitesPageState extends State<SitesPage> {
         site.healthStatus,
         style: GoogleFonts.inter(
           color: color,
-          fontSize: 10,
+          fontSize: 9,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.8,
         ),
@@ -2095,7 +1970,7 @@ class _SitesPageState extends State<SitesPage> {
                 label,
                 style: GoogleFonts.inter(
                   color: const Color(0xFF9FB5D4),
-                  fontSize: 10.5,
+                  fontSize: 9.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2104,7 +1979,7 @@ class _SitesPageState extends State<SitesPage> {
               '$value%',
               style: GoogleFonts.inter(
                 color: const Color(0xFFD4E3F8),
-                fontSize: 10.5,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2114,7 +1989,7 @@ class _SitesPageState extends State<SitesPage> {
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: LinearProgressIndicator(
-            minHeight: 5,
+            minHeight: 3,
             value: value / 100,
             backgroundColor: const Color(0xFF1A283A),
             valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -2137,7 +2012,7 @@ class _SitesPageState extends State<SitesPage> {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.75),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF123244) : const Color(0xFF0F1728),
           borderRadius: BorderRadius.circular(999),
@@ -2154,13 +2029,16 @@ class _SitesPageState extends State<SitesPage> {
                 color: selected
                     ? const Color(0xFFEAF2FF)
                     : const Color(0xFF8EA4C2),
-                fontSize: 10.5,
+                fontSize: 6.8,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 3),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 4.5,
+                vertical: 1.75,
+              ),
               decoration: BoxDecoration(
                 color: selected
                     ? const Color(0xFF0E1C2A)
@@ -2171,7 +2049,7 @@ class _SitesPageState extends State<SitesPage> {
                 '$count',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFEAF2FF),
-                  fontSize: 9.5,
+                  fontSize: 6.8,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -2194,7 +2072,7 @@ class _SitesPageState extends State<SitesPage> {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.75),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF123244) : const Color(0xFF111C2B),
           borderRadius: BorderRadius.circular(999),
@@ -2206,7 +2084,7 @@ class _SitesPageState extends State<SitesPage> {
           label,
           style: GoogleFonts.inter(
             color: selected ? const Color(0xFFEAF2FF) : const Color(0xFF8EA4C2),
-            fontSize: 10.5,
+            fontSize: 6.8,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -2225,16 +2103,16 @@ class _SitesPageState extends State<SitesPage> {
     return InkWell(
       key: key,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(6),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.75),
         decoration: BoxDecoration(
           color: !enabled
               ? const Color(0xFF1D2937)
               : selected
               ? accent.withValues(alpha: 0.2)
               : const Color(0xFF111F33),
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(5),
           border: Border.all(
             color: !enabled
                 ? const Color(0xFF314154)
@@ -2247,7 +2125,7 @@ class _SitesPageState extends State<SitesPage> {
           label,
           style: GoogleFonts.inter(
             color: !enabled ? const Color(0xFF8EA4C2) : const Color(0xFFEAF1FB),
-            fontSize: 10.5,
+            fontSize: 6.6,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -2255,60 +2133,18 @@ class _SitesPageState extends State<SitesPage> {
     );
   }
 
-  Widget _rosterSignal({
-    required String label,
-    required String value,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0F1728),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF6F87A8),
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            value,
-            style: GoogleFonts.rajdhani(
-              color: accent,
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _siteFocusBanner(
-    _SiteDrillSnapshot site,
-    int visibleCount,
-    int totalCount,
-  ) {
+  Widget _siteFocusBanner(_SiteDrillSnapshot site) {
     final statusColor = _statusColor(site.healthStatus);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(2.0),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF10273D), Color(0xFF0C1420)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(5.0),
         border: Border.all(color: const Color(0xFF27425D)),
       ),
       child: LayoutBuilder(
@@ -2321,31 +2157,27 @@ class _SitesPageState extends State<SitesPage> {
                 'SITE COMMAND FOCUS',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF8AA2C0),
-                  fontSize: 9.5,
+                  fontSize: 6.3,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.1,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 0.5),
               Text(
                 _siteDirective(site),
                 style: GoogleFonts.inter(
                   color: const Color(0xFFF4F8FF),
-                  fontSize: 12.5,
+                  fontSize: 7.0,
                   fontWeight: FontWeight.w600,
-                  height: 1.42,
+                  height: 1.36,
                 ),
               ),
             ],
           );
           final metrics = Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 1.5,
+            runSpacing: 1.5,
             children: [
-              _tinyPill(
-                'Visible $visibleCount/$totalCount',
-                const Color(0xFF63BDFF),
-              ),
               _tinyPill(
                 'Health ${site.healthScore.toStringAsFixed(0)}',
                 statusColor,
@@ -2363,16 +2195,16 @@ class _SitesPageState extends State<SitesPage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [summary, const SizedBox(height: 10), metrics],
+              children: [summary, const SizedBox(height: 1.0), metrics],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: summary),
-              const SizedBox(width: 10),
+              const SizedBox(width: 0.85),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
+                constraints: const BoxConstraints(maxWidth: 144),
                 child: metrics,
               ),
             ],
@@ -2385,7 +2217,8 @@ class _SitesPageState extends State<SitesPage> {
   Widget _ratioBar(String label, int value, int total, Color color) {
     final ratio = total <= 0 ? 0.0 : (value / total).clamp(0.0, 1.0);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 4),
+
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2395,7 +2228,7 @@ class _SitesPageState extends State<SitesPage> {
                 label,
                 style: GoogleFonts.inter(
                   color: const Color(0xFF9FB5D4),
-                  fontSize: 11.5,
+                  fontSize: 8.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2404,17 +2237,17 @@ class _SitesPageState extends State<SitesPage> {
                 '$value/$total',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFD4E3F8),
-                  fontSize: 11.5,
+                  fontSize: 8.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
-              minHeight: 7,
+              minHeight: 4,
               value: ratio,
               backgroundColor: const Color(0xFF1A283A),
               valueColor: AlwaysStoppedAnimation<Color>(color),
@@ -2427,7 +2260,7 @@ class _SitesPageState extends State<SitesPage> {
 
   Widget _textLine(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 2.5),
       child: RichText(
         text: TextSpan(
           children: [
@@ -2435,7 +2268,7 @@ class _SitesPageState extends State<SitesPage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 12,
+                fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -2443,7 +2276,7 @@ class _SitesPageState extends State<SitesPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFD7E5F8),
-                fontSize: 12,
+                fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -2453,9 +2286,31 @@ class _SitesPageState extends State<SitesPage> {
     );
   }
 
-  Widget _panel(String title, Widget child, {bool expandChild = false}) {
+  Widget _panel(
+    String title,
+    Widget child, {
+    bool expandChild = false,
+    bool shellless = false,
+  }) {
+    if (shellless) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 8.9,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          if (expandChild) Expanded(child: child) else child,
+        ],
+      );
+    }
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(3),
       decoration: onyxPanelSurfaceDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2468,16 +2323,16 @@ class _SitesPageState extends State<SitesPage> {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 1.5),
           Text(
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE4EEFF),
-              fontSize: 17,
+              fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 2),
           if (expandChild) Expanded(child: child) else child,
         ],
       ),
@@ -2486,8 +2341,8 @@ class _SitesPageState extends State<SitesPage> {
 
   Widget _metricCard(String label, String value, Color accent) {
     return Container(
-      width: 148,
-      padding: const EdgeInsets.all(8),
+      width: 112,
+      padding: const EdgeInsets.all(3),
       decoration: onyxPanelSurfaceDecoration(radius: 11),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2500,21 +2355,21 @@ class _SitesPageState extends State<SitesPage> {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 3),
           Text(
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 10.5,
+              fontSize: 7,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 0.5),
           Text(
             value,
             style: GoogleFonts.rajdhani(
               color: accent,
-              fontSize: 20,
+              fontSize: 14.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2525,7 +2380,7 @@ class _SitesPageState extends State<SitesPage> {
 
   Widget _tinyPill(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 1.75),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
@@ -2535,7 +2390,7 @@ class _SitesPageState extends State<SitesPage> {
         label,
         style: GoogleFonts.inter(
           color: color,
-          fontSize: 10,
+          fontSize: 7.6,
           fontWeight: FontWeight.w700,
         ),
       ),

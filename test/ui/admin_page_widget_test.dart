@@ -399,7 +399,6 @@ void main() {
       find.byKey(const ValueKey('admin-workspace-panel-rail')),
       findsOneWidget,
     );
-    expect(find.text('Command Rail'), findsOneWidget);
     expect(find.text('COMMAND FOCUS'), findsOneWidget);
     expect(find.text('Seed Source: Local'), findsWidgets);
     expect(find.text('Route Posture: Standby'), findsOneWidget);
@@ -468,7 +467,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Context Deck'), findsOneWidget);
+    expect(find.text('CONTEXT SNAPSHOT'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('admin-workspace-command-receipt')),
       findsOneWidget,
@@ -494,7 +493,7 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
 
     final aiCommsAction = tester.widget<InkWell>(
-      find.byKey(const ValueKey('admin-workspace-banner-open-ai-comms')),
+      find.byKey(const ValueKey('admin-workspace-open-ai-comms')),
     );
     expect(aiCommsAction.onTap, isNotNull);
     aiCommsAction.onTap!();
@@ -503,7 +502,7 @@ void main() {
     expect(find.text('PENDING AI DRAFT REVIEW'), findsOneWidget);
 
     final watchIdentityAction = tester.widget<InkWell>(
-      find.byKey(const ValueKey('admin-workspace-banner-open-watch-identity')),
+      find.byKey(const ValueKey('admin-workspace-open-watch-identity')),
     );
     expect(watchIdentityAction.onTap, isNotNull);
     watchIdentityAction.onTap!();

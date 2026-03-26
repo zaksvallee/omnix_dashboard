@@ -256,10 +256,10 @@ void main() {
       );
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('ledger-workspace-banner-open-continuity')),
+        find.byKey(const ValueKey('ledger-lane-filter-continuity')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('ledger-workspace-banner-open-continuity')),
+        find.byKey(const ValueKey('ledger-lane-filter-continuity')),
       );
       await tester.pumpAndSettle();
 
@@ -277,10 +277,10 @@ void main() {
       );
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('ledger-workspace-banner-open-integrity')),
+        find.byKey(const ValueKey('ledger-workspace-view-integrity')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('ledger-workspace-banner-open-integrity')),
+        find.byKey(const ValueKey('ledger-workspace-view-integrity')),
       );
       await tester.pumpAndSettle();
 
@@ -290,20 +290,20 @@ void main() {
       );
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('ledger-workspace-banner-verify-chain')),
+        find.byKey(const ValueKey('ledger-workspace-verify-chain')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('ledger-workspace-banner-verify-chain')),
+        find.byKey(const ValueKey('ledger-workspace-verify-chain')),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('In-memory evidence ordering VERIFIED'), findsOneWidget);
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('ledger-workspace-banner-open-trace')),
+        find.byKey(const ValueKey('ledger-workspace-view-trace')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('ledger-workspace-banner-open-trace')),
+        find.byKey(const ValueKey('ledger-workspace-view-trace')),
       );
       await tester.pumpAndSettle();
 
@@ -313,10 +313,10 @@ void main() {
       );
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('ledger-workspace-banner-focus-report')),
+        find.byKey(const ValueKey('ledger-context-focus-latest-report')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('ledger-workspace-banner-focus-report')),
+        find.byKey(const ValueKey('ledger-context-focus-latest-report')),
       );
       await tester.pumpAndSettle();
 

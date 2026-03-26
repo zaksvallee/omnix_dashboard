@@ -383,7 +383,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         : '#${timeline.first.sequence}';
     final visitScopedEvents = _visitScopedEvents(timeline);
 
-    Widget buildSurfaceBody({required bool embedScroll}) {
+    Widget buildSurfaceBody({
+      required bool embedScroll,
+      required bool mergeWorkspaceBannerIntoHero,
+    }) {
       final sections = <Widget>[
         if (hasFocusedFallback) ...[
           Container(
@@ -1757,6 +1760,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           latestSequence: latestSequence,
           openGovernanceAction: openGovernanceAction,
           scopedEventCount: scopedEventIds.length,
+          mergeWorkspaceBannerIntoHero: mergeWorkspaceBannerIntoHero,
         ),
       ];
 
@@ -1772,21 +1776,28 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
       }
 
-      return ListView.separated(
-        padding: EdgeInsets.zero,
-        itemCount: sections.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 8),
-        itemBuilder: (context, index) => sections[index],
+      final leadingSections = sections.take(sections.length - 1).toList();
+      final workspaceSection = sections.last;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var index = 0; index < leadingSections.length; index++) ...[
+            if (index > 0) const SizedBox(height: 8),
+            leadingSections[index],
+          ],
+          if (leadingSections.isNotEmpty) const SizedBox(height: 8),
+          Expanded(child: workspaceSection),
+        ],
       );
     }
 
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, viewport) {
-          const contentPadding = EdgeInsets.all(10);
+          const contentPadding = EdgeInsets.all(8);
           final useScrollFallback =
               isHandsetLayout(context) ||
-              viewport.maxHeight < 720 ||
+              viewport.maxHeight < 700 ||
               viewport.maxWidth < 980;
           final boundedDesktopSurface =
               !useScrollFallback &&
@@ -1805,20 +1816,63 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               : widescreenSurface
               ? viewport.maxWidth * 0.94
               : 1540.0;
+          final mergeWorkspaceBannerIntoHero =
+              boundedDesktopSurface && viewport.maxWidth >= 1240;
 
           return OnyxViewportWorkspaceLayout(
             padding: contentPadding,
             maxWidth: surfaceMaxWidth,
             lockToViewport: boundedDesktopSurface,
-            spacing: 8,
+            spacing: 6,
             header: _heroHeader(
               visibleEvents: visibleEvents,
               totalEvents: totalEvents,
               latestSequence: latestSequence,
               selected: selected,
               openGovernanceAction: openGovernanceAction,
+              workspaceBanner: mergeWorkspaceBannerIntoHero
+                  ? _reviewWorkspaceStatusBanner(
+                      selected: selected,
+                      visibleEvents: visibleEvents,
+                      totalEvents: totalEvents,
+                      latestSequence: latestSequence,
+                      scopedEventCount: scopedEventIds.length,
+                      governanceReady: openGovernanceAction != null,
+                      onResetFilters: _resetFilters,
+                      onFocusAiDecisions: () =>
+                          setState(() => _activeFilter = 'AI DECISION'),
+                      onFocusAlarmTriggers: () =>
+                          setState(() => _activeFilter = 'ALARM TRIGGERED'),
+                      onOpenGovernanceScope:
+                          openGovernanceAction ??
+                          () => _showActionMessage(
+                            'Governance handoff unlocks once the review lane narrows to a single scope.',
+                          ),
+                      onOpenLedgerFocus: selected == null
+                          ? () => _showActionMessage(
+                              'Select an event before opening a ledger focus.',
+                            )
+                          : () {
+                              logUiAction(
+                                'events.workspace_open_ledger',
+                                context: {'event_id': selected.eventId},
+                              );
+                              if (widget.onOpenLedger != null) {
+                                widget.onOpenLedger!.call(selected.eventId);
+                                return;
+                              }
+                              _showActionMessage(
+                                'Open Sovereign Ledger to inspect ${selected.eventId}.',
+                              );
+                            },
+                      shellless: true,
+                    )
+                  : null,
             ),
-            body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
+            body: buildSurfaceBody(
+              embedScroll: boundedDesktopSurface,
+              mergeWorkspaceBannerIntoHero: mergeWorkspaceBannerIntoHero,
+            ),
           );
         },
       ),
@@ -1835,10 +1889,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required String latestSequence,
     required VoidCallback? openGovernanceAction,
     required int scopedEventCount,
+    required bool mergeWorkspaceBannerIntoHero,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final desktopWorkspace = constraints.maxWidth >= 1240;
+        final boundedHeight =
+            constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
         _desktopWorkspaceActive = desktopWorkspace;
         void focusAiDecisions() {
           setState(() => _activeFilter = 'AI DECISION');
@@ -1882,9 +1939,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           return Column(
             children: [
               _filterStrip(identityPolicyOptions),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _timelinePane(events: prioritizedEvents, bounded: false),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               _detailPane(
                 selected: selected,
                 bounded: false,
@@ -1899,6 +1956,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           title: 'Review Ops Rail',
           subtitle:
               'Filter the forensic lane, pivot to the right evidence queue, and hand the current scope into governance or ledger review.',
+          shellless: true,
           expandChild: true,
           child: SingleChildScrollView(
             child: _reviewOpsRail(
@@ -1921,6 +1979,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           title: 'Forensic Event Rail',
           subtitle:
               'Prioritized event sequence for the active review lane, with selections preserved in place.',
+          shellless: true,
           expandChild: true,
           child: _timelinePane(events: prioritizedEvents, bounded: true),
         );
@@ -1929,6 +1988,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           title: 'Selected Event Board',
           subtitle:
               'Ledger continuity, scene review context, and export controls for the active event.',
+          shellless: true,
           expandChild: true,
           child: _detailPane(
             selected: selected,
@@ -1940,33 +2000,49 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _reviewWorkspaceStatusBanner(
-              selected: selected,
-              visibleEvents: visibleEvents,
-              totalEvents: totalEvents,
-              latestSequence: latestSequence,
-              scopedEventCount: scopedEventCount,
-              governanceReady: openGovernanceAction != null,
-              onResetFilters: _resetFilters,
-              onFocusAiDecisions: focusAiDecisions,
-              onFocusAlarmTriggers: focusAlarmTriggers,
-              onOpenGovernanceScope: openGovernanceScope,
-              onOpenLedgerFocus: openLedgerFocus,
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 760,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 3, child: opsRail),
-                  const SizedBox(width: 8),
-                  Expanded(flex: 4, child: timelineBoard),
-                  const SizedBox(width: 8),
-                  Expanded(flex: 5, child: detailBoard),
-                ],
+            if (!mergeWorkspaceBannerIntoHero) ...[
+              _reviewWorkspaceStatusBanner(
+                selected: selected,
+                visibleEvents: visibleEvents,
+                totalEvents: totalEvents,
+                latestSequence: latestSequence,
+                scopedEventCount: scopedEventCount,
+                governanceReady: openGovernanceAction != null,
+                onResetFilters: _resetFilters,
+                onFocusAiDecisions: focusAiDecisions,
+                onFocusAlarmTriggers: focusAlarmTriggers,
+                onOpenGovernanceScope: openGovernanceScope,
+                onOpenLedgerFocus: openLedgerFocus,
               ),
-            ),
+              const SizedBox(height: 5),
+            ],
+            if (boundedHeight)
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: opsRail),
+                    const SizedBox(width: 5),
+                    Expanded(flex: 4, child: timelineBoard),
+                    const SizedBox(width: 5),
+                    Expanded(flex: 5, child: detailBoard),
+                  ],
+                ),
+              )
+            else
+              SizedBox(
+                height: 680,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 3, child: opsRail),
+                    const SizedBox(width: 5),
+                    Expanded(flex: 4, child: timelineBoard),
+                    const SizedBox(width: 5),
+                    Expanded(flex: 5, child: detailBoard),
+                  ],
+                ),
+              ),
           ],
         );
       },
@@ -1978,15 +2054,19 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required String title,
     required String subtitle,
     required Widget child,
+    bool shellless = false,
     bool expandChild = false,
   }) {
+    if (shellless) {
+      return KeyedSubtree(key: key, child: child);
+    }
     return Container(
       key: key,
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF09111A),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF1F2B3A)),
       ),
       child: Column(
@@ -1996,7 +2076,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF1FB),
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2005,12 +2085,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             subtitle,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.45,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           if (expandChild) Expanded(child: child) else child,
         ],
       ),
@@ -2029,97 +2109,61 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required VoidCallback onFocusAlarmTriggers,
     required VoidCallback onOpenGovernanceScope,
     required VoidCallback onOpenLedgerFocus,
+    bool shellless = false,
   }) {
+    final bannerContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            _heroChip('Visible', '$visibleEvents of $totalEvents'),
+            _heroChip('Latest', latestSequence),
+            _heroChip('Selected', selected?.eventId ?? 'none'),
+            _heroChip('Type Filter', _activeFilter),
+            if (_activeSourceFilter != _sourceFilterAll)
+              _heroChip('Source', _activeSourceFilter),
+            if (_activeProviderFilter != _providerFilterAll)
+              _heroChip('Provider', _activeProviderFilter),
+            if (_activeIdentityPolicyFilter != _identityPolicyFilterAll)
+              _heroChip('Policy', _activeIdentityPolicyFilter),
+            if (scopedEventCount > 0)
+              _heroChip('Scoped', '$scopedEventCount linked'),
+            _heroChip(
+              'Governance',
+              governanceReady ? 'scope ready' : 'mixed scope',
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Review resets, AI and alarm pivots, plus governance and ledger routing now stay pinned in the ops rail and selected-event focus card below.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF9AB1CF),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('events-workspace-status-banner'),
+        child: bannerContent,
+      );
+    }
     return Container(
       key: const ValueKey('events-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF09111A),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF1F2B3A)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _heroChip('Visible', '$visibleEvents of $totalEvents'),
-              _heroChip('Latest', latestSequence),
-              _heroChip('Selected', selected?.eventId ?? 'none'),
-              _heroChip('Type Filter', _activeFilter),
-              if (_activeSourceFilter != _sourceFilterAll)
-                _heroChip('Source', _activeSourceFilter),
-              if (_activeProviderFilter != _providerFilterAll)
-                _heroChip('Provider', _activeProviderFilter),
-              if (_activeIdentityPolicyFilter != _identityPolicyFilterAll)
-                _heroChip('Policy', _activeIdentityPolicyFilter),
-              if (scopedEventCount > 0)
-                _heroChip('Scoped', '$scopedEventCount linked'),
-              _heroChip(
-                'Governance',
-                governanceReady ? 'scope ready' : 'mixed scope',
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey('events-workspace-banner-reset-filters'),
-                label: 'Reset Review',
-                selected:
-                    _activeFilter == _filterAll &&
-                    _activeSourceFilter == _sourceFilterAll &&
-                    _activeProviderFilter == _providerFilterAll &&
-                    _activeIdentityPolicyFilter == _identityPolicyFilterAll,
-                accent: const Color(0xFF8FD1FF),
-                onTap: onResetFilters,
-              ),
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey(
-                  'events-workspace-banner-focus-ai-decision',
-                ),
-                label: 'AI Decisions',
-                selected: _activeFilter == 'AI DECISION',
-                accent: const Color(0xFF7FD8A5),
-                onTap: onFocusAiDecisions,
-              ),
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey(
-                  'events-workspace-banner-focus-alarm-triggered',
-                ),
-                label: 'Alarm Triggers',
-                selected: _activeFilter == 'ALARM TRIGGERED',
-                accent: const Color(0xFFF1B872),
-                onTap: onFocusAlarmTriggers,
-              ),
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey('events-workspace-banner-open-governance'),
-                label: 'Governance Scope',
-                selected: governanceReady,
-                accent: governanceReady
-                    ? const Color(0xFF22D3EE)
-                    : const Color(0xFF94A3B8),
-                onTap: onOpenGovernanceScope,
-              ),
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey('events-workspace-banner-open-ledger'),
-                label: 'Ledger Focus',
-                selected: selected != null,
-                accent: selected != null
-                    ? const Color(0xFF67E8F9)
-                    : const Color(0xFF94A3B8),
-                onTap: onOpenLedgerFocus,
-              ),
-            ],
-          ),
-        ],
-      ),
+      child: bannerContent,
     );
   }
 
@@ -2136,7 +2180,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
@@ -2152,7 +2196,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           label,
           style: GoogleFonts.inter(
             color: selected ? accent : const Color(0xFFEAF1FB),
-            fontSize: 10.5,
+            fontSize: 9.5,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -2179,10 +2223,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Container(
           key: const ValueKey('events-workspace-selection-banner'),
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: const Color(0xFF102337),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFF29425F)),
           ),
           child: Column(
@@ -2194,19 +2238,20 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     : _eventSummary(selected),
                 style: GoogleFonts.inter(
                   color: const Color(0xFFEAF1FB),
-                  fontSize: 12,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 5),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 5,
+                runSpacing: 5,
                 children: [
+                  _heroChip('Selected', selected?.eventId ?? 'none'),
                   _heroChip('Visible', '$visibleEvents of $totalEvents'),
                   _heroChip('Latest', latestSequence),
-                  _heroChip('Selected', selected?.eventId ?? 'none'),
-                  _heroChip('Type Filter', _activeFilter),
+                  if (_activeFilter != _filterAll)
+                    _heroChip('Type Filter', _activeFilter),
                   if (_activeSourceFilter != _sourceFilterAll)
                     _heroChip('Source', _activeSourceFilter),
                   if (_activeProviderFilter != _providerFilterAll)
@@ -2220,39 +2265,39 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _reviewWorkspaceCommandReceipt(selected: selected),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _outlineAction(
           'RESET REVIEW FILTERS',
           actionKey: const ValueKey('events-workspace-reset-filters'),
           onTap: onResetFilters,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _outlineAction(
           'FOCUS AI DECISIONS',
           actionKey: const ValueKey('events-workspace-focus-ai-decision'),
           onTap: onFocusAiDecisions,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _outlineAction(
           'FOCUS ALARM TRIGGERS',
           actionKey: const ValueKey('events-workspace-focus-alarm-triggered'),
           onTap: onFocusAlarmTriggers,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _outlineAction(
           'OPEN GOVERNANCE SCOPE',
           actionKey: const ValueKey('events-workspace-open-governance'),
           onTap: onOpenGovernanceScope,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _outlineAction(
           'OPEN LEDGER FOCUS',
           actionKey: const ValueKey('events-workspace-open-ledger'),
           onTap: onOpenLedgerFocus,
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _outlineAction(
           'COPY SELECTED EVENT',
           actionKey: const ValueKey('events-workspace-copy-selected'),
@@ -2264,7 +2309,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             _exportEventData(selected);
           },
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         _filterStrip(identityPolicyOptions),
       ],
     );
@@ -2288,10 +2333,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return Container(
       key: const ValueKey('events-workspace-command-receipt'),
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1926),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: hasFeedback
               ? const Color(0xFF2E6DA4)
@@ -2307,17 +2352,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               color: hasFeedback
                   ? const Color(0xFF8FD1FF)
                   : const Color(0xFF8EA4C2),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             headline,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFEAF1FB),
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
               height: 1,
             ),
@@ -2327,7 +2372,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             detail,
             style: GoogleFonts.inter(
               color: const Color(0xFF9EB4D0),
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
             ),
@@ -2343,135 +2388,72 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required String latestSequence,
     required DispatchEvent? selected,
     required VoidCallback? openGovernanceAction,
+    Widget? workspaceBanner,
   }) {
     final selectedLabel = selected == null ? 'None' : selected.eventId;
     final openLedgerAction = selected == null || widget.onOpenLedger == null
         ? null
         : () => widget.onOpenLedger!(selected.eventId);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E1A32), Color(0xFF0F1728)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+    return OnyxStoryHero(
+      eyebrow: 'OPERATIONAL TRUTH',
+      title: 'Events & Forensic Timeline',
+      subtitle:
+          'Review the facts behind alarms, dispatches, OB notes, and client communication without surfacing the hidden AI work.',
+      icon: Icons.timeline_rounded,
+      gradientColors: const [Color(0xFF1E1A32), Color(0xFF0F1728)],
+      metrics: [
+        OnyxStoryMetric(
+          value: '$visibleEvents',
+          label: 'visible',
+          foreground: const Color(0xFF8FD1FF),
+          background: const Color(0x1A8FD1FF),
+          border: const Color(0x668FD1FF),
         ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF3B355E)),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 920;
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFF97316), Color(0xFFEF4444)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.timeline_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Events & Forensic Timeline',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 22 : 26,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Scoped forensic review, governance drill-ins, and ledger-backed event continuity.',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF95A9C7),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _heroChip('Visible', '$visibleEvents of $totalEvents'),
-                  _heroChip('Latest', latestSequence),
-                  _heroChip('Selected', selectedLabel),
-                  _heroChip('Filters', _activeFilter),
-                ],
-              ),
-            ],
-          );
-          final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.end,
-            children: [
-              _heroActionButton(
-                key: const ValueKey('events-routed-view-governance-button'),
-                icon: Icons.open_in_new,
-                label: 'View Governance',
-                accent: const Color(0xFF93C5FD),
-                onPressed: openGovernanceAction,
-              ),
-              _heroActionButton(
-                key: const ValueKey('events-routed-view-ledger-button'),
-                icon: Icons.account_tree_outlined,
-                label: 'View Ledger',
-                accent: const Color(0xFFA78BFA),
-                onPressed: openLedgerAction,
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 16), actions],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: titleBlock),
-              const SizedBox(width: 16),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 340),
-                child: actions,
-              ),
-            ],
-          );
-        },
-      ),
+        OnyxStoryMetric(
+          value: '$totalEvents',
+          label: 'events',
+          foreground: const Color(0xFFEAF4FF),
+          background: const Color(0x14000000),
+          border: const Color(0x333B355E),
+        ),
+        OnyxStoryMetric(
+          value: latestSequence,
+          label: 'latest',
+          foreground: const Color(0xFFF59E0B),
+          background: const Color(0x1AF59E0B),
+          border: const Color(0x66F59E0B),
+        ),
+        OnyxStoryMetric(
+          value: selectedLabel,
+          label: 'selected',
+          foreground: const Color(0xFFA78BFA),
+          background: const Color(0x1AA78BFA),
+          border: const Color(0x66A78BFA),
+        ),
+      ],
+      actions: [
+        _heroActionButton(
+          key: const ValueKey('events-routed-view-governance-button'),
+          icon: Icons.open_in_new,
+          label: 'View Governance',
+          accent: const Color(0xFF93C5FD),
+          onPressed: openGovernanceAction,
+        ),
+        _heroActionButton(
+          key: const ValueKey('events-routed-view-ledger-button'),
+          icon: Icons.account_tree_outlined,
+          label: 'View Ledger',
+          accent: const Color(0xFFA78BFA),
+          onPressed: openLedgerAction,
+        ),
+      ],
+      banner: workspaceBanner,
     );
   }
 
   Widget _heroChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -2484,7 +2466,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 11,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -2492,7 +2474,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE8F1FF),
-                fontSize: 11,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -2512,7 +2494,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 15),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
@@ -2520,9 +2502,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         disabledBackgroundColor: const Color(0x12000000),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        textStyle: GoogleFonts.inter(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -4577,10 +4562,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final providerOptions = _providerFilterOptions();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
         color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF1F2B3A)),
       ),
       child: Column(
@@ -4604,7 +4589,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         color: const Color(0xFF7D93B1),
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.7,
                       ),
@@ -4617,8 +4602,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 onTap: _resetFilters,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                    horizontal: 9,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF111822),
@@ -4638,7 +4623,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'RESET',
                         style: GoogleFonts.inter(
                           color: const Color(0xFF9BB0CE),
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -4649,7 +4634,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               if (compactHeader) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [title, const SizedBox(height: 8), resetAction],
+                  children: [title, const SizedBox(height: 6), resetAction],
                 );
               }
               return Row(
@@ -4661,10 +4646,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               );
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               for (final option in _filterOptions)
                 _filterChip(
@@ -4674,10 +4659,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               for (final source in sourceOptions)
                 _filterChip(
@@ -4692,10 +4677,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ),
           if (providerOptions.length > 1 ||
               _activeProviderFilter != _providerFilterAll) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 for (final provider in providerOptions)
                   _filterChip(
@@ -4714,10 +4699,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ],
           if (identityPolicyOptions.length > 1 ||
               _activeIdentityPolicyFilter != _identityPolicyFilterAll) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 6,
+              runSpacing: 6,
               children: [
                 for (final policy in identityPolicyOptions)
                   _filterChip(
@@ -4754,17 +4739,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0E141C),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF1F2B3A)),
       ),
       child: events.isEmpty
           ? const OnyxEmptyState(label: 'No events match the current filters.')
           : bounded
-          ? SingleChildScrollView(
-              padding: const EdgeInsets.all(10),
-              child: list,
-            )
-          : Padding(padding: const EdgeInsets.all(10), child: list),
+          ? SingleChildScrollView(padding: const EdgeInsets.all(8), child: list)
+          : Padding(padding: const EdgeInsets.all(8), child: list),
     );
   }
 
@@ -4780,7 +4762,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       child: Container(
         key: _rowKeyForEvent(event.eventId),
         width: double.infinity,
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF0E2A32) : const Color(0xFF0D131A),
           borderRadius: BorderRadius.circular(10),
@@ -4792,12 +4774,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              width: 38,
+              width: 34,
               child: Column(
                 children: [
                   Container(
-                    width: 32,
-                    height: 32,
+                    width: 30,
+                    height: 30,
                     decoration: const BoxDecoration(
                       color: Color(0xFF293340),
                       shape: BoxShape.circle,
@@ -4822,7 +4804,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -4854,7 +4836,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     _eventSummary(event),
                     style: GoogleFonts.inter(
                       color: const Color(0xFFEAF1FB),
-                      fontSize: 19,
+                      fontSize: 17,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -4904,10 +4886,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       ),
       child: bounded
           ? SingleChildScrollView(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               child: content,
             )
-          : Padding(padding: const EdgeInsets.all(10), child: content),
+          : Padding(padding: const EdgeInsets.all(8), child: content),
     );
   }
 
@@ -5344,44 +5326,23 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required int linkedEventCount,
     required VoidCallback? onOpenGovernanceScope,
   }) {
+    final summaryOnly = _desktopWorkspaceActive;
     final accent = _eventColor(selected);
     final reviewLabel = sceneReview?.postureLabel;
     final providerLabel = selected is IntelligenceReceived
         ? selected.provider
         : null;
-    void ledgerAction() {
-      logUiAction(
-        'events.focus_card_open_ledger',
-        context: {'event_id': selected.eventId},
-      );
-      if (widget.onOpenLedger != null) {
-        widget.onOpenLedger!.call(selected.eventId);
-        return;
-      }
-      _showActionMessage(
-        'Open Sovereign Ledger to inspect ${selected.eventId}.',
-      );
-    }
-
-    final governanceTap =
-        onOpenGovernanceScope ??
-        () {
-          _showActionMessage(
-            'Open Governance to continue review for ${selected.eventId}.',
-          );
-        };
-
     return Container(
       key: const ValueKey('events-selected-focus-card'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [accent.withValues(alpha: 0.18), const Color(0xFF101A2B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: accent.withValues(alpha: 0.34)),
       ),
       child: Column(
@@ -5391,15 +5352,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.rule_folder_rounded, color: accent, size: 20),
+                child: Icon(Icons.rule_folder_rounded, color: accent, size: 18),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -5419,7 +5380,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       key: const ValueKey('events-selected-event-id'),
                       style: GoogleFonts.rajdhani(
                         color: const Color(0xFFEAF1FB),
-                        fontSize: 28,
+                        fontSize: 24,
                         fontWeight: FontWeight.w700,
                         height: 0.95,
                       ),
@@ -5428,10 +5389,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(999),
@@ -5449,12 +5407,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             _eventSummary(selected),
             style: GoogleFonts.inter(
               color: const Color(0xFFEAF1FB),
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.3,
             ),
@@ -5464,15 +5422,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             '${_eventMetaLine(selected)}  •  ${_fullTimestamp(selected.occurredAt)}',
             style: GoogleFonts.inter(
               color: const Color(0xFF9EB4D0),
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               _heroChip('Sequence', '#${selected.sequence}'),
               _heroChip('Linked', '$linkedEventCount'),
@@ -5482,57 +5440,86 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 _heroChip('Review', reviewLabel),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             sceneReview == null
                 ? 'Ledger continuity, export controls, and governance handoff are ready from this event board.'
                 : 'Scene review context is attached, so governance and ledger handoff can move directly from this focused event.',
             style: GoogleFonts.inter(
               color: const Color(0xFF9EB4D0),
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
             ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey('events-selected-focus-open-governance'),
-                label: 'Governance Scope',
-                selected: onOpenGovernanceScope != null,
-                accent: onOpenGovernanceScope != null
-                    ? const Color(0xFF22D3EE)
-                    : const Color(0xFF94A3B8),
-                onTap: governanceTap,
+          const SizedBox(height: 8),
+          if (summaryOnly)
+            Text(
+              'Governance handoff, ledger focus, and export controls stay pinned in the ops rail and selected-event workspace, so this focus card can stay status-first on desktop.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9EB4D0),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
               ),
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey('events-selected-focus-open-ledger'),
-                label: 'Ledger Focus',
-                selected: widget.onOpenLedger != null,
-                accent: widget.onOpenLedger != null
-                    ? const Color(0xFFA78BFA)
-                    : const Color(0xFF94A3B8),
-                onTap: ledgerAction,
-              ),
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey('events-selected-focus-copy'),
-                label: 'Copy Event',
-                selected: false,
-                accent: const Color(0xFF8FD1FF),
-                onTap: () => _exportEventData(selected),
-              ),
-              _reviewWorkspaceBannerAction(
-                key: const ValueKey('events-selected-focus-export'),
-                label: 'Export Event',
-                selected: false,
-                accent: const Color(0xFFF1B872),
-                onTap: () => _exportEventData(selected),
-              ),
-            ],
-          ),
+            )
+          else
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _reviewWorkspaceBannerAction(
+                  key: const ValueKey('events-selected-focus-open-governance'),
+                  label: 'Governance Scope',
+                  selected: onOpenGovernanceScope != null,
+                  accent: onOpenGovernanceScope != null
+                      ? const Color(0xFF22D3EE)
+                      : const Color(0xFF94A3B8),
+                  onTap:
+                      onOpenGovernanceScope ??
+                      () {
+                        _showActionMessage(
+                          'Open Governance to continue review for ${selected.eventId}.',
+                        );
+                      },
+                ),
+                _reviewWorkspaceBannerAction(
+                  key: const ValueKey('events-selected-focus-open-ledger'),
+                  label: 'Ledger Focus',
+                  selected: widget.onOpenLedger != null,
+                  accent: widget.onOpenLedger != null
+                      ? const Color(0xFFA78BFA)
+                      : const Color(0xFF94A3B8),
+                  onTap: () {
+                    logUiAction(
+                      'events.focus_card_open_ledger',
+                      context: {'event_id': selected.eventId},
+                    );
+                    if (widget.onOpenLedger != null) {
+                      widget.onOpenLedger!.call(selected.eventId);
+                      return;
+                    }
+                    _showActionMessage(
+                      'Open Sovereign Ledger to inspect ${selected.eventId}.',
+                    );
+                  },
+                ),
+                _reviewWorkspaceBannerAction(
+                  key: const ValueKey('events-selected-focus-copy'),
+                  label: 'Copy Event',
+                  selected: false,
+                  accent: const Color(0xFF8FD1FF),
+                  onTap: () => _exportEventData(selected),
+                ),
+                _reviewWorkspaceBannerAction(
+                  key: const ValueKey('events-selected-focus-export'),
+                  label: 'Export Event',
+                  selected: false,
+                  accent: const Color(0xFFF1B872),
+                  onTap: () => _exportEventData(selected),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -5541,10 +5528,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   Widget _detailCard({required Widget child}) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: child,

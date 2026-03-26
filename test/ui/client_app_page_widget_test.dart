@@ -225,16 +225,12 @@ void main() {
       findsNothing,
     );
     expect(
-      find.text(
-        'Alarm triggers, arrivals, closures, and intelligence advisories. Showing pending notifications for Residents.',
-      ),
+      find.byKey(const ValueKey('client-comms-workspace-panel-notifications')),
       findsOneWidget,
     );
     expect(find.text('Incident Feed'), findsOneWidget);
     expect(
-      find.text(
-        'Chronological dispatch, arrival, closure, and advisory milestones.',
-      ),
+      find.byKey(const ValueKey('client-incident-command-deck')),
       findsOneWidget,
     );
     expect(
@@ -243,16 +239,12 @@ void main() {
     );
     expect(find.text('Estate Rooms'), findsWidgets);
     expect(
-      find.text(
-        'Residents, trustees, and control channels. Current lane: Residents • lane-pending activity in focus.',
-      ),
+      find.byKey(const ValueKey('client-comms-workspace-panel-rooms')),
       findsOneWidget,
     );
     expect(find.text('Direct Client Chat'), findsOneWidget);
     expect(
-      find.text(
-        'Secure client thread with operational updates. Showing pending thread messages for Residents.',
-      ),
+      find.byKey(const ValueKey('client-comms-workspace-panel-chat')),
       findsOneWidget,
     );
     expect(find.text('Client advisory issued'), findsWidgets);
@@ -295,10 +287,10 @@ void main() {
     expect(find.byIcon(Icons.campaign_rounded), findsAtLeastNWidgets(2));
     expect(find.byIcon(Icons.flash_on_rounded), findsAtLeastNWidgets(2));
     expect(find.text('Residents'), findsOneWidget);
-    expect(find.text('Room Focus: Residents'), findsOneWidget);
+    expect(find.text('Focus lane: Residents'), findsOneWidget);
     expect(find.text('Showing pending: Residents'), findsOneWidget);
     final bannerScopeToggle = find.byKey(
-      const ValueKey('client-comms-toggle-scope'),
+      const ValueKey('client-room-rail-toggle-scope'),
     );
     expect(
       find.descendant(of: bannerScopeToggle, matching: find.text('Show all')),
@@ -390,9 +382,9 @@ void main() {
     );
     expect(find.text('Send secure client update...'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Send'), findsOneWidget);
-    final notificationPrimaryAction = find.byKey(
-      const ValueKey('client-notifications-primary-action'),
-    );
+    final notificationPrimaryAction = find
+        .widgetWithText(OutlinedButton, 'Request ETA for Residents')
+        .first;
     await tester.ensureVisible(notificationPrimaryAction);
     await tester.tap(notificationPrimaryAction);
     await tester.pump();
@@ -653,15 +645,13 @@ void main() {
         findsOneWidget,
       );
 
-      final trusteesRoom = find.byKey(
-        const ValueKey('client-comms-banner-room-Trustees'),
-      );
+      final trusteesRoom = find.byKey(const ValueKey('client-room-Trustees'));
       await tester.ensureVisible(trusteesRoom);
       await tester.tap(trusteesRoom);
       await tester.pumpAndSettle();
-      expect(find.text('Room Focus: Trustees'), findsOneWidget);
+      expect(find.text('Focus lane: Trustees'), findsOneWidget);
       expect(
-        find.byKey(const ValueKey('client-room-Trustees-primary-action')),
+        find.byKey(const ValueKey('client-room-rail-open-thread')),
         findsOneWidget,
       );
 
@@ -717,17 +707,6 @@ void main() {
       await tester.tap(deliveryItem);
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const ValueKey('client-delivery-queue-primary-action')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: deliveryItem,
-          matching: find.text('Current focus'),
-        ),
-        findsOneWidget,
-      );
-      expect(
         find.descendant(
           of: find.byKey(
             const ValueKey('client-delivery-workspace-selected-card'),
@@ -738,7 +717,7 @@ void main() {
       );
 
       final retrySyncAction = find.byKey(
-        const ValueKey('client-delivery-retry-sync'),
+        const ValueKey('client-delivery-telemetry-retry-sync'),
       );
       await tester.ensureVisible(retrySyncAction);
       await tester.tap(retrySyncAction);
@@ -746,7 +725,7 @@ void main() {
       expect(retryRuns, 1);
 
       final runProbeAction = find.byKey(
-        const ValueKey('client-delivery-run-probe'),
+        const ValueKey('client-delivery-telemetry-run-probe'),
       );
       await tester.ensureVisible(runProbeAction);
       await tester.tap(runProbeAction);
@@ -954,8 +933,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.text(
-          'Alarm triggers, arrivals, closures, and intelligence advisories. Showing all notifications • current lane: Residents',
+        find.descendant(
+          of: notificationsScopeToggle,
+          matching: find.text('Show pending'),
         ),
         findsOneWidget,
       );
@@ -1051,7 +1031,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Room Focus: Trustees'), findsOneWidget);
+    expect(find.text('Focus lane: Trustees'), findsOneWidget);
     expect(find.text('Client update'), findsOneWidget);
     expect(find.text('Trustees'), findsWidgets);
     expect(find.text('Please confirm gate team status.'), findsWidgets);
@@ -1346,29 +1326,23 @@ void main() {
     expect(find.text('Control Acks Pending'), findsOneWidget);
     expect(find.text('Control Alerts'), findsOneWidget);
     expect(
-      find.text(
-        'Operational alarms, dispatch state changes, and response-critical updates. Showing pending notifications for Resident Feed.',
-      ),
+      find.byKey(const ValueKey('client-comms-workspace-panel-notifications')),
       findsOneWidget,
     );
     expect(find.text('Audience Channels'), findsOneWidget);
     expect(
-      find.text(
-        'View pending acknowledgement lanes across residents, trustees, and desk response. Current lane: Resident Feed • lane-pending activity in focus.',
-      ),
+      find.byKey(const ValueKey('client-comms-workspace-panel-rooms')),
       findsOneWidget,
     );
     expect(find.text('Desk Coordination Thread'), findsOneWidget);
     expect(
-      find.text(
-        'Control-side coordination with mirrored ONYX updates and acknowledgements. Showing pending thread messages for Resident Feed.',
-      ),
+      find.byKey(const ValueKey('client-comms-workspace-panel-chat')),
       findsOneWidget,
     );
     expect(find.text('Resident Feed'), findsOneWidget);
     expect(find.text('Trustee Board'), findsOneWidget);
     expect(find.text('Desk Ops'), findsOneWidget);
-    expect(find.text('Room Focus: Resident Feed'), findsOneWidget);
+    expect(find.text('Focus lane: Resident Feed'), findsOneWidget);
     expect(find.text('Showing pending: Resident Feed'), findsOneWidget);
     expect(find.text('Target: Resident Feed'), findsWidgets);
     expect(
@@ -1441,7 +1415,7 @@ void main() {
     tester.widget<InkWell>(deskOpsRoomTile.first).onTap!.call();
     await tester.pump();
 
-    expect(find.text('Room Focus: Desk Ops'), findsOneWidget);
+    expect(find.text('Focus lane: Desk Ops'), findsOneWidget);
     expect(find.text('Showing pending: Desk Ops'), findsOneWidget);
     expect(find.text('Desk investigating in Desk Ops'), findsOneWidget);
     expect(find.text('Control team notified for Desk Ops'), findsOneWidget);
@@ -1535,7 +1509,7 @@ void main() {
     expect(find.text('Community'), findsOneWidget);
     expect(find.text('Estate Admin'), findsOneWidget);
     expect(find.text('Security Team'), findsOneWidget);
-    expect(find.text('Room Focus: Community'), findsOneWidget);
+    expect(find.text('Focus lane: Community'), findsOneWidget);
     expect(find.text('Showing pending: Community'), findsOneWidget);
     expect(find.text('Safety Thread DISP-001 • 1 update'), findsOneWidget);
     expect(find.text('Collapse Safety'), findsOneWidget);
@@ -1670,7 +1644,10 @@ void main() {
     );
     expect(noThreadButton.onPressed, isNotNull);
 
-    final chooseThreadAction = find.widgetWithText(TextButton, 'Choose a Thread');
+    final chooseThreadAction = find.widgetWithText(
+      TextButton,
+      'Choose a Thread',
+    );
     await tester.ensureVisible(chooseThreadAction);
     await tester.tap(chooseThreadAction);
     await tester.pumpAndSettle();
@@ -1709,32 +1686,22 @@ void main() {
       ),
     );
 
-    expect(find.text('Room Focus: Security Desk'), findsOneWidget);
+    expect(find.text('Focus lane: Security Desk'), findsOneWidget);
     expect(
-      find.text('Showing all notifications • current lane: Security Desk'),
+      find.byKey(const ValueKey('client-comms-workspace-panel-notifications')),
       findsOneWidget,
     );
     expect(
-      find.text(
-        'Residents, trustees, and control channels. Current lane: Security Desk • all message activity visible.',
-      ),
+      find.byKey(const ValueKey('client-comms-workspace-panel-rooms')),
       findsOneWidget,
     );
     expect(
-      find.text(
-        'Alarm triggers, arrivals, closures, and intelligence advisories. Showing all notifications • current lane: Security Desk',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'Secure client thread with operational updates. Showing all thread messages • current lane: Security Desk',
-      ),
+      find.byKey(const ValueKey('client-comms-workspace-panel-chat')),
       findsOneWidget,
     );
     expect(find.text('Target (current lane): Security Desk'), findsWidgets);
     final restoredScopeToggle = find.byKey(
-      const ValueKey('client-comms-toggle-scope'),
+      const ValueKey('client-room-rail-toggle-scope'),
     );
     expect(
       find.descendant(
@@ -1991,7 +1958,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Room Focus: Security Desk'), findsOneWidget);
+    expect(find.text('Focus lane: Security Desk'), findsOneWidget);
     expect(find.text('Showing pending: Security Desk'), findsOneWidget);
     final emptyNotificationsScopeToggle = find.byKey(
       const ValueKey('client-notifications-empty-toggle-scope'),
@@ -2021,19 +1988,12 @@ void main() {
     await tester.tap(notificationsScopeToggle);
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Showing all notifications • current lane: Security Desk'),
-      findsOneWidget,
-    );
     expect(find.text('Target (current lane): Security Desk'), findsWidgets);
     final liveScopeToggle = find.byKey(
-      const ValueKey('client-comms-toggle-scope'),
+      const ValueKey('client-room-rail-toggle-scope'),
     );
     expect(
-      find.descendant(
-        of: liveScopeToggle,
-        matching: find.text('Show pending'),
-      ),
+      find.descendant(of: liveScopeToggle, matching: find.text('Show pending')),
       findsOneWidget,
     );
     expect(find.text('Security response activated'), findsWidgets);
@@ -2044,16 +2004,13 @@ void main() {
     await tester.tap(residentsRoom);
     await tester.pump();
 
-    expect(find.text('Room Focus: Residents'), findsOneWidget);
+    expect(find.text('Focus lane: Residents'), findsOneWidget);
     expect(find.text('Showing pending: Residents'), findsOneWidget);
     final roomRailScopeToggle = find.byKey(
       const ValueKey('client-room-rail-toggle-scope'),
     );
     expect(
-      find.descendant(
-        of: roomRailScopeToggle,
-        matching: find.text('Show all'),
-      ),
+      find.descendant(of: roomRailScopeToggle, matching: find.text('Show all')),
       findsOneWidget,
     );
     expect(find.text('Security response activated'), findsWidgets);
@@ -2266,10 +2223,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('client-incident-command-deck')),
-        matching: find.text('Focus DISP-001'),
-      ),
+      find.widgetWithText(TextButton, 'Selected Thread • DISP-001'),
       findsOneWidget,
     );
     expect(find.text('Tap to expand'), findsOneWidget);
@@ -2286,10 +2240,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('client-incident-command-deck')),
-        matching: find.text('Focus DISP-002'),
-      ),
+      find.widgetWithText(TextButton, 'Selected Thread • DISP-002'),
       findsOneWidget,
     );
   });
@@ -2325,7 +2276,6 @@ void main() {
       find.byKey(const ValueKey('client-delivery-push-sync-history-card')),
       findsOneWidget,
     );
-    expect(find.text('Push Sync History'), findsOneWidget);
     expect(
       find.textContaining('10:30 UTC • needs review • queue:2 • timeout'),
       findsOneWidget,
@@ -2520,7 +2470,6 @@ void main() {
       find.byKey(const ValueKey('client-delivery-backend-probe-history-card')),
       findsOneWidget,
     );
-    expect(find.text('Backend Probe History'), findsOneWidget);
     expect(
       find.textContaining('10:59 UTC • failed • network timeout'),
       findsOneWidget,

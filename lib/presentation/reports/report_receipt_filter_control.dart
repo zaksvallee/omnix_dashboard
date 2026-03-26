@@ -53,54 +53,87 @@ class ReportReceiptFilterControl extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: borderColor),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DropdownButtonHideUnderline(
-            child: DropdownButton<ReportReceiptSceneFilter>(
-              key: dropdownKey,
-              value: value,
-              onChanged: (next) {
-                if (next != null) {
-                  onChanged(next);
-                }
-              },
-              dropdownColor: const Color(0xFF10233A),
-              borderRadius: BorderRadius.circular(14),
-              iconEnabledColor: iconEnabledColor,
-              style: GoogleFonts.inter(
-                color: textColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-              items: ReportReceiptSceneFilter.values
-                  .map(
-                    (filter) => DropdownMenuItem<ReportReceiptSceneFilter>(
-                      value: filter,
-                      child: Text(filter.countLabel(summaryList)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final boundedWidth =
+              constraints.hasBoundedWidth && constraints.maxWidth.isFinite;
+          final maxDropdownWidth = boundedWidth
+              ? (constraints.maxWidth - (canOpenFocusedReceipt ? 38 : 10))
+                    .clamp(140.0, 260.0)
+              : 220.0;
+          return Wrap(
+            spacing: 2,
+            runSpacing: 2,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: maxDropdownWidth,
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<ReportReceiptSceneFilter>(
+                    key: dropdownKey,
+                    value: value,
+                    isDense: true,
+                    isExpanded: true,
+                    onChanged: (next) {
+                      if (next != null) {
+                        onChanged(next);
+                      }
+                    },
+                    dropdownColor: const Color(0xFF10233A),
+                    borderRadius: BorderRadius.circular(14),
+                    iconEnabledColor: iconEnabledColor,
+                    style: GoogleFonts.inter(
+                      color: textColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
-                  )
-                  .toList(growable: false),
-              selectedItemBuilder: (context) => selectedLabels
-                  .map((label) => Text(label))
-                  .toList(growable: false),
-            ),
-          ),
-          if (canOpenFocusedReceipt) ...[
-            const SizedBox(width: 2),
-            IconButton(
-              key: const ValueKey('report-receipt-filter-control-open-focused'),
-              onPressed: onOpenFocusedReceipt,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              padding: const EdgeInsets.all(4),
-              splashRadius: 16,
-              iconSize: 16,
-              color: textColor,
-              tooltip: 'Open Focused Receipt',
-              icon: const Icon(Icons.open_in_new_rounded),
-            ),
-          ],
-        ],
+                    items: ReportReceiptSceneFilter.values
+                        .map(
+                          (filter) =>
+                              DropdownMenuItem<ReportReceiptSceneFilter>(
+                                value: filter,
+                                child: Text(
+                                  filter.countLabel(summaryList),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                        )
+                        .toList(growable: false),
+                    selectedItemBuilder: (context) => selectedLabels
+                        .map(
+                          (label) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              label,
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ),
+                        )
+                        .toList(growable: false),
+                  ),
+                ),
+              ),
+              if (canOpenFocusedReceipt)
+                IconButton(
+                  key: const ValueKey(
+                    'report-receipt-filter-control-open-focused',
+                  ),
+                  onPressed: onOpenFocusedReceipt,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  splashRadius: 16,
+                  iconSize: 16,
+                  color: textColor,
+                  tooltip: 'Open Focused Receipt',
+                  icon: const Icon(Icons.open_in_new_rounded),
+                ),
+            ],
+          );
+        },
       ),
     );
 

@@ -178,9 +178,7 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('sites-workspace-banner-open-watch')),
-    );
+    await tester.tap(find.byKey(const ValueKey('sites-roster-filter-watch')));
     await tester.pumpAndSettle();
 
     expect(
@@ -193,7 +191,7 @@ void main() {
     );
 
     await tester.tap(
-      find.byKey(const ValueKey('sites-workspace-banner-open-coverage')),
+      find.byKey(const ValueKey('sites-workspace-view-coverage')),
     );
     await tester.pumpAndSettle();
 
@@ -203,22 +201,18 @@ void main() {
     );
     expect(find.text('COVERAGE GRID'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey('sites-workspace-banner-open-tactical')),
-    );
+    await tester.tap(find.byKey(const ValueKey('sites-view-on-map-button')));
     await tester.pumpAndSettle();
 
     expect(mappedSiteId, 'SITE-003');
 
-    await tester.tap(
-      find.byKey(const ValueKey('sites-workspace-banner-open-roster')),
-    );
+    await tester.tap(find.byKey(const ValueKey('sites-guard-roster-button')));
     await tester.pumpAndSettle();
 
     expect(rosterSiteName, 'Blue Ridge Security');
 
     await tester.tap(
-      find.byKey(const ValueKey('sites-workspace-banner-open-checkpoints')),
+      find.byKey(const ValueKey('sites-workspace-view-checkpoints')),
     );
     await tester.pumpAndSettle();
 

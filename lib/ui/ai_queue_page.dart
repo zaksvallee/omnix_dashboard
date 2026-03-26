@@ -209,111 +209,120 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final viewport = MediaQuery.sizeOf(context).width;
     final compact = viewport < 900 || isHandsetLayout(context);
     final useEmbeddedWorkspace = !compact && allowEmbeddedPanelScroll(context);
+    final mergeWorkspaceBannerIntoHero = !compact && viewport >= 1180;
     final contentPadding = compact
-        ? const EdgeInsets.all(12)
-        : const EdgeInsets.fromLTRB(12, 12, 12, 14);
+        ? const EdgeInsets.all(8)
+        : const EdgeInsets.fromLTRB(2.25, 2.25, 2.25, 3.0);
 
     Widget buildWorkspaceSection({required bool expandToFill}) {
-      return OnyxSectionCard(
-        title: 'Automation Workspace',
-        subtitle:
-            'Lane-based queue supervision with a selected automation board and live context rail.',
-        flexibleChild: expandToFill,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final useEmbeddedPanels =
-                constraints.maxWidth >= 1240 &&
-                allowEmbeddedPanelScroll(context);
-            final useWideLayout = constraints.maxWidth >= 1180;
-            _desktopWorkspaceActive = useWideLayout;
-            final workspace = _automationWorkspace(
-              activeAction: activeAction,
-              queuedActions: queuedActions,
-              nextShiftDrafts: nextShiftDrafts,
-              moShadowSites: moShadowSites,
-              focusItems: focusItems,
-              laneItems: laneItems,
-              selectedFocus: selectedFocus,
-              effectiveLane: effectiveLane,
-              useWideLayout: useWideLayout,
-              useEmbeddedPanels: useEmbeddedPanels,
-              compact: compact,
-            );
-            if (expandToFill) {
-              if (!useWideLayout) {
-                return workspace;
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final useEmbeddedPanels =
+              constraints.maxWidth >= 1240 && allowEmbeddedPanelScroll(context);
+          final useWideLayout = constraints.maxWidth >= 1180;
+          _desktopWorkspaceActive = useWideLayout;
+          final workspace = _automationWorkspace(
+            activeAction: activeAction,
+            queuedActions: queuedActions,
+            nextShiftDrafts: nextShiftDrafts,
+            moShadowSites: moShadowSites,
+            focusItems: focusItems,
+            laneItems: laneItems,
+            selectedFocus: selectedFocus,
+            effectiveLane: effectiveLane,
+            useWideLayout: useWideLayout,
+            useEmbeddedPanels: useEmbeddedPanels,
+            compact: compact,
+          );
+          if (expandToFill) {
+            if (!useWideLayout) {
+              return workspace;
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!mergeWorkspaceBannerIntoHero) ...[
                   _workspaceStatusBanner(
                     activeAction: activeAction,
+                    selectedFocus: selectedFocus,
+                    effectiveLane: effectiveLane,
+                  ),
+                  const SizedBox(height: 1.35),
+                ],
+                Expanded(child: workspace),
+              ],
+            );
+          }
+          final workspaceShell = useWideLayout
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!mergeWorkspaceBannerIntoHero) ...[
+                      _workspaceStatusBanner(
+                        activeAction: activeAction,
+                        selectedFocus: selectedFocus,
+                        effectiveLane: effectiveLane,
+                      ),
+                      const SizedBox(height: 1.35),
+                    ],
+                    if (useEmbeddedPanels)
+                      Expanded(child: workspace)
+                    else
+                      workspace,
+                  ],
+                )
+              : workspace;
+          final sectionBody = useEmbeddedPanels
+              ? SizedBox(
+                  height: useWideLayout ? 564 : 526,
+                  child: workspaceShell,
+                )
+              : workspaceShell;
+          if (!compact) {
+            return sectionBody;
+          }
+          return OnyxSectionCard(
+            title: 'Automation Workspace',
+            subtitle:
+                'Lane-based queue supervision with a selected automation board and live context.',
+            flexibleChild: expandToFill,
+            child: sectionBody,
+          );
+        },
+      );
+    }
+
+    Widget buildSurfaceBody() {
+      return LayoutBuilder(
+        builder: (context, bodyConstraints) {
+          final showSnapshotStrip = compact && bodyConstraints.maxWidth < 1180;
+          final content = showSnapshotStrip
+              ? [
+                  _queueSnapshotStrip(
                     queuedActions: queuedActions,
                     nextShiftDrafts: nextShiftDrafts,
                     moShadowSites: moShadowSites,
                     selectedFocus: selectedFocus,
                     effectiveLane: effectiveLane,
+                    compactPresentation: useEmbeddedWorkspace,
                   ),
-                  const SizedBox(height: 10),
-                  Expanded(child: workspace),
-                ],
-              );
-            }
-            final workspaceShell = useWideLayout
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _workspaceStatusBanner(
-                        activeAction: activeAction,
-                        queuedActions: queuedActions,
-                        nextShiftDrafts: nextShiftDrafts,
-                        moShadowSites: moShadowSites,
-                        selectedFocus: selectedFocus,
-                        effectiveLane: effectiveLane,
-                      ),
-                      const SizedBox(height: 10),
-                      if (useEmbeddedPanels)
-                        Expanded(child: workspace)
-                      else
-                        workspace,
-                    ],
-                  )
-                : workspace;
-            if (useEmbeddedPanels) {
-              return SizedBox(
-                height: useWideLayout ? 780 : 700,
-                child: workspaceShell,
-              );
-            }
-            return workspaceShell;
-          },
-        ),
-      );
-    }
-
-    Widget buildSurfaceBody() {
-      final content = [
-        _queueSnapshotStrip(
-          queuedActions: queuedActions,
-          nextShiftDrafts: nextShiftDrafts,
-          moShadowSites: moShadowSites,
-          selectedFocus: selectedFocus,
-          effectiveLane: effectiveLane,
-        ),
-        SizedBox(height: useEmbeddedWorkspace ? 6 : 10),
-      ];
-      if (useEmbeddedWorkspace) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ...content,
-            Expanded(child: buildWorkspaceSection(expandToFill: true)),
-          ],
-        );
-      }
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [...content, buildWorkspaceSection(expandToFill: false)],
+                  SizedBox(height: useEmbeddedWorkspace ? 1.35 : 1.55),
+                ]
+              : const <Widget>[];
+          if (useEmbeddedWorkspace) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ...content,
+                Expanded(child: buildWorkspaceSection(expandToFill: true)),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [...content, buildWorkspaceSection(expandToFill: false)],
+          );
+        },
       );
     }
 
@@ -338,12 +347,20 @@ class _AIQueuePageState extends State<AIQueuePage> {
             padding: contentPadding,
             maxWidth: surfaceMaxWidth,
             lockToViewport: boundedDesktopSurface,
-            spacing: compact ? 8 : 10,
+            spacing: 1.55,
             header: _heroHeader(
               context,
               compact: compact,
               totalQueueCount: _actions.length,
-              queuedCount: queuedActions.length,
+              workspaceBanner: mergeWorkspaceBannerIntoHero
+                  ? _workspaceStatusBanner(
+                      activeAction: activeAction,
+                      selectedFocus: selectedFocus,
+                      effectiveLane: effectiveLane,
+                      summaryOnly: true,
+                      shellless: true,
+                    )
+                  : null,
             ),
             body: buildSurfaceBody(),
           );
@@ -394,7 +411,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     BuildContext context, {
     required bool compact,
     required int totalQueueCount,
-    required int queuedCount,
+    Widget? workspaceBanner,
   }) {
     final activeAction = _activeAction;
     final canOpenEvents =
@@ -406,10 +423,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 52,
-          height: 52,
+          width: 19.5,
+          height: 19.5,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(5.4),
             gradient: const LinearGradient(
               colors: [Color(0xFF9333EA), Color(0xFF4F46E5)],
               begin: Alignment.topLeft,
@@ -419,10 +436,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
           child: const Icon(
             Icons.psychology_alt_rounded,
             color: Colors.white,
-            size: 26,
+            size: 10.4,
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 3.0),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,16 +448,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 'AI Automation Queue',
                 style: GoogleFonts.inter(
                   color: const Color(0xFFF6FBFF),
-                  fontSize: compact ? 21 : 24,
+                  fontSize: compact ? 12.2 : 13.0,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 1.0),
               Text(
                 'Human-parallel execution supervision with 30s intervention windows.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF95A9C7),
-                  fontSize: 11,
+                  fontSize: 6.8,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -450,8 +467,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       ],
     );
     final actions = Wrap(
-      spacing: 10,
-      runSpacing: 10,
+      spacing: 1.25,
+      runSpacing: 1.25,
       alignment: WrapAlignment.end,
       children: [
         _heroActionButton(
@@ -479,25 +496,42 @@ class _AIQueuePageState extends State<AIQueuePage> {
     if (compact) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [titleBlock, const SizedBox(height: 12), actions],
+        children: [
+          titleBlock,
+          const SizedBox(height: 1.25),
+          actions,
+          if (workspaceBanner != null) ...[
+            const SizedBox(height: 1.25),
+            workspaceBanner,
+          ],
+        ],
       );
     }
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: titleBlock),
-        const SizedBox(width: 12),
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 332),
-          child: actions,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleBlock),
+            const SizedBox(width: 1.0),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 148),
+              child: actions,
+            ),
+          ],
         ),
+        if (workspaceBanner != null) ...[
+          const SizedBox(height: 1.25),
+          workspaceBanner,
+        ],
       ],
     );
   }
 
   Widget _heroStatusChip({required String label, required Color accent}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 3.1, vertical: 1.35),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -507,16 +541,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 8,
-            height: 8,
+            width: 4.0,
+            height: 4.0,
             decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 3.0),
           Text(
             label.toUpperCase(),
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 11,
+              fontSize: 6.0,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.4,
             ),
@@ -532,10 +566,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
+      padding: const EdgeInsets.fromLTRB(2.7, 1.7, 2.7, 1.7),
       decoration: BoxDecoration(
         color: const Color(0xFF10141F),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(5.5),
         border: Border.all(color: const Color(0xFF293245)),
       ),
       child: Column(
@@ -545,17 +579,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
             label.toUpperCase(),
             style: GoogleFonts.inter(
               color: const Color(0xFF7D8DA8),
-              fontSize: 10,
+              fontSize: 6.0,
               fontWeight: FontWeight.w700,
-              letterSpacing: 1,
+              letterSpacing: 0.9,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0.45),
           Text(
             value,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 22,
+              fontSize: 7.9,
               fontWeight: FontWeight.w800,
               height: 0.95,
             ),
@@ -575,7 +609,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 16),
+      icon: Icon(icon, size: 9.4),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
@@ -583,12 +617,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
         disabledBackgroundColor: const Color(0x12000000),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 2.9, vertical: 1.7),
         textStyle: GoogleFonts.inter(
-          fontSize: 10.5,
+          fontSize: 6.5,
           fontWeight: FontWeight.w700,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5.0)),
       ),
     );
   }
@@ -599,63 +633,139 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required List<MonitoringGlobalSitePosture> moShadowSites,
     required _AiQueueFocusItem? selectedFocus,
     required _AiQueueLaneFilter effectiveLane,
+    required bool compactPresentation,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final cards = [
-          _selectedFocusSnapshotCard(
-            selectedFocus: selectedFocus,
-            effectiveLane: effectiveLane,
-          ),
-          _statCard(
-            label: 'Queued',
-            value: queuedActions.length.toString(),
-            color: const Color(0xFF22D3EE),
-            border: const Color(0x5540BAD4),
-          ),
-          _statCard(
-            label: 'Drafts',
-            value: nextShiftDrafts.length.toString(),
-            color: const Color(0xFFC8D2FF),
-            border: const Color(0x665C7CFA),
-          ),
-          _statCard(
-            label: 'Shadow Sites',
-            value: moShadowSites.length.toString(),
-            color: const Color(0xFFB8D7FF),
-            border: const Color(0x665B9BD5),
-          ),
-        ];
+        final selectedCard = _selectedFocusSnapshotCard(
+          selectedFocus: selectedFocus,
+          effectiveLane: effectiveLane,
+          compactPresentation: compactPresentation,
+        );
+        final countsCard = _queueCountsSnapshotCard(
+          queuedCount: queuedActions.length,
+          draftCount: nextShiftDrafts.length,
+          shadowCount: moShadowSites.length,
+          compactPresentation: compactPresentation,
+        );
         if (constraints.maxWidth < 900) {
           return Column(
-            children: [
-              for (var i = 0; i < cards.length; i++) ...[
-                cards[i],
-                if (i != cards.length - 1) const SizedBox(height: 8),
-              ],
-            ],
+            children: [selectedCard, const SizedBox(height: 1.35), countsCard],
           );
         }
         return Row(
           children: [
-            Expanded(flex: 2, child: cards.first),
-            const SizedBox(width: 8),
-            for (var i = 1; i < cards.length; i++) ...[
-              Expanded(child: cards[i]),
-              if (i != cards.length - 1) const SizedBox(width: 8),
-            ],
+            Expanded(flex: 18, child: selectedCard),
+            const SizedBox(width: 0.85),
+            Expanded(flex: 4, child: countsCard),
           ],
         );
       },
     );
   }
 
+  Widget _queueCountsSnapshotCard({
+    required int queuedCount,
+    required int draftCount,
+    required int shadowCount,
+    required bool compactPresentation,
+  }) {
+    final items = [
+      (label: 'Queued', value: '$queuedCount', accent: const Color(0xFF22D3EE)),
+      (label: 'Drafts', value: '$draftCount', accent: const Color(0xFFC8D2FF)),
+      (
+        label: 'Shadow Sites',
+        value: '$shadowCount',
+        accent: const Color(0xFFB8D7FF),
+      ),
+    ];
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(compactPresentation ? 1.35 : 1.7),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10141F),
+        borderRadius: BorderRadius.circular(5.0),
+        border: Border.all(color: const Color(0xFF293245)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'QUEUE SNAPSHOT',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF7D8DA8),
+              fontSize: 5.8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 0.85),
+          Row(
+            children: [
+              for (int i = 0; i < items.length; i++) ...[
+                Expanded(
+                  child: _snapshotCountMetric(
+                    label: items[i].label,
+                    value: items[i].value,
+                    accent: items[i].accent,
+                    compactPresentation: compactPresentation,
+                  ),
+                ),
+                if (i != items.length - 1) const SizedBox(width: 0.85),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _snapshotCountMetric({
+    required String label,
+    required String value,
+    required Color accent,
+    required bool compactPresentation,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(compactPresentation ? 1.15 : 1.35),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: GoogleFonts.inter(
+              color: accent,
+              fontSize: 5.6,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 0.45),
+          Text(
+            value,
+            style: GoogleFonts.rajdhani(
+              color: const Color(0xFFF5FAFF),
+              fontSize: compactPresentation ? 10.4 : 10.8,
+              fontWeight: FontWeight.w700,
+              height: 0.92,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _selectedFocusSnapshotCard({
     required _AiQueueFocusItem? selectedFocus,
     required _AiQueueLaneFilter effectiveLane,
+    required bool compactPresentation,
   }) {
     final accent = selectedFocus?.accent ?? _laneAccent(effectiveLane);
-    final descriptor = selectedFocus?.secondaryLabel ?? 'Queue supervision';
     final headline = selectedFocus?.primaryLabel ?? 'Standby Supervision';
     final summary =
         selectedFocus?.summary ??
@@ -671,14 +781,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
     return Container(
       key: const ValueKey('ai-queue-overview-selected-card'),
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(compactPresentation ? 1.35 : 1.55),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [accent.withValues(alpha: 0.16), const Color(0xFF101A2B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(4.9),
         border: Border.all(color: accent.withValues(alpha: 0.34)),
       ),
       child: Column(
@@ -688,21 +798,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: compactPresentation ? 11 : 13,
+                height: compactPresentation ? 11 : 13,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(3.4),
                 ),
                 child: Icon(
                   selectedFocus?.shadowSite != null
                       ? Icons.visibility_outlined
                       : Icons.auto_awesome_rounded,
                   color: accent,
-                  size: 18,
+                  size: compactPresentation ? 6.8 : 7.4,
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 2.0),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -711,18 +821,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       'AUTOMATION IN FOCUS',
                       style: GoogleFonts.inter(
                         color: accent,
-                        fontSize: 10,
+                        fontSize: 5.6,
                         fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      descriptor,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA5C5),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.85,
                       ),
                     ),
                   ],
@@ -731,8 +832,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
               if (selectedFocus != null)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
+                    horizontal: 2.2,
+                    vertical: 1.05,
                   ),
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.12),
@@ -743,68 +844,39 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     'FOCUS',
                     style: GoogleFonts.inter(
                       color: accent,
-                      fontSize: 9,
+                      fontSize: 5.6,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: compactPresentation ? 0.5 : 0.75),
           Text(
             headline,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE7F1FF),
-              fontSize: 20,
+              fontSize: compactPresentation ? 9.0 : 9.5,
               fontWeight: FontWeight.w700,
               height: 0.95,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0.5),
           Text(
             summary,
-            maxLines: 3,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               color: const Color(0xFFD7E4F5),
-              fontSize: 11.5,
+              fontSize: compactPresentation ? 5.8 : 6.0,
               fontWeight: FontWeight.w600,
-              height: 1.35,
+              height: 1.26,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 0.5),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              if (selectedFocus != null)
-                ...selectedFocus.chips.map(
-                  (chip) => _detailChip(chip.$1, chip.$2, accent: chip.$3),
-                ),
-              _detailChip(
-                'View',
-                _workspaceLabel(_workspaceView),
-                accent: _workspaceAccent(_workspaceView),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            selectedFocus?.bannerSummary ??
-                'Keep the board simple up top while runbook, policy, and context stay one move away underneath.',
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 1.05,
+            runSpacing: 1.05,
             children: [
               if (laneRecovery != null)
                 _workspaceStatusAction(
@@ -817,13 +889,6 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     preferredFocusId: selectedFocus!.id,
                   ),
                 ),
-              _workspaceStatusAction(
-                key: const ValueKey('ai-queue-overview-selected-open-runbook'),
-                label: 'Runbook',
-                selected: _workspaceView == _AiQueueWorkspaceView.runbook,
-                accent: _workspaceAccent(_AiQueueWorkspaceView.runbook),
-                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.runbook),
-              ),
               _workspaceStatusAction(
                 key: const ValueKey('ai-queue-overview-selected-open-policy'),
                 label: 'Policy',
@@ -865,31 +930,100 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Widget _workspaceStatusBanner({
     required _AiQueueAction? activeAction,
-    required List<_AiQueueAction> queuedActions,
-    required List<_AiQueueAction> nextShiftDrafts,
-    required List<MonitoringGlobalSitePosture> moShadowSites,
     required _AiQueueFocusItem? selectedFocus,
     required _AiQueueLaneFilter effectiveLane,
+    bool summaryOnly = false,
+    bool shellless = false,
   }) {
-    final focusTitle = selectedFocus == null
-        ? 'No queue item is pinned yet. The live lane remains ready to take over.'
-        : selectedFocus.action != null
-        ? '${selectedFocus.action!.incidentId} is pinned in the board while ${_workspaceLabel(_workspaceView)} and ${_laneLabel(effectiveLane)} context stay available.'
-        : '${selectedFocus.shadowSite!.siteId} is pinned as the active shadow dossier while queue lanes remain visible.';
-    final focusDescriptor = selectedFocus == null
+    final focusToken = selectedFocus == null
         ? 'Standby'
-        : selectedFocus.action?.incidentId ?? selectedFocus.shadowSite!.siteId;
-    final canPromoteSelected =
-        selectedFocus?.action != null &&
-        selectedFocus!.action!.status == _AiActionStatus.pending;
-    final canOpenScope = _canOpenEventsForFocus(selectedFocus);
+        : selectedFocus.action != null
+        ? selectedFocus.action!.incidentId
+        : selectedFocus.shadowSite!.siteId;
+    final focusCard = _selectedFocusSnapshotCard(
+      selectedFocus: selectedFocus,
+      effectiveLane: effectiveLane,
+      compactPresentation: true,
+    );
 
+    final bannerContent = LayoutBuilder(
+      builder: (context, constraints) {
+        final showInlineFocusCard = constraints.maxWidth >= 1180;
+        final controls = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 1.2,
+              runSpacing: 1.2,
+              children: [
+                _workspaceStatusPill(
+                  label: _queuePaused ? 'Engine paused' : 'Engine active',
+                  accent: _queuePaused
+                      ? const Color(0xFFF6C067)
+                      : const Color(0xFF10B981),
+                ),
+                _workspaceStatusPill(
+                  label: 'Lane ${_laneLabel(effectiveLane)}',
+                  accent: _laneAccent(effectiveLane),
+                ),
+                _workspaceStatusPill(
+                  label: focusToken,
+                  accent: selectedFocus?.accent ?? const Color(0xFF8FD1FF),
+                ),
+                if (activeAction != null)
+                  _workspaceStatusPill(
+                    label:
+                        'Live ${_formatTime(activeAction.timeUntilExecutionSeconds)}',
+                    accent: const Color(0xFF22D3EE),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 0.1),
+            Text(
+              'Lane pivots stay pinned in the queue rail, while runbook, policy, context, promote, pause, and scope actions stay anchored to the selected automation board below.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF9CB2D1),
+                fontSize: 6.2,
+                fontWeight: FontWeight.w600,
+                height: 1.35,
+              ),
+            ),
+          ],
+        );
+
+        if (summaryOnly) {
+          return controls;
+        }
+
+        if (showInlineFocusCard) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: controls),
+              const SizedBox(width: 1.0),
+              SizedBox(width: 118, child: focusCard),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [controls, const SizedBox(height: 0.9), focusCard],
+        );
+      },
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('ai-queue-workspace-status-banner'),
+        child: bannerContent,
+      );
+    }
     return Container(
       key: const ValueKey('ai-queue-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(1.1),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(4.9),
         gradient: const LinearGradient(
           colors: [Color(0xFF101D30), Color(0xFF172842)],
           begin: Alignment.topLeft,
@@ -897,206 +1031,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
         ),
         border: Border.all(color: const Color(0xFF26405C)),
         boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 14, spreadRadius: 1),
+          BoxShadow(color: Color(0x22000000), blurRadius: 12, spreadRadius: 1),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: const Color(0x1A22D3EE),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x3322D3EE)),
-                ),
-                child: const Icon(
-                  Icons.auto_mode_rounded,
-                  color: Color(0xFF8FD1FF),
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'AI AUTOMATION WORKSPACE',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8FAFD4),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      focusTitle,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      selectedFocus?.bannerSummary ??
-                          'Use the lane rail to shift between live, queued, draft, and shadow supervision without leaving the page.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFB4C8E1),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusPill(
-                label: _queuePaused ? 'Engine paused' : 'Engine active',
-                accent: _queuePaused
-                    ? const Color(0xFFF6C067)
-                    : const Color(0xFF10B981),
-              ),
-              _workspaceStatusPill(
-                label: 'Lane ${_laneLabel(effectiveLane)}',
-                accent: _laneAccent(effectiveLane),
-              ),
-              _workspaceStatusPill(
-                label: 'Focus $focusDescriptor',
-                accent: selectedFocus?.accent ?? const Color(0xFF9AB1CF),
-              ),
-              if (activeAction != null)
-                _workspaceStatusPill(
-                  label:
-                      'Live ${_formatTime(activeAction.timeUntilExecutionSeconds)}',
-                  accent: const Color(0xFF22D3EE),
-                ),
-              _workspaceStatusPill(
-                label: 'Queued ${queuedActions.length}',
-                accent: const Color(0xFF63BDFF),
-              ),
-              _workspaceStatusPill(
-                label: 'Drafts ${nextShiftDrafts.length}',
-                accent: const Color(0xFFC8D2FF),
-              ),
-              _workspaceStatusPill(
-                label: 'Shadow ${moShadowSites.length}',
-                accent: const Color(0xFFB8D7FF),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusAction(
-                key: const ValueKey('ai-queue-workspace-banner-open-live'),
-                label: 'Live Window',
-                selected: effectiveLane == _AiQueueLaneFilter.live,
-                accent: _laneAccent(_AiQueueLaneFilter.live),
-                onTap: () => _focusLane(_AiQueueLaneFilter.live),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ai-queue-workspace-banner-open-queued'),
-                label: 'Queued Stack',
-                selected: effectiveLane == _AiQueueLaneFilter.queued,
-                accent: _laneAccent(_AiQueueLaneFilter.queued),
-                onTap: () => _focusLane(_AiQueueLaneFilter.queued),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ai-queue-workspace-banner-open-drafts'),
-                label: 'Draft Carry',
-                selected: effectiveLane == _AiQueueLaneFilter.drafts,
-                accent: _laneAccent(_AiQueueLaneFilter.drafts),
-                onTap: () => _focusLane(_AiQueueLaneFilter.drafts),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ai-queue-workspace-banner-open-shadow'),
-                label: 'Shadow Dossier',
-                selected: effectiveLane == _AiQueueLaneFilter.shadow,
-                accent: _laneAccent(_AiQueueLaneFilter.shadow),
-                onTap: () => _focusLane(_AiQueueLaneFilter.shadow),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusAction(
-                key: const ValueKey('ai-queue-workspace-banner-open-runbook'),
-                label: 'Runbook',
-                selected: _workspaceView == _AiQueueWorkspaceView.runbook,
-                accent: _workspaceAccent(_AiQueueWorkspaceView.runbook),
-                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.runbook),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ai-queue-workspace-banner-open-policy'),
-                label: 'Policy',
-                selected: _workspaceView == _AiQueueWorkspaceView.policy,
-                accent: _workspaceAccent(_AiQueueWorkspaceView.policy),
-                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.policy),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ai-queue-workspace-banner-open-context'),
-                label: 'Context',
-                selected: _workspaceView == _AiQueueWorkspaceView.context,
-                accent: _workspaceAccent(_AiQueueWorkspaceView.context),
-                onTap: () => _setWorkspaceView(_AiQueueWorkspaceView.context),
-              ),
-              if (activeAction != null)
-                _workspaceStatusAction(
-                  key: const ValueKey('ai-queue-workspace-banner-toggle-pause'),
-                  label: _queuePaused ? 'Resume Engine' : 'Pause Engine',
-                  selected: _queuePaused,
-                  accent: _queuePaused
-                      ? const Color(0xFFF6C067)
-                      : const Color(0xFF22D3EE),
-                  onTap: () => _togglePause(activeAction.id),
-                ),
-              if (canPromoteSelected)
-                _workspaceStatusAction(
-                  key: const ValueKey('ai-queue-workspace-banner-promote'),
-                  label: 'Promote Current',
-                  selected: false,
-                  accent: const Color(0xFF2563EB),
-                  onTap: () => _promoteAction(selectedFocus.action!.id),
-                ),
-              if (canOpenScope)
-                _workspaceStatusAction(
-                  key: const ValueKey('ai-queue-workspace-banner-open-scope'),
-                  label: selectedFocus?.shadowSite != null
-                      ? 'Open Evidence'
-                      : 'Open Event Scope',
-                  selected: false,
-                  accent: const Color(0xFF8FD1FF),
-                  onTap: () => _openEventsForFocus(selectedFocus!),
-                ),
-            ],
-          ),
-        ],
-      ),
+      child: bannerContent,
     );
   }
 
   Widget _workspaceStatusPill({required String label, required Color accent}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 1.8, vertical: 1.05),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
@@ -1106,7 +1050,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         label,
         style: GoogleFonts.inter(
           color: accent,
-          fontSize: 10,
+          fontSize: 6.0,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -1126,7 +1070,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       borderRadius: BorderRadius.circular(999),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 1.8, vertical: 1.05),
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
@@ -1142,7 +1086,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           label,
           style: GoogleFonts.inter(
             color: selected ? accent : const Color(0xFFEAF2FF),
-            fontSize: 9.5,
+            fontSize: 6.0,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1163,9 +1107,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required bool useEmbeddedPanels,
     required bool compact,
   }) {
-    final laneWidth = useEmbeddedPanels ? 272.0 : 284.0;
-    final contextRailWidth = useEmbeddedPanels ? 292.0 : 304.0;
-    final workspaceGap = 8.0;
+    final laneWidth = useEmbeddedPanels ? 144.0 : 152.0;
+    final contextRailWidth = useEmbeddedPanels ? 154.0 : 162.0;
+    final workspaceGap = 0.3;
     final laneRail = _laneRail(
       focusItems: focusItems,
       laneItems: laneItems,
@@ -1210,9 +1154,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         laneRail,
-        const SizedBox(height: 10),
+        const SizedBox(height: 2.0),
         selectedBoard,
-        const SizedBox(height: 10),
+        const SizedBox(height: 2.0),
         contextRail,
       ],
     );
@@ -1239,7 +1183,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ? null
                 : const NeverScrollableScrollPhysics(),
             itemCount: laneItems.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            separatorBuilder: (context, index) => const SizedBox(height: 5),
             itemBuilder: (context, index) {
               final item = laneItems[index];
               return _focusCard(item, isSelected: item.id == _selectedFocusId);
@@ -1247,7 +1191,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           );
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(2.6),
       decoration: onyxWorkspaceSurfaceDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1256,29 +1200,29 @@ class _AIQueuePageState extends State<AIQueuePage> {
             'Queue Lanes',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE7F1FF),
-              fontSize: 18,
+              fontSize: 10.8,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2.0),
           Text(
             'Pick the live lane, queued stack, next-shift drafts, or shadow posture signals.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C5),
-              fontSize: 11,
+              fontSize: 6.3,
               fontWeight: FontWeight.w600,
-              height: 1.4,
+              height: 1.3,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 1.0),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 2.0,
+            runSpacing: 2.0,
             children: _AiQueueLaneFilter.values
                 .map((lane) => _laneChip(lane, focusItems, effectiveLane))
                 .toList(),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 1.0),
           if (useExpandedBody) Expanded(child: list) else list,
         ],
       ),
@@ -1298,7 +1242,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       onTap: () => _focusLane(lane, focusItems: focusItems),
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 3.6, vertical: 1.6),
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.16)
@@ -1314,7 +1258,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           '${_laneLabel(lane)} $count',
           style: GoogleFonts.inter(
             color: selected ? accent : const Color(0xFF9AB1CF),
-            fontSize: 10,
+            fontSize: 6.5,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1349,9 +1293,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return InkWell(
       key: ValueKey('ai-queue-focus-card-${item.id}'),
       onTap: () => _focusItem(item),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(3.25),
         decoration: onyxSelectableRowSurfaceDecoration(isSelected: isSelected),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1360,15 +1304,15 @@ class _AIQueuePageState extends State<AIQueuePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.only(top: 4),
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.only(top: 2.5),
                   decoration: BoxDecoration(
                     color: item.accent,
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 5),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1377,7 +1321,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         item.primaryLabel,
                         style: GoogleFonts.inter(
                           color: const Color(0xFFE6F0FF),
-                          fontSize: 12.5,
+                          fontSize: 9,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1386,7 +1330,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         item.secondaryLabel,
                         style: GoogleFonts.inter(
                           color: const Color(0xFF8EA5C6),
-                          fontSize: 10.5,
+                          fontSize: 7.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1396,8 +1340,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 if (isSelected)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 5,
+                      vertical: 2,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0x129FD9FF),
@@ -1408,30 +1352,32 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       'FOCUS',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF9FD9FF),
-                        fontSize: 10,
+                        fontSize: 7,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 2.5),
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 3,
+              runSpacing: 3,
               children: item.chips
                   .map((chip) => _detailChip(chip.$1, chip.$2, accent: chip.$3))
                   .toList(),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 2.5),
             Text(
               item.summary,
               style: GoogleFonts.inter(
                 color: const Color(0xFF9CB2D1),
-                fontSize: 11,
+                fontSize: 7.5,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
               ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -1441,7 +1387,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Widget _detailChip(String label, String value, {required Color accent}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 3.5, vertical: 2),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -1451,7 +1397,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         '$label $value',
         style: GoogleFonts.inter(
           color: accent,
-          fontSize: 10,
+          fontSize: 7,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -1496,7 +1442,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       ),
     };
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(2.5),
       decoration: onyxWorkspaceSurfaceDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1505,21 +1451,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
             'Selected Automation',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE7F1FF),
-              fontSize: 20,
+              fontSize: 11.0,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 1.7),
           Text(
             'A focused execution board for the selected queue item, policy signal, or shadow dossier.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C5),
-              fontSize: 11,
+              fontSize: 6.6,
               fontWeight: FontWeight.w600,
-              height: 1.4,
+              height: 1.3,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 0.9),
           _focusBanner(
             selectedFocus,
             totalQueueCount: _actions.length,
@@ -1527,15 +1473,15 @@ class _AIQueuePageState extends State<AIQueuePage> {
             draftCount: _nextShiftDrafts.length,
             shadowCount: _moShadowSites.length,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 0.9),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 1.7,
+            runSpacing: 1.7,
             children: _AiQueueWorkspaceView.values
                 .map((view) => _workspaceChip(view))
                 .toList(),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 1.7),
           if (useExpandedBody) Expanded(child: panel) else panel,
         ],
       ),
@@ -1568,7 +1514,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     }
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(1.7),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -1578,7 +1524,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(5.2),
         border: Border.all(color: selectedFocus.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -1588,34 +1534,36 @@ class _AIQueuePageState extends State<AIQueuePage> {
             'ACTIVE WORKSPACE FOCUS',
             style: GoogleFonts.inter(
               color: selectedFocus.accent,
-              fontSize: 10,
+              fontSize: 6.2,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
+              letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 0.6),
           Text(
             selectedFocus.headline,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFF4F8FF),
-              fontSize: 22,
+              fontSize: 11.0,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0.6),
           Text(
             selectedFocus.bannerSummary,
             style: GoogleFonts.inter(
               color: const Color(0xFFD8E4F5),
-              fontSize: 11,
+              fontSize: 6.9,
               fontWeight: FontWeight.w600,
-              height: 1.4,
+              height: 1.3,
             ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 1.15),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 1.7,
+            runSpacing: 1.7,
             children: [
               _detailChip(
                 'Lane',
@@ -1657,7 +1605,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       onTap: () => _setWorkspaceView(view),
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.16)
@@ -1673,7 +1621,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           _workspaceLabel(view),
           style: GoogleFonts.inter(
             color: selected ? accent : const Color(0xFF9DB1CF),
-            fontSize: 10,
+            fontSize: 7.3,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1739,7 +1687,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         widget.onOpenEventsForScope != null && eventIds.isNotEmpty;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(12),
       decoration: _panelDecoration(border: const Color(0xFF3A567A)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1748,18 +1696,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: const Color(0x331F9AD3),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   isDraft ? Icons.upcoming_rounded : Icons.schedule_rounded,
                   color: const Color(0xFF22D3EE),
-                  size: 24,
+                  size: 20,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1768,7 +1716,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       isDraft ? 'NEXT-SHIFT DRAFT' : 'QUEUED ACTION',
                       style: GoogleFonts.inter(
                         color: const Color(0xFFE8F3FF),
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.4,
                       ),
@@ -1780,18 +1728,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           : 'Awaiting promotion into the active autonomy slot.',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF9AB5D7),
-                        fontSize: 13,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               _actionTypePill(action.actionType),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _activeAutomationMetrics(
             incidentId: action.incidentId,
             site: action.site,
@@ -1800,13 +1748,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 action.metadata['eta'] ??
                 _formatTime(action.timeUntilExecutionSeconds),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0x1A0B2234),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFF21445E)),
             ),
             child: Column(
@@ -1816,22 +1764,22 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   'PROPOSED ACTION',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF22D3EE),
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.6,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Text(
                   action.description,
                   style: GoogleFonts.inter(
                     color: const Color(0xFFF3F8FF),
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 16,
                   runSpacing: 10,
@@ -1854,16 +1802,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Text(
             'Promote this action to active execution, approve it immediately, or remove it from the queue.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C5),
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1882,14 +1830,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   backgroundColor: const Color(0xFF2563EB),
                   foregroundColor: const Color(0xFFF3F8FF),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
+                    horizontal: 10,
+                    vertical: 10,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(9),
                   ),
                   textStyle: GoogleFonts.inter(
-                    fontSize: 12,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.4,
                   ),
@@ -1922,7 +1870,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         widget.onOpenEventsForScope != null && eventIds.isNotEmpty;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(12),
       decoration: _panelDecoration(border: const Color(0x665B9BD5)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1931,21 +1879,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
             'SHADOW DOSSIER FOCUS',
             style: GoogleFonts.inter(
               color: const Color(0xFFE8F3FF),
-              fontSize: 16,
+              fontSize: 13,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.4,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             '${site.siteId} • ${site.moShadowSummary}',
             style: GoogleFonts.inter(
               color: const Color(0xFFE6F0FF),
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Wrap(
             spacing: 16,
             runSpacing: 10,
@@ -1959,7 +1907,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           if (site.moShadowMatches.isEmpty)
             Text(
               'No matched dossier entries are available for this site yet.',
@@ -1976,10 +1924,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 return <Widget>[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: const Color(0x14000000),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(9),
                       border: Border.all(color: const Color(0x335B9BD5)),
                     ),
                     child: Column(
@@ -1989,23 +1937,23 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           match.title,
                           style: GoogleFonts.inter(
                             color: const Color(0xFFB8D7FF),
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           'Indicators ${match.matchedIndicators.join(', ')}',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF9AB5D7),
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                 ];
               }).toList(),
             ),
@@ -2064,20 +2012,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
         : _shadowPolicyContent(selectedFocus.shadowSite!);
     return Container(
       key: const ValueKey('ai-queue-workspace-panel-policy'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF091728),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF1A355A)),
+      child: _workspacePanelBody(
+        content: content,
+        useExpandedBody: useExpandedBody,
+        shellless: useExpandedBody,
       ),
-      child: useExpandedBody
-          ? ListView(
-              primary: false,
-              padding: EdgeInsets.zero,
-              children: [content],
-            )
-          : SingleChildScrollView(child: content),
     );
   }
 
@@ -2122,56 +2061,56 @@ class _AIQueuePageState extends State<AIQueuePage> {
           'Policy Signals',
           style: GoogleFonts.rajdhani(
             color: const Color(0xFFE7F1FF),
-            fontSize: 22,
+            fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           'Autonomy pressure, biasing cues, and carry-forward posture for the current focus.',
           style: GoogleFonts.inter(
             color: const Color(0xFF8EA5C6),
-            fontSize: 12,
+            fontSize: 9.5,
             fontWeight: FontWeight.w600,
-            height: 1.4,
+            height: 1.35,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         if (promotionPressureSummary.isNotEmpty)
           Text(
             'Promotion pressure: $promotionPressureSummary',
             style: GoogleFonts.inter(
               color: const Color(0xFF86EFAC),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
           ),
         if (promotionExecutionSummary.isNotEmpty) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             'Promotion execution: $promotionExecutionSummary',
             style: GoogleFonts.inter(
               color: const Color(0xFF86EFAC),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
           ),
         ],
         if (shadowBiasSummary.isNotEmpty) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             'Shadow bias in effect: $shadowBiasSummary',
             style: GoogleFonts.inter(
               color: const Color(0xFFC8D2FF),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
           ),
         ],
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 5,
+          runSpacing: 5,
           children: [
             _miniPolicyTile(
               'Queue Depth',
@@ -2190,13 +2129,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: const Color(0xFF0F1B2D),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFF223244)),
           ),
           child: Text(
@@ -2206,7 +2145,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 : 'This recommendation is held inside the live queue and can be promoted directly into execution.',
             style: GoogleFonts.inter(
               color: const Color(0xFFD7E3F4),
-              fontSize: 12,
+              fontSize: 9.5,
               fontWeight: FontWeight.w600,
               height: 1.45,
             ),
@@ -2224,24 +2163,24 @@ class _AIQueuePageState extends State<AIQueuePage> {
           'Shadow Pattern Weighting',
           style: GoogleFonts.rajdhani(
             color: const Color(0xFFE7F1FF),
-            fontSize: 22,
+            fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           'Pattern strength, recommended actions, and evidence density for the selected shadow site.',
           style: GoogleFonts.inter(
             color: const Color(0xFF8EA5C6),
-            fontSize: 12,
+            fontSize: 9.5,
             fontWeight: FontWeight.w600,
-            height: 1.4,
+            height: 1.35,
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 5,
+          runSpacing: 5,
           children: [
             _miniPolicyTile('Lead Site', site.siteId, const Color(0xFFB8D7FF)),
             _miniPolicyTile(
@@ -2256,14 +2195,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         for (final match in site.moShadowMatches.take(3)) ...[
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: const Color(0x14000000),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0x335B9BD5)),
             ),
             child: Column(
@@ -2273,23 +2212,23 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   match.title,
                   style: GoogleFonts.inter(
                     color: const Color(0xFFB8D7FF),
-                    fontSize: 12,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   'Actions ${match.recommendedActionPlans.join(' • ')}',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF9AB5D7),
-                    fontSize: 11,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
         ],
       ],
     );
@@ -2297,10 +2236,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Widget _miniPolicyTile(String label, String value, Color accent) {
     return Container(
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: const Color(0xFF10233D),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Column(
@@ -2310,17 +2249,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C6),
-              fontSize: 9.5,
+              fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 12.5,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2348,36 +2287,36 @@ class _AIQueuePageState extends State<AIQueuePage> {
           'Execution Context',
           style: GoogleFonts.rajdhani(
             color: const Color(0xFFE7F1FF),
-            fontSize: 20,
+            fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 3),
         Text(
           'Queue counts, related lanes, and handoffs for the current automation focus.',
           style: GoogleFonts.inter(
             color: const Color(0xFF8EA5C6),
-            fontSize: 11,
+            fontSize: 9.5,
             fontWeight: FontWeight.w600,
-            height: 1.4,
+            height: 1.35,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 5),
         _contextMetric('Live Action', activeAction?.incidentId ?? 'Standby'),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _contextMetric('Queued Stack', '${queuedActions.length}'),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _contextMetric('Draft Carry', '${nextShiftDrafts.length}'),
-        const SizedBox(height: 6),
+        const SizedBox(height: 5),
         _contextMetric('Shadow Sites', '${moShadowSites.length}'),
         if (selectedFocus?.action != null) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           _contextMetric(
             'Scoped Events',
             '${_eventIdsForAction(selectedFocus!.action!).length}',
           ),
         ],
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         if (selectedFocus == null)
           _workspaceRecoveryDeck(
             key: const ValueKey('ai-queue-context-standby-recovery'),
@@ -2398,8 +2337,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
           )
         else
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 5,
+            runSpacing: 5,
             children: [
               FilledButton.tonalIcon(
                 key: const ValueKey('ai-queue-context-focus-drafts'),
@@ -2423,30 +2362,48 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
     return Container(
       key: const ValueKey('ai-queue-workspace-panel-context'),
+      child: _workspacePanelBody(
+        content: content,
+        useExpandedBody: useExpandedBody,
+        shellless: useExpandedBody,
+      ),
+    );
+  }
+
+  Widget _workspacePanelBody({
+    required Widget content,
+    required bool useExpandedBody,
+    bool shellless = false,
+  }) {
+    final body = useExpandedBody
+        ? ListView(
+            primary: false,
+            padding: EdgeInsets.zero,
+            children: [content],
+          )
+        : SingleChildScrollView(child: content);
+    if (shellless) {
+      return body;
+    }
+    return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: const Color(0xFF091728),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0xFF1A355A)),
       ),
-      child: useExpandedBody
-          ? ListView(
-              primary: false,
-              padding: EdgeInsets.zero,
-              children: [content],
-            )
-          : SingleChildScrollView(child: content),
+      child: body,
     );
   }
 
   Widget _contextMetric(String label, String value) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: const Color(0xFF10233D),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFF1A355A)),
       ),
       child: Column(
@@ -2456,17 +2413,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF7F95B5),
-              fontSize: 9.5,
+              fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
             style: GoogleFonts.inter(
               color: const Color(0xFFE6F0FF),
-              fontSize: 12.5,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -2480,10 +2437,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       key: const ValueKey('ai-queue-workspace-command-receipt'),
       width: double.infinity,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(4.0),
       decoration: BoxDecoration(
         color: receipt.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(7.4),
         border: Border.all(color: receipt.accent.withValues(alpha: 0.34)),
       ),
       child: Column(
@@ -2493,36 +2450,36 @@ class _AIQueuePageState extends State<AIQueuePage> {
             'LATEST COMMAND',
             style: GoogleFonts.inter(
               color: receipt.accent,
-              fontSize: 10,
+              fontSize: 7.6,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2.2),
           Text(
             receipt.label,
             style: GoogleFonts.inter(
               color: const Color(0xFFEAF4FF),
-              fontSize: 11,
+              fontSize: 8.6,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 0.85),
           Text(
             receipt.message,
             style: GoogleFonts.inter(
               color: const Color(0xFFEAF4FF),
-              fontSize: 11,
+              fontSize: 8.6,
               fontWeight: FontWeight.w700,
               height: 1.35,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 2.2),
           Text(
             receipt.detail,
             style: GoogleFonts.inter(
               color: const Color(0xFF9AB1CF),
-              fontSize: 10,
+              fontSize: 7.6,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
@@ -2544,7 +2501,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final children = <Widget>[
       Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(2.7),
         decoration: onyxWorkspaceSurfaceDecoration(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2553,21 +2510,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
               'Queue Context Rail',
               style: GoogleFonts.rajdhani(
                 color: const Color(0xFFE7F1FF),
-                fontSize: 16,
+                fontSize: 11.0,
                 fontWeight: FontWeight.w700,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 1.0),
             Text(
               'Preview cards and controls that stay visible while the selected workspace changes.',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA5C5),
-                fontSize: 11,
+                fontSize: 6.8,
                 fontWeight: FontWeight.w600,
-                height: 1.4,
+                height: 1.35,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 1.7),
             _contextMetric(
               'Current Lane',
               selectedFocus == null
@@ -2578,21 +2535,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
         ),
       ),
       if (_desktopWorkspaceActive) ...[
-        const SizedBox(height: 10),
+        const SizedBox(height: 2.2),
         _workspaceCommandReceiptCard(),
       ],
-      const SizedBox(height: 10),
+      const SizedBox(height: 2.6),
       if (queuedActions.isNotEmpty) ...[
         _queuedActionsCard(queuedActions),
-        const SizedBox(height: 10),
+        const SizedBox(height: 2.2),
       ],
       if (nextShiftDrafts.isNotEmpty) ...[
         _nextShiftDraftsCard(nextShiftDrafts),
-        const SizedBox(height: 10),
+        const SizedBox(height: 2.2),
       ],
       if (moShadowSites.isNotEmpty) ...[
         _moShadowCard(moShadowSites),
-        const SizedBox(height: 10),
+        const SizedBox(height: 2.2),
       ],
       _todayPerformance(compact: true),
     ];
@@ -2630,7 +2587,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(8),
       decoration: _panelDecoration(border: const Color(0x6640A5D8), glow: true),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2645,19 +2602,19 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     paused ? 'ACTIVE AUTOMATION (PAUSED)' : 'ACTIVE AUTOMATION',
                     style: GoogleFonts.inter(
                       color: const Color(0xFFE8F3FF),
-                      fontSize: compact ? 14 : 15,
+                      fontSize: compact ? 12.5 : 13.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.4,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     paused
                         ? 'Execution hold is active'
                         : 'AI preparing to execute • intervention window active',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF9AB5D7),
-                      fontSize: 12,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2667,12 +2624,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: const Color(0x3322D3EE),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
                   Icons.bolt_rounded,
                   color: Color(0xFF22D3EE),
-                  size: 22,
+                  size: 20,
                 ),
               );
               if (stackHeader) {
@@ -2683,11 +2640,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         leadingIcon,
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 7),
                         Expanded(child: headerCopy),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 7),
                     _actionTypePill(action.actionType),
                   ],
                 );
@@ -2696,28 +2653,28 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   leadingIcon,
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 7),
                   Expanded(child: headerCopy),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 7),
                   _actionTypePill(action.actionType),
                 ],
               );
             },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _activeAutomationMetrics(
             incidentId: action.incidentId,
             site: action.site,
             officer: officer,
             eta: eta,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: const Color(0x1A0B2234),
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFF21445E)),
             ),
             child: Column(
@@ -2727,22 +2684,22 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   'PROPOSED ACTION',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF22D3EE),
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.6,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Text(
                   action.description,
                   style: GoogleFonts.inter(
                     color: const Color(0xFFF3F8FF),
-                    fontSize: 15,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final columns = constraints.maxWidth >= 760 ? 3 : 1;
@@ -2772,7 +2729,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           for (int i = 0; i < cards.length; i++) ...[
                             cards[i],
                             if (i != cards.length - 1)
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 7),
                           ],
                         ],
                       );
@@ -2781,7 +2738,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       children: [
                         for (int i = 0; i < cards.length; i++) ...[
                           Expanded(child: cards[i]),
-                          if (i != cards.length - 1) const SizedBox(width: 8),
+                          if (i != cards.length - 1) const SizedBox(width: 7),
                         ],
                       ],
                     );
@@ -2791,28 +2748,28 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ),
           ),
           if (promotionPressureSummary.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 7),
             Text(
               'Promotion pressure: $promotionPressureSummary',
               style: GoogleFonts.inter(
                 color: const Color(0xFF86EFAC),
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
           if (promotionExecutionSummary.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 5),
             Text(
               'Promotion execution: $promotionExecutionSummary',
               style: GoogleFonts.inter(
                 color: const Color(0xFF86EFAC),
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           LayoutBuilder(
             builder: (context, constraints) {
               final timerStack = constraints.maxWidth < 520;
@@ -2824,28 +2781,28 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       'INTERVENTION WINDOW',
                       style: GoogleFonts.inter(
                         color: const Color(0xFFA1B7D5),
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 3),
                     Text(
                       paused
                           ? 'Execution hold remains active until resumed'
                           : 'Auto-executes when timer reaches zero',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF7F95B6),
-                        fontSize: 11,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 7),
                     Text(
                       _formatTime(action.timeUntilExecutionSeconds),
                       style: GoogleFonts.rajdhani(
                         color: countdownColor,
-                        fontSize: 38,
+                        fontSize: 32,
                         height: 0.88,
                         fontWeight: FontWeight.w700,
                       ),
@@ -2864,19 +2821,19 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           'INTERVENTION WINDOW',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFA1B7D5),
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.4,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           paused
                               ? 'Execution hold remains active until resumed'
                               : 'Auto-executes when timer reaches zero',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF7F95B6),
-                            fontSize: 11,
+                            fontSize: 10,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -2887,7 +2844,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     _formatTime(action.timeUntilExecutionSeconds),
                     style: GoogleFonts.rajdhani(
                       color: countdownColor,
-                      fontSize: 42,
+                      fontSize: 36,
                       height: 0.88,
                       fontWeight: FontWeight.w700,
                     ),
@@ -2896,17 +2853,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
               );
             },
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           ClipRRect(
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
-              minHeight: 7,
+              minHeight: 6,
               value: paused ? progress : progress,
               backgroundColor: const Color(0x66000000),
               valueColor: AlwaysStoppedAnimation<Color>(countdownColor),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) {
               final stackButtons = constraints.maxWidth < 760;
@@ -2920,7 +2877,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       background: const Color(0xFFEF4444),
                       onPressed: () => _cancelAction(action.id),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     _actionButton(
                       label: paused ? 'RESUME' : 'PAUSE',
                       icon: paused
@@ -2929,7 +2886,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       background: const Color(0xFF24354E),
                       onPressed: () => _togglePause(action.id),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 5),
                     _actionButton(
                       label: 'APPROVE NOW',
                       icon: Icons.check_circle_rounded,
@@ -2949,7 +2906,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       onPressed: () => _cancelAction(action.id),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   _actionButton(
                     label: paused ? 'RESUME' : 'PAUSE',
                     icon: paused
@@ -2958,7 +2915,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     background: const Color(0xFF24354E),
                     onPressed: () => _togglePause(action.id),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   Expanded(
                     child: _actionButton(
                       label: 'APPROVE NOW',
@@ -3011,10 +2968,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       key: key,
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: const Color(0xFF101A2B),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.34)),
         boxShadow: [
           BoxShadow(
@@ -3031,37 +2988,37 @@ class _AIQueuePageState extends State<AIQueuePage> {
             eyebrow,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 10,
+              fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFF4F8FF),
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2.5),
           Text(
             summary,
             style: GoogleFonts.inter(
               color: const Color(0xFFD8E4F5),
-              fontSize: 11,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
-              height: 1.45,
+              height: 1.4,
             ),
           ),
           if (metrics.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: metrics),
+            const SizedBox(height: 4),
+            Wrap(spacing: 4, runSpacing: 4, children: metrics),
           ],
           if (actions.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: actions),
+            const SizedBox(height: 4),
+            Wrap(spacing: 4, runSpacing: 4, children: actions),
           ],
         ],
       ),
@@ -3125,31 +3082,34 @@ class _AIQueuePageState extends State<AIQueuePage> {
   Widget _queuedActionsCard(List<_AiQueueAction> queuedActions) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(9),
       decoration: _panelDecoration(border: const Color(0xFF223A59)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Icon(
                 Icons.schedule_rounded,
                 color: Color(0xFFA9BEDB),
-                size: 20,
+                size: 18,
               ),
               Text(
                 'Queued Actions',
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFE7F1FF),
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5.5,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
                   color: const Color(0x3322D3EE),
@@ -3159,18 +3119,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   '${queuedActions.length}',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF22D3EE),
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           if (queuedActions.isEmpty)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
                 color: const Color(0x33000000),
@@ -3181,14 +3141,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   const Icon(
                     Icons.schedule_rounded,
                     color: Color(0xFF6F84A3),
-                    size: 30,
+                    size: 24,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
                   Text(
                     'No actions queued',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF9AB1CF),
-                      fontSize: 12.5,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -3200,7 +3160,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               children: [
                 for (int i = 0; i < queuedActions.length; i++) ...[
                   _queuedRow(index: i + 1, action: queuedActions[i]),
-                  if (i != queuedActions.length - 1) const SizedBox(height: 8),
+                  if (i != queuedActions.length - 1) const SizedBox(height: 5),
                 ],
               ],
             ),
@@ -3217,9 +3177,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(5.5),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(8),
         color: const Color(0x33000000),
         border: Border.all(color: const Color(0xFF2A3E59)),
       ),
@@ -3233,7 +3193,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 children: [
                   Container(
                     width: 20,
-                    height: 20,
+                    height: 18,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
@@ -3244,12 +3204,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       '$index',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF22D3EE),
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 7),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -3263,7 +3223,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                               action.actionType,
                               style: GoogleFonts.inter(
                                 color: const Color(0xFFE5EFFF),
-                                fontSize: 12.5,
+                                fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -3271,13 +3231,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
                               '• ${action.incidentId}',
                               style: GoogleFonts.robotoMono(
                                 color: const Color(0xFF22D3EE),
-                                fontSize: 11,
+                                fontSize: 9,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
+                                horizontal: 6,
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
@@ -3289,40 +3249,40 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                 priority.label,
                                 style: GoogleFonts.inter(
                                   color: priority.foreground,
-                                  fontSize: 10,
+                                  fontSize: 8,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 1),
                         Text(
                           action.description,
                           style: GoogleFonts.inter(
                             color: const Color(0xFF9CB2D1),
-                            fontSize: 10.5,
+                            fontSize: 9,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (promotionPressureSummary.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Text(
                             'Promotion pressure: $promotionPressureSummary',
                             style: GoogleFonts.inter(
                               color: const Color(0xFF86EFAC),
-                              fontSize: 9.5,
+                              fontSize: 8,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],
                         if (promotionExecutionSummary.isNotEmpty) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Text(
                             'Promotion execution: $promotionExecutionSummary',
                             style: GoogleFonts.inter(
                               color: const Color(0xFF86EFAC),
-                              fontSize: 9.5,
+                              fontSize: 8,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -3332,7 +3292,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Align(
                 alignment: compact
                     ? Alignment.centerLeft
@@ -3346,7 +3306,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       'Executes in',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF7D92B2),
-                        fontSize: 9.5,
+                        fontSize: 8,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -3354,7 +3314,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       _formatTime(action.timeUntilExecutionSeconds),
                       style: GoogleFonts.robotoMono(
                         color: const Color(0xFF22D3EE),
-                        fontSize: 16,
+                        fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -3431,31 +3391,34 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final leadDraft = drafts.first;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(7),
       decoration: _panelDecoration(border: const Color(0x665C7CFA)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Icon(
                 Icons.upcoming_rounded,
                 color: Color(0xFFC8D2FF),
-                size: 20,
+                size: 18,
               ),
               Text(
                 'Next-Shift Drafts',
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFE7F1FF),
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5.5,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
                   color: const Color(0x225C7CFA),
@@ -3465,36 +3428,36 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   '${drafts.length}',
                   style: GoogleFonts.inter(
                     color: const Color(0xFFC8D2FF),
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             leadDraft.actionType,
             style: GoogleFonts.inter(
               color: const Color(0xFFE7F1FF),
-              fontSize: 12.5,
+              fontSize: 10.5,
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             leadDraft.description,
             style: GoogleFonts.inter(
               color: const Color(0xFFDAE4FF),
-              fontSize: 11,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (leadDraft.metadata.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             Wrap(
-              spacing: 16,
-              runSpacing: 8,
+              spacing: 8,
+              runSpacing: 4,
               children: [
                 if ((leadDraft.metadata['shadow_mo_label'] ?? '').isNotEmpty)
                   _detailCell(
@@ -3553,12 +3516,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ],
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           Column(
             children: [
               for (var i = 0; i < drafts.length; i++) ...[
                 _queuedRow(index: i + 1, action: drafts[i]),
-                if (i < drafts.length - 1) const SizedBox(height: 8),
+                if (i < drafts.length - 1) const SizedBox(height: 5),
               ],
             ],
           ),
@@ -3573,31 +3536,34 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       key: const ValueKey('ai-queue-mo-shadow-card'),
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(7),
       decoration: _panelDecoration(border: const Color(0x665B9BD5)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Icon(
                 Icons.visibility_rounded,
                 color: Color(0xFFB8D7FF),
-                size: 20,
+                size: 18,
               ),
               Text(
                 'Shadow MO Intelligence',
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFE7F1FF),
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 5.5,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(999),
                   color: const Color(0x225B9BD5),
@@ -3607,26 +3573,26 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   '${sites.length}',
                   style: GoogleFonts.inter(
                     color: const Color(0xFFB8D7FF),
-                    fontSize: 11,
+                    fontSize: 9,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             '${lead.siteId} • ${lead.moShadowSummary}',
             style: GoogleFonts.inter(
               color: const Color(0xFFE6F0FF),
-              fontSize: 12.5,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Wrap(
-            spacing: 16,
-            runSpacing: 8,
+            spacing: 8,
+            runSpacing: 4,
             children: [
               _detailCell('Signal', 'mo_shadow'),
               _detailCell('Lead Site', lead.siteId),
@@ -3637,7 +3603,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Align(
             alignment: Alignment.centerLeft,
             child: OutlinedButton(
@@ -3647,12 +3613,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ),
           ),
           if (supporting.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Text(
               'Supporting sites: $supporting',
               style: GoogleFonts.inter(
                 color: const Color(0xFF9AB5D7),
-                fontSize: 10.5,
+                fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -3836,9 +3802,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required String value,
     required Color color,
     required Color border,
+    bool compactPresentation = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: EdgeInsets.all(compactPresentation ? 6 : 7),
       decoration: _panelDecoration(border: border),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3847,16 +3814,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C5),
-              fontSize: 10,
+              fontSize: compactPresentation ? 8.5 : 9,
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
             value,
             style: GoogleFonts.rajdhani(
               color: color,
-              fontSize: 30,
+              fontSize: compactPresentation ? 18 : 22,
               height: 0.9,
               fontWeight: FontWeight.w700,
             ),
@@ -3868,17 +3835,17 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   Widget _actionTypePill(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0x332C1144),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0x664C1D95)),
       ),
       child: Text(
         label.toUpperCase(),
         style: GoogleFonts.inter(
           color: const Color(0xFFD8B4FE),
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.5,
         ),
@@ -3914,16 +3881,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
             children: [
               for (int i = 0; i < cards.length; i++) ...[
                 cards[i],
-                if (i != cards.length - 1) const SizedBox(height: 10),
+                if (i != cards.length - 1) const SizedBox(height: 8),
               ],
             ],
           );
         }
         return GridView.count(
           crossAxisCount: columns,
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
-          childAspectRatio: columns == 4 ? 2.25 : 2.9,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          childAspectRatio: columns == 4 ? 2.55 : 3.15,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: cards,
@@ -3939,10 +3906,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     bool accent = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1421),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF24364D)),
       ),
       child: Column(
@@ -3953,12 +3920,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
             label.toUpperCase(),
             style: GoogleFonts.inter(
               color: const Color(0xFF7387A7),
-              fontSize: 11,
+              fontSize: 8.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.9,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 4),
           Text(
             value,
             maxLines: 2,
@@ -3968,14 +3935,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     color: accent
                         ? const Color(0xFF22D3EE)
                         : const Color(0xFFF5FAFF),
-                    fontSize: 16,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   )
                 : GoogleFonts.inter(
                     color: accent
                         ? const Color(0xFF22D3EE)
                         : const Color(0xFFF5FAFF),
-                    fontSize: 16,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   ),
           ),
@@ -3991,24 +3958,24 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0C1421),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF24364D)),
       ),
       child: Row(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, color: accent, size: 20),
+            child: Icon(icon, color: accent, size: 15),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 7),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -4017,16 +3984,16 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   label,
                   style: GoogleFonts.inter(
                     color: const Color(0xFF7F95B6),
-                    fontSize: 11,
+                    fontSize: 8.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
                   value,
                   style: GoogleFonts.inter(
                     color: accent,
-                    fontSize: 16,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -4047,7 +4014,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           normalizedLabel,
           style: GoogleFonts.inter(
             color: const Color(0xFF7F95B6),
-            fontSize: 10,
+            fontSize: 8.5,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.7,
           ),
@@ -4057,12 +4024,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
           style: mono
               ? GoogleFonts.robotoMono(
                   color: const Color(0xFF22D3EE),
-                  fontSize: 12,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 )
               : GoogleFonts.inter(
                   color: const Color(0xFFE8F1FF),
-                  fontSize: 12,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 ),
         ),
@@ -4078,14 +4045,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
   }) {
     return FilledButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 16),
       style: FilledButton.styleFrom(
         backgroundColor: background,
         foregroundColor: const Color(0xFFF3F8FF),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         textStyle: GoogleFonts.inter(
-          fontSize: 12,
+          fontSize: 10.5,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.4,
         ),
@@ -4096,7 +4063,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   BoxDecoration _panelDecoration({required Color border, bool glow = false}) {
     return BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       color: const Color(0xFF0E1A2B),
       border: Border.all(color: border),
       boxShadow: glow

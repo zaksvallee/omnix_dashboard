@@ -125,24 +125,18 @@ void main() {
         find.byKey(const ValueKey('ai-queue-workspace-command-receipt')),
         findsOneWidget,
       );
-      expect(
-        find.byKey(const ValueKey('ai-queue-overview-selected-card')),
-        findsOneWidget,
-      );
 
-      await tester.tap(
-        find.byKey(const ValueKey('ai-queue-workspace-banner-open-queued')),
-      );
+      await tester.tap(find.byKey(const ValueKey('ai-queue-lane-queued')));
       await tester.pumpAndSettle();
 
       await tester.tap(find.byKey(const ValueKey('ai-queue-focus-card-A002')));
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('ai-queue-overview-selected-open-policy')),
+        find.byKey(const ValueKey('ai-queue-workspace-view-policy')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('ai-queue-overview-selected-open-policy')),
+        find.byKey(const ValueKey('ai-queue-workspace-view-policy')),
       );
       await tester.pumpAndSettle();
 
@@ -152,7 +146,7 @@ void main() {
       );
 
       await tester.tap(
-        find.byKey(const ValueKey('ai-queue-overview-selected-open-context')),
+        find.byKey(const ValueKey('ai-queue-workspace-view-context')),
       );
       await tester.pumpAndSettle();
 
@@ -161,11 +155,16 @@ void main() {
         findsOneWidget,
       );
 
+      await tester.tap(
+        find.byKey(const ValueKey('ai-queue-workspace-view-runbook')),
+      );
+      await tester.pumpAndSettle();
+
       await tester.ensureVisible(
-        find.byKey(const ValueKey('ai-queue-overview-selected-promote')),
+        find.byKey(const ValueKey('ai-queue-workspace-promote-action')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('ai-queue-overview-selected-promote')),
+        find.byKey(const ValueKey('ai-queue-workspace-promote-action')),
       );
       await tester.pumpAndSettle();
 
@@ -177,12 +176,9 @@ void main() {
       );
       expect(find.byType(SnackBar), findsNothing);
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('ai-queue-workspace-banner-toggle-pause')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('ai-queue-workspace-banner-toggle-pause')),
-      );
+      final pauseButton = find.widgetWithText(FilledButton, 'PAUSE');
+      await tester.ensureVisible(pauseButton);
+      await tester.tap(pauseButton);
       await tester.pumpAndSettle();
 
       expect(find.text('RESUME'), findsOneWidget);
@@ -862,120 +858,122 @@ void main() {
     expect(openedSelectedEventId, 'evt-office');
   });
 
-  testWidgets(
-    'ai queue pins shadow dossier copy in the desktop context rail',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('ai queue pins shadow dossier copy in the desktop context rail', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      String? clipboardText;
-      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-        SystemChannels.platform,
-        (call) async {
-          if (call.method == 'Clipboard.setData') {
-            final arguments = call.arguments;
-            if (arguments is Map) {
-              clipboardText = arguments['text'] as String?;
-            }
+    String? clipboardText;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final arguments = call.arguments;
+          if (arguments is Map) {
+            clipboardText = arguments['text'] as String?;
           }
-          return null;
-        },
-      );
-      addTearDown(
-        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-          SystemChannels.platform,
-          null,
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    final events = [
+      IntelligenceReceived(
+        eventId: 'evt-news',
+        sequence: 1,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 20, 0),
+        intelligenceId: 'intel-news',
+        provider: 'security_bulletin',
+        sourceType: 'news',
+        externalId: 'news-1',
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-OFFICE',
+        cameraId: 'feed-news',
+        objectLabel: 'person',
+        objectConfidence: 0.7,
+        headline: 'Contractors moved floor to floor in office park',
+        summary:
+            'Suspects posed as maintenance contractors, moved floor to floor through a business park, and tried several restricted office doors before stealing devices.',
+        riskScore: 75,
+        snapshotUrl: 'https://edge.example.com/news-office.jpg',
+        canonicalHash: 'hash-news-office',
+      ),
+      IntelligenceReceived(
+        eventId: 'evt-office',
+        sequence: 2,
+        version: 1,
+        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        intelligenceId: 'intel-office',
+        provider: 'hikvision_dvr_monitor_only',
+        sourceType: 'dvr',
+        externalId: 'ext-office',
+        clientId: 'CLIENT-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-OFFICE',
+        cameraId: 'office-cam',
+        objectLabel: 'person',
+        objectConfidence: 0.95,
+        headline: 'Maintenance contractor probing office doors',
+        summary:
+            'Contractor-like person moved floor to floor and tried several restricted office doors.',
+        riskScore: 86,
+        snapshotUrl: 'https://edge.example.com/office.jpg',
+        canonicalHash: 'hash-office',
+      ),
+    ];
+    final reviews = {
+      'intel-office': MonitoringSceneReviewRecord(
+        intelligenceId: 'intel-office',
+        sourceLabel: 'openai:gpt-5.4-mini',
+        postureLabel: 'service impersonation and roaming concern',
+        decisionLabel: 'Escalation Candidate',
+        decisionSummary: 'Likely spoofed service access with abnormal roaming.',
+        summary: 'Likely maintenance impersonation moving across office zones.',
+        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+      ),
+    };
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: events,
+          sceneReviewByIntelligenceId: reviews,
+          videoOpsLabel: 'Hikvision',
         ),
-      );
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      final events = [
-        IntelligenceReceived(
-          eventId: 'evt-news',
-          sequence: 1,
-          version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 20, 0),
-          intelligenceId: 'intel-news',
-          provider: 'security_bulletin',
-          sourceType: 'news',
-          externalId: 'news-1',
-          clientId: 'CLIENT-VALLEE',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-OFFICE',
-          cameraId: 'feed-news',
-          objectLabel: 'person',
-          objectConfidence: 0.7,
-          headline: 'Contractors moved floor to floor in office park',
-          summary:
-              'Suspects posed as maintenance contractors, moved floor to floor through a business park, and tried several restricted office doors before stealing devices.',
-          riskScore: 75,
-          snapshotUrl: 'https://edge.example.com/news-office.jpg',
-          canonicalHash: 'hash-news-office',
-        ),
-        IntelligenceReceived(
-          eventId: 'evt-office',
-          sequence: 2,
-          version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
-          intelligenceId: 'intel-office',
-          provider: 'hikvision_dvr_monitor_only',
-          sourceType: 'dvr',
-          externalId: 'ext-office',
-          clientId: 'CLIENT-VALLEE',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-OFFICE',
-          cameraId: 'office-cam',
-          objectLabel: 'person',
-          objectConfidence: 0.95,
-          headline: 'Maintenance contractor probing office doors',
-          summary:
-              'Contractor-like person moved floor to floor and tried several restricted office doors.',
-          riskScore: 86,
-          snapshotUrl: 'https://edge.example.com/office.jpg',
-          canonicalHash: 'hash-office',
-        ),
-      ];
-      final reviews = {
-        'intel-office': MonitoringSceneReviewRecord(
-          intelligenceId: 'intel-office',
-          sourceLabel: 'openai:gpt-5.4-mini',
-          postureLabel: 'service impersonation and roaming concern',
-          decisionLabel: 'Escalation Candidate',
-          decisionSummary: 'Likely spoofed service access with abnormal roaming.',
-          summary: 'Likely maintenance impersonation moving across office zones.',
-          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
-        ),
-      };
+    expect(
+      find.byKey(const ValueKey('ai-queue-workspace-command-receipt')),
+      findsOneWidget,
+    );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AIQueuePage(
-            events: events,
-            sceneReviewByIntelligenceId: reviews,
-            videoOpsLabel: 'Hikvision',
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    final openDossierButton = find.byKey(
+      const ValueKey('ai-queue-mo-shadow-open-dossier'),
+    );
+    await tester.ensureVisible(openDossierButton);
+    await tester.tap(openDossierButton);
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('ai-queue-workspace-command-receipt')),
-        findsOneWidget,
-      );
+    await tester.tap(find.text('COPY JSON'));
+    await tester.pumpAndSettle();
 
-      final openDossierButton = find.byKey(
-        const ValueKey('ai-queue-mo-shadow-open-dossier'),
-      );
-      await tester.ensureVisible(openDossierButton);
-      await tester.tap(openDossierButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('COPY JSON'));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const ValueKey('ai-queue-mo-shadow-dialog')), findsNothing);
-      expect(clipboardText, contains('SITE-OFFICE'));
-      expect(find.text('Shadow MO dossier copied'), findsOneWidget);
-      expect(find.byType(SnackBar), findsNothing);
-    },
-  );
+    expect(
+      find.byKey(const ValueKey('ai-queue-mo-shadow-dialog')),
+      findsNothing,
+    );
+    expect(clipboardText, contains('SITE-OFFICE'));
+    expect(find.text('Shadow MO dossier copied'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+  });
 }

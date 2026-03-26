@@ -23,7 +23,7 @@ enum OnyxRoute {
 
 String _appShellRouteLabel(OnyxRoute route) {
   return switch (route) {
-    OnyxRoute.dashboard => 'Live Operations',
+    OnyxRoute.dashboard => 'Command',
     OnyxRoute.aiQueue => 'AI Queue',
     OnyxRoute.tactical => 'Tactical',
     OnyxRoute.governance => 'Governance',
@@ -32,9 +32,26 @@ String _appShellRouteLabel(OnyxRoute route) {
     OnyxRoute.guards => 'Guards',
     OnyxRoute.dispatches => 'Dispatches',
     OnyxRoute.events => 'Events',
-    OnyxRoute.ledger => 'Ledger',
+    OnyxRoute.ledger => 'OB Log',
     OnyxRoute.reports => 'Reports',
     OnyxRoute.admin => 'Admin',
+  };
+}
+
+String _appShellHeaderLabel(OnyxRoute route) {
+  return switch (route) {
+    OnyxRoute.dashboard => 'COMMAND',
+    OnyxRoute.aiQueue => 'AI QUEUE',
+    OnyxRoute.tactical => 'TRACK',
+    OnyxRoute.governance => 'GOVERNANCE',
+    OnyxRoute.clients => 'CLIENTS',
+    OnyxRoute.sites => 'SITES',
+    OnyxRoute.guards => 'GUARDS',
+    OnyxRoute.dispatches => 'ALARMS',
+    OnyxRoute.events => 'EVENTS',
+    OnyxRoute.ledger => 'LEDGER',
+    OnyxRoute.reports => 'REPORTS',
+    OnyxRoute.admin => 'ADMIN',
   };
 }
 
@@ -44,7 +61,7 @@ Future<void> _showAppShellQuickJumpDialog({
   required ValueChanged<OnyxRoute> onRouteChanged,
 }) async {
   final routes = <({OnyxRoute route, String label})>[
-    (route: OnyxRoute.dashboard, label: 'Live Operations'),
+    (route: OnyxRoute.dashboard, label: 'Command'),
     (route: OnyxRoute.aiQueue, label: 'AI Queue'),
     (route: OnyxRoute.tactical, label: 'Tactical'),
     (route: OnyxRoute.governance, label: 'Governance'),
@@ -53,7 +70,7 @@ Future<void> _showAppShellQuickJumpDialog({
     (route: OnyxRoute.guards, label: 'Guards'),
     (route: OnyxRoute.dispatches, label: 'Dispatches'),
     (route: OnyxRoute.events, label: 'Events'),
-    (route: OnyxRoute.ledger, label: 'Ledger'),
+    (route: OnyxRoute.ledger, label: 'OB Log'),
     (route: OnyxRoute.reports, label: 'Reports'),
     (route: OnyxRoute.admin, label: 'Admin'),
   ];
@@ -75,10 +92,14 @@ Future<void> _showAppShellQuickJumpDialog({
               valueListenable: queryNotifier,
               builder: (context, query, _) {
                 final normalizedQuery = query.trim().toLowerCase();
-                final filtered = routes.where((entry) {
-                  if (normalizedQuery.isEmpty) return true;
-                  return entry.label.toLowerCase().contains(normalizedQuery);
-                }).toList(growable: false);
+                final filtered = routes
+                    .where((entry) {
+                      if (normalizedQuery.isEmpty) return true;
+                      return entry.label.toLowerCase().contains(
+                        normalizedQuery,
+                      );
+                    })
+                    .toList(growable: false);
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,6 +251,8 @@ class AppShell extends StatefulWidget {
   final int aiActionCount;
   final int guardsOnlineCount;
   final String operatorLabel;
+  final String operatorRoleLabel;
+  final String operatorShiftLabel;
   final int complianceIssuesCount;
   final int tacticalSosAlerts;
   final List<OnyxIntelTickerItem> intelTickerItems;
@@ -249,6 +272,8 @@ class AppShell extends StatefulWidget {
     this.aiActionCount = 0,
     this.guardsOnlineCount = 0,
     this.operatorLabel = '',
+    this.operatorRoleLabel = '',
+    this.operatorShiftLabel = '',
     this.complianceIssuesCount = 0,
     this.tacticalSosAlerts = 0,
     this.intelTickerItems = const [],
@@ -272,23 +297,20 @@ class _AppShellState extends State<AppShell> {
   }) {
     return CallbackShortcuts(
       bindings: <ShortcutActivator, VoidCallback>{
-        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
-            () => _showAppShellQuickJumpDialog(
-                  context: context,
-                  currentRoute: widget.currentRoute,
-                  onRouteChanged: widget.onRouteChanged,
-                ),
-        const SingleActivator(LogicalKeyboardKey.keyK, control: true):
-            () => _showAppShellQuickJumpDialog(
-                  context: context,
-                  currentRoute: widget.currentRoute,
-                  onRouteChanged: widget.onRouteChanged,
-                ),
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true): () =>
+            _showAppShellQuickJumpDialog(
+              context: context,
+              currentRoute: widget.currentRoute,
+              onRouteChanged: widget.onRouteChanged,
+            ),
+        const SingleActivator(LogicalKeyboardKey.keyK, control: true): () =>
+            _showAppShellQuickJumpDialog(
+              context: context,
+              currentRoute: widget.currentRoute,
+              onRouteChanged: widget.onRouteChanged,
+            ),
       },
-      child: Focus(
-        autofocus: true,
-        child: child,
-      ),
+      child: Focus(autofocus: true, child: child),
     );
   }
 
@@ -302,145 +324,148 @@ class _AppShellState extends State<AppShell> {
           return _wrapShellShortcuts(
             context: context,
             child: Scaffold(
-            backgroundColor: const Color(0xFF0C1220),
-            drawer: Drawer(
-              width: constraints.maxWidth < 420
-                  ? constraints.maxWidth * 0.84
-                  : 320,
-              backgroundColor: Colors.transparent,
-              child: _Sidebar(
-                width: 320,
-                currentRoute: widget.currentRoute,
-                activeIncidentCount: widget.activeIncidentCount,
-                aiActionCount: widget.aiActionCount,
-                complianceIssuesCount: widget.complianceIssuesCount,
-                tacticalSosAlerts: widget.tacticalSosAlerts,
-                guardsOnlineCount: widget.guardsOnlineCount,
-                onRouteChanged: (route) {
-                  Navigator.of(context).maybePop();
-                  widget.onRouteChanged(route);
-                },
-              ),
-            ),
-            body: Stack(
-              children: [
-                Container(
-                  decoration: const BoxDecoration(color: Color(0xFF0C1220)),
-                  child: widget.child,
+              backgroundColor: const Color(0xFF0C1220),
+              drawer: Drawer(
+                width: constraints.maxWidth < 420
+                    ? constraints.maxWidth * 0.84
+                    : 320,
+                backgroundColor: Colors.transparent,
+                child: _Sidebar(
+                  width: 320,
+                  currentRoute: widget.currentRoute,
+                  activeIncidentCount: widget.activeIncidentCount,
+                  aiActionCount: widget.aiActionCount,
+                  complianceIssuesCount: widget.complianceIssuesCount,
+                  tacticalSosAlerts: widget.tacticalSosAlerts,
+                  guardsOnlineCount: widget.guardsOnlineCount,
+                  onRouteChanged: (route) {
+                    Navigator.of(context).maybePop();
+                    widget.onRouteChanged(route);
+                  },
                 ),
-                if (widget.demoAutopilotStatusLabel.trim().isNotEmpty)
-                  SafeArea(
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(50, 4, 8, 0),
-                        child: _MobileAutopilotOverlay(
-                          label: widget.demoAutopilotStatusLabel,
-                          paused: widget.demoAutopilotPaused,
-                          onStop: widget.onStopDemoAutopilot,
-                          onSkip: widget.onSkipDemoAutopilot,
-                          onTogglePause: widget.onToggleDemoAutopilotPause,
+              ),
+              body: Stack(
+                children: [
+                  Container(
+                    decoration: const BoxDecoration(color: Color(0xFF0C1220)),
+                    child: widget.child,
+                  ),
+                  if (widget.demoAutopilotStatusLabel.trim().isNotEmpty)
+                    SafeArea(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(50, 4, 8, 0),
+                          child: _MobileAutopilotOverlay(
+                            label: widget.demoAutopilotStatusLabel,
+                            paused: widget.demoAutopilotPaused,
+                            onStop: widget.onStopDemoAutopilot,
+                            onSkip: widget.onSkipDemoAutopilot,
+                            onTogglePause: widget.onToggleDemoAutopilotPause,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 6, top: 4),
-                    child: Builder(
-                      builder: (innerContext) => Material(
-                        color: const Color(0xBF0A0D14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: Color(0x33FFFFFF)),
-                        ),
-                        child: InkWell(
-                          onTap: () => Scaffold.of(innerContext).openDrawer(),
-                          borderRadius: BorderRadius.circular(10),
-                          child: const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Icon(
-                              Icons.menu_rounded,
-                              size: 20,
-                              color: Color(0xFFE7F0FF),
+                  SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 6, top: 4),
+                      child: Builder(
+                        builder: (innerContext) => Material(
+                          color: const Color(0xBF0A0D14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: const BorderSide(color: Color(0x33FFFFFF)),
+                          ),
+                          child: InkWell(
+                            onTap: () => Scaffold.of(innerContext).openDrawer(),
+                            borderRadius: BorderRadius.circular(10),
+                            child: const Padding(
+                              padding: EdgeInsets.all(8),
+                              child: Icon(
+                                Icons.menu_rounded,
+                                size: 20,
+                                color: Color(0xFFE7F0FF),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        const sidebarWidth = 228.0;
+        return _wrapShellShortcuts(
+          context: context,
+          child: Scaffold(
+            backgroundColor: const Color(0xFF0C1220),
+            body: Row(
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  width: _sidebarOpen ? sidebarWidth : 0,
+                  child: ClipRect(
+                    child: _sidebarOpen
+                        ? _Sidebar(
+                            width: sidebarWidth,
+                            currentRoute: widget.currentRoute,
+                            activeIncidentCount: widget.activeIncidentCount,
+                            aiActionCount: widget.aiActionCount,
+                            complianceIssuesCount: widget.complianceIssuesCount,
+                            tacticalSosAlerts: widget.tacticalSosAlerts,
+                            guardsOnlineCount: widget.guardsOnlineCount,
+                            onRouteChanged: widget.onRouteChanged,
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
+                Expanded(
+                  child: Container(
+                    decoration: const BoxDecoration(color: Color(0xFF0C1220)),
+                    child: Column(
+                      children: [
+                        _ShellTopBar(
+                          currentRoute: widget.currentRoute,
+                          activeIncidentCount: widget.activeIncidentCount,
+                          aiActionCount: widget.aiActionCount,
+                          guardsOnlineCount: widget.guardsOnlineCount,
+                          operatorLabel: widget.operatorLabel,
+                          operatorRoleLabel: widget.operatorRoleLabel,
+                          operatorShiftLabel: widget.operatorShiftLabel,
+                          onRouteChanged: widget.onRouteChanged,
+                          demoAutopilotStatusLabel:
+                              widget.demoAutopilotStatusLabel,
+                          onStopDemoAutopilot: widget.onStopDemoAutopilot,
+                          onSkipDemoAutopilot: widget.onSkipDemoAutopilot,
+                          onToggleDemoAutopilotPause:
+                              widget.onToggleDemoAutopilotPause,
+                          demoAutopilotPaused: widget.demoAutopilotPaused,
+                          sidebarOpen: _sidebarOpen,
+                          onToggleSidebar: () {
+                            setState(() {
+                              _sidebarOpen = !_sidebarOpen;
+                            });
+                          },
+                        ),
+                        if (widget.intelTickerItems.isNotEmpty &&
+                            widget.currentRoute != OnyxRoute.dashboard)
+                          _ShellIntelTicker(
+                            items: widget.intelTickerItems,
+                            onItemTap: widget.onIntelTickerTap,
+                          ),
+                        Expanded(child: widget.child),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          );
-        }
-
-        const sidebarWidth = 252.0;
-        return _wrapShellShortcuts(
-          context: context,
-          child: Scaffold(
-          backgroundColor: const Color(0xFF0C1220),
-          body: Row(
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                width: _sidebarOpen ? sidebarWidth : 0,
-                child: ClipRect(
-                  child: _sidebarOpen
-                      ? _Sidebar(
-                          width: sidebarWidth,
-                          currentRoute: widget.currentRoute,
-                          activeIncidentCount: widget.activeIncidentCount,
-                          aiActionCount: widget.aiActionCount,
-                          complianceIssuesCount: widget.complianceIssuesCount,
-                          tacticalSosAlerts: widget.tacticalSosAlerts,
-                          guardsOnlineCount: widget.guardsOnlineCount,
-                          onRouteChanged: widget.onRouteChanged,
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  decoration: const BoxDecoration(color: Color(0xFF0C1220)),
-                  child: Column(
-                    children: [
-                      _ShellTopBar(
-                        currentRoute: widget.currentRoute,
-                        activeIncidentCount: widget.activeIncidentCount,
-                        aiActionCount: widget.aiActionCount,
-                        guardsOnlineCount: widget.guardsOnlineCount,
-                        operatorLabel: widget.operatorLabel,
-                        onRouteChanged: widget.onRouteChanged,
-                        demoAutopilotStatusLabel:
-                            widget.demoAutopilotStatusLabel,
-                        onStopDemoAutopilot: widget.onStopDemoAutopilot,
-                        onSkipDemoAutopilot: widget.onSkipDemoAutopilot,
-                        onToggleDemoAutopilotPause:
-                            widget.onToggleDemoAutopilotPause,
-                        demoAutopilotPaused: widget.demoAutopilotPaused,
-                        sidebarOpen: _sidebarOpen,
-                        onToggleSidebar: () {
-                          setState(() {
-                            _sidebarOpen = !_sidebarOpen;
-                          });
-                        },
-                      ),
-                      if (widget.intelTickerItems.isNotEmpty)
-                        _ShellIntelTicker(
-                          items: widget.intelTickerItems,
-                          onItemTap: widget.onIntelTickerTap,
-                        ),
-                      Expanded(child: widget.child),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
         );
       },
     );
@@ -453,6 +478,8 @@ class _ShellTopBar extends StatelessWidget {
   final int aiActionCount;
   final int guardsOnlineCount;
   final String operatorLabel;
+  final String operatorRoleLabel;
+  final String operatorShiftLabel;
   final ValueChanged<OnyxRoute> onRouteChanged;
   final String demoAutopilotStatusLabel;
   final VoidCallback? onStopDemoAutopilot;
@@ -468,6 +495,8 @@ class _ShellTopBar extends StatelessWidget {
     required this.aiActionCount,
     required this.guardsOnlineCount,
     required this.operatorLabel,
+    required this.operatorRoleLabel,
+    required this.operatorShiftLabel,
     required this.onRouteChanged,
     this.demoAutopilotStatusLabel = '',
     this.onStopDemoAutopilot,
@@ -479,24 +508,20 @@ class _ShellTopBar extends StatelessWidget {
   });
 
   String _routeLabel() => _appShellRouteLabel(currentRoute);
+  String _headerLabel() => _appShellHeaderLabel(currentRoute);
 
   String _timeLabel() {
     final now = DateTime.now();
     final hh = now.hour.toString().padLeft(2, '0');
     final mm = now.minute.toString().padLeft(2, '0');
-    return '$hh:$mm';
+    final ss = now.second.toString().padLeft(2, '0');
+    return '$hh:$mm:$ss';
   }
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final isCombatWindow = now.hour >= 22 || now.hour < 6;
-    final windowLabel = isCombatWindow
-        ? 'Combat Window Active'
-        : 'Day Window Active';
-
     return Container(
-      height: 56,
+      height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: const BoxDecoration(
         color: Color(0xFF0A0D14),
@@ -505,29 +530,24 @@ class _ShellTopBar extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final showAutopilot = demoAutopilotStatusLabel.trim().isNotEmpty;
-          final showAiChip =
-              constraints.maxWidth >= (showAutopilot ? 1880 : 1220);
-          final showGuardChip =
-              constraints.maxWidth >= (showAutopilot ? 1880 : 1460);
           final showOperatorChip =
-              constraints.maxWidth >= (showAutopilot ? 1880 : 1840);
+              constraints.maxWidth >= (showAutopilot ? 1640 : 1180);
           final showExtendedAutopilotControls = constraints.maxWidth >= 1460;
           final showCompactAutopilotControls =
               showAutopilot && !showExtendedAutopilotControls;
           final showQuickJump =
-              constraints.maxWidth >= (showAutopilot ? 1920 : 1120);
-          final showWindowLabel =
-              constraints.maxWidth >= (showAutopilot ? 1880 : 1320);
+              constraints.maxWidth >= (showAutopilot ? 1560 : 1360);
+          final showClockText = constraints.maxWidth >= 1180;
           final autopilotChipWidth = showExtendedAutopilotControls
-              ? 320.0
+              ? 272.0
               : constraints.maxWidth >= 1280
-              ? 240.0
-              : 180.0;
-          final quickJumpWidth = constraints.maxWidth >= 1480
-              ? 320.0
+              ? 208.0
+              : 160.0;
+          final quickJumpWidth = constraints.maxWidth >= 1540
+              ? 340.0
               : constraints.maxWidth >= 1320
-              ? 250.0
-              : 220.0;
+              ? 288.0
+              : 224.0;
 
           return Row(
             children: [
@@ -535,58 +555,34 @@ class _ShellTopBar extends StatelessWidget {
                 onPressed: onToggleSidebar,
                 visualDensity: VisualDensity.compact,
                 style: IconButton.styleFrom(
-                  backgroundColor: const Color(0x14000000),
-                  side: const BorderSide(color: Color(0x22FFFFFF)),
+                  backgroundColor: const Color(0xFF111823),
+                  side: const BorderSide(color: Color(0xFF233244)),
                 ),
                 icon: Icon(
                   sidebarOpen ? Icons.close_rounded : Icons.menu_rounded,
                   size: 18,
-                  color: const Color(0xFFB6C7E3),
+                  color: const Color(0xFFD3E3F8),
                 ),
               ),
-              const SizedBox(width: 8),
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF10B981),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 7),
+              const SizedBox(width: 12),
               Text(
-                _timeLabel(),
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFD7E6FA),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                _headerLabel(),
+                style: GoogleFonts.rajdhani(
+                  color: const Color(0xFFF4F7FC),
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.1,
                 ),
               ),
-              if (showWindowLabel) ...[
-                const SizedBox(width: 10),
-                Container(width: 1, height: 16, color: const Color(0x22FFFFFF)),
-                const SizedBox(width: 10),
-                Text(
-                  windowLabel,
-                  style: GoogleFonts.inter(
-                    color: isCombatWindow
-                        ? const Color(0xFFF59E0B)
-                        : const Color(0xFF8FB3DD),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
+              const SizedBox(width: 18),
               if (showQuickJump) ...[
                 SizedBox(
                   width: quickJumpWidth,
                   child: _QuickJumpField(
-                    currentRouteLabel: _routeLabel(),
                     onOpen: () => _showQuickJumpDialog(context),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
               ] else ...[
                 _TopBarActionIcon(
                   buttonKey: const ValueKey('app-shell-quick-jump-icon'),
@@ -595,53 +591,30 @@ class _ShellTopBar extends StatelessWidget {
                   foregroundColor: const Color(0xFFBFDBFE),
                   borderColor: const Color(0xFF35506F),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Text(
                     _routeLabel(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB3D2),
+                      color: const Color(0xFF7F93AF),
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.4,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
               ],
-              _TopChip(
-                label: 'SYSTEMS NOMINAL',
-                foreground: const Color(0xFF34D399),
-                background: const Color(0x1A10B981),
-                border: const Color(0x4010B981),
-              ),
-              const SizedBox(width: 8),
-              _TopBarActionIcon(
-                buttonKey: const ValueKey('app-shell-status-button'),
-                onPressed: () => _showShellStatusSnack(context),
-                icon: Icons.notifications_none_rounded,
-                foregroundColor: const Color(0xFFC7D2FE),
-                borderColor: const Color(0xFF35506F),
-              ),
-              const SizedBox(width: 8),
-              if (showOperatorChip && operatorLabel.trim().isNotEmpty) ...[
-                _TopChip(
-                  label: 'OPERATOR • $operatorLabel',
-                  foreground: const Color(0xFFBFDBFE),
-                  background: const Color(0x14224466),
-                  border: const Color(0x333B82F6),
-                ),
-                const SizedBox(width: 8),
-              ],
+              const Spacer(),
               if (showAutopilot) ...[
                 SizedBox(
                   width: autopilotChipWidth,
                   child: _AutopilotChip(label: demoAutopilotStatusLabel),
                 ),
                 if (onStopDemoAutopilot != null) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   if (showCompactAutopilotControls)
                     _TopBarActionIcon(
                       onPressed: onStopDemoAutopilot!,
@@ -654,11 +627,11 @@ class _ShellTopBar extends StatelessWidget {
                       onPressed: onStopDemoAutopilot,
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(56, 32),
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
                         foregroundColor: const Color(0xFFFCA5A5),
                         side: const BorderSide(color: Color(0xFF7F1D1D)),
                         textStyle: GoogleFonts.inter(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -667,16 +640,16 @@ class _ShellTopBar extends StatelessWidget {
                 ],
                 if (showExtendedAutopilotControls &&
                     onToggleDemoAutopilotPause != null) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   OutlinedButton(
                     onPressed: onToggleDemoAutopilotPause,
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(66, 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       foregroundColor: const Color(0xFFBFDBFE),
                       side: const BorderSide(color: Color(0xFF35506F)),
                       textStyle: GoogleFonts.inter(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -685,16 +658,16 @@ class _ShellTopBar extends StatelessWidget {
                 ],
                 if (showExtendedAutopilotControls &&
                     onSkipDemoAutopilot != null) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   OutlinedButton(
                     onPressed: onSkipDemoAutopilot,
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(56, 32),
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
                       foregroundColor: const Color(0xFF93C5FD),
                       side: const BorderSide(color: Color(0xFF35506F)),
                       textStyle: GoogleFonts.inter(
-                        fontSize: 11,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -703,7 +676,7 @@ class _ShellTopBar extends StatelessWidget {
                 ],
                 if (showCompactAutopilotControls &&
                     onToggleDemoAutopilotPause != null) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   _TopBarActionIcon(
                     onPressed: onToggleDemoAutopilotPause!,
                     icon: demoAutopilotPaused
@@ -715,7 +688,7 @@ class _ShellTopBar extends StatelessWidget {
                 ],
                 if (showCompactAutopilotControls &&
                     onSkipDemoAutopilot != null) ...[
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   _TopBarActionIcon(
                     onPressed: onSkipDemoAutopilot!,
                     icon: Icons.skip_next_rounded,
@@ -723,30 +696,40 @@ class _ShellTopBar extends StatelessWidget {
                     borderColor: const Color(0xFF35506F),
                   ),
                 ],
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
+              ],
+              if (showOperatorChip && operatorLabel.trim().isNotEmpty) ...[
+                _OperatorSessionChip(
+                  operatorLabel: operatorLabel,
+                  roleLabel: operatorRoleLabel,
+                  shiftLabel: operatorShiftLabel,
+                ),
+                const SizedBox(width: 12),
               ],
               _TopChip(
-                label: '$activeIncidentCount Active Incidents',
-                foreground: const Color(0xFFF87171),
-                background: const Color(0x33EF4444),
-                border: const Color(0x66EF4444),
+                label: 'SYSTEMS NOMINAL',
+                foreground: const Color(0xFF34D399),
+                background: const Color(0x1221A86B),
+                border: const Color(0x4034D399),
               ),
-              if (showAiChip) ...[
-                const SizedBox(width: 8),
-                _TopChip(
-                  label: '$aiActionCount AI Actions',
-                  foreground: const Color(0xFF22D3EE),
-                  background: const Color(0x3322D3EE),
-                  border: const Color(0x6622D3EE),
-                ),
-              ],
-              if (showGuardChip) ...[
-                const SizedBox(width: 8),
-                _TopChip(
-                  label: '$guardsOnlineCount Guards Online',
-                  foreground: const Color(0xFF10B981),
-                  background: const Color(0x3310B981),
-                  border: const Color(0x6610B981),
+              const SizedBox(width: 10),
+              _TopBarActionIcon(
+                buttonKey: const ValueKey('app-shell-status-button'),
+                onPressed: () => _showShellStatusSnack(context),
+                icon: Icons.notifications_none_rounded,
+                foregroundColor: const Color(0xFFE4ECF8),
+                borderColor: const Color(0xFF273446),
+                showAlertDot: activeIncidentCount > 0 || aiActionCount > 0,
+              ),
+              if (showClockText) ...[
+                const SizedBox(width: 14),
+                Text(
+                  _timeLabel(),
+                  style: GoogleFonts.robotoMono(
+                    color: const Color(0xFFD7E6FA),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
             ],
@@ -779,13 +762,9 @@ class _ShellTopBar extends StatelessWidget {
 }
 
 class _QuickJumpField extends StatelessWidget {
-  final String currentRouteLabel;
   final VoidCallback onOpen;
 
-  const _QuickJumpField({
-    required this.currentRouteLabel,
-    required this.onOpen,
-  });
+  const _QuickJumpField({required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -798,10 +777,8 @@ class _QuickJumpField extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final showRouteLabel = constraints.maxWidth >= 240;
-            final showShortcutBadge = constraints.maxWidth >= 270;
             return Container(
-              height: 38,
+              height: 42,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
@@ -811,59 +788,22 @@ class _QuickJumpField extends StatelessWidget {
                 children: [
                   const Icon(
                     Icons.search_rounded,
-                    size: 18,
+                    size: 16,
                     color: Color(0xFF7D93B3),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Quick jump...',
+                      'Quick jump... (⌘K)',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        color: const Color(0x66FFFFFF),
+                        color: const Color(0x7AAFC0D9),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-                  if (showRouteLabel) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        currentRouteLabel,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFB8CCE8),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (showShortcutBadge) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0x141C3C57),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0x333B82F6)),
-                      ),
-                      child: Text(
-                        'Cmd K',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8FB3DD),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
                 ],
               ),
             );
@@ -925,7 +865,7 @@ class _Sidebar extends StatelessWidget {
         title: 'COMMAND CENTER',
         items: [
           _NavItemModel(
-            label: 'Live Operations',
+            label: 'Command',
             icon: Icons.bolt_rounded,
             route: OnyxRoute.dashboard,
             badge: activeIncidentCount > 0 ? activeIncidentCount : null,
@@ -993,8 +933,8 @@ class _Sidebar extends StatelessWidget {
         title: 'EVIDENCE',
         items: [
           _NavItemModel(
-            label: 'Ledger',
-            icon: Icons.verified_user_rounded,
+            label: 'OB Log',
+            icon: Icons.menu_book_rounded,
             route: OnyxRoute.ledger,
           ),
           _NavItemModel(
@@ -1025,27 +965,27 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            height: 64,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: 24,
+                  height: 24,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(7),
                     color: const Color(0xFF2563EB),
                   ),
                   child: const Icon(
                     Icons.shield_rounded,
                     color: Color(0xFFFFFFFF),
-                    size: 18,
+                    size: 14,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 7),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1057,7 +997,7 @@ class _Sidebar extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                           color: const Color(0xFFE7F0FF),
-                          fontSize: 17,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.2,
                         ),
@@ -1068,7 +1008,7 @@ class _Sidebar extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
                           color: const Color(0xFF8CA6CC),
-                          fontSize: 10,
+                          fontSize: 8.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1079,63 +1019,42 @@ class _Sidebar extends StatelessWidget {
             ),
           ),
           Container(
-            margin: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-            padding: const EdgeInsets.all(10),
+            margin: const EdgeInsets.fromLTRB(8, 7, 8, 5),
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               color: const Color(0xFF0E1A2B),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0x22FFFFFF)),
             ),
-            child: Column(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'System Status',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFD2E0F6),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                _sidebarStatusPill(
+                  label: 'LIVE',
+                  color: const Color(0xFF10B981),
                 ),
-                const SizedBox(height: 8),
-                _statusRow('EventStore', 'LIVE', const Color(0xFF10B981)),
-                const SizedBox(height: 4),
-                _statusRow(
-                  'AI Engine',
-                  '$aiActionCount ACTIVE',
-                  const Color(0xFF22D3EE),
+                _sidebarStatusPill(
+                  label: '$aiActionCount ACTIVE',
+                  color: const Color(0xFF22D3EE),
                 ),
-                const SizedBox(height: 4),
-                _statusRow(
-                  'Guards',
-                  '$guardsOnlineCount On Shift',
-                  const Color(0xFFDBEAFE),
+                _sidebarStatusPill(
+                  label: '$guardsOnlineCount On Shift',
+                  color: const Color(0xFFDBEAFE),
                 ),
               ],
             ),
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
               children: [
                 for (final section in navSections) ...[
                   Padding(
                     padding: const EdgeInsets.only(
                       left: 6,
                       right: 6,
-                      bottom: 6,
+                      bottom: 5,
                     ),
                     child: Text(
                       section.title,
@@ -1155,46 +1074,8 @@ class _Sidebar extends StatelessWidget {
                       badge: item.badge,
                       badgeColor: item.badgeColor,
                     ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 6),
                 ],
-              ],
-            ),
-          ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: Color(0x22FFFFFF))),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ONYX Sovereign v4.3',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF7F96B6),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Controller: Admin-1',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF7F96B6),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Session: Active',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF10B981),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
               ],
             ),
           ),
@@ -1203,28 +1084,22 @@ class _Sidebar extends StatelessWidget {
     );
   }
 
-  Widget _statusRow(String label, String value, Color valueColor) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+  Widget _sidebarStatusPill({required String label, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: color,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
         ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            color: valueColor,
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -1240,7 +1115,7 @@ class _Sidebar extends StatelessWidget {
       onTap: () => onRouteChanged(route),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 1.5),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: isActive ? const Color(0x3322D3EE) : const Color(0x14FFFFFF),
@@ -1252,12 +1127,12 @@ class _Sidebar extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: 16,
+              size: 15,
               color: isActive
                   ? const Color(0xFF22D3EE)
                   : const Color(0x99FFFFFF),
             ),
-            const SizedBox(width: 9),
+            const SizedBox(width: 7),
             Expanded(
               child: Text(
                 label,
@@ -1267,14 +1142,14 @@ class _Sidebar extends StatelessWidget {
                   color: isActive
                       ? const Color(0xFFE6F2FF)
                       : const Color(0xB3FFFFFF),
-                  fontSize: 13,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ),
             if (badge != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
                   color: (badgeColor ?? const Color(0xFF4A678B)).withValues(
                     alpha: 0.16,
@@ -1290,7 +1165,7 @@ class _Sidebar extends StatelessWidget {
                   '$badge',
                   style: GoogleFonts.inter(
                     color: badgeColor ?? const Color(0xFF99B6DA),
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -1318,10 +1193,10 @@ class _TopChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: border),
       ),
       child: Text(
@@ -1329,7 +1204,8 @@ class _TopChip extends StatelessWidget {
         style: GoogleFonts.inter(
           color: foreground,
           fontSize: 11,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.4,
         ),
       ),
     );
@@ -1342,6 +1218,7 @@ class _TopBarActionIcon extends StatelessWidget {
   final IconData icon;
   final Color foregroundColor;
   final Color borderColor;
+  final bool showAlertDot;
 
   const _TopBarActionIcon({
     this.buttonKey,
@@ -1349,6 +1226,7 @@ class _TopBarActionIcon extends StatelessWidget {
     required this.icon,
     required this.foregroundColor,
     required this.borderColor,
+    this.showAlertDot = false,
   });
 
   @override
@@ -1357,12 +1235,136 @@ class _TopBarActionIcon extends StatelessWidget {
       key: buttonKey,
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(34, 32),
+        minimumSize: const Size(38, 38),
         padding: const EdgeInsets.symmetric(horizontal: 6),
         foregroundColor: foregroundColor,
         side: BorderSide(color: borderColor),
+        backgroundColor: const Color(0xFF111823),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
-      child: Icon(icon, size: 15),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Icon(icon, size: 16),
+          if (showAlertDot)
+            const Positioned(
+              top: -2,
+              right: -4,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0xFFEF4444),
+                  shape: BoxShape.circle,
+                ),
+                child: SizedBox(width: 8, height: 8),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OperatorSessionChip extends StatelessWidget {
+  final String operatorLabel;
+  final String roleLabel;
+  final String shiftLabel;
+
+  const _OperatorSessionChip({
+    required this.operatorLabel,
+    required this.roleLabel,
+    required this.shiftLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedOperator = operatorLabel.trim();
+    final normalizedRole = roleLabel.trim();
+    final normalizedShift = shiftLabel.trim();
+    final hasSessionDetail =
+        normalizedRole.isNotEmpty || normalizedShift.isNotEmpty;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121923),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF273446)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: Color(0xFFB16EFF),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            normalizedOperator,
+            style: GoogleFonts.inter(
+              color: const Color(0xFFE9F0FA),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (!hasSessionDetail) ...[
+            const SizedBox(width: 10),
+            _OperatorSessionSeparator(),
+            const SizedBox(width: 10),
+            Text(
+              'OPERATOR',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8FA8CA),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (normalizedRole.isNotEmpty) ...[
+            const SizedBox(width: 10),
+            _OperatorSessionSeparator(),
+            const SizedBox(width: 10),
+            Text(
+              normalizedRole.toUpperCase(),
+              style: GoogleFonts.inter(
+                color: const Color(0xFFC889FF),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+          if (normalizedShift.isNotEmpty) ...[
+            const SizedBox(width: 10),
+            _OperatorSessionSeparator(),
+            const SizedBox(width: 10),
+            Text(
+              'Shift: $normalizedShift',
+              style: GoogleFonts.inter(
+                color: const Color(0xFFBCC8D9),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _OperatorSessionSeparator extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '•',
+      style: GoogleFonts.inter(
+        color: const Color(0xFF69798F),
+        fontSize: 11,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 }
@@ -1375,20 +1377,20 @@ class _AutopilotChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0x332563EB),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: const Color(0x664C6FFF)),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.auto_mode_rounded,
-            size: 13,
+            size: 11,
             color: Color(0xFF93C5FD),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 5),
           Expanded(
             child: Text(
               label,
@@ -1396,7 +1398,7 @@ class _AutopilotChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
                 color: const Color(0xFFBFDBFE),
-                fontSize: 11,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1615,8 +1617,8 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
         _hovering = false;
       },
       child: Container(
-        height: 76,
-        padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+        height: 58,
+        padding: const EdgeInsets.fromLTRB(7, 4, 7, 4),
         decoration: const BoxDecoration(
           color: _tickerBackground,
           border: Border(bottom: BorderSide(color: Color(0x1FFFFFFF))),
@@ -1625,11 +1627,11 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(
-              height: 24,
+              height: 20,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: availableFilters.length,
-                separatorBuilder: (_, _) => const SizedBox(width: 6),
+                separatorBuilder: (_, _) => const SizedBox(width: 5),
                 itemBuilder: (context, index) {
                   final source = availableFilters[index];
                   final selected = source == activeFilter;
@@ -1644,7 +1646,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                 },
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 3),
             Expanded(
               child: Stack(
                 children: [
@@ -1699,8 +1701,8 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                             child: Container(
                               alignment: Alignment.centerLeft,
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 7,
+                                horizontal: 7,
+                                vertical: 5,
                               ),
                               decoration: BoxDecoration(
                                 color: color.withValues(alpha: 0.13),
@@ -1732,7 +1734,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFFD9E8FD),
-                                        fontSize: 11,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),

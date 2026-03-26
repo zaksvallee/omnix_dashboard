@@ -103,30 +103,34 @@ void main() {
       findsOneWidget,
     );
 
-    final reviewAction = tester.widget<OutlinedButton>(
-      find.byKey(const ValueKey('clients-workspace-open-review')),
+    final reviewAction = find.byKey(
+      const ValueKey('clients-review-drafts-action'),
     );
-    expect(reviewAction.onPressed, isNotNull);
-    reviewAction.onPressed!.call();
+    await tester.ensureVisible(reviewAction);
+    final reviewInkWell = tester.widget<InkWell>(reviewAction);
+    expect(reviewInkWell.onTap, isNotNull);
+    reviewInkWell.onTap!.call();
     await tester.pump();
     expect(openedEventIds, <String>['evt-workspace-1']);
     expect(openedSelectedEventId, 'evt-workspace-1');
 
-    final roomAction = tester.widget<OutlinedButton>(
-      find.byKey(const ValueKey('clients-workspace-open-residents-room')),
-    );
-    expect(roomAction.onPressed, isNotNull);
-    roomAction.onPressed!.call();
+    final roomAction = find.byKey(const ValueKey('clients-room-Residents'));
+    await tester.ensureVisible(roomAction);
+    final roomInkWell = tester.widget<InkWell>(roomAction);
+    expect(roomInkWell.onTap, isNotNull);
+    roomInkWell.onTap!.call();
     await tester.pump();
     expect(openedRoom, 'Residents');
     expect(openedRoomClientId, 'CLIENT-001');
     expect(openedRoomSiteId, 'SITE-SANDTON');
 
-    final retryAction = tester.widget<OutlinedButton>(
-      find.byKey(const ValueKey('clients-workspace-retry-sync')),
+    final retryAction = find.byKey(
+      const ValueKey('clients-retry-push-sync-action'),
     );
-    expect(retryAction.onPressed, isNotNull);
-    retryAction.onPressed!.call();
+    await tester.ensureVisible(retryAction);
+    final retryInkWell = tester.widget<InkWell>(retryAction);
+    expect(retryInkWell.onTap, isNotNull);
+    retryInkWell.onTap!.call();
     await tester.pump();
     expect(pushRetryCount, 1);
   });
@@ -216,32 +220,34 @@ void main() {
 
       expect(find.text('CLIENT-002 / SITE-BLR'), findsOneWidget);
 
-      final roomAction = tester.widget<OutlinedButton>(
-        find.byKey(
-          const ValueKey('clients-workspace-banner-open-residents-room'),
-        ),
-      );
-      expect(roomAction.onPressed, isNotNull);
-      roomAction.onPressed!.call();
+      final roomAction = find.byKey(const ValueKey('clients-room-Residents'));
+      await tester.ensureVisible(roomAction);
+      final roomInkWell = tester.widget<InkWell>(roomAction);
+      expect(roomInkWell.onTap, isNotNull);
+      roomInkWell.onTap!.call();
       await tester.pump();
       expect(openedRoom, 'Residents');
       expect(openedRoomClientId, 'CLIENT-002');
       expect(openedRoomSiteId, 'SITE-BLR');
 
-      final reviewAction = tester.widget<OutlinedButton>(
-        find.byKey(const ValueKey('clients-workspace-banner-open-review')),
+      final reviewAction = find.byKey(
+        const ValueKey('clients-review-drafts-action'),
       );
-      expect(reviewAction.onPressed, isNotNull);
-      reviewAction.onPressed!.call();
+      await tester.ensureVisible(reviewAction);
+      final reviewInkWell = tester.widget<InkWell>(reviewAction);
+      expect(reviewInkWell.onTap, isNotNull);
+      reviewInkWell.onTap!.call();
       await tester.pump();
       expect(openedEventIds, <String>['evt-lane-review-1']);
       expect(openedSelectedEventId, 'evt-lane-review-1');
 
-      final retryAction = tester.widget<OutlinedButton>(
-        find.byKey(const ValueKey('clients-workspace-banner-retry-sync')),
+      final retryAction = find.byKey(
+        const ValueKey('clients-retry-push-sync-action'),
       );
-      expect(retryAction.onPressed, isNotNull);
-      retryAction.onPressed!.call();
+      await tester.ensureVisible(retryAction);
+      final retryInkWell = tester.widget<InkWell>(retryAction);
+      expect(retryInkWell.onTap, isNotNull);
+      retryInkWell.onTap!.call();
       await tester.pump();
       expect(pushRetryCount, 1);
     },

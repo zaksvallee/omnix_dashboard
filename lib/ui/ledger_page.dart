@@ -149,7 +149,7 @@ class _LedgerPageState extends State<LedgerPage> {
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, viewport) {
-          const contentPadding = EdgeInsets.all(10);
+          const contentPadding = EdgeInsets.all(8);
           final useScrollFallback =
               isHandsetLayout(context) ||
               viewport.maxHeight < 720 ||
@@ -168,33 +168,37 @@ class _LedgerPageState extends State<LedgerPage> {
             viewportWidth: viewport.maxWidth,
             widescreenFillFactor: ultrawideSurface ? 1 : 0.96,
           );
+          final mergeWorkspaceBannerIntoHero =
+              !useScrollFallback && viewport.maxWidth >= 900;
 
           Widget buildSurfaceBody({required bool embedScroll}) {
-            final workspaceSection = OnyxSectionCard(
-              title: 'Ledger Workspace',
-              subtitle:
-                  'Lane-driven audit review for evidence continuity, report receipts, and chain exceptions.',
-              flexibleChild: true,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final useThreeColumnLayout = constraints.maxWidth >= 1260;
-                  final useTwoColumnLayout = constraints.maxWidth >= 900;
-                  final useEmbeddedPanels = useTwoColumnLayout;
-                  final workspace = _ledgerWorkspace(
-                    reviewRows: reviewRows,
-                    filteredRows: filteredRows,
-                    selected: selected,
-                    relatedRows: relatedRows,
-                    hiddenRows: hiddenRows,
-                    useEmbeddedPanels: useEmbeddedPanels,
-                    useThreeColumnLayout: useThreeColumnLayout,
+            final workspaceSection = LayoutBuilder(
+              builder: (context, constraints) {
+                final useThreeColumnLayout = constraints.maxWidth >= 1260;
+                final useTwoColumnLayout = constraints.maxWidth >= 900;
+                final useEmbeddedPanels = useTwoColumnLayout;
+                final workspace = _ledgerWorkspace(
+                  reviewRows: reviewRows,
+                  filteredRows: filteredRows,
+                  selected: selected,
+                  relatedRows: relatedRows,
+                  hiddenRows: hiddenRows,
+                  useEmbeddedPanels: useEmbeddedPanels,
+                  useThreeColumnLayout: useThreeColumnLayout,
+                );
+                if (!useTwoColumnLayout) {
+                  return OnyxSectionCard(
+                    title: 'Ledger Workspace',
+                    subtitle:
+                        'Lane-driven audit review for evidence continuity, report receipts, and chain exceptions.',
+                    flexibleChild: embedScroll,
+                    child: workspace,
                   );
-                  if (!useTwoColumnLayout) {
-                    return workspace;
-                  }
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!mergeWorkspaceBannerIntoHero) ...[
                       _workspaceStatusBanner(
                         context,
                         reviewRows: reviewRows,
@@ -203,15 +207,12 @@ class _LedgerPageState extends State<LedgerPage> {
                         relatedRows: relatedRows,
                         sourceLabel: sourceLabel,
                       ),
-                      SizedBox(height: embedScroll ? 10 : 12),
-                      if (embedScroll)
-                        Expanded(child: workspace)
-                      else
-                        workspace,
+                      SizedBox(height: embedScroll ? 8 : 10),
                     ],
-                  );
-                },
-              ),
+                    if (embedScroll) Expanded(child: workspace) else workspace,
+                  ],
+                );
+              },
             );
 
             if (embedScroll) {
@@ -222,7 +223,7 @@ class _LedgerPageState extends State<LedgerPage> {
                     sourceLabel: sourceLabel,
                     rowCount: rowCount,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   Expanded(child: workspaceSection),
                 ],
               );
@@ -234,14 +235,14 @@ class _LedgerPageState extends State<LedgerPage> {
                   sourceLabel: sourceLabel,
                   rowCount: rowCount,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
+                workspaceSection,
+                const SizedBox(height: 8),
                 _overviewGrid(
                   sourceLabel: sourceLabel,
                   rowCount: rowCount,
                   totalRows: totalRows,
                 ),
-                const SizedBox(height: 12),
-                workspaceSection,
               ],
             );
           }
@@ -250,8 +251,21 @@ class _LedgerPageState extends State<LedgerPage> {
             padding: contentPadding,
             maxWidth: surfaceMaxWidth,
             lockToViewport: boundedDesktopSurface,
-            spacing: 12,
-            header: _heroHeader(context),
+            spacing: 8,
+            header: _heroHeader(
+              context,
+              workspaceBanner: mergeWorkspaceBannerIntoHero
+                  ? _workspaceStatusBanner(
+                      context,
+                      reviewRows: reviewRows,
+                      filteredRows: filteredRows,
+                      selected: selected,
+                      relatedRows: relatedRows,
+                      sourceLabel: sourceLabel,
+                      shellless: true,
+                    )
+                  : null,
+            ),
             body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
           );
         },
@@ -259,7 +273,7 @@ class _LedgerPageState extends State<LedgerPage> {
     );
   }
 
-  Widget _heroHeader(BuildContext context) {
+  Widget _heroHeader(BuildContext context, {Widget? workspaceBanner}) {
     final integrityLabel = _verificationResult == null
         ? 'Pending'
         : _verificationResult!.contains('VERIFIED')
@@ -267,14 +281,14 @@ class _LedgerPageState extends State<LedgerPage> {
         : 'Failed';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF12342E), Color(0xFF0E1D1A)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF295147)),
       ),
       child: LayoutBuilder(
@@ -287,10 +301,10 @@ class _LedgerPageState extends State<LedgerPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 52,
-                    height: 52,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       gradient: const LinearGradient(
                         colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
                         begin: Alignment.topLeft,
@@ -300,10 +314,10 @@ class _LedgerPageState extends State<LedgerPage> {
                     child: const Icon(
                       Icons.account_tree_outlined,
                       color: Colors.white,
-                      size: 28,
+                      size: 20,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,7 +326,7 @@ class _LedgerPageState extends State<LedgerPage> {
                           'Sovereign Ledger',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 21 : 24,
+                            fontSize: compact ? 17 : 20,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -321,7 +335,7 @@ class _LedgerPageState extends State<LedgerPage> {
                           'Immutable event chain, provenance tracking, and integrity verification.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF95A9C7),
-                            fontSize: 12,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -330,10 +344,10 @@ class _LedgerPageState extends State<LedgerPage> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
                   _heroChip('Client', widget.clientId),
                   _heroChip(
@@ -346,11 +360,15 @@ class _LedgerPageState extends State<LedgerPage> {
                   _heroChip('Verification', 'Replay Safe'),
                 ],
               ),
+              if (workspaceBanner != null) ...[
+                const SizedBox(height: 8),
+                workspaceBanner,
+              ],
             ],
           );
           final actions = Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 8,
+            runSpacing: 8,
             alignment: WrapAlignment.end,
             children: [
               _heroActionButton(
@@ -372,16 +390,16 @@ class _LedgerPageState extends State<LedgerPage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 16), actions],
+              children: [titleBlock, const SizedBox(height: 8), actions],
             );
           }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(child: titleBlock),
-              const SizedBox(width: 14),
+              const SizedBox(width: 10),
               ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 320),
+                constraints: const BoxConstraints(maxWidth: 280),
                 child: actions,
               ),
             ],
@@ -393,7 +411,7 @@ class _LedgerPageState extends State<LedgerPage> {
 
   Widget _heroChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0x14000000),
         borderRadius: BorderRadius.circular(999),
@@ -406,7 +424,7 @@ class _LedgerPageState extends State<LedgerPage> {
               text: '$label: ',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA4C2),
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -414,7 +432,7 @@ class _LedgerPageState extends State<LedgerPage> {
               text: value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE8F1FF),
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -434,15 +452,15 @@ class _LedgerPageState extends State<LedgerPage> {
     return FilledButton.tonalIcon(
       key: key,
       onPressed: onPressed,
-      icon: Icon(icon, size: 18),
+      icon: Icon(icon, size: 16),
       label: Text(label),
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -458,24 +476,24 @@ class _LedgerPageState extends State<LedgerPage> {
         : 'Failed';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF0F1F1C),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF25413A)),
       ),
       child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
+        spacing: 8,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
             'CHAIN INTEGRITY',
             style: GoogleFonts.inter(
               color: const Color(0x669BB0CE),
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
+              letterSpacing: 1.0,
             ),
           ),
           _statusPill(
@@ -508,7 +526,7 @@ class _LedgerPageState extends State<LedgerPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -517,13 +535,13 @@ class _LedgerPageState extends State<LedgerPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: accent),
-          const SizedBox(width: 6),
+          Icon(icon, size: 13, color: accent),
+          const SizedBox(width: 5),
           Text(
             label,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 11,
+              fontSize: 10.5,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -545,15 +563,15 @@ class _LedgerPageState extends State<LedgerPage> {
             ? 2
             : 1;
         final aspectRatio = columns == 4
-            ? 1.95
+            ? 2.55
             : columns == 2
-            ? 2.35
-            : 2.55;
+            ? 2.75
+            : 2.35;
         return GridView.count(
           key: const ValueKey('ledger-overview-grid'),
           crossAxisCount: columns,
-          mainAxisSpacing: 10,
-          crossAxisSpacing: 10,
+          mainAxisSpacing: 8,
+          crossAxisSpacing: 8,
           childAspectRatio: aspectRatio,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -612,10 +630,10 @@ class _LedgerPageState extends State<LedgerPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Column(
@@ -624,13 +642,13 @@ class _LedgerPageState extends State<LedgerPage> {
           Row(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 28,
+                height: 28,
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: accent, size: 20),
+                child: Icon(icon, color: accent, size: 14),
               ),
               const Spacer(),
               Flexible(
@@ -641,14 +659,14 @@ class _LedgerPageState extends State<LedgerPage> {
                   textAlign: TextAlign.end,
                   style: GoogleFonts.robotoMono(
                     color: const Color(0xFFF4F8FF),
-                    fontSize: 22,
+                    fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const Spacer(),
+          const SizedBox(height: 8),
           Text(
             title.toUpperCase(),
             style: GoogleFonts.inter(
@@ -658,14 +676,14 @@ class _LedgerPageState extends State<LedgerPage> {
               letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             detail,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
               color: const Color(0xFFD5E1F2),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
             ),
@@ -682,11 +700,8 @@ class _LedgerPageState extends State<LedgerPage> {
     required _LedgerReviewRow? selected,
     required List<_LedgerReviewRow> relatedRows,
     required String sourceLabel,
+    bool shellless = false,
   }) {
-    final attentionCount = reviewRows
-        .where((row) => _matchesLaneFilter(row, _LedgerLaneFilter.attention))
-        .length;
-    final latestReport = _firstMatchingRow(reviewRows, (row) => row.isReport);
     final integrityLabel = _verificationResult == null
         ? 'Pending'
         : _verificationResult!.contains('VERIFIED')
@@ -697,148 +712,73 @@ class _LedgerPageState extends State<LedgerPage> {
         : _verificationResult!.contains('VERIFIED')
         ? const Color(0xFF34D399)
         : const Color(0xFFF87171);
+    final bannerContent = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _workspaceStatusPill(
+              icon: Icons.storage_rounded,
+              label: sourceLabel,
+              accent: const Color(0xFF63BDFF),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.filter_list_rounded,
+              label: '${filteredRows.length} Visible',
+              accent: const Color(0xFF59D79B),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.radar_outlined,
+              label: 'Lane ${_laneFilter.label}',
+              accent: _laneFilter.accent,
+            ),
+            _workspaceStatusPill(
+              icon: Icons.dashboard_customize_outlined,
+              label: 'View ${_workspaceView.label}',
+              accent: _workspaceView.accent,
+            ),
+            _workspaceStatusPill(
+              icon: Icons.flag_outlined,
+              label: 'Focus ${selected?.eventId ?? 'None'}',
+              accent: selected?.color ?? const Color(0xFF94A3B8),
+            ),
+            _workspaceStatusPill(
+              icon: Icons.verified_outlined,
+              label: integrityLabel,
+              accent: integrityAccent,
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Lane pivots stay pinned in the continuity rail, while integrity, trace, verify-chain, latest-report, and related-events actions stay anchored to the selected-entry workspace below.',
+          style: GoogleFonts.inter(
+            color: const Color(0xFF9AB1CF),
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            height: 1.35,
+          ),
+        ),
+      ],
+    );
+    if (shellless) {
+      return KeyedSubtree(
+        key: const ValueKey('ledger-workspace-status-banner'),
+        child: bannerContent,
+      );
+    }
     return Container(
       key: const ValueKey('ledger-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF223244)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusPill(
-                icon: Icons.storage_rounded,
-                label: sourceLabel,
-                accent: const Color(0xFF63BDFF),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.filter_list_rounded,
-                label: '${filteredRows.length} Visible',
-                accent: const Color(0xFF59D79B),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.radar_outlined,
-                label: 'Lane ${_laneFilter.label}',
-                accent: _laneFilter.accent,
-              ),
-              _workspaceStatusPill(
-                icon: Icons.dashboard_customize_outlined,
-                label: 'View ${_workspaceView.label}',
-                accent: _workspaceView.accent,
-              ),
-              _workspaceStatusPill(
-                icon: Icons.flag_outlined,
-                label: 'Focus ${selected?.eventId ?? 'None'}',
-                accent: selected?.color ?? const Color(0xFF94A3B8),
-              ),
-              _workspaceStatusPill(
-                icon: Icons.verified_outlined,
-                label: integrityLabel,
-                accent: integrityAccent,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-all'),
-                label: 'All Rows',
-                selected: _laneFilter == _LedgerLaneFilter.all,
-                accent: _LedgerLaneFilter.all.accent,
-                onTap: () =>
-                    _setLedgerLaneFilter(_LedgerLaneFilter.all, reviewRows),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-attention'),
-                label: 'Attention Lane',
-                selected: _laneFilter == _LedgerLaneFilter.attention,
-                accent: _LedgerLaneFilter.attention.accent,
-                onTap: attentionCount == 0
-                    ? null
-                    : () => _setLedgerLaneFilter(
-                        _LedgerLaneFilter.attention,
-                        reviewRows,
-                      ),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-continuity'),
-                label: 'Continuity Lane',
-                selected: _laneFilter == _LedgerLaneFilter.continuity,
-                accent: _LedgerLaneFilter.continuity.accent,
-                onTap: () => _setLedgerLaneFilter(
-                  _LedgerLaneFilter.continuity,
-                  reviewRows,
-                ),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-integrity'),
-                label: 'Integrity View',
-                selected: _workspaceView == _LedgerWorkspaceView.integrity,
-                accent: _LedgerWorkspaceView.integrity.accent,
-                onTap: () =>
-                    _setLedgerWorkspaceView(_LedgerWorkspaceView.integrity),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-trace'),
-                label: 'Trace View',
-                selected: _workspaceView == _LedgerWorkspaceView.trace,
-                accent: _LedgerWorkspaceView.trace.accent,
-                onTap: () =>
-                    _setLedgerWorkspaceView(_LedgerWorkspaceView.trace),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-verify-chain'),
-                label: 'Verify Chain',
-                selected: false,
-                accent: const Color(0xFF34D399),
-                onTap: _verifyChain,
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-open-events'),
-                label: 'Open Events',
-                selected: false,
-                accent: const Color(0xFF93C5FD),
-                onTap: () => _showEventsLinkDialog(context),
-              ),
-              _workspaceStatusAction(
-                key: const ValueKey('ledger-workspace-banner-focus-report'),
-                label: 'Focus Latest Report',
-                selected: false,
-                accent: const Color(0xFFA78BFA),
-                onTap: latestReport == null
-                    ? null
-                    : () => _focusRow(
-                        latestReport,
-                        lane: _LedgerLaneFilter.reports,
-                        view: _LedgerWorkspaceView.casefile,
-                      ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            selected == null
-                ? 'Hold the current audit stack to verify continuity, jump lanes, or refocus the latest report without leaving the ledger workspace.'
-                : 'The selected ledger row stays pinned while continuity pivots, integrity reruns, and event handoffs remain available from the command strip.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
+      child: bannerContent,
     );
   }
 
@@ -851,12 +791,33 @@ class _LedgerPageState extends State<LedgerPage> {
     required bool useEmbeddedPanels,
     required bool useThreeColumnLayout,
   }) {
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final ultrawideWorkspace = isUltrawideLayout(
+      context,
+      viewportWidth: viewportWidth,
+    );
+    final widescreenWorkspace = isWidescreenLayout(
+      context,
+      viewportWidth: viewportWidth,
+    );
+    final railGap = ultrawideWorkspace ? 10.0 : 8.0;
+    final laneRailWidth = ultrawideWorkspace
+        ? 292.0
+        : widescreenWorkspace
+        ? 280.0
+        : 268.0;
+    final contextRailWidth = ultrawideWorkspace
+        ? 264.0
+        : widescreenWorkspace
+        ? 252.0
+        : 240.0;
+
     if (useThreeColumnLayout && useEmbeddedPanels) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            width: 304,
+            width: laneRailWidth,
             child: _ledgerLaneRail(
               reviewRows: reviewRows,
               filteredRows: filteredRows,
@@ -865,7 +826,7 @@ class _LedgerPageState extends State<LedgerPage> {
               useExpandedBody: true,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: railGap),
           Expanded(
             flex: 3,
             child: _selectedEntryWorkspace(
@@ -875,9 +836,9 @@ class _LedgerPageState extends State<LedgerPage> {
               useExpandedBody: true,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: railGap),
           SizedBox(
-            width: 280,
+            width: contextRailWidth,
             child: _ledgerContextRail(
               reviewRows: reviewRows,
               filteredRows: filteredRows,
@@ -896,7 +857,7 @@ class _LedgerPageState extends State<LedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            width: 304,
+            width: laneRailWidth,
             child: _ledgerLaneRail(
               reviewRows: reviewRows,
               filteredRows: filteredRows,
@@ -905,7 +866,7 @@ class _LedgerPageState extends State<LedgerPage> {
               useExpandedBody: true,
             ),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: railGap),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -918,9 +879,9 @@ class _LedgerPageState extends State<LedgerPage> {
                     useExpandedBody: true,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: railGap),
                 SizedBox(
-                  height: 196,
+                  height: ultrawideWorkspace ? 188 : 180,
                   child: _ledgerContextRail(
                     reviewRows: reviewRows,
                     filteredRows: filteredRows,
@@ -947,14 +908,14 @@ class _LedgerPageState extends State<LedgerPage> {
           hiddenRows: hiddenRows,
           useExpandedBody: false,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _selectedEntryWorkspace(
           reviewRows: reviewRows,
           selected: selected,
           relatedRows: relatedRows,
           useExpandedBody: false,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         _ledgerContextRail(
           reviewRows: reviewRows,
           filteredRows: filteredRows,
@@ -997,7 +958,7 @@ class _LedgerPageState extends State<LedgerPage> {
           );
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: onyxWorkspaceSurfaceDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1006,7 +967,7 @@ class _LedgerPageState extends State<LedgerPage> {
             'Ledger Lanes',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE6F0FF),
-              fontSize: 22,
+              fontSize: 19,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1015,20 +976,20 @@ class _LedgerPageState extends State<LedgerPage> {
             'Filter the visible evidence stack by receipts, continuity, or rows needing operator attention.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C6),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
-              height: 1.4,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: _LedgerLaneFilter.values
                 .map((filter) => _ledgerLaneChip(filter, reviewRows))
                 .toList(),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           if (useExpandedBody) Expanded(child: list) else list,
         ],
       ),
@@ -1038,7 +999,7 @@ class _LedgerPageState extends State<LedgerPage> {
   Widget _emptyLaneState() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: onyxSelectableRowSurfaceDecoration(isSelected: false),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1062,7 +1023,7 @@ class _LedgerPageState extends State<LedgerPage> {
             ),
           ),
           if (_laneFilter != _LedgerLaneFilter.all) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             FilledButton.tonalIcon(
               key: const ValueKey('ledger-empty-reset-lane'),
               onPressed: () => _setLedgerLaneFilter(
@@ -1100,7 +1061,7 @@ class _LedgerPageState extends State<LedgerPage> {
       onTap: () => _setLedgerLaneFilter(filter, rows),
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: selected
               ? filter.accent.withValues(alpha: 0.16)
@@ -1116,7 +1077,7 @@ class _LedgerPageState extends State<LedgerPage> {
           '${filter.label} ${matchingRows.length}',
           style: GoogleFonts.inter(
             color: selected ? filter.accent : const Color(0xFF9AB1CF),
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1130,7 +1091,7 @@ class _LedgerPageState extends State<LedgerPage> {
       onTap: () => _focusRow(row, view: _LedgerWorkspaceView.casefile),
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: onyxSelectableRowSurfaceDecoration(isSelected: isSelected),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1147,7 +1108,7 @@ class _LedgerPageState extends State<LedgerPage> {
                     color: row.color,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1194,7 +1155,7 @@ class _LedgerPageState extends State<LedgerPage> {
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -1225,7 +1186,7 @@ class _LedgerPageState extends State<LedgerPage> {
                   ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               row.summary,
               style: GoogleFonts.inter(
@@ -1235,7 +1196,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 height: 1.4,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               row.hash != null
                   ? 'Hash ${_short(row.hash!)}'
@@ -1276,7 +1237,7 @@ class _LedgerPageState extends State<LedgerPage> {
     };
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(10),
       decoration: onyxWorkspaceSurfaceDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1285,7 +1246,7 @@ class _LedgerPageState extends State<LedgerPage> {
             'Selected Entry',
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFE8F1FF),
-              fontSize: 26,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1294,22 +1255,22 @@ class _LedgerPageState extends State<LedgerPage> {
             'A deeper case file for the active ledger row, with integrity context and linked chain navigation.',
             style: GoogleFonts.inter(
               color: const Color(0xFF7D93B1),
-              fontSize: 12,
+              fontSize: 10.5,
               fontWeight: FontWeight.w600,
-              height: 1.4,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           _selectedLedgerBanner(selected, relatedRows),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: _LedgerWorkspaceView.values
                 .map(_ledgerWorkspaceChip)
                 .toList(),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           if (useExpandedBody) Expanded(child: panel) else panel,
         ],
       ),
@@ -1323,10 +1284,10 @@ class _LedgerPageState extends State<LedgerPage> {
     if (row == null) {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: const Color(0xFF101A2B),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0xFF223244)),
         ),
         child: Text(
@@ -1363,14 +1324,14 @@ class _LedgerPageState extends State<LedgerPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [row.color.withValues(alpha: 0.18), const Color(0xFF101A2B)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: row.color.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -1380,17 +1341,17 @@ class _LedgerPageState extends State<LedgerPage> {
             'ACTIVE CHAIN ENTRY',
             style: GoogleFonts.inter(
               color: row.color,
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
+              letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             row.title,
             style: GoogleFonts.rajdhani(
               color: const Color(0xFFF4F8FF),
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1401,15 +1362,15 @@ class _LedgerPageState extends State<LedgerPage> {
                 : 'Fallback EventStore evidence is in focus for receipt and continuity review.',
             style: GoogleFonts.inter(
               color: const Color(0xFFD8E4F5),
-              fontSize: 13,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              height: 1.4,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             children: [
               _ledgerPill(
                 'UTC ${_shortUtc(row.occurredAt)}',
@@ -1446,7 +1407,7 @@ class _LedgerPageState extends State<LedgerPage> {
                           .expand(
                             (widget) => <Widget>[
                               widget,
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 6),
                             ],
                           )
                           .toList()
@@ -1459,7 +1420,7 @@ class _LedgerPageState extends State<LedgerPage> {
                         .expand(
                           (widget) => <Widget>[
                             Expanded(child: widget),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 6),
                           ],
                         )
                         .toList()
@@ -1478,10 +1439,10 @@ class _LedgerPageState extends State<LedgerPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: const Color(0xFF10233D),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Column(
@@ -1491,7 +1452,7 @@ class _LedgerPageState extends State<LedgerPage> {
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C6),
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
             ),
@@ -1501,7 +1462,7 @@ class _LedgerPageState extends State<LedgerPage> {
             value,
             style: GoogleFonts.inter(
               color: const Color(0xFFF4F8FF),
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -1517,7 +1478,7 @@ class _LedgerPageState extends State<LedgerPage> {
       onTap: () => _setLedgerWorkspaceView(view),
       borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: selected
               ? view.accent.withValues(alpha: 0.16)
@@ -1533,7 +1494,7 @@ class _LedgerPageState extends State<LedgerPage> {
           view.label,
           style: GoogleFonts.inter(
             color: selected ? view.accent : const Color(0xFF9DB1CF),
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1549,6 +1510,7 @@ class _LedgerPageState extends State<LedgerPage> {
       return _workspacePanelContainer(
         key: const ValueKey('ledger-workspace-panel-casefile'),
         useScrollable: useScrollable,
+        shellless: useScrollable,
         children: [
           _panelEmptyCopy(
             'No active case file.',
@@ -1561,6 +1523,7 @@ class _LedgerPageState extends State<LedgerPage> {
     return _workspacePanelContainer(
       key: const ValueKey('ledger-workspace-panel-casefile'),
       useScrollable: useScrollable,
+      shellless: useScrollable,
       children: [
         Wrap(
           spacing: 8,
@@ -1654,6 +1617,7 @@ class _LedgerPageState extends State<LedgerPage> {
     return _workspacePanelContainer(
       key: const ValueKey('ledger-workspace-panel-integrity'),
       useScrollable: useScrollable,
+      shellless: useScrollable,
       children: [
         if (row == null)
           _panelEmptyCopy(
@@ -1814,6 +1778,7 @@ class _LedgerPageState extends State<LedgerPage> {
     return _workspacePanelContainer(
       key: const ValueKey('ledger-workspace-panel-trace'),
       useScrollable: useScrollable,
+      shellless: useScrollable,
       children: content,
     );
   }
@@ -1821,22 +1786,31 @@ class _LedgerPageState extends State<LedgerPage> {
   Widget _workspacePanelContainer({
     required Key key,
     required bool useScrollable,
+    bool shellless = false,
     required List<Widget> children,
   }) {
     final body = Column(
-      key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: children,
     );
+    if (shellless) {
+      return KeyedSubtree(
+        key: key,
+        child: useScrollable ? SingleChildScrollView(child: body) : body,
+      );
+    }
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF091728),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF1A355A)),
       ),
-      child: useScrollable ? SingleChildScrollView(child: body) : body,
+      child: KeyedSubtree(
+        key: key,
+        child: useScrollable ? SingleChildScrollView(child: body) : body,
+      ),
     );
   }
 
@@ -1869,10 +1843,10 @@ class _LedgerPageState extends State<LedgerPage> {
   Widget _detailNarrative(String text) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0F1B2D),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF223244)),
       ),
       child: Text(
@@ -1889,13 +1863,13 @@ class _LedgerPageState extends State<LedgerPage> {
 
   Widget _detailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: const Color(0xFF10233D),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: const Color(0xFF1A355A)),
         ),
         child: Column(
@@ -1905,7 +1879,7 @@ class _LedgerPageState extends State<LedgerPage> {
               label,
               style: GoogleFonts.inter(
                 color: const Color(0xFF7F95B5),
-                fontSize: 10,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.7,
               ),
@@ -1915,7 +1889,7 @@ class _LedgerPageState extends State<LedgerPage> {
               value,
               style: GoogleFonts.inter(
                 color: const Color(0xFFE6F0FF),
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1943,7 +1917,7 @@ class _LedgerPageState extends State<LedgerPage> {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(10),
           decoration: onyxWorkspaceSurfaceDecoration(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1952,7 +1926,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 'Continuity Rail',
                 style: GoogleFonts.rajdhani(
                   color: const Color(0xFFE6F0FF),
-                  fontSize: 22,
+                  fontSize: 19,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1961,12 +1935,12 @@ class _LedgerPageState extends State<LedgerPage> {
                 'Live continuity posture, scope stats, and lane handoffs for the active audit stack.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF8EA5C6),
-                  fontSize: 12,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w600,
-                  height: 1.4,
+                  height: 1.35,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               _detailRow('Lane Focus', _laneFilter.label),
               _detailRow('Visible Rows', '${filteredRows.length}'),
               _detailRow(
@@ -1975,8 +1949,8 @@ class _LedgerPageState extends State<LedgerPage> {
               ),
               _detailRow('Linked Rows', '${relatedRows.length}'),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: [
                   FilledButton.tonalIcon(
                     key: const ValueKey('ledger-context-focus-latest-report'),
@@ -2008,7 +1982,7 @@ class _LedgerPageState extends State<LedgerPage> {
           ),
         ),
         if (_runtimeConfigHint != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _contextBanner(
             text: _runtimeConfigHint!,
             borderColor: const Color(0xFFF0C36C),
@@ -2016,7 +1990,7 @@ class _LedgerPageState extends State<LedgerPage> {
           ),
         ],
         if (_verificationResult != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           _contextBanner(
             text: _verificationResult!,
             borderColor: _verificationResult!.contains('VERIFIED')
@@ -2028,10 +2002,10 @@ class _LedgerPageState extends State<LedgerPage> {
           ),
         ],
         if (hiddenRows > 0) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: onyxWorkspaceSurfaceDecoration(),
             child: OnyxTruncationHint(
               visibleCount: filteredRows.length,
@@ -2059,19 +2033,19 @@ class _LedgerPageState extends State<LedgerPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor),
       ),
       child: Text(
         text,
         style: GoogleFonts.inter(
           color: textColor,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
-          height: 1.4,
+          height: 1.35,
         ),
       ),
     );
@@ -2083,7 +2057,7 @@ class _LedgerPageState extends State<LedgerPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF111F33),
         borderRadius: BorderRadius.circular(999),
@@ -2092,58 +2066,17 @@ class _LedgerPageState extends State<LedgerPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: accent),
-          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: accent),
+          const SizedBox(width: 5),
           Text(
             label,
             style: GoogleFonts.inter(
               color: const Color(0xFFE8F1FF),
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _workspaceStatusAction({
-    required Key key,
-    required String label,
-    required bool selected,
-    required Color accent,
-    required VoidCallback? onTap,
-  }) {
-    final enabled = onTap != null;
-    return InkWell(
-      key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          color: !enabled
-              ? const Color(0xFF1D2937)
-              : selected
-              ? accent.withValues(alpha: 0.2)
-              : const Color(0xFF111F33),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: !enabled
-                ? const Color(0xFF314154)
-                : selected
-                ? accent.withValues(alpha: 0.75)
-                : accent.withValues(alpha: 0.35),
-          ),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            color: !enabled ? const Color(0xFF8EA4C2) : const Color(0xFFEAF1FB),
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
       ),
     );
   }
