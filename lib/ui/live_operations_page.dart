@@ -37,6 +37,7 @@ import '../application/monitoring_watch_action_plan.dart';
 import '../application/shadow_mo_dossier_contract.dart';
 import '../application/simulation/scenario_replay_history_signal_service.dart';
 import '../domain/authority/onyx_command_brain_contract.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'operator_stream_embed_view.dart';
@@ -1123,6 +1124,7 @@ class _CommandCenterModule {
   final Color accent;
   final Color surface;
   final Color border;
+  final LinearGradient? gradient;
   final Future<void> Function()? onTap;
 
   const _CommandCenterModule({
@@ -1133,6 +1135,7 @@ class _CommandCenterModule {
     required this.accent,
     required this.surface,
     required this.border,
+    this.gradient,
     this.onTap,
   });
 }
@@ -3216,9 +3219,35 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             );
           }
 
+          final attentionCount = modules
+              .where(
+                (m) =>
+                    m.accent != OnyxDesignTokens.textMuted &&
+                    m.accent != OnyxDesignTokens.greenNominal,
+              )
+              .fold(
+                0,
+                (sum, m) => sum + (int.tryParse(m.countLabel) ?? 0),
+              );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              OnyxPageHeader(
+                title: 'Command Center',
+                subtitle: 'Operational overview across all security services',
+                icon: Icons.bolt,
+                iconColor: OnyxDesignTokens.statusCritical,
+              ),
+              const SizedBox(height: 10),
+              OnyxStatusBanner(
+                message: attentionCount > 0
+                    ? '$attentionCount ITEMS NEED ATTENTION'
+                    : 'ALL SYSTEMS NOMINAL',
+                severity: attentionCount > 0
+                    ? OnyxSeverity.critical
+                    : OnyxSeverity.success,
+              ),
+              const SizedBox(height: 10),
               if (rosterSignalVisible) ...[
                 _guardRosterSignalBanner(),
                 const SizedBox(height: 10),
@@ -4036,7 +4065,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               crossAxisCount: 2,
               crossAxisSpacing: 8,
               mainAxisSpacing: 8,
-              childAspectRatio: compact ? 2.6 : 3.1,
+              childAspectRatio: compact ? 1.9 : 2.2,
             ),
             itemBuilder: (context, index) {
               final module = modules[index];
@@ -4052,80 +4081,121 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       : () async {
                           await module.onTap!.call();
                         },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Color.alphaBlend(
-                            module.accent.withValues(alpha: 0.18),
-                            module.surface,
-                          ),
-                          module.surface,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
+                  child: Stack(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                        decoration: BoxDecoration(
+                          gradient: module.gradient ??
+                              LinearGradient(
+                                colors: [
+                                  Color.alphaBlend(
+                                    module.accent.withValues(alpha: 0.18),
+                                    module.surface,
+                                  ),
+                                  module.surface,
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: module.border),
+                          boxShadow: [
+                            BoxShadow(
+                              color: module.accent.withValues(alpha: 0.12),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Top row: icon
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: module.accent.withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: module.accent.withValues(alpha: 0.36),
+                                ),
+                              ),
+                              child: Icon(
+                                module.icon,
+                                size: 14,
+                                color: module.accent,
+                              ),
+                            ),
+                            // Middle: large count + metric label
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  module.countLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: module.accent,
+                                    fontSize: compact ? 26 : 32,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  module.metricLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    color: _commandMutedColor,
+                                    fontSize: 8.5,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.4,
+                                    height: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // Bottom: module name
+                            Text(
+                              module.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: _commandTitleColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.2,
+                                height: 1,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: module.border),
-                      boxShadow: [
-                        BoxShadow(
-                          color: module.accent.withValues(alpha: 0.12),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
+                      Positioned(
+                        top: 7,
+                        right: 7,
+                        child: Container(
+                          width: 7,
+                          height: 7,
                           decoration: BoxDecoration(
-                            color: module.accent.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: module.accent.withValues(alpha: 0.36),
-                            ),
-                          ),
-                          child: Icon(
-                            module.icon,
-                            size: 14,
                             color: module.accent,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: module.accent.withValues(alpha: 0.6),
+                                blurRadius: 4,
+                                spreadRadius: 1,
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            module.label,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
-                              color: _commandTitleColor,
-                              fontSize: 10.6,
-                              fontWeight: FontWeight.w900,
-                              height: 1.08,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          module.countLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: module.accent,
-                            fontSize: compact ? 15 : 18,
-                            fontWeight: FontWeight.w900,
-                            height: compact ? 1 : 0.92,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -4203,6 +4273,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         border: unresolvedIncidents.isNotEmpty
             ? OnyxDesignTokens.redBorder
             : _commandBorderColor,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2D1515), Color(0xFF1A0A0A)],
+        ),
         onTap: () async {
           if (widget.onOpenAlarms != null) {
             widget.onOpenAlarms!.call();
@@ -4229,6 +4304,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         accent: OnyxDesignTokens.greenNominal,
         surface: OnyxDesignTokens.greenSurface,
         border: OnyxDesignTokens.greenBorder,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0D2D1A), Color(0xFF0A1A0F)],
+        ),
         onTap: () async {
           if (widget.onOpenGuards != null) {
             widget.onOpenGuards!.call();
@@ -4257,6 +4337,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         border: visualAlertCount > 0
             ? OnyxDesignTokens.amberBorder
             : _commandBorderColor,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2D1E0A), Color(0xFF1A1205)],
+        ),
         onTap: () async {
           if (widget.onOpenCctv != null) {
             widget.onOpenCctv!.call();
@@ -4280,6 +4365,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         accent: OnyxDesignTokens.greenNominal,
         surface: OnyxDesignTokens.greenSurface,
         border: OnyxDesignTokens.greenBorder,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0D2D1A), Color(0xFF0A1A0F)],
+        ),
         onTap: () async {
           if (widget.onOpenVipProtection != null) {
             widget.onOpenVipProtection!.call();
@@ -4299,9 +4389,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         countLabel: '0',
         metricLabel: 'THREAT LEVEL: LOW',
         icon: Icons.trending_up_rounded,
-        accent: OnyxDesignTokens.greenNominal,
-        surface: OnyxDesignTokens.greenSurface,
-        border: OnyxDesignTokens.greenBorder,
+        accent: OnyxDesignTokens.accentTeal,
+        surface: const Color(0xFF0D2420),
+        border: const Color(0xFF1A4A40),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF0A2020), Color(0xFF051515)],
+        ),
         onTap: () async {
           if (widget.onOpenRiskIntel != null) {
             widget.onOpenRiskIntel!.call();
@@ -4330,6 +4425,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         border: pendingMessageCount > 0
             ? OnyxDesignTokens.redBorder
             : _commandBorderColor,
+        gradient: pendingMessageCount > 0
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2D1515), Color(0xFF1A0A0A)],
+              )
+            : const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF0D2D1A), Color(0xFF0A1A0F)],
+              ),
         onTap: () async {
           if (clientLaneAction != null) {
             clientLaneAction();
