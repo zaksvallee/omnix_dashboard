@@ -10,8 +10,10 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/projection/operations_health_projection.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 // Fallback response scores used when averageResponseMinutes has not yet been
 // sampled (e.g. a new site or a very recent shift start).
@@ -86,9 +88,37 @@ class _SitesPageState extends State<SitesPage> {
       required bool compactForViewport,
       required bool mergeWorkspaceBannerIntoHero,
     }) {
+      final criticalCount = _siteCountForFilter(
+        allSites,
+        _SiteLaneFilter.active,
+      );
+      final atRiskCount = _siteCountForFilter(
+        allSites,
+        _SiteLaneFilter.watch,
+      );
+      final anyAlert = criticalCount > 0 || atRiskCount > 0;
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          OnyxPageHeader(
+            icon: Icons.domain,
+            iconColor: OnyxDesignTokens.statusInfo,
+            title: 'Sites & Deployment',
+            subtitle:
+                'Site management, watch posture, and operational readiness',
+          ),
+          const SizedBox(height: 10),
+          OnyxStatusBanner(
+            message: anyAlert
+                ? '$criticalCount CRITICAL · $atRiskCount AT-RISK'
+                : 'ALL SITES SECURE',
+            severity: criticalCount > 0
+                ? OnyxSeverity.critical
+                : atRiskCount > 0
+                ? OnyxSeverity.warning
+                : OnyxSeverity.success,
+          ),
+          const SizedBox(height: 10),
           _heroHeader(
             context,
             sites: allSites,

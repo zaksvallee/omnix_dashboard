@@ -10,8 +10,10 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
 import 'client_comms_queue_board.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
 
 class ClientsAgentDraftHandoff {
@@ -666,29 +668,51 @@ class _ClientsPageState extends State<ClientsPage> {
             maxWidth: surfaceMaxWidth,
             spacing: 6,
             lockToViewport: boundedDesktopSurface,
-            header: _heroHeader(
-              currentClient: currentClient,
-              currentSite: currentSite,
-              unreadAlerts: unreadAlerts,
-              pendingAsks: pendingAsks,
-              directUpdates: directUpdates,
-              agentIncidentReference: agentIncidentReference,
-              desktopStatusCard: desktopWorkspace
-                  ? _clientsWorkspaceStatusBanner(
-                      currentClient: currentClient,
-                      currentSite: currentSite,
-                      unreadAlerts: unreadAlerts,
-                      pendingAsks: pendingAsks,
-                      directUpdates: directUpdates,
-                      activeIncidents: activeIncidents,
-                      reviewEventId: reviewEventId,
-                      agentIncidentReference: agentIncidentReference,
-                      pushRetryAvailable: widget.onRetryPushSync != null,
-                      roomRoutingAvailable:
-                          widget.onOpenClientRoomForScope != null,
-                      shellless: true,
-                    )
-                  : null,
+            header: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                OnyxPageHeader(
+                  icon: Icons.business_center,
+                  iconColor: OnyxDesignTokens.statusInfo,
+                  title: 'Client Communications',
+                  subtitle:
+                      'Lane management and client notification status',
+                ),
+                const SizedBox(height: 10),
+                OnyxStatusBanner(
+                  message: pendingAsks > 0
+                      ? '$pendingAsks PENDING MESSAGES'
+                      : 'ALL LANES CLEAR',
+                  severity: pendingAsks > 0
+                      ? OnyxSeverity.warning
+                      : OnyxSeverity.success,
+                ),
+                const SizedBox(height: 10),
+                _heroHeader(
+                  currentClient: currentClient,
+                  currentSite: currentSite,
+                  unreadAlerts: unreadAlerts,
+                  pendingAsks: pendingAsks,
+                  directUpdates: directUpdates,
+                  agentIncidentReference: agentIncidentReference,
+                  desktopStatusCard: desktopWorkspace
+                      ? _clientsWorkspaceStatusBanner(
+                          currentClient: currentClient,
+                          currentSite: currentSite,
+                          unreadAlerts: unreadAlerts,
+                          pendingAsks: pendingAsks,
+                          directUpdates: directUpdates,
+                          activeIncidents: activeIncidents,
+                          reviewEventId: reviewEventId,
+                          agentIncidentReference: agentIncidentReference,
+                          pushRetryAvailable: widget.onRetryPushSync != null,
+                          roomRoutingAvailable:
+                              widget.onOpenClientRoomForScope != null,
+                          shellless: true,
+                        )
+                      : null,
+                ),
+              ],
             ),
             body: detailedBody,
           );

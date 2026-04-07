@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 const _intelSurfaceColor = Color(0xFFFFFFFF);
 const _intelSurfaceAltColor = Color(0xFFF4F8FE);
@@ -326,6 +328,31 @@ class RiskIntelligencePage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    OnyxPageHeader(
+                      icon: Icons.trending_up,
+                      iconColor: OnyxDesignTokens.accentTeal,
+                      title: 'Risk Intelligence',
+                      subtitle:
+                          'Area threat assessment and news monitoring',
+                    ),
+                    const SizedBox(height: 10),
+                    OnyxStatusBanner(
+                      message: switch (
+                        hottestArea?.level.trim().toUpperCase() ?? ''
+                      ) {
+                        'CRITICAL' || 'HIGH' => 'THREAT LEVEL: HIGH',
+                        'MEDIUM' => 'THREAT LEVEL: MEDIUM',
+                        _ => 'THREAT LEVEL: LOW',
+                      },
+                      severity: switch (
+                        hottestArea?.level.trim().toUpperCase() ?? ''
+                      ) {
+                        'CRITICAL' || 'HIGH' => OnyxSeverity.critical,
+                        'MEDIUM' => OnyxSeverity.warning,
+                        _ => OnyxSeverity.success,
+                      },
+                    ),
+                    const SizedBox(height: 18),
                     _IntelStatusStrip(areas: areas),
                     const SizedBox(height: 18),
                     Container(

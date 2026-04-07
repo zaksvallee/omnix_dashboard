@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../application/guard_sync_repository.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/guard/guard_mobile_ops.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
@@ -641,6 +642,12 @@ class _GuardsPageState extends State<GuardsPage> {
     final filteredGuards = _filteredGuards();
     final selectedGuard = _selectedGuard(filteredGuards);
     final effectiveGuards = _effectiveGuards;
+    final onDutyCount = effectiveGuards
+        .where((g) => g.status == _GuardStatus.onDuty)
+        .length;
+    final syncIssues = effectiveGuards
+        .where((g) => g.hasSyncIssue)
+        .length;
 
     return OnyxPageScaffold(
       child: LayoutBuilder(
@@ -666,6 +673,23 @@ class _GuardsPageState extends State<GuardsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    OnyxPageHeader(
+                      icon: Icons.people,
+                      iconColor: const Color(0xFFEA580C),
+                      title: 'Guards & Workforce',
+                      subtitle:
+                          'Roster management, shift tracking, and operational readiness',
+                    ),
+                    const SizedBox(height: 10),
+                    OnyxStatusBanner(
+                      message: syncIssues > 0
+                          ? '$syncIssues SYNC ISSUES'
+                          : '$onDutyCount ON DUTY · $onDutyCount ACTIVE SHIFTS',
+                      severity: syncIssues > 0
+                          ? OnyxSeverity.warning
+                          : OnyxSeverity.success,
+                    ),
+                    const SizedBox(height: 10),
                     _pageHeader(context),
                     if (_activeEvidenceReturnReceipt != null) ...[
                       const SizedBox(height: 12),
