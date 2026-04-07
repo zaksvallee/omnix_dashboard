@@ -54,6 +54,7 @@ import 'application/oversight_focus_formatter.dart';
 import 'application/readiness_summary_formatter.dart';
 import 'application/monitoring_shift_notification_service.dart';
 import 'application/monitoring_scene_review_store.dart';
+import 'application/news_source_diagnostic.dart';
 import 'application/monitoring_site_narrative_service.dart';
 import 'application/monitoring_synthetic_war_room_service.dart';
 import 'application/monitoring_watch_action_plan.dart';

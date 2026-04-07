@@ -5,10 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/application/monitoring_identity_policy_service.dart';
+import 'package:omnix_dashboard/application/news_source_diagnostic.dart';
 import 'package:omnix_dashboard/application/offline_incident_spool_service.dart';
-import 'package:omnix_dashboard/domain/guard/guard_mobile_ops.dart';
-import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
 import 'package:omnix_dashboard/application/radio_bridge_service.dart';
+import 'package:omnix_dashboard/domain/guard/guard_mobile_ops.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/client_app_page.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
