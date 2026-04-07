@@ -840,27 +840,6 @@ class _VipScheduleCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: detail.badgeBackground,
-                      borderRadius: BorderRadius.circular(9),
-                      border: Border.all(color: detail.badgeBorder),
-                    ),
-                    child: Text(
-                      detail.badgeLabel,
-                      style: GoogleFonts.inter(
-                        color: detail.badgeForeground,
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 16),

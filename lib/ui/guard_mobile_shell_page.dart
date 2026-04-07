@@ -492,15 +492,16 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
     });
   }
 
-  Map<String, Object?> _decodeCustomTelemetryPayloadJson() {
+  Map<String, Object?>? _decodeCustomTelemetryPayloadJson() {
     final raw = _customTelemetryPayloadJson.trim();
-    if (raw.isEmpty) {
-      throw StateError('Custom telemetry payload JSON is empty.');
+    if (raw.isEmpty) return null;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(raw);
+    } on FormatException {
+      return null;
     }
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map) {
-      throw StateError('Custom telemetry payload must be a JSON object.');
-    }
+    if (decoded is! Map) return null;
     return decoded.map((key, value) => MapEntry(key.toString(), value));
   }
 

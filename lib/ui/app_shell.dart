@@ -188,9 +188,7 @@ Future<void> _showAppShellQuickJumpDialog({
       },
     );
   } finally {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      queryNotifier.dispose();
-    });
+    queryNotifier.dispose();
   }
   if (context.mounted && selection != null && selection != currentRoute) {
     onRouteChanged(selection);

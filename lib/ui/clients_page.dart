@@ -157,6 +157,7 @@ class _ClientsPageState extends State<ClientsPage> {
 
   String? _selectedClientId;
   String? _selectedSiteId;
+  String _lastOpenedRoom = 'Residents';
   bool _selectionReconcileScheduled = false;
   bool _showDetailedWorkspace = false;
   int _pushRetryCount = 0;
@@ -2276,7 +2277,6 @@ class _ClientsPageState extends State<ClientsPage> {
                 _roomButton(
                   'Security Desk',
                   const Color(0xFF10B981),
-                  unreadLabel: '2 unread',
                   enabled: roomRoutingAvailable,
                   onTap: () => _openClientRoom('Security Desk'),
                 ),
@@ -3500,7 +3500,7 @@ class _ClientsPageState extends State<ClientsPage> {
             : notice.id.trim(),
         clientId: selectedClientId,
         siteId: selectedSiteId,
-        room: 'Residents',
+        room: _lastOpenedRoom,
         incidentReference: '',
         draftText: draftText,
         originalDraftText: draftText,
@@ -3771,6 +3771,7 @@ class _ClientsPageState extends State<ClientsPage> {
         'site_id': _selectedSiteId,
       },
     );
+    _lastOpenedRoom = room;
     callback(room, _selectedClientId!, _selectedSiteId!);
   }
 

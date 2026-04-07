@@ -13,6 +13,14 @@ import '../domain/projection/operations_health_projection.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
+// Fallback response scores used when averageResponseMinutes has not yet been
+// sampled (e.g. a new site or a very recent shift start).
+// Derived from the formula `100 - ((minutes - 4) * 8)`:
+//   _kResponseScoreNoDataActive ≈ 8-minute equivalent (units live, no timing yet)
+//   _kResponseScoreNoDataQuiet  ≈ 4-minute equivalent (baseline, nothing active)
+const _kResponseScoreNoDataActive = 42;
+const _kResponseScoreNoDataQuiet = 86;
+
 class SitesPage extends StatefulWidget {
   final List<DispatchEvent> events;
 
@@ -542,11 +550,7 @@ class _SitesPageState extends State<SitesPage> {
           crossAxisCount: columns,
           mainAxisSpacing: 1.75,
           crossAxisSpacing: 1.75,
-          childAspectRatio: columns == 4
-              ? 6.0
-              : columns == 2
-              ? 5.0
-              : 3.7,
+          childAspectRatio: columns == 2 ? 5.0 : 3.7,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
@@ -1919,7 +1923,9 @@ class _SitesPageState extends State<SitesPage> {
 
   int _responseScore(_SiteDrillSnapshot site) {
     if (site.averageResponseMinutes <= 0) {
-      return site.activeDispatches > 0 ? 42 : 86;
+      return site.activeDispatches > 0
+          ? _kResponseScoreNoDataActive
+          : _kResponseScoreNoDataQuiet;
     }
     final score =
         100 - (((site.averageResponseMinutes - 4).clamp(0.0, 12.0)) * 8);
@@ -2406,7 +2412,7 @@ class _SitesPageState extends State<SitesPage> {
       case 'STABLE':
         return const Color(0xFF47D49B);
       default:
-        return const Color(0xFF40C6FF);
+        return const Color(0xFF8EA4C2);
     }
   }
 
