@@ -1,11 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../domain/guard/guard_position_summary.dart';
 import '../domain/guard/guard_mobile_ops.dart';
 import 'dispatch_persistence_service.dart';
 
 abstract class GuardSyncRepository implements GuardSyncOperationStore {
   Future<List<GuardAssignment>> readAssignments();
   Future<void> saveAssignments(List<GuardAssignment> assignments);
+  Future<List<GuardPositionSummary>> readLatestGuardPositions();
   Future<List<GuardSyncOperation>> readOperations({
     Set<GuardSyncOperationStatus> statuses = const {
       GuardSyncOperationStatus.queued,
@@ -30,6 +32,12 @@ class SharedPrefsGuardSyncRepository implements GuardSyncRepository {
   @override
   Future<void> saveAssignments(List<GuardAssignment> assignments) {
     return persistence.saveGuardAssignments(assignments);
+  }
+
+  @override
+  Future<List<GuardPositionSummary>> readLatestGuardPositions() async {
+    final operations = await persistence.readGuardSyncOperations();
+    return _latestGuardPositionsFromOperations(operations);
   }
 
   @override
@@ -143,6 +151,17 @@ class FallbackGuardSyncRepository implements GuardSyncRepository {
       // Local fallback remains authoritative when the primary backend fails.
     }
     await fallback.saveAssignments(assignments);
+  }
+
+  @override
+  Future<List<GuardPositionSummary>> readLatestGuardPositions() async {
+    try {
+      final positions = await primary.readLatestGuardPositions();
+      if (positions.isNotEmpty) {
+        return positions;
+      }
+    } catch (_) {}
+    return fallback.readLatestGuardPositions();
   }
 
   @override
@@ -311,6 +330,22 @@ class SupabaseGuardSyncRepository implements GuardSyncRepository {
           .where((assignmentId) => assignmentId.isNotEmpty)
           .toList(growable: false),
     );
+  }
+
+  @override
+  Future<List<GuardPositionSummary>> readLatestGuardPositions() async {
+    final response = await client
+        .from('guard_sync_operations')
+        .select(
+          'guard_id, client_id, site_id, occurred_at, payload, operation_type',
+        )
+        .eq('client_id', clientId)
+        .eq('site_id', siteId)
+        .eq('operation_type', GuardSyncOperationType.locationHeartbeat.name)
+        .order('occurred_at', ascending: false)
+        .limit(500);
+    final operations = response.whereType<Map>().map(_guardOperationFromRow);
+    return _latestGuardPositionsFromOperations(operations);
   }
 
   @override
@@ -499,6 +534,75 @@ class SupabaseGuardSyncRepository implements GuardSyncRepository {
     }
     await query;
   }
+}
+
+List<GuardPositionSummary> _latestGuardPositionsFromOperations(
+  Iterable<GuardSyncOperation> operations,
+) {
+  final latestByGuardId = <String, GuardPositionSummary>{};
+  for (final operation in operations) {
+    if (operation.type != GuardSyncOperationType.locationHeartbeat) {
+      continue;
+    }
+    final payload = operation.payload;
+    final guardId = (payload['guard_id'] ?? '').toString().trim();
+    if (guardId.isEmpty) {
+      continue;
+    }
+    final latitude = _guardPositionDouble(payload['latitude']);
+    final longitude = _guardPositionDouble(payload['longitude']);
+    if (latitude == null || longitude == null) {
+      continue;
+    }
+    final candidate = GuardPositionSummary.fromHeartbeatPayload(
+      payload,
+      fallbackGuardId: guardId,
+      fallbackClientId: (payload['client_id'] ?? '').toString().trim(),
+      fallbackSiteId: (payload['site_id'] ?? '').toString().trim(),
+      fallbackRecordedAtUtc: operation.createdAt.toUtc(),
+    );
+    final existing = latestByGuardId[guardId];
+    if (existing == null ||
+        candidate.recordedAtUtc.isAfter(existing.recordedAtUtc)) {
+      latestByGuardId[guardId] = candidate;
+    }
+  }
+  final positions = latestByGuardId.values.toList(growable: false);
+  positions.sort((a, b) => b.recordedAtUtc.compareTo(a.recordedAtUtc));
+  return positions;
+}
+
+double? _guardPositionDouble(Object? raw) {
+  if (raw is num) {
+    return raw.toDouble();
+  }
+  return double.tryParse((raw ?? '').toString().trim());
+}
+
+GuardSyncOperation _guardOperationFromRow(Map row) {
+  return GuardSyncOperation(
+    operationId: row['operation_id']?.toString() ?? '',
+    type: GuardSyncOperationType.values.firstWhere(
+      (value) => value.name == row['operation_type']?.toString(),
+      orElse: () => GuardSyncOperationType.statusUpdate,
+    ),
+    status: GuardSyncOperationStatus.values.firstWhere(
+      (value) => value.name == row['operation_status']?.toString(),
+      orElse: () => GuardSyncOperationStatus.queued,
+    ),
+    failureReason: (row['failure_reason'] as String?)?.trim(),
+    retryCount: (row['retry_count'] as num?)?.toInt() ?? 0,
+    createdAt:
+        DateTime.tryParse(
+          row['occurred_at']?.toString() ?? '',
+        )?.toUtc() ??
+        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    payload: row['payload'] is Map
+        ? (row['payload'] as Map).map(
+            (key, value) => MapEntry(key.toString(), value),
+          )
+        : const {},
+  );
 }
 
 String? _normalizedFacadeMode(String? raw) {

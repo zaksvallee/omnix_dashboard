@@ -156,6 +156,7 @@ import 'domain/evidence/evidence_provenance.dart';
 import 'domain/guard/guard_ops_event.dart';
 import 'domain/guard/guard_event_contract.dart';
 import 'domain/guard/guard_mobile_ops.dart';
+import 'domain/guard/guard_position_summary.dart';
 import 'domain/guard/operational_tiers.dart';
 import 'domain/guard/outcome_label_governance.dart';
 import 'domain/guard/guard_sync_coaching_policy.dart';
@@ -1662,6 +1663,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   VideoFleetWatchActionDrilldown? _tacticalWatchActionDrilldown;
   late String _tacticalRouteClientId = _selectedClient;
   late String _tacticalRouteSiteId = _selectedSite;
+  List<GuardPositionSummary> _tacticalGuardPositions =
+      const <GuardPositionSummary>[];
+  List<AdminDirectorySiteRow> _tacticalSiteMarkers =
+      const <AdminDirectorySiteRow>[];
+  Timer? _tacticalGuardPositionsRefreshTimer;
+  Timer? _tacticalGuardPositionsDebounceTimer;
+  RealtimeChannel? _tacticalGuardPositionsChannel;
+  String _tacticalGuardPositionScopeKey = '';
   String? _tacticalAgentReturnIncidentReference;
   String? _pendingTacticalAgentReturnIncidentReference;
   late String _ledgerRouteClientId = _selectedClient;
@@ -3330,6 +3339,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _livePollTimer?.cancel();
     _opsIntegrationPollTimer?.cancel();
     _guardOpsSyncTimer?.cancel();
+    _tacticalGuardPositionsRefreshTimer?.cancel();
+    _tacticalGuardPositionsDebounceTimer?.cancel();
     _offlineIncidentSpoolSyncTimer?.cancel();
     _telegramAdminPollTimer?.cancel();
     _monitoringWatchScheduleTimer?.cancel();
@@ -3360,6 +3371,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _monitoringYoloHttpClient.close();
     _guardTelemetryAdapter.dispose();
     _newsIntel.dispose();
+    final tacticalChannel = _tacticalGuardPositionsChannel;
+    if (tacticalChannel != null && widget.supabaseReady) {
+      unawaited(Supabase.instance.client.removeChannel(tacticalChannel));
+    }
     super.dispose();
   }
 
@@ -29048,6 +29063,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   void _resetControllerPreviewSession() {
     _cancelDemoAutopilot();
+    _stopTacticalMapLiveData(clearState: false);
     setState(() {
       _signedInAccount = null;
       _signedInAt = null;
@@ -29354,6 +29370,229 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  String _tacticalGuardPositionScopeKeyFor(String clientId, String siteId) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return '';
+    }
+    return '$normalizedClientId::$normalizedSiteId';
+  }
+
+  Future<GuardSyncRepository> _guardSyncRepositoryForScope({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final persistence = await _persistenceServiceFuture;
+    final localRepository = SharedPrefsGuardSyncRepository(persistence);
+    if (!widget.supabaseReady) {
+      return localRepository;
+    }
+    return FallbackGuardSyncRepository(
+      primary: SupabaseGuardSyncRepository(
+        client: Supabase.instance.client,
+        clientId: clientId,
+        siteId: siteId,
+        guardId: '',
+      ),
+      fallback: localRepository,
+    );
+  }
+
+  void _scheduleTacticalGuardPositionRefresh({
+    required String clientId,
+    required String siteId,
+    required String scopeKey,
+  }) {
+    _tacticalGuardPositionsDebounceTimer?.cancel();
+    _tacticalGuardPositionsDebounceTimer = Timer(
+      const Duration(milliseconds: 700),
+      () {
+        unawaited(
+          _refreshTacticalGuardPositions(
+            clientId: clientId,
+            siteId: siteId,
+            scopeKey: scopeKey,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _refreshTacticalSiteMarkers({
+    required String clientId,
+    required String siteId,
+    required String scopeKey,
+  }) async {
+    if (!widget.supabaseReady) {
+      if (!mounted || _tacticalGuardPositionScopeKey != scopeKey) {
+        return;
+      }
+      setState(() {
+        _tacticalSiteMarkers = const <AdminDirectorySiteRow>[];
+      });
+      return;
+    }
+    try {
+      final snapshot = await const AdminDirectoryService().loadDirectory(
+        supabase: Supabase.instance.client,
+      );
+      if (!mounted || _tacticalGuardPositionScopeKey != scopeKey) {
+        return;
+      }
+      final scopedSites = snapshot.sites.where((site) {
+        if (site.clientId.trim() != clientId.trim()) {
+          return false;
+        }
+        if (siteId.trim().isEmpty) {
+          return true;
+        }
+        return site.id.trim() == siteId.trim();
+      }).toList(growable: false);
+      setState(() {
+        _tacticalSiteMarkers = scopedSites;
+      });
+    } catch (error) {
+      debugPrint('Tactical map could not load site markers: $error');
+    }
+  }
+
+  Future<void> _refreshTacticalGuardPositions({
+    required String clientId,
+    required String siteId,
+    required String scopeKey,
+  }) async {
+    try {
+      final repository = await _guardSyncRepositoryForScope(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      final positions = await repository.readLatestGuardPositions();
+      if (!mounted || _tacticalGuardPositionScopeKey != scopeKey) {
+        return;
+      }
+      setState(() {
+        _tacticalGuardPositions = positions;
+      });
+    } catch (error) {
+      debugPrint('Tactical map could not load guard positions: $error');
+    }
+  }
+
+  void _stopTacticalMapLiveData({bool clearState = false}) {
+    _tacticalGuardPositionsRefreshTimer?.cancel();
+    _tacticalGuardPositionsRefreshTimer = null;
+    _tacticalGuardPositionsDebounceTimer?.cancel();
+    _tacticalGuardPositionsDebounceTimer = null;
+    final channel = _tacticalGuardPositionsChannel;
+    _tacticalGuardPositionsChannel = null;
+    _tacticalGuardPositionScopeKey = '';
+    if (channel != null && widget.supabaseReady) {
+      unawaited(Supabase.instance.client.removeChannel(channel));
+    }
+    if (!clearState) {
+      return;
+    }
+    if (!mounted) {
+      _tacticalGuardPositions = const <GuardPositionSummary>[];
+      _tacticalSiteMarkers = const <AdminDirectorySiteRow>[];
+      return;
+    }
+    setState(() {
+      _tacticalGuardPositions = const <GuardPositionSummary>[];
+      _tacticalSiteMarkers = const <AdminDirectorySiteRow>[];
+    });
+  }
+
+  void _configureTacticalMapLiveData({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final scopeKey = _tacticalGuardPositionScopeKeyFor(
+      normalizedClientId,
+      normalizedSiteId,
+    );
+    _stopTacticalMapLiveData(clearState: false);
+    if (scopeKey.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _tacticalGuardPositions = const <GuardPositionSummary>[];
+          _tacticalSiteMarkers = const <AdminDirectorySiteRow>[];
+        });
+      }
+      return;
+    }
+    _tacticalGuardPositionScopeKey = scopeKey;
+    if (mounted) {
+      setState(() {
+        _tacticalGuardPositions = const <GuardPositionSummary>[];
+        _tacticalSiteMarkers = const <AdminDirectorySiteRow>[];
+      });
+    }
+    unawaited(
+      _refreshTacticalSiteMarkers(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+        scopeKey: scopeKey,
+      ),
+    );
+    unawaited(
+      _refreshTacticalGuardPositions(
+        clientId: normalizedClientId,
+        siteId: normalizedSiteId,
+        scopeKey: scopeKey,
+      ),
+    );
+    _tacticalGuardPositionsRefreshTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) {
+        unawaited(
+          _refreshTacticalGuardPositions(
+            clientId: normalizedClientId,
+            siteId: normalizedSiteId,
+            scopeKey: scopeKey,
+          ),
+        );
+      },
+    );
+    if (!widget.supabaseReady) {
+      return;
+    }
+    final channel = Supabase.instance.client.channel('tactical-map-$scopeKey');
+    channel
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'guard_sync_operations',
+          callback: (payload) {
+            final row = payload.newRecord.isNotEmpty
+                ? payload.newRecord
+                : payload.oldRecord;
+            if (_tacticalGuardPositionScopeKey != scopeKey) {
+              return;
+            }
+            if ((row['operation_type'] ?? '').toString().trim() !=
+                GuardSyncOperationType.locationHeartbeat.name) {
+              return;
+            }
+            if ((row['client_id'] ?? '').toString().trim() !=
+                    normalizedClientId ||
+                (row['site_id'] ?? '').toString().trim() != normalizedSiteId) {
+              return;
+            }
+            _scheduleTacticalGuardPositionRefresh(
+              clientId: normalizedClientId,
+              siteId: normalizedSiteId,
+              scopeKey: scopeKey,
+            );
+          },
+        )
+        .subscribe();
+    _tacticalGuardPositionsChannel = channel;
+  }
+
   void _openTacticalFromAdminIncident(String incidentReference) {
     final ref = incidentReference.trim();
     if (ref.isEmpty) return;
@@ -29368,6 +29607,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _pendingTacticalEvidenceReturnReceipt = null;
       _route = OnyxRoute.tactical;
     });
+    _configureTacticalMapLiveData(
+      clientId: scope?.clientId ?? '',
+      siteId: scope?.siteId ?? '',
+    );
   }
 
   void _openTacticalFromEvidenceAudit(DispatchAuditOpenRequest request) {
@@ -29389,6 +29632,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _pendingTacticalEvidenceReturnReceipt = evidenceReturnReceipt;
       _route = OnyxRoute.tactical;
     });
+    _configureTacticalMapLiveData(
+      clientId: scope?.clientId ?? '',
+      siteId: scope?.siteId ?? '',
+    );
   }
 
   void _openTacticalFromAgentIncident(String incidentReference) {
@@ -29405,6 +29652,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _pendingTacticalEvidenceReturnReceipt = null;
       _route = OnyxRoute.tactical;
     });
+    _configureTacticalMapLiveData(
+      clientId: scope?.clientId ?? '',
+      siteId: scope?.siteId ?? '',
+    );
   }
 
   void _openAgentFromTacticalIncident(String incidentReference) {
@@ -31590,6 +31841,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _pendingTacticalAgentReturnIncidentReference = null;
       _route = OnyxRoute.tactical;
     });
+    _configureTacticalMapLiveData(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
   }
 
   void _consumePendingTacticalAgentReturnIncidentReference(

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/guard_sync_repository.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/guard/guard_mobile_ops.dart';
+import 'package:omnix_dashboard/domain/guard/guard_position_summary.dart';
 import 'package:omnix_dashboard/ui/guards_page.dart';
 
 class _FakeGuardSyncRepository implements GuardSyncRepository {
@@ -24,6 +25,11 @@ class _FakeGuardSyncRepository implements GuardSyncRepository {
   @override
   Future<void> saveAssignments(List<GuardAssignment> assignments) async {
     this.assignments = List<GuardAssignment>.from(assignments);
+  }
+
+  @override
+  Future<List<GuardPositionSummary>> readLatestGuardPositions() async {
+    return const <GuardPositionSummary>[];
   }
 
   @override

@@ -23,20 +23,22 @@ class OnyxStatusColorSet {
 }
 
 abstract final class OnyxColorTokens {
-  static const Color shell = Color(0xFF0A0A0F);
-  static const Color backgroundPrimary = Color(0xFF0A0A0F);
+  static const Color shell = Color(0xFF0A0A0A);
+  static const Color backgroundPrimary = Color(0xFF0A0A0A);
   static const Color backgroundSecondary = Color(0xFF111118);
   static const Color card = Color(0xFF16161F);
   static const Color surface = Color(0xFF16161F);
+  static const Color surfaceCard = Color(0xFF111111);
+  static const Color surfaceElevated = Color(0xFF1A1A1A);
   static const Color surfaceInset = Color(0xFF0E1519);
   static const Color surfaceEmphasis = Color(0xFF29233D);
 
-  static const Color borderSubtle = Color(0xFF1E1E2E);
+  static const Color borderSubtle = Color(0xFF1F2937);
   static const Color borderStrong = Color(0xFF313844);
   static const Color divider = Color(0xFF1B2129);
 
-  static const Color textPrimary = Color(0xFFF2F5F7);
-  static const Color textSecondary = Color(0xFF9DA6B4);
+  static const Color textPrimary = Color(0xFFFFFFFF);
+  static const Color textSecondary = Color(0xFF9CA3AF);
   static const Color textMuted = Color(0xFF737D8B);
   static const Color textDisabled = Color(0xFF565F6B);
 
@@ -45,8 +47,14 @@ abstract final class OnyxColorTokens {
   static const Color accentAmber = Color(0xFFF5A623);
   static const Color accentCyan = Color(0xFF00B4D8);
   static const Color accentSky = Color(0xFF8FD1FF);
-  static const Color accentPurple = Color(0xFF7B5EA7);
+  static const Color accentPurple = Color(0xFF7C3AED);
+  static const Color accentTeal = Color(0xFF0D9488);
   static const Color accentBlue = Color(0xFF2A5D95);
+
+  static const Color statusSuccess = Color(0xFF10B981);
+  static const Color statusWarning = Color(0xFFF59E0B);
+  static const Color statusCritical = Color(0xFFEF4444);
+  static const Color statusInfo = Color(0xFF3B82F6);
 
   static const Color glassSurface = Color(0x1AFFFFFF);
   static const Color glassHighlight = Color(0x33FFFFFF);
@@ -228,6 +236,8 @@ abstract final class OnyxDesignTokens {
   static const Color backgroundPrimary = OnyxColorTokens.backgroundPrimary;
   static const Color backgroundSecondary = OnyxColorTokens.backgroundSecondary;
   static const Color cardSurface = OnyxColorTokens.card;
+  static const Color surfaceCard = OnyxColorTokens.surfaceCard;
+  static const Color surfaceElevated = OnyxColorTokens.surfaceElevated;
   static const Color surfaceInset = OnyxColorTokens.surfaceInset;
   static const Color borderSubtle = OnyxColorTokens.borderSubtle;
   static const Color borderStrong = OnyxColorTokens.borderStrong;
@@ -241,9 +251,16 @@ abstract final class OnyxDesignTokens {
   static const Color greenNominal = OnyxColorTokens.accentGreen;
   static const Color amberWarning = OnyxColorTokens.accentAmber;
   static const Color purpleAdmin = OnyxColorTokens.accentPurple;
+  static const Color accentPurple = OnyxColorTokens.accentPurple;
+  static const Color accentTeal = OnyxColorTokens.accentTeal;
   static const Color cyanInteractive = OnyxColorTokens.accentCyan;
   static const Color accentSky = OnyxColorTokens.accentSky;
   static const Color accentBlue = OnyxColorTokens.accentBlue;
+
+  static const Color statusSuccess = OnyxColorTokens.statusSuccess;
+  static const Color statusWarning = OnyxColorTokens.statusWarning;
+  static const Color statusCritical = OnyxColorTokens.statusCritical;
+  static const Color statusInfo = OnyxColorTokens.statusInfo;
 
   static const Color glassSurface = OnyxColorTokens.glassSurface;
   static const Color glassHighlight = OnyxColorTokens.glassHighlight;

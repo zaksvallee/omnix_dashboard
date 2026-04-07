@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/application/guard_sync_repository.dart';
+import 'package:omnix_dashboard/domain/guard/guard_position_summary.dart';
 import 'package:omnix_dashboard/domain/guard/guard_mobile_ops.dart';
 
 void main() {
@@ -186,6 +187,64 @@ void main() {
         expect(limited.single.operationId, 'op-live-queued-newer');
       },
     );
+
+    test('readLatestGuardPositions returns newest heartbeat per guard', () async {
+      final persistence = await DispatchPersistenceService.create();
+      final repository = SharedPrefsGuardSyncRepository(persistence);
+      final operations = [
+        GuardSyncOperation(
+          operationId: 'loc:GUARD-001:old',
+          type: GuardSyncOperationType.locationHeartbeat,
+          createdAt: DateTime.utc(2026, 4, 7, 7, 0),
+          payload: const {
+            'guard_id': 'GUARD-001',
+            'client_id': 'CLIENT-001',
+            'site_id': 'SITE-SANDTON',
+            'latitude': -26.2041,
+            'longitude': 28.0473,
+            'accuracy_meters': 5.0,
+            'recorded_at': '2026-04-07T07:00:00.000Z',
+          },
+        ),
+        GuardSyncOperation(
+          operationId: 'loc:GUARD-001:new',
+          type: GuardSyncOperationType.locationHeartbeat,
+          createdAt: DateTime.utc(2026, 4, 7, 7, 5),
+          payload: const {
+            'guard_id': 'GUARD-001',
+            'client_id': 'CLIENT-001',
+            'site_id': 'SITE-SANDTON',
+            'latitude': -26.2045,
+            'longitude': 28.0479,
+            'accuracy_meters': 4.0,
+            'recorded_at': '2026-04-07T07:05:00.000Z',
+          },
+        ),
+        GuardSyncOperation(
+          operationId: 'loc:GUARD-002',
+          type: GuardSyncOperationType.locationHeartbeat,
+          createdAt: DateTime.utc(2026, 4, 7, 7, 2),
+          payload: const {
+            'guard_id': 'GUARD-002',
+            'client_id': 'CLIENT-001',
+            'site_id': 'SITE-SANDTON',
+            'latitude': -26.2050,
+            'longitude': 28.0481,
+            'accuracy_meters': 6.0,
+            'recorded_at': '2026-04-07T07:02:00.000Z',
+          },
+        ),
+      ];
+      await repository.saveQueuedOperations(operations);
+
+      final positions = await repository.readLatestGuardPositions();
+
+      expect(positions, hasLength(2));
+      expect(positions.first.guardId, 'GUARD-001');
+      expect(positions.first.recordedAtUtc, DateTime.utc(2026, 4, 7, 7, 5));
+      expect(positions.first.latitude, -26.2045);
+      expect(positions[1].guardId, 'GUARD-002');
+    });
   });
 
   group('FallbackGuardSyncRepository', () {
@@ -232,6 +291,30 @@ void main() {
 
       expect(fallback.operations, hasLength(1));
       expect(fallback.operations.single.operationId, 'panic:PANIC-1');
+    });
+
+    test('reads latest guard positions from fallback when primary fails', () async {
+      final fallback = _FakeGuardSyncRepository(
+        positions: [
+          GuardPositionSummary(
+            guardId: 'GUARD-LOCAL',
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            latitude: -26.2041,
+            longitude: 28.0473,
+            recordedAtUtc: DateTime.utc(2026, 4, 7, 7, 10),
+          ),
+        ],
+      );
+      final repository = FallbackGuardSyncRepository(
+        primary: _FakeGuardSyncRepository(throwOnRead: true),
+        fallback: fallback,
+      );
+
+      final restored = await repository.readLatestGuardPositions();
+
+      expect(restored, hasLength(1));
+      expect(restored.single.guardId, 'GUARD-LOCAL');
     });
   });
 
@@ -388,6 +471,84 @@ void main() {
         'DELETE /rest/v1/guard_sync_operations',
       ]);
     });
+
+    test('readLatestGuardPositions returns latest heartbeat per guard for site', () async {
+      final requests = <Uri>[];
+      final repository = SupabaseGuardSyncRepository(
+        client: _buildSupabaseClient((request) async {
+          requests.add(request.url);
+          return http.Response(
+            '''
+[
+  {
+    "guard_id":"GUARD-001",
+    "client_id":"CLIENT-001",
+    "site_id":"SITE-SANDTON",
+    "occurred_at":"2026-04-07T07:05:00.000Z",
+    "operation_type":"locationHeartbeat",
+    "payload":{
+      "guard_id":"GUARD-001",
+      "client_id":"CLIENT-001",
+      "site_id":"SITE-SANDTON",
+      "latitude":-26.2045,
+      "longitude":28.0479,
+      "accuracy_meters":4.0,
+      "recorded_at":"2026-04-07T07:05:00.000Z"
+    }
+  },
+  {
+    "guard_id":"GUARD-001",
+    "client_id":"CLIENT-001",
+    "site_id":"SITE-SANDTON",
+    "occurred_at":"2026-04-07T07:00:00.000Z",
+    "operation_type":"locationHeartbeat",
+    "payload":{
+      "guard_id":"GUARD-001",
+      "client_id":"CLIENT-001",
+      "site_id":"SITE-SANDTON",
+      "latitude":-26.2041,
+      "longitude":28.0473,
+      "accuracy_meters":5.0,
+      "recorded_at":"2026-04-07T07:00:00.000Z"
+    }
+  },
+  {
+    "guard_id":"GUARD-002",
+    "client_id":"CLIENT-001",
+    "site_id":"SITE-SANDTON",
+    "occurred_at":"2026-04-07T07:02:00.000Z",
+    "operation_type":"locationHeartbeat",
+    "payload":{
+      "guard_id":"GUARD-002",
+      "client_id":"CLIENT-001",
+      "site_id":"SITE-SANDTON",
+      "latitude":-26.2050,
+      "longitude":28.0481,
+      "accuracy_meters":6.0,
+      "recorded_at":"2026-04-07T07:02:00.000Z"
+    }
+  }
+]
+''',
+            200,
+            request: request,
+          );
+        }),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        guardId: 'GUARD-001',
+      );
+
+      final positions = await repository.readLatestGuardPositions();
+
+      expect(positions, hasLength(2));
+      expect(positions.first.guardId, 'GUARD-001');
+      expect(positions.first.recordedAtUtc, DateTime.utc(2026, 4, 7, 7, 5));
+      expect(
+        requests.single.queryParameters['operation_type'],
+        'eq.locationHeartbeat',
+      );
+    });
   });
 }
 
@@ -407,13 +568,16 @@ class _FakeGuardSyncRepository implements GuardSyncRepository {
   final bool throwOnWrite;
   List<GuardAssignment> assignments;
   List<GuardSyncOperation> operations;
+  List<GuardPositionSummary> positions;
 
   _FakeGuardSyncRepository({
     this.throwOnRead = false,
     this.throwOnWrite = false,
     this.assignments = const [],
     List<GuardSyncOperation>? operations,
-  }) : operations = operations ?? const [];
+    List<GuardPositionSummary>? positions,
+  }) : operations = operations ?? const [],
+       positions = positions ?? const [];
 
   @override
   Future<List<GuardAssignment>> readAssignments() async {
@@ -429,6 +593,14 @@ class _FakeGuardSyncRepository implements GuardSyncRepository {
       throw StateError('write failed');
     }
     this.assignments = List<GuardAssignment>.from(assignments);
+  }
+
+  @override
+  Future<List<GuardPositionSummary>> readLatestGuardPositions() async {
+    if (throwOnRead) {
+      throw StateError('read failed');
+    }
+    return positions;
   }
 
   @override
