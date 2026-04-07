@@ -1554,7 +1554,8 @@ class MorningSovereignReportService {
     var replayVerified = true;
     try {
       ReplayConsistencyVerifier.verify(nightEvents);
-    } catch (_) {
+    } catch (e, st) {
+      developer.log('ReplayConsistencyVerifier failed', error: e, stackTrace: st);
       replayVerified = false;
     }
 
@@ -2824,9 +2825,6 @@ class MorningSovereignReportService {
         parts.add(detail);
       }
       recentActions.add(parts.join(' • '));
-      if (recentActions.length == 2) {
-        break;
-      }
     }
     if (recentActions.length <= 1) {
       return '';

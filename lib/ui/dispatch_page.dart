@@ -774,7 +774,11 @@ class _DispatchPageState extends State<DispatchPage> {
   Widget build(BuildContext context) {
     final wide = allowEmbeddedPanelScroll(context);
     final contentPadding = const EdgeInsets.fromLTRB(2.95, 2.95, 2.95, 3.7);
-    _desktopWorkspaceActive = wide;
+    if (_desktopWorkspaceActive != wide) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _desktopWorkspaceActive = wide);
+      });
+    }
     final activeDispatches = _dispatches
         .where(
           (dispatch) =>
@@ -2660,7 +2664,7 @@ class _DispatchPageState extends State<DispatchPage> {
                     border: const Color(0x6622D3EE),
                   ),
                   _workspaceActionChip(
-                    key: const ValueKey('dispatch-workspace-filter-pending'),
+                    key: const ValueKey('dispatch-workspace-badge-pending'),
                     label: 'Pending $pendingDispatches',
                     foreground: const Color(0xFFF59E0B),
                     background: const Color(0x1AF59E0B),

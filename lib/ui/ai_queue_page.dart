@@ -210,6 +210,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
   );
   late List<_AiQueueAction> _actions;
   late _AiQueueDailyStats _stats;
+  late List<MonitoringGlobalSitePosture> _cachedMoShadowSites;
   Timer? _ticker;
   bool _queuePaused = false;
   _AiQueueLaneFilter _laneFilter = _AiQueueLaneFilter.live;
@@ -230,6 +231,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       _seedActions(widget.events, widget.sceneReviewByIntelligenceId),
     );
     _stats = _buildDailyStats(widget.events);
+    _cachedMoShadowSites = _computeMoShadowSites();
     _syncCctvRouteSelection();
     _ingestEvidenceReturnReceipt(widget.evidenceReturnReceipt, fromInit: true);
     _ingestAgentReturnIncidentReference(fromInit: true);
@@ -252,6 +254,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
         _seedActions(widget.events, widget.sceneReviewByIntelligenceId),
       );
       _stats = _buildDailyStats(widget.events);
+      _cachedMoShadowSites = _computeMoShadowSites();
+      _selectedFocusId = null;
     }
     final routeSelectionActive =
         widget.focusIncidentReference.trim().isNotEmpty ||
@@ -322,7 +326,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
           final useEmbeddedPanels =
               constraints.maxWidth >= 1240 && allowEmbeddedPanelScroll(context);
           final useWideLayout = constraints.maxWidth >= 1180;
-          _desktopWorkspaceActive = useWideLayout;
+          if (_desktopWorkspaceActive != useWideLayout) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) setState(() => _desktopWorkspaceActive = useWideLayout);
+            });
+          }
           final workspace = _automationWorkspace(
             activeAction: activeAction,
             queuedActions: queuedActions,
@@ -5079,7 +5087,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       .where(_isNextShiftDraft)
       .toList(growable: false);
 
-  List<MonitoringGlobalSitePosture> get _moShadowSites {
+  List<MonitoringGlobalSitePosture> get _moShadowSites => _cachedMoShadowSites;
+
+  List<MonitoringGlobalSitePosture> _computeMoShadowSites() {
     final snapshot = _globalPostureService.buildSnapshot(
       events: widget.events,
       sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,

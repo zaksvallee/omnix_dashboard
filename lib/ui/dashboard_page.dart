@@ -326,6 +326,9 @@ _DashboardTriageSummary _buildDashboardTriageSummary(
   );
 }
 
+String _triagePostureLabel(_DashboardTriageSummary triage) =>
+    'Triage posture: A ${triage.advisoryCount} • W ${triage.watchCount} • DC ${triage.dispatchCandidateCount} • Esc ${triage.escalateCount}';
+
 class _DesktopDashboard extends StatelessWidget {
   final OperationsHealthSnapshot snapshot;
   final _DashboardTriageSummary triage;
@@ -822,7 +825,7 @@ class _ExecutiveSummary extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Triage posture: A ${triage.advisoryCount} • W ${triage.watchCount} • DC ${triage.dispatchCandidateCount} • Esc ${triage.escalateCount}',
+                    _triagePostureLabel(triage),
                     style: GoogleFonts.inter(
                       color: threat.accent,
                       fontSize: 4.25,
@@ -1022,6 +1025,7 @@ class _DashboardOperationsWorkspaceState
         selectedSite,
         visibleSites.length,
         siteItems.length,
+        siteItems,
       ),
     };
 
@@ -1278,7 +1282,7 @@ class _DashboardOperationsWorkspaceState
               ),
               const SizedBox(height: 0.1),
               Text(
-                'Triage posture: A ${widget.triage.advisoryCount} • W ${widget.triage.watchCount} • DC ${widget.triage.dispatchCandidateCount} • Esc ${widget.triage.escalateCount}',
+                _triagePostureLabel(widget.triage),
                 style: GoogleFonts.inter(
                   color: widget.threat.accent,
                   fontSize: compact ? 4.0 : 4.2,
@@ -1814,6 +1818,7 @@ class _DashboardOperationsWorkspaceState
     SiteHealthSnapshot? selected,
     int visibleCount,
     int totalCount,
+    List<SiteHealthSnapshot> allSiteItems,
   ) {
     final averageHealth = totalCount == 0
         ? 0.0
@@ -1844,13 +1849,13 @@ class _DashboardOperationsWorkspaceState
         _DashboardFocusMetric(
           label: 'Watch',
           value:
-              '${_siteCount(_buildSiteItems(widget.snapshot.sites), _DashboardSiteLane.watch)}',
+              '${_siteCount(allSiteItems, _DashboardSiteLane.watch)}',
           accent: const Color(0xFFFFB44D),
         ),
         _DashboardFocusMetric(
           label: 'Strong',
           value:
-              '${_siteCount(_buildSiteItems(widget.snapshot.sites), _DashboardSiteLane.strong)}',
+              '${_siteCount(allSiteItems, _DashboardSiteLane.strong)}',
           accent: const Color(0xFF8EF3C0),
         ),
         _DashboardFocusMetric(
@@ -3492,10 +3497,6 @@ class _RightRail extends StatelessWidget {
     return parts.join(' • ');
   }
 
-  String _guardFailureTraceText(
-    List<String> recentFailureTraces,
-    String? lastFailureReason,
-  ) => _guardFailureTraceClipboard(recentFailureTraces, lastFailureReason);
 
   String _guardPolicyTelemetryJson() {
     final deniedEvents = [...guardOutcomePolicyDeniedHistoryUtc]
@@ -4285,7 +4286,7 @@ class _RightRail extends StatelessWidget {
                               siteActivity.eventIds.isNotEmpty
                           ? _openSiteActivityEventsReview
                           : null,
-                      guardFailureTraceText: _guardFailureTraceText(
+                      guardFailureTraceText: _guardFailureTraceClipboard(
                         recentFailureTraces,
                         guardLastFailureReason,
                       ),

@@ -857,6 +857,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       const _PlannerSignalSnapshot();
   _PlannerSignalSnapshot _previousPlannerSignalSnapshot =
       const _PlannerSignalSnapshot();
+  _PlannerConflictReport? _cachedPlannerConflictReport;
   Map<String, int> _plannerBacklogScores = const <String, int>{};
   Map<String, int> _plannerBacklogArchivedSignalCounts = const <String, int>{};
   Map<String, int> _plannerBacklogReactivatedSignalCounts =
@@ -8079,7 +8080,10 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     return days == 1 ? '1 day ago' : '$days days ago';
   }
 
-  _PlannerConflictReport _plannerConflictReport() {
+  _PlannerConflictReport _plannerConflictReport() =>
+      _cachedPlannerConflictReport ??= _computePlannerConflictReport();
+
+  _PlannerConflictReport _computePlannerConflictReport() {
     final metrics = _plannerConflictMetricsForThreads(_threads);
     final currentSignalCounts = _plannerSignalCountMap(
       modelTargetCounts: metrics.modelTargetCounts,
@@ -9183,6 +9187,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     required List<_AgentThread> threads,
     bool baseline = false,
   }) {
+    _cachedPlannerConflictReport = null;
     final metrics = _plannerConflictMetricsForThreads(threads);
     final nextSnapshot = _PlannerSignalSnapshot(
       signalCounts: _plannerSignalCountMap(
@@ -10864,7 +10869,15 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     if (identical(left, right)) {
       return true;
     }
-    return jsonEncode(left) == jsonEncode(right);
+    if (left.length != right.length) {
+      return false;
+    }
+    for (final entry in left.entries) {
+      if (right[entry.key] != entry.value) {
+        return false;
+      }
+    }
+    return true;
   }
 
   bool _sameStringIntMap(Map<String, int> left, Map<String, int> right) {
