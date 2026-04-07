@@ -1259,13 +1259,13 @@ class LiveOperationsPage extends StatefulWidget {
   @override
   State<LiveOperationsPage> createState() => _LiveOperationsPageState();
 
-  static void debugResetQueueStateHintSession() {
-    _LiveOperationsPageState.debugResetQueueStateHintSession();
-  }
+  /// No-op after migration to instance fields. Each widget construction
+  /// starts with fresh session state; tests no longer need a manual reset.
+  static void debugResetQueueStateHintSession() {}
 
-  static void debugResetReplayHistoryMemorySession() {
-    _LiveOperationsPageState.debugResetReplayHistoryMemorySession();
-  }
+  /// No-op after migration to instance fields. Each widget construction
+  /// starts with fresh session state; tests no longer need a manual reset.
+  static void debugResetReplayHistoryMemorySession() {}
 }
 
 class _LiveOperationsPageState extends State<LiveOperationsPage> {
@@ -1284,8 +1284,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     'CLIENT_VERIFIED_SAFE',
     'HARDWARE_FAULT',
   ];
-  static bool _queueStateHintSeenThisSession = false;
-  static Map<String, _LiveOpsReplayHistoryMemory>
+  bool _queueStateHintSeenThisSession = false;
+  Map<String, _LiveOpsReplayHistoryMemory>
   _replayHistoryMemoryByScopeThisSession =
       <String, _LiveOpsReplayHistoryMemory>{};
   static const _defaultCommandReceipt = _LiveOpsCommandReceipt(
@@ -1659,11 +1659,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     _syncClientLaneCameraPreviewTimer();
   }
 
-  static void debugResetQueueStateHintSession() {
+  void debugResetQueueStateHintSession() {
     _queueStateHintSeenThisSession = false;
   }
 
-  static void debugResetReplayHistoryMemorySession() {
+  void debugResetReplayHistoryMemorySession() {
     _replayHistoryMemoryByScopeThisSession =
         <String, _LiveOpsReplayHistoryMemory>{};
   }
@@ -17178,21 +17178,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   void _applyOverride(_IncidentRecord incident, String reasonCode) {
-    setState(() {
-      _statusOverrides[incident.id] = _IncidentStatus.resolved;
-      _manualLedger.add(
-        _LedgerEntry(
-          id: 'OVR-${DateTime.now().microsecondsSinceEpoch}',
-          timestamp: DateTime.now(),
-          type: _LedgerType.humanOverride,
-          description: 'Override submitted for ${incident.id}',
-          hash: _hashFor('override-$reasonCode-${incident.id}'),
-          verified: true,
-          reasonCode: reasonCode,
-        ),
-      );
-      _projectFromEvents();
-    });
+    _statusOverrides[incident.id] = _IncidentStatus.resolved;
+    _manualLedger.add(
+      _LedgerEntry(
+        id: 'OVR-${DateTime.now().microsecondsSinceEpoch}',
+        timestamp: DateTime.now(),
+        type: _LedgerType.humanOverride,
+        description: 'Override submitted for ${incident.id}',
+        hash: _hashFor('override-$reasonCode-${incident.id}'),
+        verified: true,
+        reasonCode: reasonCode,
+      ),
+    );
+    _projectFromEvents();
     logUiAction(
       'live_operations.manual_override',
       context: {'incident_id': incident.id, 'reason_code': reasonCode},
@@ -17200,20 +17198,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }
 
   void _forceDispatch(_IncidentRecord incident) {
-    setState(() {
-      _statusOverrides[incident.id] = _IncidentStatus.dispatched;
-      _manualLedger.add(
-        _LedgerEntry(
-          id: 'ESC-${DateTime.now().microsecondsSinceEpoch}',
-          timestamp: DateTime.now(),
-          type: _LedgerType.escalation,
-          description: 'Forced dispatch activated for ${incident.id}',
-          hash: _hashFor('forced-dispatch-${incident.id}'),
-          verified: true,
-        ),
-      );
-      _projectFromEvents();
-    });
+    _statusOverrides[incident.id] = _IncidentStatus.dispatched;
+    _manualLedger.add(
+      _LedgerEntry(
+        id: 'ESC-${DateTime.now().microsecondsSinceEpoch}',
+        timestamp: DateTime.now(),
+        type: _LedgerType.escalation,
+        description: 'Forced dispatch activated for ${incident.id}',
+        hash: _hashFor('forced-dispatch-${incident.id}'),
+        verified: true,
+      ),
+    );
+    _projectFromEvents();
     logUiAction(
       'live_operations.force_dispatch',
       context: {'incident_id': incident.id},
