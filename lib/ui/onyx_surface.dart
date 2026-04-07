@@ -76,16 +76,23 @@ class OnyxPageHeader extends StatelessWidget {
   final String title;
   final String subtitle;
   final List<Widget> actions;
+  final IconData? icon;
+  final Color? iconColor;
 
   const OnyxPageHeader({
     super.key,
     required this.title,
     required this.subtitle,
     this.actions = const [],
+    this.icon,
+    this.iconColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    if (icon != null && iconColor != null) {
+      return _iconLayout();
+    }
     final titleCard = Container(
       padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
       decoration: BoxDecoration(
@@ -162,6 +169,58 @@ class OnyxPageHeader extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  Widget _iconLayout() {
+    final color = iconColor!;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Icon(icon, color: color, size: 22),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: GoogleFonts.inter(
+                  color: _onyxTitleColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: GoogleFonts.inter(
+                  color: _onyxMutedColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (actions.isNotEmpty) ...[
+          const SizedBox(width: 12),
+          ...actions,
+        ],
+      ],
     );
   }
 }
