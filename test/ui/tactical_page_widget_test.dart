@@ -5,8 +5,32 @@ import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/tactical_page.dart';
+import 'package:omnix_dashboard/ui/track_overview_board.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_view.dart';
+
+DateTime _tacticalSuppressedReviewReviewedAtUtc() =>
+    DateTime.utc(2026, 3, 13, 21, 14);
+
+DateTime _tacticalNowUtc() => DateTime.now().toUtc();
+
+Future<void> openDetailedWorkspaceIfVisible(WidgetTester tester) async {
+  if (find
+      .byKey(const ValueKey('tactical-workspace-panel-map'))
+      .evaluate()
+      .isNotEmpty) {
+    return;
+  }
+  final toggle = find.byKey(
+    const ValueKey('tactical-toggle-detailed-workspace'),
+  );
+  if (toggle.evaluate().isEmpty) {
+    return;
+  }
+  await tester.ensureVisible(toggle);
+  await tester.tap(toggle);
+  await tester.pumpAndSettle();
+}
 
 void main() {
   testWidgets('tactical page stays stable on phone viewport', (tester) async {
@@ -75,6 +99,249 @@ void main() {
     },
   );
 
+  testWidgets('tactical page hero asks agent for the scoped incident', (
+    tester,
+  ) async {
+    String? openedIncidentReference;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TacticalPage(
+          events: const [],
+          focusIncidentReference: 'INC-TRACK-77',
+          onOpenAgentForIncident: (incidentReference) {
+            openedIncidentReference = incidentReference;
+          },
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIMITED WATCH',
+              watchLabel: 'LIMITED',
+              recentEvents: 0,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+              latestIncidentReference: 'INT-VALLEE-1',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final askAgentButton = find.byKey(
+      const ValueKey('tactical-open-agent-button'),
+    );
+    await tester.ensureVisible(askAgentButton);
+    await tester.tap(askAgentButton);
+    await tester.pumpAndSettle();
+
+    expect(openedIncidentReference, 'INC-TRACK-77');
+  });
+
+  testWidgets('tactical map focus opens dispatches for the focused scope', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? tappedClientId;
+    String? tappedSiteId;
+    String? tappedReference;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TacticalPage(
+          events: const [],
+          initialScopeClientId: 'CLIENT-A',
+          initialScopeSiteId: 'SITE-A',
+          focusIncidentReference: 'INC-TRACK-88',
+          onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+            tappedClientId = clientId;
+            tappedSiteId = siteId;
+            tappedReference = incidentReference;
+          },
+          fleetScopeHealth: const [
+            VideoFleetScopeHealthView(
+              clientId: 'CLIENT-A',
+              siteId: 'SITE-A',
+              siteName: 'MS Vallee Residence',
+              endpointLabel: '192.168.8.105',
+              statusLabel: 'LIMITED WATCH',
+              watchLabel: 'LIMITED',
+              recentEvents: 0,
+              lastSeenLabel: '21:14 UTC',
+              freshnessLabel: 'Fresh',
+              isStale: false,
+              latestIncidentReference: 'INC-TRACK-88',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openDetailedWorkspaceIfVisible(tester);
+
+    final openDispatchesButton = find.byKey(
+      const ValueKey('tactical-map-focus-open-dispatches'),
+    );
+    await tester.ensureVisible(openDispatchesButton);
+    await tester.tap(openDispatchesButton);
+    await tester.pumpAndSettle();
+
+    expect(tappedClientId, 'CLIENT-A');
+    expect(tappedSiteId, 'SITE-A');
+    expect(tappedReference, 'INC-TRACK-88');
+  });
+
+  testWidgets(
+    'tactical page ingests agent returns into the focused track workspace',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? consumedIncidentReference;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TacticalPage(
+            events: const [],
+            focusIncidentReference: 'INC-TRACK-77',
+            agentReturnIncidentReference: 'INC-TRACK-77',
+            onConsumeAgentReturnIncidentReference: (incidentReference) {
+              consumedIncidentReference = incidentReference;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await openDetailedWorkspaceIfVisible(tester);
+
+      expect(
+        find.byKey(const ValueKey('tactical-workspace-command-receipt')),
+        findsOneWidget,
+      );
+      expect(find.text('AGENT RETURN'), findsOneWidget);
+      expect(
+        find.text('Returned from Agent for INC-TRACK-77.'),
+        findsOneWidget,
+      );
+      expect(consumedIncidentReference, 'INC-TRACK-77');
+    },
+  );
+
+  testWidgets(
+    'tactical page only consumes the same agent return reference once across rebuilds',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final consumedIncidentReferences = <String>[];
+
+      Widget buildHarness() {
+        return MaterialApp(
+          home: TacticalPage(
+            events: const [],
+            focusIncidentReference: 'INC-TRACK-77',
+            agentReturnIncidentReference: 'INC-TRACK-77',
+            onConsumeAgentReturnIncidentReference: (incidentReference) {
+              consumedIncidentReferences.add(incidentReference);
+            },
+          ),
+        );
+      }
+
+      await tester.pumpWidget(buildHarness());
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(buildHarness());
+      await tester.pumpAndSettle();
+
+      expect(consumedIncidentReferences, <String>['INC-TRACK-77']);
+    },
+  );
+
+  testWidgets(
+    'tactical page ingests evidence returns into the focused track workspace',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? consumedAuditId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TacticalPage(
+            events: const [],
+            focusIncidentReference: 'INC-DSP-2442',
+            evidenceReturnReceipt: const TacticalEvidenceReturnReceipt(
+              auditId: 'audit-track-2442',
+              label: 'EVIDENCE RETURN',
+              headline: 'Returned to Track for DSP-2442.',
+              detail:
+                  'The signed track handoff was verified in the ledger. Keep the same tactical view pinned and finish verification from here.',
+              accent: Color(0xFF8FD1FF),
+            ),
+            onConsumeEvidenceReturnReceipt: (auditId) {
+              consumedAuditId = auditId;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await openDetailedWorkspaceIfVisible(tester);
+
+      expect(
+        find.byKey(const ValueKey('tactical-workspace-command-receipt')),
+        findsOneWidget,
+      );
+      expect(find.text('EVIDENCE RETURN'), findsOneWidget);
+      expect(find.text('Returned to Track for DSP-2442.'), findsOneWidget);
+      expect(consumedAuditId, 'audit-track-2442');
+    },
+  );
+
+  testWidgets(
+    'tactical page only consumes the same evidence return once across rebuilds',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final consumedAuditIds = <String>[];
+
+      Widget buildHarness() {
+        return MaterialApp(
+          home: TacticalPage(
+            events: const [],
+            focusIncidentReference: 'INC-DSP-2442',
+            evidenceReturnReceipt: const TacticalEvidenceReturnReceipt(
+              auditId: 'audit-track-2442',
+              label: 'EVIDENCE RETURN',
+              headline: 'Returned to Track for DSP-2442.',
+              detail:
+                  'The signed track handoff was verified in the ledger. Keep the same tactical view pinned and finish verification from here.',
+              accent: Color(0xFF8FD1FF),
+            ),
+            onConsumeEvidenceReturnReceipt: (auditId) {
+              consumedAuditIds.add(auditId);
+            },
+          ),
+        );
+      }
+
+      await tester.pumpWidget(buildHarness());
+      await tester.pumpAndSettle();
+
+      await tester.pumpWidget(buildHarness());
+      await tester.pumpAndSettle();
+
+      expect(consumedAuditIds, <String>['audit-track-2442']);
+    },
+  );
+
   testWidgets(
     'tactical page renders desktop workspace shell and routes banner controls',
     (tester) async {
@@ -119,6 +386,20 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('track-live-map-board')),
+        findsOneWidget,
+      );
+      expect(find.text('Live Tracking'), findsOneWidget);
+      expect(find.byKey(const ValueKey('track-layer-sites')), findsOneWidget);
+      expect(find.byKey(const ValueKey('track-layer-guards')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('tactical-toggle-detailed-workspace')),
+        findsOneWidget,
+      );
+
+      await openDetailedWorkspaceIfVisible(tester);
 
       expect(
         find.byKey(const ValueKey('tactical-workspace-status-banner')),
@@ -207,6 +488,313 @@ void main() {
       expect(tappedReference, 'INT-VALLEE-1');
     },
   );
+
+  testWidgets(
+    'tactical page remount resets the track landing surface to overview',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: TacticalPage(key: ValueKey('tactical-remount-a'), events: []),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('track-live-map-board')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('tactical-workspace-panel-map')),
+        findsNothing,
+      );
+
+      await openDetailedWorkspaceIfVisible(tester);
+
+      expect(
+        find.byKey(const ValueKey('tactical-workspace-panel-map')),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: TacticalPage(key: ValueKey('tactical-remount-b'), events: []),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('track-live-map-board')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('tactical-workspace-panel-map')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('tactical-toggle-detailed-workspace')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'tactical page keeps the modern workspace selected through parent rebuilds',
+    (tester) async {
+      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      StateSetter? hostSetState;
+      var hostRevision = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              hostSetState = setState;
+              return ColoredBox(
+                color: hostRevision.isEven
+                    ? const Color(0xFFF8FAFD)
+                    : const Color(0xFFF2F6FB),
+                child: const TacticalPage(events: []),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('track-live-map-board')),
+        findsOneWidget,
+      );
+
+      await openDetailedWorkspaceIfVisible(tester);
+
+      expect(
+        find.byKey(const ValueKey('tactical-workspace-panel-map')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('track-live-map-board')), findsNothing);
+
+      hostSetState!.call(() {
+        hostRevision += 1;
+      });
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('tactical-workspace-panel-map')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('track-live-map-board')), findsNothing);
+    },
+  );
+
+  testWidgets('tactical page resets to track overview after a fresh remount', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1680, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    StateSetter? hostSetState;
+    var showPage = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            hostSetState = setState;
+            return showPage
+                ? const TacticalPage(events: [])
+                : const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('track-live-map-board')), findsOneWidget);
+
+    await openDetailedWorkspaceIfVisible(tester);
+
+    expect(
+      find.byKey(const ValueKey('tactical-workspace-panel-map')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('track-live-map-board')), findsNothing);
+
+    hostSetState!.call(() {
+      showPage = false;
+    });
+    await tester.pumpAndSettle();
+
+    hostSetState!.call(() {
+      showPage = true;
+    });
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('track-live-map-board')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('tactical-workspace-panel-map')),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'track overview keeps lower filters reachable on shorter desktop',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 1366,
+              height: 620,
+              child: TrackOverviewBoard(onOpenDetailedWorkspace: () {}),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('track-live-map-board')),
+        findsOneWidget,
+      );
+      final leftRail = find.byKey(const ValueKey('track-left-rail-scroll'));
+      final leftRailScrollView = tester.widget<SingleChildScrollView>(leftRail);
+      final leftRailController = leftRailScrollView.controller!;
+      expect(leftRailController.offset, 0);
+
+      await tester.drag(leftRail, const Offset(0, -260));
+      await tester.pumpAndSettle();
+
+      expect(leftRailController.offset, greaterThan(0));
+      expect(find.text('Filter Clients'), findsOneWidget);
+    },
+  );
+
+  testWidgets('track overview live clock ticks from the injected clock', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    var now = DateTime.parse('2026-04-07T08:15:09');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1500,
+            height: 820,
+            child: TrackOverviewBoard(
+              onOpenDetailedWorkspace: () {},
+              now: () => now,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('track-live-clock'))).data,
+      '08:15:09',
+    );
+
+    now = now.add(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('track-live-clock'))).data,
+      '08:15:10',
+    );
+  });
+
+  testWidgets('track overview search filters sites and updates layer counts', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1500,
+            height: 820,
+            child: TrackOverviewBoard(onOpenDetailedWorkspace: () {}),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('track-search-field')),
+      'alarm',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sites (1)'), findsOneWidget);
+    expect(find.text('Guards (1)'), findsOneWidget);
+    expect(find.text('Incidents (1)'), findsOneWidget);
+    expect(find.text('Cameras (1)'), findsOneWidget);
+    expect(find.text('Morningside Office Park'), findsWidgets);
+  });
+
+  testWidgets('track overview clears stale focus when client filter changes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 1500,
+            height: 820,
+            child: TrackOverviewBoard(onOpenDetailedWorkspace: () {}),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Morningside Office Park'), findsWidgets);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('track-client-filter-sandton-corp')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('track-client-filter-sandton-corp')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sandton Estate North'), findsWidgets);
+    expect(find.text('Morningside Office Park'), findsNothing);
+    expect(find.text('SE-01'), findsWidgets);
+  });
 
   testWidgets('tactical page stays stable on landscape phone viewport', (
     tester,
@@ -307,7 +895,7 @@ void main() {
   testWidgets('tactical page shows CCTV telemetry counters from events', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _tacticalNowUtc();
     final events = <IntelligenceReceived>[
       IntelligenceReceived(
         eventId: 'intel-1',
@@ -473,6 +1061,55 @@ void main() {
     expect(find.text('Filter: Responding'), findsOneWidget);
   });
 
+  testWidgets('tactical center track restores the preferred focused marker', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: TacticalPage(events: [])));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('tactical-active-track-card')),
+        matching: find.text('INC-8829-QX'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('tactical-marker-card-VEHICLE-R12')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-marker-card-VEHICLE-R12')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('tactical-active-track-card')),
+        matching: find.text('Vehicle R-12'),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('tactical-map-focus-center-track')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('tactical-map-focus-center-track')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('tactical-active-track-card')),
+        matching: find.text('INC-8829-QX'),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('tactical page switches video counters label for DVR', (
     tester,
   ) async {
@@ -498,7 +1135,7 @@ void main() {
   testWidgets('tactical page counts DVR telemetry counters from events', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _tacticalNowUtc();
     final events = <IntelligenceReceived>[
       IntelligenceReceived(
         eventId: 'intel-dvr-1',
@@ -751,7 +1388,7 @@ void main() {
               decisionSummary:
                   'Suppressed because the activity remained below the client notification threshold.',
               summary: 'Vehicle remained below escalation threshold.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 13, 21, 14),
+              reviewedAtUtc: _tacticalSuppressedReviewReviewedAtUtc(),
             ),
           },
         ),
@@ -852,7 +1489,7 @@ void main() {
                 decisionSummary:
                     'Suppressed because the activity remained below the client notification threshold.',
                 summary: 'Vehicle remained below escalation threshold.',
-                reviewedAtUtc: DateTime.utc(2026, 3, 13, 21, 14),
+                reviewedAtUtc: _tacticalSuppressedReviewReviewedAtUtc(),
               ),
             },
             onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
@@ -869,6 +1506,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+
+      await openDetailedWorkspaceIfVisible(tester);
 
       expect(
         find.byKey(const ValueKey('tactical-suppressed-focus-card')),
@@ -1218,6 +1857,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await openDetailedWorkspaceIfVisible(tester);
+
     expect(
       find.byKey(const ValueKey('tactical-fleet-focus-card')),
       findsOneWidget,
@@ -1237,9 +1878,11 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.tap(
-      find.byKey(const ValueKey('tactical-fleet-focus-open-tactical')),
+    final openTactical = find.byKey(
+      const ValueKey('tactical-fleet-focus-open-tactical'),
     );
+    await tester.ensureVisible(openTactical);
+    await tester.tap(openTactical, warnIfMissed: false);
     await tester.pumpAndSettle();
 
     expect(tappedTacticalClientId, 'CLIENT-A');
@@ -1317,6 +1960,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    await openDetailedWorkspaceIfVisible(tester);
 
     expect(
       find.byKey(const ValueKey('tactical-fleet-summary-command')),
@@ -1442,6 +2087,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    await openDetailedWorkspaceIfVisible(tester);
 
     expect(
       find.byKey(const ValueKey('tactical-fleet-scope-command-SITE-A')),
@@ -1576,6 +2223,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await openDetailedWorkspaceIfVisible(tester);
+
     expect(find.byKey(const ValueKey('tactical-scope-banner')), findsOneWidget);
     expect(find.text('Scope focus active'), findsOneWidget);
     expect(find.text('CLIENT-B/SITE-B'), findsWidgets);
@@ -1653,6 +2302,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+
+    await openDetailedWorkspaceIfVisible(tester);
 
     expect(find.text('Temporary ID • 1'), findsOneWidget);
     expect(find.text('Identity • Temporary'), findsOneWidget);
@@ -1791,7 +2442,7 @@ void main() {
   testWidgets(
     'tactical marks dispatch focus as scope-backed when lane matches',
     (tester) async {
-      final now = DateTime.now().toUtc();
+      final now = _tacticalNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: TacticalPage(
@@ -1831,6 +2482,51 @@ void main() {
       expect(find.text('Focus • Scope-backed DSP-4'), findsOneWidget);
       expect(find.text('FOCUS SCOPE-BACKED • DSP-4'), findsOneWidget);
       expect(find.text('FOCUS SEEDED • DSP-4'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'tactical treats INC-prefixed dispatch focus as scope-backed when lane matches',
+    (tester) async {
+      final now = _tacticalNowUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: TacticalPage(
+            focusIncidentReference: 'INC-DSP-4',
+            events: [
+              DecisionCreated(
+                eventId: 'decision-vallee-inc',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                dispatchId: 'DSP-4',
+                clientId: 'CLIENT-A',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-A',
+              ),
+            ],
+            fleetScopeHealth: const [
+              VideoFleetScopeHealthView(
+                clientId: 'CLIENT-A',
+                siteId: 'SITE-A',
+                siteName: 'MS Vallee Residence',
+                endpointLabel: '192.168.8.105',
+                statusLabel: 'LIVE',
+                watchLabel: 'ACTIVE',
+                recentEvents: 2,
+                lastSeenLabel: '21:14 UTC',
+                freshnessLabel: 'Fresh',
+                isStale: false,
+                latestIncidentReference: 'INT-VALLEE-1',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('FOCUS SCOPE-BACKED • INC-DSP-4'), findsOneWidget);
+      expect(find.text('FOCUS SEEDED • INC-DSP-4'), findsNothing);
     },
   );
 

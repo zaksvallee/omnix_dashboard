@@ -14,17 +14,21 @@ dependencies:
   crypto: ^3.0.7
   http: ^1.5.0
   supabase_flutter: ^2.12.0
+  pointycastle: ^3.9.1
   pdf: ^3.11.3
   printing: ^5.14.2
   google_fonts: ^6.3.2
   shared_preferences: ^2.5.4
   file_picker: ^8.1.2
   image: ^4.5.4
+  web: ^1.1.1
+  flutter_map: ^8.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  shared_preferences_platform_interface: ^2.4.1
 
 flutter:
   uses-material-design: true

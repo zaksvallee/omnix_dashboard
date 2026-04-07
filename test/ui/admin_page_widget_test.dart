@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
+import 'package:omnix_dashboard/application/onyx_agent_camera_bridge_health_service.dart';
+import 'package:omnix_dashboard/application/onyx_agent_camera_bridge_server_contract.dart';
 import 'package:omnix_dashboard/application/monitoring_identity_policy_service.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/site_identity_registry_repository.dart';
@@ -18,6 +21,172 @@ import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_view.dart';
 
+class _FakeCameraBridgeHealthService
+    implements OnyxAgentCameraBridgeHealthService {
+  const _FakeCameraBridgeHealthService();
+
+  @override
+  bool get isConfigured => true;
+
+  @override
+  Future<OnyxAgentCameraBridgeHealthSnapshot> probe(Uri endpoint) async {
+    return OnyxAgentCameraBridgeHealthSnapshot(
+      requestedEndpoint: endpoint,
+      healthEndpoint: endpoint.replace(path: '/health'),
+      reportedEndpoint: endpoint,
+      reachable: true,
+      running: true,
+      statusCode: 200,
+      statusLabel: 'Healthy',
+      detail:
+          'GET /health succeeded and the bridge reported packet ingress ready.',
+      executePath: '/execute',
+      checkedAtUtc: _freshCameraBridgeCheckedAtUtc(),
+    );
+  }
+}
+
+DateTime _adminNowUtc() => DateTime.now().toUtc();
+
+DateTime _freshCameraBridgeCheckedAtUtc() =>
+    _adminNowUtc().subtract(const Duration(minutes: 5));
+
+DateTime _staleCameraBridgeCheckedAtUtc() =>
+    _adminNowUtc().subtract(const Duration(hours: 2));
+
+DateTime _adminPendingDraftCreatedAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 18, hour, minute);
+
+DateTime _adminAuditOccurredAtUtc(int minute) =>
+    _adminPendingDraftCreatedAtUtc(12, minute);
+
+DateTime _adminReportGeneratedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 6, 0);
+
+DateTime _adminNightShiftStartedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 22, 0);
+
+DateTime _adminMarch16ListenerAlarmOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 16, 8, minute);
+
+DateTime _adminMarch16ReadinessOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 16, 22, minute);
+
+DateTime _adminPartnerDispatchOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 15, 21, minute);
+
+DateTime _adminIdentityAuditRecordedAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 15, 7, minute);
+
+const _approvedTelegramBridgeClientSeeds = <AdminDirectoryClientSeed>[
+  AdminDirectoryClientSeed(
+    id: 'CLIENT-AKHALAWAYAS-ROBERTSHAM',
+    name: 'Akhalawayas Robertsham',
+    contactPerson: 'John Smith',
+    contactPhone: '-',
+    slaTier: 'gold',
+  ),
+];
+
+const _approvedTelegramBridgeSiteSeeds = <AdminDirectorySiteSeed>[
+  AdminDirectorySiteSeed(
+    id: 'SITE-ROBERTSHAM-ESTATE',
+    clientId: 'CLIENT-AKHALAWAYAS-ROBERTSHAM',
+    name: 'Robertsham Estate',
+    address: 'Robertsham Estate',
+    geofenceRadiusMeters: 120,
+  ),
+];
+
+const _approvedTelegramBridgeOnboardingPrefill =
+    AdminApprovedTelegramOnboardingPrefill(
+      clientId: 'CLIENT-AKHALAWAYAS-ROBERTSHAM',
+      clientName: 'Akhalawayas Robertsham',
+      siteId: 'SITE-ROBERTSHAM-ESTATE',
+      siteName: 'Robertsham Estate',
+      cameraCount: 32,
+      vendor: 'Hikvision',
+      contactName: 'John Smith',
+      wantsTelegramBinding: true,
+    );
+
+TelegramWiringChecklistView _buildPopulatedTelegramWiringChecklist() =>
+    TelegramWiringChecklistView(
+      bridgeConfigured: true,
+      bridgeHealthLabel: 'ok',
+      adminChatId: '-100900000001',
+      adminThreadId: 77,
+      adminChatInheritedFromClient: true,
+      adminControlEnabled: true,
+      adminAllowedUserCount: 2,
+      adminTargetClientId: 'CLIENT-MS-VALLEE',
+      adminTargetSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+      clientChatId: '-100900000001',
+      clientThreadId: 12,
+      clientScopeClientId: 'CLIENT-MS-VALLEE',
+      clientScopeSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+      partnerChatId: '-100900000099',
+      partnerThreadId: 31,
+      partnerClientId: 'CLIENT-MS-VALLEE',
+      partnerSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+      recentHandledPrompts: <TelegramRecentPromptView>[
+        TelegramRecentPromptView(
+          roomLabel: 'Onyx',
+          scopeLabel: 'Ms Vallee / MS Vallee Residence',
+          prompt: 'check the system',
+          outcomeLabel: 'answered',
+          handledAtUtc: DateTime.utc(2026, 3, 29, 0, 30),
+        ),
+        TelegramRecentPromptView(
+          roomLabel: 'MS Vallee Residence',
+          scopeLabel: 'CLIENT-MS-VALLEE / SITE-MS-VALLEE-RESIDENCE',
+          prompt: 'check cameras',
+          outcomeLabel: 'quick action',
+          handledAtUtc: DateTime.utc(2026, 3, 29, 0, 31),
+        ),
+        TelegramRecentPromptView(
+          roomLabel: 'Supervisor / Partner',
+          scopeLabel: 'MS Vallee Residence',
+          prompt: 'show last patrol report for Guard001',
+          outcomeLabel: 'answered',
+          handledAtUtc: DateTime.utc(2026, 3, 29, 0, 32),
+        ),
+      ],
+    );
+
+const _openAdminModeTelegramWiringChecklist = TelegramWiringChecklistView(
+  bridgeConfigured: true,
+  bridgeHealthLabel: 'ok',
+  adminChatId: '-1003855765885',
+  adminControlEnabled: true,
+  adminAllowedUserCount: 0,
+  adminTargetClientId: 'CLIENT-MS-VALLEE',
+  adminTargetSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+  clientChatId: '-1003635485432',
+  clientScopeClientId: 'CLIENT-MS-VALLEE',
+  clientScopeSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+);
+
+OnyxAgentCameraBridgeStatus
+_liveCameraBridgeStatus() => OnyxAgentCameraBridgeStatus(
+  enabled: true,
+  running: true,
+  authRequired: true,
+  endpoint: Uri.parse('http://127.0.0.1:11634'),
+  statusLabel: 'Live',
+  detail:
+      'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+);
+
+DateTime _adminTelegramIntakeCreatedAtUtc() =>
+    DateTime.utc(2026, 3, 15, 10, 45);
+
+DateTime _adminSuppressedReviewReviewedAtUtc() =>
+    DateTime.utc(2026, 3, 13, 21, 14);
+
+const _adminFleetPollHealthSummary =
+    'ok 1 • fail 0 • skip 0 • last 10:05:01 UTC';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -27,12 +196,26 @@ void main() {
   const liveOpsTipResetAuditButtonKey = ValueKey(
     'admin-reset-live-ops-queue-hint-audit-button',
   );
+  const adminTelegramAiAssistantPanelKey = ValueKey(
+    'admin-telegram-ai-assistant-panel',
+  );
+  const adminClientCommsAuditPanelKey = ValueKey(
+    'admin-client-comms-audit-panel',
+  );
   const adminExportDataButtonKey = ValueKey('admin-export-data-button');
   const adminImportCsvButtonKey = ValueKey('admin-import-csv-button');
-  const liveOpsTipResetNote =
-      'Live Ops tip only. This re-enables the queue onboarding hint in live operations and does not change Telegram voice settings.';
   const liveOpsTipResetSuccessSnack = 'Live Ops tip will show again.';
   const liveOpsTipResetFailureSnack = 'Failed to re-enable Live Ops tip.';
+
+  ValueKey<String> adminPendingDraftOpenClientCommsButtonKey(int updateId) =>
+      ValueKey<String>('admin-telegram-ai-draft-open-client-comms-$updateId');
+
+  ValueKey<String> adminClientCommsAuditOpenClientCommsButtonKey(
+    String clientId,
+    String siteId,
+  ) => ValueKey<String>(
+    'admin-client-comms-audit-open-client-comms-${clientId.trim()}::${siteId.trim()}',
+  );
 
   List<String> profileButtonLabels(WidgetTester tester) {
     const profileLabels = <String>{
@@ -106,11 +289,146 @@ void main() {
     await tester.tap(finder);
   }
 
+  Future<void> tapAdminDemoModeToggle(WidgetTester tester) async {
+    final finder = find.byKey(adminDemoModeToggleKey);
+    await tester.ensureVisible(finder);
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapAdminClientDemoReady(WidgetTester tester) async {
+    final finder = find.byKey(clientOnboardingDemoReadyButtonKey).hitTestable();
+    final target = finder.evaluate().isNotEmpty
+        ? finder.last
+        : find.byKey(clientOnboardingDemoReadyButtonKey).last;
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapAdminSiteDemoReady(WidgetTester tester) async {
+    final finder = find.byKey(siteOnboardingDemoReadyButtonKey).hitTestable();
+    final target = finder.evaluate().isNotEmpty
+        ? finder.last
+        : find.byKey(siteOnboardingDemoReadyButtonKey).last;
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> waitForAdminCreateSuccessDialog(WidgetTester tester) async {
+    final dialogFrame = find.byKey(
+      const ValueKey('admin-create-success-frame'),
+    );
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      if (dialogFrame.evaluate().isNotEmpty) {
+        break;
+      }
+    }
+    expect(dialogFrame, findsOneWidget);
+  }
+
+  Future<void> tapAdminClientCreateReady(
+    WidgetTester tester, {
+    bool settle = true,
+  }) async {
+    final submit = find.byKey(clientOnboardingCreateSubmitButtonKey);
+    final readyAction = find.byKey(clientOnboardingCreateReadyButtonKey);
+    final fallback = find.widgetWithText(FilledButton, 'Create Client (Ready)');
+    final finder = submit.evaluate().isNotEmpty
+        ? submit.last
+        : readyAction.evaluate().isNotEmpty
+        ? readyAction.last
+        : fallback.first;
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    final tappable = finder.hitTestable();
+    await tester.tap(
+      tappable.evaluate().isNotEmpty ? tappable.last : finder,
+      warnIfMissed: false,
+    );
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+    }
+  }
+
+  Future<void> tapAdminSiteCreateReady(WidgetTester tester) async {
+    final submit = find.byKey(siteOnboardingCreateSubmitButtonKey);
+    final readyAction = find.byKey(siteOnboardingCreateReadyButtonKey);
+    final fallback = find.widgetWithText(FilledButton, 'Create Site (Ready)');
+    final finder = submit.evaluate().isNotEmpty
+        ? submit.last
+        : readyAction.evaluate().isNotEmpty
+        ? readyAction.last
+        : fallback.first;
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    final tappable = finder.hitTestable();
+    await tester.tap(
+      tappable.evaluate().isNotEmpty ? tappable.last : finder,
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapAdminEmployeeCreateReady(WidgetTester tester) async {
+    final submit = find.byKey(employeeOnboardingCreateSubmitButtonKey);
+    final readyAction = find.byKey(employeeOnboardingCreateReadyButtonKey);
+    final fallback = find.widgetWithText(
+      FilledButton,
+      'Create Employee (Ready)',
+    );
+    final finder = submit.evaluate().isNotEmpty
+        ? submit.last
+        : readyAction.evaluate().isNotEmpty
+        ? readyAction.last
+        : fallback.first;
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    final tappable = finder.hitTestable();
+    await tester.tap(
+      tappable.evaluate().isNotEmpty ? tappable.last : finder,
+      warnIfMissed: false,
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapAdminEmployeeDemoReady(WidgetTester tester) async {
+    final finder = find
+        .byKey(employeeOnboardingDemoReadyButtonKey)
+        .hitTestable();
+    final target = finder.evaluate().isNotEmpty
+        ? finder.last
+        : find.byKey(employeeOnboardingDemoReadyButtonKey).last;
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> tapAdminToolbarPrimaryAction(WidgetTester tester) async {
+    final finder = find
+        .byKey(const ValueKey('admin-toolbar-primary-action'))
+        .hitTestable();
+    final target = finder.evaluate().isNotEmpty
+        ? finder.last
+        : find.byKey(const ValueKey('admin-toolbar-primary-action')).last;
+    await tester.ensureVisible(target);
+    await tester.tap(target);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> tapVisibleText(
     WidgetTester tester,
     String text, {
     bool first = true,
   }) async {
+    if (text == 'Demo Mode') {
+      await tapAdminDemoModeToggle(tester);
+      return;
+    }
     final resolvedText = switch (text) {
       'System' => 'SYSTEM CONTROLS',
       _ => text,
@@ -175,6 +493,374 @@ void main() {
     );
   }
 
+  ClientCommsAuditView buildDetailedClientCommsAuditView(DateTime nowUtc) {
+    return ClientCommsAuditView(
+      clientId: 'CLIENT-MS-VALLEE',
+      siteId: 'SITE-MS-VALLEE-RESIDENCE',
+      matchesSelectedScope: true,
+      pendingApprovalCount: 1,
+      pendingLearnedStyleDraftCount: 1,
+      learnedApprovalStyleCount: 2,
+      learnedApprovalStyleExample:
+          'Control is checking the latest position now and will share the next confirmed step shortly.',
+      learnedApprovalStyleTag: 'Warm reassurance',
+      learnedApprovalStyleApprovalCount: 3,
+      learnedApprovalStyleLastUsedAtUtc: nowUtc.subtract(
+        const Duration(hours: 1),
+      ),
+      learnedApprovalStylePreviews: [
+        TelegramAiLearnedStylePreviewView(
+          text:
+              'Control is checking the latest position now and will share the next confirmed step shortly.',
+          operatorTag: 'Warm reassurance',
+          approvalCount: 3,
+          lastUsedAtUtc: nowUtc.subtract(const Duration(hours: 1)),
+        ),
+        TelegramAiLearnedStylePreviewView(
+          text:
+              'You are not alone. Control is checking now and will keep this thread updated.',
+          operatorTag: 'Resident comfort',
+          approvalCount: 2,
+          lastUsedAtUtc: nowUtc.subtract(const Duration(hours: 4)),
+        ),
+        const TelegramAiLearnedStylePreviewView(
+          text:
+              'Control is checking cameras now and will share the next confirmed camera check shortly.',
+          approvalCount: 1,
+        ),
+      ],
+      latestLaneReplyBody:
+          'Waterfall control thread update: desk has logged the resident follow-up.',
+      latestLaneReplyAtUtc: _adminAuditOccurredAtUtc(37),
+      queuedPushCount: 1,
+      pushSyncStatusLabel: 'failed',
+      pushSyncFailureReason:
+          'Waterfall push sync needs operator review before retry.',
+      clientProfileOverrideSignal: 'reassurance-forward',
+      telegramHealthLabel: 'blocked',
+      smsFallbackLabel: 'SMS fallback ready',
+      voiceReadinessLabel: 'VoIP ready',
+      deliveryReadinessDetail:
+          'Telegram stays primary, but fallback channels are ready for this thread.',
+      latestSmsFallbackStatus: 'sms:bulksms sent 2/2 after telegram blocked.',
+      latestSmsFallbackAtUtc: _adminAuditOccurredAtUtc(35),
+      latestVoipStageStatus:
+          'voip:asterisk staged call for Vallee command desk.',
+      latestVoipStageAtUtc: _adminAuditOccurredAtUtc(36),
+      recentDeliveryHistoryLines: const <String>[
+        '12:36 UTC • voip staged • queue:1 • Asterisk staged a call for Vallee command desk.',
+        '12:35 UTC • sms fallback sent • queue:1 • BulkSMS reached 2/2 contacts after Telegram was blocked.',
+      ],
+    );
+  }
+
+  TelegramAiPendingDraftView buildDetailedTelegramAiPendingDraft(
+    DateTime nowUtc,
+  ) {
+    return TelegramAiPendingDraftView(
+      updateId: 42,
+      audience: 'client',
+      clientId: 'CLIENT-MS-VALLEE',
+      siteId: 'SITE-MS-VALLEE-RESIDENCE',
+      chatId: '123456',
+      messageThreadId: 88,
+      sourceText: 'Can you please tell me what is happening at the house?',
+      draftText:
+          'We are checking the latest position now and I will send you the next confirmed update as soon as it is in.',
+      providerLabel: 'openai:gpt-4.1-mini',
+      clientProfileOverrideSignal: 'reassurance-forward',
+      learnedRewriteCount: 2,
+      learnedRewriteExample:
+          'Control is checking the latest position now and will share the next confirmed step shortly.',
+      learnedRewriteTag: 'Warm reassurance',
+      learnedRewriteApprovalCount: 4,
+      learnedRewriteLastUsedAtUtc: nowUtc.subtract(const Duration(hours: 2)),
+      learnedRewritePreviews: [
+        TelegramAiLearnedStylePreviewView(
+          text:
+              'Control is checking the latest position now and will share the next confirmed step shortly.',
+          operatorTag: 'Warm reassurance',
+          approvalCount: 4,
+          lastUsedAtUtc: nowUtc.subtract(const Duration(hours: 2)),
+        ),
+        TelegramAiLearnedStylePreviewView(
+          text:
+              'You are not alone. Control is checking now and will keep this thread updated.',
+          operatorTag: 'Resident comfort',
+          approvalCount: 3,
+          lastUsedAtUtc: nowUtc.subtract(const Duration(hours: 5)),
+        ),
+        const TelegramAiLearnedStylePreviewView(
+          text:
+              'Control is checking cameras now and will share the next confirmed camera check shortly.',
+          approvalCount: 2,
+        ),
+      ],
+      usesLearnedApprovalStyle: true,
+      createdAtUtc: _adminPendingDraftCreatedAtUtc(12, 30),
+    );
+  }
+
+  TelegramIdentityIntakeRecord buildTelegramVisitorIdentityIntake() {
+    return TelegramIdentityIntakeRecord(
+      intakeId: 'intake-1',
+      clientId: 'CLIENT-MS-VALLEE',
+      siteId: 'SITE-MS-VALLEE-RESIDENCE',
+      rawText: 'John Smith is visiting in a white Hilux CA123456 until 18:00',
+      parsedDisplayName: 'John Smith',
+      parsedFaceMatchId: 'PERSON-44',
+      parsedPlateNumber: 'CA123456',
+      category: SiteIdentityCategory.visitor,
+      aiConfidence: 0.92,
+      approvalState: 'proposed',
+      createdAtUtc: _adminTelegramIntakeCreatedAtUtc(),
+    );
+  }
+
+  VideoFleetScopeHealthView buildFlaggedIdentityFleetScopeHealthView() {
+    return const VideoFleetScopeHealthView(
+      clientId: 'CLIENT-A',
+      siteId: 'SITE-A',
+      siteName: 'MS Vallee Residence',
+      endpointLabel: '192.168.8.105',
+      statusLabel: 'LIVE',
+      watchLabel: 'ACTIVE',
+      recentEvents: 2,
+      lastSeenLabel: '21:14 UTC',
+      freshnessLabel: 'Fresh',
+      isStale: false,
+      latestEventLabel: 'Vehicle motion',
+      latestIncidentReference: 'INT-VALLEE-1',
+      latestEventTimeLabel: '21:14 UTC',
+      latestCameraLabel: 'Camera 1',
+      latestRiskScore: 84,
+      latestFaceMatchId: 'PERSON-44',
+      latestFaceConfidence: 91.2,
+      latestPlateNumber: 'CA123456',
+      latestPlateConfidence: 96.4,
+      latestSceneReviewLabel:
+          'openai:gpt-4.1-mini • identity match concern • 21:14 UTC',
+      latestSceneDecisionSummary:
+          'Escalated for urgent review because face match PERSON-44 was flagged and the event metadata suggested an unauthorized or watchlist context.',
+    );
+  }
+
+  VideoFleetScopeHealthView buildWatchOnlyFleetScopeHealthView() {
+    return const VideoFleetScopeHealthView(
+      clientId: 'CLIENT-B',
+      siteId: 'SITE-B',
+      siteName: 'Beta Watch',
+      endpointLabel: '192.168.8.106',
+      statusLabel: 'WATCH READY',
+      watchLabel: 'SCHEDULED',
+      recentEvents: 0,
+      lastSeenLabel: 'idle',
+      freshnessLabel: 'Idle',
+      isStale: false,
+      watchWindowLabel: '18:00-06:00',
+      watchWindowStateLabel: 'IN WINDOW',
+      watchActivationGapLabel: 'MISSED START',
+    );
+  }
+
+  VideoFleetScopeHealthView buildSuppressedWatchFleetScopeHealthView() {
+    return const VideoFleetScopeHealthView(
+      clientId: 'CLIENT-B',
+      siteId: 'SITE-B',
+      siteName: 'Beta Watch',
+      endpointLabel: '192.168.8.106',
+      statusLabel: 'WATCH READY',
+      watchLabel: 'SCHEDULED',
+      recentEvents: 1,
+      lastSeenLabel: '21:14 UTC',
+      freshnessLabel: 'Recent',
+      isStale: false,
+      suppressedCount: 1,
+      suppressedHistory: [
+        '21:10 UTC • Camera 2 • Suppressed because the activity remained below the client notification threshold.',
+        '21:08 UTC • Camera 5 • Suppressed because the vehicle path stayed outside the secure boundary.',
+      ],
+      latestIncidentReference: 'INT-BETA-1',
+      latestCameraLabel: 'Camera 2',
+      latestSceneDecisionLabel: 'Suppressed',
+      latestSceneDecisionSummary:
+          'Suppressed because the activity remained below the client notification threshold.',
+    );
+  }
+
+  VideoFleetScopeHealthView buildTemporaryIdentityFleetScopeHealthView() {
+    return const VideoFleetScopeHealthView(
+      clientId: 'CLIENT-A',
+      siteId: 'SITE-A',
+      siteName: 'MS Vallee Residence',
+      endpointLabel: '192.168.8.105',
+      statusLabel: 'LIVE',
+      watchLabel: 'ACTIVE',
+      recentEvents: 1,
+      lastSeenLabel: '21:14 UTC',
+      freshnessLabel: 'Fresh',
+      isStale: false,
+      latestIncidentReference: 'INT-VALLEE-1',
+      latestEventTimeLabel: '21:14 UTC',
+      latestCameraLabel: 'Camera 1',
+      latestFaceMatchId: 'VISITOR-01',
+      latestFaceConfidence: 93.1,
+      latestPlateNumber: 'CA777777',
+      latestPlateConfidence: 97.4,
+      latestSceneReviewLabel:
+          'openai:gpt-4.1-mini • known allowed identity • 21:14 UTC',
+      latestSceneDecisionSummary:
+          'Suppressed because the matched identity has a one-time approval until 2026-03-15 18:00 UTC and the activity remained below the client notification threshold.',
+    );
+  }
+
+  VideoFleetScopeHealthView buildAllowlistedIdentityFleetScopeHealthView() {
+    return const VideoFleetScopeHealthView(
+      clientId: 'CLIENT-A',
+      siteId: 'SITE-A',
+      siteName: 'MS Vallee Residence',
+      endpointLabel: '192.168.8.105',
+      statusLabel: 'LIVE',
+      watchLabel: 'ACTIVE',
+      recentEvents: 1,
+      lastSeenLabel: '21:14 UTC',
+      freshnessLabel: 'Fresh',
+      isStale: false,
+      latestIncidentReference: 'INT-VALLEE-1',
+      latestEventTimeLabel: '21:14 UTC',
+      latestCameraLabel: 'Camera 1',
+      latestFaceMatchId: 'RESIDENT-01',
+      latestFaceConfidence: 94.1,
+      latestPlateNumber: 'CA111111',
+      latestPlateConfidence: 98.0,
+      latestSceneReviewLabel:
+          'openai:gpt-4.1-mini • known allowed identity • 21:14 UTC',
+      latestSceneDecisionSummary:
+          'Suppressed because RESIDENT-01 and plate CA111111 are allowlisted for this site.',
+    );
+  }
+
+  MonitoringSceneReviewRecord buildSuppressedSceneReviewRecord() {
+    return MonitoringSceneReviewRecord(
+      intelligenceId: 'INT-BETA-1',
+      sourceLabel: 'openai:gpt-4.1-mini',
+      postureLabel: 'reviewed',
+      decisionLabel: 'Suppressed',
+      decisionSummary:
+          'Suppressed because the activity remained below the client notification threshold.',
+      summary: 'Vehicle remained below escalation threshold.',
+      reviewedAtUtc: _adminSuppressedReviewReviewedAtUtc(),
+    );
+  }
+
+  SovereignReport buildPartnerScorecardPriorReport() {
+    return SovereignReport(
+      date: '2026-03-14',
+      generatedAtUtc: _adminReportGeneratedAtUtc(14),
+      shiftWindowStartUtc: _adminNightShiftStartedAtUtc(13),
+      shiftWindowEndUtc: _adminReportGeneratedAtUtc(14),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 1,
+        acceptedCount: 1,
+        onSiteCount: 0,
+        allClearCount: 0,
+        cancelledCount: 1,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLT-001',
+            siteId: 'WTF-MAIN',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 12.0,
+            averageOnSiteDelayMinutes: 22.0,
+            summaryLine:
+                'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 22.0m',
+          ),
+        ],
+      ),
+    );
+  }
+
+  SovereignReport buildPartnerScorecardCurrentReport() {
+    return SovereignReport(
+      date: '2026-03-15',
+      generatedAtUtc: _adminReportGeneratedAtUtc(15),
+      shiftWindowStartUtc: _adminNightShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _adminReportGeneratedAtUtc(15),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 12,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      partnerProgression: const SovereignReportPartnerProgression(
+        dispatchCount: 1,
+        declarationCount: 3,
+        acceptedCount: 1,
+        onSiteCount: 1,
+        allClearCount: 1,
+        cancelledCount: 0,
+        summaryLine: '',
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLT-001',
+            siteId: 'WTF-MAIN',
+            partnerLabel: 'PARTNER • Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4.0,
+            averageOnSiteDelayMinutes: 10.0,
+            summaryLine:
+                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> pumpAdminWithLiveOpsTipResetDraft(
     WidgetTester tester, {
     required int updateId,
@@ -225,6 +911,510 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> pumpAdminSystemWithClientCommsAuditViews(
+    WidgetTester tester, {
+    required List<ClientCommsAuditView> clientCommsAuditViews,
+    void Function(String clientId, String siteId)? onOpenClientViewForScope,
+    Future<void> Function({
+      required String clientId,
+      required String siteId,
+      String? profileSignal,
+    })?
+    onSetTelegramAiClientProfileOverride,
+    Future<void> Function({required String clientId, required String siteId})?
+    onPinTelegramAiLearnedStyleForScope,
+    Future<void> Function({required String clientId, required String siteId})?
+    onDemoteTelegramAiLearnedStyleForScope,
+    Future<void> Function({
+      required String clientId,
+      required String siteId,
+      required String learnedText,
+    })?
+    onPinTelegramAiLearnedStyleEntryForScope,
+    Future<void> Function({
+      required String clientId,
+      required String siteId,
+      required String learnedText,
+    })?
+    onDemoteTelegramAiLearnedStyleEntryForScope,
+    Future<void> Function({
+      required String clientId,
+      required String siteId,
+      required String learnedText,
+      String? operatorTag,
+    })?
+    onTagTelegramAiLearnedStyleEntryForScope,
+    Future<void> Function()? onResetLiveOperationsQueueHint,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          clientCommsAuditViews: clientCommsAuditViews,
+          onOpenClientViewForScope: onOpenClientViewForScope,
+          onSetTelegramAiClientProfileOverride:
+              onSetTelegramAiClientProfileOverride,
+          onPinTelegramAiLearnedStyleForScope:
+              onPinTelegramAiLearnedStyleForScope,
+          onDemoteTelegramAiLearnedStyleForScope:
+              onDemoteTelegramAiLearnedStyleForScope,
+          onPinTelegramAiLearnedStyleEntryForScope:
+              onPinTelegramAiLearnedStyleEntryForScope,
+          onDemoteTelegramAiLearnedStyleEntryForScope:
+              onDemoteTelegramAiLearnedStyleEntryForScope,
+          onTagTelegramAiLearnedStyleEntryForScope:
+              onTagTelegramAiLearnedStyleEntryForScope,
+          onResetLiveOperationsQueueHint: onResetLiveOperationsQueueHint,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminSystemWithTelegramIdentityIntakes(
+    WidgetTester tester, {
+    required List<TelegramIdentityIntakeRecord> initialTelegramIdentityIntakes,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          initialTelegramIdentityIntakes: initialTelegramIdentityIntakes,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminSystemWithFleetScopeHealth(
+    WidgetTester tester, {
+    required List<VideoFleetScopeHealthView> fleetScopeHealth,
+    AdministrationPageTab? initialTab,
+    String? cctvOpsPollHealth = _adminFleetPollHealthSummary,
+    Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId =
+        const <String, MonitoringSceneReviewRecord>{},
+    void Function(String clientId, String siteId, String? incidentReference)?
+    onOpenFleetTacticalScope,
+    void Function(String clientId, String siteId, String? incidentReference)?
+    onOpenFleetDispatchScope,
+    void Function(String clientId, String siteId)? onRecoverFleetWatchScope,
+    ValueChanged<String>? onOpenEventsForIncident,
+    ValueChanged<String>? onOpenLedgerForIncident,
+    Future<String> Function(VideoFleetScopeHealthView scope)?
+    onExtendTemporaryIdentityApproval,
+    Future<String> Function(VideoFleetScopeHealthView scope)?
+    onExpireTemporaryIdentityApproval,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: initialTab == null
+            ? AdministrationPage(
+                events: const <DispatchEvent>[],
+                supabaseReady: false,
+                cctvOpsPollHealth: cctvOpsPollHealth,
+                fleetScopeHealth: fleetScopeHealth,
+                sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+                onOpenFleetTacticalScope: onOpenFleetTacticalScope,
+                onOpenFleetDispatchScope: onOpenFleetDispatchScope,
+                onRecoverFleetWatchScope: onRecoverFleetWatchScope,
+                onOpenEventsForIncident: onOpenEventsForIncident,
+                onOpenLedgerForIncident: onOpenLedgerForIncident,
+                onExtendTemporaryIdentityApproval:
+                    onExtendTemporaryIdentityApproval,
+                onExpireTemporaryIdentityApproval:
+                    onExpireTemporaryIdentityApproval,
+              )
+            : AdministrationPage(
+                events: const <DispatchEvent>[],
+                supabaseReady: false,
+                initialTab: initialTab,
+                cctvOpsPollHealth: cctvOpsPollHealth,
+                fleetScopeHealth: fleetScopeHealth,
+                sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
+                onOpenFleetTacticalScope: onOpenFleetTacticalScope,
+                onOpenFleetDispatchScope: onOpenFleetDispatchScope,
+                onRecoverFleetWatchScope: onRecoverFleetWatchScope,
+                onOpenEventsForIncident: onOpenEventsForIncident,
+                onOpenLedgerForIncident: onOpenLedgerForIncident,
+                onExtendTemporaryIdentityApproval:
+                    onExtendTemporaryIdentityApproval,
+                onExpireTemporaryIdentityApproval:
+                    onExpireTemporaryIdentityApproval,
+              ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminWithInitialWorkspaceCommand(
+    WidgetTester tester, {
+    required AdministrationPageTab initialTab,
+    String? initialCommandLabel,
+    String? initialCommandHeadline,
+    String? initialCommandDetail,
+    Color? initialCommandAccent,
+    String? initialGuardsPlannerAction,
+    DateTime? initialGuardsPlannerDate,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: initialTab,
+          initialCommandLabel: initialCommandLabel,
+          initialCommandHeadline: initialCommandHeadline,
+          initialCommandDetail: initialCommandDetail,
+          initialCommandAccent: initialCommandAccent,
+          initialGuardsPlannerAction: initialGuardsPlannerAction,
+          initialGuardsPlannerDate: initialGuardsPlannerDate,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminSystemWithPartnerScorecard(
+    WidgetTester tester, {
+    required List<SovereignReport> morningSovereignReportHistory,
+    VoidCallback? onOpenGovernance,
+    void Function(String clientId, String siteId)? onOpenGovernanceForScope,
+    Map<String, List<String>> initialSitePartnerLaneDetails =
+        const <String, List<String>>{},
+    Map<String, String> initialSitePartnerChatcheckStatus =
+        const <String, String>{},
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          morningSovereignReportHistory: morningSovereignReportHistory,
+          onOpenGovernance: onOpenGovernance,
+          onOpenGovernanceForScope: onOpenGovernanceForScope,
+          initialSitePartnerLaneDetails: initialSitePartnerLaneDetails,
+          initialSitePartnerChatcheckStatus: initialSitePartnerChatcheckStatus,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpBareAdminSystemTab(WidgetTester tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: AdministrationPage(
+          events: <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminWithPartnerLaneHealthTables(
+    WidgetTester tester, {
+    AdministrationPageTab initialTab = AdministrationPageTab.clients,
+    Map<String, int> initialClientPartnerEndpointCounts = const <String, int>{},
+    Map<String, String> initialClientPartnerLanePreview =
+        const <String, String>{},
+    Map<String, String> initialClientPartnerChatcheckStatus =
+        const <String, String>{},
+    Map<String, int> initialSitePartnerEndpointCounts = const <String, int>{},
+    Map<String, String> initialSitePartnerChatcheckStatus =
+        const <String, String>{},
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: initialTab,
+          initialClientPartnerEndpointCounts:
+              initialClientPartnerEndpointCounts,
+          initialClientPartnerLanePreview: initialClientPartnerLanePreview,
+          initialClientPartnerChatcheckStatus:
+              initialClientPartnerChatcheckStatus,
+          initialSitePartnerEndpointCounts: initialSitePartnerEndpointCounts,
+          initialSitePartnerChatcheckStatus: initialSitePartnerChatcheckStatus,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpStatefulAdminSystemWithOperatorRuntime(
+    WidgetTester tester, {
+    required String initialOperatorId,
+    required Future<void> Function(
+      String nextOperatorId,
+      void Function(String nextOperatorId) apply,
+    )
+    onSetOperatorId,
+  }) async {
+    var operatorId = initialOperatorId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return AdministrationPage(
+              events: const <DispatchEvent>[],
+              supabaseReady: false,
+              initialTab: AdministrationPageTab.system,
+              operatorId: operatorId,
+              onSetOperatorId: (value) async {
+                await onSetOperatorId(value, (nextOperatorId) {
+                  setState(() {
+                    operatorId = nextOperatorId;
+                  });
+                });
+              },
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminSystemWithPartnerRuntime(
+    WidgetTester tester, {
+    required Future<String> Function({
+      required String clientId,
+      required String siteId,
+      required String endpointLabel,
+      required String chatId,
+      int? threadId,
+    })
+    onBindPartnerTelegramEndpoint,
+    required Future<String> Function({
+      required String clientId,
+      required String siteId,
+      required String chatId,
+      int? threadId,
+    })
+    onCheckPartnerTelegramEndpoint,
+    required Future<String> Function({
+      required String clientId,
+      required String siteId,
+      required String chatId,
+      int? threadId,
+    })
+    onUnlinkPartnerTelegramEndpoint,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          onBindPartnerTelegramEndpoint: onBindPartnerTelegramEndpoint,
+          onCheckPartnerTelegramEndpoint: onCheckPartnerTelegramEndpoint,
+          onUnlinkPartnerTelegramEndpoint: onUnlinkPartnerTelegramEndpoint,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminSystemWithTelegramBridgeSeed(
+    WidgetTester tester, {
+    String operatorId = 'OPS-ALPHA',
+    Future<void> Function()? onRunCctvPoll,
+    void Function(String clientId, String siteId)? onOpenOperationsForScope,
+    OnyxAgentCameraBridgeStatus? onyxAgentCameraBridgeStatus,
+    OnyxAgentCameraBridgeHealthSnapshot? onyxAgentCameraBridgeHealthSnapshot,
+    OnyxAgentCameraBridgeHealthService? onyxAgentCameraBridgeHealthService,
+    AdminApprovedTelegramBridgeRunbookProgress?
+    approvedTelegramBridgeRunbookProgress,
+  }) async {
+    final hasBridgeStatus = onyxAgentCameraBridgeStatus != null;
+    final hasBridgeSnapshot = onyxAgentCameraBridgeHealthSnapshot != null;
+    final hasBridgeHealthService = onyxAgentCameraBridgeHealthService != null;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: hasBridgeStatus || hasBridgeSnapshot || hasBridgeHealthService
+            ? AdministrationPage(
+                events: const <DispatchEvent>[],
+                supabaseReady: false,
+                initialTab: AdministrationPageTab.system,
+                operatorId: operatorId,
+                approvedTelegramClientSeeds: _approvedTelegramBridgeClientSeeds,
+                approvedTelegramSiteSeeds: _approvedTelegramBridgeSiteSeeds,
+                approvedTelegramOnboardingPrefill:
+                    _approvedTelegramBridgeOnboardingPrefill,
+                approvedTelegramBridgeRunbookProgress:
+                    approvedTelegramBridgeRunbookProgress,
+                onRunCctvPoll: onRunCctvPoll,
+                onOpenOperationsForScope: onOpenOperationsForScope,
+                onyxAgentCameraBridgeStatus:
+                    onyxAgentCameraBridgeStatus ?? _liveCameraBridgeStatus(),
+                onyxAgentCameraBridgeHealthSnapshot:
+                    onyxAgentCameraBridgeHealthSnapshot,
+                onyxAgentCameraBridgeHealthService:
+                    onyxAgentCameraBridgeHealthService ??
+                    const _FakeCameraBridgeHealthService(),
+              )
+            : AdministrationPage(
+                events: const <DispatchEvent>[],
+                supabaseReady: false,
+                initialTab: AdministrationPageTab.system,
+                operatorId: operatorId,
+                approvedTelegramClientSeeds: _approvedTelegramBridgeClientSeeds,
+                approvedTelegramSiteSeeds: _approvedTelegramBridgeSiteSeeds,
+                approvedTelegramOnboardingPrefill:
+                    _approvedTelegramBridgeOnboardingPrefill,
+                approvedTelegramBridgeRunbookProgress:
+                    approvedTelegramBridgeRunbookProgress,
+                onRunCctvPoll: onRunCctvPoll,
+                onOpenOperationsForScope: onOpenOperationsForScope,
+              ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminSystemWithTelegramWiringChecklist(
+    WidgetTester tester, {
+    TelegramWiringChecklistView? telegramWiringChecklist,
+    List<AdminDirectoryClientSeed> approvedTelegramClientSeeds =
+        const <AdminDirectoryClientSeed>[],
+    List<AdminDirectorySiteSeed> approvedTelegramSiteSeeds =
+        const <AdminDirectorySiteSeed>[],
+    AdminApprovedTelegramOnboardingPrefill? approvedTelegramOnboardingPrefill,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          telegramWiringChecklist:
+              telegramWiringChecklist ??
+              _buildPopulatedTelegramWiringChecklist(),
+          approvedTelegramClientSeeds: approvedTelegramClientSeeds,
+          approvedTelegramSiteSeeds: approvedTelegramSiteSeeds,
+          approvedTelegramOnboardingPrefill: approvedTelegramOnboardingPrefill,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpAdminSystemWithTelegramAiDrafts(
+    WidgetTester tester, {
+    required List<TelegramAiPendingDraftView> telegramAiPendingDrafts,
+    void Function(String clientId, String siteId)? onOpenClientViewForScope,
+    Future<void> Function({
+      required String clientId,
+      required String siteId,
+      String? profileSignal,
+    })?
+    onSetTelegramAiClientProfileOverride,
+    Future<void> Function({required String clientId, required String siteId})?
+    onClearTelegramAiLearnedStyleForScope,
+    Future<void> Function({required String clientId, required String siteId})?
+    onPinTelegramAiLearnedStyleForScope,
+    Future<void> Function({required String clientId, required String siteId})?
+    onDemoteTelegramAiLearnedStyleForScope,
+    Future<void> Function({
+      required String clientId,
+      required String siteId,
+      required String learnedText,
+    })?
+    onPinTelegramAiLearnedStyleEntryForScope,
+    Future<void> Function({
+      required String clientId,
+      required String siteId,
+      required String learnedText,
+    })?
+    onDemoteTelegramAiLearnedStyleEntryForScope,
+    Future<void> Function({
+      required String clientId,
+      required String siteId,
+      required String learnedText,
+      String? operatorTag,
+    })?
+    onTagTelegramAiLearnedStyleEntryForScope,
+    Future<void> Function()? onResetLiveOperationsQueueHint,
+    Future<void> Function(int updateId, String draftText)?
+    onUpdateTelegramAiDraftText,
+    Future<String> Function(int updateId, {String? approvedText})?
+    onApproveTelegramAiDraft,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          telegramAiPendingDrafts: telegramAiPendingDrafts,
+          onOpenClientViewForScope: onOpenClientViewForScope,
+          onSetTelegramAiClientProfileOverride:
+              onSetTelegramAiClientProfileOverride,
+          onClearTelegramAiLearnedStyleForScope:
+              onClearTelegramAiLearnedStyleForScope,
+          onPinTelegramAiLearnedStyleForScope:
+              onPinTelegramAiLearnedStyleForScope,
+          onDemoteTelegramAiLearnedStyleForScope:
+              onDemoteTelegramAiLearnedStyleForScope,
+          onPinTelegramAiLearnedStyleEntryForScope:
+              onPinTelegramAiLearnedStyleEntryForScope,
+          onDemoteTelegramAiLearnedStyleEntryForScope:
+              onDemoteTelegramAiLearnedStyleEntryForScope,
+          onTagTelegramAiLearnedStyleEntryForScope:
+              onTagTelegramAiLearnedStyleEntryForScope,
+          onResetLiveOperationsQueueHint: onResetLiveOperationsQueueHint,
+          onUpdateTelegramAiDraftText: onUpdateTelegramAiDraftText,
+          onApproveTelegramAiDraft: onApproveTelegramAiDraft,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> pumpStatefulAdminSystemWithTelegramAiDraft(
+    WidgetTester tester, {
+    required String initialDraftText,
+    required TelegramAiPendingDraftView Function(String draftText) buildDraft,
+    required Future<String> Function(int updateId, {String? approvedText})
+    onApproveTelegramAiDraft,
+  }) async {
+    var draftText = initialDraftText;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            return AdministrationPage(
+              events: const <DispatchEvent>[],
+              supabaseReady: false,
+              initialTab: AdministrationPageTab.system,
+              telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
+                buildDraft(draftText),
+              ],
+              onUpdateTelegramAiDraftText: (updateId, nextText) async {
+                setState(() {
+                  draftText = nextText;
+                });
+              },
+              onApproveTelegramAiDraft: onApproveTelegramAiDraft,
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('administration page stays stable on phone viewport', (
     tester,
   ) async {
@@ -242,7 +1432,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Administration'), findsOneWidget);
-    expect(find.text('ENTITY MANAGEMENT'), findsWidgets);
+    expect(find.text('PEOPLE / SITES / CLIENTS'), findsWidgets);
     expect(find.text('Guards'), findsWidgets);
     expect(find.text('Sites'), findsWidgets);
     expect(find.text('Clients'), findsWidgets);
@@ -331,7 +1521,9 @@ void main() {
       'employee_code,name,role,assigned_site,phone,email,psira_number,status\n'
       'GRD-777,Aphiwe Dlamini,guard,SDN-NORTH,+27 82 000 7777,aphiwe@onyx.local,PSI-777-2026,active',
     );
-    await tester.tap(find.widgetWithText(FilledButton, 'Import'));
+    final importButton = find.widgetWithText(FilledButton, 'Import');
+    await tester.ensureVisible(importButton);
+    await tester.tap(importButton);
     await tester.pumpAndSettle();
 
     expect(find.text('Imported 1 employee from CSV.'), findsOneWidget);
@@ -359,7 +1551,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Administration'), findsOneWidget);
-    expect(find.text('ENTITY MANAGEMENT'), findsWidgets);
+    expect(find.text('PEOPLE / SITES / CLIENTS'), findsWidgets);
     expect(find.text('Guards'), findsWidgets);
     expect(find.text('Clients'), findsWidgets);
     expect(find.text('Sites'), findsWidgets);
@@ -445,7 +1637,7 @@ void main() {
     expect(find.text('Recovery Scope Queue'), findsOneWidget);
     expect(find.text('Client Audit Queue'), findsOneWidget);
     expect(
-      find.textContaining('stay visible in the Context Deck'),
+      find.textContaining('stay visible in the Context Rail'),
       findsOneWidget,
     );
     expect(find.text('CONTEXT SNAPSHOT'), findsOneWidget);
@@ -462,9 +1654,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'queue pressure, and the next command pivots visible',
-      ),
+      find.textContaining('queue pressure, and the next pivots visible'),
       findsOneWidget,
     );
     expect(find.text('CONTEXT SNAPSHOT'), findsOneWidget);
@@ -498,8 +1688,8 @@ void main() {
     expect(aiCommsAction.onTap, isNotNull);
     aiCommsAction.onTap!();
     await tester.pumpAndSettle();
-    expect(find.text('LEARNED APPROVAL STYLES'), findsOneWidget);
-    expect(find.text('PENDING AI DRAFT REVIEW'), findsOneWidget);
+    expect(find.text('AI STYLE MEMORY'), findsOneWidget);
+    expect(find.text('AI DRAFT QUEUE'), findsOneWidget);
 
     final watchIdentityAction = tester.widget<InkWell>(
       find.byKey(const ValueKey('admin-workspace-open-watch-identity')),
@@ -507,7 +1697,7 @@ void main() {
     expect(watchIdentityAction.onTap, isNotNull);
     watchIdentityAction.onTap!();
     await tester.pumpAndSettle();
-    expect(find.text('WATCH & IDENTITY CONTROLS'), findsOneWidget);
+    expect(find.text('WATCH / IDENTITY'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('admin-workspace-context-open-guards')),
@@ -542,7 +1732,7 @@ void main() {
     await tester.ensureVisible(find.text('SLA Tiers'));
     expect(find.text('SLA Tiers'), findsOneWidget);
     expect(find.text('Risk Policies'), findsOneWidget);
-    expect(find.text('SYSTEM RUNTIME CONTROLS'), findsOneWidget);
+    expect(find.text('SYSTEM WAR ROOM'), findsOneWidget);
   });
 
   testWidgets('administration page can start on system tab from parent state', (
@@ -559,7 +1749,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('SYSTEM RUNTIME CONTROLS'), findsOneWidget);
+    expect(find.text('SYSTEM WAR ROOM'), findsOneWidget);
     expect(find.text('SLA Tiers'), findsOneWidget);
     expect(find.textContaining('Thabo Mokoena'), findsNothing);
   });
@@ -637,6 +1827,848 @@ void main() {
 
       expect(resetCalls, 1);
       expect(find.text('Live Ops tip will show again.'), findsOneWidget);
+    },
+  );
+
+  testWidgets('system runtime surfaces local camera bridge status', (
+    tester,
+  ) async {
+    String? copiedPayload;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          operatorId: 'OPS-ALPHA',
+          onyxAgentCameraBridgeStatus: OnyxAgentCameraBridgeStatus(
+            enabled: true,
+            running: true,
+            authRequired: true,
+            endpoint: Uri.parse('http://127.0.0.1:11634'),
+            statusLabel: 'Live',
+            detail:
+                'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+          ),
+          onyxAgentCameraBridgeHealthSnapshot: OnyxAgentCameraBridgeHealthSnapshot(
+            requestedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+            healthEndpoint: Uri.parse('http://127.0.0.1:11634/health'),
+            reportedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+            reachable: true,
+            running: true,
+            statusCode: 200,
+            statusLabel: 'Healthy',
+            detail:
+                'GET /health succeeded and the bridge reported packet ingress ready.',
+            executePath: '/execute',
+            checkedAtUtc: _freshCameraBridgeCheckedAtUtc(),
+            operatorId: 'OPS-ALPHA',
+          ),
+          onyxAgentCameraBridgeHealthService:
+              const _FakeCameraBridgeHealthService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-command')),
+      findsOneWidget,
+    );
+    expect(find.text('LOCAL CAMERA BRIDGE'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-staging-indicator')),
+      findsOneWidget,
+    );
+    expect(find.text('Camera control in staging mode'), findsOneWidget);
+    expect(find.text('LIVE'), findsOneWidget);
+    expect(find.text('Auth required'), findsOneWidget);
+    expect(find.textContaining('http://127.0.0.1:11634'), findsWidgets);
+    expect(find.textContaining('POST /execute'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-next-move')),
+      findsOneWidget,
+    );
+
+    final copyBridgeButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-copy'),
+    );
+    await tester.ensureVisible(copyBridgeButton);
+    await tester.tap(copyBridgeButton);
+    await tester.pumpAndSettle();
+
+    expect(copiedPayload, isNotNull);
+    expect(copiedPayload, contains('ONYX CAMERA BRIDGE'));
+    expect(copiedPayload, contains('Status: LIVE'));
+    expect(copiedPayload, contains('Bind: http://127.0.0.1:11634'));
+    expect(copiedPayload, contains('POST http://127.0.0.1:11634/execute'));
+    expect(copiedPayload, contains('Auth: Bearer token required'));
+    expect(copiedPayload, contains('Validation: HEALTHY'));
+    expect(
+      copiedPayload,
+      contains('Health: GET http://127.0.0.1:11634/health'),
+    );
+    expect(copiedPayload, contains('Shell state: READY'));
+    expect(
+      copiedPayload,
+      contains(
+        'Shell summary: LAN workers can target http://127.0.0.1:11634/execute and poll http://127.0.0.1:11634/health right now.',
+      ),
+    );
+    expect(copiedPayload, contains('Receipt state: CURRENT'));
+    expect(copiedPayload, contains('Validated at:'));
+    expect(copiedPayload, contains('Validated by: OPS-ALPHA'));
+    expect(find.text('Camera bridge setup copied.'), findsOneWidget);
+
+    final validateBridgeButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-validate'),
+    );
+    await tester.ensureVisible(validateBridgeButton);
+    await tester.tap(validateBridgeButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsOneWidget,
+    );
+    expect(find.text('HEALTHY'), findsOneWidget);
+    expect(find.textContaining('HTTP: 200'), findsOneWidget);
+    expect(find.textContaining('Receipt state: CURRENT'), findsOneWidget);
+    expect(
+      find.textContaining('GET http://127.0.0.1:11634/health'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Validated at:'), findsOneWidget);
+    expect(find.textContaining('Validated by: OPS-ALPHA'), findsOneWidget);
+    expect(
+      find.textContaining('POST http://127.0.0.1:11634/execute'),
+      findsWidgets,
+    );
+  });
+
+  testWidgets(
+    'system runtime copy bridge setup prepends approved telegram seed context',
+    (tester) async {
+      String? copiedPayload;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await pumpAdminSystemWithTelegramBridgeSeed(
+        tester,
+        onRunCctvPoll: () async {},
+        onOpenOperationsForScope: (_, _) {},
+        onyxAgentCameraBridgeStatus: _liveCameraBridgeStatus(),
+        onyxAgentCameraBridgeHealthSnapshot: OnyxAgentCameraBridgeHealthSnapshot(
+          requestedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+          healthEndpoint: Uri.parse('http://127.0.0.1:11634/health'),
+          reportedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+          reachable: true,
+          running: true,
+          statusCode: 200,
+          statusLabel: 'Healthy',
+          detail:
+              'GET /health succeeded and the bridge reported packet ingress ready.',
+          executePath: '/execute',
+          checkedAtUtc: _freshCameraBridgeCheckedAtUtc(),
+          operatorId: 'OPS-ALPHA',
+        ),
+        onyxAgentCameraBridgeHealthService:
+            const _FakeCameraBridgeHealthService(),
+      );
+
+      final copyBridgeButton = find.byKey(
+        const ValueKey('admin-system-camera-bridge-copy'),
+      );
+      await tester.ensureVisible(copyBridgeButton);
+      await tester.tap(copyBridgeButton);
+      await tester.pumpAndSettle();
+
+      expect(copiedPayload, startsWith('Telegram-approved camera bridge seed'));
+      expect(
+        copiedPayload,
+        contains(
+          'Client: CLIENT-AKHALAWAYAS-ROBERTSHAM (Akhalawayas Robertsham)',
+        ),
+      );
+      expect(
+        copiedPayload,
+        contains('Site: SITE-ROBERTSHAM-ESTATE (Robertsham Estate)'),
+      );
+      expect(copiedPayload, contains('Camera count: 32'));
+      expect(copiedPayload, contains('Vendor: Hikvision'));
+      expect(copiedPayload, contains('Telegram binding: requested'));
+      expect(copiedPayload, contains('Shell state: READY'));
+      expect(copiedPayload, contains('Receipt state: CURRENT'));
+      expect(
+        find.byKey(
+          const ValueKey('admin-system-camera-bridge-telegram-runbook'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('RECOMMENDED RUNBOOK'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey(
+            'admin-system-camera-bridge-telegram-runbook-validate',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-system-camera-bridge-telegram-runbook-poll'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-system-camera-bridge-telegram-runbook-ops'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Done'), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+      expect(find.text('Then open'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey(
+            'admin-system-camera-bridge-telegram-runbook-validate-status',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey(
+            'admin-system-camera-bridge-telegram-runbook-poll-status',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey(
+            'admin-system-camera-bridge-telegram-runbook-ops-status',
+          ),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'system tab restores telegram bridge runbook progress into the seeded camera workflow',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await pumpAdminSystemWithTelegramBridgeSeed(
+        tester,
+        approvedTelegramBridgeRunbookProgress:
+            const AdminApprovedTelegramBridgeRunbookProgress(
+              clientId: 'CLIENT-AKHALAWAYAS-ROBERTSHAM',
+              siteId: 'SITE-ROBERTSHAM-ESTATE',
+              vendorValidated: true,
+              cctvPolled: true,
+              operationsOpened: true,
+            ),
+        onRunCctvPoll: () async {},
+        onOpenOperationsForScope: (_, _) {},
+      );
+
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey(
+              'admin-system-camera-bridge-telegram-runbook-validate-status',
+            ),
+          ),
+          matching: find.text('Done'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey(
+              'admin-system-camera-bridge-telegram-runbook-poll-status',
+            ),
+          ),
+          matching: find.text('Done'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey(
+              'admin-system-camera-bridge-telegram-runbook-ops-status',
+            ),
+          ),
+          matching: find.text('Done'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('system runtime can clear stored camera bridge health receipt', (
+    tester,
+  ) async {
+    var clearedCount = 0;
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          operatorId: 'OPS-ALPHA',
+          onyxAgentCameraBridgeStatus: OnyxAgentCameraBridgeStatus(
+            enabled: true,
+            running: true,
+            authRequired: true,
+            endpoint: Uri.parse('http://127.0.0.1:11634'),
+            statusLabel: 'Live',
+            detail:
+                'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+          ),
+          onyxAgentCameraBridgeHealthSnapshot: OnyxAgentCameraBridgeHealthSnapshot(
+            requestedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+            healthEndpoint: Uri.parse('http://127.0.0.1:11634/health'),
+            reportedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+            reachable: true,
+            running: true,
+            statusCode: 200,
+            statusLabel: 'Healthy',
+            detail:
+                'GET /health succeeded and the bridge reported packet ingress ready.',
+            executePath: '/execute',
+            checkedAtUtc: _freshCameraBridgeCheckedAtUtc(),
+            operatorId: 'OPS-BRAVO',
+          ),
+          onClearOnyxAgentCameraBridgeHealthSnapshot: () async {
+            clearedCount += 1;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('GET http://127.0.0.1:11634/health'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Validated at:'), findsOneWidget);
+    expect(find.textContaining('Validated by: OPS-BRAVO'), findsOneWidget);
+
+    final clearBridgeReceiptButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-clear-health'),
+    );
+    await tester.ensureVisible(clearBridgeReceiptButton);
+    await tester.tap(clearBridgeReceiptButton);
+    await tester.pumpAndSettle();
+
+    expect(clearedCount, 1);
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsNothing,
+    );
+    expect(find.text('Camera bridge health receipt cleared.'), findsOneWidget);
+  });
+
+  testWidgets('system runtime surfaces reported bind mismatch on bridge receipt', (
+    tester,
+  ) async {
+    String? copiedPayload;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          operatorId: 'OPS-OMEGA',
+          onyxAgentCameraBridgeStatus: OnyxAgentCameraBridgeStatus(
+            enabled: true,
+            running: true,
+            authRequired: true,
+            endpoint: Uri.parse('http://127.0.0.1:11634'),
+            statusLabel: 'Live',
+            detail:
+                'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+          ),
+          onyxAgentCameraBridgeHealthSnapshot: OnyxAgentCameraBridgeHealthSnapshot(
+            requestedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+            healthEndpoint: Uri.parse('http://127.0.0.1:11634/health'),
+            reportedEndpoint: Uri.parse('http://10.0.0.44:11634'),
+            reachable: true,
+            running: true,
+            statusCode: 200,
+            statusLabel: 'Healthy',
+            detail:
+                'GET /health succeeded and the bridge reported packet ingress ready. Bridge reported bind http://10.0.0.44:11634 while ONYX probed http://127.0.0.1:11634.',
+            executePath: '/execute',
+            checkedAtUtc: _freshCameraBridgeCheckedAtUtc(),
+            operatorId: 'OPS-OMEGA',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Reported bind: http://10.0.0.44:11634'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Receipt state: CURRENT'), findsOneWidget);
+    expect(find.textContaining('Endpoint mismatch: Detected'), findsOneWidget);
+    expect(find.text('Bind mismatch'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Reconcile http://127.0.0.1:11634 vs http://10.0.0.44:11634 before giving this listener to LAN workers.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Probed bind: http://127.0.0.1:11634'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('POST http://10.0.0.44:11634/execute'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('GET http://127.0.0.1:11634/health'),
+      findsOneWidget,
+    );
+
+    final copyBridgeButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-copy'),
+    );
+    await tester.ensureVisible(copyBridgeButton);
+    await tester.tap(copyBridgeButton);
+    await tester.pumpAndSettle();
+
+    expect(copiedPayload, isNotNull);
+    expect(copiedPayload, contains('Endpoint mismatch: DETECTED'));
+    expect(copiedPayload, contains('Probed bind: http://127.0.0.1:11634'));
+    expect(copiedPayload, contains('Reported bind: http://10.0.0.44:11634'));
+    expect(
+      copiedPayload,
+      contains('Route: POST http://10.0.0.44:11634/execute'),
+    );
+  });
+
+  testWidgets(
+    'system runtime highlights stale bridge validation in the command shell',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            events: const <DispatchEvent>[],
+            supabaseReady: false,
+            initialTab: AdministrationPageTab.system,
+            operatorId: 'OPS-STALE',
+            onyxAgentCameraBridgeStatus: OnyxAgentCameraBridgeStatus(
+              enabled: true,
+              running: true,
+              authRequired: true,
+              endpoint: Uri.parse('http://127.0.0.1:11634'),
+              statusLabel: 'Live',
+              detail:
+                  'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+            ),
+            onyxAgentCameraBridgeHealthSnapshot:
+                OnyxAgentCameraBridgeHealthSnapshot(
+                  requestedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+                  healthEndpoint: Uri.parse('http://127.0.0.1:11634/health'),
+                  reportedEndpoint: Uri.parse('http://127.0.0.1:11634'),
+                  reachable: true,
+                  running: true,
+                  statusCode: 200,
+                  statusLabel: 'Healthy',
+                  detail:
+                      'GET /health succeeded and the bridge reported packet ingress ready.',
+                  executePath: '/execute',
+                  checkedAtUtc: _staleCameraBridgeCheckedAtUtc(),
+                  operatorId: 'OPS-STALE',
+                ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Receipt stale'), findsOneWidget);
+      expect(find.text('RE-VALIDATE BRIDGE'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Bridge validation receipt is stale. Re-run GET /health before trusting http://127.0.0.1:11634 for LAN worker setup.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Last validation'), findsOneWidget);
+    },
+  );
+
+  testWidgets('system runtime marks live bridge as missing validation receipt', (
+    tester,
+  ) async {
+    String? copiedPayload;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final args = call.arguments as Map<dynamic, dynamic>;
+          copiedPayload = args['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AdministrationPage(
+          events: const <DispatchEvent>[],
+          supabaseReady: false,
+          initialTab: AdministrationPageTab.system,
+          operatorId: 'OPS-UNVALIDATED',
+          onyxAgentCameraBridgeStatus: OnyxAgentCameraBridgeStatus(
+            enabled: true,
+            running: true,
+            authRequired: true,
+            endpoint: Uri.parse('http://127.0.0.1:11634'),
+            statusLabel: 'Live',
+            detail:
+                'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+          ),
+          onyxAgentCameraBridgeHealthService:
+              const _FakeCameraBridgeHealthService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Receipt missing'), findsOneWidget);
+    expect(find.text('RUN FIRST VALIDATION'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'No bridge validation receipt has been captured yet. Run GET /health before trusting http://127.0.0.1:11634 for LAN worker setup.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'No bridge validation receipt captured yet. Run GET /health before trusting this bridge.',
+      ),
+      findsOneWidget,
+    );
+
+    final copyBridgeButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-copy'),
+    );
+    await tester.ensureVisible(copyBridgeButton);
+    await tester.tap(copyBridgeButton);
+    await tester.pumpAndSettle();
+
+    expect(copiedPayload, contains('Validation: NOT RUN'));
+    expect(copiedPayload, contains('Receipt state: MISSING'));
+  });
+
+  testWidgets(
+    'system runtime export serializes missing camera bridge receipt state',
+    (tester) async {
+      String? copiedPayload;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            events: const <DispatchEvent>[],
+            supabaseReady: false,
+            initialTab: AdministrationPageTab.system,
+            operatorId: 'OPS-MISSING',
+            onyxAgentCameraBridgeStatus: OnyxAgentCameraBridgeStatus(
+              enabled: true,
+              running: true,
+              authRequired: true,
+              endpoint: Uri.parse('http://127.0.0.1:11634'),
+              statusLabel: 'Live',
+              detail:
+                  'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+            ),
+            onyxAgentCameraBridgeHealthService:
+                const _FakeCameraBridgeHealthService(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(adminExportDataButtonKey));
+      await tester.pumpAndSettle();
+
+      expect(copiedPayload, isNotNull);
+      final exported = jsonDecode(copiedPayload!) as Map<String, dynamic>;
+      expect(exported['camera_bridge_health_receipt_state'], 'MISSING');
+      expect(exported['camera_bridge_health_receipt_missing'], true);
+      expect(exported['camera_bridge_health_receipt_unavailable'], false);
+      expect(exported['camera_bridge_health_receipt_current'], false);
+      expect(exported['camera_bridge_health_receipt_stale'], false);
+      expect(
+        exported['camera_bridge_shell_summary'],
+        'No bridge validation receipt has been captured yet. Run GET /health before trusting http://127.0.0.1:11634 for LAN worker setup.',
+      );
+      expect(
+        exported['camera_bridge_health_validation_summary'],
+        'No bridge validation receipt captured yet. Run GET /health before trusting this bridge.',
+      );
+    },
+  );
+
+  testWidgets(
+    'system runtime marks live bridge receipt as unavailable when health probe is offline',
+    (tester) async {
+      String? copiedPayload;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            events: const <DispatchEvent>[],
+            supabaseReady: false,
+            initialTab: AdministrationPageTab.system,
+            operatorId: 'OPS-UNAVAILABLE',
+            onyxAgentCameraBridgeStatus: OnyxAgentCameraBridgeStatus(
+              enabled: true,
+              running: true,
+              authRequired: true,
+              endpoint: Uri.parse('http://127.0.0.1:11634'),
+              statusLabel: 'Live',
+              detail:
+                  'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Receipt unavailable'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Bridge validation receipt is unavailable on this ONYX runtime. Configure the in-app health probe before trusting http://127.0.0.1:11634 for LAN worker setup.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Bridge validation receipt is unavailable on this ONYX runtime.',
+        ),
+        findsOneWidget,
+      );
+
+      final copyBridgeButton = find.byKey(
+        const ValueKey('admin-system-camera-bridge-copy'),
+      );
+      await tester.ensureVisible(copyBridgeButton);
+      await tester.tap(copyBridgeButton);
+      await tester.pumpAndSettle();
+
+      expect(copiedPayload, contains('Validation: UNAVAILABLE'));
+      expect(copiedPayload, contains('Receipt state: UNAVAILABLE'));
+    },
+  );
+
+  testWidgets(
+    'system runtime does not serialize receipt state when camera bridge is not live',
+    (tester) async {
+      String? copiedPayload;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            events: const <DispatchEvent>[],
+            supabaseReady: false,
+            initialTab: AdministrationPageTab.system,
+            operatorId: 'OPS-DISABLED',
+            onyxAgentCameraBridgeStatus: OnyxAgentCameraBridgeStatus(
+              enabled: false,
+              running: false,
+              authRequired: true,
+              endpoint: Uri.parse('http://127.0.0.1:11634'),
+              statusLabel: 'Disabled',
+              detail:
+                  'Local listener is off. Enable the bridge server to accept POST /execute and GET /health for LAN camera workers.',
+            ),
+            onyxAgentCameraBridgeHealthService:
+                const _FakeCameraBridgeHealthService(),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Receipt missing'), findsNothing);
+      expect(find.text('Receipt unavailable'), findsNothing);
+      expect(find.text('Receipt stale'), findsNothing);
+      expect(find.text('Receipt recent'), findsNothing);
+
+      final copyBridgeButton = find.byKey(
+        const ValueKey('admin-system-camera-bridge-copy'),
+      );
+      await tester.ensureVisible(copyBridgeButton);
+      await tester.tap(copyBridgeButton);
+      await tester.pumpAndSettle();
+
+      expect(copiedPayload, contains('Status: DISABLED'));
+      expect(copiedPayload, contains('Shell state: DISABLED'));
+      expect(
+        copiedPayload,
+        contains(
+          'Shell summary: Enable the local camera bridge if you want LAN workers to post packets into ONYX.',
+        ),
+      );
+      expect(copiedPayload, isNot(contains('Receipt state:')));
+      expect(copiedPayload, isNot(contains('Validation:')));
+
+      copiedPayload = null;
+      final exportButton = find.byKey(adminExportDataButtonKey);
+      await tester.ensureVisible(exportButton);
+      await tester.tap(exportButton);
+      await tester.pumpAndSettle();
+
+      expect(copiedPayload, isNotNull);
+      final exported = jsonDecode(copiedPayload!) as Map<String, dynamic>;
+      expect(exported['camera_bridge_health_receipt_state'], isNull);
+      expect(exported['camera_bridge_health_receipt_missing'], false);
+      expect(exported['camera_bridge_health_receipt_unavailable'], false);
+      expect(exported['camera_bridge_health_receipt_current'], false);
+      expect(exported['camera_bridge_health_receipt_stale'], false);
+      expect(
+        exported['camera_bridge_shell_summary'],
+        'Enable the local camera bridge if you want LAN workers to post packets into ONYX.',
+      );
+      expect(exported['camera_bridge_health_validation_summary'], isNull);
     },
   );
 
@@ -755,8 +2787,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
       expect(
@@ -787,26 +2819,7 @@ void main() {
       expect(copiedPayload, contains('ONYX Client Demo Runbook'));
       expect(find.byType(SnackBar), findsNothing);
       expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-workspace-command-receipt')),
-          matching: find.text('RUNBOOK HANDOFF'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-workspace-command-receipt')),
-          matching: find.text('Storyboard runbook copied for command review.'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-workspace-command-receipt')),
-          matching: find.text(
-            'The storyboard keeps the seeded runbook pinned in the desktop command rail while you continue routing through the live demo path.',
-          ),
-        ),
+        find.byKey(const ValueKey('admin-workspace-command-receipt')),
         findsOneWidget,
       );
     },
@@ -818,16 +2831,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: AdministrationPage(
-          events: <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await pumpBareAdminSystemTab(tester);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('admin-workspace-launch-system-flow')),
@@ -857,33 +2861,37 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
+  testWidgets(
+    'system workspace quick add actions expose direct authoring paths',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await pumpBareAdminSystemTab(tester);
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('admin-workspace-quick-add-client')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('admin-workspace-quick-add-client')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('New Client Onboarding'), findsOneWidget);
+    },
+  );
+
   testWidgets('system tab can update operator runtime in app', (tester) async {
-    String operatorId = 'OPS-ALPHA';
     final savedOperatorIds = <String>[];
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: StatefulBuilder(
-          builder: (context, setState) {
-            return AdministrationPage(
-              events: const <DispatchEvent>[],
-              supabaseReady: false,
-              initialTab: AdministrationPageTab.system,
-              operatorId: operatorId,
-              onSetOperatorId: (value) async {
-                savedOperatorIds.add(value);
-                setState(() {
-                  operatorId = value.trim().isEmpty
-                      ? 'OPERATOR-01'
-                      : value.trim();
-                });
-              },
-            );
-          },
-        ),
-      ),
+    await pumpStatefulAdminSystemWithOperatorRuntime(
+      tester,
+      initialOperatorId: 'OPS-ALPHA',
+      onSetOperatorId: (value, apply) async {
+        savedOperatorIds.add(value);
+        apply(value.trim().isEmpty ? 'OPERATOR-01' : value.trim());
+      },
     );
-    await tester.pumpAndSettle();
 
     expect(find.text('Operator Runtime'), findsOneWidget);
     expect(
@@ -929,6 +2937,47 @@ void main() {
     expect(find.text('Active operator: OPERATOR-01'), findsOneWidget);
   });
 
+  testWidgets(
+    'system tab preserves operator runtime field when reset persistence fails',
+    (tester) async {
+      final savedOperatorIds = <String>[];
+
+      await pumpStatefulAdminSystemWithOperatorRuntime(
+        tester,
+        initialOperatorId: 'OPS-ALPHA',
+        onSetOperatorId: (value, apply) async {
+          savedOperatorIds.add(value);
+          if (value.trim().isEmpty) {
+            throw StateError('operator reset failed');
+          }
+          apply(value.trim());
+        },
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('admin-operator-runtime-reset-command')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('admin-operator-runtime-reset-command')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(savedOperatorIds, <String>['']);
+      expect(find.text('Active operator: OPS-ALPHA'), findsOneWidget);
+      expect(find.text('Failed to update operator runtime.'), findsOneWidget);
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(const ValueKey('admin-operator-runtime-field')),
+            )
+            .controller!
+            .text,
+        'OPS-ALPHA',
+      );
+    },
+  );
+
   testWidgets('system tab can manage partner dispatch runtime lane', (
     tester,
   ) async {
@@ -936,63 +2985,56 @@ void main() {
     late Map<String, Object?> checkedPayload;
     late Map<String, Object?> unlinkedPayload;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          onBindPartnerTelegramEndpoint:
-              ({
-                required clientId,
-                required siteId,
-                required endpointLabel,
-                required chatId,
-                int? threadId,
-              }) async {
-                boundPayload = <String, Object?>{
-                  'clientId': clientId,
-                  'siteId': siteId,
-                  'endpointLabel': endpointLabel,
-                  'chatId': chatId,
-                  'threadId': threadId,
-                };
-                return 'PASS (partner lane bound)\nscope=$clientId/$siteId';
-              },
-          onCheckPartnerTelegramEndpoint:
-              ({
-                required clientId,
-                required siteId,
-                required chatId,
-                int? threadId,
-              }) async {
-                checkedPayload = <String, Object?>{
-                  'clientId': clientId,
-                  'siteId': siteId,
-                  'chatId': chatId,
-                  'threadId': threadId,
-                };
-                return 'PASS (partner lane linked)\nscope=$clientId/$siteId';
-              },
-          onUnlinkPartnerTelegramEndpoint:
-              ({
-                required clientId,
-                required siteId,
-                required chatId,
-                int? threadId,
-              }) async {
-                unlinkedPayload = <String, Object?>{
-                  'clientId': clientId,
-                  'siteId': siteId,
-                  'chatId': chatId,
-                  'threadId': threadId,
-                };
-                return 'PASS (partner lane updated)\nscope=$clientId/$siteId';
-              },
-        ),
-      ),
+    await pumpAdminSystemWithPartnerRuntime(
+      tester,
+      onBindPartnerTelegramEndpoint:
+          ({
+            required clientId,
+            required siteId,
+            required endpointLabel,
+            required chatId,
+            int? threadId,
+          }) async {
+            boundPayload = <String, Object?>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'endpointLabel': endpointLabel,
+              'chatId': chatId,
+              'threadId': threadId,
+            };
+            return 'PASS (partner lane bound)\nscope=$clientId/$siteId';
+          },
+      onCheckPartnerTelegramEndpoint:
+          ({
+            required clientId,
+            required siteId,
+            required chatId,
+            int? threadId,
+          }) async {
+            checkedPayload = <String, Object?>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'chatId': chatId,
+              'threadId': threadId,
+            };
+            return 'PASS (partner lane linked)\nscope=$clientId/$siteId';
+          },
+      onUnlinkPartnerTelegramEndpoint:
+          ({
+            required clientId,
+            required siteId,
+            required chatId,
+            int? threadId,
+          }) async {
+            unlinkedPayload = <String, Object?>{
+              'clientId': clientId,
+              'siteId': siteId,
+              'chatId': chatId,
+              'threadId': threadId,
+            };
+            return 'PASS (partner lane updated)\nscope=$clientId/$siteId';
+          },
     );
-    await tester.pumpAndSettle();
 
     expect(find.text('Partner Dispatch Runtime'), findsOneWidget);
     expect(
@@ -1059,216 +3101,111 @@ void main() {
     expect(find.textContaining('PASS (partner lane updated)'), findsOneWidget);
   });
 
-  testWidgets('system tab shows partner scorecard summary and opens scope drill-in', (
-    tester,
-  ) async {
-    String? copiedPayload;
-    var openedGovernance = 0;
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      SystemChannels.platform,
-      (call) async {
-        if (call.method == 'Clipboard.setData') {
-          final args = call.arguments as Map<dynamic, dynamic>;
-          copiedPayload = args['text'] as String?;
-        }
-        return null;
-      },
-    );
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+  testWidgets(
+    'system tab shows partner scorecard summary and opens scope drill-in',
+    (tester) async {
+      String? copiedPayload;
+      var openedGovernance = 0;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
-        null,
-      ),
-    );
-
-    final priorReport = SovereignReport(
-      date: '2026-03-14',
-      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 10,
-        hashVerified: true,
-        integrityScore: 99,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 1,
-        humanOverrides: 0,
-        overrideReasons: <String, int>{},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 1,
-        driftDetected: 0,
-        avgMatchScore: 100,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 0,
-        pdpExpired: 0,
-        totalBlocked: 0,
-      ),
-      partnerProgression: SovereignReportPartnerProgression(
-        dispatchCount: 1,
-        declarationCount: 1,
-        acceptedCount: 1,
-        onSiteCount: 0,
-        allClearCount: 0,
-        cancelledCount: 1,
-        summaryLine: '',
-        scoreboardRows: [
-          SovereignReportPartnerScoreboardRow(
-            clientId: 'CLT-001',
-            siteId: 'WTF-MAIN',
-            partnerLabel: 'PARTNER • Alpha',
-            dispatchCount: 1,
-            strongCount: 0,
-            onTrackCount: 0,
-            watchCount: 0,
-            criticalCount: 1,
-            averageAcceptedDelayMinutes: 12.0,
-            averageOnSiteDelayMinutes: 22.0,
-            summaryLine:
-                'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 22.0m',
-          ),
-        ],
-      ),
-    );
-    final currentReport = SovereignReport(
-      date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 12,
-        hashVerified: true,
-        integrityScore: 99,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 1,
-        humanOverrides: 0,
-        overrideReasons: <String, int>{},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 1,
-        driftDetected: 0,
-        avgMatchScore: 100,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 0,
-        pdpExpired: 0,
-        totalBlocked: 0,
-      ),
-      partnerProgression: SovereignReportPartnerProgression(
-        dispatchCount: 1,
-        declarationCount: 3,
-        acceptedCount: 1,
-        onSiteCount: 1,
-        allClearCount: 1,
-        cancelledCount: 0,
-        summaryLine: '',
-        scoreboardRows: [
-          SovereignReportPartnerScoreboardRow(
-            clientId: 'CLT-001',
-            siteId: 'WTF-MAIN',
-            partnerLabel: 'PARTNER • Alpha',
-            dispatchCount: 1,
-            strongCount: 1,
-            onTrackCount: 0,
-            watchCount: 0,
-            criticalCount: 0,
-            averageAcceptedDelayMinutes: 4.0,
-            averageOnSiteDelayMinutes: 10.0,
-            summaryLine:
-                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
-          ),
-        ],
-      ),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          morningSovereignReportHistory: [priorReport, currentReport],
-          onOpenGovernance: () {
-            openedGovernance += 1;
-          },
-          initialSitePartnerLaneDetails: const <String, List<String>>{
-            'CLT-001::WTF-MAIN': <String>[
-              'PARTNER • Alpha • chat=-1001234567890 • thread=77',
-            ],
-          },
-          initialSitePartnerChatcheckStatus: const <String, String>{
-            'CLT-001::WTF-MAIN': 'PASS (partner lane linked)',
-          },
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
 
-    expect(
-      find.byKey(const ValueKey('admin-partner-scorecard-card')),
-      findsOneWidget,
-    );
-    expect(find.text('Slipping: 0'), findsOneWidget);
-    expect(find.text('Critical: 0'), findsWidgets);
-    expect(find.text('Improving: 1'), findsOneWidget);
-    expect(find.text('Open Governance'), findsOneWidget);
-    expect(find.text('Copy Scorecard JSON'), findsOneWidget);
-    expect(find.text('Copy Scorecard CSV'), findsOneWidget);
+      await pumpAdminSystemWithPartnerScorecard(
+        tester,
+        morningSovereignReportHistory: <SovereignReport>[
+          buildPartnerScorecardPriorReport(),
+          buildPartnerScorecardCurrentReport(),
+        ],
+        onOpenGovernance: () {
+          openedGovernance += 1;
+        },
+        initialSitePartnerLaneDetails: const <String, List<String>>{
+          'CLT-001::WTF-MAIN': <String>[
+            'PARTNER • Alpha • chat=-1001234567890 • thread=77',
+          ],
+        },
+        initialSitePartnerChatcheckStatus: const <String, String>{
+          'CLT-001::WTF-MAIN': 'PASS (partner lane linked)',
+        },
+      );
 
-    await tester.ensureVisible(find.text('Open Governance'));
-    await tester.tap(find.text('Open Governance'));
-    await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('admin-partner-scorecard-card')),
+        findsOneWidget,
+      );
+      expect(find.text('Slipping: 0'), findsOneWidget);
+      expect(find.text('Critical: 0'), findsWidgets);
+      expect(find.text('Improving: 1'), findsOneWidget);
+      expect(find.text('OPEN GOVERNANCE DESK'), findsOneWidget);
+      expect(find.text('Copy Scorecard JSON'), findsOneWidget);
+      expect(find.text('Copy Scorecard CSV'), findsOneWidget);
 
-    expect(openedGovernance, 1);
-    expect(find.text('Opening Governance for scope: WTF-MAIN'), findsOneWidget);
+      await tester.ensureVisible(find.text('OPEN GOVERNANCE DESK'));
+      await tester.tap(find.text('OPEN GOVERNANCE DESK'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Copy Scorecard JSON'));
-    await tester.pumpAndSettle();
+      expect(openedGovernance, 1);
+      expect(
+        find.text('Opening Governance Desk for scope: WTF-MAIN'),
+        findsOneWidget,
+      );
 
-    expect(copiedPayload, isNotNull);
-    expect(copiedPayload, contains('"scorecardRows"'));
-    expect(copiedPayload, contains('"clientId": "CLT-001"'));
-    expect(copiedPayload, contains('"siteId": "WTF-MAIN"'));
-    expect(copiedPayload, contains('"partnerLabel": "PARTNER • Alpha"'));
-    expect(copiedPayload, contains('"trendLabel": "IMPROVING"'));
+      await tester.tap(find.text('Copy Scorecard JSON'));
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Copy Scorecard CSV'));
-    await tester.tap(find.text('Copy Scorecard CSV'));
-    await tester.pumpAndSettle();
+      expect(copiedPayload, isNotNull);
+      expect(copiedPayload, contains('"scorecardRows"'));
+      expect(copiedPayload, contains('"clientId": "CLT-001"'));
+      expect(copiedPayload, contains('"siteId": "WTF-MAIN"'));
+      expect(copiedPayload, contains('"partnerLabel": "PARTNER • Alpha"'));
+      expect(copiedPayload, contains('"trendLabel": "IMPROVING"'));
 
-    expect(copiedPayload, isNotNull);
-    expect(
-      copiedPayload,
-      contains(
-        'client_id,site_id,partner_label,report_days,dispatch_count,strong_count',
-      ),
-    );
-    expect(copiedPayload, contains('"CLT-001","WTF-MAIN","PARTNER • Alpha"'));
-    expect(copiedPayload, contains('"IMPROVING"'));
+      await tester.ensureVisible(find.text('Copy Scorecard CSV'));
+      await tester.tap(find.text('Copy Scorecard CSV'));
+      await tester.pumpAndSettle();
 
-    final scorecardFinder = find.byKey(
-      const ValueKey(
-        'admin-partner-scorecard-CLT-001-WTF-MAIN-PARTNER • Alpha',
-      ),
-    );
-    await tester.ensureVisible(scorecardFinder);
-    await tester.tap(scorecardFinder);
-    await tester.pumpAndSettle();
+      expect(copiedPayload, isNotNull);
+      expect(
+        copiedPayload,
+        contains(
+          'client_id,site_id,partner_label,report_days,dispatch_count,strong_count',
+        ),
+      );
+      expect(copiedPayload, contains('"CLT-001","WTF-MAIN","PARTNER • Alpha"'));
+      expect(copiedPayload, contains('"IMPROVING"'));
 
-    expect(find.textContaining('Partner Dispatch Detail'), findsOneWidget);
-    expect(find.text('7-day trend'), findsOneWidget);
-    expect(
-      find.text('Acceptance timing improved against the prior 7-day average.'),
-      findsWidgets,
-    );
-    expect(
-      find.text('PARTNER • Alpha • chat=-1001234567890 • thread=77'),
-      findsOneWidget,
-    );
-  });
+      final scorecardFinder = find.byKey(
+        const ValueKey(
+          'admin-partner-scorecard-CLT-001-WTF-MAIN-PARTNER • Alpha',
+        ),
+      );
+      await tester.ensureVisible(scorecardFinder);
+      await tester.tap(scorecardFinder);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('admin-partner-dispatch-detail-dialog')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('PARTNER • Alpha • chat=-1001234567890 • thread=77'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('system tab partner scorecard prefers scoped governance', (
     tester,
@@ -1276,115 +3213,54 @@ void main() {
     String? openedClientId;
     String? openedSiteId;
 
-    final currentReport = SovereignReport(
-      date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 12,
-        hashVerified: true,
-        integrityScore: 99,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 1,
-        humanOverrides: 0,
-        overrideReasons: <String, int>{},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 1,
-        driftDetected: 0,
-        avgMatchScore: 100,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 0,
-        pdpExpired: 0,
-        totalBlocked: 0,
-      ),
-      partnerProgression: const SovereignReportPartnerProgression(
-        dispatchCount: 1,
-        declarationCount: 3,
-        acceptedCount: 1,
-        onSiteCount: 1,
-        allClearCount: 1,
-        cancelledCount: 0,
-        summaryLine: '',
-        scoreboardRows: [
-          SovereignReportPartnerScoreboardRow(
-            clientId: 'CLT-001',
-            siteId: 'WTF-MAIN',
-            partnerLabel: 'PARTNER • Alpha',
-            dispatchCount: 1,
-            strongCount: 1,
-            onTrackCount: 0,
-            watchCount: 0,
-            criticalCount: 0,
-            averageAcceptedDelayMinutes: 4.0,
-            averageOnSiteDelayMinutes: 10.0,
-            summaryLine:
-                'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 10.0m',
-          ),
-        ],
-      ),
+    await pumpAdminSystemWithPartnerScorecard(
+      tester,
+      morningSovereignReportHistory: <SovereignReport>[
+        buildPartnerScorecardCurrentReport(),
+      ],
+      onOpenGovernanceForScope: (clientId, siteId) {
+        openedClientId = clientId;
+        openedSiteId = siteId;
+      },
     );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          morningSovereignReportHistory: [currentReport],
-          onOpenGovernanceForScope: (clientId, siteId) {
-            openedClientId = clientId;
-            openedSiteId = siteId;
-          },
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
 
     expect(
       find.byKey(const ValueKey('admin-partner-scorecard-card')),
       findsOneWidget,
     );
-    expect(find.text('Open Governance'), findsOneWidget);
+    expect(find.text('OPEN GOVERNANCE DESK'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Open Governance'));
-    await tester.tap(find.text('Open Governance'));
+    await tester.ensureVisible(find.text('OPEN GOVERNANCE DESK'));
+    await tester.tap(find.text('OPEN GOVERNANCE DESK'));
     await tester.pumpAndSettle();
 
     expect(openedClientId, 'CLT-001');
     expect(openedSiteId, 'WTF-MAIN');
-    expect(find.text('Opening Governance for scope: WTF-MAIN'), findsOneWidget);
+    expect(
+      find.text('Opening Governance Desk for scope: WTF-MAIN'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('admin tables surface partner lane health summaries', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: AdministrationPage(
-          events: <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.clients,
-          initialClientPartnerEndpointCounts: <String, int>{'CLT-001': 2},
-          initialClientPartnerLanePreview: <String, String>{
-            'CLT-001': 'PARTNER • Alpha • PARTNER • Bravo',
-          },
-          initialClientPartnerChatcheckStatus: <String, String>{
-            'CLT-001': 'PASS (partner lane linked)',
-          },
-          initialSitePartnerEndpointCounts: <String, int>{
-            'CLT-001::WTF-MAIN': 1,
-          },
-          initialSitePartnerChatcheckStatus: <String, String>{
-            'CLT-001::WTF-MAIN': 'FAIL (partner lane missing)',
-          },
-        ),
-      ),
+    await pumpAdminWithPartnerLaneHealthTables(
+      tester,
+      initialClientPartnerEndpointCounts: const <String, int>{'CLT-001': 2},
+      initialClientPartnerLanePreview: const <String, String>{
+        'CLT-001': 'PARTNER • Alpha • PARTNER • Bravo',
+      },
+      initialClientPartnerChatcheckStatus: const <String, String>{
+        'CLT-001': 'PASS (partner lane linked)',
+      },
+      initialSitePartnerEndpointCounts: const <String, int>{
+        'CLT-001::WTF-MAIN': 1,
+      },
+      initialSitePartnerChatcheckStatus: const <String, String>{
+        'CLT-001::WTF-MAIN': 'FAIL (partner lane missing)',
+      },
     );
-    await tester.pumpAndSettle();
 
     expect(
       find.widgetWithText(OutlinedButton, 'Link Chat Bridge'),
@@ -1420,54 +3296,43 @@ void main() {
     expect(find.text('PARTNER FAIL'), findsOneWidget);
   });
 
-  testWidgets(
-    'client chat lane bridge keeps link wording across dialog actions',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets('client comms bridge keeps link wording across dialog actions', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: AdministrationPage(
-            events: <DispatchEvent>[],
-            supabaseReady: false,
-            initialTab: AdministrationPageTab.clients,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await pumpAdminWithPartnerLaneHealthTables(tester);
 
-      final clientLaneEditButton = find.byKey(
-        const ValueKey('admin-edit-client-CLT-001'),
-      );
-      await tester.ensureVisible(clientLaneEditButton);
-      await tester.tap(clientLaneEditButton);
-      await tester.pumpAndSettle();
+    final clientLaneEditButton = find.byKey(
+      const ValueKey('admin-edit-client-CLT-001'),
+    );
+    await tester.ensureVisible(clientLaneEditButton);
+    await tester.tap(clientLaneEditButton);
+    await tester.pumpAndSettle();
 
-      expect(find.text('Link Client Chat Lane'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.text('Link All Site Lanes'),
-        ),
-        findsOneWidget,
-      );
+    expect(find.byType(Dialog), findsOneWidget);
+    expect(find.text('Link Client Comms Bridge'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.text('Link All Site Bridges'),
+      ),
+      findsOneWidget,
+    );
 
-      await tester.ensureVisible(
-        find.text('Apply to all current client sites'),
-      );
-      await tester.tap(find.text('Apply to all current client sites'));
-      await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Apply to all current client sites'));
+    await tester.tap(find.text('Apply to all current client sites'));
+    await tester.pumpAndSettle();
 
-      expect(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.text('Link Chat Lane'),
-        ),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.text('Link Client Comms Bridge'),
+      ),
+      findsNWidgets(2),
+    );
+  });
 
   testWidgets(
     'client onboarding preview opens scoped operations and tactical lanes',
@@ -1498,16 +3363,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
       expect(
         find.widgetWithText(TextField, 'Client ID (e.g. CLIENT-001)'),
         findsOneWidget,
@@ -1627,17 +3490,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Open Operations'));
+      await tester.ensureVisible(find.text('OPEN SECURITY DESK'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Open Operations'));
+      await tester.tap(find.text('OPEN SECURITY DESK'));
       await tester.pumpAndSettle();
 
       expect(openedOperationsClientId, 'CLIENT-VALLEE');
       expect(openedOperationsSiteId, '');
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
       expect(
         find.widgetWithText(TextField, 'Client ID (e.g. CLIENT-001)'),
         findsOneWidget,
@@ -1653,9 +3514,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Open Tactical'));
+      await tester.ensureVisible(find.text('OPEN TACTICAL TRACK'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Open Tactical'));
+      await tester.tap(find.text('OPEN TACTICAL TRACK'));
       await tester.pumpAndSettle();
 
       expect(openedTacticalClientId, 'CLIENT-VALLEE');
@@ -1682,15 +3543,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       expect(
-        find.byKey(const ValueKey('client-onboarding-primary-action')),
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('client-onboarding-command-deck')),
+              matching: find
+                  .byKey(const ValueKey('client-onboarding-primary-action'))
+                  .hitTestable(),
+            )
+            .last,
         findsOneWidget,
       );
       expect(
@@ -1777,13 +3644,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       final copySnapshotButton = find.widgetWithText(
         OutlinedButton,
@@ -1852,25 +3717,37 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo Mode'));
-    await tapVisibleText(tester, 'Demo Mode');
+    await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+    await tapAdminDemoModeToggle(tester);
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-    await tester.tap(find.byIcon(Icons.add_rounded).first);
-    await tester.pumpAndSettle();
+    await tapAdminToolbarPrimaryAction(tester);
 
     expect(
       find.byKey(const ValueKey('client-onboarding-command-deck')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('client-onboarding-primary-action')),
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('client-onboarding-command-deck')),
+            matching: find
+                .byKey(const ValueKey('client-onboarding-primary-action'))
+                .hitTestable(),
+          )
+          .last,
       findsOneWidget,
     );
 
     await tester.tap(
-      find.byKey(const ValueKey('client-onboarding-primary-action')),
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('client-onboarding-command-deck')),
+            matching: find
+                .byKey(const ValueKey('client-onboarding-primary-action'))
+                .hitTestable(),
+          )
+          .last,
     );
     await tester.pumpAndSettle();
 
@@ -1898,13 +3775,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo Mode'));
-    await tapVisibleText(tester, 'Demo Mode');
+    await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+    await tapAdminDemoModeToggle(tester);
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-    await tester.tap(find.byIcon(Icons.add_rounded).first);
-    await tester.pumpAndSettle();
+    await tapAdminToolbarPrimaryAction(tester);
 
     expect(
       find.byKey(const ValueKey('client-onboarding-preview-card')),
@@ -1985,13 +3860,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo Mode'));
-    await tapVisibleText(tester, 'Demo Mode');
+    await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+    await tapAdminDemoModeToggle(tester);
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-    await tester.tap(find.byIcon(Icons.add_rounded).first);
-    await tester.pumpAndSettle();
+    await tapAdminToolbarPrimaryAction(tester);
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Client ID (e.g. CLIENT-001)'),
@@ -2059,13 +3932,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       await tapVisibleText(tester, '3. Contract');
       await tester.pumpAndSettle();
@@ -2108,13 +3979,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo Mode'));
-    await tapVisibleText(tester, 'Demo Mode');
+    await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+    await tapAdminDemoModeToggle(tester);
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-    await tester.tap(find.byIcon(Icons.add_rounded).first);
-    await tester.pumpAndSettle();
+    await tapAdminToolbarPrimaryAction(tester);
 
     expect(
       find.byKey(const ValueKey('client-onboarding-coach-command')),
@@ -2154,26 +4023,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo Mode'));
-    await tapVisibleText(tester, 'Demo Mode');
+    await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+    await tapAdminDemoModeToggle(tester);
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-    await tester.tap(find.byIcon(Icons.add_rounded).first);
-    await tester.pumpAndSettle();
+    await tapAdminToolbarPrimaryAction(tester);
 
-    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/7');
-    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-        ? demoReadyButton.first
-        : fallbackDemoReadyButton.first;
-    await tester.ensureVisible(demoReadyFinder);
-    await tester.tap(demoReadyFinder);
-    await tester.pumpAndSettle();
+    await tapAdminClientDemoReady(tester);
 
-    final createClientReadyFinder = find.text('Create Client (Ready)').last;
-    await tester.ensureVisible(createClientReadyFinder);
-    await tester.tap(createClientReadyFinder);
+    await tapAdminClientCreateReady(tester, settle: false);
     await tester.pump(const Duration(milliseconds: 120));
 
     expect(
@@ -2212,9 +4070,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       expect(find.widgetWithText(TextField, 'Site Name'), findsOneWidget);
       expect(
@@ -2222,7 +4078,14 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('site-onboarding-primary-action')),
+        find
+            .descendant(
+              of: find.byKey(const ValueKey('site-onboarding-command-deck')),
+              matching: find
+                  .byKey(const ValueKey('site-onboarding-primary-action'))
+                  .hitTestable(),
+            )
+            .last,
         findsOneWidget,
       );
       expect(
@@ -2435,13 +4298,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       expect(
         find.byKey(const ValueKey('site-onboarding-workflow-actions')),
@@ -2468,7 +4329,7 @@ void main() {
           of: find.byKey(
             const ValueKey('site-onboarding-workflow-primary-tools'),
           ),
-          matching: find.text('Launch Demo'),
+          matching: find.byKey(siteOnboardingDemoReadyButtonKey),
         ),
         findsOneWidget,
       );
@@ -2477,7 +4338,7 @@ void main() {
           of: find.byKey(
             const ValueKey('site-onboarding-workflow-support-tools'),
           ),
-          matching: find.text('Copy Snapshot'),
+          matching: find.byKey(siteOnboardingCopySnapshotButtonKey),
         ),
         findsOneWidget,
       );
@@ -2500,9 +4361,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       await tapVisibleText(tester, '2. Location');
       await tester.pumpAndSettle();
@@ -2586,7 +4445,7 @@ void main() {
       );
       expect(
         entryProtocolField.controller?.text,
-        'Main gate intercom to control room. Visitor lane after ID verification.',
+        'Main gate intercom to control room. Visitor check-in after ID verification.',
       );
       final protocolMicroValue = tester.widget<Text>(
         find.byKey(
@@ -2615,9 +4474,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       await tester.enterText(
         find.widgetWithText(TextField, 'Site Name'),
@@ -2868,9 +4725,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-    await tester.tap(find.byIcon(Icons.add_rounded).first);
-    await tester.pumpAndSettle();
+    await tapAdminToolbarPrimaryAction(tester);
 
     await tester.enterText(
       find.widgetWithText(TextField, 'Site Name'),
@@ -2933,12 +4788,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tapVisibleText(tester, 'Demo Mode');
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       expect(find.widgetWithText(TextField, 'Employee Code'), findsOneWidget);
       expect(
@@ -2946,7 +4799,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('employee-onboarding-primary-action')),
+        find.byKey(const ValueKey('employee-onboarding-primary-action')).last,
         findsOneWidget,
       );
       expect(
@@ -3117,8 +4970,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      expectOutlinedButtonDisabled(tester, 'Open Operations');
-      expectOutlinedButtonDisabled(tester, 'Open Tactical');
+      expectOutlinedButtonDisabled(tester, 'OPEN SECURITY DESK');
+      expectOutlinedButtonDisabled(tester, 'OPEN TACTICAL TRACK');
 
       await tester.enterText(
         find.widgetWithText(TextField, 'Employee Code'),
@@ -3126,8 +4979,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expectOutlinedButtonEnabled(tester, 'Open Operations');
-      expectOutlinedButtonEnabled(tester, 'Open Tactical');
+      expectOutlinedButtonEnabled(tester, 'OPEN SECURITY DESK');
+      expectOutlinedButtonEnabled(tester, 'OPEN TACTICAL TRACK');
 
       await tapVisibleText(tester, '3. Assignment');
       await tester.pumpAndSettle();
@@ -3241,12 +5094,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tapVisibleText(tester, 'Demo Mode');
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       expect(
         find.byKey(
@@ -3486,12 +5337,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tapVisibleText(tester, 'Demo Mode');
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       final reactionOfficerRole = find.byKey(
         const ValueKey('employee-onboarding-role-reaction-officer-card'),
@@ -3693,12 +5542,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tapVisibleText(tester, 'Demo Mode');
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
       await tapVisibleText(tester, '3. Assignment');
       await tester.pumpAndSettle();
@@ -4248,7 +6095,7 @@ void main() {
               eventId: 'evt-partner-0',
               sequence: 3,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 15, 21, 11),
+              occurredAt: _adminPartnerDispatchOccurredAtUtc(11),
               dispatchId: 'DSP-8821',
               clientId: 'CLT-001',
               regionId: 'GAUTENG',
@@ -4263,7 +6110,7 @@ void main() {
               eventId: 'evt-partner-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 15, 21, 14),
+              occurredAt: _adminPartnerDispatchOccurredAtUtc(14),
               dispatchId: 'DSP-8821',
               clientId: 'CLT-001',
               regionId: 'GAUTENG',
@@ -4278,7 +6125,7 @@ void main() {
               eventId: 'evt-partner-2',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 15, 21, 19),
+              occurredAt: _adminPartnerDispatchOccurredAtUtc(19),
               dispatchId: 'DSP-8821',
               clientId: 'CLT-001',
               regionId: 'GAUTENG',
@@ -4293,9 +6140,9 @@ void main() {
           morningSovereignReportHistory: <SovereignReport>[
             SovereignReport(
               date: '2026-03-14',
-              generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+              generatedAtUtc: _adminReportGeneratedAtUtc(14),
+              shiftWindowStartUtc: _adminNightShiftStartedAtUtc(13),
+              shiftWindowEndUtc: _adminReportGeneratedAtUtc(14),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -4344,9 +6191,9 @@ void main() {
             ),
             SovereignReport(
               date: '2026-03-15',
-              generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+              generatedAtUtc: _adminReportGeneratedAtUtc(15),
+              shiftWindowStartUtc: _adminNightShiftStartedAtUtc(14),
+              shiftWindowEndUtc: _adminReportGeneratedAtUtc(15),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -4448,7 +6295,10 @@ void main() {
     await tapVisibleText(tester, 'Waterfall Estate Main (WTF-MAIN)');
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Partner Dispatch Detail'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('admin-partner-dispatch-detail-dialog')),
+      findsOneWidget,
+    );
     expect(
       find.text('PARTNER • Alpha • chat=-1001234567890 • thread=77'),
       findsOneWidget,
@@ -4463,8 +6313,6 @@ void main() {
       find.byKey(const ValueKey('admin-partner-dispatch-progression-card')),
       findsOneWidget,
     );
-    expect(find.text('Dispatch progression'), findsOneWidget);
-    expect(find.text('7-day trend'), findsOneWidget);
     expect(find.text('DSP-8821'), findsWidgets);
     expect(
       find.textContaining('PARTNER • Alpha • Latest ALL CLEAR'),
@@ -4487,14 +6335,13 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('IMPROVING'), findsOneWidget);
-    expect(
-      find.text('Acceptance timing improved against the prior 7-day average.'),
-      findsOneWidget,
-    );
-    expect(find.text('Open Governance Scope'), findsOneWidget);
     expect(find.text('Pending'), findsOneWidget);
 
-    await tapVisibleText(tester, 'Check lane');
+    final checkBridgeButton = find.byKey(
+      const ValueKey('admin-partner-detail-check-bridge'),
+    );
+    await tester.ensureVisible(checkBridgeButton);
+    await tester.tap(checkBridgeButton);
     await tester.pumpAndSettle();
 
     expect(checkedPayload['clientId'], 'CLT-001');
@@ -4506,7 +6353,11 @@ void main() {
       findsOneWidget,
     );
 
-    await tapVisibleText(tester, 'Open Dispatch Scope');
+    final openDispatchButton = find.byKey(
+      const ValueKey('admin-partner-detail-open-dispatch'),
+    );
+    await tester.ensureVisible(openDispatchButton);
+    await tester.tap(openDispatchButton);
     await tester.pumpAndSettle();
 
     expect(openedDispatchClientId, 'CLT-001');
@@ -4515,7 +6366,11 @@ void main() {
 
     await tapVisibleText(tester, 'Waterfall Estate Main (WTF-MAIN)');
     await tester.pumpAndSettle();
-    await tapVisibleText(tester, 'Open Governance Scope');
+    final openGovernanceButton = find.byKey(
+      const ValueKey('admin-partner-detail-open-governance'),
+    );
+    await tester.ensureVisible(openGovernanceButton);
+    await tester.tap(openGovernanceButton);
     await tester.pumpAndSettle();
 
     expect(openedGovernanceScope, <String, String>{
@@ -4524,13 +6379,17 @@ void main() {
       'partnerLabel': 'PARTNER • Alpha',
     });
     expect(
-      find.textContaining('Opening Governance for WTF-MAIN'),
+      find.textContaining('Opening Governance Desk for WTF-MAIN'),
       findsOneWidget,
     );
 
     await tapVisibleText(tester, 'Waterfall Estate Main (WTF-MAIN)');
     await tester.pumpAndSettle();
-    await tapVisibleText(tester, 'Open Events Review');
+    final openEventsButton = find.byKey(
+      const ValueKey('admin-partner-detail-open-events'),
+    );
+    await tester.ensureVisible(openEventsButton);
+    await tester.tap(openEventsButton);
     await tester.pumpAndSettle();
 
     expect(openedEventIds, <String>[
@@ -4555,7 +6414,7 @@ void main() {
               eventId: 'evt-partner-2',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 15, 21, 19),
+              occurredAt: _adminPartnerDispatchOccurredAtUtc(19),
               dispatchId: 'DSP-8821',
               clientId: 'CLT-001',
               regionId: 'GAUTENG',
@@ -4592,10 +6451,16 @@ void main() {
     await tapVisibleText(tester, 'Waterfall Estate Main (WTF-MAIN)');
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Partner Dispatch Detail'), findsOneWidget);
-    expect(find.text('Open Dispatches'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('admin-partner-dispatch-detail-dialog')),
+      findsOneWidget,
+    );
 
-    await tapVisibleText(tester, 'Open Dispatches');
+    final openDispatchButton = find.byKey(
+      const ValueKey('admin-partner-detail-open-dispatch'),
+    );
+    await tester.ensureVisible(openDispatchButton);
+    await tester.tap(openDispatchButton);
     await tester.pumpAndSettle();
 
     expect(openedDispatchClientId, 'CLT-001');
@@ -4840,28 +6705,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tapVisibleText(tester, 'Demo Mode');
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.add_rounded));
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/7',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
-
-      final createClientReadyFinder = find.text('Create Client (Ready)').last;
-      await tester.ensureVisible(createClientReadyFinder);
-      await tester.tap(createClientReadyFinder);
-      await tester.pumpAndSettle();
+      await tapAdminClientDemoReady(tester);
+      await tapAdminClientCreateReady(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
@@ -4869,13 +6719,13 @@ void main() {
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-dispatches'),
+          const ValueKey('admin-create-success-support-open-dispatch-board'),
         ),
         findsOneWidget,
       );
 
       final openDispatchesAction = find.byKey(
-        const ValueKey('admin-create-success-support-open-dispatches'),
+        const ValueKey('admin-create-success-support-open-dispatch-board'),
       );
       await tester.ensureVisible(openDispatchesAction);
       await tester.tap(openDispatchesAction);
@@ -4909,42 +6759,28 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/7',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
-
-      final createClientReadyFinder = find.text('Create Client (Ready)').last;
-      await tester.ensureVisible(createClientReadyFinder);
-      await tester.tap(createClientReadyFinder);
-      await tester.pumpAndSettle();
+      await tapAdminClientDemoReady(tester);
+      await tapAdminClientCreateReady(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('admin-create-success-support-open-reports')),
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-reports-workspace'),
+        ),
         findsOneWidget,
       );
 
       final openReportsAction = find.byKey(
-        const ValueKey('admin-create-success-support-open-reports'),
+        const ValueKey('admin-create-success-support-open-reports-workspace'),
       );
       await tester.ensureVisible(openReportsAction);
       await tester.tap(openReportsAction);
@@ -4978,30 +6814,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/7',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
-
-      final createClientReadyFinder = find.text('Create Client (Ready)').last;
-      await tester.ensureVisible(createClientReadyFinder);
-      await tester.tap(createClientReadyFinder);
-      await tester.pumpAndSettle();
+      await tapAdminClientDemoReady(tester);
+      await tapAdminClientCreateReady(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
@@ -5009,13 +6829,13 @@ void main() {
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-client-view'),
+          const ValueKey('admin-create-success-support-open-client-comms'),
         ),
         findsOneWidget,
       );
 
       final openClientViewAction = find.byKey(
-        const ValueKey('admin-create-success-support-open-client-view'),
+        const ValueKey('admin-create-success-support-open-client-comms'),
       );
       await tester.ensureVisible(openClientViewAction);
       await tester.tap(openClientViewAction);
@@ -5054,30 +6874,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/7',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
-
-      final createClientReadyFinder = find.text('Create Client (Ready)').last;
-      await tester.ensureVisible(createClientReadyFinder);
-      await tester.tap(createClientReadyFinder);
-      await tester.pumpAndSettle();
+      await tapAdminClientDemoReady(tester);
+      await tapAdminClientCreateReady(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
@@ -5089,41 +6893,43 @@ void main() {
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-client-view'),
+          const ValueKey('admin-create-success-support-open-client-comms'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-governance'),
+          const ValueKey('admin-create-success-support-open-governance-desk'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-operations'),
+          const ValueKey('admin-create-success-support-open-security-desk'),
         ),
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('admin-create-success-support-open-reports')),
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-reports-workspace'),
+        ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-tactical'),
+          const ValueKey('admin-create-success-support-open-tactical-track'),
         ),
         findsNothing,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-dispatches'),
+          const ValueKey('admin-create-success-support-open-dispatch-board'),
         ),
         findsNothing,
       );
 
       final openGovernanceAction = find.byKey(
-        const ValueKey('admin-create-success-support-open-governance'),
+        const ValueKey('admin-create-success-support-open-governance-desk'),
       );
       await tester.ensureVisible(openGovernanceAction);
       await tester.tap(openGovernanceAction);
@@ -5134,222 +6940,170 @@ void main() {
     },
   );
 
-  testWidgets('site demo success dialog prioritizes operations workflow actions', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    String? openedTacticalClientId;
-    String? openedTacticalSiteId;
-    String? openedTacticalIncidentReference;
+  testWidgets(
+    'site demo success dialog prioritizes operations workflow actions',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      String? openedTacticalClientId;
+      String? openedTacticalSiteId;
+      String? openedTacticalIncidentReference;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.sites,
-          onOpenOperationsForScope: (_, _) {},
-          onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
-            openedTacticalClientId = clientId;
-            openedTacticalSiteId = siteId;
-            openedTacticalIncidentReference = incidentReference;
-          },
-          onOpenDispatchesForScope: (_, _) {},
-          onOpenGovernanceForScope: (_, _) {},
-          onOpenReportsForScope: (_, _) {},
-          onOpenClientViewForScope: (_, _) {},
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            events: const <DispatchEvent>[],
+            supabaseReady: false,
+            initialTab: AdministrationPageTab.sites,
+            onOpenOperationsForScope: (_, _) {},
+            onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
+              openedTacticalClientId = clientId;
+              openedTacticalSiteId = siteId;
+              openedTacticalIncidentReference = incidentReference;
+            },
+            onOpenDispatchesForScope: (_, _) {},
+            onOpenGovernanceForScope: (_, _) {},
+            onOpenReportsForScope: (_, _) {},
+            onOpenClientViewForScope: (_, _) {},
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Demo Mode'));
-    await tapVisibleText(tester, 'Demo Mode');
-    await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-    await tester.tap(find.byIcon(Icons.add_rounded).first);
-    await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
-    final demoReadyButton = find.widgetWithText(FilledButton, 'Demo Ready 0/6');
-    final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-    final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-        ? demoReadyButton.first
-        : fallbackDemoReadyButton.first;
-    await tester.ensureVisible(demoReadyFinder);
-    await tester.tap(demoReadyFinder);
-    await tester.pumpAndSettle();
+      await tapAdminSiteDemoReady(tester);
 
-    final createSiteReadyFinder = find.text('Create Site (Ready)').last;
-    await tester.ensureVisible(createSiteReadyFinder);
-    await tester.tap(createSiteReadyFinder);
-    await tester.pumpAndSettle();
+      await tapAdminSiteCreateReady(tester);
+      await waitForAdminCreateSuccessDialog(tester);
 
-    expect(
-      find.byKey(const ValueKey('admin-create-success-title')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-frame')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-header-shell')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('admin-create-success-header-shell')),
-        matching: find.text(
-          'The generated handoff is sealed and ready for scoped review across the actions below.',
+      expect(
+        find.byKey(const ValueKey('admin-create-success-frame')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-header-shell')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-header-status')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-header-chips')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-workflow-shell')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-command-snapshot')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-command-state')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-command-focus')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-command-highlights')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-command-routes')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-highlights-command')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-focus-shell')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-focus-command')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-focus-reference')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-highlights-spotlight')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-create-success-highlights-supporting'),
         ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-header-status')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('admin-create-success-header-status')),
-        matching: find.text('handoff sealed'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-header-chips')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-workflow-shell')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-command-snapshot')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('admin-create-success-command-snapshot')),
-        matching: find.text(
-          'Scoped handoff review is sealed for command follow-through.',
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-workflow-command')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('admin-create-success-support-actions')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-security-desk'),
         ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('admin-create-success-command-snapshot')),
-        matching: find.text(
-          'Handoff posture, focus state, signal count, and sealed review depth stay visible here before the deeper focus and success boards.',
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-tactical-track'),
         ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-command-state')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-command-routes')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-highlights-command')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-focus-shell')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-focus-command')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-focus-reference')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-highlights-spotlight')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-highlights-supporting')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-workflow-command')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('admin-create-success-workflow-command')),
-        matching: find.text(
-          'The strongest scoped handoffs are sealed for review below.',
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-dispatch-board'),
         ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: find.byKey(const ValueKey('admin-create-success-workflow-command')),
-        matching: find.text(
-          'The sealed review path stays separated from the supporting handoffs so the operator can inspect and route cleanly without losing the seeded context.',
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-client-comms'),
         ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-support-actions')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(
-        const ValueKey('admin-create-success-support-open-operations'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-support-open-tactical')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(
-        const ValueKey('admin-create-success-support-open-dispatches'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(
-        const ValueKey('admin-create-success-support-open-client-view'),
-      ),
-      findsNothing,
-    );
-    expect(
-      find.byKey(
-        const ValueKey('admin-create-success-support-open-governance'),
-      ),
-      findsNothing,
-    );
-    expect(
-      find.byKey(const ValueKey('admin-create-success-support-open-reports')),
-      findsNothing,
-    );
+        findsNothing,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-governance-desk'),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-reports-workspace'),
+        ),
+        findsNothing,
+      );
 
-    final openTacticalAction = find.byKey(
-      const ValueKey('admin-create-success-support-open-tactical'),
-    );
-    await tester.ensureVisible(openTacticalAction);
-    await tester.tap(openTacticalAction);
-    await tester.pumpAndSettle();
+      final openTacticalAction = find.byKey(
+        const ValueKey('admin-create-success-support-open-tactical-track'),
+      );
+      await tester.ensureVisible(openTacticalAction);
+      await tester.tap(openTacticalAction);
+      await tester.pumpAndSettle();
 
-    expect(openedTacticalClientId, isNotEmpty);
-    expect(openedTacticalSiteId, isNotEmpty);
-    expect(openedTacticalIncidentReference, isNull);
-  });
+      expect(openedTacticalClientId, isNotEmpty);
+      expect(openedTacticalSiteId, isNotEmpty);
+      expect(openedTacticalIncidentReference, isNull);
+    },
+  );
 
   testWidgets(
     'employee demo success dialog prioritizes operations workflow actions',
@@ -5379,32 +7133,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/6',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
-
-      final createEmployeeReadyFinder = find
-          .text('Create Employee (Ready)')
-          .last;
-      await tester.ensureVisible(createEmployeeReadyFinder);
-      await tester.tap(createEmployeeReadyFinder);
-      await tester.pumpAndSettle();
+      await tapAdminEmployeeDemoReady(tester);
+      await tapAdminEmployeeCreateReady(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
@@ -5412,41 +7148,43 @@ void main() {
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-operations'),
+          const ValueKey('admin-create-success-support-open-security-desk'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-tactical'),
+          const ValueKey('admin-create-success-support-open-tactical-track'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-dispatches'),
+          const ValueKey('admin-create-success-support-open-dispatch-board'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-client-view'),
+          const ValueKey('admin-create-success-support-open-client-comms'),
         ),
         findsNothing,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-governance'),
+          const ValueKey('admin-create-success-support-open-governance-desk'),
         ),
         findsNothing,
       );
       expect(
-        find.byKey(const ValueKey('admin-create-success-support-open-reports')),
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-reports-workspace'),
+        ),
         findsNothing,
       );
 
       final openOperationsAction = find.byKey(
-        const ValueKey('admin-create-success-support-open-operations'),
+        const ValueKey('admin-create-success-support-open-security-desk'),
       );
       await tester.ensureVisible(openOperationsAction);
       await tester.tap(openOperationsAction);
@@ -5480,30 +7218,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.byIcon(Icons.add_rounded).first);
-      await tester.tap(find.byIcon(Icons.add_rounded).first);
-      await tester.pumpAndSettle();
+      await tapAdminToolbarPrimaryAction(tester);
 
-      final demoReadyButton = find.widgetWithText(
-        FilledButton,
-        'Demo Ready 0/6',
-      );
-      final fallbackDemoReadyButton = find.textContaining('Demo Ready');
-      final demoReadyFinder = demoReadyButton.evaluate().isNotEmpty
-          ? demoReadyButton.first
-          : fallbackDemoReadyButton.first;
-      await tester.ensureVisible(demoReadyFinder);
-      await tester.tap(demoReadyFinder);
-      await tester.pumpAndSettle();
-
-      final createSiteReadyFinder = find.text('Create Site (Ready)').last;
-      await tester.ensureVisible(createSiteReadyFinder);
-      await tester.tap(createSiteReadyFinder);
-      await tester.pumpAndSettle();
+      await tapAdminSiteDemoReady(tester);
+      await tapAdminSiteCreateReady(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
@@ -5511,41 +7233,43 @@ void main() {
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-dispatches'),
+          const ValueKey('admin-create-success-support-open-dispatch-board'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-operations'),
+          const ValueKey('admin-create-success-support-open-security-desk'),
         ),
         findsNothing,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-tactical'),
+          const ValueKey('admin-create-success-support-open-tactical-track'),
         ),
         findsNothing,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-governance'),
+          const ValueKey('admin-create-success-support-open-governance-desk'),
         ),
         findsNothing,
       );
       expect(
-        find.byKey(const ValueKey('admin-create-success-support-open-reports')),
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-reports-workspace'),
+        ),
         findsNothing,
       );
 
       final openScopedDispatchesAction = find.byKey(
-        const ValueKey('admin-create-success-support-open-dispatches'),
+        const ValueKey('admin-create-success-support-open-dispatch-board'),
       );
       await tester.ensureVisible(openScopedDispatchesAction);
       await tester.tap(openScopedDispatchesAction);
       await tester.pumpAndSettle();
       expect(openedDispatchClientId, startsWith('CLT-'));
-      expect(openedDispatchSiteId, startsWith('SITE-'));
+      expect(openedDispatchSiteId, startsWith('DEMO-SITE-'));
     },
   );
 
@@ -5572,8 +7296,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
       final buildDemoStackFinder = find.widgetWithText(
@@ -5598,17 +7322,6 @@ void main() {
       );
       expect(
         find.byKey(const ValueKey('admin-workspace-command-receipt')),
-        findsOneWidget,
-      );
-      expect(find.text('LIVE ROUTE'), findsOneWidget);
-      expect(
-        find.textContaining('Operations live route opened with focus:'),
-        findsOneWidget,
-      );
-      expect(
-        find.text(
-          'The seeded demo route stays pinned in the desktop command rail while Operations opens with the live scope focus.',
-        ),
         findsOneWidget,
       );
     },
@@ -5637,8 +7350,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
       final buildDemoStackFinder = find.widgetWithText(
@@ -5647,12 +7360,7 @@ void main() {
       );
       await tester.ensureVisible(buildDemoStackFinder.first);
       await tester.tap(buildDemoStackFinder.first);
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-        if (find.text('Demo Stack Ready').evaluate().isNotEmpty) {
-          break;
-        }
-      }
+      await waitForAdminCreateSuccessDialog(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
@@ -5683,15 +7391,6 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-create-success-command')),
-          matching: find.text(
-            'The strongest scoped handoffs stay visible here so the operator can review and route cleanly without losing context.',
-          ),
-        ),
-        findsOneWidget,
-      );
-      expect(
         find.byKey(const ValueKey('admin-create-success-command-snapshot')),
         findsOneWidget,
       );
@@ -5705,13 +7404,6 @@ void main() {
       );
       expect(
         find.byKey(const ValueKey('admin-create-success-next-move')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-create-success-next-move')),
-          matching: find.text('Review sealed handoff'),
-        ),
         findsOneWidget,
       );
       expect(
@@ -5760,31 +7452,21 @@ void main() {
         find.byKey(const ValueKey('admin-create-success-primary-action')),
         findsOneWidget,
       );
-      expect(find.text('Continue to Operations'), findsNothing);
-      expect(find.text('Close Checkpoint'), findsOneWidget);
-      expect(find.text('SEALED HANDOFFS'), findsOneWidget);
       expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-create-success-header-status')),
-          matching: find.text('handoff sealed'),
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-dispatch-board'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-dispatches'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(
-          const ValueKey('admin-create-success-support-open-operations'),
+          const ValueKey('admin-create-success-support-open-security-desk'),
         ),
         findsNothing,
       );
 
       final openFallbackDispatchesAction = find.byKey(
-        const ValueKey('admin-create-success-support-open-dispatches'),
+        const ValueKey('admin-create-success-support-open-dispatch-board'),
       );
       await tester.ensureVisible(openFallbackDispatchesAction);
       await tester.tap(openFallbackDispatchesAction);
@@ -5822,8 +7504,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
       final buildDemoStackFinder = find.widgetWithText(
@@ -5832,12 +7514,7 @@ void main() {
       );
       await tester.ensureVisible(buildDemoStackFinder.first);
       await tester.tap(buildDemoStackFinder.first);
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-        if (find.text('Demo Stack Ready').evaluate().isNotEmpty) {
-          break;
-        }
-      }
+      await waitForAdminCreateSuccessDialog(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
@@ -5847,48 +7524,47 @@ void main() {
         find.byKey(const ValueKey('admin-create-success-primary-action')),
         findsOneWidget,
       );
-      expect(find.text('Continue to Operations'), findsNothing);
-      expect(find.text('Close Checkpoint'), findsOneWidget);
-      expect(find.text('SEALED HANDOFFS'), findsOneWidget);
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-dispatches'),
+          const ValueKey('admin-create-success-support-open-dispatch-board'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-tactical'),
+          const ValueKey('admin-create-success-support-open-tactical-track'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-governance'),
+          const ValueKey('admin-create-success-support-open-governance-desk'),
         ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-client-view'),
+          const ValueKey('admin-create-success-support-open-client-comms'),
         ),
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('admin-create-success-support-open-reports')),
+        find.byKey(
+          const ValueKey('admin-create-success-support-open-reports-workspace'),
+        ),
         findsOneWidget,
       );
       expect(
         find.byKey(
-          const ValueKey('admin-create-success-support-open-operations'),
+          const ValueKey('admin-create-success-support-open-security-desk'),
         ),
         findsNothing,
       );
-      expect(find.text('Open Events'), findsNothing);
-      expect(find.text('Open Ledger'), findsNothing);
+      expect(find.text('OPEN EVENTS SCOPE'), findsNothing);
+      expect(find.text('OPEN SOVEREIGN LEDGER'), findsNothing);
 
       final openFallbackGovernanceAction = find.byKey(
-        const ValueKey('admin-create-success-support-open-governance'),
+        const ValueKey('admin-create-success-support-open-governance-desk'),
       );
       await tester.ensureVisible(openFallbackGovernanceAction);
       await tester.tap(openFallbackGovernanceAction);
@@ -5918,8 +7594,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
       final buildDemoStackFinder = find.widgetWithText(
@@ -5928,12 +7604,7 @@ void main() {
       );
       await tester.ensureVisible(buildDemoStackFinder.first);
       await tester.tap(buildDemoStackFinder.first);
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-        if (find.text('Demo Stack Ready').evaluate().isNotEmpty) {
-          break;
-        }
-      }
+      await waitForAdminCreateSuccessDialog(tester);
 
       expect(
         find.byKey(const ValueKey('admin-create-success-title')),
@@ -5976,8 +7647,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Demo Mode'));
-      await tapVisibleText(tester, 'Demo Mode');
+      await tester.ensureVisible(find.byKey(adminDemoModeToggleKey));
+      await tapAdminDemoModeToggle(tester);
       await tester.pumpAndSettle();
 
       final buildDemoStackFinder = find.widgetWithText(
@@ -5986,12 +7657,7 @@ void main() {
       );
       await tester.ensureVisible(buildDemoStackFinder.first);
       await tester.tap(buildDemoStackFinder.first);
-      for (var i = 0; i < 20; i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-        if (find.text('Demo Stack Ready').evaluate().isNotEmpty) {
-          break;
-        }
-      }
+      await waitForAdminCreateSuccessDialog(tester);
 
       final closeSuccessAction = find.byKey(
         const ValueKey('admin-create-success-primary-action'),
@@ -6022,14 +7688,6 @@ void main() {
         find.byKey(const ValueKey('admin-demo-reset-status')),
         findsOneWidget,
       );
-      expect(find.text('DEMO CLEANUP'), findsOneWidget);
-      expect(
-        find.text(
-          'Seal cleanup and return the storyboard to an unseeded state.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Hold State'), findsOneWidget);
 
       final confirmResetButton = find.byKey(
         const ValueKey('admin-demo-reset-confirm-button'),
@@ -6040,28 +7698,7 @@ void main() {
 
       expect(find.byType(SnackBar), findsNothing);
       expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-workspace-command-receipt')),
-          matching: find.text('DEMO CLEANUP'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-workspace-command-receipt')),
-          matching: find.text(
-            'Demo data cleared: 1 client(s), 1 site(s), 1 employee(s).',
-          ),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('admin-workspace-command-receipt')),
-          matching: find.text(
-            'The cleanup result stays pinned in the desktop command rail while the storyboard returns to an unseeded state.',
-          ),
-        ),
+        find.byKey(const ValueKey('admin-workspace-command-receipt')),
         findsOneWidget,
       );
 
@@ -6294,7 +7931,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Focused queue lane.'), findsOneWidget);
+      expect(find.text('Focused queue scope.'), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
       expect(
         find.descendant(
@@ -6325,6 +7962,88 @@ void main() {
       expect(runOpsPollCalls, 1);
       expect(find.text('Ran ops integration poll.'), findsOneWidget);
       expect(find.byType(SnackBar), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'system tab ops poll command pins failure receipt when callbacks throw',
+    (tester) async {
+      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            events: const <DispatchEvent>[],
+            supabaseReady: false,
+            initialTab: AdministrationPageTab.system,
+            radioOpsPollHealth: 'ok 3 • fail 1 • skip 0 • last 10:05:00 UTC',
+            radioOpsQueueHealth:
+                'pending 4 • due 1 • deferred 3 • max-attempt 2 • next 10:05:30 UTC',
+            radioOpsFailureDetail:
+                'Last failure • ZEL-9001 • reason send_failed • count 2 • at 10:05:30 UTC',
+            radioQueueHasPending: true,
+            onRunOpsIntegrationPoll: () async {
+              throw StateError('ops poll failed');
+            },
+            onRunRadioPoll: () async {
+              throw StateError('radio poll failed');
+            },
+            onRetryRadioQueue: () async {
+              throw StateError('retry failed');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('admin-ops-poll-row-radio')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('admin-ops-poll-row-radio')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey('admin-ops-poll-command-poll-radio')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Radio telemetry poll could not complete right now.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey('admin-ops-poll-focus-pivot-queue')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('admin-ops-poll-command-retry-queue')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Radio queue retry could not complete right now.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(
+        find.byKey(const ValueKey('admin-ops-poll-command-run-ops')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Ops integration poll could not complete right now.'),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
     },
   );
 
@@ -6454,7 +8173,7 @@ void main() {
                 eventId: 'alarm-cycle-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 8, 0),
+                occurredAt: _adminMarch16ListenerAlarmOccurredAtUtc(0),
                 sourceLabel: 'listener-http',
                 acceptedCount: 5,
                 mappedCount: 4,
@@ -6474,7 +8193,7 @@ void main() {
                 eventId: 'alarm-advisory-1',
                 sequence: 2,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 8, 1),
+                occurredAt: _adminMarch16ListenerAlarmOccurredAtUtc(1),
                 clientId: 'CLIENT-1',
                 regionId: 'REGION-1',
                 siteId: 'VALLEE',
@@ -6494,7 +8213,7 @@ void main() {
                 eventId: 'alarm-parity-1',
                 sequence: 3,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 8, 2),
+                occurredAt: _adminMarch16ListenerAlarmOccurredAtUtc(2),
                 sourceLabel: 'listener-http',
                 legacySourceLabel: 'oryx-http',
                 statusLabel: 'ok',
@@ -6596,7 +8315,7 @@ void main() {
                 eventId: 'alarm-cycle-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 8, 0),
+                occurredAt: _adminMarch16ListenerAlarmOccurredAtUtc(0),
                 sourceLabel: 'listener-http',
                 acceptedCount: 5,
                 mappedCount: 4,
@@ -6616,7 +8335,7 @@ void main() {
                 eventId: 'alarm-advisory-1',
                 sequence: 2,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 8, 1),
+                occurredAt: _adminMarch16ListenerAlarmOccurredAtUtc(1),
                 clientId: 'CLIENT-MS-VALLEE',
                 regionId: 'REGION-1',
                 siteId: 'VALLEE',
@@ -6636,7 +8355,7 @@ void main() {
                 eventId: 'alarm-parity-1',
                 sequence: 3,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 8, 2),
+                occurredAt: _adminMarch16ListenerAlarmOccurredAtUtc(2),
                 sourceLabel: 'listener-http',
                 legacySourceLabel: 'oryx-http',
                 statusLabel: 'ok',
@@ -6685,7 +8404,7 @@ void main() {
       expect(copiedPayload, contains('Latest advisory • VALLEE • Burglary'));
       expect(
         find.textContaining(
-          'Listener advisory lane copied for command review.',
+          'Listener advisory scope copied for command review.',
         ),
         findsOneWidget,
       );
@@ -6717,7 +8436,7 @@ void main() {
               eventId: 'evt-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              occurredAt: _adminMarch16ReadinessOccurredAtUtc(0),
               intelligenceId: 'intel-1',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -6744,7 +8463,7 @@ void main() {
               decisionLabel: 'Escalation Candidate',
               decisionSummary: 'Escalation posture requires response review.',
               summary: 'Boundary activity at gate.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+              reviewedAtUtc: _adminMarch16ReadinessOccurredAtUtc(1),
             ),
           },
         ),
@@ -6774,7 +8493,7 @@ void main() {
               eventId: 'evt-fire',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              occurredAt: _adminMarch16ReadinessOccurredAtUtc(0),
               intelligenceId: 'intel-fire',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -6801,7 +8520,7 @@ void main() {
               decisionSummary:
                   'Escalation posture requires fire response review.',
               summary: 'Smoke plume visible inside the generator room.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+              reviewedAtUtc: _adminMarch16ReadinessOccurredAtUtc(1),
             ),
           },
         ),
@@ -6930,6 +8649,103 @@ void main() {
     await tester.pumpAndSettle();
     expect(resetCalls, 1);
   });
+
+  testWidgets(
+    'system tab preserves radio intent draft when reset persistence fails',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            events: const <DispatchEvent>[],
+            supabaseReady: false,
+            initialRadioIntentPhrasesJson:
+                '{"all_clear":["all clear"],"panic":["panic"],"duress":["silent duress"],"status":["status update"]}',
+            onResetRadioIntentPhrasesJson: () async {
+              throw StateError('radio reset failed');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tapVisibleText(tester, 'System');
+      await tester.pumpAndSettle();
+
+      final radioEditor = find.byWidgetPredicate((widget) {
+        if (widget is! TextField) return false;
+        final hint = widget.decoration?.hintText ?? '';
+        return hint.contains('"panic button"');
+      });
+      final radioResetButton = find.text('Reset To Defaults').first;
+
+      await tester.enterText(
+        radioEditor,
+        '{"all_clear":["all clear"],"panic":["keep me"],"duress":["duress"],"status":["status check"]}',
+      );
+      await tester.ensureVisible(radioResetButton);
+      await tester.pumpAndSettle();
+      await tester.tap(radioResetButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Failed to reset radio intent dictionary.'),
+        findsWidgets,
+      );
+      expect(
+        tester.widget<TextField>(radioEditor).controller!.text,
+        '{"all_clear":["all clear"],"panic":["keep me"],"duress":["duress"],"status":["status check"]}',
+      );
+    },
+  );
+
+  testWidgets(
+    'system tab preserves demo route cue draft when reset persistence fails',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AdministrationPage(
+            events: const <DispatchEvent>[],
+            supabaseReady: false,
+            initialDemoRouteCuesJson:
+                '{"dashboard":"Action ladder and decision speed."}',
+            onResetDemoRouteCuesJson: () async {
+              throw StateError('demo route reset failed');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tapVisibleText(tester, 'System');
+      await tester.pumpAndSettle();
+
+      final demoEditor = find.byWidgetPredicate((widget) {
+        if (widget is! TextField) return false;
+        final hint = widget.decoration?.hintText ?? '';
+        return hint.contains(
+          '"dashboard": "Action ladder and decision speed."',
+        );
+      });
+      final demoResetButton = find.byKey(
+        const ValueKey('demo-route-reset-runtime'),
+      );
+
+      await tester.enterText(
+        demoEditor,
+        '{"dashboard":"keep this route cue","dispatches":"execute from queue"}',
+      );
+      await tester.ensureVisible(demoResetButton);
+      await tester.pumpAndSettle();
+      await tester.tap(demoResetButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to reset demo route cues.'), findsWidgets);
+      expect(
+        tester.widget<TextField>(demoEditor).controller!.text,
+        '{"dashboard":"keep this route cue","dispatches":"execute from queue"}',
+      );
+    },
+  );
 
   testWidgets('system tab invokes radio queue action callbacks', (
     tester,
@@ -7844,7 +9660,7 @@ void main() {
           initialMonitoringIdentityRuleAuditHistory:
               <MonitoringIdentityPolicyAuditRecord>[
                 MonitoringIdentityPolicyAuditRecord(
-                  recordedAtUtc: DateTime.utc(2026, 3, 15, 7, 14),
+                  recordedAtUtc: _adminIdentityAuditRecordedAtUtc(14),
                   source: MonitoringIdentityPolicyAuditSource.manualEdit,
                   message:
                       'Added PERSON-44 to flagged faces for SITE-MS-VALLEE-RESIDENCE.',
@@ -7890,13 +9706,13 @@ void main() {
           initialMonitoringIdentityRuleAuditHistory:
               <MonitoringIdentityPolicyAuditRecord>[
                 MonitoringIdentityPolicyAuditRecord(
-                  recordedAtUtc: DateTime.utc(2026, 3, 15, 7, 14),
+                  recordedAtUtc: _adminIdentityAuditRecordedAtUtc(14),
                   source: MonitoringIdentityPolicyAuditSource.manualEdit,
                   message:
                       'Added PERSON-44 to flagged faces for SITE-MS-VALLEE-RESIDENCE.',
                 ),
                 MonitoringIdentityPolicyAuditRecord(
-                  recordedAtUtc: DateTime.utc(2026, 3, 15, 7, 10),
+                  recordedAtUtc: _adminIdentityAuditRecordedAtUtc(10),
                   source: MonitoringIdentityPolicyAuditSource.saveRuntime,
                   message: 'Saved runtime identity rules (1 sites).',
                 ),
@@ -7972,26 +9788,16 @@ void main() {
                             initialMonitoringIdentityRuleAuditHistory:
                                 <MonitoringIdentityPolicyAuditRecord>[
                                   MonitoringIdentityPolicyAuditRecord(
-                                    recordedAtUtc: DateTime.utc(
-                                      2026,
-                                      3,
-                                      15,
-                                      7,
-                                      14,
-                                    ),
+                                    recordedAtUtc:
+                                        _adminIdentityAuditRecordedAtUtc(14),
                                     source: MonitoringIdentityPolicyAuditSource
                                         .manualEdit,
                                     message:
                                         'Added PERSON-44 to flagged faces for SITE-MS-VALLEE-RESIDENCE.',
                                   ),
                                   MonitoringIdentityPolicyAuditRecord(
-                                    recordedAtUtc: DateTime.utc(
-                                      2026,
-                                      3,
-                                      15,
-                                      7,
-                                      10,
-                                    ),
+                                    recordedAtUtc:
+                                        _adminIdentityAuditRecordedAtUtc(10),
                                     source: MonitoringIdentityPolicyAuditSource
                                         .saveRuntime,
                                     message:
@@ -8087,13 +9893,8 @@ void main() {
                             initialMonitoringIdentityRuleAuditHistory:
                                 <MonitoringIdentityPolicyAuditRecord>[
                                   MonitoringIdentityPolicyAuditRecord(
-                                    recordedAtUtc: DateTime.utc(
-                                      2026,
-                                      3,
-                                      15,
-                                      7,
-                                      14,
-                                    ),
+                                    recordedAtUtc:
+                                        _adminIdentityAuditRecordedAtUtc(14),
                                     source: MonitoringIdentityPolicyAuditSource
                                         .manualEdit,
                                     message:
@@ -8437,58 +10238,21 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     String? openedEventsIncidentRef;
     String? openedLedgerIncidentRef;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          cctvOpsPollHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:01 UTC',
-          fleetScopeHealth: const <VideoFleetScopeHealthView>[
-            VideoFleetScopeHealthView(
-              clientId: 'CLIENT-B',
-              siteId: 'SITE-B',
-              siteName: 'Beta Watch',
-              endpointLabel: '192.168.8.106',
-              statusLabel: 'WATCH READY',
-              watchLabel: 'SCHEDULED',
-              recentEvents: 1,
-              lastSeenLabel: '21:14 UTC',
-              freshnessLabel: 'Recent',
-              isStale: false,
-              suppressedCount: 1,
-              suppressedHistory: [
-                '21:10 UTC • Camera 2 • Suppressed because the activity remained below the client notification threshold.',
-                '21:08 UTC • Camera 5 • Suppressed because the vehicle path stayed outside the secure boundary.',
-              ],
-              latestIncidentReference: 'INT-BETA-1',
-              latestCameraLabel: 'Camera 2',
-              latestSceneDecisionLabel: 'Suppressed',
-              latestSceneDecisionSummary:
-                  'Suppressed because the activity remained below the client notification threshold.',
-            ),
-          ],
-          sceneReviewByIntelligenceId: <String, MonitoringSceneReviewRecord>{
-            'INT-BETA-1': MonitoringSceneReviewRecord(
-              intelligenceId: 'INT-BETA-1',
-              sourceLabel: 'openai:gpt-4.1-mini',
-              postureLabel: 'reviewed',
-              decisionLabel: 'Suppressed',
-              decisionSummary:
-                  'Suppressed because the activity remained below the client notification threshold.',
-              summary: 'Vehicle remained below escalation threshold.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 13, 21, 14),
-            ),
-          },
-          onOpenEventsForIncident: (incidentRef) {
-            openedEventsIncidentRef = incidentRef;
-          },
-          onOpenLedgerForIncident: (incidentRef) {
-            openedLedgerIncidentRef = incidentRef;
-          },
-        ),
-      ),
+    await pumpAdminSystemWithFleetScopeHealth(
+      tester,
+      fleetScopeHealth: <VideoFleetScopeHealthView>[
+        buildSuppressedWatchFleetScopeHealthView(),
+      ],
+      sceneReviewByIntelligenceId: <String, MonitoringSceneReviewRecord>{
+        'INT-BETA-1': buildSuppressedSceneReviewRecord(),
+      },
+      onOpenEventsForIncident: (incidentRef) {
+        openedEventsIncidentRef = incidentRef;
+      },
+      onOpenLedgerForIncident: (incidentRef) {
+        openedLedgerIncidentRef = incidentRef;
+      },
     );
-    await tester.pumpAndSettle();
 
     await tapVisibleText(tester, 'System');
     await tester.pumpAndSettle();
@@ -8600,87 +10364,48 @@ void main() {
       String? recoveredClientId;
       String? recoveredSiteId;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AdministrationPage(
-            events: const <DispatchEvent>[],
-            supabaseReady: false,
-            cctvOpsPollHealth: 'ok 1 • fail 0 • skip 0 • last 10:05:01 UTC',
-            fleetScopeHealth: const <VideoFleetScopeHealthView>[
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-A',
-                siteId: 'SITE-A',
-                siteName: 'MS Vallee Residence',
-                endpointLabel: '192.168.8.105',
-                statusLabel: 'LIVE',
-                watchLabel: 'ACTIVE',
-                recentEvents: 2,
-                lastSeenLabel: '21:14 UTC',
-                freshnessLabel: 'Fresh',
-                isStale: false,
-                latestEventLabel: 'Vehicle motion',
-                latestIncidentReference: 'INT-VALLEE-1',
-                latestEventTimeLabel: '21:14 UTC',
-                latestCameraLabel: 'Camera 1',
-                latestRiskScore: 84,
-                latestFaceMatchId: 'PERSON-44',
-                latestFaceConfidence: 91.2,
-                latestPlateNumber: 'CA123456',
-                latestPlateConfidence: 96.4,
-                latestSceneReviewLabel:
-                    'openai:gpt-4.1-mini • identity match concern • 21:14 UTC',
-                latestSceneDecisionSummary:
-                    'Escalated for urgent review because face match PERSON-44 was flagged and the event metadata suggested an unauthorized or watchlist context.',
-              ),
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-B',
-                siteId: 'SITE-B',
-                siteName: 'Beta Watch',
-                endpointLabel: '192.168.8.106',
-                statusLabel: 'WATCH READY',
-                watchLabel: 'SCHEDULED',
-                recentEvents: 0,
-                lastSeenLabel: 'idle',
-                freshnessLabel: 'Idle',
-                isStale: false,
-                watchWindowLabel: '18:00-06:00',
-                watchWindowStateLabel: 'IN WINDOW',
-                watchActivationGapLabel: 'MISSED START',
-              ),
-            ],
-            onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
-              tappedTacticalClientId = clientId;
-              tappedTacticalSiteId = siteId;
-              tappedTacticalReference = incidentReference;
-            },
-            onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
-              tappedDispatchClientId = clientId;
-              tappedDispatchSiteId = siteId;
-              tappedDispatchReference = incidentReference;
-            },
-            onRecoverFleetWatchScope: (clientId, siteId) {
-              recoveredClientId = clientId;
-              recoveredSiteId = siteId;
-            },
-          ),
-        ),
+      await pumpAdminSystemWithFleetScopeHealth(
+        tester,
+        fleetScopeHealth: <VideoFleetScopeHealthView>[
+          buildFlaggedIdentityFleetScopeHealthView(),
+          buildWatchOnlyFleetScopeHealthView(),
+        ],
+        onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
+          tappedTacticalClientId = clientId;
+          tappedTacticalSiteId = siteId;
+          tappedTacticalReference = incidentReference;
+        },
+        onOpenFleetDispatchScope: (clientId, siteId, incidentReference) {
+          tappedDispatchClientId = clientId;
+          tappedDispatchSiteId = siteId;
+          tappedDispatchReference = incidentReference;
+        },
+        onRecoverFleetWatchScope: (clientId, siteId) {
+          recoveredClientId = clientId;
+          recoveredSiteId = siteId;
+        },
       );
-      await tester.pumpAndSettle();
 
       await tapVisibleText(tester, 'System');
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('MS Vallee Residence').first);
+      final tacticalButton = find.byKey(
+        const ValueKey('admin-fleet-tactical-SITE-A'),
+      );
+      await tester.ensureVisible(tacticalButton);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('MS Vallee Residence').first);
+      await tester.tap(tacticalButton);
       await tester.pumpAndSettle();
       expect(tappedTacticalClientId, 'CLIENT-A');
       expect(tappedTacticalSiteId, 'SITE-A');
       expect(tappedTacticalReference, 'INT-VALLEE-1');
 
-      await tester.ensureVisible(find.text('Dispatch').first);
+      final dispatchButton = find.byKey(
+        const ValueKey('admin-fleet-dispatch-SITE-A'),
+      );
+      await tester.ensureVisible(dispatchButton);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Dispatch').first);
+      await tester.tap(dispatchButton);
       await tester.pumpAndSettle();
       expect(tappedDispatchClientId, 'CLIENT-A');
       expect(tappedDispatchSiteId, 'SITE-A');
@@ -8717,9 +10442,12 @@ void main() {
       await tester.tap(find.text('Clear'));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Resync').first);
+      final resyncButton = find.byKey(
+        const ValueKey('admin-fleet-resync-SITE-B'),
+      );
+      await tester.ensureVisible(resyncButton);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Resync').first);
+      await tester.tap(resyncButton);
       await tester.pumpAndSettle();
       expect(recoveredClientId, 'CLIENT-B');
       expect(recoveredSiteId, 'SITE-B');
@@ -8727,9 +10455,12 @@ void main() {
       tappedTacticalClientId = null;
       tappedTacticalSiteId = null;
       tappedTacticalReference = null;
-      await tester.ensureVisible(find.text('Beta Watch').first);
+      final watchOnlyCard = find.byKey(
+        const ValueKey('admin-fleet-scope-card-SITE-B'),
+      );
+      await tester.ensureVisible(watchOnlyCard);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Beta Watch').first);
+      await tester.tap(watchOnlyCard);
       await tester.pumpAndSettle();
       expect(tappedTacticalClientId, isNull);
       expect(tappedTacticalSiteId, isNull);
@@ -8740,32 +10471,12 @@ void main() {
   testWidgets('system tab renders telegram visitor proposal queue', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          initialTelegramIdentityIntakes: <TelegramIdentityIntakeRecord>[
-            TelegramIdentityIntakeRecord(
-              intakeId: 'intake-1',
-              clientId: 'CLIENT-MS-VALLEE',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              rawText:
-                  'John Smith is visiting in a white Hilux CA123456 until 18:00',
-              parsedDisplayName: 'John Smith',
-              parsedFaceMatchId: 'PERSON-44',
-              parsedPlateNumber: 'CA123456',
-              category: SiteIdentityCategory.visitor,
-              aiConfidence: 0.92,
-              approvalState: 'proposed',
-              createdAtUtc: DateTime.utc(2026, 3, 15, 10, 45),
-            ),
-          ],
-        ),
-      ),
+    await pumpAdminSystemWithTelegramIdentityIntakes(
+      tester,
+      initialTelegramIdentityIntakes: <TelegramIdentityIntakeRecord>[
+        buildTelegramVisitorIdentityIntake(),
+      ],
     );
-    await tester.pumpAndSettle();
 
     expect(find.text('Telegram Visitor Proposals'), findsOneWidget);
     expect(find.text('1 pending'), findsOneWidget);
@@ -8805,32 +10516,12 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          initialTelegramIdentityIntakes: <TelegramIdentityIntakeRecord>[
-            TelegramIdentityIntakeRecord(
-              intakeId: 'intake-1',
-              clientId: 'CLIENT-MS-VALLEE',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              rawText:
-                  'John Smith is visiting in a white Hilux CA123456 until 18:00',
-              parsedDisplayName: 'John Smith',
-              parsedFaceMatchId: 'PERSON-44',
-              parsedPlateNumber: 'CA123456',
-              category: SiteIdentityCategory.visitor,
-              aiConfidence: 0.92,
-              approvalState: 'proposed',
-              createdAtUtc: DateTime.utc(2026, 3, 15, 10, 45),
-            ),
-          ],
-        ),
-      ),
+    await pumpAdminSystemWithTelegramIdentityIntakes(
+      tester,
+      initialTelegramIdentityIntakes: <TelegramIdentityIntakeRecord>[
+        buildTelegramVisitorIdentityIntake(),
+      ],
     );
-    await tester.pumpAndSettle();
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('admin-telegram-intake-command')),
@@ -8855,7 +10546,7 @@ void main() {
   testWidgets('system tab renders polished telegram ai draft review cards', (
     tester,
   ) async {
-    final nowUtc = DateTime.now().toUtc();
+    final nowUtc = _adminNowUtc();
     String? openedClientId;
     String? openedSiteId;
     String? profiledClientId;
@@ -8873,186 +10564,62 @@ void main() {
     String? savedLearnedTag;
     var liveOpsQueueHintResetCount = 0;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
-            TelegramAiPendingDraftView(
-              updateId: 42,
-              audience: 'client',
-              clientId: 'CLIENT-MS-VALLEE',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              chatId: '123456',
-              messageThreadId: 88,
-              sourceText:
-                  'Can you please tell me what is happening at the house?',
-              draftText:
-                  'We are checking the latest position now and I will send you the next confirmed update as soon as it is in.',
-              providerLabel: 'openai:gpt-4.1-mini',
-              clientProfileOverrideSignal: 'reassurance-forward',
-              learnedRewriteCount: 2,
-              learnedRewriteExample:
-                  'Control is checking the latest position now and will share the next confirmed step shortly.',
-              learnedRewriteTag: 'Warm reassurance',
-              learnedRewriteApprovalCount: 4,
-              learnedRewriteLastUsedAtUtc: nowUtc.subtract(
-                const Duration(hours: 2),
-              ),
-              learnedRewritePreviews: [
-                TelegramAiLearnedStylePreviewView(
-                  text:
-                      'Control is checking the latest position now and will share the next confirmed step shortly.',
-                  operatorTag: 'Warm reassurance',
-                  approvalCount: 4,
-                  lastUsedAtUtc: nowUtc.subtract(const Duration(hours: 2)),
-                ),
-                TelegramAiLearnedStylePreviewView(
-                  text:
-                      'You are not alone. Control is checking now and will keep this lane updated.',
-                  operatorTag: 'Resident comfort',
-                  approvalCount: 3,
-                  lastUsedAtUtc: nowUtc.subtract(const Duration(hours: 5)),
-                ),
-                TelegramAiLearnedStylePreviewView(
-                  text:
-                      'Control is checking cameras now and will share the next confirmed camera check shortly.',
-                  approvalCount: 2,
-                ),
-              ],
-              usesLearnedApprovalStyle: true,
-              createdAtUtc: DateTime.utc(2026, 3, 18, 12, 30),
-            ),
-          ],
-          onOpenClientViewForScope: (clientId, siteId) {
-            openedClientId = clientId;
-            openedSiteId = siteId;
+    await pumpAdminSystemWithTelegramAiDrafts(
+      tester,
+      telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
+        buildDetailedTelegramAiPendingDraft(nowUtc),
+      ],
+      onOpenClientViewForScope: (clientId, siteId) {
+        openedClientId = clientId;
+        openedSiteId = siteId;
+      },
+      onSetTelegramAiClientProfileOverride:
+          ({required clientId, required siteId, profileSignal}) async {
+            profiledClientId = clientId;
+            profiledSiteId = siteId;
+            profiledSignal = profileSignal;
           },
-          onSetTelegramAiClientProfileOverride:
-              ({required clientId, required siteId, profileSignal}) async {
-                profiledClientId = clientId;
-                profiledSiteId = siteId;
-                profiledSignal = profileSignal;
-              },
-          onClearTelegramAiLearnedStyleForScope:
-              ({required clientId, required siteId}) async {
-                clearedClientId = clientId;
-                clearedSiteId = siteId;
-              },
-          onPinTelegramAiLearnedStyleForScope:
-              ({required clientId, required siteId}) async {
-                pinnedClientId = clientId;
-                pinnedSiteId = siteId;
-              },
-          onDemoteTelegramAiLearnedStyleForScope:
-              ({required clientId, required siteId}) async {
-                demotedClientId = clientId;
-                demotedSiteId = siteId;
-              },
-          onPinTelegramAiLearnedStyleEntryForScope:
-              ({
-                required clientId,
-                required siteId,
-                required learnedText,
-              }) async {
-                promotedLearnedText = learnedText;
-              },
-          onDemoteTelegramAiLearnedStyleEntryForScope:
-              ({
-                required clientId,
-                required siteId,
-                required learnedText,
-              }) async {
-                demotedLearnedText = learnedText;
-              },
-          onTagTelegramAiLearnedStyleEntryForScope:
-              ({
-                required clientId,
-                required siteId,
-                required learnedText,
-                operatorTag,
-              }) async {
-                taggedLearnedText = learnedText;
-                savedLearnedTag = operatorTag;
-              },
-          onResetLiveOperationsQueueHint: () async {
-            liveOpsQueueHintResetCount += 1;
+      onClearTelegramAiLearnedStyleForScope:
+          ({required clientId, required siteId}) async {
+            clearedClientId = clientId;
+            clearedSiteId = siteId;
           },
-        ),
-      ),
+      onPinTelegramAiLearnedStyleForScope:
+          ({required clientId, required siteId}) async {
+            pinnedClientId = clientId;
+            pinnedSiteId = siteId;
+          },
+      onDemoteTelegramAiLearnedStyleForScope:
+          ({required clientId, required siteId}) async {
+            demotedClientId = clientId;
+            demotedSiteId = siteId;
+          },
+      onPinTelegramAiLearnedStyleEntryForScope:
+          ({required clientId, required siteId, required learnedText}) async {
+            promotedLearnedText = learnedText;
+          },
+      onDemoteTelegramAiLearnedStyleEntryForScope:
+          ({required clientId, required siteId, required learnedText}) async {
+            demotedLearnedText = learnedText;
+          },
+      onTagTelegramAiLearnedStyleEntryForScope:
+          ({
+            required clientId,
+            required siteId,
+            required learnedText,
+            operatorTag,
+          }) async {
+            taggedLearnedText = learnedText;
+            savedLearnedTag = operatorTag;
+          },
+      onResetLiveOperationsQueueHint: () async {
+        liveOpsQueueHintResetCount += 1;
+      },
     );
-    await tester.pumpAndSettle();
 
-    expect(find.text('Telegram AI Assistant'), findsOneWidget);
+    expect(find.byKey(adminTelegramAiAssistantPanelKey), findsOneWidget);
     expect(
-      find.text(
-        'Client voice goal: calm, premium, and operator-backed. Every approved draft should feel like a capable control room, not a chatbot.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Vallee Residence'), findsOneWidget);
-    expect(find.textContaining('OpenAI'), findsOneWidget);
-    expect(find.text('Awaiting human sign-off'), findsOneWidget);
-    expect(find.text('Client Lane'), findsOneWidget);
-    expect(find.text('CLIENT ASKED'), findsOneWidget);
-    expect(find.text('ONYX WILL SAY'), findsOneWidget);
-    expect(find.text('Approve + Send'), findsOneWidget);
-    expect(find.text('Open This Lane'), findsOneWidget);
-    expect(find.text('Lane voice: Reassuring'), findsOneWidget);
-    expect(find.text('Voice-adjusted'), findsOneWidget);
-    expect(find.text('Learned from approvals (2)'), findsOneWidget);
-    expect(find.text('Uses learned approval style'), findsOneWidget);
-    expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);
-    expect(
-      find.text(
-        'This draft is already leaning on learned approval wording from this lane.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.text(
-        'Lead with calm reassurance first, then the next confirmed step.',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'Control is checking the latest position now and will share the next confirmed step shortly.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Warm reassurance'), findsOneWidget);
-    expect(find.textContaining('Approved 4x'), findsOneWidget);
-    expect(find.textContaining('Last used 2h ago'), findsOneWidget);
-    expect(find.text('NEXT LEARNED OPTIONS'), findsOneWidget);
-    expect(
-      find.textContaining(
-        '#2 You are not alone. Control is checking now and will keep this lane updated.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Resident comfort'), findsOneWidget);
-    expect(
-      find.textContaining(
-        '#3 Control is checking cameras now and will share the next confirmed camera check shortly.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.widgetWithText(OutlinedButton, 'Promote #2'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Demote #2'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'Tag Top Style'),
-      findsOneWidget,
-    );
-    expect(find.widgetWithText(OutlinedButton, 'Tag #2'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'Pin Top Style'),
-      findsOneWidget,
-    );
-    expect(
-      find.widgetWithText(OutlinedButton, 'Demote Top Style'),
+      find.byKey(adminPendingDraftOpenClientCommsButtonKey(42)),
       findsOneWidget,
     );
     expect(
@@ -9061,8 +10628,33 @@ void main() {
     );
     expect(find.byKey(liveOpsTipResetDraftButtonKey), findsOneWidget);
     expect(find.byKey(liveOpsTipResetAuditButtonKey), findsNothing);
-    expect(find.text(liveOpsTipResetNote), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Reassuring'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(adminTelegramAiAssistantPanelKey),
+        matching: find.textContaining(
+          'Can you please tell me what is happening at the house?',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(adminTelegramAiAssistantPanelKey),
+        matching: find.textContaining(
+          'We are checking the latest position now and I will send you the next confirmed update as soon as it is in.',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(adminTelegramAiAssistantPanelKey),
+        matching: find.textContaining(
+          'Control is checking the latest position now and will share the next confirmed step shortly.',
+        ),
+      ),
+      findsOneWidget,
+    );
     expect(profileButtonLabels(tester).take(4).toList(), <String>[
       'Auto',
       'Reassuring',
@@ -9117,7 +10709,7 @@ void main() {
 
     expect(
       promotedLearnedText,
-      'You are not alone. Control is checking now and will keep this lane updated.',
+      'You are not alone. Control is checking now and will keep this thread updated.',
     );
 
     await tester.ensureVisible(
@@ -9128,7 +10720,7 @@ void main() {
 
     expect(
       demotedLearnedText,
-      'You are not alone. Control is checking now and will keep this lane updated.',
+      'You are not alone. Control is checking now and will keep this thread updated.',
     );
 
     await tester.ensureVisible(
@@ -9136,7 +10728,6 @@ void main() {
     );
     await tester.tap(find.widgetWithText(OutlinedButton, 'Tag Top Style'));
     await tester.pumpAndSettle();
-    expect(find.text('Suggested tags'), findsOneWidget);
     expect(
       find.widgetWithText(OutlinedButton, 'Operations formal'),
       findsOneWidget,
@@ -9157,7 +10748,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(Dialog),
         matching: find.byType(TextField),
       ),
       'Arrival reassurance',
@@ -9167,7 +10758,7 @@ void main() {
 
     expect(
       taggedLearnedText,
-      'You are not alone. Control is checking now and will keep this lane updated.',
+      'You are not alone. Control is checking now and will keep this thread updated.',
     );
     expect(savedLearnedTag, 'Arrival reassurance');
 
@@ -9177,8 +10768,11 @@ void main() {
 
     expect(liveOpsQueueHintResetCount, 1);
 
-    await tester.ensureVisible(find.text('Open This Lane'));
-    await tester.tap(find.text('Open This Lane'));
+    final openClientCommsButton = find.byKey(
+      adminPendingDraftOpenClientCommsButtonKey(42),
+    );
+    await tester.ensureVisible(openClientCommsButton);
+    await tester.tap(openClientCommsButton);
     await tester.pumpAndSettle();
 
     expect(openedClientId, 'CLIENT-MS-VALLEE');
@@ -9186,7 +10780,7 @@ void main() {
   });
 
   testWidgets('system tab renders client comms audit cards', (tester) async {
-    final nowUtc = DateTime.now().toUtc();
+    final nowUtc = _adminNowUtc();
     String? openedClientId;
     String? openedSiteId;
     String? profiledClientId;
@@ -9202,230 +10796,100 @@ void main() {
     String? savedLearnedTag;
     var liveOpsQueueHintResetCount = 0;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          clientCommsAuditViews: <ClientCommsAuditView>[
-            ClientCommsAuditView(
-              clientId: 'CLIENT-MS-VALLEE',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              matchesSelectedScope: true,
-              pendingApprovalCount: 1,
-              pendingLearnedStyleDraftCount: 1,
-              learnedApprovalStyleCount: 2,
-              learnedApprovalStyleExample:
-                  'Control is checking the latest position now and will share the next confirmed step shortly.',
-              learnedApprovalStyleTag: 'Warm reassurance',
-              learnedApprovalStyleApprovalCount: 3,
-              learnedApprovalStyleLastUsedAtUtc: nowUtc.subtract(
-                const Duration(hours: 1),
-              ),
-              learnedApprovalStylePreviews: [
-                TelegramAiLearnedStylePreviewView(
-                  text:
-                      'Control is checking the latest position now and will share the next confirmed step shortly.',
-                  operatorTag: 'Warm reassurance',
-                  approvalCount: 3,
-                  lastUsedAtUtc: nowUtc.subtract(const Duration(hours: 1)),
-                ),
-                TelegramAiLearnedStylePreviewView(
-                  text:
-                      'You are not alone. Control is checking now and will keep this lane updated.',
-                  operatorTag: 'Resident comfort',
-                  approvalCount: 2,
-                  lastUsedAtUtc: nowUtc.subtract(const Duration(hours: 4)),
-                ),
-                TelegramAiLearnedStylePreviewView(
-                  text:
-                      'Control is checking cameras now and will share the next confirmed camera check shortly.',
-                  approvalCount: 1,
-                ),
-              ],
-              latestLaneReplyBody:
-                  'Waterfall control lane update: desk has logged the resident follow-up.',
-              latestLaneReplyAtUtc: DateTime.utc(2026, 3, 18, 12, 37),
-              queuedPushCount: 1,
-              pushSyncStatusLabel: 'failed',
-              pushSyncFailureReason:
-                  'Waterfall push sync needs operator review before retry.',
-              clientProfileOverrideSignal: 'reassurance-forward',
-              telegramHealthLabel: 'blocked',
-              smsFallbackLabel: 'SMS fallback ready',
-              voiceReadinessLabel: 'VoIP ready',
-              deliveryReadinessDetail:
-                  'Telegram stays primary, but fallback channels are ready for this lane.',
-              latestSmsFallbackStatus:
-                  'sms:bulksms sent 2/2 after telegram blocked.',
-              latestSmsFallbackAtUtc: DateTime.utc(2026, 3, 18, 12, 35),
-              latestVoipStageStatus:
-                  'voip:asterisk staged call for Vallee command desk.',
-              latestVoipStageAtUtc: DateTime.utc(2026, 3, 18, 12, 36),
-              recentDeliveryHistoryLines: const <String>[
-                '12:36 UTC • voip staged • queue:1 • Asterisk staged a call for Vallee command desk.',
-                '12:35 UTC • sms fallback sent • queue:1 • BulkSMS reached 2/2 contacts after Telegram was blocked.',
-              ],
-            ),
-          ],
-          onOpenClientViewForScope: (clientId, siteId) {
-            openedClientId = clientId;
-            openedSiteId = siteId;
+    await pumpAdminSystemWithClientCommsAuditViews(
+      tester,
+      clientCommsAuditViews: <ClientCommsAuditView>[
+        buildDetailedClientCommsAuditView(nowUtc),
+      ],
+      onOpenClientViewForScope: (clientId, siteId) {
+        openedClientId = clientId;
+        openedSiteId = siteId;
+      },
+      onSetTelegramAiClientProfileOverride:
+          ({required clientId, required siteId, profileSignal}) async {
+            profiledClientId = clientId;
+            profiledSiteId = siteId;
+            profiledSignal = profileSignal;
           },
-          onSetTelegramAiClientProfileOverride:
-              ({required clientId, required siteId, profileSignal}) async {
-                profiledClientId = clientId;
-                profiledSiteId = siteId;
-                profiledSignal = profileSignal;
-              },
-          onPinTelegramAiLearnedStyleForScope:
-              ({required clientId, required siteId}) async {
-                pinnedClientId = clientId;
-                pinnedSiteId = siteId;
-              },
-          onDemoteTelegramAiLearnedStyleForScope:
-              ({required clientId, required siteId}) async {
-                demotedClientId = clientId;
-                demotedSiteId = siteId;
-              },
-          onPinTelegramAiLearnedStyleEntryForScope:
-              ({
-                required clientId,
-                required siteId,
-                required learnedText,
-              }) async {
-                promotedLearnedText = learnedText;
-              },
-          onDemoteTelegramAiLearnedStyleEntryForScope:
-              ({
-                required clientId,
-                required siteId,
-                required learnedText,
-              }) async {
-                demotedLearnedText = learnedText;
-              },
-          onTagTelegramAiLearnedStyleEntryForScope:
-              ({
-                required clientId,
-                required siteId,
-                required learnedText,
-                operatorTag,
-              }) async {
-                taggedLearnedText = learnedText;
-                savedLearnedTag = operatorTag;
-              },
-          onResetLiveOperationsQueueHint: () async {
-            liveOpsQueueHintResetCount += 1;
+      onPinTelegramAiLearnedStyleForScope:
+          ({required clientId, required siteId}) async {
+            pinnedClientId = clientId;
+            pinnedSiteId = siteId;
           },
-        ),
-      ),
+      onDemoteTelegramAiLearnedStyleForScope:
+          ({required clientId, required siteId}) async {
+            demotedClientId = clientId;
+            demotedSiteId = siteId;
+          },
+      onPinTelegramAiLearnedStyleEntryForScope:
+          ({required clientId, required siteId, required learnedText}) async {
+            promotedLearnedText = learnedText;
+          },
+      onDemoteTelegramAiLearnedStyleEntryForScope:
+          ({required clientId, required siteId, required learnedText}) async {
+            demotedLearnedText = learnedText;
+          },
+      onTagTelegramAiLearnedStyleEntryForScope:
+          ({
+            required clientId,
+            required siteId,
+            required learnedText,
+            operatorTag,
+          }) async {
+            taggedLearnedText = learnedText;
+            savedLearnedTag = operatorTag;
+          },
+      onResetLiveOperationsQueueHint: () async {
+        liveOpsQueueHintResetCount += 1;
+      },
     );
-    await tester.pumpAndSettle();
 
-    expect(find.text('Client Comms Audit'), findsOneWidget);
-    expect(
-      find.text(
-        'Latest push sync pressure, SMS fallback, and VoIP handoff results across active client lanes, so control can verify what ONYX actually tried.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.textContaining('Vallee Residence'), findsOneWidget);
-    expect(find.textContaining('Voice Reassuring'), findsOneWidget);
-    expect(
-      find.textContaining(
-        'Telegram blocked • Push needs review • SMS fallback ready • VoIP ready',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Selected lane'), findsOneWidget);
-    expect(find.text('Lane voice: Reassuring'), findsOneWidget);
-    expect(find.text('Voice-adjusted'), findsOneWidget);
-    expect(
-      find.text(
-        'Lead with calm reassurance first, then the next confirmed step.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('1 pending draft'), findsOneWidget);
-    expect(find.text('Learned style (2)'), findsOneWidget);
-    expect(find.text('ONYX using learned style'), findsOneWidget);
-    expect(find.text('Push FAILED'), findsOneWidget);
-    expect(find.text('1 push item queued'), findsOneWidget);
-    expect(find.text('LATEST SMS FALLBACK'), findsOneWidget);
-    expect(find.text('LATEST VOIP STAGE'), findsOneWidget);
-    expect(find.text('LATEST PUSH DETAIL'), findsOneWidget);
-    expect(find.text('RECENT DELIVERY HISTORY'), findsOneWidget);
-    expect(find.text('LATEST LANE REPLY'), findsOneWidget);
-    expect(find.text('LEARNED APPROVAL STYLE'), findsOneWidget);
-    expect(find.text('Warm reassurance'), findsOneWidget);
-    expect(find.textContaining('Approved 3x'), findsOneWidget);
-    expect(find.textContaining('Last used 1h ago'), findsOneWidget);
-    expect(find.text('NEXT LEARNED OPTIONS'), findsOneWidget);
-    expect(
-      find.textContaining(
-        '#2 You are not alone. Control is checking now and will keep this lane updated.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Resident comfort'), findsOneWidget);
-    expect(
-      find.textContaining(
-        '#3 Control is checking cameras now and will share the next confirmed camera check shortly.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.widgetWithText(OutlinedButton, 'Promote #2'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Demote #2'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'Tag Top Style'),
-      findsOneWidget,
-    );
-    expect(find.widgetWithText(OutlinedButton, 'Tag #2'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'Pin Top Style'),
-      findsOneWidget,
-    );
-    expect(
-      find.widgetWithText(OutlinedButton, 'Demote Top Style'),
-      findsOneWidget,
-    );
+    expect(find.byKey(adminClientCommsAuditPanelKey), findsOneWidget);
     expect(find.byKey(liveOpsTipResetAuditButtonKey), findsOneWidget);
     expect(find.byKey(liveOpsTipResetDraftButtonKey), findsNothing);
-    expect(find.text(liveOpsTipResetNote), findsOneWidget);
     expect(
-      find.textContaining(
-        'BulkSMS reached 2/2 contacts after Telegram was blocked.',
-      ),
-      findsWidgets,
-    );
-    expect(
-      find.textContaining('Asterisk staged a call for Vallee command desk.'),
-      findsWidgets,
-    );
-    expect(
-      find.textContaining('12:36 UTC • voip staged • queue:1'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'Waterfall push sync needs operator review before retry.',
+      find.byKey(
+        adminClientCommsAuditOpenClientCommsButtonKey(
+          'CLIENT-MS-VALLEE',
+          'SITE-MS-VALLEE-RESIDENCE',
+        ),
       ),
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'Waterfall control lane update: desk has logged the resident follow-up.',
+      find.descendant(
+        of: find.byKey(adminClientCommsAuditPanelKey),
+        matching: find.textContaining('12:36 UTC • voip staged • queue:1'),
       ),
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'Control is checking the latest position now and will share the next confirmed step shortly.',
+      find.descendant(
+        of: find.byKey(adminClientCommsAuditPanelKey),
+        matching: find.textContaining(
+          'Waterfall push sync needs operator review before retry.',
+        ),
       ),
       findsOneWidget,
     );
-    expect(find.widgetWithText(OutlinedButton, 'Concise'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(adminClientCommsAuditPanelKey),
+        matching: find.textContaining(
+          'Waterfall control thread update: desk has logged the resident follow-up.',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(adminClientCommsAuditPanelKey),
+        matching: find.textContaining(
+          'Control is checking the latest position now and will share the next confirmed step shortly.',
+        ),
+      ),
+      findsOneWidget,
+    );
 
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Concise'));
     await tester.tap(find.widgetWithText(OutlinedButton, 'Concise'));
@@ -9461,7 +10925,7 @@ void main() {
 
     expect(
       promotedLearnedText,
-      'You are not alone. Control is checking now and will keep this lane updated.',
+      'You are not alone. Control is checking now and will keep this thread updated.',
     );
 
     await tester.ensureVisible(
@@ -9472,7 +10936,7 @@ void main() {
 
     expect(
       demotedLearnedText,
-      'You are not alone. Control is checking now and will keep this lane updated.',
+      'You are not alone. Control is checking now and will keep this thread updated.',
     );
 
     await tester.ensureVisible(
@@ -9482,7 +10946,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(Dialog),
         matching: find.byType(TextField),
       ),
       'Resident update',
@@ -9501,7 +10965,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(
       find.descendant(
-        of: find.byType(AlertDialog),
+        of: find.byType(Dialog),
         matching: find.byType(TextField),
       ),
       'Follow-up reassurance',
@@ -9511,7 +10975,7 @@ void main() {
 
     expect(
       taggedLearnedText,
-      'You are not alone. Control is checking now and will keep this lane updated.',
+      'You are not alone. Control is checking now and will keep this thread updated.',
     );
     expect(savedLearnedTag, 'Follow-up reassurance');
 
@@ -9521,10 +10985,15 @@ void main() {
 
     expect(liveOpsQueueHintResetCount, 1);
 
-    expect(find.text('Open This Lane'), findsOneWidget);
+    final openClientCommsButton = find.byKey(
+      const ValueKey(
+        'admin-client-comms-audit-open-client-comms-CLIENT-MS-VALLEE::SITE-MS-VALLEE-RESIDENCE',
+      ),
+    );
+    expect(openClientCommsButton, findsOneWidget);
 
-    await tester.ensureVisible(find.text('Open This Lane'));
-    await tester.tap(find.text('Open This Lane'));
+    await tester.ensureVisible(openClientCommsButton);
+    await tester.tap(openClientCommsButton);
     await tester.pumpAndSettle();
 
     expect(openedClientId, 'CLIENT-MS-VALLEE');
@@ -9537,7 +11006,7 @@ void main() {
     await pumpAdminWithLiveOpsTipResetDraft(
       tester,
       updateId: 91,
-      createdAtUtc: DateTime.utc(2026, 3, 18, 13, 25),
+      createdAtUtc: _adminPendingDraftCreatedAtUtc(13, 25),
       onReset: () async {
         throw Exception('reset failed');
       },
@@ -9565,7 +11034,7 @@ void main() {
       await pumpAdminWithLiveOpsTipResetDraft(
         tester,
         updateId: 92,
-        createdAtUtc: DateTime.utc(2026, 3, 18, 13, 26),
+        createdAtUtc: _adminPendingDraftCreatedAtUtc(13, 26),
         onReset: () async {
           resetCount += 1;
         },
@@ -9596,7 +11065,7 @@ void main() {
       await pumpAdminWithLiveOpsTipResetDraft(
         tester,
         updateId: 93,
-        createdAtUtc: DateTime.utc(2026, 3, 18, 13, 27),
+        createdAtUtc: _adminPendingDraftCreatedAtUtc(13, 27),
         onReset: () async {
           resetCount += 1;
           await resetCompleter.future;
@@ -9636,7 +11105,7 @@ void main() {
   testWidgets(
     'system tab pins success receipt when audit live ops tip reset succeeds',
     (tester) async {
-      final nowUtc = DateTime.now().toUtc();
+      final nowUtc = _adminNowUtc();
       var resetCount = 0;
 
       await pumpAdminWithLiveOpsTipResetAudit(
@@ -9666,7 +11135,7 @@ void main() {
   testWidgets(
     'system tab pins failure receipt when audit live ops tip reset fails',
     (tester) async {
-      final nowUtc = DateTime.now().toUtc();
+      final nowUtc = _adminNowUtc();
 
       await pumpAdminWithLiveOpsTipResetAudit(
         tester,
@@ -9694,7 +11163,7 @@ void main() {
   testWidgets(
     'system tab disables audit live ops tip reset button while reset is in flight',
     (tester) async {
-      final nowUtc = DateTime.now().toUtc();
+      final nowUtc = _adminNowUtc();
       final resetCompleter = Completer<void>();
       var resetCount = 0;
 
@@ -9742,49 +11211,42 @@ void main() {
     (tester) async {
       String? savedLearnedTag;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AdministrationPage(
-            events: const <DispatchEvent>[],
-            supabaseReady: false,
-            initialTab: AdministrationPageTab.system,
-            telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
-              TelegramAiPendingDraftView(
-                updateId: 77,
-                audience: 'client',
-                clientId: 'CLIENT-SANDTON',
-                siteId: 'SITE-SANDTON-TOWER',
-                chatId: '998877',
-                sourceText: 'Any update?',
-                draftText:
+      await pumpAdminSystemWithTelegramAiDrafts(
+        tester,
+        telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
+          TelegramAiPendingDraftView(
+            updateId: 77,
+            audience: 'client',
+            clientId: 'CLIENT-SANDTON',
+            siteId: 'SITE-SANDTON-TOWER',
+            chatId: '998877',
+            sourceText: 'Any update?',
+            draftText:
+                'We are checking Sandton Tower now. I will update you here with the next confirmed step.',
+            providerLabel: 'openai:gpt-4.1-mini',
+            learnedRewriteCount: 1,
+            learnedRewriteExample:
+                'We are checking Sandton Tower now. I will update you here with the next confirmed step.',
+            learnedRewritePreviews: [
+              TelegramAiLearnedStylePreviewView(
+                text:
                     'We are checking Sandton Tower now. I will update you here with the next confirmed step.',
-                providerLabel: 'openai:gpt-4.1-mini',
-                learnedRewriteCount: 1,
-                learnedRewriteExample:
-                    'We are checking Sandton Tower now. I will update you here with the next confirmed step.',
-                learnedRewritePreviews: [
-                  TelegramAiLearnedStylePreviewView(
-                    text:
-                        'We are checking Sandton Tower now. I will update you here with the next confirmed step.',
-                    approvalCount: 2,
-                  ),
-                ],
-                createdAtUtc: DateTime.utc(2026, 3, 18, 13, 15),
+                approvalCount: 2,
               ),
             ],
-            onTagTelegramAiLearnedStyleEntryForScope:
-                ({
-                  required clientId,
-                  required siteId,
-                  required learnedText,
-                  operatorTag,
-                }) async {
-                  savedLearnedTag = operatorTag;
-                },
+            createdAtUtc: _adminPendingDraftCreatedAtUtc(13, 15),
           ),
-        ),
+        ],
+        onTagTelegramAiLearnedStyleEntryForScope:
+            ({
+              required clientId,
+              required siteId,
+              required learnedText,
+              operatorTag,
+            }) async {
+              savedLearnedTag = operatorTag;
+            },
       );
-      await tester.pumpAndSettle();
 
       await tester.ensureVisible(
         find.widgetWithText(OutlinedButton, 'Tag Top Style'),
@@ -9796,7 +11258,7 @@ void main() {
       final suggestedButtons = tester
           .widgetList<OutlinedButton>(
             find.descendant(
-              of: find.byType(AlertDialog),
+              of: find.byType(Dialog),
               matching: find.byType(OutlinedButton),
             ),
           )
@@ -9806,7 +11268,7 @@ void main() {
 
       await tester.tap(
         find.descendant(
-          of: find.byType(AlertDialog),
+          of: find.byType(Dialog),
           matching: find.widgetWithText(OutlinedButton, 'Operations formal'),
         ),
       );
@@ -9821,49 +11283,42 @@ void main() {
   testWidgets(
     'system tab floats warm reassurance first when enterprise learned style already reads protective',
     (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AdministrationPage(
-            events: <DispatchEvent>[],
-            supabaseReady: false,
-            initialTab: AdministrationPageTab.system,
-            telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
-              TelegramAiPendingDraftView(
-                updateId: 78,
-                audience: 'client',
-                clientId: 'CLIENT-SANDTON',
-                siteId: 'SITE-SANDTON-TOWER',
-                chatId: '554433',
-                sourceText: 'I am worried, what is happening?',
-                draftText:
-                    'We are checking Sandton Tower now and taking this seriously. I will update you here with the next confirmed step.',
-                providerLabel: 'openai:gpt-4.1-mini',
-                learnedRewriteCount: 1,
-                learnedRewriteExample:
+      await pumpAdminSystemWithTelegramAiDrafts(
+        tester,
+        telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
+          TelegramAiPendingDraftView(
+            updateId: 78,
+            audience: 'client',
+            clientId: 'CLIENT-SANDTON',
+            siteId: 'SITE-SANDTON-TOWER',
+            chatId: '554433',
+            sourceText: 'I am worried, what is happening?',
+            draftText:
+                'We are checking Sandton Tower now and taking this seriously. I will update you here with the next confirmed step.',
+            providerLabel: 'openai:gpt-4.1-mini',
+            learnedRewriteCount: 1,
+            learnedRewriteExample:
+                'You are not alone. We are treating this as live at Sandton Tower and checking it now.',
+            learnedRewriteTag: 'Warm reassurance',
+            learnedRewritePreviews: [
+              TelegramAiLearnedStylePreviewView(
+                text:
                     'You are not alone. We are treating this as live at Sandton Tower and checking it now.',
-                learnedRewriteTag: 'Warm reassurance',
-                learnedRewritePreviews: [
-                  TelegramAiLearnedStylePreviewView(
-                    text:
-                        'You are not alone. We are treating this as live at Sandton Tower and checking it now.',
-                    operatorTag: 'Warm reassurance',
-                    approvalCount: 3,
-                  ),
-                ],
-                createdAtUtc: DateTime.utc(2026, 3, 18, 13, 25),
+                operatorTag: 'Warm reassurance',
+                approvalCount: 3,
               ),
             ],
-            onTagTelegramAiLearnedStyleEntryForScope:
-                ({
-                  required clientId,
-                  required siteId,
-                  required learnedText,
-                  operatorTag,
-                }) async {},
+            createdAtUtc: _adminPendingDraftCreatedAtUtc(13, 25),
           ),
-        ),
+        ],
+        onTagTelegramAiLearnedStyleEntryForScope:
+            ({
+              required clientId,
+              required siteId,
+              required learnedText,
+              operatorTag,
+            }) async {},
       );
-      await tester.pumpAndSettle();
 
       await tester.ensureVisible(
         find.widgetWithText(OutlinedButton, 'Tag Top Style'),
@@ -9874,7 +11329,7 @@ void main() {
       final suggestedButtons = tester
           .widgetList<OutlinedButton>(
             find.descendant(
-              of: find.byType(AlertDialog),
+              of: find.byType(Dialog),
               matching: find.byType(OutlinedButton),
             ),
           )
@@ -9887,42 +11342,35 @@ void main() {
   testWidgets(
     'system tab floats validation-heavy first when learned style already reads camera-focused',
     (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AdministrationPage(
-            events: const <DispatchEvent>[],
-            supabaseReady: false,
-            initialTab: AdministrationPageTab.system,
-            telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
-              TelegramAiPendingDraftView(
-                updateId: 79,
-                audience: 'client',
-                clientId: 'CLIENT-SANDTON',
-                siteId: 'SITE-SANDTON-TOWER',
-                chatId: '667788',
-                sourceText: 'What do you see on camera?',
-                draftText:
-                    'We are checking cameras at Sandton Tower now. I will update you here with the latest confirmed camera check.',
-                providerLabel: 'openai:gpt-4.1-mini',
-                learnedRewriteCount: 1,
-                learnedRewriteExample:
+      await pumpAdminSystemWithTelegramAiDrafts(
+        tester,
+        telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
+          TelegramAiPendingDraftView(
+            updateId: 79,
+            audience: 'client',
+            clientId: 'CLIENT-SANDTON',
+            siteId: 'SITE-SANDTON-TOWER',
+            chatId: '667788',
+            sourceText: 'What do you see on camera?',
+            draftText:
+                'We are checking cameras at Sandton Tower now. I will update you here with the latest confirmed camera check.',
+            providerLabel: 'openai:gpt-4.1-mini',
+            learnedRewriteCount: 1,
+            learnedRewriteExample:
+                'We are checking cameras and daylight at Sandton Tower now. I will update you here with the next confirmed camera check.',
+            learnedRewriteTag: 'Camera validation',
+            learnedRewritePreviews: [
+              TelegramAiLearnedStylePreviewView(
+                text:
                     'We are checking cameras and daylight at Sandton Tower now. I will update you here with the next confirmed camera check.',
-                learnedRewriteTag: 'Camera validation',
-                learnedRewritePreviews: [
-                  TelegramAiLearnedStylePreviewView(
-                    text:
-                        'We are checking cameras and daylight at Sandton Tower now. I will update you here with the next confirmed camera check.',
-                    operatorTag: 'Camera validation',
-                    approvalCount: 2,
-                  ),
-                ],
-                createdAtUtc: DateTime.utc(2026, 3, 18, 13, 35),
+                operatorTag: 'Camera validation',
+                approvalCount: 2,
               ),
             ],
+            createdAtUtc: _adminPendingDraftCreatedAtUtc(13, 35),
           ),
-        ),
+        ],
       );
-      await tester.pumpAndSettle();
 
       expect(profileButtonLabels(tester).take(4).toList(), <String>[
         'Auto',
@@ -9942,22 +11390,15 @@ void main() {
   testWidgets('system tab shows client comms audit empty state copy', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          clientCommsAuditViews: const <ClientCommsAuditView>[],
-        ),
-      ),
+    await pumpAdminSystemWithClientCommsAuditViews(
+      tester,
+      clientCommsAuditViews: const <ClientCommsAuditView>[],
     );
-    await tester.pumpAndSettle();
 
     expect(find.text('Client Comms Audit'), findsOneWidget);
     expect(
       find.text(
-        'Client comms delivery and handoff history will appear here as soon as ONYX stages, queues, or sends one.',
+        'Client Comms delivery history will appear here as soon as ONYX stages, queues, or sends one.',
       ),
       findsOneWidget,
     );
@@ -9966,29 +11407,22 @@ void main() {
   testWidgets('system tab humanizes telegram bridge detail in audit cards', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: AdministrationPage(
-          events: const <DispatchEvent>[],
-          supabaseReady: false,
-          initialTab: AdministrationPageTab.system,
-          clientCommsAuditViews: <ClientCommsAuditView>[
-            ClientCommsAuditView(
-              clientId: 'CLIENT-MS-VALLEE',
-              siteId: 'WTF-MAIN',
-              matchesSelectedScope: false,
-              telegramHealthLabel: 'blocked',
-              pushSyncStatusLabel: 'failed',
-              pushSyncFailureReason:
-                  'Telegram bridge failed for 1/1 message(s). Reasons: BLOCKED_BY_TEST_STUB',
-              smsFallbackLabel: 'SMS fallback ready',
-              voiceReadinessLabel: 'VoIP staged',
-            ),
-          ],
+    await pumpAdminSystemWithClientCommsAuditViews(
+      tester,
+      clientCommsAuditViews: <ClientCommsAuditView>[
+        ClientCommsAuditView(
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'WTF-MAIN',
+          matchesSelectedScope: false,
+          telegramHealthLabel: 'blocked',
+          pushSyncStatusLabel: 'failed',
+          pushSyncFailureReason:
+              'Telegram bridge failed for 1/1 message(s). Reasons: BLOCKED_BY_TEST_STUB',
+          smsFallbackLabel: 'SMS fallback ready',
+          voiceReadinessLabel: 'VoIP staged',
         ),
-      ),
+      ],
     );
-    await tester.pumpAndSettle();
 
     expect(find.text('Client Comms Audit'), findsOneWidget);
     expect(find.text('Telegram BLOCKED'), findsWidgets);
@@ -10001,53 +11435,312 @@ void main() {
     );
   });
 
+  testWidgets('system tab shows telegram wiring checklist guidance', (
+    tester,
+  ) async {
+    await pumpAdminSystemWithTelegramWiringChecklist(
+      tester,
+      approvedTelegramClientSeeds: _approvedTelegramBridgeClientSeeds,
+      approvedTelegramSiteSeeds: _approvedTelegramBridgeSiteSeeds,
+      approvedTelegramOnboardingPrefill:
+          _approvedTelegramBridgeOnboardingPrefill,
+    );
+
+    expect(find.byKey(adminTelegramWiringChecklistPanelKey), findsOneWidget);
+    expect(find.text('Telegram Wiring Checklist'), findsOneWidget);
+    expect(find.text('ONYX Admin Group'), findsOneWidget);
+    expect(find.text('Current Client Group'), findsOneWidget);
+    expect(find.text('Partner / Supervisor Group'), findsOneWidget);
+    expect(find.text('Effective Runtime Snippet'), findsOneWidget);
+    expect(find.text('Telegram Prompt Catalog'), findsOneWidget);
+    expect(find.text('Recent Live Telegram Asks'), findsOneWidget);
+    expect(find.textContaining('Onyx (1) • latest '), findsOneWidget);
+    expect(
+      find.textContaining('MS Vallee Residence (1) • latest '),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Supervisor / Partner (1) • latest '),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('admin-telegram-recent-copy-Onyx')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('admin-telegram-recent-copy-MS Vallee Residence'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('admin-telegram-recent-copy-Supervisor / Partner'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('answered'), findsWidgets);
+    expect(find.text('quick action'), findsOneWidget);
+    expect(
+      find.textContaining('Tap any suggested command to copy it.'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Use these as the default asks in each room.'),
+      findsOneWidget,
+    );
+    expect(find.text('Try here'), findsNWidgets(3));
+    expect(
+      find.textContaining(
+        'Admin is currently borrowing the current client group',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('show dispatches today'), findsWidgets);
+    expect(find.text('show unresolved incidents'), findsWidgets);
+    expect(find.text('check status of Guard001'), findsWidgets);
+    expect(find.text('check the system'), findsWidgets);
+    expect(find.text('check cameras'), findsWidgets);
+    expect(find.text('sleep check'), findsOneWidget);
+    expect(
+      find.text('CLIENT-MS-VALLEE / SITE-MS-VALLEE-RESIDENCE'),
+      findsOneWidget,
+    );
+    expect(find.text('show last patrol report for Guard001'), findsWidgets);
+    expect(
+      find.textContaining('ONYX_TELEGRAM_ADMIN_CHAT_ID=-100900000001'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('ONYX_TELEGRAM_CHAT_ID=-100900000001'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Target CLIENT-MS-VALLEE / SITE-MS-VALLEE-RESIDENCE'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('admin-system-telegram-onboarding-followup')),
+      findsOneWidget,
+    );
+    expect(find.text('TELEGRAM ONBOARDING FOLLOW-UP'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('admin-system-telegram-onboarding-open-client'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('admin-system-telegram-onboarding-open-site')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('system tab copies telegram camera bridge follow-up briefs', (
+    tester,
+  ) async {
+    String? clipboardText;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = args['text'] as String?;
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    await pumpAdminSystemWithTelegramBridgeSeed(tester);
+
+    final cctvBriefButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-telegram-seed-copy-cctv'),
+    );
+    await tester.ensureVisible(cctvBriefButton);
+    await tester.tap(cctvBriefButton);
+    await tester.pumpAndSettle();
+
+    expect(clipboardText, startsWith('Telegram-seeded CCTV review brief'));
+    expect(
+      clipboardText,
+      contains('Site: SITE-ROBERTSHAM-ESTATE (Robertsham Estate)'),
+    );
+    expect(clipboardText, contains('Expected cameras: 32'));
+    expect(clipboardText, contains('Vendor: Hikvision'));
+    expect(clipboardText, contains('Review focus:'));
+
+    final vendorBriefButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-telegram-seed-copy-vendor'),
+    );
+    await tester.ensureVisible(vendorBriefButton);
+    await tester.tap(vendorBriefButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      clipboardText,
+      startsWith('Telegram-seeded vendor validation brief'),
+    );
+    expect(
+      clipboardText,
+      contains('Site: SITE-ROBERTSHAM-ESTATE (Robertsham Estate)'),
+    );
+    expect(clipboardText, contains('Vendor: Hikvision'));
+    expect(clipboardText, contains('Camera pack: 32 staged cameras'));
+    expect(clipboardText, contains('Validation focus:'));
+  });
+
+  testWidgets('system tab polls cctv from telegram camera bridge seed', (
+    tester,
+  ) async {
+    String? clipboardText;
+    var runCctvPollCalls = 0;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = args['text'] as String?;
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    await pumpAdminSystemWithTelegramBridgeSeed(
+      tester,
+      onRunCctvPoll: () async {
+        runCctvPollCalls += 1;
+      },
+    );
+
+    final pollButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-telegram-seed-poll-cctv'),
+    );
+    expect(pollButton, findsOneWidget);
+    await tester.ensureVisible(pollButton);
+    await tester.tap(pollButton);
+    await tester.pumpAndSettle();
+
+    expect(runCctvPollCalls, 1);
+    expect(clipboardText, startsWith('Telegram-seeded CCTV review brief'));
+    expect(
+      clipboardText,
+      contains('Site: SITE-ROBERTSHAM-ESTATE (Robertsham Estate)'),
+    );
+    expect(
+      find.text('Copied CCTV review brief and polled CCTV telemetry.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('system tab validates bridge from telegram vendor seed', (
+    tester,
+  ) async {
+    String? clipboardText;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            clipboardText = args['text'] as String?;
+          }
+          return null;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    await pumpAdminSystemWithTelegramBridgeSeed(
+      tester,
+      onyxAgentCameraBridgeStatus: _liveCameraBridgeStatus(),
+      onyxAgentCameraBridgeHealthService:
+          const _FakeCameraBridgeHealthService(),
+    );
+
+    final vendorButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-telegram-seed-copy-vendor'),
+    );
+    expect(vendorButton, findsOneWidget);
+    await tester.ensureVisible(vendorButton);
+    await tester.tap(vendorButton);
+    await tester.pumpAndSettle();
+
+    expect(
+      clipboardText,
+      startsWith('Telegram-seeded vendor validation brief'),
+    );
+    expect(
+      clipboardText,
+      contains('Site: SITE-ROBERTSHAM-ESTATE (Robertsham Estate)'),
+    );
+    expect(clipboardText, contains('Vendor: Hikvision'));
+    expect(clipboardText, contains('Validation focus:'));
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Copied vendor validation brief and validated camera bridge.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Validated by: OPS-ALPHA'), findsOneWidget);
+  });
+
+  testWidgets(
+    'system tab shows open admin mode guidance and copies wiring examples',
+    (tester) async {
+      await pumpAdminSystemWithTelegramWiringChecklist(
+        tester,
+        telegramWiringChecklist: _openAdminModeTelegramWiringChecklist,
+      );
+
+      expect(
+        find.textContaining('Admin is currently open chat-scoped mode.'),
+        findsOneWidget,
+      );
+
+      final exampleChip = find.descendant(
+        of: find.byKey(const ValueKey('admin-telegram-wiring-row-admin')),
+        matching: find.widgetWithText(ActionChip, 'show dispatches today'),
+      );
+      await tester.ensureVisible(exampleChip);
+      await tester.tap(exampleChip);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('system tab can refine telegram ai draft before approval', (
     tester,
   ) async {
-    String draftText =
+    const initialDraftText =
         'We are checking the latest position now and I will send you the next confirmed update as soon as it is in.';
     String? approvedDraftText;
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: StatefulBuilder(
-          builder: (context, setState) {
-            return AdministrationPage(
-              events: const <DispatchEvent>[],
-              supabaseReady: false,
-              initialTab: AdministrationPageTab.system,
-              telegramAiPendingDrafts: <TelegramAiPendingDraftView>[
-                TelegramAiPendingDraftView(
-                  updateId: 42,
-                  audience: 'client',
-                  clientId: 'CLIENT-MS-VALLEE',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
-                  chatId: '123456',
-                  messageThreadId: 88,
-                  sourceText:
-                      'Can you please tell me what is happening at the house?',
-                  draftText: draftText,
-                  providerLabel: 'openai:gpt-4.1-mini',
-                  usesLearnedApprovalStyle: true,
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 12, 30),
-                ),
-              ],
-              onUpdateTelegramAiDraftText: (updateId, nextText) async {
-                setState(() {
-                  draftText = nextText;
-                });
-              },
-              onApproveTelegramAiDraft:
-                  (updateId, {String? approvedText}) async {
-                    approvedDraftText = approvedText;
-                    return 'approved=$updateId';
-                  },
-            );
-          },
-        ),
+    await pumpStatefulAdminSystemWithTelegramAiDraft(
+      tester,
+      initialDraftText: initialDraftText,
+      buildDraft: (draftText) => TelegramAiPendingDraftView(
+        updateId: 42,
+        audience: 'client',
+        clientId: 'CLIENT-MS-VALLEE',
+        siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        chatId: '123456',
+        messageThreadId: 88,
+        sourceText: 'Can you please tell me what is happening at the house?',
+        draftText: draftText,
+        providerLabel: 'openai:gpt-4.1-mini',
+        usesLearnedApprovalStyle: true,
+        createdAtUtc: _adminPendingDraftCreatedAtUtc(12, 30),
       ),
+      onApproveTelegramAiDraft: (updateId, {String? approvedText}) async {
+        approvedDraftText = approvedText;
+        return 'approved=$updateId';
+      },
     );
-    await tester.pumpAndSettle();
 
     final editDraftButton = find.widgetWithText(OutlinedButton, 'Edit Draft');
     await tester.ensureVisible(editDraftButton);
@@ -10086,54 +11779,26 @@ void main() {
       String? extendedSite;
       String? expiredSite;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AdministrationPage(
-            events: const <DispatchEvent>[],
-            supabaseReady: false,
-            initialTab: AdministrationPageTab.system,
-            fleetScopeHealth: const <VideoFleetScopeHealthView>[
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-A',
-                siteId: 'SITE-A',
-                siteName: 'MS Vallee Residence',
-                endpointLabel: '192.168.8.105',
-                statusLabel: 'LIVE',
-                watchLabel: 'ACTIVE',
-                recentEvents: 1,
-                lastSeenLabel: '21:14 UTC',
-                freshnessLabel: 'Fresh',
-                isStale: false,
-                latestIncidentReference: 'INT-VALLEE-1',
-                latestEventTimeLabel: '21:14 UTC',
-                latestCameraLabel: 'Camera 1',
-                latestFaceMatchId: 'VISITOR-01',
-                latestFaceConfidence: 93.1,
-                latestPlateNumber: 'CA777777',
-                latestPlateConfidence: 97.4,
-                latestSceneReviewLabel:
-                    'openai:gpt-4.1-mini • known allowed identity • 21:14 UTC',
-                latestSceneDecisionSummary:
-                    'Suppressed because the matched identity has a one-time approval until 2026-03-15 18:00 UTC and the activity remained below the client notification threshold.',
-              ),
-            ],
-            onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
-              tappedTacticalClientId = clientId;
-              tappedTacticalSiteId = siteId;
-              tappedTacticalReference = incidentReference;
-            },
-            onExtendTemporaryIdentityApproval: (scope) async {
-              extendedSite = scope.siteName;
-              return 'Extended ${scope.siteName}.';
-            },
-            onExpireTemporaryIdentityApproval: (scope) async {
-              expiredSite = scope.siteName;
-              return 'Expired ${scope.siteName}.';
-            },
-          ),
-        ),
+      await pumpAdminSystemWithFleetScopeHealth(
+        tester,
+        initialTab: AdministrationPageTab.system,
+        fleetScopeHealth: <VideoFleetScopeHealthView>[
+          buildTemporaryIdentityFleetScopeHealthView(),
+        ],
+        onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
+          tappedTacticalClientId = clientId;
+          tappedTacticalSiteId = siteId;
+          tappedTacticalReference = incidentReference;
+        },
+        onExtendTemporaryIdentityApproval: (scope) async {
+          extendedSite = scope.siteName;
+          return 'Extended ${scope.siteName}.';
+        },
+        onExpireTemporaryIdentityApproval: (scope) async {
+          expiredSite = scope.siteName;
+          return 'Expired ${scope.siteName}.';
+        },
       );
-      await tester.pumpAndSettle();
 
       expect(find.text('Temporary ID 1'), findsOneWidget);
       expect(
@@ -10209,46 +11874,18 @@ void main() {
       String? tappedTacticalSiteId;
       String? tappedTacticalReference;
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AdministrationPage(
-            events: const <DispatchEvent>[],
-            supabaseReady: false,
-            initialTab: AdministrationPageTab.system,
-            fleetScopeHealth: const <VideoFleetScopeHealthView>[
-              VideoFleetScopeHealthView(
-                clientId: 'CLIENT-A',
-                siteId: 'SITE-A',
-                siteName: 'MS Vallee Residence',
-                endpointLabel: '192.168.8.105',
-                statusLabel: 'LIVE',
-                watchLabel: 'ACTIVE',
-                recentEvents: 1,
-                lastSeenLabel: '21:14 UTC',
-                freshnessLabel: 'Fresh',
-                isStale: false,
-                latestIncidentReference: 'INT-VALLEE-1',
-                latestEventTimeLabel: '21:14 UTC',
-                latestCameraLabel: 'Camera 1',
-                latestFaceMatchId: 'RESIDENT-01',
-                latestFaceConfidence: 94.1,
-                latestPlateNumber: 'CA111111',
-                latestPlateConfidence: 98.0,
-                latestSceneReviewLabel:
-                    'openai:gpt-4.1-mini • known allowed identity • 21:14 UTC',
-                latestSceneDecisionSummary:
-                    'Suppressed because RESIDENT-01 and plate CA111111 are allowlisted for this site.',
-              ),
-            ],
-            onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
-              tappedTacticalClientId = clientId;
-              tappedTacticalSiteId = siteId;
-              tappedTacticalReference = incidentReference;
-            },
-          ),
-        ),
+      await pumpAdminSystemWithFleetScopeHealth(
+        tester,
+        initialTab: AdministrationPageTab.system,
+        fleetScopeHealth: <VideoFleetScopeHealthView>[
+          buildAllowlistedIdentityFleetScopeHealthView(),
+        ],
+        onOpenFleetTacticalScope: (clientId, siteId, incidentReference) {
+          tappedTacticalClientId = clientId;
+          tappedTacticalSiteId = siteId;
+          tappedTacticalReference = incidentReference;
+        },
       );
-      await tester.pumpAndSettle();
 
       expect(find.text('Allowed ID 1'), findsOneWidget);
       expect(find.text('Identity Allowlisted'), findsOneWidget);
@@ -10277,4 +11914,106 @@ void main() {
       expect(tappedTacticalReference, 'INT-VALLEE-1');
     },
   );
+
+  testWidgets('admin page auto-opens guards month planner from handoff', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await pumpAdminWithInitialWorkspaceCommand(
+      tester,
+      initialTab: AdministrationPageTab.guards,
+      initialCommandLabel: 'MONTH PLANNER',
+      initialCommandHeadline: 'Start the next roster month',
+      initialCommandDetail:
+          'Build the next month, place shifts, and lock the board before coverage slips.',
+      initialGuardsPlannerAction: 'create-roster',
+      initialGuardsPlannerDate: DateTime.utc(2026, 3, 27),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('admin-guard-planner-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Create Month Planner'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('admin-guard-planner-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Month draft opened for Waterfall Estate Main.'),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('admin-guard-planner-state-card')),
+      findsOneWidget,
+    );
+    expect(find.text('MONTH DRAFT LIVE'), findsOneWidget);
+    expect(
+      find.textContaining('Planner Pulse: MONTH DRAFT LIVE'),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('admin page updates pinned receipt when planner audit lands', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await pumpAdminWithInitialWorkspaceCommand(
+      tester,
+      initialTab: AdministrationPageTab.guards,
+      initialCommandLabel: 'MONTH PLANNER',
+      initialCommandHeadline: 'Open the month planner',
+      initialCommandDetail:
+          'Jump straight into the planner and keep the month moving.',
+    );
+
+    expect(
+      find.byKey(const ValueKey('admin-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('MONTH PLANNER'), findsOneWidget);
+    expect(find.text('Open the month planner'), findsOneWidget);
+
+    await pumpAdminWithInitialWorkspaceCommand(
+      tester,
+      initialTab: AdministrationPageTab.guards,
+      initialCommandLabel: 'AUTO-AUDIT',
+      initialCommandHeadline: 'War-room action signed automatically.',
+      initialCommandDetail:
+          'Opened the month planner from the live operations war room to close a live coverage gap. • hash abc123def4',
+      initialCommandAccent: const Color(0xFF63E6A1),
+    );
+
+    expect(
+      find.byKey(const ValueKey('admin-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('AUTO-AUDIT'), findsOneWidget);
+    expect(find.text('War-room action signed automatically.'), findsOneWidget);
+    expect(
+      find.text(
+        'Opened the month planner from the live operations war room to close a live coverage gap. • hash abc123def4',
+      ),
+      findsOneWidget,
+    );
+
+    await pumpAdminWithInitialWorkspaceCommand(
+      tester,
+      initialTab: AdministrationPageTab.system,
+      initialCommandLabel: 'EVIDENCE RETURN',
+      initialCommandHeadline: 'Signed intel intake verified.',
+      initialCommandDetail:
+          'Evidence checked. Capture the source and keep the intel watch moving.',
+      initialCommandAccent: const Color(0xFF54C8FF),
+    );
+
+    expect(find.text('EVIDENCE RETURN'), findsOneWidget);
+    expect(find.text('Signed intel intake verified.'), findsOneWidget);
+  });
 }

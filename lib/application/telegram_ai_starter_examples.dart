@@ -307,12 +307,12 @@ List<String> _activeExamplesFor({
     case _TelegramAiStarterIntent.visual:
       return switch (tone) {
         _TelegramAiStarterTone.residential => <String>[
-          'We are checking cameras and daylight around $siteReference now. I will update you here with the next confirmed camera check.',
-          'We are checking what cameras show at $siteReference now. I will update you here with the next confirmed camera check.',
+          'I do not have live camera confirmation for $siteReference yet. I will update you here with the next confirmed step.',
+          'We are checking the latest position at $siteReference now. I will update you here with the next confirmed step.',
         ],
         _ => <String>[
-          'We are checking cameras at $siteReference now. I will update you here with the next confirmed camera check.',
-          'We are checking the latest camera view at $siteReference now. I will update you here with the next confirmed camera check.',
+          'I do not have live camera confirmation for $siteReference right now. I will update you here with the next confirmed step.',
+          'We are checking the latest position at $siteReference now. I will update you here with the next confirmed step.',
         ],
       };
     case _TelegramAiStarterIntent.thanks:
@@ -531,7 +531,6 @@ _TelegramAiStarterLaneStage _starterLaneStageFor({
   }
   if (_containsAny(combined, const [
     'responder on site',
-    'response arrived',
     'security is on site',
     'already on site',
     'on site at',

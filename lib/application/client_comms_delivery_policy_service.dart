@@ -24,6 +24,7 @@ class ClientCommsDeliveryPolicyService {
     required int telegramTargetCount,
     required String telegramHealthLabel,
     required bool telegramFallbackActive,
+    bool telegramEndpointMappingAmbiguous = false,
     required bool smsProviderConfigured,
     required int phoneContactCount,
     required bool voipProviderConfigured,
@@ -62,6 +63,7 @@ class ClientCommsDeliveryPolicyService {
     final detail = _detail(
       telegramBridgeConfigured: telegramBridgeConfigured,
       telegramTargetCount: telegramTargetCount,
+      telegramEndpointMappingAmbiguous: telegramEndpointMappingAmbiguous,
       smsFallbackReady: smsFallbackReady,
       smsFallbackEligibleNow: smsFallbackEligibleNow,
       hasPhoneContact: hasPhoneContact,
@@ -82,6 +84,7 @@ class ClientCommsDeliveryPolicyService {
   String _detail({
     required bool telegramBridgeConfigured,
     required int telegramTargetCount,
+    required bool telegramEndpointMappingAmbiguous,
     required bool smsFallbackReady,
     required bool smsFallbackEligibleNow,
     required bool hasPhoneContact,
@@ -89,10 +92,13 @@ class ClientCommsDeliveryPolicyService {
     required bool voipProviderConfigured,
   }) {
     if (!telegramBridgeConfigured) {
-      return 'Telegram bridge is disabled, so ONYX is limited to local lane updates.';
+      return 'Telegram bridge is disabled, so ONYX is limited to local desk updates.';
+    }
+    if (telegramEndpointMappingAmbiguous) {
+      return 'Telegram target mapping is ambiguous for this scope. Resolve duplicate Telegram endpoint rows before treating this lane as ready.';
     }
     if (telegramTargetCount <= 0) {
-      return 'Telegram is primary, but this scope still needs an active lane target.';
+      return 'Telegram is primary, but this scope still needs an active bridge target.';
     }
     if (smsFallbackEligibleNow) {
       return 'Telegram needs help here, and SMS fallback can take over once the adapter is switched on.';
@@ -109,6 +115,6 @@ class ClientCommsDeliveryPolicyService {
     if (!hasPhoneContact) {
       return 'Telegram is primary, but this scope still needs a verified phone contact for fallback and voice.';
     }
-    return 'Telegram stays primary while fallback lanes stay on standby.';
+    return 'Telegram stays primary while fallback channels stay on standby.';
   }
 }

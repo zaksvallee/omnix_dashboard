@@ -1,4 +1,5 @@
 import '../domain/events/intelligence_received.dart';
+import 'intelligence_event_object_semantics.dart';
 import 'monitoring_scene_review_store.dart';
 
 class MonitoringSiteNarrativeFieldActivity {
@@ -147,7 +148,17 @@ class MonitoringSiteNarrativeService {
   }
 
   String _normalizeObjectLabel(IntelligenceReceived event) {
-    final raw = (event.objectLabel ?? '').trim().toLowerCase();
+    final directObjectLabel =
+        _normalizedDirectObjectLabel(event.objectLabel) ?? '';
+    final resolvedObjectLabel = resolveIdentityBackedObjectLabel(
+      event: event,
+      directObjectLabel: directObjectLabel,
+    );
+    return resolvedObjectLabel.isEmpty ? 'movement' : resolvedObjectLabel;
+  }
+
+  String? _normalizedDirectObjectLabel(String? rawLabel) {
+    final raw = (rawLabel ?? '').trim().toLowerCase();
     if (raw == 'human' || raw == 'intruder' || raw == 'person') {
       return 'person';
     }
@@ -157,7 +168,7 @@ class MonitoringSiteNarrativeService {
     if (raw == 'animal' || raw == 'dog' || raw == 'cat' || raw == 'bird') {
       return 'animal';
     }
-    return 'movement';
+    return null;
   }
 
   String _joinLabels(List<String> labels) {

@@ -1,0 +1,58 @@
+{
+  "scenarioId": "parser_admin_weekly_top_alert_site_v1",
+  "title": "Weekly top-alert site query should rank without escalation",
+  "description": "An all-sites weekly alert ranking query should resolve to an admin-wide read route without escalation noise.",
+  "category": "admin_portfolio_read",
+  "scenarioSet": "replay",
+  "tags": ["weekly_summary", "multi_site", "deterministic_read", "admin_scope"],
+  "author": "zaks",
+  "createdAt": "2026-03-30T12:15:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "admin",
+    "authorityScope": "all_sites",
+    "activeSiteIds": ["site_ms_vallee", "site_rosebank", "site_sandton"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T19:50:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_admin_weekly_baseline.json"],
+      "projections": ["fixture_projections_admin_weekly_ranking.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "pending",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "telegram",
+        "text": "Which site has most alerts across all sites this week?"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "admin_all_sites_read",
+    "expectedIntent": "weekly_top_alert_site_lookup",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["live_escalation"],
+    "expectedUiState": {
+      "surface": "admin_read_result",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

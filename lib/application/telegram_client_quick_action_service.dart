@@ -1,13 +1,62 @@
+import 'client_camera_health_fact_packet_service.dart';
 import 'monitoring_shift_notification_service.dart';
 import 'monitoring_shift_schedule_service.dart';
 import 'monitoring_watch_runtime_store.dart';
+import 'telegram_client_prompt_signals.dart';
 
-enum TelegramClientQuickAction { status, statusFull, sleepCheck }
+enum TelegramClientQuickAction {
+  status,
+  statusFull,
+  sleepCheck,
+  cameraCheck,
+  nextStep,
+}
 
 enum _QuickActionTonePack { standard, residential, enterprise }
 
 class TelegramClientQuickActionService {
   const TelegramClientQuickActionService();
+
+  TelegramClientQuickAction? parseInboundActionText(String text) {
+    return parseExplicitShortcutText(text) ?? parseActionText(text);
+  }
+
+  TelegramClientQuickAction? parseExplicitShortcutText(String text) {
+    final normalized = _normalizeActionText(text);
+    if (normalized.isEmpty) {
+      return null;
+    }
+    if (normalized == 'client_quick_status') {
+      return TelegramClientQuickAction.status;
+    }
+    if (normalized == 'client_quick_status_full') {
+      return TelegramClientQuickAction.statusFull;
+    }
+    if (normalized == 'client_quick_sleep_check') {
+      return TelegramClientQuickAction.sleepCheck;
+    }
+    if (normalized == 'status' ||
+        normalized == 'status here' ||
+        normalized == 'status now' ||
+        normalized == 'site status' ||
+        normalized == 'status full' ||
+        normalized == 'full status' ||
+        normalized == 'details' ||
+        normalized == 'details here') {
+      return normalized == 'status full' ||
+              normalized == 'full status' ||
+              normalized == 'details' ||
+              normalized == 'details here'
+          ? TelegramClientQuickAction.statusFull
+          : TelegramClientQuickAction.status;
+    }
+    if (normalized == 'sleep check' ||
+        normalized == 'all in order' ||
+        normalized == 'bedtime check') {
+      return TelegramClientQuickAction.sleepCheck;
+    }
+    return null;
+  }
 
   Map<String, Object?> replyKeyboardMarkup() {
     return const <String, Object?>{
@@ -28,7 +77,7 @@ class TelegramClientQuickActionService {
   }
 
   TelegramClientQuickAction? parseActionText(String text) {
-    final normalized = text.trim().toLowerCase();
+    final normalized = _normalizeActionText(text);
     if (normalized.isEmpty) {
       return null;
     }
@@ -38,12 +87,57 @@ class TelegramClientQuickActionService {
     if (normalized == 'client_quick_status_full') {
       return TelegramClientQuickAction.statusFull;
     }
-    if (normalized == 'status') {
+    if (normalized == 'status' ||
+        normalized == 'status here' ||
+        normalized == 'status now' ||
+        normalized == 'site status' ||
+        normalized == 'site stauts' ||
+        normalized == 'status update' ||
+        normalized == 'is my site secure' ||
+        normalized == 'is the site secure' ||
+        normalized == 'is my site secure now' ||
+        normalized == 'is everything secure at the site' ||
+        normalized == 'is everything okay' ||
+        normalized == 'anything wrong there' ||
+        asksForTelegramClientBroadStatusOrCurrentSiteView(normalized)) {
       return TelegramClientQuickAction.status;
     }
     if (normalized == 'details' ||
         normalized == 'status full' ||
-        normalized == 'full status') {
+        normalized == 'full status' ||
+        normalized == 'details here') {
+      return TelegramClientQuickAction.statusFull;
+    }
+    if (normalized == 'brief' ||
+        normalized == 'brief this site' ||
+        normalized == 'brief the site' ||
+        normalized == 'give me the site brief' ||
+        normalized == 'give me a site brief' ||
+        normalized == 'brief here' ||
+        normalized == 'site brief' ||
+        normalized == 'give me a quick update' ||
+        normalized == 'give me an update here' ||
+        normalized == 'give me an update' ||
+        normalized == 'any update on site' ||
+        normalized == 'any update here' ||
+        normalized == 'just update me' ||
+        normalized == 'just update me here' ||
+        normalized == 'update me here' ||
+        normalized == 'quick update here' ||
+        normalized == 'quick brief') {
+      return TelegramClientQuickAction.status;
+    }
+    if (normalized == 'what changed since earlier' ||
+        normalized == "what's changed since earlier" ||
+        normalized == 'what changed since last check' ||
+        normalized == 'what changed since last update' ||
+        normalized == 'what changed since before' ||
+        normalized == 'anything new there' ||
+        normalized == 'anything else there' ||
+        normalized == 'what changed here' ||
+        normalized == 'what changed at the site' ||
+        normalized == 'what changed on site' ||
+        normalized == 'what changed tonight there') {
       return TelegramClientQuickAction.statusFull;
     }
     if (normalized == 'sleep check' ||
@@ -53,7 +147,62 @@ class TelegramClientQuickActionService {
         normalized == 'bedtime check') {
       return TelegramClientQuickAction.sleepCheck;
     }
+    if (normalized == 'check cameras' ||
+        normalized == 'check camera' ||
+        normalized == 'check the cameras' ||
+        normalized == 'camera check' ||
+        normalized == 'camera status' ||
+        normalized == 'camera status here' ||
+        normalized == 'camera update' ||
+        normalized == 'what do cameras show' ||
+        normalized == 'what do the cameras show' ||
+        normalized == 'what do feeds show' ||
+        normalized == 'what do the feeds show' ||
+        normalized == 'review cameras' ||
+        normalized == 'review the cameras' ||
+        normalized == 'camera review' ||
+        normalized == 'check the feeds' ||
+        normalized == 'check feeds' ||
+        normalized == 'review feeds' ||
+        normalized == 'review cctv' ||
+        normalized == 'check cctv') {
+      return TelegramClientQuickAction.cameraCheck;
+    }
+    if (normalized == 'what should i do next' ||
+        normalized == 'what do i do next' ||
+        normalized == 'what next' ||
+        normalized == 'next step' ||
+        normalized == 'what should i do now') {
+      return TelegramClientQuickAction.nextStep;
+    }
     return null;
+  }
+
+  String _normalizeActionText(String text) {
+    final raw = normalizeTelegramClientPromptSignalText(text);
+    if (raw.isEmpty) {
+      return raw;
+    }
+    const replacements = <String, String>{
+      'pls': 'please',
+      'plz': 'please',
+      'cn': 'can',
+      'u': 'you',
+      'chek': 'check',
+      'chekc': 'check',
+    };
+    return raw
+        .split(' ')
+        .where((token) => token.trim().isNotEmpty)
+        .map((token) => replacements[token] ?? token)
+        .where(
+          (token) =>
+              token.isNotEmpty &&
+              token != 'please' &&
+              token != 'can' &&
+              token != 'you',
+        )
+        .join(' ');
   }
 
   String buildResponse({
@@ -61,6 +210,7 @@ class TelegramClientQuickActionService {
     required MonitoringSiteProfile site,
     required MonitoringShiftSchedule schedule,
     required DateTime nowLocal,
+    ClientCameraHealthFactPacket? cameraHealthFactPacket,
     MonitoringWatchRuntimeState? runtime,
     int fallbackReviewedEvents = 0,
     String? fallbackActivitySource,
@@ -82,9 +232,13 @@ class TelegramClientQuickActionService {
         runtimeWindowEndLocal != null &&
         !nowLocal.isBefore(runtimeStartedLocal) &&
         nowLocal.isBefore(runtimeWindowEndLocal);
-    final monitoringUnavailable = !schedule.enabled && !runtimeActive;
-    final monitoringLimited =
-        !monitoringUnavailable && runtime?.monitoringAvailable == false;
+    final packetStatus = cameraHealthFactPacket?.status;
+    final monitoringUnavailable = packetStatus != null
+        ? packetStatus == ClientCameraHealthStatus.offline
+        : !schedule.enabled && !runtimeActive;
+    final monitoringLimited = packetStatus != null
+        ? packetStatus == ClientCameraHealthStatus.limited
+        : !monitoringUnavailable && runtime?.monitoringAvailable == false;
     final active = snapshot.active || runtimeActive;
     final windowStartLocal = runtimeActive
         ? runtimeStartedLocal
@@ -144,40 +298,30 @@ class TelegramClientQuickActionService {
 
     switch (action) {
       case TelegramClientQuickAction.status:
-        return '🛡️ ONYX STATUS\n'
-            '${site.siteName} | ${_timeLabel(nowLocal)}\n\n'
-            'Current status\n'
-            '${_statusLine(monitoringStatusLabel)}\n'
-            '${_windowLine(windowStartLocal, windowEndLocal, active, snapshot.nextTransitionLocal, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited)}\n\n'
-            'What we see now\n'
-            'Items reviewed: $reviewedEvents\n'
-            'Latest signal: $latestActivity\n'
-            'Current posture: $latestPosture\n'
-            '${currentAssessment == null ? '' : 'Assessment: $currentAssessment\n'}'
-            '\n'
-            'Next\n'
-            'Open follow-ups: $unresolvedActions\n'
-            '${_statusTail(active, unresolvedActions, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited, tonePack: tonePack)}';
+        return _conciseStatusResponse(
+          site: site,
+          active: active,
+          monitoringUnavailable: monitoringUnavailable,
+          monitoringLimited: monitoringLimited,
+          cameraHealthFactPacket: cameraHealthFactPacket,
+          reviewedEvents: reviewedEvents,
+          latestPosture: latestPosture,
+          currentAssessment: currentAssessment,
+          unresolvedActions: unresolvedActions,
+          tonePack: tonePack,
+        );
       case TelegramClientQuickAction.statusFull:
-        return '🧾 ONYX STATUS (FULL)\n'
-            '${site.siteName} | ${_timeLabel(nowLocal)}\n\n'
-            'Current status\n'
-            '${_statusLine(monitoringStatusLabel)}\n'
-            '${_windowLine(windowStartLocal, windowEndLocal, active, snapshot.nextTransitionLocal, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited)}\n'
-            'Remote watch: $monitoringAvailabilityLabel\n\n'
-            'What we see now\n'
-            'Items reviewed: $reviewedEvents\n'
-            'Latest signal: $latestActivity\n'
-            'Current posture: $latestPosture\n'
-            '${currentAssessment == null ? '' : 'Assessment: $currentAssessment\n'}'
-            '${narrativeSummary == null ? '' : 'Summary: $narrativeSummary\n'}'
-            'Review note: $latestSummary\n'
-            'Last check: ${latestReviewedAtLocal == null ? 'not yet recorded' : _dateTimeLabel(latestReviewedAtLocal)}\n\n'
-            'Next\n'
-            'Open follow-ups: $unresolvedActions\n'
-            'Current decision: ${latestDecision ?? 'No client-facing action has been required'}\n'
-            '${_nextStepLine(active: active, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited, unresolvedActions: unresolvedActions, tonePack: tonePack)}\n'
-            'Local time: ${_dateTimeLabel(nowLocal)}';
+        return '${site.siteName} is ${_statusLeadPhrase(monitoringStatusLabel)} as of ${_timeLabel(nowLocal)}. '
+            '${_windowSentence(windowStartLocal, windowEndLocal, active, snapshot.nextTransitionLocal, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited)} '
+            'Remote watch is $monitoringAvailabilityLabel. '
+            '${_latestSignalSentence(reviewedEvents: reviewedEvents, latestActivity: latestActivity, latestPosture: latestPosture)} '
+            '${_labeledSentence('Assessment', currentAssessment)}'
+            '${_labeledSentence('Summary', narrativeSummary)}'
+            '${_labeledSentence('Review note', latestSummary)}'
+            'Last check: ${latestReviewedAtLocal == null ? 'not yet recorded' : _dateTimeLabel(latestReviewedAtLocal)}. '
+            'Open follow-ups: $unresolvedActions. '
+            '${_labeledSentence('Current decision', latestDecision ?? 'No client-facing action has been required')}'
+            '${_nextStepLine(active: active, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited, unresolvedActions: unresolvedActions, tonePack: tonePack)}';
       case TelegramClientQuickAction.sleepCheck:
         final safeToRest =
             active &&
@@ -194,30 +338,269 @@ class TelegramClientQuickActionService {
             : active
             ? _sleepCheckActiveLine(tonePack)
             : _sleepCheckInactiveLine(tonePack);
-        return '🌙 ONYX SLEEP CHECK\n'
-            '${site.siteName} | ${_timeLabel(nowLocal)}\n\n'
-            'Current status\n'
-            '${_statusLine(monitoringStatusLabel)}\n'
-            '${_windowLine(windowStartLocal, windowEndLocal, active, snapshot.nextTransitionLocal, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited)}\n\n'
-            'What we see now\n'
-            'Latest signal: $latestActivity\n'
-            'Current posture: $latestPosture\n'
-            'Open follow-ups: $unresolvedActions\n\n'
-            'Next\n'
+        return '${site.siteName} is ${_statusLeadPhrase(monitoringStatusLabel)} as of ${_timeLabel(nowLocal)}. '
+            '${_windowSentence(windowStartLocal, windowEndLocal, active, snapshot.nextTransitionLocal, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited)} '
+            'Latest signal: $latestActivity. Current posture: $latestPosture. '
+            'Open follow-ups: $unresolvedActions. '
             '$reassurance';
+      case TelegramClientQuickAction.cameraCheck:
+        return _cameraCheckResponse(
+          site: site,
+          active: active,
+          monitoringUnavailable: monitoringUnavailable,
+          monitoringLimited: monitoringLimited,
+          cameraHealthFactPacket: cameraHealthFactPacket,
+          reviewedEvents: reviewedEvents,
+          latestActivity: latestActivity,
+          latestPosture: latestPosture,
+          latestSummary: latestSummary,
+          currentAssessment: currentAssessment,
+          latestReviewedAtLocal: latestReviewedAtLocal,
+          unresolvedActions: unresolvedActions,
+          tonePack: tonePack,
+        );
+      case TelegramClientQuickAction.nextStep:
+        return '${site.siteName} is ${_statusLeadPhrase(monitoringStatusLabel)} right now. '
+            'Open follow-ups: $unresolvedActions. '
+            '${_labeledSentence('Assessment', currentAssessment)}'
+            '${latestDecision == null ? '' : _labeledSentence('Current decision', latestDecision)}'
+            '${_labeledSentence('Summary', narrativeSummary)}'
+            '${_nextStepLine(active: active, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited, unresolvedActions: unresolvedActions, tonePack: tonePack)}';
     }
   }
 
-  String _statusLine(String monitoringStatusLabel) {
+  String _statusLeadPhrase(String monitoringStatusLabel) {
     return switch (monitoringStatusLabel) {
-      'ACTIVE' => 'Monitoring is active.',
-      'LIMITED' => 'Remote monitoring is active but limited.',
-      'UNAVAILABLE' => 'Remote monitoring is currently unavailable.',
-      _ => 'Monitoring is on standby.',
+      'ACTIVE' => 'under active watch',
+      'LIMITED' => 'under watch with limited remote visibility',
+      'UNAVAILABLE' => 'temporarily without remote monitoring',
+      _ => 'outside an active watch window',
     };
   }
 
-  String _windowLine(
+  String _conciseStatusResponse({
+    required MonitoringSiteProfile site,
+    required bool active,
+    required bool monitoringUnavailable,
+    required bool monitoringLimited,
+    required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    required int reviewedEvents,
+    required String latestPosture,
+    required String? currentAssessment,
+    required int unresolvedActions,
+    required _QuickActionTonePack tonePack,
+  }) {
+    final lead = monitoringUnavailable
+        ? 'Remote monitoring is unavailable at ${site.siteName} right now.'
+        : monitoringLimited
+        ? '${site.siteName} is under watch, but remote visibility is limited right now.'
+        : active
+        ? '${site.siteName} is under active watch right now.'
+        : '${site.siteName} is outside an active watch window right now.';
+    final picture = _conciseStatusPictureSentence(
+      monitoringUnavailable: monitoringUnavailable,
+      monitoringLimited: monitoringLimited,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+      reviewedEvents: reviewedEvents,
+      latestPosture: latestPosture,
+      currentAssessment: currentAssessment,
+      unresolvedActions: unresolvedActions,
+    );
+    final next = _conciseStatusNextStep(
+      active: active,
+      monitoringUnavailable: monitoringUnavailable,
+      monitoringLimited: monitoringLimited,
+      unresolvedActions: unresolvedActions,
+      tonePack: tonePack,
+    );
+    return '$lead $picture $next';
+  }
+
+  String _cameraCheckResponse({
+    required MonitoringSiteProfile site,
+    required bool active,
+    required bool monitoringUnavailable,
+    required bool monitoringLimited,
+    required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    required int reviewedEvents,
+    required String latestActivity,
+    required String latestPosture,
+    required String latestSummary,
+    required String? currentAssessment,
+    required DateTime? latestReviewedAtLocal,
+    required int unresolvedActions,
+    required _QuickActionTonePack tonePack,
+  }) {
+    if (monitoringUnavailable || monitoringLimited) {
+      final lead =
+          cameraHealthFactPacket?.safeClientExplanation.trim().isNotEmpty == true
+          ? cameraHealthFactPacket!.safeClientExplanation.trim()
+          : monitoringUnavailable
+          ? 'Live camera visibility at ${site.siteName} is unavailable right now.'
+          : 'Live camera visibility at ${site.siteName} is limited right now.';
+      final issueLabel = cameraHealthFactPacket?.operatorIssueSignalLabel();
+      final currentSignalLine =
+          issueLabel == null || issueLabel.trim().isEmpty
+          ? ''
+          : 'Current signal: ${issueLabel.trim()}. ';
+      return '$lead $currentSignalLine${_nextStepLine(active: active, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited, unresolvedActions: unresolvedActions, tonePack: tonePack)}';
+    }
+    return 'The latest camera picture for ${site.siteName} is based on $reviewedEvents reviewed ${reviewedEvents == 1 ? 'item' : 'items'}. '
+        'Latest signal: $latestActivity. Current posture: $latestPosture. '
+        '${_labeledSentence('Assessment', currentAssessment)}'
+        '${_labeledSentence('Review note', latestSummary)}'
+        'Last check: ${latestReviewedAtLocal == null ? 'not yet recorded' : _dateTimeLabel(latestReviewedAtLocal)}. '
+        '${_nextStepLine(active: active, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited, unresolvedActions: unresolvedActions, tonePack: tonePack)}';
+  }
+
+  String _conciseStatusPictureSentence({
+    required bool monitoringUnavailable,
+    required bool monitoringLimited,
+    required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    required int reviewedEvents,
+    required String latestPosture,
+    required String? currentAssessment,
+    required int unresolvedActions,
+  }) {
+    final packetPicture = _packetizedConciseStatusPictureSentence(
+      monitoringUnavailable: monitoringUnavailable,
+      monitoringLimited: monitoringLimited,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+    );
+    if (packetPicture != null) {
+      return packetPicture;
+    }
+    final assessment = (currentAssessment ?? '').trim().toLowerCase();
+    final posture = latestPosture.trim().toLowerCase();
+    if (monitoringUnavailable || monitoringLimited) {
+      if (unresolvedActions > 0) {
+        return 'I do not have full remote visibility, and there is site activity under review.';
+      }
+      return 'I do not have full remote visibility, and nothing here confirms an issue on site.';
+    }
+    if (unresolvedActions > 0) {
+      return 'There is site activity under review right now.';
+    }
+    if (_containsAny(assessment, const [
+      'routine',
+      'calm',
+      'normal',
+      'steady',
+    ])) {
+      return 'Nothing here currently points to a confirmed issue on site.';
+    }
+    if (_containsAny(assessment, const [
+          'under review',
+          'activity',
+          'movement',
+        ]) ||
+        _containsAny(posture, const ['under review', 'activity', 'movement'])) {
+      return 'There is site activity under review right now.';
+    }
+    if (reviewedEvents > 0) {
+      return 'I do not have a confirmed issue on site from the latest signals.';
+    }
+    return 'Nothing here currently points to a confirmed issue on site.';
+  }
+
+  String? _packetizedConciseStatusPictureSentence({
+    required bool monitoringUnavailable,
+    required bool monitoringLimited,
+    required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  }) {
+    final packet = cameraHealthFactPacket;
+    if (packet == null) {
+      return null;
+    }
+    final issueLabel = packet.operatorIssueSignalLabel();
+    if (issueLabel != null && issueLabel.trim().isNotEmpty) {
+      final normalizedLabel = issueLabel.trim();
+      if (monitoringUnavailable || monitoringLimited) {
+        return 'I do not have full remote visibility, but the current signals still show $normalizedLabel.';
+      }
+      return 'The current signals still show $normalizedLabel.';
+    }
+    if (!packet.hasNoConfirmedSiteIssue) {
+      return null;
+    }
+    if (monitoringUnavailable || monitoringLimited) {
+      return 'I do not have full remote visibility, and nothing in the current signals confirms an issue on site.';
+    }
+    return 'Nothing in the current signals currently points to a confirmed issue on site.';
+  }
+
+  String _conciseStatusNextStep({
+    required bool active,
+    required bool monitoringUnavailable,
+    required bool monitoringLimited,
+    required int unresolvedActions,
+    required _QuickActionTonePack tonePack,
+  }) {
+    if (monitoringUnavailable) {
+      return switch (tonePack) {
+        _QuickActionTonePack.residential =>
+          'Message here if you want a manual follow-up.',
+        _QuickActionTonePack.enterprise =>
+          'Use this chat if you want a manual follow-up.',
+        _QuickActionTonePack.standard =>
+          'Message here if you want a manual follow-up.',
+      };
+    }
+    if (monitoringLimited) {
+      return unresolvedActions > 0
+          ? 'ONYX will update you here with the next confirmed step.'
+          : switch (tonePack) {
+              _QuickActionTonePack.residential =>
+                'I will update you here if anything needs your attention.',
+              _QuickActionTonePack.enterprise =>
+                'We will update you here if anything needs your attention.',
+              _QuickActionTonePack.standard =>
+                'I will update you here if anything needs your attention.',
+            };
+    }
+    if (!active) {
+      return switch (tonePack) {
+        _QuickActionTonePack.residential =>
+          'Message here if you want a manual follow-up before the next watch window.',
+        _QuickActionTonePack.enterprise =>
+          'Use this chat if you want a manual follow-up before the next watch window.',
+        _QuickActionTonePack.standard =>
+          'Message here if you want a manual follow-up before the next watch window.',
+      };
+    }
+    if (unresolvedActions > 0) {
+      return 'ONYX will update you here with the next confirmed step.';
+    }
+    return switch (tonePack) {
+      _QuickActionTonePack.residential =>
+        'ONYX will message you here only if something important changes.',
+      _QuickActionTonePack.enterprise =>
+        'ONYX will send an update here only if something important changes.',
+      _QuickActionTonePack.standard =>
+        'ONYX will message you here only if something important changes.',
+    };
+  }
+
+  String _labeledSentence(String label, String? value) {
+    final normalized = _sentence(value);
+    if (normalized == null) {
+      return '';
+    }
+    return '$label: $normalized ';
+  }
+
+  String? _sentence(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    if (RegExp(r'[.!?]$').hasMatch(trimmed)) {
+      return trimmed;
+    }
+    return '$trimmed.';
+  }
+
+  String _windowSentence(
     DateTime? windowStartLocal,
     DateTime? windowEndLocal,
     bool active,
@@ -226,11 +609,11 @@ class TelegramClientQuickActionService {
     required bool monitoringLimited,
   }) {
     if (monitoringUnavailable) {
-      return 'Watch window: remote monitoring is currently unavailable for this site';
+      return 'Remote watch is temporarily unavailable while the monitoring path is offline.';
     }
     if (monitoringLimited) {
       if (windowStartLocal == null || windowEndLocal == null) {
-        return 'Watch window: active now with limited remote visibility';
+        return 'Watch coverage is active now, but remote visibility is limited.';
       }
       final isAllDayWindow =
           windowEndLocal.difference(windowStartLocal) >=
@@ -238,17 +621,17 @@ class TelegramClientQuickActionService {
           windowStartLocal.hour == windowEndLocal.hour &&
           windowStartLocal.minute == windowEndLocal.minute;
       if (isAllDayWindow) {
-        return 'Watch window: 24h watch with limited remote visibility';
+        return 'The site is on a 24-hour watch cycle, although remote visibility is limited.';
       }
-      return 'Watch window: ${_timeLabel(windowStartLocal)}-${_timeLabel(windowEndLocal)} with limited remote visibility';
+      return 'The current watch window runs ${_timeLabel(windowStartLocal)}-${_timeLabel(windowEndLocal)}, with limited remote visibility.';
     }
     if (windowStartLocal == null || windowEndLocal == null) {
       if (!active && nextTransitionLocal != null) {
-        return 'Watch window: next watch starts ${_timeLabel(nextTransitionLocal)}';
+        return 'The next scheduled watch starts at ${_timeLabel(nextTransitionLocal)}.';
       }
       return active
-          ? 'Watch window: active now'
-          : 'Watch window: next scheduled watch not available';
+          ? 'The site is inside an active watch window.'
+          : 'The next scheduled watch window is not available yet.';
     }
     final isAllDayWindow =
         windowEndLocal.difference(windowStartLocal) >=
@@ -256,59 +639,20 @@ class TelegramClientQuickActionService {
         windowStartLocal.hour == windowEndLocal.hour &&
         windowStartLocal.minute == windowEndLocal.minute;
     if (isAllDayWindow) {
-      return 'Watch window: 24h watch (started ${_timeLabel(windowStartLocal)})';
+      return 'The site is on a 24-hour watch cycle.';
     }
-    return 'Watch window: ${_timeLabel(windowStartLocal)}-${_timeLabel(windowEndLocal)}';
+    return 'The current watch window runs ${_timeLabel(windowStartLocal)}-${_timeLabel(windowEndLocal)}.';
   }
 
-  String _statusTail(
-    bool active,
-    int unresolvedActions, {
-    required bool monitoringUnavailable,
-    required bool monitoringLimited,
-    required _QuickActionTonePack tonePack,
+  String _latestSignalSentence({
+    required int reviewedEvents,
+    required String latestActivity,
+    required String latestPosture,
   }) {
-    if (monitoringUnavailable) {
-      return 'Remote monitoring is currently unavailable for this site. If you need a manual follow-up or welfare check, message here and control will pick it up.';
+    if (reviewedEvents > 0) {
+      return 'Items reviewed: $reviewedEvents. Latest signal: $latestActivity. Current posture: $latestPosture.';
     }
-    if (monitoringLimited) {
-      return switch (tonePack) {
-        _QuickActionTonePack.residential =>
-          'Remote monitoring is limited right now. We can still watch the site, but a manual follow-up may be needed if anything feels off.',
-        _QuickActionTonePack.enterprise =>
-          'Remote monitoring is limited right now. The site is still under watch, but manual follow-up may be needed if conditions change.',
-        _QuickActionTonePack.standard =>
-          'Remote monitoring is limited right now. The site is still under watch, but manual follow-up may be needed if conditions change.',
-      };
-    }
-    if (!active) {
-      return switch (tonePack) {
-        _QuickActionTonePack.residential =>
-          'There is no active monitoring window right now. Message here if you want a manual follow-up before the next one starts.',
-        _QuickActionTonePack.enterprise =>
-          'There is no active monitoring window right now. Use this chat if you need a manual follow-up before the next one starts.',
-        _QuickActionTonePack.standard =>
-          'There is no active monitoring window right now. Message here if you need a manual follow-up before the next one starts.',
-      };
-    }
-    if (unresolvedActions > 0) {
-      return switch (tonePack) {
-        _QuickActionTonePack.residential =>
-          'ONYX is handling the open follow-ups and will update you if anything changes.',
-        _QuickActionTonePack.enterprise =>
-          'ONYX is managing the open follow-ups and will update you if anything escalates.',
-        _QuickActionTonePack.standard =>
-          'ONYX is managing the open follow-ups and will update you if anything escalates.',
-      };
-    }
-    return switch (tonePack) {
-      _QuickActionTonePack.residential =>
-        'ONYX stays close on watch and will message you only if something important changes.',
-      _QuickActionTonePack.enterprise =>
-        'ONYX remains on watch and will send an update only if something important changes.',
-      _QuickActionTonePack.standard =>
-        'ONYX stays on watch and will message you only if something important changes.',
-    };
+    return 'Items reviewed: 0. Latest signal: $latestActivity. Current posture: $latestPosture.';
   }
 
   String _nextStepLine({
@@ -319,7 +663,7 @@ class TelegramClientQuickActionService {
     required _QuickActionTonePack tonePack,
   }) {
     if (monitoringUnavailable) {
-      return 'Next step: use this chat for any manual follow-up while the site is offline.';
+      return 'Next step: use this chat if you want a manual follow-up while remote monitoring is offline.';
     }
     if (monitoringLimited) {
       return switch (tonePack) {

@@ -3,6 +3,7 @@ import '../crm/reporting/report_branding_configuration.dart';
 import '../crm/reporting/report_section_configuration.dart';
 
 class ReportGenerated extends DispatchEvent {
+  static const String auditTypeKey = 'report_generated';
   final String clientId;
   final String siteId;
   final String month;
@@ -97,4 +98,7 @@ class ReportGenerated extends DispatchEvent {
       includeGuardMetrics: includeGuardMetrics,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

@@ -41,7 +41,7 @@ class DashboardOverviewProjection {
             .putIfAbsent(event.clientId, () => {})
             .putIfAbsent(event.regionId, () => {})
             .putIfAbsent(event.siteId, () => [])
-            .add(event.success ? 'EXECUTED' : 'FAILED');
+            .add(event.success ? 'CONFIRMED' : 'FAILED');
       }
 
       if (event is ExecutionDenied) {
@@ -66,8 +66,8 @@ class DashboardOverviewProjection {
 
           if (statuses.contains('FAILED')) {
             worst = 'FAILED';
-          } else if (statuses.contains('EXECUTED')) {
-            worst = 'EXECUTED';
+          } else if (statuses.contains('CONFIRMED')) {
+            worst = 'CONFIRMED';
           } else if (statuses.contains('DECIDED')) {
             worst = 'DECIDED';
           } else if (statuses.contains('DENIED')) {

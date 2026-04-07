@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:omnix_dashboard/application/client_conversation_repository.dart';
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
@@ -115,7 +116,7 @@ void main() {
   });
 
   group('FallbackClientConversationRepository', () {
-    test('reads from fallback when primary fails', () async {
+    test('reads messages from fallback when primary message read fails', () async {
       final fallback = _FakeClientConversationRepository(
         messages: [
           ClientAppMessage(
@@ -154,6 +155,119 @@ void main() {
 
       expect(fallback.messages.single.body, 'Persist locally');
     });
+
+    test('merges fallback-only messages with primary message reads', () async {
+      final fallback = _FakeClientConversationRepository(
+        messages: [
+          ClientAppMessage(
+            author: 'Resident',
+            body: 'Local unsynced message',
+            occurredAt: DateTime.utc(2026, 4, 5, 20, 10),
+          ),
+        ],
+      );
+      final repository = FallbackClientConversationRepository(
+        primary: _FakeClientConversationRepository(
+          messages: [
+            ClientAppMessage(
+              author: 'Control',
+              body: 'Primary message',
+              occurredAt: DateTime.utc(2026, 4, 5, 20, 5),
+            ),
+          ],
+        ),
+        fallback: fallback,
+      );
+
+      final restored = await repository.readMessages();
+
+      expect(restored, hasLength(2));
+      expect(restored.first.body, 'Local unsynced message');
+      expect(restored.last.body, 'Primary message');
+      expect(fallback.messages, hasLength(2));
+    });
+
+    test(
+      'preserves fallback acknowledgements when primary reads are partial',
+      () async {
+        final fallback = _FakeClientConversationRepository()
+          ..storedAcknowledgements = [
+            ClientAppAcknowledgement(
+              messageKey: 'local-only',
+              channel: ClientAppAcknowledgementChannel.client,
+              acknowledgedBy: 'Resident',
+              acknowledgedAt: DateTime.utc(2026, 4, 5, 20, 15),
+            ),
+          ];
+        final repository = FallbackClientConversationRepository(
+          primary: _FakeClientConversationRepository()
+            ..storedAcknowledgements = [
+              ClientAppAcknowledgement(
+                messageKey: 'primary-only',
+                channel: ClientAppAcknowledgementChannel.control,
+                acknowledgedBy: 'Control',
+                acknowledgedAt: DateTime.utc(2026, 4, 5, 20, 5),
+              ),
+            ],
+          fallback: fallback,
+        );
+
+        final restored = await repository.readAcknowledgements();
+
+        expect(restored.map((entry) => entry.messageKey), [
+          'local-only',
+          'primary-only',
+        ]);
+        expect(
+          fallback.storedAcknowledgements.map((entry) => entry.messageKey),
+          ['local-only', 'primary-only'],
+        );
+      },
+    );
+
+    test(
+      'preserves fallback push queue rows when primary reads are partial',
+      () async {
+        final fallback = _FakeClientConversationRepository()
+          ..storedPushQueue = [
+            ClientAppPushDeliveryItem(
+              messageKey: 'local-queue',
+              title: 'Local queue item',
+              body: 'Unsynced queue item',
+              occurredAt: DateTime.utc(2026, 4, 5, 20, 20),
+              targetChannel: ClientAppAcknowledgementChannel.client,
+              priority: false,
+              status: ClientPushDeliveryStatus.queued,
+            ),
+          ];
+        final repository = FallbackClientConversationRepository(
+          primary: _FakeClientConversationRepository()
+            ..storedPushQueue = [
+              ClientAppPushDeliveryItem(
+                messageKey: 'primary-queue',
+                title: 'Primary queue item',
+                body: 'Remote queue item',
+                occurredAt: DateTime.utc(2026, 4, 5, 20, 0),
+                targetChannel: ClientAppAcknowledgementChannel.control,
+                priority: true,
+                status: ClientPushDeliveryStatus.acknowledged,
+              ),
+            ],
+          fallback: fallback,
+        );
+
+        final restored = await repository.readPushQueue();
+
+        expect(restored.map((entry) => entry.messageKey), [
+          'local-queue',
+          'primary-queue',
+        ]);
+        expect(fallback.storedPushQueue.map((entry) => entry.messageKey), [
+          'local-queue',
+          'primary-queue',
+        ]);
+      },
+    );
 
     test('reads push sync state from fallback when primary fails', () async {
       final fallback = _FakeClientConversationRepository()
@@ -229,6 +343,174 @@ void main() {
         expect(fallback.storedPushSyncState.statusLabel, 'ok');
         expect(fallback.storedPushSyncState.history, hasLength(1));
         expect(fallback.storedPushSyncState.history.single.status, 'ok');
+      },
+    );
+  });
+
+  group('remote sync helpers', () {
+    test(
+      'missingConversationMessagesForRemoteSync ignores source/provider-only rollout drift',
+      () {
+        final desiredMessages = [
+          ClientAppMessage(
+            author: 'Control',
+            body: 'Scoped update',
+            roomKey: 'Residents',
+            viewerRole: 'control',
+            incidentStatusLabel: 'Update',
+            messageSource: 'telegram',
+            messageProvider: 'openai',
+            occurredAt: DateTime.utc(2026, 4, 5, 21, 0),
+          ),
+        ];
+        final existingMessages = [
+          ClientAppMessage(
+            author: 'Control',
+            body: 'Scoped update',
+            roomKey: 'Residents',
+            viewerRole: 'control',
+            incidentStatusLabel: 'Update',
+            messageSource: 'in_app',
+            messageProvider: 'in_app',
+            occurredAt: DateTime.utc(2026, 4, 5, 21, 0),
+          ),
+        ];
+
+        final missing = missingConversationMessagesForRemoteSync(
+          desiredMessages: desiredMessages,
+          existingMessages: existingMessages,
+        );
+
+        expect(missing, isEmpty);
+      },
+    );
+
+    test(
+      'staleConversationAcknowledgementsForRemoteSync keeps only rows absent from the desired set',
+      () {
+        final desiredAcknowledgements = [
+          ClientAppAcknowledgement(
+            messageKey: 'msg-1',
+            channel: ClientAppAcknowledgementChannel.client,
+            acknowledgedBy: 'Resident',
+            acknowledgedAt: DateTime.utc(2026, 4, 5, 21, 5),
+          ),
+        ];
+        final existingAcknowledgements = [
+          ...desiredAcknowledgements,
+          ClientAppAcknowledgement(
+            messageKey: 'msg-2',
+            channel: ClientAppAcknowledgementChannel.control,
+            acknowledgedBy: 'Control',
+            acknowledgedAt: DateTime.utc(2026, 4, 5, 21, 0),
+          ),
+        ];
+
+        final stale = staleConversationAcknowledgementsForRemoteSync(
+          desiredAcknowledgements: desiredAcknowledgements,
+          existingAcknowledgements: existingAcknowledgements,
+        );
+
+        expect(stale, hasLength(1));
+        expect(stale.single.messageKey, 'msg-2');
+      },
+    );
+
+    test(
+      'staleConversationPushQueueForRemoteSync keeps only queue rows absent from the desired set',
+      () {
+        final desiredPushQueue = [
+          ClientAppPushDeliveryItem(
+            messageKey: 'queue-1',
+            title: 'Queue item 1',
+            body: 'Queue body 1',
+            occurredAt: DateTime.utc(2026, 4, 5, 21, 10),
+            targetChannel: ClientAppAcknowledgementChannel.client,
+            priority: false,
+            status: ClientPushDeliveryStatus.queued,
+          ),
+        ];
+        final existingPushQueue = [
+          ...desiredPushQueue,
+          ClientAppPushDeliveryItem(
+            messageKey: 'queue-2',
+            title: 'Queue item 2',
+            body: 'Queue body 2',
+            occurredAt: DateTime.utc(2026, 4, 5, 21, 0),
+            targetChannel: ClientAppAcknowledgementChannel.control,
+            priority: true,
+            status: ClientPushDeliveryStatus.acknowledged,
+          ),
+        ];
+
+        final stale = staleConversationPushQueueForRemoteSync(
+          desiredPushQueue: desiredPushQueue,
+          existingPushQueue: existingPushQueue,
+        );
+
+        expect(stale, hasLength(1));
+        expect(stale.single.messageKey, 'queue-2');
+      },
+    );
+  });
+
+  group('buildScopedClientConversationRepository', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('uses scoped local storage per client/site in local mode', () async {
+      final persistence = await DispatchPersistenceService.create();
+      final alphaRepository = buildScopedClientConversationRepository(
+        persistence: persistence,
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-ALPHA',
+        supabaseReady: false,
+      )!;
+      final bravoRepository = buildScopedClientConversationRepository(
+        persistence: persistence,
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-BRAVO',
+        supabaseReady: false,
+      )!;
+
+      await alphaRepository.saveMessages([
+        ClientAppMessage(
+          author: 'Resident Alpha',
+          body: 'Alpha scope only',
+          occurredAt: DateTime.utc(2026, 4, 5, 20, 0),
+        ),
+      ]);
+      await bravoRepository.saveMessages([
+        ClientAppMessage(
+          author: 'Resident Bravo',
+          body: 'Bravo scope only',
+          occurredAt: DateTime.utc(2026, 4, 5, 20, 5),
+        ),
+      ]);
+
+      final alphaMessages = await alphaRepository.readMessages();
+      final bravoMessages = await bravoRepository.readMessages();
+
+      expect(alphaMessages, hasLength(1));
+      expect(alphaMessages.single.body, 'Alpha scope only');
+      expect(bravoMessages, hasLength(1));
+      expect(bravoMessages.single.body, 'Bravo scope only');
+    });
+
+    test(
+      'wraps the scoped local repository in a fallback repo when supabase is enabled',
+      () async {
+        final persistence = await DispatchPersistenceService.create();
+        final repository = buildScopedClientConversationRepository(
+          persistence: persistence,
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-ALPHA',
+          supabaseReady: true,
+          supabaseClient: SupabaseClient('https://example.com', 'anon-key'),
+        );
+
+        expect(repository, isA<FallbackClientConversationRepository>());
       },
     );
   });

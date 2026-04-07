@@ -80,6 +80,19 @@ class VerticalSliceRunner {
       authority: authority,
     );
 
+    final postExecutionLegal = DispatchStateMachine.canTransition(
+      ActionStatus.executed,
+      success ? ActionStatus.confirmed : ActionStatus.failed,
+    );
+
+    if (!postExecutionLegal) {
+      throw StateError(
+        success
+            ? 'Illegal state transition EXECUTED → CONFIRMED.'
+            : 'Illegal state transition EXECUTED → FAILED.',
+      );
+    }
+
     final executionEvent = ExecutionCompleted(
       eventId: DateTime.now().microsecondsSinceEpoch.toString(),
       sequence: 0,
@@ -109,7 +122,7 @@ class VerticalSliceRunner {
       dispatchId: decision.dispatchId,
     );
 
-    if (rebuiltStatus != 'EXECUTED') {
+    if (rebuiltStatus != 'CONFIRMED') {
       throw StateError('Replay rebuild mismatch.');
     }
   }

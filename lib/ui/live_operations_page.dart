@@ -1,14 +1,24 @@
+import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'dart:convert';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/browser_link_service.dart';
+import '../application/client_camera_health_fact_packet_service.dart';
 import '../application/client_delivery_message_formatter.dart';
 import '../application/hazard_response_directive_service.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
+import '../application/onyx_agent_client_draft_service.dart';
+import '../application/onyx_command_brain_orchestrator.dart';
+import '../application/onyx_command_parser.dart';
+import '../application/onyx_command_specialist_assessment_service.dart';
+import '../application/onyx_operator_orchestrator.dart';
+import '../application/onyx_tool_bridge.dart';
 import '../application/monitoring_synthetic_war_room_service.dart';
+import '../domain/authority/onyx_command_intent.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -19,13 +29,18 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
+import '../domain/authority/onyx_task_protocol.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../application/synthetic_promotion_summary_formatter.dart';
 import '../application/monitoring_watch_action_plan.dart';
 import '../application/shadow_mo_dossier_contract.dart';
+import '../application/simulation/scenario_replay_history_signal_service.dart';
+import '../domain/authority/onyx_command_brain_contract.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'operator_stream_embed_view.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
 
 enum _IncidentPriority { p1Critical, p2High, p3Medium, p4Low }
@@ -49,6 +64,634 @@ enum _ControlInboxDraftCueKind {
   formal,
   concise,
   defaultReassurance,
+}
+
+const _commandPanelColor = OnyxDesignTokens.cardSurface;
+const _commandPanelTintColor = OnyxDesignTokens.backgroundSecondary;
+const _commandPanelAltColor = OnyxColorTokens.surfaceInset;
+const _commandBorderColor = OnyxDesignTokens.borderSubtle;
+const _commandBorderStrongColor = OnyxDesignTokens.borderStrong;
+const _commandTitleColor = OnyxDesignTokens.textPrimary;
+const _commandBodyColor = OnyxDesignTokens.textSecondary;
+const _commandMutedColor = OnyxDesignTokens.textMuted;
+const _commandShadowColor = Color(0x33000000);
+
+typedef LiveOpsStageClientDraftCallback =
+    void Function({
+      required String clientId,
+      required String siteId,
+      required String draftText,
+      required String originalDraftText,
+      String room,
+      String incidentReference,
+    });
+
+typedef LiveOpsCameraHealthLoader =
+    Future<ClientCameraHealthFactPacket?> Function(
+      String clientId,
+      String siteId,
+    );
+
+typedef LiveOpsExternalUriOpener = Future<bool> Function(Uri uri);
+
+class _ClientLaneLiveViewDialog extends StatefulWidget {
+  final Uri snapshotUri;
+  final String siteReference;
+  final String? cameraId;
+  final String verificationLabel;
+  final bool streamRelayReady;
+  final Future<void> Function()? onCopyFrameUrl;
+  final Future<void> Function()? onOpenStreamPlayer;
+
+  const _ClientLaneLiveViewDialog({
+    required this.snapshotUri,
+    required this.siteReference,
+    required this.cameraId,
+    required this.verificationLabel,
+    this.streamRelayReady = false,
+    this.onCopyFrameUrl,
+    this.onOpenStreamPlayer,
+  });
+
+  @override
+  State<_ClientLaneLiveViewDialog> createState() =>
+      _ClientLaneLiveViewDialogState();
+}
+
+class _ClientLaneStreamRelayDialog extends StatelessWidget {
+  final Uri playerUri;
+  final Uri streamUri;
+  final String siteReference;
+  final String? cameraId;
+  final String verificationLabel;
+  final String relayStatusLabel;
+  final Color relayStatusAccent;
+  final String relayStatusSummary;
+  final String relayIssue;
+  final Future<void> Function()? onCopyPlayerUrl;
+  final Future<void> Function()? onOpenInBrowser;
+
+  const _ClientLaneStreamRelayDialog({
+    required this.playerUri,
+    required this.streamUri,
+    required this.siteReference,
+    required this.cameraId,
+    required this.verificationLabel,
+    required this.relayStatusLabel,
+    required this.relayStatusAccent,
+    required this.relayStatusSummary,
+    this.relayIssue = '',
+    this.onCopyPlayerUrl,
+    this.onOpenInBrowser,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final maxDialogHeight = MediaQuery.sizeOf(context).height - 48;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      backgroundColor: const Color(0xFFF8FBFF),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 1180, maxHeight: maxDialogHeight),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'STREAM RELAY PLAYER',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF0F766E),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          siteReference,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF172638),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Operator-only MJPEG relay over the temporary local Hikvision bridge. This helps the control room watch current video in-browser without claiming a native recorder live stream to residents.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF556B80),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    key: const ValueKey('client-lane-stream-relay-close-icon'),
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: const Color(0xFF4D657C),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _LiveViewInfoChip(
+                    icon: Icons.stream_rounded,
+                    label: 'Relay ${relayStatusLabel.toUpperCase()}',
+                    accent: relayStatusAccent,
+                  ),
+                  if ((cameraId ?? '').trim().isNotEmpty)
+                    _LiveViewInfoChip(
+                      icon: Icons.videocam_rounded,
+                      label: cameraId!.trim(),
+                      accent: const Color(0xFF67E8F9),
+                    ),
+                  if (verificationLabel.trim().isNotEmpty)
+                    _LiveViewInfoChip(
+                      icon: Icons.image_rounded,
+                      label: verificationLabel.trim(),
+                      accent: const Color(0xFF8FD1FF),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                relayStatusSummary,
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF556B80),
+                  fontSize: 11.4,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              if (relayIssue.trim().isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  relayIssue.trim(),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF7A3A3A),
+                    fontSize: 11.2,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  color: const Color(0xFF08111B),
+                  constraints: const BoxConstraints(minHeight: 360),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: OperatorStreamEmbedView(
+                      key: ValueKey(
+                        'client-lane-stream-relay-embed-${playerUri.toString()}',
+                      ),
+                      uri: playerUri,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Player URL: ${playerUri.toString()}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF556B80),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Relay URL: ${streamUri.toString()}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF556B80),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    key: const ValueKey(
+                      'client-lane-stream-relay-open-browser',
+                    ),
+                    onPressed: onOpenInBrowser == null
+                        ? null
+                        : () => unawaited(onOpenInBrowser!.call()),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                    label: Text(
+                      'OPEN IN BROWSER',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('client-lane-stream-relay-copy-url'),
+                    onPressed: onCopyPlayerUrl == null
+                        ? null
+                        : () => unawaited(onCopyPlayerUrl!.call()),
+                    icon: const Icon(Icons.link_rounded, size: 16),
+                    label: Text(
+                      'COPY PLAYER URL',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: const ValueKey('client-lane-stream-relay-close'),
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    label: Text(
+                      'CLOSE',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ClientLaneLiveViewDialogState extends State<_ClientLaneLiveViewDialog> {
+  static const Duration _refreshInterval = Duration(seconds: 2);
+
+  Timer? _timer;
+  bool _autoRefresh = true;
+  int _nonce = DateTime.now().millisecondsSinceEpoch;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _syncTimer() {
+    _timer?.cancel();
+    _timer = null;
+    if (!_autoRefresh) {
+      return;
+    }
+    _timer = Timer.periodic(_refreshInterval, (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _nonce = DateTime.now().millisecondsSinceEpoch;
+      });
+    });
+  }
+
+  void _toggleAutoRefresh() {
+    setState(() {
+      _autoRefresh = !_autoRefresh;
+    });
+    _syncTimer();
+  }
+
+  void _refreshFrame() {
+    setState(() {
+      _nonce = DateTime.now().millisecondsSinceEpoch;
+    });
+  }
+
+  Uri get _resolvedUri {
+    final query = Map<String, String>.from(widget.snapshotUri.queryParameters);
+    query['onyx_live_view_ts'] = '$_nonce';
+    return widget.snapshotUri.replace(queryParameters: query);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxDialogHeight = MediaQuery.sizeOf(context).height - 48;
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      backgroundColor: const Color(0xFFF8FBFF),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: 1100, maxHeight: maxDialogHeight),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'LIVE VIEW (REFRESHING STILLS)',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF2E6EA8),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          widget.siteReference,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF172638),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Operator-only browser preview using refreshing stills. This is not a continuous stream.',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF556B80),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    key: const ValueKey('client-lane-live-view-close-icon'),
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded),
+                    color: const Color(0xFF4D657C),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _LiveViewInfoChip(
+                    icon: _autoRefresh
+                        ? Icons.play_circle_fill_rounded
+                        : Icons.pause_circle_outline_rounded,
+                    label: _autoRefresh
+                        ? 'Refreshing every ${_refreshInterval.inSeconds}s'
+                        : 'Manual refresh only',
+                    accent: _autoRefresh
+                        ? const Color(0xFF34D399)
+                        : const Color(0xFFF59E0B),
+                  ),
+                  if ((widget.cameraId ?? '').trim().isNotEmpty)
+                    _LiveViewInfoChip(
+                      icon: Icons.videocam_rounded,
+                      label: widget.cameraId!.trim(),
+                      accent: const Color(0xFF67E8F9),
+                    ),
+                  if (widget.verificationLabel.trim().isNotEmpty)
+                    _LiveViewInfoChip(
+                      icon: Icons.image_rounded,
+                      label: widget.verificationLabel.trim(),
+                      accent: const Color(0xFF8FD1FF),
+                    ),
+                  if (widget.streamRelayReady)
+                    const _LiveViewInfoChip(
+                      icon: Icons.stream_rounded,
+                      label: 'Stream relay ready',
+                      accent: Color(0xFF34D399),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Image.network(
+                    _resolvedUri.toString(),
+                    key: ValueKey('client-lane-live-view-image-$_nonce'),
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: const Color(0xFFEFF5FA),
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          'The latest frame could not be rendered here. Refresh the frame or copy the URL for direct inspection.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF556B80),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            height: 1.3,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    key: const ValueKey('client-lane-live-view-refresh'),
+                    onPressed: _refreshFrame,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: Text(
+                      'REFRESH FRAME',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('client-lane-live-view-toggle'),
+                    onPressed: _toggleAutoRefresh,
+                    icon: Icon(
+                      _autoRefresh
+                          ? Icons.pause_circle_outline_rounded
+                          : Icons.play_circle_outline_rounded,
+                      size: 16,
+                    ),
+                    label: Text(
+                      _autoRefresh ? 'PAUSE LIVE VIEW' : 'RESUME LIVE VIEW',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    key: const ValueKey('client-lane-live-view-copy'),
+                    onPressed: widget.onCopyFrameUrl == null
+                        ? null
+                        : () => unawaited(widget.onCopyFrameUrl!.call()),
+                    icon: const Icon(Icons.link_rounded, size: 16),
+                    label: Text(
+                      'COPY FRAME URL',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (widget.onOpenStreamPlayer != null)
+                    OutlinedButton.icon(
+                      key: const ValueKey('client-lane-live-view-open-stream'),
+                      onPressed: () =>
+                          unawaited(widget.onOpenStreamPlayer!.call()),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                      label: Text(
+                        'OPEN STREAM PLAYER',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  TextButton.icon(
+                    key: const ValueKey('client-lane-live-view-close'),
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    label: Text(
+                      'CLOSE',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LiveViewInfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color accent;
+
+  const _LiveViewInfoChip({
+    required this.icon,
+    required this.label,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.34)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: accent),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveOpsReplayHistoryMemory {
+  final OnyxCommandSurfaceMemory commandSurfaceMemory;
+
+  const _LiveOpsReplayHistoryMemory({
+    this.commandSurfaceMemory = const OnyxCommandSurfaceMemory(),
+  });
+
+  OnyxCommandSurfaceContinuityView commandContinuityView({
+    bool preferRememberedContinuity = false,
+  }) {
+    return commandSurfaceMemory.continuityView(
+      preferRememberedContinuity: preferRememberedContinuity,
+    );
+  }
+
+  _LiveOpsReplayHistoryMemory copyWith({
+    OnyxCommandSurfaceMemory? commandSurfaceMemory,
+  }) {
+    return _LiveOpsReplayHistoryMemory(
+      commandSurfaceMemory: commandSurfaceMemory ?? this.commandSurfaceMemory,
+    );
+  }
+
+  bool get hasData => commandSurfaceMemory.hasData;
+}
+
+String _liveOpsReplayHistoryMemoryScopeKey({
+  String? clientId,
+  String? siteId,
+  String? focusIncidentReference,
+}) {
+  final normalizedClientId = (clientId ?? '').trim();
+  final normalizedSiteId = (siteId ?? '').trim();
+  final normalizedFocusIncidentReference = (focusIncidentReference ?? '')
+      .trim();
+  if (normalizedClientId.isNotEmpty) {
+    if (normalizedSiteId.isNotEmpty) {
+      return 'scope:$normalizedClientId|$normalizedSiteId';
+    }
+    return 'scope:$normalizedClientId|all-sites';
+  }
+  if (normalizedFocusIncidentReference.isNotEmpty) {
+    return 'incident:$normalizedFocusIncidentReference';
+  }
+  return 'global';
 }
 
 class _IncidentRecord {
@@ -182,12 +825,33 @@ class _LedgerEntry {
 }
 
 class _LiveOpsCommandReceipt {
+  final Color accent;
+  final OnyxCommandSurfaceContinuityView continuityView;
+
+  const _LiveOpsCommandReceipt({
+    required this.accent,
+    this.continuityView = const OnyxCommandSurfaceContinuityView(),
+  });
+
+  String get label => continuityView.receiptLabel;
+
+  String get headline => continuityView.receiptHeadline;
+
+  String get detail => continuityView.receiptDetail;
+
+  OnyxCommandBrainSnapshot? get commandBrainSnapshot =>
+      continuityView.commandBrainSnapshot;
+}
+
+class LiveOpsAutoAuditReceipt {
+  final String auditId;
   final String label;
   final String headline;
   final String detail;
   final Color accent;
 
-  const _LiveOpsCommandReceipt({
+  const LiveOpsAutoAuditReceipt({
+    required this.auditId,
     required this.label,
     required this.headline,
     required this.detail,
@@ -397,17 +1061,17 @@ class LiveControlInboxSnapshot {
   });
 }
 
-enum _CommandCenterModuleState { nominal, watch, critical }
-
 enum _CommandDecisionSeverity { critical, actionRequired, review }
 
 class _CommandDecisionAction {
+  final Key? key;
   final String label;
   final IconData icon;
   final Color accent;
   final Future<void> Function()? onPressed;
 
   const _CommandDecisionAction({
+    this.key,
     required this.label,
     required this.icon,
     required this.accent,
@@ -416,6 +1080,7 @@ class _CommandDecisionAction {
 }
 
 class _CommandDecisionItem {
+  final Key? key;
   final _CommandDecisionSeverity severity;
   final String title;
   final String detail;
@@ -424,8 +1089,10 @@ class _CommandDecisionItem {
   final String label;
   final Color accent;
   final List<_CommandDecisionAction> actions;
+  final Future<void> Function()? onTap;
 
   const _CommandDecisionItem({
+    this.key,
     required this.severity,
     required this.title,
     required this.detail,
@@ -434,7 +1101,18 @@ class _CommandDecisionItem {
     required this.accent,
     required this.label,
     this.actions = const <_CommandDecisionAction>[],
+    this.onTap,
   });
+
+  String get _keyValue {
+    final currentKey = key;
+    if (currentKey is ValueKey<Object?>) {
+      return '${currentKey.value}';
+    }
+    return '';
+  }
+
+  bool get isClientComms => _keyValue.contains('command-item-comms-');
 }
 
 class _CommandCenterModule {
@@ -459,24 +1137,6 @@ class _CommandCenterModule {
   });
 }
 
-class _CommandCenterActivityItem {
-  final String label;
-  final String title;
-  final String detail;
-  final String timeLabel;
-  final IconData icon;
-  final Color accent;
-
-  const _CommandCenterActivityItem({
-    required this.label,
-    required this.title,
-    required this.detail,
-    required this.timeLabel,
-    required this.icon,
-    required this.accent,
-  });
-}
-
 class LiveOperationsPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final List<SovereignReport> morningSovereignReportHistory;
@@ -485,14 +1145,20 @@ class LiveOperationsPage extends StatefulWidget {
   final List<String> historicalShadowStrengthLabels;
   final String previousTomorrowUrgencySummary;
   final String focusIncidentReference;
+  final String? agentReturnIncidentReference;
+  final ValueChanged<String>? onConsumeAgentReturnIncidentReference;
   final String? initialScopeClientId;
   final String? initialScopeSiteId;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final LiveClientCommsSnapshot? clientCommsSnapshot;
   final LiveControlInboxSnapshot? controlInboxSnapshot;
+  final OnyxAgentClientDraftService? clientDraftService;
+  final LiveOpsCameraHealthLoader? onLoadCameraHealthFactPacketForScope;
+  final LiveOpsExternalUriOpener? onOpenExternalUri;
   final VoidCallback? onOpenClientView;
   final void Function(String clientId, String siteId)? onOpenClientViewForScope;
+  final LiveOpsStageClientDraftCallback? onStageClientDraftForScope;
   final Future<void> Function(String clientId, String siteId)?
   onClearLearnedLaneStyleForScope;
   final Future<void> Function(
@@ -508,9 +1174,29 @@ class LiveOperationsPage extends StatefulWidget {
   final Future<String> Function(int updateId)? onRejectClientReplyDraft;
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
+  final VoidCallback? onOpenAlarms;
+  final void Function(String incidentReference)? onOpenAlarmsForIncident;
+  final void Function(String incidentReference)? onOpenAgentForIncident;
+  final VoidCallback? onOpenGuards;
+  final VoidCallback? onOpenRosterPlanner;
+  final VoidCallback? onOpenRosterAudit;
+  final VoidCallback? onOpenLatestAudit;
+  final void Function(String action, String detail)? onAutoAuditAction;
+  final LiveOpsAutoAuditReceipt? latestAutoAuditReceipt;
+  final VoidCallback? onOpenCctv;
+  final void Function(String incidentReference)? onOpenCctvForIncident;
+  final void Function(String incidentReference)? onOpenTrackForIncident;
+  final VoidCallback? onOpenVipProtection;
+  final VoidCallback? onOpenRiskIntel;
   final bool queueStateHintSeen;
   final VoidCallback? onQueueStateHintSeen;
   final VoidCallback? onQueueStateHintReset;
+  final String? guardRosterSignalLabel;
+  final String? guardRosterSignalHeadline;
+  final String? guardRosterSignalDetail;
+  final Color? guardRosterSignalAccent;
+  final bool guardRosterSignalNeedsAttention;
+  final ScenarioReplayHistorySignalService scenarioReplayHistorySignalService;
 
   const LiveOperationsPage({
     super.key,
@@ -521,23 +1207,50 @@ class LiveOperationsPage extends StatefulWidget {
     this.historicalShadowStrengthLabels = const <String>[],
     this.previousTomorrowUrgencySummary = '',
     this.focusIncidentReference = '',
+    this.agentReturnIncidentReference,
+    this.onConsumeAgentReturnIncidentReference,
     this.initialScopeClientId,
     this.initialScopeSiteId,
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
     this.clientCommsSnapshot,
     this.controlInboxSnapshot,
+    this.clientDraftService,
+    this.onLoadCameraHealthFactPacketForScope,
+    this.onOpenExternalUri,
     this.onOpenClientView,
     this.onOpenClientViewForScope,
+    this.onStageClientDraftForScope,
     this.onClearLearnedLaneStyleForScope,
     this.onSetLaneVoiceProfileForScope,
     this.onUpdateClientReplyDraftText,
     this.onApproveClientReplyDraft,
     this.onRejectClientReplyDraft,
     this.onOpenEventsForScope,
+    this.onOpenAlarms,
+    this.onOpenAlarmsForIncident,
+    this.onOpenAgentForIncident,
+    this.onOpenGuards,
+    this.onOpenRosterPlanner,
+    this.onOpenRosterAudit,
+    this.onOpenLatestAudit,
+    this.onAutoAuditAction,
+    this.latestAutoAuditReceipt,
+    this.onOpenCctv,
+    this.onOpenCctvForIncident,
+    this.onOpenTrackForIncident,
+    this.onOpenVipProtection,
+    this.onOpenRiskIntel,
     this.queueStateHintSeen = false,
     this.onQueueStateHintSeen,
     this.onQueueStateHintReset,
+    this.guardRosterSignalLabel,
+    this.guardRosterSignalHeadline,
+    this.guardRosterSignalDetail,
+    this.guardRosterSignalAccent,
+    this.guardRosterSignalNeedsAttention = false,
+    this.scenarioReplayHistorySignalService =
+        const LocalScenarioReplayHistorySignalService(),
   });
 
   @override
@@ -546,11 +1259,21 @@ class LiveOperationsPage extends StatefulWidget {
   static void debugResetQueueStateHintSession() {
     _LiveOperationsPageState.debugResetQueueStateHintSession();
   }
+
+  static void debugResetReplayHistoryMemorySession() {
+    _LiveOperationsPageState.debugResetReplayHistoryMemorySession();
+  }
 }
 
 class _LiveOperationsPageState extends State<LiveOperationsPage> {
   static const _siteActivityService = SiteActivityIntelligenceService();
   static const _orchestratorService = MonitoringOrchestratorService();
+  static const _commandParser = OnyxCommandParser();
+  static const _onyxCommandBrainOrchestrator = OnyxCommandBrainOrchestrator(
+    operatorOrchestrator: OnyxOperatorOrchestrator(),
+  );
+  static const _onyxCommandSpecialistAssessmentService =
+      OnyxCommandSpecialistAssessmentService();
   static const _overrideReasonCodes = [
     'DUPLICATE_SIGNAL',
     'FALSE_ALARM',
@@ -559,12 +1282,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     'HARDWARE_FAULT',
   ];
   static bool _queueStateHintSeenThisSession = false;
+  static Map<String, _LiveOpsReplayHistoryMemory>
+  _replayHistoryMemoryByScopeThisSession =
+      <String, _LiveOpsReplayHistoryMemory>{};
   static const _defaultCommandReceipt = _LiveOpsCommandReceipt(
-    label: 'LIVE COMMAND',
-    headline: 'Workspace ready',
-    detail:
-        'Operator feedback, queue actions, and scoped handoffs stay visible in the desktop context rail.',
     accent: Color(0xFF8FD1FF),
+    continuityView: OnyxCommandSurfaceContinuityView(
+      commandReceipt: OnyxCommandSurfaceReceiptMemory(
+        label: 'LIVE COMMAND',
+        headline: 'Workspace ready',
+        detail:
+            'Operator feedback, queue actions, and scoped handoffs stay visible in the desktop context rail.',
+      ),
+    ),
+  );
+  static const Duration _clientLaneCameraPreviewRefreshInterval = Duration(
+    seconds: 5,
   );
 
   List<_IncidentRecord> _incidents = const [];
@@ -579,11 +1312,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   final GlobalKey _controlInboxPanelGlobalKey = GlobalKey();
   final GlobalKey _actionLadderPanelGlobalKey = GlobalKey();
   final GlobalKey _contextAndVigilancePanelGlobalKey = GlobalKey();
+  final TextEditingController _commandPromptController =
+      TextEditingController();
   bool _controlInboxPriorityOnly = false;
   _ControlInboxDraftCueKind? _controlInboxCueOnlyKind;
   late bool _showQueueStateHint;
   String? _activeIncidentId;
   String _resolvedFocusReference = '';
+  ScenarioReplayHistorySignal? _replayHistorySignal;
+  List<ScenarioReplayHistorySignal> _replayHistorySignalStack =
+      const <ScenarioReplayHistorySignal>[];
   _FocusLinkState _focusLinkState = _FocusLinkState.none;
   _ContextTab _activeTab = _ContextTab.details;
   String? _focusedVigilanceCallsign;
@@ -592,23 +1330,339 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   _LiveOpsCommandReceipt _commandReceipt = _defaultCommandReceipt;
   bool _desktopWorkspaceActive = false;
   bool _showDetailedWorkspace = false;
+  String _lastPlainLanguageCommand = '';
+  OnyxCommandSurfacePreview? _lastPlainLanguagePreview;
+  String _rememberedReplayHistorySummary = '';
+  ClientCameraHealthFactPacket? _clientLaneCameraHealthFactPacket;
+  bool _clientLaneCameraHealthLoading = false;
+  bool _clientLaneCameraHealthLoadFailed = false;
+  String _clientLaneCameraHealthScopeKey = '';
+  int _clientLaneCameraHealthRequestSerial = 0;
+  int _clientLaneCameraPreviewNonce = 0;
+  bool _clientLaneCameraPreviewAutoRefresh = true;
+  Timer? _clientLaneCameraPreviewTimer;
 
   VoidCallback? _openClientLaneAction({
     required String clientId,
     required String siteId,
   }) {
-    final scopedCallback = widget.onOpenClientViewForScope;
-    if (scopedCallback != null) {
-      return () => scopedCallback(clientId, siteId);
+    if (widget.onOpenClientViewForScope == null &&
+        widget.onOpenClientView == null) {
+      return null;
     }
-    return widget.onOpenClientView;
+    return () {
+      _openCommandClientLane(
+        clientId: clientId,
+        siteId: siteId,
+        clientCommsSnapshot: _matchingClientCommsSnapshotForScope(
+          clientId: clientId,
+          siteId: siteId,
+        ),
+      );
+    };
+  }
+
+  LiveClientCommsSnapshot? _matchingClientCommsSnapshotForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final snapshot = widget.clientCommsSnapshot;
+    if (snapshot == null) {
+      return null;
+    }
+    if (snapshot.clientId.trim() != clientId.trim() ||
+        snapshot.siteId.trim() != siteId.trim()) {
+      return null;
+    }
+    return snapshot;
   }
 
   String _scopeBusyKey(String clientId, String siteId) =>
       '${clientId.trim()}|${siteId.trim()}';
 
+  ClientCameraHealthFactPacket? _clientLaneCameraPacketForScope(
+    LiveClientCommsSnapshot snapshot,
+  ) {
+    final scopeKey = _scopeBusyKey(snapshot.clientId, snapshot.siteId);
+    if (_clientLaneCameraHealthScopeKey != scopeKey) {
+      return null;
+    }
+    return _clientLaneCameraHealthFactPacket;
+  }
+
+  Future<void> _loadClientLaneCameraHealth({bool showFeedback = false}) async {
+    final loader = widget.onLoadCameraHealthFactPacketForScope;
+    final snapshot = widget.clientCommsSnapshot;
+    if (loader == null || snapshot == null) {
+      if (!mounted) {
+        _clientLaneCameraHealthFactPacket = null;
+        _clientLaneCameraHealthLoading = false;
+        _clientLaneCameraHealthLoadFailed = false;
+        _clientLaneCameraHealthScopeKey = '';
+        return;
+      }
+      setState(() {
+        _clientLaneCameraHealthFactPacket = null;
+        _clientLaneCameraHealthLoading = false;
+        _clientLaneCameraHealthLoadFailed = false;
+        _clientLaneCameraHealthScopeKey = '';
+      });
+      return;
+    }
+    final scopeKey = _scopeBusyKey(snapshot.clientId, snapshot.siteId);
+    final requestSerial = ++_clientLaneCameraHealthRequestSerial;
+    if (mounted) {
+      setState(() {
+        _clientLaneCameraHealthLoading = true;
+        _clientLaneCameraHealthLoadFailed = false;
+        _clientLaneCameraHealthScopeKey = scopeKey;
+      });
+    } else {
+      _clientLaneCameraHealthLoading = true;
+      _clientLaneCameraHealthLoadFailed = false;
+      _clientLaneCameraHealthScopeKey = scopeKey;
+    }
+
+    ClientCameraHealthFactPacket? packet;
+    var loadFailed = false;
+    try {
+      packet = await loader(snapshot.clientId, snapshot.siteId);
+    } catch (error, stackTrace) {
+      loadFailed = true;
+      debugPrint(
+        'LiveOperationsPage._loadClientLaneCameraHealth failed for '
+        '${snapshot.clientId}/${snapshot.siteId}: $error\n$stackTrace',
+      );
+      packet = null;
+    }
+    if (!mounted || requestSerial != _clientLaneCameraHealthRequestSerial) {
+      return;
+    }
+    setState(() {
+      _clientLaneCameraHealthFactPacket = packet;
+      _clientLaneCameraHealthLoading = false;
+      _clientLaneCameraHealthLoadFailed = loadFailed;
+      _clientLaneCameraPreviewNonce =
+          packet?.hasCurrentVisualConfirmation == true
+          ? DateTime.now().millisecondsSinceEpoch
+          : 0;
+    });
+    if (!showFeedback) {
+      return;
+    }
+    final message = switch (packet) {
+      final packet? when packet.hasCurrentVisualConfirmation =>
+        'Current camera frame refreshed for ${packet.siteReference}.',
+      final packet? => 'Camera health refreshed for ${packet.siteReference}.',
+      null when loadFailed =>
+        'Camera health check failed for the selected scope.',
+      null => 'No current camera packet is available for the selected scope.',
+    };
+    _showLiveOpsFeedback(
+      message,
+      label: 'CAMERA CHECK',
+      detail:
+          'Use current visual confirmation when it is available, and keep event-only telemetry separate from visual claims.',
+      accent: const Color(0xFF67E8F9),
+    );
+  }
+
+  Future<void> _copyClientLaneCameraPreviewUrl(
+    ClientCameraHealthFactPacket packet,
+  ) async {
+    final uri = packet.currentVisualSnapshotUri;
+    if (uri == null) {
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: uri.toString()));
+    if (!mounted) {
+      return;
+    }
+    _showLiveOpsFeedback(
+      'Current frame URL copied for ${packet.siteReference}.',
+      label: 'CAMERA CHECK',
+      detail:
+          'The copied URL points to the latest verified proxy-backed frame for the selected scope.',
+      accent: const Color(0xFF8FD1FF),
+    );
+  }
+
+  Future<void> _openClientLaneStreamPlayer(
+    ClientCameraHealthFactPacket packet,
+  ) async {
+    final uri =
+        packet.currentVisualRelayPlayerUri ??
+        packet.currentVisualRelayStreamUri;
+    if (uri == null) {
+      return;
+    }
+    final opener = widget.onOpenExternalUri;
+    final opened = opener != null
+        ? await opener(uri)
+        : await const BrowserLinkService().open(uri);
+    if (!mounted) {
+      return;
+    }
+    if (opened) {
+      _showLiveOpsFeedback(
+        'Stream player opened for ${packet.siteReference}.',
+        label: 'CAMERA CHECK',
+        detail:
+            'This browser page is an operator-only relay over the temporary local bridge, not a resident-facing proof of a native recorder live stream.',
+        accent: const Color(0xFF34D399),
+      );
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: uri.toString()));
+    if (!mounted) {
+      return;
+    }
+    _showLiveOpsFeedback(
+      'Stream player URL copied for ${packet.siteReference}.',
+      label: 'CAMERA CHECK',
+      detail:
+          'Open the copied URL in a browser to view the operator-only stream relay.',
+      accent: const Color(0xFF8FD1FF),
+    );
+  }
+
+  Future<void> _copyClientLaneStreamPlayerUrl(
+    ClientCameraHealthFactPacket packet,
+  ) async {
+    final uri = packet.currentVisualRelayPlayerUri;
+    if (uri == null) {
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: uri.toString()));
+    if (!mounted) {
+      return;
+    }
+    _showLiveOpsFeedback(
+      'Stream player URL copied for ${packet.siteReference}.',
+      label: 'CAMERA CHECK',
+      detail:
+          'The copied URL opens the operator-only relay player for the selected scope.',
+      accent: const Color(0xFF8FD1FF),
+    );
+  }
+
+  Future<void> _showClientLaneStreamRelayDialog(
+    ClientCameraHealthFactPacket packet,
+  ) async {
+    final playerUri = packet.currentVisualRelayPlayerUri;
+    final streamUri = packet.currentVisualRelayStreamUri;
+    if (playerUri == null || streamUri == null || !mounted) {
+      return;
+    }
+    final verificationLabel = _commsMomentLabel(
+      packet.currentVisualVerifiedAtUtc ?? packet.lastSuccessfulVisualAtUtc,
+    );
+    final relayFrameLabel = _commsMomentLabel(
+      packet.currentVisualRelayLastFrameAtUtc,
+    );
+    final relayCheckLabel = _commsMomentLabel(
+      packet.currentVisualRelayCheckedAtUtc,
+    );
+    final relayIssue = _humanizeClientLaneRelayIssue(
+      packet.currentVisualRelayLastError,
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return _ClientLaneStreamRelayDialog(
+          playerUri: playerUri,
+          streamUri: streamUri,
+          siteReference: packet.siteReference,
+          cameraId: packet.currentVisualCameraId,
+          verificationLabel: verificationLabel,
+          relayStatusLabel: _clientLaneRelayStatusLabel(
+            packet.currentVisualRelayStatus,
+          ),
+          relayStatusAccent: _clientLaneRelayStatusAccent(
+            packet.currentVisualRelayStatus,
+          ),
+          relayStatusSummary: _clientLaneRelaySummary(
+            packet.currentVisualRelayStatus,
+            relayFrameLabel: relayFrameLabel,
+            relayCheckLabel: relayCheckLabel,
+            activeClientCount: packet.currentVisualRelayActiveClientCount ?? 0,
+          ),
+          relayIssue: relayIssue,
+          onCopyPlayerUrl: () => _copyClientLaneStreamPlayerUrl(packet),
+          onOpenInBrowser: () => _openClientLaneStreamPlayer(packet),
+        );
+      },
+    );
+  }
+
+  Uri _cacheBustedPreviewUri(Uri uri) {
+    final query = Map<String, String>.from(uri.queryParameters);
+    query['onyx_preview_ts'] = '$_clientLaneCameraPreviewNonce';
+    return uri.replace(queryParameters: query);
+  }
+
+  Future<void> _openClientLaneLiveView(
+    ClientCameraHealthFactPacket packet,
+  ) async {
+    final snapshotUri = packet.currentVisualSnapshotUri;
+    if (snapshotUri == null || !mounted) {
+      return;
+    }
+    final verificationLabel = _commsMomentLabel(
+      packet.currentVisualVerifiedAtUtc ?? packet.lastSuccessfulVisualAtUtc,
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return _ClientLaneLiveViewDialog(
+          snapshotUri: snapshotUri,
+          siteReference: packet.siteReference,
+          cameraId: packet.currentVisualCameraId,
+          verificationLabel: verificationLabel,
+          streamRelayReady: packet.hasCurrentVisualStreamRelay,
+          onCopyFrameUrl: () => _copyClientLaneCameraPreviewUrl(packet),
+          onOpenStreamPlayer: packet.hasCurrentVisualStreamRelay
+              ? () => _openClientLaneStreamPlayer(packet)
+              : null,
+        );
+      },
+    );
+  }
+
+  void _syncClientLaneCameraPreviewTimer() {
+    _clientLaneCameraPreviewTimer?.cancel();
+    _clientLaneCameraPreviewTimer = null;
+    if (!_clientLaneCameraPreviewAutoRefresh ||
+        widget.onLoadCameraHealthFactPacketForScope == null ||
+        widget.clientCommsSnapshot == null) {
+      return;
+    }
+    _clientLaneCameraPreviewTimer = Timer.periodic(
+      _clientLaneCameraPreviewRefreshInterval,
+      (_) {
+        if (!mounted || _clientLaneCameraHealthLoading) {
+          return;
+        }
+        unawaited(_loadClientLaneCameraHealth());
+      },
+    );
+  }
+
+  void _toggleClientLaneCameraPreviewAutoRefresh() {
+    setState(() {
+      _clientLaneCameraPreviewAutoRefresh =
+          !_clientLaneCameraPreviewAutoRefresh;
+    });
+    _syncClientLaneCameraPreviewTimer();
+  }
+
   static void debugResetQueueStateHintSession() {
     _queueStateHintSeenThisSession = false;
+  }
+
+  static void debugResetReplayHistoryMemorySession() {
+    _replayHistoryMemoryByScopeThisSession =
+        <String, _LiveOpsReplayHistoryMemory>{};
   }
 
   void _markQueueStateHintSeen() {
@@ -858,12 +1912,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     await _ensureContextAndVigilancePanelVisible();
     _showLiveOpsFeedback(
       snapshot == null
-          ? 'Client comms fallback opened in place.'
-          : 'Client lane fallback opened in place.',
+          ? 'Client Comms fallback opened in place.'
+          : 'Client Comms fallback opened in place.',
       label: 'ACTIVE LANES',
       detail: snapshot == null
-          ? 'Live Ops kept the selected incident and VoIP readiness visible while the client lane watch reconnects.'
-          : 'The separate client-lane handoff was unavailable, so the scoped comms posture stayed active in the current workspace.',
+          ? 'Live Ops kept the selected incident and VoIP readiness visible while the Client Comms watch reconnects.'
+          : 'The separate Client Comms handoff was unavailable, so the scoped comms posture stayed active in the current workspace.',
       accent: const Color(0xFF22D3EE),
     );
   }
@@ -1420,16 +2474,46 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   @override
   void initState() {
     super.initState();
+    _applyRememberedReplayHistoryMemory();
     if (widget.queueStateHintSeen) {
       _queueStateHintSeenThisSession = true;
     }
     _showQueueStateHint = !_queueStateHintSeenThisSession;
     _projectFromEvents();
+    _ingestAgentReturnIncidentReference(fromInit: true);
+    _syncClientLaneCameraPreviewTimer();
+    unawaited(_loadClientLaneCameraHealth());
+    final latestAutoAuditReceipt = widget.latestAutoAuditReceipt;
+    if (latestAutoAuditReceipt != null &&
+        (widget.agentReturnIncidentReference?.trim().isEmpty ?? true)) {
+      _commandReceipt = _liveOpsCommandReceiptFromAutoAudit(
+        latestAutoAuditReceipt,
+      );
+    }
+    unawaited(_loadReplayHistorySignals());
+  }
+
+  @override
+  void dispose() {
+    _clientLaneCameraPreviewTimer?.cancel();
+    _commandPromptController.dispose();
+    super.dispose();
   }
 
   @override
   void didUpdateWidget(covariant LiveOperationsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final replayHistoryMemoryScopeChanged =
+        _liveOpsReplayHistoryMemoryScopeKey(
+          clientId: oldWidget.initialScopeClientId,
+          siteId: oldWidget.initialScopeSiteId,
+          focusIncidentReference: oldWidget.focusIncidentReference,
+        ) !=
+        _liveOpsReplayHistoryMemoryScopeKey(
+          clientId: widget.initialScopeClientId,
+          siteId: widget.initialScopeSiteId,
+          focusIncidentReference: widget.focusIncidentReference,
+        );
     if (!oldWidget.queueStateHintSeen && widget.queueStateHintSeen) {
       _queueStateHintSeenThisSession = true;
       _showQueueStateHint = false;
@@ -1437,7 +2521,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       _queueStateHintSeenThisSession = false;
       _showQueueStateHint = true;
     }
-    if (oldWidget.events.length != widget.events.length ||
+    if (_projectedEventInputsChanged(oldWidget.events, widget.events) ||
         oldWidget.sceneReviewByIntelligenceId !=
             widget.sceneReviewByIntelligenceId ||
         oldWidget.initialScopeClientId?.trim() !=
@@ -1448,6 +2532,276 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             widget.focusIncidentReference.trim()) {
       _projectFromEvents();
     }
+    if (replayHistoryMemoryScopeChanged) {
+      setState(() {
+        _applyRememberedReplayHistoryMemory(clearLiveReplayHistory: true);
+      });
+      unawaited(_loadReplayHistorySignals());
+    }
+    if (oldWidget.agentReturnIncidentReference?.trim() !=
+        widget.agentReturnIncidentReference?.trim()) {
+      _ingestAgentReturnIncidentReference();
+    }
+    if (oldWidget.latestAutoAuditReceipt?.auditId !=
+            widget.latestAutoAuditReceipt?.auditId &&
+        widget.latestAutoAuditReceipt != null &&
+        (widget.agentReturnIncidentReference?.trim().isEmpty ?? true)) {
+      setState(() {
+        _commandReceipt = _liveOpsCommandReceiptFromAutoAudit(
+          widget.latestAutoAuditReceipt!,
+        );
+      });
+    }
+    if (oldWidget.scenarioReplayHistorySignalService !=
+        widget.scenarioReplayHistorySignalService) {
+      unawaited(_loadReplayHistorySignals());
+    }
+    if (oldWidget.clientCommsSnapshot?.clientId.trim() !=
+            widget.clientCommsSnapshot?.clientId.trim() ||
+        oldWidget.clientCommsSnapshot?.siteId.trim() !=
+            widget.clientCommsSnapshot?.siteId.trim() ||
+        oldWidget.onLoadCameraHealthFactPacketForScope !=
+            widget.onLoadCameraHealthFactPacketForScope) {
+      _syncClientLaneCameraPreviewTimer();
+    }
+    if (oldWidget.clientCommsSnapshot?.clientId.trim() !=
+            widget.clientCommsSnapshot?.clientId.trim() ||
+        oldWidget.clientCommsSnapshot?.siteId.trim() !=
+            widget.clientCommsSnapshot?.siteId.trim() ||
+        oldWidget.onLoadCameraHealthFactPacketForScope !=
+            widget.onLoadCameraHealthFactPacketForScope) {
+      unawaited(_loadClientLaneCameraHealth());
+    }
+  }
+
+  bool _projectedEventInputsChanged(
+    List<DispatchEvent> previous,
+    List<DispatchEvent> next,
+  ) {
+    if (identical(previous, next)) {
+      return false;
+    }
+    if (previous.length != next.length) {
+      return true;
+    }
+    for (var index = 0; index < previous.length; index += 1) {
+      final oldEvent = previous[index];
+      final newEvent = next[index];
+      if (oldEvent.runtimeType != newEvent.runtimeType ||
+          oldEvent.eventId != newEvent.eventId ||
+          oldEvent.sequence != newEvent.sequence ||
+          oldEvent.version != newEvent.version ||
+          oldEvent.occurredAt != newEvent.occurredAt) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Future<void> _loadReplayHistorySignals() async {
+    try {
+      final stack = await widget.scenarioReplayHistorySignalService
+          .loadSignalStack(limit: 3);
+      final replayHistorySummary =
+          summarizeReplayHistorySignalStack(stack) ?? '';
+      _rememberReplayHistorySummary(replayHistorySummary);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _replayHistorySignalStack = stack;
+        _replayHistorySignal = stack.isEmpty ? null : stack.first;
+        _rememberedReplayHistorySummary = replayHistorySummary.trim();
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _replayHistorySignalStack = const <ScenarioReplayHistorySignal>[];
+        _replayHistorySignal = null;
+        _rememberedReplayHistorySummary = _rememberedReplayHistoryMemory()
+            .commandContinuityView()
+            .replayHistorySummary
+            .trim();
+      });
+    }
+  }
+
+  String _replayHistoryMemoryScopeKey() => _liveOpsReplayHistoryMemoryScopeKey(
+    clientId: widget.initialScopeClientId,
+    siteId: widget.initialScopeSiteId,
+    focusIncidentReference: widget.focusIncidentReference,
+  );
+
+  _LiveOpsReplayHistoryMemory _rememberedReplayHistoryMemory() =>
+      _replayHistoryMemoryByScopeThisSession[_replayHistoryMemoryScopeKey()] ??
+      const _LiveOpsReplayHistoryMemory();
+
+  void _storeReplayHistoryMemory(_LiveOpsReplayHistoryMemory memory) {
+    final key = _replayHistoryMemoryScopeKey();
+    if (memory.hasData) {
+      _replayHistoryMemoryByScopeThisSession =
+          <String, _LiveOpsReplayHistoryMemory>{
+            ..._replayHistoryMemoryByScopeThisSession,
+            key: memory,
+          };
+      return;
+    }
+    if (!_replayHistoryMemoryByScopeThisSession.containsKey(key)) {
+      return;
+    }
+    final next = Map<String, _LiveOpsReplayHistoryMemory>.from(
+      _replayHistoryMemoryByScopeThisSession,
+    )..remove(key);
+    _replayHistoryMemoryByScopeThisSession = next;
+  }
+
+  void _applyRememberedReplayHistoryMemory({
+    bool clearLiveReplayHistory = false,
+  }) {
+    final rememberedReplayHistoryMemory = _rememberedReplayHistoryMemory();
+    final rememberedCommandContinuity = rememberedReplayHistoryMemory
+        .commandContinuityView();
+    _rememberedReplayHistorySummary = rememberedCommandContinuity
+        .replayHistorySummary
+        .trim();
+    _lastPlainLanguageCommand = '';
+    _lastPlainLanguagePreview = rememberedCommandContinuity.hasPreview
+        ? rememberedCommandContinuity.commandPreview
+        : null;
+    if (clearLiveReplayHistory) {
+      _replayHistorySignalStack = const <ScenarioReplayHistorySignal>[];
+      _replayHistorySignal = null;
+    }
+    if (widget.agentReturnIncidentReference?.trim().isNotEmpty == true) {
+      _commandReceipt = _defaultCommandReceipt;
+      return;
+    }
+    if (widget.latestAutoAuditReceipt case final receipt?) {
+      _commandReceipt = _liveOpsCommandReceiptFromAutoAudit(receipt);
+      return;
+    }
+    _commandReceipt =
+        _liveOpsCommandReceiptFromContinuityView(rememberedCommandContinuity) ??
+        _defaultCommandReceipt;
+  }
+
+  void _rememberReplayHistorySummary(String summary) {
+    final rememberedReplayHistoryMemory = _rememberedReplayHistoryMemory();
+    _storeReplayHistoryMemory(
+      rememberedReplayHistoryMemory.copyWith(
+        commandSurfaceMemory:
+            OnyxCommandSurfaceMemoryAdapter.rememberReplayHistorySummary(
+              rememberedReplayHistoryMemory.commandSurfaceMemory,
+              summary,
+            ),
+      ),
+    );
+  }
+
+  void _rememberCommandPreview(OnyxCommandSurfacePreview? preview) {
+    final rememberedReplayHistoryMemory = _rememberedReplayHistoryMemory();
+    _storeReplayHistoryMemory(
+      rememberedReplayHistoryMemory.copyWith(
+        commandSurfaceMemory:
+            OnyxCommandSurfaceMemoryAdapter.rememberCommandPreview(
+              rememberedReplayHistoryMemory.commandSurfaceMemory,
+              preview,
+            ),
+      ),
+    );
+  }
+
+  void _setPlainLanguagePreview(
+    String prompt,
+    OnyxCommandSurfacePreview preview, {
+    VoidCallback? extraState,
+  }) {
+    _rememberCommandPreview(preview);
+    setState(() {
+      _lastPlainLanguageCommand = prompt;
+      _lastPlainLanguagePreview = preview;
+      _commandPromptController.clear();
+      extraState?.call();
+    });
+  }
+
+  void _rememberReplayBackedCommandReceipt(_LiveOpsCommandReceipt receipt) {
+    final continuityView = receipt.continuityView;
+    final commandReceipt = continuityView.commandReceipt;
+    if (continuityView.commandBrainSnapshot == null ||
+        commandReceipt?.hasData != true) {
+      return;
+    }
+    final rememberedReplayHistoryMemory = _rememberedReplayHistoryMemory();
+    _storeReplayHistoryMemory(
+      rememberedReplayHistoryMemory.copyWith(
+        commandSurfaceMemory:
+            OnyxCommandSurfaceMemoryAdapter.rememberCommandReceipt(
+              rememberedReplayHistoryMemory.commandSurfaceMemory,
+              commandReceipt,
+              replaceCommandBrainSnapshot: true,
+              commandBrainSnapshot: continuityView.commandBrainSnapshot,
+              commandOutcome: continuityView.commandOutcome,
+            ),
+      ),
+    );
+  }
+
+  String? _commandReplayHistoryLine() {
+    final liveReplayHistorySummary = summarizeReplayHistorySignalStack(
+      _replayHistorySignalStack,
+    );
+    if (liveReplayHistorySummary != null &&
+        liveReplayHistorySummary.trim().isNotEmpty) {
+      return liveReplayHistorySummary;
+    }
+    final rememberedReplayHistorySummary = _rememberedReplayHistorySummary
+        .trim();
+    if (rememberedReplayHistorySummary.isEmpty) {
+      return null;
+    }
+    return rememberedReplayHistorySummary;
+  }
+
+  String? _commandMemoryReplayContextLine() {
+    final continuityView = _commandReceipt.continuityView;
+    if (continuityView.replayContextLine case final line?) {
+      return line;
+    }
+    final snapshot =
+        continuityView.commandBrainSnapshot ??
+        _lastPlainLanguagePreview?.commandBrainSnapshot;
+    if (snapshot == null) {
+      return null;
+    }
+    return OnyxCommandSurfaceMemoryAdapter.continuityViewForSnapshot(
+      snapshot,
+      rememberedReplayHistorySummary: _replayHistorySignalStack.isEmpty
+          ? _rememberedReplayHistorySummary.trim()
+          : '',
+      preferRememberedContinuity: _replayHistorySignalStack.isEmpty,
+    ).replayContextLine;
+  }
+
+  String? _commandReceiptReplayContextLine() {
+    return _commandReceipt.continuityView.replayContextLine;
+  }
+
+  _LiveOpsCommandReceipt? _liveOpsCommandReceiptFromContinuityView(
+    OnyxCommandSurfaceContinuityView continuityView,
+  ) {
+    if (!continuityView.hasReceipt) {
+      return null;
+    }
+    final target = continuityView.target;
+    return _LiveOpsCommandReceipt(
+      accent: target == null
+          ? const Color(0xFF8FD1FF)
+          : _commandRecommendationAccent(target),
+      continuityView: continuityView,
+    );
   }
 
   @override
@@ -1465,6 +2819,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final viewportWidth = viewportSize.width;
     final wide = allowEmbeddedPanelScroll(context);
     final showPageTopBar = viewportWidth < 980 || handsetLayout;
+    final showCommandReceiptBanner =
+        _hasAgentReturnReceipt || _hasAutoAuditReceipt;
 
     return OnyxPageScaffold(
       child: Column(
@@ -1529,6 +2885,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   controlInboxSnapshot: controlInboxSnapshot,
                                   ledger: ledger,
                                 ),
+                                if (showCommandReceiptBanner) ...[
+                                  const SizedBox(height: 8),
+                                  _liveOpsCommandReceiptCard(),
+                                ],
                                 if (!canUseEmbeddedDesktopLayout &&
                                     !autoShowDetailedWorkspace) ...[
                                   const SizedBox(height: 8),
@@ -1539,12 +2899,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ),
                                 ],
                                 if (showDetailedWorkspace) ...[
-                                  const SizedBox(height: 8),
-                                  _commandOverviewGrid(
-                                    activeIncident: activeIncident,
-                                    clientCommsSnapshot: clientCommsSnapshot,
-                                    controlInboxSnapshot: controlInboxSnapshot,
-                                  ),
                                   const SizedBox(height: 8),
                                   if (hasScopeFocus) ...[
                                     _scopeFocusBanner(
@@ -1606,7 +2960,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }) {
     final criticalAlertIncident = _criticalAlertIncident;
     final showDecisionDeck = controlInboxSnapshot != null || ledger.isNotEmpty;
-    final showCompactHero = MediaQuery.sizeOf(context).height >= 1040;
+    // The embedded workspace already exposes the same command posture through
+    // its rail/banner shell. Only show the compact hero when there is ample
+    // vertical headroom, otherwise it pushes the interactive panels off-screen.
+    final showCompactHero = MediaQuery.sizeOf(context).height >= 1700;
     final workspaceBanner = _workspaceStatusBanner(
       hasScopeFocus: hasScopeFocus,
       scopeClientId: scopeClientId,
@@ -1638,7 +2995,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 flex: 22,
                 child: _workspaceShellColumn(
                   key: const ValueKey('live-operations-workspace-panel-rail'),
-                  title: 'Operations Rail',
+                  title: 'War Room Rail',
                   subtitle:
                       'Incident selection, scope posture, and live command counts stay pinned on the left.',
                   shellless: true,
@@ -1655,6 +3012,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         activeIncident: activeIncident,
                         clientCommsSnapshot: clientCommsSnapshot,
                         controlInboxSnapshot: controlInboxSnapshot,
+                        gridKey: const ValueKey(
+                          'live-operations-command-overview-rail',
+                        ),
                       ),
                       const SizedBox(height: 2.2),
                       Expanded(
@@ -1706,7 +3066,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ),
                   title: 'Context Rail',
                   subtitle:
-                      'Context tabs, vigilance, and client-lane delivery posture stay visible.',
+                      'Context tabs, vigilance, and Client Comms delivery posture stay visible.',
                   shellless: true,
                   child: Column(
                     children: [
@@ -1765,9 +3125,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               : 'Open Detailed Workspace',
         ),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF9FD8FF),
-          side: const BorderSide(color: Color(0xFF2C587A)),
-          backgroundColor: const Color(0x140D1A28),
+          foregroundColor: OnyxDesignTokens.cyanInteractive,
+          side: const BorderSide(color: _commandBorderStrongColor),
+          backgroundColor: _commandPanelColor,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           textStyle: GoogleFonts.inter(
             fontSize: 11,
@@ -1788,54 +3148,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required List<_LedgerEntry> ledger,
     bool compact = false,
   }) {
-    final unresolvedIncidents = _incidents
-        .where((incident) => incident.status != _IncidentStatus.resolved)
-        .toList(growable: false);
-    final visualAlertCount = widget.sceneReviewByIntelligenceId.isNotEmpty
-        ? widget.sceneReviewByIntelligenceId.length
-        : _incidents
-              .where(
-                (incident) =>
-                    (incident.latestSceneReviewLabel ?? '').trim().isNotEmpty ||
-                    (incident.snapshotUrl ?? '').trim().isNotEmpty ||
-                    (incident.clipUrl ?? '').trim().isNotEmpty,
-              )
-              .length;
-    var pendingDraftCount = _visibleControlInboxDraftCount(
-      controlInboxSnapshot,
-    );
-    if (controlInboxSnapshot != null &&
-        controlInboxSnapshot.pendingApprovalCount > pendingDraftCount) {
-      pendingDraftCount = controlInboxSnapshot.pendingApprovalCount;
-    }
-    var liveAskCount = controlInboxSnapshot?.liveClientAsks.length ?? 0;
-    if (controlInboxSnapshot != null &&
-        controlInboxSnapshot.awaitingResponseCount > liveAskCount) {
-      liveAskCount = controlInboxSnapshot.awaitingResponseCount;
-    }
-    final pendingMessageCount = pendingDraftCount + liveAskCount;
-    final attentionCount =
-        (unresolvedIncidents.isNotEmpty ? 1 : 0) +
-        (visualAlertCount > 0 ? 1 : 0) +
-        (pendingMessageCount > 0 ? 1 : 0);
-    final statusState = attentionCount > 0
-        ? _CommandCenterModuleState.critical
-        : _CommandCenterModuleState.nominal;
-    final statusHeadline = attentionCount == 0
-        ? 'SYSTEMS NOMINAL'
-        : attentionCount == 1
-        ? '1 ITEM NEEDS ATTENTION'
-        : '$attentionCount ITEMS NEED ATTENTION';
-    final statusDetail = attentionCount == 0
-        ? 'All systems are stable across the shift.'
-        : 'Controllers only need to see the live exceptions that require attention.';
+    final rosterSignalHeadline = (widget.guardRosterSignalHeadline ?? '')
+        .trim();
+    final rosterSignalVisible = rosterSignalHeadline.isNotEmpty;
     final modules = _commandCenterModules(
       activeIncident: activeIncident,
       clientCommsSnapshot: clientCommsSnapshot,
       controlInboxSnapshot: controlInboxSnapshot,
       ledger: ledger,
     );
-    final activityItems = _commandCenterActivityItems(
+    final quickOpenModules = _quickOpenModules(modules);
+    final decisionItems = _commandDecisionItems(
       activeIncident: activeIncident,
       clientCommsSnapshot: clientCommsSnapshot,
       controlInboxSnapshot: controlInboxSnapshot,
@@ -1847,133 +3170,980 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A0E13),
+        color: _commandPanelColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF1F2A36)),
+        border: Border.all(color: _commandBorderColor),
         boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 22, spreadRadius: 1),
+          BoxShadow(
+            color: _commandShadowColor,
+            blurRadius: 22,
+            spreadRadius: 1,
+          ),
         ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           if (compact) {
-            final compactItems = activityItems.take(3).toList(growable: false);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _commandCenterStatusStrip(
-                  state: statusState,
-                  headline: statusHeadline,
-                  detail: statusDetail,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'CommandCenter',
-                  style: GoogleFonts.rajdhani(
-                    color: const Color(0xFFF8FBFF),
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                    height: 0.96,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Operational overview across all security services',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF9BA9B9),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                GridView.builder(
-                  shrinkWrap: true,
-                  itemCount: modules.length,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    childAspectRatio: 1.42,
-                  ),
-                  itemBuilder: (context, index) {
-                    return _commandCenterModuleCard(
-                      modules[index],
-                      compact: true,
-                    );
-                  },
+                if (rosterSignalVisible) ...[
+                  _guardRosterSignalBanner(compact: true),
+                  const SizedBox(height: 8),
+                ],
+                _commandIntentBar(
+                  activeIncident: activeIncident,
+                  clientCommsSnapshot: clientCommsSnapshot,
+                  compact: true,
                 ),
                 const SizedBox(height: 8),
-                _commandCenterActivityPanel(items: compactItems, compact: true),
+                _commandCurrentFocusPanel(
+                  activeIncident: activeIncident,
+                  clientCommsSnapshot: clientCommsSnapshot,
+                  streamlined: true,
+                ),
+                const SizedBox(height: 8),
+                _commandDecisionQueuePanel(
+                  items: decisionItems.take(2).toList(),
+                  streamlined: true,
+                ),
+                const SizedBox(height: 8),
+                _commandQuickOpenPanel(
+                  modules: quickOpenModules,
+                  compact: true,
+                ),
               ],
             );
           }
-          final columnCount = constraints.maxWidth >= 1120
-              ? 3
-              : constraints.maxWidth >= 720
-              ? 2
-              : 1;
-          final childAspectRatio = columnCount == 3
-              ? 1.7
-              : columnCount == 2
-              ? 1.58
-              : constraints.maxWidth < 520
-              ? 1.44
-              : 1.82;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _commandCenterStatusStrip(
-                state: statusState,
-                headline: statusHeadline,
-                detail: statusDetail,
+              if (rosterSignalVisible) ...[
+                _guardRosterSignalBanner(),
+                const SizedBox(height: 10),
+              ],
+              _commandIntentBar(
+                activeIncident: activeIncident,
+                clientCommsSnapshot: clientCommsSnapshot,
               ),
-              const SizedBox(height: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, dashboardConstraints) {
+                  final stacked = dashboardConstraints.maxWidth < 1040;
+                  if (stacked) {
+                    return Column(
+                      children: [
+                        _commandCurrentFocusPanel(
+                          activeIncident: activeIncident,
+                          clientCommsSnapshot: clientCommsSnapshot,
+                          streamlined: true,
+                        ),
+                        const SizedBox(height: 12),
+                        _commandDecisionQueuePanel(
+                          items: decisionItems,
+                          streamlined: true,
+                        ),
+                        const SizedBox(height: 12),
+                        _commandQuickOpenPanel(modules: quickOpenModules),
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 8,
+                        child: _commandDecisionQueuePanel(
+                          items: decisionItems,
+                          streamlined: true,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 5,
+                        child: Column(
+                          children: [
+                            _commandCurrentFocusPanel(
+                              activeIncident: activeIncident,
+                              clientCommsSnapshot: clientCommsSnapshot,
+                              streamlined: true,
+                            ),
+                            const SizedBox(height: 12),
+                            _commandQuickOpenPanel(modules: quickOpenModules),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+              _commandMemoryPanel(ledger),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _commandIntentBar({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    bool compact = false,
+  }) {
+    final preview = _lastPlainLanguagePreview;
+    final rememberedReplayHistorySummary = _replayHistorySignalStack.isEmpty
+        ? _rememberedReplayHistorySummary.trim()
+        : '';
+    final previewStatusLines =
+        preview?.commandBrainStatusLines(
+          rememberedReplayHistorySummary: rememberedReplayHistorySummary,
+        ) ??
+        const <String>[];
+    final commandHint = preview == null
+        ? 'One move only. ONYX will do the next step.'
+        : preview.headline;
+    final commandDetail =
+        preview?.detailLine(
+          lastCommand: _lastPlainLanguageCommand,
+          emptyDetail:
+              'Try: "review cctv", "check guard route", "draft a client update", or "one next move".',
+          restoredDetail: 'Last command preview restored from command memory.',
+        ) ??
+        'Try: "review cctv", "check guard route", "draft a client update", or "one next move".';
+    return Container(
+      key: const ValueKey('live-operations-command-intent-bar'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _commandPanelAltColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _commandBorderStrongColor),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stacked = compact || constraints.maxWidth < 860;
+          final inputField = TextField(
+            key: const ValueKey('live-operations-command-input'),
+            controller: _commandPromptController,
+            textInputAction: TextInputAction.go,
+            onSubmitted: (_) => _submitPlainLanguageCommand(
+              activeIncident: activeIncident,
+              clientCommsSnapshot: clientCommsSnapshot,
+            ),
+            style: GoogleFonts.inter(
+              color: _commandTitleColor,
+              fontSize: 12.2,
+              fontWeight: FontWeight.w700,
+            ),
+            decoration: InputDecoration(
+              hintText:
+                  'Type the next move: "open dispatch", "draft a client update", "show CCTV".',
+              hintStyle: GoogleFonts.inter(
+                color: _commandMutedColor,
+                fontSize: 11.6,
+                fontWeight: FontWeight.w600,
+              ),
+              isDense: true,
+              filled: true,
+              fillColor: _commandPanelColor,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 13,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(color: _commandBorderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: const BorderSide(
+                  color: OnyxDesignTokens.cyanInteractive,
+                ),
+              ),
+            ),
+          );
+          final routeButton = FilledButton.tonalIcon(
+            key: const ValueKey('live-operations-command-submit'),
+            onPressed: () => _submitPlainLanguageCommand(
+              activeIncident: activeIncident,
+              clientCommsSnapshot: clientCommsSnapshot,
+            ),
+            icon: const Icon(Icons.keyboard_command_key_rounded, size: 14),
+            label: const Text('ROUTE COMMAND'),
+            style: FilledButton.styleFrom(
+              backgroundColor: OnyxDesignTokens.cyanSurface,
+              foregroundColor: OnyxDesignTokens.cyanInteractive,
+              side: const BorderSide(color: OnyxDesignTokens.cyanBorder),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              textStyle: GoogleFonts.inter(
+                fontSize: 10.6,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.28,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
-                    'CommandCenter',
-                    style: GoogleFonts.rajdhani(
-                      color: const Color(0xFFF7F9FC),
-                      fontSize: 25,
-                      fontWeight: FontWeight.w700,
-                      height: 0.96,
+                    'TELL ONYX',
+                    style: GoogleFonts.inter(
+                      color: OnyxDesignTokens.cyanInteractive,
+                      fontSize: 9.6,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.82,
                     ),
                   ),
-                  const SizedBox(height: 2),
                   Text(
-                    'Operational overview across all security services',
+                    commandHint,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9BA9B9),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
+                      color: _commandTitleColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              GridView.builder(
-                shrinkWrap: true,
-                itemCount: modules.length,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: columnCount,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: childAspectRatio,
+              const SizedBox(height: 4),
+              Text(
+                commandDetail,
+                style: GoogleFonts.inter(
+                  color: _commandBodyColor,
+                  fontSize: 10.2,
+                  fontWeight: FontWeight.w600,
                 ),
-                itemBuilder: (context, index) {
-                  return _commandCenterModuleCard(modules[index]);
-                },
               ),
-              const SizedBox(height: 14),
-              _commandCenterActivityPanel(items: activityItems),
+              const SizedBox(height: 10),
+              if (stacked) ...[
+                inputField,
+                const SizedBox(height: 10),
+                SizedBox(width: double.infinity, child: routeButton),
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: inputField),
+                    const SizedBox(width: 10),
+                    routeButton,
+                  ],
+                ),
+              if (preview != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  key: const ValueKey('live-operations-command-intent-preview'),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _commandPanelColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _commandBorderColor),
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        preview.eyebrow,
+                        style: GoogleFonts.inter(
+                          color: OnyxDesignTokens.cyanInteractive,
+                          fontSize: 9.1,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.74,
+                        ),
+                      ),
+                      Text(
+                        preview.label,
+                        style: GoogleFonts.inter(
+                          color: _commandTitleColor,
+                          fontSize: 11.2,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        preview.summary,
+                        style: GoogleFonts.inter(
+                          color: _commandBodyColor,
+                          fontSize: 10.3,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (previewStatusLines.isNotEmpty)
+                        Text(
+                          previewStatusLines.first,
+                          style: GoogleFonts.inter(
+                            color: OnyxDesignTokens.cyanInteractive,
+                            fontSize: 9.8,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      for (final statusLine in previewStatusLines.skip(1))
+                        Text(
+                          statusLine,
+                          style: GoogleFonts.inter(
+                            color: _commandMutedColor,
+                            fontSize: 9.8,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _commandCurrentFocusPanel({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    bool streamlined = false,
+  }) {
+    final rosterSignalHeadline = (widget.guardRosterSignalHeadline ?? '')
+        .trim();
+    final rosterSignalDetail = (widget.guardRosterSignalDetail ?? '').trim();
+    final rosterAttentionFocus =
+        activeIncident == null &&
+        widget.guardRosterSignalNeedsAttention &&
+        rosterSignalHeadline.isNotEmpty;
+    final rosterSignalLabel =
+        (widget.guardRosterSignalLabel ?? '').trim().isEmpty
+        ? 'ROSTER WATCH'
+        : widget.guardRosterSignalLabel!.trim();
+    final rosterAccent =
+        widget.guardRosterSignalAccent ?? OnyxDesignTokens.amberWarning;
+    final openClientLaneAction = clientCommsSnapshot == null
+        ? null
+        : _openClientLaneAction(
+            clientId: clientCommsSnapshot.clientId,
+            siteId: clientCommsSnapshot.siteId,
+          );
+    final scopeLabel = rosterAttentionFocus
+        ? rosterSignalLabel
+        : activeIncident == null
+        ? 'Board clear'
+        : _humanizeOpsScopeLabel(
+            activeIncident.siteId,
+            fallback: activeIncident.site,
+          );
+    final statusLabel = rosterAttentionFocus
+        ? 'AMBER'
+        : activeIncident == null
+        ? 'READY'
+        : _statusLabel(activeIncident.status).toUpperCase();
+    final detail = rosterAttentionFocus
+        ? (rosterSignalDetail.isEmpty
+              ? 'Open the planner and close the uncovered posts before the next handoff.'
+              : rosterSignalDetail)
+        : activeIncident == null
+        ? 'Board clear. Hold watch here until the next surfaced exception lands.'
+        : _commandIncidentDetail(
+            activeIncident,
+            critical: activeIncident.priority == _IncidentPriority.p1Critical,
+          );
+    final focusAccent = rosterAttentionFocus
+        ? rosterAccent
+        : activeIncident == null
+        ? OnyxDesignTokens.cyanInteractive
+        : _priorityStyle(activeIncident.priority).foreground;
+    final focusBackground = rosterAttentionFocus
+        ? Color.alphaBlend(
+            rosterAccent.withValues(alpha: 0.12),
+            _commandPanelColor,
+          )
+        : activeIncident == null
+        ? _commandPanelColor
+        : Color.alphaBlend(
+            focusAccent.withValues(alpha: 0.12),
+            _commandPanelColor,
+          );
+    final focusBackgroundHigh = rosterAttentionFocus
+        ? Color.alphaBlend(
+            rosterAccent.withValues(alpha: 0.24),
+            _commandPanelTintColor,
+          )
+        : activeIncident == null
+        ? _commandPanelTintColor
+        : Color.alphaBlend(
+            focusAccent.withValues(alpha: 0.24),
+            _commandPanelTintColor,
+          );
+    final focusBorder = rosterAttentionFocus
+        ? rosterAccent.withValues(alpha: 0.55)
+        : activeIncident == null
+        ? _commandBorderStrongColor
+        : focusAccent.withValues(alpha: 0.55);
+    final typedDecision = rosterAttentionFocus || activeIncident == null
+        ? null
+        : _commandDecisionForIncident(activeIncident, incidentDetail: detail);
+    final typedRecommendation = typedDecision?.toRecommendation();
+    final replayPriorityActive = typedDecision?.decisionBias != null;
+    final replayPolicyEscalationActive =
+        typedDecision?.decisionBias?.isPolicyEscalatedSequenceFallback ?? false;
+    final focusLead = rosterAttentionFocus
+        ? 'Coverage is slipping.'
+        : replayPriorityActive
+        ? replayPolicyEscalationActive
+              ? 'Honor the replay policy escalation first.'
+              : 'Clear replay risk first.'
+        : activeIncident == null
+        ? 'Board is clear.'
+        : activeIncident.priority == _IncidentPriority.p1Critical
+        ? 'Do this first.'
+        : 'Start here.';
+    final focusTone = rosterAttentionFocus
+        ? 'Roster gap'
+        : replayPriorityActive
+        ? replayPolicyEscalationActive
+              ? 'Policy escalation'
+              : 'Replay recovery'
+        : activeIncident == null
+        ? 'Hold watch'
+        : activeIncident.priority == _IncidentPriority.p1Critical
+        ? 'Immediate action'
+        : 'Next action';
+    final displayedRecommendation = typedRecommendation;
+    final recommendationSummary = rosterAttentionFocus
+        ? 'Open the planner now and fill the open posts before the next guard handoff.'
+        : activeIncident == null
+        ? 'Hold watch. Wait for the next incident.'
+        : displayedRecommendation != null
+        ? displayedRecommendation.summary
+        : activeIncident.priority == _IncidentPriority.p1Critical
+        ? 'Open the dispatch board and push the response forward now.'
+        : 'Open the dispatch board and confirm the next response step.';
+    final primaryActionLabel = rosterAttentionFocus
+        ? 'OPEN MONTH PLANNER'
+        : activeIncident == null
+        ? 'OPEN WAR ROOM'
+        : displayedRecommendation?.nextMoveLabel ?? 'OPEN DISPATCH BOARD';
+    final primaryActionAccent = rosterAttentionFocus
+        ? rosterAccent
+        : activeIncident == null
+        ? OnyxDesignTokens.redCritical
+        : displayedRecommendation == null
+        ? OnyxDesignTokens.redCritical
+        : _commandRecommendationAccent(displayedRecommendation.target);
+    final primaryActionIcon = rosterAttentionFocus
+        ? Icons.calendar_month_rounded
+        : activeIncident == null
+        ? Icons.open_in_full_rounded
+        : displayedRecommendation == null
+        ? Icons.warning_amber_rounded
+        : _commandRecommendationIcon(displayedRecommendation.target);
+    final rememberedReplayHistorySummary = _replayHistorySignalStack.isEmpty
+        ? _rememberedReplayHistorySummary.trim()
+        : '';
+    final commandBrainSnapshot = typedDecision?.toSnapshot();
+    final commandBrainLine = typedDecision == null
+        ? null
+        : OnyxCommandSurfaceMemoryAdapter.continuityViewForSnapshot(
+            commandBrainSnapshot!,
+            rememberedReplayHistorySummary: rememberedReplayHistorySummary,
+          ).commandBrainSummaryLine();
+    final replayHistoryLine = _commandReplayHistoryLine();
+    return Container(
+      key: const ValueKey('live-operations-command-current-focus'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [focusBackgroundHigh, focusBackground],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: focusBorder),
+        boxShadow: [
+          BoxShadow(
+            color: focusAccent.withValues(
+              alpha: activeIncident == null ? 0.08 : 0.16,
+            ),
+            blurRadius: 22,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: rosterAttentionFocus
+                      ? focusAccent
+                      : activeIncident == null
+                      ? focusAccent.withValues(alpha: 0.16)
+                      : focusAccent,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: rosterAttentionFocus
+                        ? focusAccent.withValues(alpha: 0.86)
+                        : activeIncident == null
+                        ? focusAccent.withValues(alpha: 0.38)
+                        : focusAccent.withValues(alpha: 0.86),
+                  ),
+                ),
+                child: Text(
+                  rosterAttentionFocus
+                      ? 'DO THIS FIRST'
+                      : activeIncident == null
+                      ? 'READY'
+                      : 'DO THIS FIRST',
+                  style: GoogleFonts.inter(
+                    color: rosterAttentionFocus
+                        ? OnyxDesignTokens.backgroundPrimary
+                        : activeIncident == null
+                        ? focusAccent
+                        : OnyxDesignTokens.textPrimary,
+                    fontSize: 9.2,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+              ),
+              if (!streamlined)
+                Text(
+                  'CURRENT FOCUS',
+                  style: GoogleFonts.inter(
+                    color: _commandTitleColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+            ],
+          ),
+          if (!streamlined) ...[
+            const SizedBox(height: 4),
+            Text(
+              focusLead,
+              style: GoogleFonts.inter(
+                color: focusAccent,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+                height: 0.95,
+              ),
+            ),
+            const SizedBox(height: 2),
+          ] else
+            const SizedBox(height: 8),
+          Text(
+            rosterAttentionFocus
+                ? rosterSignalHeadline
+                : activeIncident == null
+                ? 'No incident in focus.'
+                : '${activeIncident.id} • ${activeIncident.type}',
+            style: GoogleFonts.inter(
+              color: _commandTitleColor,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              height: 0.96,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _chip(
+                label: statusLabel,
+                foreground: rosterAttentionFocus
+                    ? focusAccent
+                    : activeIncident == null
+                    ? OnyxDesignTokens.textMuted
+                    : focusAccent,
+                background: rosterAttentionFocus
+                    ? focusAccent.withValues(alpha: 0.14)
+                    : activeIncident == null
+                    ? _commandPanelTintColor
+                    : focusAccent.withValues(alpha: 0.14),
+                border: rosterAttentionFocus
+                    ? focusAccent.withValues(alpha: 0.35)
+                    : activeIncident == null
+                    ? _commandBorderColor
+                    : focusAccent.withValues(alpha: 0.35),
+              ),
+              _chip(
+                label: focusTone,
+                foreground: _commandTitleColor,
+                background: _commandPanelTintColor,
+                border: _commandBorderColor,
+                leadingIcon: Icons.bolt_rounded,
+              ),
+              _chip(
+                label: scopeLabel,
+                foreground: OnyxDesignTokens.textSecondary,
+                background: _commandPanelTintColor,
+                border: _commandBorderColor,
+                leadingIcon: Icons.place_outlined,
+              ),
+            ],
+          ),
+          SizedBox(height: streamlined ? 10 : 12),
+          Text(
+            streamlined ? 'NEXT MOVE' : 'RECOMMENDED NEXT MOVE',
+            style: GoogleFonts.inter(
+              color: focusAccent.withValues(alpha: 0.96),
+              fontSize: 9.1,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.72,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            recommendationSummary,
+            style: GoogleFonts.inter(
+              color: _commandTitleColor,
+              fontSize: 12.2,
+              fontWeight: FontWeight.w800,
+              height: 1.25,
+            ),
+          ),
+          if (commandBrainLine != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              commandBrainLine,
+              style: GoogleFonts.inter(
+                color: OnyxDesignTokens.cyanInteractive,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+          if (replayHistoryLine != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              replayHistoryLine,
+              key: const ValueKey('live-operations-command-replay-history'),
+              style: GoogleFonts.inter(
+                color: OnyxDesignTokens.textSecondary,
+                fontSize: 10.2,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
+              ),
+            ),
+          ],
+          if (!streamlined) ...[
+            const SizedBox(height: 6),
+            Text(
+              displayedRecommendation?.detail ?? detail,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: _commandBodyColor,
+                fontSize: 10.3,
+                fontWeight: FontWeight.w600,
+                height: 1.3,
+              ),
+            ),
+          ],
+          SizedBox(height: streamlined ? 10 : 12),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.tonalIcon(
+              key: const ValueKey('live-operations-command-open-board'),
+              onPressed: rosterAttentionFocus
+                  ? _openRosterPlannerFromCommand
+                  : activeIncident == null
+                  ? () {
+                      setState(() {
+                        _showDetailedWorkspace = true;
+                      });
+                    }
+                  : () async {
+                      if (typedDecision != null) {
+                        await _executeTypedCommandDecision(
+                          incident: activeIncident,
+                          decision: typedDecision,
+                          clientCommsSnapshot: clientCommsSnapshot,
+                        );
+                        return;
+                      }
+                      await _openCommandAlarmBoard(activeIncident);
+                    },
+              icon: Icon(primaryActionIcon, size: 16),
+              label: Text(primaryActionLabel),
+              style: FilledButton.styleFrom(
+                backgroundColor: rosterAttentionFocus
+                    ? rosterAccent.withValues(alpha: 0.18)
+                    : activeIncident == null
+                    ? OnyxDesignTokens.redSurface
+                    : primaryActionAccent.withValues(
+                        alpha:
+                            primaryActionAccent == OnyxDesignTokens.redCritical
+                            ? 1
+                            : 0.94,
+                      ),
+                foregroundColor: rosterAttentionFocus
+                    ? rosterAccent
+                    : activeIncident == null
+                    ? OnyxDesignTokens.redCritical
+                    : primaryActionAccent.computeLuminance() > 0.55
+                    ? OnyxDesignTokens.backgroundPrimary
+                    : OnyxDesignTokens.textPrimary,
+                side: BorderSide(
+                  color: rosterAttentionFocus
+                      ? rosterAccent.withValues(alpha: 0.52)
+                      : activeIncident == null
+                      ? OnyxDesignTokens.redBorder
+                      : primaryActionAccent.withValues(alpha: 0.62),
+                ),
+                minimumSize: const Size.fromHeight(48),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                textStyle: GoogleFonts.inter(
+                  fontSize: 11.8,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.35,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+          if ((activeIncident != null &&
+                  widget.onOpenAgentForIncident != null) ||
+              openClientLaneAction != null) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (activeIncident != null &&
+                    widget.onOpenAgentForIncident != null)
+                  FilledButton.tonalIcon(
+                    key: const ValueKey('live-operations-command-open-agent'),
+                    onPressed: () => _openAgentFromWarRoom(activeIncident.id),
+                    icon: const Icon(Icons.psychology_alt_rounded, size: 14),
+                    label: const Text('Ask Agent'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: OnyxDesignTokens.purpleSurface,
+                      foregroundColor: OnyxDesignTokens.purpleAdmin,
+                      side: const BorderSide(
+                        color: OnyxDesignTokens.purpleBorder,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 10.2,
+                        fontWeight: FontWeight.w800,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                if (openClientLaneAction != null)
+                  FilledButton.tonalIcon(
+                    key: const ValueKey(
+                      'live-operations-command-open-client-lane',
+                    ),
+                    onPressed: openClientLaneAction,
+                    icon: const Icon(Icons.mark_chat_read_rounded, size: 14),
+                    label: const Text('OPEN CLIENT COMMS'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: OnyxDesignTokens.cyanSurface,
+                      foregroundColor: OnyxDesignTokens.cyanInteractive,
+                      side: const BorderSide(
+                        color: OnyxDesignTokens.cyanBorder,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 10.0,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _commandQuickOpenPanel({
+    required List<_CommandCenterModule> modules,
+    bool compact = false,
+  }) {
+    return Container(
+      key: const ValueKey('live-operations-command-quick-open'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _commandPanelColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _commandBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'JUMP TO',
+            style: GoogleFonts.inter(
+              color: _commandTitleColor,
+              fontSize: 13.8,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Use only if the next move is wrong.',
+            style: GoogleFonts.inter(
+              color: _commandBodyColor,
+              fontSize: 9.8,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 10),
+          GridView.builder(
+            shrinkWrap: true,
+            itemCount: modules.length,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: compact ? 2.6 : 3.1,
+            ),
+            itemBuilder: (context, index) {
+              final module = modules[index];
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  key: ValueKey(
+                    'live-operations-quick-open-${module.label.toLowerCase().replaceAll(' ', '-')}',
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: module.onTap == null
+                      ? null
+                      : () async {
+                          await module.onTap!.call();
+                        },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color.alphaBlend(
+                            module.accent.withValues(alpha: 0.18),
+                            module.surface,
+                          ),
+                          module.surface,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: module.border),
+                      boxShadow: [
+                        BoxShadow(
+                          color: module.accent.withValues(alpha: 0.12),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            color: module.accent.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: module.accent.withValues(alpha: 0.36),
+                            ),
+                          ),
+                          child: Icon(
+                            module.icon,
+                            size: 14,
+                            color: module.accent,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            module.label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: _commandTitleColor,
+                              fontSize: 10.6,
+                              fontWeight: FontWeight.w900,
+                              height: 1.08,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          module.countLabel,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: module.accent,
+                            fontSize: compact ? 15 : 18,
+                            fontWeight: FontWeight.w900,
+                            height: compact ? 1 : 0.92,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          if (!compact) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Fast jumps only. Everything else lives in the queue or board.',
+              style: GoogleFonts.inter(
+                color: _commandMutedColor,
+                fontSize: 8.9,
+                fontWeight: FontWeight.w700,
+                height: 1.2,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -2012,7 +4182,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
     final pendingMessageCount = pendingDraftCount + liveAskCount;
     final clientLaneAction = clientCommsSnapshot == null
-        ? null
+        ? widget.onOpenClientView
         : _openClientLaneAction(
             clientId: clientCommsSnapshot.clientId,
             siteId: clientCommsSnapshot.siteId,
@@ -2025,36 +4195,45 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         metricLabel: 'ACTIVE ALARMS',
         icon: Icons.warning_amber_rounded,
         accent: unresolvedIncidents.isNotEmpty
-            ? const Color(0xFFFF7C7C)
-            : const Color(0xFF7A8CA2),
+            ? OnyxDesignTokens.redCritical
+            : OnyxDesignTokens.textMuted,
         surface: unresolvedIncidents.isNotEmpty
-            ? const Color(0xFF421619)
-            : const Color(0xFF111821),
+            ? OnyxDesignTokens.redSurface
+            : _commandPanelTintColor,
         border: unresolvedIncidents.isNotEmpty
-            ? const Color(0xFF813035)
-            : const Color(0xFF22303E),
-        onTap: unresolvedIncidents.isEmpty
-            ? null
-            : () async {
-                _focusLeadIncident();
-                if (!_showDetailedWorkspace) {
-                  setState(() {
-                    _showDetailedWorkspace = true;
-                  });
-                }
-              },
+            ? OnyxDesignTokens.redBorder
+            : _commandBorderColor,
+        onTap: () async {
+          if (widget.onOpenAlarms != null) {
+            widget.onOpenAlarms!.call();
+            return;
+          }
+          if (unresolvedIncidents.isEmpty) {
+            return;
+          }
+          _focusLeadIncident();
+          if (!_showDetailedWorkspace) {
+            setState(() {
+              _showDetailedWorkspace = true;
+            });
+          }
+        },
       ),
       _CommandCenterModule(
         label: 'GUARDS',
         countLabel: '$onDutyCount',
         metricLabel: onDutyCount == 0
             ? 'NO GUARDS ON DUTY'
-            : 'ON DUTY (${onDutyCount} TOTAL)',
+            : 'ON DUTY ($onDutyCount TOTAL)',
         icon: Icons.groups_2_rounded,
-        accent: const Color(0xFF5BE2A3),
-        surface: const Color(0xFF0D241E),
-        border: const Color(0xFF205540),
+        accent: OnyxDesignTokens.greenNominal,
+        surface: OnyxDesignTokens.greenSurface,
+        border: OnyxDesignTokens.greenBorder,
         onTap: () async {
+          if (widget.onOpenGuards != null) {
+            widget.onOpenGuards!.call();
+            return;
+          }
           if (!_showDetailedWorkspace) {
             setState(() {
               _showDetailedWorkspace = true;
@@ -2070,15 +4249,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         metricLabel: 'AI ALERTS',
         icon: Icons.videocam_outlined,
         accent: visualAlertCount > 0
-            ? const Color(0xFFFFC533)
-            : const Color(0xFF7A8CA2),
+            ? OnyxDesignTokens.amberWarning
+            : OnyxDesignTokens.textMuted,
         surface: visualAlertCount > 0
-            ? const Color(0xFF3A2414)
-            : const Color(0xFF111821),
+            ? OnyxDesignTokens.amberSurface
+            : _commandPanelTintColor,
         border: visualAlertCount > 0
-            ? const Color(0xFF8C5A1D)
-            : const Color(0xFF22303E),
+            ? OnyxDesignTokens.amberBorder
+            : _commandBorderColor,
         onTap: () async {
+          if (widget.onOpenCctv != null) {
+            widget.onOpenCctv!.call();
+            return;
+          }
           if (_activeTab != _ContextTab.visual || !_showDetailedWorkspace) {
             setState(() {
               _activeTab = _ContextTab.visual;
@@ -2094,16 +4277,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         countLabel: '0',
         metricLabel: 'ACTIVE CONVOYS',
         icon: Icons.shield_outlined,
-        accent: const Color(0xFF5BE2A3),
-        surface: const Color(0xFF0F211C),
-        border: const Color(0xFF214A3B),
+        accent: OnyxDesignTokens.greenNominal,
+        surface: OnyxDesignTokens.greenSurface,
+        border: OnyxDesignTokens.greenBorder,
         onTap: () async {
+          if (widget.onOpenVipProtection != null) {
+            widget.onOpenVipProtection!.call();
+            return;
+          }
           _showLiveOpsFeedback(
             'No active VIP details right now.',
             label: 'VIP',
             detail:
                 'VIP protection stays quiet until a convoy or close-protection detail becomes active.',
-            accent: const Color(0xFF34D399),
+            accent: OnyxDesignTokens.greenNominal,
           );
         },
       ),
@@ -2112,16 +4299,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         countLabel: '0',
         metricLabel: 'THREAT LEVEL: LOW',
         icon: Icons.trending_up_rounded,
-        accent: const Color(0xFF5BE2A3),
-        surface: const Color(0xFF0F211C),
-        border: const Color(0xFF214A3B),
+        accent: OnyxDesignTokens.greenNominal,
+        surface: OnyxDesignTokens.greenSurface,
+        border: OnyxDesignTokens.greenBorder,
         onTap: () async {
+          if (widget.onOpenRiskIntel != null) {
+            widget.onOpenRiskIntel!.call();
+            return;
+          }
           _showLiveOpsFeedback(
             'Threat posture remains low.',
             label: 'INTEL',
             detail:
                 'No elevated risk signal is asking for controller action right now.',
-            accent: const Color(0xFF34D399),
+            accent: OnyxDesignTokens.greenNominal,
           );
         },
       ),
@@ -2131,14 +4322,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         metricLabel: 'PENDING MESSAGES',
         icon: Icons.chat_bubble_outline_rounded,
         accent: pendingMessageCount > 0
-            ? const Color(0xFFFF7C7C)
-            : const Color(0xFF7A8CA2),
+            ? OnyxDesignTokens.redCritical
+            : OnyxDesignTokens.textMuted,
         surface: pendingMessageCount > 0
-            ? const Color(0xFF3A1317)
-            : const Color(0xFF111821),
+            ? OnyxDesignTokens.redSurface
+            : _commandPanelTintColor,
         border: pendingMessageCount > 0
-            ? const Color(0xFF7B2B31)
-            : const Color(0xFF22303E),
+            ? OnyxDesignTokens.redBorder
+            : _commandBorderColor,
         onTap: () async {
           if (clientLaneAction != null) {
             clientLaneAction();
@@ -2156,379 +4347,77 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     ];
   }
 
-  Widget _commandCenterModuleCard(
-    _CommandCenterModule module, {
-    bool compact = false,
-  }) {
-    final content = LayoutBuilder(
-      builder: (context, constraints) {
-        final compressed =
-            compact || constraints.maxHeight < 170 || constraints.maxWidth < 280;
-        final padding = compressed ? 12.0 : 18.0;
-        final iconBox = compressed ? 38.0 : 48.0;
-        final countSize = compressed ? 34.0 : 52.0;
-        final metricSize = compressed ? 9.2 : 11.2;
-        final labelSize = compressed ? 14.0 : 20.0;
-        final spacing = compressed ? 8.0 : 18.0;
-
-        return Container(
-          key: ValueKey(
-            'live-operations-command-module-${module.label.toLowerCase().replaceAll(' ', '-')}',
-          ),
-          padding: EdgeInsets.all(padding),
-          decoration: BoxDecoration(
-            color: module.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: module.border, width: 1.15),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x18000000),
-                blurRadius: 20,
-                spreadRadius: 1,
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: iconBox,
-                    height: iconBox,
-                    decoration: BoxDecoration(
-                      color: module.accent.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: module.accent.withValues(alpha: 0.22),
-                      ),
-                    ),
-                    child: Icon(
-                      module.icon,
-                      color: module.accent,
-                      size: compressed ? 18 : 22,
-                    ),
-                  ),
-                  const Spacer(),
-                  Container(
-                    width: compressed ? 8 : 10,
-                    height: compressed ? 8 : 10,
-                    decoration: BoxDecoration(
-                      color: module.accent,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: spacing),
-              Text(
-                module.countLabel,
-                style: GoogleFonts.rajdhani(
-                  color: module.accent,
-                  fontSize: countSize,
-                  fontWeight: FontWeight.w800,
-                  height: 0.88,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                module.metricLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: const Color(0x9FE6EEF7),
-                  fontSize: metricSize,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.35,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                width: double.infinity,
-                height: 1,
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
-              SizedBox(height: compressed ? 8 : 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      module.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFF7F9FC),
-                        fontSize: labelSize,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    color: Colors.white.withValues(alpha: 0.52),
-                    size: compressed ? 18 : 22,
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-
-    if (module.onTap == null) {
-      return content;
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () async {
-          await module.onTap!.call();
-        },
-        child: content,
-      ),
-    );
+  List<_CommandCenterModule> _quickOpenModules(
+    List<_CommandCenterModule> modules,
+  ) {
+    const quickOpenLabels = <String>{'ALARMS', 'GUARDS', 'CLIENT COMMS'};
+    final videoOpsLabel = widget.videoOpsLabel.toUpperCase();
+    return modules
+        .where((module) {
+          return quickOpenLabels.contains(module.label) ||
+              module.label == videoOpsLabel;
+        })
+        .toList(growable: false);
   }
 
-  List<_CommandCenterActivityItem> _commandCenterActivityItems({
-    required _IncidentRecord? activeIncident,
-    required LiveClientCommsSnapshot? clientCommsSnapshot,
-    required LiveControlInboxSnapshot? controlInboxSnapshot,
-    required List<_LedgerEntry> ledger,
-  }) {
-    final items = <_CommandCenterActivityItem>[];
-    final seenIncidentIds = <String>{};
-    final incidentCandidates = <_IncidentRecord>[
-      if (activeIncident != null) activeIncident,
-      ..._incidents.where(
-        (incident) =>
-            activeIncident == null || incident.id != activeIncident.id,
-      ),
-    ];
-
-    for (final incident in incidentCandidates.take(2)) {
-      if (!seenIncidentIds.add(incident.id)) {
-        continue;
-      }
-      final priority = _priorityStyle(incident.priority);
-      final scopeLabel = _humanizeOpsScopeLabel(
-        incident.siteId,
-        fallback: incident.site,
-      );
-      items.add(
-        _CommandCenterActivityItem(
-          label: priority.label,
-          title: '${incident.type} • $scopeLabel',
-          detail:
-              '${_statusLabel(incident.status)} incident still attached to command.',
-          timeLabel: incident.timestamp,
-          icon: priority.icon,
-          accent: priority.foreground,
-        ),
-      );
+  Widget _guardRosterSignalBanner({bool compact = false}) {
+    final headline = (widget.guardRosterSignalHeadline ?? '').trim();
+    if (headline.isEmpty) {
+      return const SizedBox.shrink();
     }
-
-    final liveClientAsk =
-        controlInboxSnapshot == null ||
-            controlInboxSnapshot.liveClientAsks.isEmpty
-        ? null
-        : controlInboxSnapshot.liveClientAsks.first;
-    if (liveClientAsk != null) {
-      final scopeLabel = _humanizeOpsScopeLabel(
-        liveClientAsk.siteId,
-        fallback: liveClientAsk.siteId,
-      );
-      items.add(
-        _CommandCenterActivityItem(
-          label: 'COMMS',
-          title: 'Client asked for a live update • $scopeLabel',
-          detail:
-              '${liveClientAsk.author} is waiting for a controller response in the client lane.',
-          timeLabel: _hhmm(liveClientAsk.occurredAtUtc.toLocal()),
-          icon: Icons.mark_chat_unread_rounded,
-          accent: const Color(0xFF22D3EE),
-        ),
-      );
-    } else {
-      final pendingDrafts = controlInboxSnapshot == null
-          ? const <LiveControlInboxDraft>[]
-          : _sortedControlInboxDrafts(controlInboxSnapshot.pendingDrafts);
-      if (pendingDrafts.isNotEmpty) {
-        final draft = pendingDrafts.first;
-        final scopeLabel = _humanizeOpsScopeLabel(
-          draft.siteId,
-          fallback: draft.siteId,
-        );
-        items.add(
-          _CommandCenterActivityItem(
-            label: 'COMMS',
-            title: 'Client reply waiting for approval • $scopeLabel',
-            detail:
-                '${draft.providerLabel} shaped a reply and left it waiting for controller approval.',
-            timeLabel: _hhmm(draft.createdAtUtc.toLocal()),
-            icon: Icons.edit_note_rounded,
-            accent: const Color(0xFFF59E0B),
-          ),
-        );
-      } else if (clientCommsSnapshot != null &&
-          (clientCommsSnapshot.latestClientMessage ?? '').trim().isNotEmpty) {
-        items.add(
-          _CommandCenterActivityItem(
-            label: 'LANE',
-            title: 'Latest client lane activity',
-            detail:
-                'The newest client message is pinned inside Client Comms for follow-up.',
-            timeLabel: _commsMomentLabel(
-              clientCommsSnapshot.latestClientMessageAtUtc,
-            ),
-            icon: Icons.forum_rounded,
-            accent: _clientCommsAccent(clientCommsSnapshot),
-          ),
-        );
-      }
-    }
-
-    for (final entry in ledger.take(4)) {
-      final style = _ledgerStyle(entry.type);
-      items.add(
-        _CommandCenterActivityItem(
-          label: _ledgerTypeLabel(entry.type),
-          title: entry.description,
-          detail: (entry.actor ?? 'ONYX').trim(),
-          timeLabel: _hhmm(entry.timestamp.toLocal()),
-          icon: style.icon,
-          accent: style.color,
-        ),
-      );
-    }
-
-    return items.take(5).toList(growable: false);
-  }
-
-  Widget _commandCenterActivityPanel({
-    required List<_CommandCenterActivityItem> items,
-    bool compact = false,
-  }) {
+    final accent =
+        widget.guardRosterSignalAccent ?? OnyxDesignTokens.amberWarning;
+    final label = (widget.guardRosterSignalLabel ?? '').trim().isEmpty
+        ? 'ROSTER WATCH'
+        : widget.guardRosterSignalLabel!.trim();
+    final detail = (widget.guardRosterSignalDetail ?? '').trim();
+    final urgent = widget.guardRosterSignalNeedsAttention;
     return Container(
-      key: const ValueKey('live-operations-command-recent-activity'),
-      width: double.infinity,
-      padding: EdgeInsets.all(compact ? 10 : 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B1016),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF1D2834)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: compact ? 28 : 30,
-                height: compact ? 28 : 30,
-                decoration: BoxDecoration(
-                  color: const Color(0x1422D3EE),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: const Color(0x3322D3EE)),
-                ),
-                child: const Icon(
-                  Icons.schedule_rounded,
-                  size: 16,
-                  color: Color(0xFF5BC8FF),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'RECENT ACTIVITY',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFF7F9FC),
-                        fontSize: compact ? 15 : 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Live event stream across all services',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF8FA0B2),
-                        fontSize: compact ? 10.4 : 11.2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (items.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF101821),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF23303D)),
-              ),
-              child: Text(
-                'No recent shift activity is waiting here. ONYX will surface new events as soon as they matter.',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFD7E6F4),
-                  fontSize: 11.2,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                ),
-              ),
-            )
-          else
-            Column(
-              children: [
-                for (var index = 0; index < items.length; index++) ...[
-                  _commandCenterActivityRow(items[index], compact: compact),
-                  if (index != items.length - 1) const SizedBox(height: 8),
-                ],
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _commandCenterActivityRow(
-    _CommandCenterActivityItem item, {
-    bool compact = false,
-  }) {
-    return Container(
+      key: const ValueKey('live-operations-roster-signal-banner'),
       width: double.infinity,
       padding: EdgeInsets.symmetric(
         horizontal: compact ? 10 : 12,
-        vertical: compact ? 10 : 12,
+        vertical: compact ? 8 : 9,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF111821),
+        gradient: LinearGradient(
+          colors: [
+            Color.alphaBlend(
+              accent.withValues(alpha: urgent ? 0.24 : 0.18),
+              _commandPanelColor,
+            ),
+            Color.alphaBlend(
+              accent.withValues(alpha: urgent ? 0.1 : 0.06),
+              _commandPanelTintColor,
+            ),
+          ],
+        ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF22303E)),
+        border: Border.all(color: accent.withValues(alpha: 0.78)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: urgent ? 0.22 : 0.14),
+            blurRadius: urgent ? 18 : 12,
+            spreadRadius: urgent ? 1 : 0,
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: compact ? 32 : 36,
-            height: compact ? 32 : 36,
+            width: compact ? 30 : 34,
+            height: compact ? 30 : 34,
             decoration: BoxDecoration(
-              color: item.accent.withValues(alpha: 0.14),
-              borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: item.accent.withValues(alpha: 0.2)),
+              color: accent.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: accent.withValues(alpha: 0.5)),
             ),
-            child: Icon(item.icon, color: item.accent, size: compact ? 16 : 18),
+            child: Icon(
+              urgent ? Icons.event_busy_rounded : Icons.event_available_rounded,
+              size: compact ? 17 : 19,
+              color: accent,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -2540,167 +4429,65 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   runSpacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: compact ? 13 : 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.32,
+                      ),
+                    ),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                        horizontal: 7,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: item.accent.withValues(alpha: 0.14),
+                        color: accent.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: item.accent.withValues(alpha: 0.2),
+                          color: accent.withValues(alpha: 0.42),
                         ),
                       ),
                       child: Text(
-                        item.label,
+                        urgent ? 'ACT NOW' : 'WATCH READY',
                         style: GoogleFonts.inter(
-                          color: item.accent,
-                          fontSize: compact ? 8.4 : 8.8,
+                          color: _commandTitleColor,
+                          fontSize: 9.2,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
                         ),
-                      ),
-                    ),
-                    Text(
-                      item.timeLabel,
-                      style: GoogleFonts.robotoMono(
-                        color: const Color(0xFF95A9BF),
-                        fontSize: compact ? 9 : 9.4,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 3),
                 Text(
-                  item.title,
+                  headline,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFF7F9FC),
-                    fontSize: compact ? 11.8 : 12.8,
+                    color: _commandTitleColor,
+                    fontSize: compact ? 12.2 : 12.8,
                     fontWeight: FontWeight.w800,
-                    height: 1.15,
+                    height: 1.16,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  item.detail,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF9BA9B9),
-                    fontSize: compact ? 10.2 : 10.8,
-                    fontWeight: FontWeight.w600,
-                    height: 1.32,
+                if (detail.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    detail,
+                    maxLines: compact ? 2 : 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: _commandBodyColor,
+                      fontSize: compact ? 10.1 : 10.6,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _commandCenterStatusStrip({
-    required _CommandCenterModuleState state,
-    required String headline,
-    required String detail,
-  }) {
-    final (start, end, border, text) = switch (state) {
-      _CommandCenterModuleState.critical => (
-        const Color(0xFF401012),
-        const Color(0xFF5B1618),
-        const Color(0x66EF4444),
-        const Color(0xFFFFD7D7),
-      ),
-      _CommandCenterModuleState.watch => (
-        const Color(0xFF34240C),
-        const Color(0xFF453012),
-        const Color(0x66F59E0B),
-        const Color(0xFFFFEDC7),
-      ),
-      _CommandCenterModuleState.nominal => (
-        const Color(0xFF0F2C25),
-        const Color(0xFF12382E),
-        const Color(0x6610B981),
-        const Color(0xFFD7FFF0),
-      ),
-    };
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [start, end],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: border),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final timeLabel = _hhmm(DateTime.now().toLocal());
-          final stacked = constraints.maxWidth < 780;
-          final titleRow = Row(
-            children: [
-              Icon(
-                state == _CommandCenterModuleState.nominal
-                    ? Icons.check_circle_rounded
-                    : Icons.warning_amber_rounded,
-                size: 18,
-                color: text,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  headline,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: text,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-            ],
-          );
-
-          if (stacked) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleRow,
-                const SizedBox(height: 4),
-                Text(
-                  timeLabel,
-                  style: GoogleFonts.robotoMono(
-                    color: text.withValues(alpha: 0.84),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            );
-          }
-
-          return Row(
-            children: [
-              Expanded(child: titleRow),
-              const SizedBox(width: 12),
-              Text(
-                timeLabel,
-                style: GoogleFonts.robotoMono(
-                  color: text.withValues(alpha: 0.84),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          );
-        },
       ),
     );
   }
@@ -2710,85 +4497,54 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required int count,
     required _CommandDecisionSeverity severity,
   }) {
-    final (accent, surface, border, _) = _commandDecisionTone(severity);
-    final foreground = count > 0 ? accent : const Color(0xFF8FA2B8);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: count > 0 ? surface : const Color(0xFF0E1620),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: count > 0 ? border : const Color(0xFF263344)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '$count',
-            style: GoogleFonts.rajdhani(
-              color: foreground,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFD7E6F4),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
+    final (accent, surface, _, _) = _commandDecisionTone(severity);
+    final foreground = count > 0 ? accent : _commandMutedColor;
+    final activeSurface = Color.alphaBlend(
+      Colors.white.withValues(alpha: 0.54),
+      Color.alphaBlend(accent.withValues(alpha: 0.14), surface),
     );
-  }
-
-  Widget _commandDecisionSummaryCard({
-    required String label,
-    required int count,
-    required String caption,
-    required _CommandDecisionSeverity severity,
-  }) {
-    final (accent, surface, border, text) = _commandDecisionTone(severity);
-    final foreground = count > 0 ? accent : const Color(0xFF8FA2B8);
     return Container(
-      constraints: const BoxConstraints(minWidth: 180, maxWidth: 240),
-      padding: const EdgeInsets.all(12),
+      constraints: const BoxConstraints(minWidth: 82),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: count > 0 ? surface : const Color(0xFF0D141C),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: count > 0 ? border : const Color(0xFF24303D)),
+        color: count > 0 ? activeSurface : _commandPanelTintColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: count > 0
+              ? accent.withValues(alpha: 0.42)
+              : _commandBorderColor,
+        ),
+        boxShadow: count > 0
+            ? [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label.toUpperCase(),
-            style: GoogleFonts.inter(
-              color: text,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.6,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
             '$count',
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: foreground,
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-              height: 0.9,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              height: 0.96,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Text(
-            caption,
+            label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF97A9BA),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
+              color: count > 0 ? _commandTitleColor : _commandMutedColor,
+              fontSize: 8.8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.28,
             ),
           ),
         ],
@@ -2798,183 +4554,470 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Widget _commandDecisionQueuePanel({
     required List<_CommandDecisionItem> items,
+    bool streamlined = false,
   }) {
-    return Container(
-      key: const ValueKey('live-operations-command-queue'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF21262D)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    const maxVisibleItems = 3;
+    final visibleItems = items.take(maxVisibleItems).toList(growable: true);
+    if (items.length > maxVisibleItems &&
+        visibleItems.every((item) => !item.isClientComms)) {
+      final firstClientCommsIndex = items.indexWhere(
+        (item) => item.isClientComms,
+      );
+      if (firstClientCommsIndex >= maxVisibleItems) {
+        visibleItems[maxVisibleItems - 1] = items[firstClientCommsIndex];
+      }
+    }
+    final hiddenCount = items.length - visibleItems.length;
+    final criticalCount = items
+        .where((item) => item.severity == _CommandDecisionSeverity.critical)
+        .length;
+    final actionRequiredCount = items
+        .where(
+          (item) => item.severity == _CommandDecisionSeverity.actionRequired,
+        )
+        .length;
+    final watchCount = items
+        .where((item) => item.severity == _CommandDecisionSeverity.review)
+        .length;
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!streamlined) ...[
           Text(
-            'Command Queue',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFF8FBFF),
-              fontSize: 18,
+            'QUEUE',
+            style: GoogleFonts.inter(
+              color: _commandTitleColor,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 2),
           Text(
-            'Critical, action required, and review items only. Everything else stays quiet until it needs a decision.',
+            'Pick one.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9BA9B9),
-              fontSize: 10.8,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
+              color: _commandBodyColor,
+              fontSize: 10.4,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
             ),
           ),
           const SizedBox(height: 10),
-          if (items.isEmpty)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F1821),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF243242)),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _commandDecisionMiniChip(
+                label: 'RED',
+                count: criticalCount,
+                severity: _CommandDecisionSeverity.critical,
               ),
-              child: Text(
-                'Nothing urgent is waiting on command. Review the clean record and stay ready for the next surfaced exception.',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFD7E6F4),
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                ),
+              _commandDecisionMiniChip(
+                label: 'ACT',
+                count: actionRequiredCount,
+                severity: _CommandDecisionSeverity.actionRequired,
               ),
-            )
-          else
-            Column(
-              children: [
-                for (var index = 0; index < items.length; index++) ...[
-                  _commandDecisionCard(items[index], featured: index == 0),
-                  if (index != items.length - 1) const SizedBox(height: 8),
-                ],
-              ],
-            ),
+              _commandDecisionMiniChip(
+                label: 'WATCH',
+                count: watchCount,
+                severity: _CommandDecisionSeverity.review,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
         ],
+        if (items.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: OnyxDesignTokens.greenSurface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: OnyxDesignTokens.greenBorder),
+            ),
+            child: Text(
+              'Queue clear. Hold watch.',
+              style: GoogleFonts.inter(
+                color: OnyxDesignTokens.greenNominal,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          )
+        else
+          Column(
+            children: [
+              for (var index = 0; index < visibleItems.length; index++) ...[
+                _commandDecisionCard(visibleItems[index], priorityRank: index),
+                if (index != visibleItems.length - 1) const SizedBox(height: 8),
+              ],
+              if (hiddenCount > 0) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _commandPanelTintColor,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _commandBorderColor),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '$hiddenCount more in full queue.',
+                          style: GoogleFonts.inter(
+                            color: _commandBodyColor,
+                            fontSize: 10.8,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        key: const ValueKey(
+                          'live-operations-command-open-full-queue',
+                        ),
+                        onPressed: () async {
+                          await _openIncidentQueueQueueFocus();
+                        },
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: OnyxDesignTokens.cyanInteractive,
+                          side: const BorderSide(
+                            color: _commandBorderStrongColor,
+                          ),
+                          backgroundColor: _commandPanelColor,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          textStyle: GoogleFonts.inter(
+                            fontSize: 9.8,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        icon: const Icon(Icons.queue_rounded, size: 14),
+                        label: const Text('OPEN FULL QUEUE'),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+      ],
+    );
+
+    if (streamlined) {
+      return KeyedSubtree(
+        key: const ValueKey('live-operations-command-queue'),
+        child: content,
+      );
+    }
+
+    return Container(
+      key: const ValueKey('live-operations-command-queue'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: _commandPanelColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _commandBorderColor),
       ),
+      child: content,
     );
   }
 
   Widget _commandDecisionCard(
     _CommandDecisionItem item, {
-    bool featured = false,
+    int priorityRank = 999,
   }) {
+    final featured = priorityRank == 0;
+    final emphasized = priorityRank < 3;
     final (accent, surface, border, text) = _commandDecisionTone(item.severity);
-    return Container(
+    final nextMove = item.actions.isEmpty ? null : item.actions.first.label;
+    final detailMaxLines = featured
+        ? 1
+        : emphasized
+        ? 1
+        : 4;
+    final card = Container(
+      key: item.key,
       width: double.infinity,
       padding: EdgeInsets.all(featured ? 12 : 10),
       decoration: BoxDecoration(
-        color: surface,
+        gradient: emphasized
+            ? LinearGradient(
+                colors: [
+                  Color.alphaBlend(
+                    accent.withValues(alpha: featured ? 0.28 : 0.18),
+                    surface,
+                  ),
+                  surface,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
+            : null,
+        color: emphasized ? null : surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: border),
+        boxShadow: emphasized
+            ? [
+                BoxShadow(
+                  color: accent.withValues(alpha: featured ? 0.16 : 0.10),
+                  blurRadius: featured ? 22 : 16,
+                  offset: const Offset(0, 10),
+                ),
+              ]
+            : null,
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: accent.withValues(alpha: 0.22)),
-                ),
-                child: Text(
-                  item.label.toUpperCase(),
-                  style: GoogleFonts.inter(
-                    color: accent,
-                    fontSize: 8.6,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
+          if (emphasized) ...[
+            Container(
+              width: featured ? 8 : 6,
+              height: item.actions.isEmpty ? 96 : 132,
+              decoration: BoxDecoration(
+                color: accent,
+                borderRadius: BorderRadius.circular(999),
+                boxShadow: [
+                  BoxShadow(
+                    color: accent.withValues(alpha: featured ? 0.55 : 0.32),
+                    blurRadius: featured ? 22 : 14,
+                    spreadRadius: featured ? 1.5 : 0,
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  item.context,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: GoogleFonts.robotoMono(
-                    color: text,
-                    fontSize: 9.4,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: accent.withValues(alpha: 0.22)),
-                ),
-                child: Icon(item.icon, size: 18, color: accent),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.title,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFF8FBFF),
-                        fontSize: featured ? 16 : 14.5,
-                        fontWeight: FontWeight.w800,
-                        height: 1.05,
+            ),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (priorityRank < 3) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: featured ? accent : accent.withValues(alpha: 0.16),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: featured
+                            ? accent.withValues(alpha: 0.92)
+                            : accent.withValues(alpha: 0.36),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.detail,
+                    child: Text(
+                      switch (priorityRank) {
+                        0 => 'DO THIS NOW',
+                        1 => 'UP NEXT',
+                        _ => 'THEN',
+                      },
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFCFD9E4),
-                        fontSize: featured ? 11.6 : 10.8,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
+                        color: featured
+                            ? OnyxDesignTokens.backgroundPrimary
+                            : accent,
+                        fontSize: 8.3,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.22),
+                        ),
+                      ),
+                      child: Text(
+                        item.label.toUpperCase(),
+                        style: GoogleFonts.inter(
+                          color: accent,
+                          fontSize: 8.2,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.34,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        item.context,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: GoogleFonts.inter(
+                          color: text,
+                          fontSize: 9.4,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          if (item.actions.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: item.actions
-                  .map(_commandDecisionActionButton)
-                  .toList(growable: false),
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: featured
+                            ? accent.withValues(alpha: 0.22)
+                            : accent.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: accent.withValues(
+                            alpha: featured ? 0.44 : 0.22,
+                          ),
+                        ),
+                      ),
+                      child: Icon(item.icon, size: 18, color: accent),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: GoogleFonts.inter(
+                              color: _commandTitleColor,
+                              fontSize: featured ? 15.5 : 14.2,
+                              fontWeight: FontWeight.w700,
+                              height: 1.08,
+                            ),
+                          ),
+                          if (nextMove != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'NEXT MOVE: ${nextMove.toUpperCase()}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                color: accent.withValues(alpha: 0.96),
+                                fontSize: featured ? 10.1 : 9.8,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.16,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            item.detail,
+                            maxLines: detailMaxLines,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: _commandBodyColor,
+                              fontSize: featured ? 11.6 : 10.8,
+                              fontWeight: FontWeight.w600,
+                              height: 1.35,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (item.actions.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  if (emphasized) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: _commandDecisionActionButton(
+                        item.actions.first,
+                        emphasized: emphasized,
+                        primary: true,
+                        fullWidth: true,
+                      ),
+                    ),
+                    if (item.actions.length > 1) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: List<Widget>.generate(
+                          item.actions.length - 1,
+                          (actionIndex) {
+                            return _commandDecisionActionButton(
+                              item.actions[actionIndex + 1],
+                              emphasized: emphasized,
+                              primary: false,
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ] else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: List<Widget>.generate(item.actions.length, (
+                        actionIndex,
+                      ) {
+                        return _commandDecisionActionButton(
+                          item.actions[actionIndex],
+                          emphasized: emphasized,
+                          primary: actionIndex == 0,
+                        );
+                      }),
+                    ),
+                ],
+              ],
             ),
-          ],
+          ),
         ],
+      ),
+    );
+
+    if (item.onTap == null) {
+      return card;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () async {
+          await item.onTap!.call();
+        },
+        child: card,
       ),
     );
   }
 
-  Widget _commandDecisionActionButton(_CommandDecisionAction action) {
+  Widget _commandDecisionActionButton(
+    _CommandDecisionAction action, {
+    bool emphasized = false,
+    bool primary = false,
+    bool fullWidth = false,
+  }) {
+    final highEmphasis = emphasized && primary;
+    final highEmphasisForeground = action.accent.computeLuminance() > 0.55
+        ? OnyxDesignTokens.backgroundPrimary
+        : OnyxDesignTokens.textPrimary;
     return FilledButton.tonalIcon(
+      key: action.key,
       onPressed: action.onPressed == null
           ? null
           : () async {
@@ -2983,17 +5026,32 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       icon: Icon(action.icon, size: 14),
       label: Text(action.label),
       style: FilledButton.styleFrom(
-        backgroundColor: action.accent.withValues(alpha: 0.14),
-        foregroundColor: action.accent,
-        disabledBackgroundColor: const Color(0x12000000),
-        disabledForegroundColor: const Color(0x667A8CA8),
-        side: BorderSide(color: action.accent.withValues(alpha: 0.24)),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        textStyle: GoogleFonts.inter(
-          fontSize: 10.2,
-          fontWeight: FontWeight.w700,
+        backgroundColor: highEmphasis
+            ? action.accent
+            : Color.alphaBlend(
+                action.accent.withValues(alpha: 0.12),
+                _commandPanelColor,
+              ),
+        foregroundColor: highEmphasis ? highEmphasisForeground : action.accent,
+        disabledBackgroundColor: _commandPanelTintColor,
+        disabledForegroundColor: OnyxDesignTokens.textMuted.withValues(
+          alpha: 0.6,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        side: BorderSide(
+          color: action.accent.withValues(alpha: highEmphasis ? 0.62 : 0.24),
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: highEmphasis ? 12 : 10,
+          vertical: highEmphasis ? 10 : 8,
+        ),
+        textStyle: GoogleFonts.inter(
+          fontSize: highEmphasis ? 10.8 : 10.2,
+          fontWeight: FontWeight.w800,
+        ),
+        minimumSize: fullWidth ? const Size.fromHeight(46) : null,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(fullWidth ? 12 : 10),
+        ),
       ),
     );
   }
@@ -3001,14 +5059,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   Widget _commandMemoryPanel(List<_LedgerEntry> ledger) {
     final visibleEntries = ledger.take(4).toList(growable: false);
     final verifiedCount = ledger.where((entry) => entry.verified).length;
+    final commandReplayContextLine = _commandMemoryReplayContextLine();
+    final replayHistoryLine = _commandReplayHistoryLine();
     return Container(
       key: const ValueKey('live-operations-command-memory'),
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: _commandPanelColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF21262D)),
+        border: Border.all(color: _commandBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3016,53 +5076,179 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'Clean Record',
-                  style: GoogleFonts.rajdhani(
-                    color: const Color(0xFFF8FBFF),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'SOVEREIGN LEDGER',
+                      style: GoogleFonts.inter(
+                        color: OnyxDesignTokens.cyanInteractive,
+                        fontSize: 8.6,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.82,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Clean Record',
+                      style: GoogleFonts.inter(
+                        color: _commandTitleColor,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              Text(
-                ledger.isEmpty
-                    ? '0 sealed'
-                    : '$verifiedCount/${ledger.length} sealed',
-                style: GoogleFonts.robotoMono(
-                  color: const Color(0xFF8FA2B8),
-                  fontSize: 9.6,
-                  fontWeight: FontWeight.w700,
-                ),
+              const SizedBox(width: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    ledger.isEmpty
+                        ? '0 sealed'
+                        : '$verifiedCount/${ledger.length} sealed',
+                    style: GoogleFonts.inter(
+                      color: _commandMutedColor,
+                      fontSize: 9.6,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: OnyxDesignTokens.greenNominal.withValues(
+                        alpha: 0.14,
+                      ),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: OnyxDesignTokens.greenNominal.withValues(
+                          alpha: 0.4,
+                        ),
+                      ),
+                    ),
+                    child: Text(
+                      'Chain Intact',
+                      style: GoogleFonts.inter(
+                        color: OnyxDesignTokens.greenNominal,
+                        fontSize: 8.8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 2),
           Text(
-            'OB notes and linked events keep every decision attached to the shift story.',
+            'Sovereign Ledger notes and linked events keep every decision attached to the shift story.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9BA9B9),
+              color: _commandBodyColor,
               fontSize: 10.8,
               fontWeight: FontWeight.w600,
               height: 1.3,
             ),
           ),
+          if (commandReplayContextLine != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              key: const ValueKey(
+                'live-operations-command-memory-command-brain-replay',
+              ),
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _commandPanelTintColor,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _commandBorderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'COMMAND BRAIN REPLAY',
+                    style: GoogleFonts.inter(
+                      color: OnyxDesignTokens.cyanInteractive,
+                      fontSize: 8.4,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.72,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    commandReplayContextLine,
+                    style: GoogleFonts.inter(
+                      color: _commandMutedColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (replayHistoryLine != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              key: const ValueKey(
+                'live-operations-command-memory-replay-history',
+              ),
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _commandPanelTintColor,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _commandBorderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'REPLAY CONTINUITY',
+                    style: GoogleFonts.inter(
+                      color: OnyxDesignTokens.cyanInteractive,
+                      fontSize: 8.4,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.72,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    replayHistoryLine,
+                    style: GoogleFonts.inter(
+                      color: _commandMutedColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           if (visibleEntries.isEmpty)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F1821),
+                color: OnyxDesignTokens.greenSurface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF243242)),
+                border: Border.all(color: OnyxDesignTokens.greenBorder),
               ),
               child: Text(
-                'No command records yet. The next controller decision will land here automatically.',
+                'AUTO-AUDIT ARMED. The next controller decision will seal here automatically.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFD7E6F4),
+                  color: OnyxDesignTokens.greenNominal,
                   fontSize: 11.2,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   height: 1.35,
                 ),
               ),
@@ -3076,23 +5262,25 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       final entry = visibleEntries[index];
                       final tag = switch (entry.type) {
                         _LedgerType.aiAction => 'AI',
-                        _LedgerType.humanOverride => 'OB',
+                        _LedgerType.humanOverride => 'NOTE',
                         _LedgerType.systemEvent => 'SYS',
                         _LedgerType.escalation => 'DISPATCH',
                       };
                       final accent = switch (entry.type) {
-                        _LedgerType.aiAction => const Color(0xFF22D3EE),
-                        _LedgerType.humanOverride => const Color(0xFF60A5FA),
-                        _LedgerType.systemEvent => const Color(0xFF9CA3AF),
-                        _LedgerType.escalation => const Color(0xFFF59E0B),
+                        _LedgerType.aiAction =>
+                          OnyxDesignTokens.cyanInteractive,
+                        _LedgerType.humanOverride =>
+                          OnyxDesignTokens.purpleAdmin,
+                        _LedgerType.systemEvent => OnyxDesignTokens.textMuted,
+                        _LedgerType.escalation => OnyxDesignTokens.amberWarning,
                       };
                       return Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF101720),
+                          color: _commandPanelTintColor,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFF253241)),
+                          border: Border.all(color: _commandBorderColor),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3122,7 +5310,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 Text(
                                   _hhmm(entry.timestamp.toLocal()),
                                   style: GoogleFonts.robotoMono(
-                                    color: const Color(0xFF8FA2B8),
+                                    color: _commandMutedColor,
                                     fontSize: 9.2,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -3133,7 +5321,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             Text(
                               entry.description,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFF8FBFF),
+                                color: _commandTitleColor,
                                 fontSize: 11.1,
                                 fontWeight: FontWeight.w700,
                                 height: 1.25,
@@ -3144,7 +5332,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               Text(
                                 entry.actor!,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF8FA2B8),
+                                  color: _commandMutedColor,
                                   fontSize: 9.8,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -3165,9 +5353,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             key: const ValueKey('live-operations-command-verify-ledger'),
             onPressed: ledger.isEmpty ? null : () => _verifyLedgerChain(ledger),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF9FD8FF),
-              side: const BorderSide(color: Color(0xFF2C587A)),
-              backgroundColor: const Color(0x140D1A28),
+              foregroundColor: const Color(0xFF2E6EA8),
+              side: const BorderSide(color: _commandBorderStrongColor),
+              backgroundColor: _commandPanelColor,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               textStyle: GoogleFonts.inter(
                 fontSize: 10.6,
@@ -3206,19 +5394,32 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       usedIncidentIds.add(incident.id);
       items.add(
         _CommandDecisionItem(
+          key: ValueKey('live-operations-command-item-incident-${incident.id}'),
           severity: _CommandDecisionSeverity.critical,
           label: 'Critical',
           title: '${incident.type} - ${incident.site}',
           detail: _commandIncidentDetail(incident, critical: true),
           context: '${incident.timestamp} • ${_statusLabel(incident.status)}',
           icon: Icons.warning_amber_rounded,
-          accent: const Color(0xFFEF4444),
+          accent: OnyxDesignTokens.redCritical,
+          onTap: () => _openCommandAlarmBoard(incident),
           actions: [
             _CommandDecisionAction(
+              key: ValueKey(
+                'live-operations-command-action-dispatch-${incident.id}',
+              ),
               label: 'Dispatch',
               icon: Icons.send_rounded,
-              accent: const Color(0xFFEF4444),
+              accent: OnyxDesignTokens.redCritical,
               onPressed: () async {
+                if (widget.onOpenAlarmsForIncident != null) {
+                  _appendCommandLedgerEntry(
+                    'Dispatch staged for ${incident.id}',
+                    type: _LedgerType.escalation,
+                  );
+                  widget.onOpenAlarmsForIncident!(incident.id);
+                  return;
+                }
                 _focusIncidentFromBanner(incident);
                 await _ensureActionLadderPanelVisible();
                 _appendCommandLedgerEntry(
@@ -3230,26 +5431,69 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: 'DISPATCH',
                   detail:
                       'Assign the nearest officer, then keep the action ladder pinned until the incident is closed.',
-                  accent: const Color(0xFFEF4444),
+                  accent: OnyxDesignTokens.redCritical,
                 );
               },
             ),
             _CommandDecisionAction(
+              key: ValueKey(
+                'live-operations-command-action-track-${incident.id}',
+              ),
               label: 'Track',
               icon: Icons.near_me_rounded,
-              accent: const Color(0xFF8FD1FF),
+              accent: OnyxDesignTokens.cyanInteractive,
               onPressed: () async {
-                _focusIncidentFromBanner(incident);
-                await _ensureContextAndVigilancePanelVisible();
-                _showLiveOpsFeedback(
-                  'Tracking ${incident.id} in command.',
-                  label: 'TRACK',
-                  detail:
-                      'Telemetry, scene review, and client comms stay linked while you monitor the response.',
-                  accent: const Color(0xFF8FD1FF),
-                );
+                await _openCommandTrackBoard(incident);
               },
             ),
+          ],
+        ),
+      );
+    }
+
+    final rosterSignalHeadline = (widget.guardRosterSignalHeadline ?? '')
+        .trim();
+    final rosterSignalDetail = (widget.guardRosterSignalDetail ?? '').trim();
+    if (widget.guardRosterSignalNeedsAttention &&
+        rosterSignalHeadline.isNotEmpty) {
+      final rosterAccent =
+          widget.guardRosterSignalAccent ?? OnyxDesignTokens.amberWarning;
+      final rosterLabel = (widget.guardRosterSignalLabel ?? '').trim().isEmpty
+          ? 'Roster Watch'
+          : widget.guardRosterSignalLabel!.trim();
+      items.add(
+        _CommandDecisionItem(
+          key: const ValueKey('live-operations-command-item-roster-signal'),
+          severity: _CommandDecisionSeverity.actionRequired,
+          label: 'Action Required',
+          title: rosterSignalHeadline,
+          detail: rosterSignalDetail.isEmpty
+              ? 'Open the month planner now and fill the uncovered posts before the next handoff.'
+              : rosterSignalDetail,
+          context: '${rosterLabel.toUpperCase()} • MONTH PLANNER',
+          icon: Icons.event_note_rounded,
+          accent: rosterAccent,
+          onTap: () => _openCommandGuardsBoard(null),
+          actions: [
+            _CommandDecisionAction(
+              key: const ValueKey(
+                'live-operations-command-action-roster-open-planner',
+              ),
+              label: 'OPEN MONTH PLANNER',
+              icon: Icons.calendar_month_rounded,
+              accent: rosterAccent,
+              onPressed: _openRosterPlannerFromCommand,
+            ),
+            if (widget.onOpenRosterAudit != null)
+              _CommandDecisionAction(
+                key: const ValueKey(
+                  'live-operations-command-action-roster-view-audit',
+                ),
+                label: 'OPEN SIGNED AUDIT',
+                icon: Icons.menu_book_rounded,
+                accent: OnyxDesignTokens.greenNominal,
+                onPressed: _openRosterAuditFromCommand,
+              ),
           ],
         ),
       );
@@ -3264,6 +5508,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       final guard = distressedGuards.first;
       items.add(
         _CommandDecisionItem(
+          key: ValueKey('live-operations-command-item-guard-${guard.callsign}'),
           severity: _CommandDecisionSeverity.actionRequired,
           label: 'Action Required',
           title: 'Possible Guard Distress - ${guard.callsign}',
@@ -3272,27 +5517,46 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           context:
               'Last check-in ${guard.lastCheckIn} • signal ${guard.decayLevel}%',
           icon: Icons.health_and_safety_rounded,
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxDesignTokens.amberWarning,
+          onTap: () => _openCommandGuardsBoard(guard),
           actions: [
             _CommandDecisionAction(
+              key: ValueKey(
+                'live-operations-command-action-guard-call-${guard.callsign}',
+              ),
               label: 'Call',
               icon: Icons.call_rounded,
-              accent: const Color(0xFF8FD1FF),
+              accent: OnyxDesignTokens.cyanInteractive,
               onPressed: () async {
+                if (widget.onOpenGuards != null) {
+                  widget.onOpenGuards!.call();
+                  return;
+                }
                 _showLiveOpsFeedback(
                   'Calling ${guard.callsign} to verify patrol status.',
                   label: 'GUARD CHECK',
                   detail:
-                      'If the guard does not clear the exception, dispatch support and link the note to the OB.',
-                  accent: const Color(0xFFF59E0B),
+                      'If the guard does not clear the exception, dispatch support and link the note to the Sovereign Ledger.',
+                  accent: OnyxDesignTokens.amberWarning,
                 );
               },
             ),
             _CommandDecisionAction(
+              key: ValueKey(
+                'live-operations-command-action-guard-dispatch-${guard.callsign}',
+              ),
               label: 'Dispatch',
               icon: Icons.send_rounded,
-              accent: const Color(0xFFF59E0B),
+              accent: OnyxDesignTokens.amberWarning,
               onPressed: () async {
+                if (widget.onOpenGuards != null) {
+                  _appendCommandLedgerEntry(
+                    'Support dispatch considered for ${guard.callsign}',
+                    type: _LedgerType.escalation,
+                  );
+                  widget.onOpenGuards!.call();
+                  return;
+                }
                 _appendCommandLedgerEntry(
                   'Support dispatch considered for ${guard.callsign}',
                   type: _LedgerType.escalation,
@@ -3302,7 +5566,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: 'GUARD DISTRESS',
                   detail:
                       'Escalate to the nearest response unit or supervisor if the patrol does not recover.',
-                  accent: const Color(0xFFF59E0B),
+                  accent: OnyxDesignTokens.amberWarning,
                 );
               },
             ),
@@ -3323,20 +5587,31 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
       items.add(
         _CommandDecisionItem(
+          key: ValueKey(
+            'live-operations-command-item-comms-${liveClientAsk.siteId}',
+          ),
           severity: _CommandDecisionSeverity.actionRequired,
           label: 'Action Required',
           title: 'Client Update Needed - $scopeLabel',
           detail:
-              'Client is asking for a live update from $scopeLabel. Open comms to respond or capture the note in the OB.',
+              'Client is asking for a live update from $scopeLabel. Open Client Comms to respond or log the note to the Sovereign Ledger.',
           context:
               '${_hhmm(liveClientAsk.occurredAtUtc.toLocal())} • ${liveClientAsk.author}',
           icon: Icons.call_rounded,
-          accent: const Color(0xFF22D3EE),
+          accent: OnyxDesignTokens.cyanInteractive,
+          onTap: () => _openCommandClientLane(
+            clientId: liveClientAsk.clientId,
+            siteId: liveClientAsk.siteId,
+            clientCommsSnapshot: clientCommsSnapshot,
+          ),
           actions: [
             _CommandDecisionAction(
-              label: 'Open Comms',
+              key: ValueKey(
+                'live-operations-command-action-open-comms-${liveClientAsk.siteId}',
+              ),
+              label: 'OPEN CLIENT COMMS',
               icon: Icons.mark_chat_read_rounded,
-              accent: const Color(0xFF22D3EE),
+              accent: OnyxDesignTokens.cyanInteractive,
               onPressed: () async {
                 await _openCommandClientLane(
                   clientId: liveClientAsk.clientId,
@@ -3346,20 +5621,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               },
             ),
             _CommandDecisionAction(
-              label: 'Log OB',
+              label: 'Log to Ledger',
               icon: Icons.edit_note_rounded,
-              accent: const Color(0xFF8FD1FF),
+              accent: OnyxDesignTokens.cyanInteractive,
               onPressed: () async {
                 _appendCommandLedgerEntry(
                   'Client update note saved for $scopeLabel',
                   type: _LedgerType.humanOverride,
                 );
                 _showLiveOpsFeedback(
-                  'Client update linked to the OB record.',
-                  label: 'OB LOG',
+                  'Client update linked to the Sovereign Ledger.',
+                  label: 'LEDGER NOTE',
                   detail:
-                      'The client lane and shift story stay synchronized without reopening the full workspace.',
-                  accent: const Color(0xFF8FD1FF),
+                      'Client Comms and the shift story stay synchronized without reopening the full workspace.',
+                  accent: OnyxDesignTokens.cyanInteractive,
                 );
               },
             ),
@@ -3378,20 +5653,31 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         );
         items.add(
           _CommandDecisionItem(
+            key: ValueKey(
+              'live-operations-command-item-comms-${pendingDraft.siteId}',
+            ),
             severity: _CommandDecisionSeverity.actionRequired,
             label: 'Action Required',
-            title: 'Client Draft Ready - $scopeLabel',
+            title: 'Client Comms Draft Ready - $scopeLabel',
             detail:
-                'A shaped client reply is waiting for controller approval before it leaves the lane.',
+                'A shaped client reply is waiting for controller approval before it leaves Client Comms.',
             context:
                 '${_hhmm(pendingDraft.createdAtUtc.toLocal())} • ${pendingDraft.providerLabel}',
             icon: Icons.mark_chat_read_rounded,
-            accent: const Color(0xFF22D3EE),
+            accent: OnyxDesignTokens.cyanInteractive,
+            onTap: () => _openCommandClientLane(
+              clientId: pendingDraft.clientId,
+              siteId: pendingDraft.siteId,
+              clientCommsSnapshot: clientCommsSnapshot,
+            ),
             actions: [
               _CommandDecisionAction(
-                label: 'Open Comms',
+                key: ValueKey(
+                  'live-operations-command-action-open-comms-${pendingDraft.siteId}',
+                ),
+                label: 'OPEN CLIENT COMMS',
                 icon: Icons.mark_chat_read_rounded,
-                accent: const Color(0xFF22D3EE),
+                accent: OnyxDesignTokens.cyanInteractive,
                 onPressed: () async {
                   await _openCommandClientLane(
                     clientId: pendingDraft.clientId,
@@ -3401,9 +5687,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 },
               ),
               _CommandDecisionAction(
-                label: 'Log OB',
+                label: 'Log to Ledger',
                 icon: Icons.edit_note_rounded,
-                accent: const Color(0xFF8FD1FF),
+                accent: OnyxDesignTokens.cyanInteractive,
                 onPressed: () async {
                   _appendCommandLedgerEntry(
                     'Drafted client update recorded for $scopeLabel',
@@ -3411,10 +5697,88 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   );
                   _showLiveOpsFeedback(
                     'Draft handoff linked to the clean record.',
-                    label: 'OB LOG',
+                    label: 'LEDGER NOTE',
                     detail:
                         'The client draft remains queued for approval while the controller record stays complete.',
-                    accent: const Color(0xFF8FD1FF),
+                    accent: OnyxDesignTokens.cyanInteractive,
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      } else if (clientCommsSnapshot != null) {
+        final scopeLabel = _humanizeOpsScopeLabel(
+          clientCommsSnapshot.siteId,
+          fallback: clientCommsSnapshot.siteId,
+        );
+        final latestClientMessage =
+            (clientCommsSnapshot.latestClientMessage ?? '').trim();
+        final latestPendingDraft =
+            (clientCommsSnapshot.latestPendingDraft ?? '').trim();
+        final latestReply = (clientCommsSnapshot.latestOnyxReply ?? '').trim();
+        final fallbackDetail = latestClientMessage.isNotEmpty
+            ? latestClientMessage
+            : latestPendingDraft.isNotEmpty
+            ? 'Latest draft: $latestPendingDraft'
+            : latestReply.isNotEmpty
+            ? 'Latest reply: $latestReply'
+            : 'Client Comms is live for this scope. Open Client Comms to respond, review history, or stage the next update.';
+        final latestContextAt =
+            clientCommsSnapshot.latestClientMessageAtUtc ??
+            clientCommsSnapshot.latestPendingDraftAtUtc ??
+            clientCommsSnapshot.latestOnyxReplyAtUtc;
+        final fallbackContext = latestContextAt == null
+            ? 'Client Comms activity • ${clientCommsSnapshot.telegramHealthLabel}'
+            : '${_hhmm(latestContextAt.toLocal())} • ${clientCommsSnapshot.telegramHealthLabel}';
+        items.add(
+          _CommandDecisionItem(
+            key: ValueKey(
+              'live-operations-command-item-comms-${clientCommsSnapshot.siteId}',
+            ),
+            severity: _CommandDecisionSeverity.actionRequired,
+            label: 'Action Required',
+            title: 'Client Comms Active - $scopeLabel',
+            detail: fallbackDetail,
+            context: fallbackContext,
+            icon: Icons.mark_chat_read_rounded,
+            accent: OnyxDesignTokens.cyanInteractive,
+            onTap: () => _openCommandClientLane(
+              clientId: clientCommsSnapshot.clientId,
+              siteId: clientCommsSnapshot.siteId,
+              clientCommsSnapshot: clientCommsSnapshot,
+            ),
+            actions: [
+              _CommandDecisionAction(
+                key: ValueKey(
+                  'live-operations-command-action-open-comms-${clientCommsSnapshot.siteId}',
+                ),
+                label: 'OPEN CLIENT COMMS',
+                icon: Icons.mark_chat_read_rounded,
+                accent: OnyxDesignTokens.cyanInteractive,
+                onPressed: () async {
+                  await _openCommandClientLane(
+                    clientId: clientCommsSnapshot.clientId,
+                    siteId: clientCommsSnapshot.siteId,
+                    clientCommsSnapshot: clientCommsSnapshot,
+                  );
+                },
+              ),
+              _CommandDecisionAction(
+                label: 'Log to Ledger',
+                icon: Icons.edit_note_rounded,
+                accent: OnyxDesignTokens.cyanInteractive,
+                onPressed: () async {
+                  _appendCommandLedgerEntry(
+                    'Client Comms activity logged for $scopeLabel',
+                    type: _LedgerType.humanOverride,
+                  );
+                  _showLiveOpsFeedback(
+                    'Client Comms activity linked to the clean record.',
+                    label: 'LEDGER NOTE',
+                    detail:
+                        'You can keep the command board simple while the ledger history stays attached to the shift story.',
+                    accent: OnyxDesignTokens.cyanInteractive,
                   );
                 },
               ),
@@ -3439,6 +5803,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       usedIncidentIds.add(visualIncident.id);
       items.add(
         _CommandDecisionItem(
+          key: ValueKey(
+            'live-operations-command-item-review-${visualIncident.id}',
+          ),
           severity: _CommandDecisionSeverity.review,
           label: 'Review',
           title:
@@ -3446,36 +5813,25 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           detail:
               (visualIncident.latestSceneReviewSummary ?? '').trim().isNotEmpty
               ? visualIncident.latestSceneReviewSummary!
-              : 'Visual context is ready for controller review before you ignore, escalate, or log an OB note.',
+              : 'Visual context is ready for controller review before you ignore, escalate, or log a ledger note.',
           context: '${visualIncident.timestamp} • ${widget.videoOpsLabel}',
           icon: Icons.videocam_outlined,
-          accent: const Color(0xFFFBBF24),
+          accent: OnyxDesignTokens.amberWarning,
+          onTap: () => _openCommandCctvBoard(visualIncident),
           actions: [
             _CommandDecisionAction(
+              key: ValueKey(
+                'live-operations-command-action-review-${visualIncident.id}',
+              ),
               label: 'Review',
               icon: Icons.play_circle_outline_rounded,
-              accent: const Color(0xFFFBBF24),
-              onPressed: () async {
-                _focusIncidentFromBanner(visualIncident);
-                if (mounted) {
-                  setState(() {
-                    _activeTab = _ContextTab.visual;
-                  });
-                }
-                await _ensureContextAndVigilancePanelVisible();
-                _showLiveOpsFeedback(
-                  'Visual review opened for ${visualIncident.site}.',
-                  label: widget.videoOpsLabel.toUpperCase(),
-                  detail:
-                      'Review the clip, then ignore, escalate, or link the final note to the OB.',
-                  accent: const Color(0xFFFBBF24),
-                );
-              },
+              accent: OnyxDesignTokens.amberWarning,
+              onPressed: () => _openCommandCctvBoard(visualIncident),
             ),
             _CommandDecisionAction(
-              label: 'Log OB',
+              label: 'Log to Ledger',
               icon: Icons.edit_note_rounded,
-              accent: const Color(0xFF8FD1FF),
+              accent: OnyxDesignTokens.cyanInteractive,
               onPressed: () async {
                 _appendCommandLedgerEntry(
                   'Scene review noted for ${visualIncident.id}',
@@ -3483,10 +5839,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 );
                 _showLiveOpsFeedback(
                   'Scene review linked to the clean record.',
-                  label: 'OB LOG',
+                  label: 'LEDGER NOTE',
                   detail:
                       'The controller decision stays tied to the clip and incident history.',
-                  accent: const Color(0xFF8FD1FF),
+                  accent: OnyxDesignTokens.cyanInteractive,
                 );
               },
             ),
@@ -3508,6 +5864,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     if (nextIncident != null) {
       items.add(
         _CommandDecisionItem(
+          key: ValueKey(
+            'live-operations-command-item-incident-${nextIncident.id}',
+          ),
           severity: nextIncident.priority == _IncidentPriority.p2High
               ? _CommandDecisionSeverity.actionRequired
               : _CommandDecisionSeverity.review,
@@ -3525,14 +5884,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ? Icons.assignment_late_rounded
               : Icons.visibility_rounded,
           accent: nextIncident.priority == _IncidentPriority.p2High
-              ? const Color(0xFFF59E0B)
-              : const Color(0xFF22D3EE),
+              ? OnyxDesignTokens.amberWarning
+              : OnyxDesignTokens.cyanInteractive,
+          onTap: () => _openCommandAlarmBoard(nextIncident),
           actions: [
             _CommandDecisionAction(
+              key: ValueKey(
+                'live-operations-command-action-review-${nextIncident.id}',
+              ),
               label: 'Review',
               icon: Icons.open_in_new_rounded,
-              accent: const Color(0xFF8FD1FF),
+              accent: OnyxDesignTokens.cyanInteractive,
               onPressed: () async {
+                if (widget.onOpenAlarmsForIncident != null) {
+                  widget.onOpenAlarmsForIncident!(nextIncident.id);
+                  return;
+                }
                 _focusIncidentFromBanner(nextIncident);
                 await _ensureActionLadderPanelVisible();
                 _showLiveOpsFeedback(
@@ -3540,14 +5907,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   label: 'REVIEW',
                   detail:
                       'The action ladder is now centered on the selected incident so the controller can decide quickly.',
-                  accent: const Color(0xFF8FD1FF),
+                  accent: OnyxDesignTokens.cyanInteractive,
                 );
               },
             ),
             _CommandDecisionAction(
-              label: 'Log OB',
+              label: 'Log to Ledger',
               icon: Icons.edit_note_rounded,
-              accent: const Color(0xFF8FD1FF),
+              accent: OnyxDesignTokens.cyanInteractive,
               onPressed: () async {
                 _appendCommandLedgerEntry(
                   'Controller note saved for ${nextIncident.id}',
@@ -3555,10 +5922,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 );
                 _showLiveOpsFeedback(
                   'Controller note added to the clean record.',
-                  label: 'OB LOG',
+                  label: 'LEDGER NOTE',
                   detail:
                       'The shift story now includes the controller note without opening a separate logging flow.',
-                  accent: const Color(0xFF8FD1FF),
+                  accent: OnyxDesignTokens.cyanInteractive,
                 );
               },
             ),
@@ -3621,25 +5988,1136 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return 'Review the surfaced context, decide the next step, and keep the clean record attached.';
   }
 
+  Future<void> _openCommandAlarmBoard(_IncidentRecord incident) async {
+    widget.onAutoAuditAction?.call(
+      'dispatch_handoff_opened',
+      'Opened dispatch board from the live operations war room for ${incident.id}.',
+    );
+    if (widget.onOpenAlarmsForIncident != null) {
+      widget.onOpenAlarmsForIncident!(incident.id);
+      return;
+    }
+    _focusIncidentFromBanner(incident);
+    await _ensureActionLadderPanelVisible();
+  }
+
+  BrainDecision _commandDecisionForIncident(
+    _IncidentRecord incident, {
+    required String incidentDetail,
+  }) {
+    final workItem = OnyxWorkItem(
+      id: 'live-ops-${incident.id}-${incident.siteId}',
+      intent: OnyxWorkIntent.triageIncident,
+      prompt: _commandTriagePromptForIncident(
+        incident,
+        incidentDetail: incidentDetail,
+      ),
+      clientId: incident.clientId,
+      siteId: incident.siteId,
+      incidentReference: incident.id,
+      sourceRouteLabel: 'Command',
+      createdAt: DateTime.now(),
+    );
+    return _commandBrainDecisionForWorkItem(workItem);
+  }
+
+  BrainDecision _commandDecisionForPrompt(
+    String prompt, {
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+  }) {
+    final resolvedClientId = activeIncident?.clientId.trim().isNotEmpty ?? false
+        ? activeIncident!.clientId
+        : (clientCommsSnapshot?.clientId ?? widget.initialScopeClientId ?? '')
+              .trim();
+    final resolvedSiteId = activeIncident?.siteId.trim().isNotEmpty ?? false
+        ? activeIncident!.siteId
+        : (clientCommsSnapshot?.siteId ?? widget.initialScopeSiteId ?? '')
+              .trim();
+    final incidentReference =
+        (activeIncident?.id ?? widget.focusIncidentReference).trim();
+    final workItem = OnyxWorkItem(
+      id: 'live-ops-command-${DateTime.now().microsecondsSinceEpoch}',
+      intent: OnyxWorkIntent.triageIncident,
+      prompt: prompt.trim(),
+      clientId: resolvedClientId,
+      siteId: resolvedSiteId,
+      incidentReference: incidentReference,
+      sourceRouteLabel: 'Command',
+      createdAt: DateTime.now(),
+    );
+    return _commandBrainDecisionForWorkItem(workItem);
+  }
+
+  BrainDecision _commandBrainDecisionForWorkItem(OnyxWorkItem workItem) {
+    final deterministicRecommendation = _onyxCommandBrainOrchestrator
+        .operatorOrchestrator
+        .recommend(workItem);
+    return _onyxCommandBrainOrchestrator.decide(
+      item: workItem,
+      decisionBias: _replayHistorySignal?.toBrainDecisionBias(),
+      replayBiasStack: _replayHistoryBiasStack,
+      specialistAssessments: _onyxCommandSpecialistAssessmentService.assess(
+        item: workItem,
+        deterministicRecommendation: deterministicRecommendation,
+      ),
+    );
+  }
+
+  List<BrainDecisionBias> get _replayHistoryBiasStack =>
+      _replayHistorySignalStack
+          .map((signal) => signal.toBrainDecisionBias())
+          .whereType<BrainDecisionBias>()
+          .toList(growable: false);
+
+  Future<bool> _stageClientDraftCommandForPrompt(
+    String prompt, {
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+  }) async {
+    final clientDraftService = widget.clientDraftService;
+    final stageDraftForScope = widget.onStageClientDraftForScope;
+    if (clientDraftService == null ||
+        !clientDraftService.isConfigured ||
+        stageDraftForScope == null) {
+      return false;
+    }
+    final resolvedClientId = activeIncident?.clientId.trim().isNotEmpty ?? false
+        ? activeIncident!.clientId.trim()
+        : (clientCommsSnapshot?.clientId ?? widget.initialScopeClientId ?? '')
+              .trim();
+    final resolvedSiteId = activeIncident?.siteId.trim().isNotEmpty ?? false
+        ? activeIncident!.siteId.trim()
+        : (clientCommsSnapshot?.siteId ?? widget.initialScopeSiteId ?? '')
+              .trim();
+    if (resolvedClientId.isEmpty || resolvedSiteId.isEmpty) {
+      _showLiveOpsFeedback(
+        'Scope one client before drafting an update.',
+        label: 'CLIENT DRAFT',
+        detail:
+            'ONYX needs a scoped client and site before it can stage a client update inside Client Comms.',
+        accent: const Color(0xFF8EC8FF),
+      );
+      return true;
+    }
+    final incidentReference =
+        (activeIncident?.id ?? widget.focusIncidentReference).trim();
+    final scopeLabel = _humanizeOpsScopeLabel(
+      resolvedSiteId,
+      fallback: resolvedSiteId,
+    );
+    final draftResult = await clientDraftService.draft(
+      prompt: prompt,
+      clientId: resolvedClientId,
+      siteId: resolvedSiteId,
+      incidentReference: incidentReference,
+    );
+    if (!mounted) {
+      return true;
+    }
+    stageDraftForScope(
+      clientId: resolvedClientId,
+      siteId: resolvedSiteId,
+      draftText: draftResult.telegramDraft,
+      originalDraftText: draftResult.telegramDraft,
+      room: 'Residents',
+      incidentReference: incidentReference,
+    );
+    widget.onAutoAuditAction?.call(
+      'client_draft_staged',
+      'Staged a client update from the live operations war room for $scopeLabel.',
+    );
+    _setPlainLanguagePreview(
+      prompt,
+      OnyxCommandSurfacePreview.clientDraftStaged(),
+    );
+    _appendCommandLedgerEntry(
+      'Client update staged in Client Comms from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    final openScopedLane = widget.onOpenClientViewForScope;
+    if (openScopedLane != null) {
+      openScopedLane(resolvedClientId, resolvedSiteId);
+    } else {
+      await _openClientLaneRecovery(clientCommsSnapshot);
+    }
+    _showLiveOpsFeedback(
+      'Client update staged in Client Comms for $scopeLabel.',
+      label: 'CLIENT DRAFT',
+      detail:
+          'ONYX drafted the next scoped update and reopened Client Comms with the message ready for controller review.',
+      accent: const Color(0xFF22D3EE),
+    );
+    return true;
+  }
+
+  Future<bool> _answerGuardStatusCommand(String prompt) async {
+    final guard = _resolveGuardForPrompt(prompt);
+    if (guard == null) {
+      if (!mounted) {
+        return true;
+      }
+      _setPlainLanguagePreview(
+        prompt,
+        OnyxCommandSurfacePreview.answered(
+          headline: 'No scoped guard is available yet',
+          label: 'GUARD STATUS',
+          summary:
+              'ONYX needs a scoped guard check-in stream before it can answer a guard-status command.',
+        ),
+      );
+      _appendCommandLedgerEntry(
+        'Guard status requested from plain-language command',
+        type: _LedgerType.systemEvent,
+        actor: 'ONYX',
+      );
+      _showLiveOpsFeedback(
+        'No scoped guard is available yet.',
+        label: 'GUARD STATUS',
+        detail:
+            'Command stayed in place because the current scope does not have a guard vigilance signal to answer from.',
+        accent: const Color(0xFF8EC8FF),
+      );
+      return true;
+    }
+    final headline = '${guard.callsign} is still active in Command.';
+    final summary =
+        'Last check-in ${guard.lastCheckIn}. Vigilance decay ${guard.decayLevel}%.';
+    if (!mounted) {
+      return true;
+    }
+    _setPlainLanguagePreview(
+      prompt,
+      OnyxCommandSurfacePreview.answered(
+        headline: headline,
+        label: 'GUARD STATUS',
+        summary: summary,
+      ),
+      extraState: () {
+        _focusedVigilanceCallsign = guard.callsign;
+      },
+    );
+    _appendCommandLedgerEntry(
+      'Guard status answered for ${guard.callsign} from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      headline,
+      label: 'GUARD STATUS',
+      detail:
+          '${guard.callsign} shows last check-in ${guard.lastCheckIn} and is carrying ${guard.decayLevel}% vigilance decay in the live rail.',
+      accent: _guardStatusAccent(guard),
+    );
+    return true;
+  }
+
+  Future<bool> _answerPatrolReportCommand(String prompt) async {
+    final patrol = _resolvePatrolReportForPrompt(prompt);
+    if (patrol == null) {
+      if (!mounted) {
+        return true;
+      }
+      _setPlainLanguagePreview(
+        prompt,
+        OnyxCommandSurfacePreview.answered(
+          headline: 'No patrol report is attached yet',
+          label: 'PATROL REPORT',
+          summary:
+              'ONYX needs one scoped patrol completion before it can answer a patrol-report lookup.',
+        ),
+      );
+      _appendCommandLedgerEntry(
+        'Patrol report requested without scoped patrol completion',
+        type: _LedgerType.systemEvent,
+        actor: 'ONYX',
+      );
+      _showLiveOpsFeedback(
+        'No patrol report is attached yet.',
+        label: 'PATROL REPORT',
+        detail:
+            'Command stayed in place because the current scope does not have a patrol completion record to summarize.',
+        accent: const Color(0xFF8EC8FF),
+      );
+      return true;
+    }
+    final guardLabel = patrol.guardId.trim().isEmpty
+        ? 'The scoped guard'
+        : patrol.guardId.trim();
+    final routeLabel = _humanizeOpsScopeLabel(
+      patrol.routeId,
+      fallback: patrol.routeId,
+    );
+    final siteLabel = _humanizeOpsScopeLabel(
+      patrol.siteId,
+      fallback: patrol.siteId,
+    );
+    final durationMinutes = patrol.durationSeconds ~/ 60;
+    final headline =
+        '$guardLabel completed the last patrol at ${_hhmm(patrol.occurredAt.toLocal())}.';
+    final summary = '$routeLabel • $siteLabel • Duration $durationMinutes min.';
+    if (!mounted) {
+      return true;
+    }
+    _setPlainLanguagePreview(
+      prompt,
+      OnyxCommandSurfacePreview.answered(
+        headline: headline,
+        label: 'PATROL REPORT',
+        summary: summary,
+      ),
+    );
+    _appendCommandLedgerEntry(
+      'Patrol report answered for $guardLabel from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      headline,
+      label: 'PATROL REPORT',
+      detail:
+          '$guardLabel completed $routeLabel in $durationMinutes minutes for $siteLabel.',
+      accent: const Color(0xFF8EC8FF),
+    );
+    return true;
+  }
+
+  Future<bool> _answerIncidentSummaryCommand(
+    String prompt, {
+    required _IncidentRecord? activeIncident,
+  }) async {
+    final incident = activeIncident ?? _activeIncident;
+    if (incident == null) {
+      if (!mounted) {
+        return true;
+      }
+      _setPlainLanguagePreview(
+        prompt,
+        OnyxCommandSurfacePreview.answered(
+          headline: 'No active incident is pinned yet',
+          label: 'INCIDENT SUMMARY',
+          summary:
+              'Select or seed one incident first so ONYX can summarize the current signal cleanly.',
+        ),
+      );
+      _appendCommandLedgerEntry(
+        'Incident summary requested without active incident',
+        type: _LedgerType.systemEvent,
+        actor: 'ONYX',
+      );
+      _showLiveOpsFeedback(
+        'No active incident is pinned yet.',
+        label: 'INCIDENT SUMMARY',
+        detail:
+            'Command stayed in place because there is no active incident to summarize from the current scope.',
+        accent: const Color(0xFF8EC8FF),
+      );
+      return true;
+    }
+    final latestContext =
+        incident.latestSceneReviewSummary?.trim().isNotEmpty ?? false
+        ? incident.latestSceneReviewSummary!.trim()
+        : incident.latestIntelSummary?.trim().isNotEmpty ?? false
+        ? incident.latestIntelSummary!.trim()
+        : 'No supporting intel summary is attached yet.';
+    final headline =
+        '${incident.id} is ${_statusLabel(incident.status).toLowerCase()} at ${incident.site}.';
+    final summary =
+        '${incident.type} with ${_incidentPriorityPromptLabel(incident.priority)} priority. $latestContext';
+    if (!mounted) {
+      return true;
+    }
+    _setPlainLanguagePreview(
+      prompt,
+      OnyxCommandSurfacePreview.answered(
+        headline: headline,
+        label: 'INCIDENT SUMMARY',
+        summary: summary,
+      ),
+    );
+    _appendCommandLedgerEntry(
+      'Incident summary answered for ${incident.id} from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      'Incident summary ready for ${incident.id}.',
+      label: 'INCIDENT SUMMARY',
+      detail:
+          '${incident.id} is ${_statusLabel(incident.status).toLowerCase()} at ${incident.site} with ${_incidentPriorityPromptLabel(incident.priority).toLowerCase()} priority. $latestContext',
+      accent: _incidentSummaryAccent(incident),
+    );
+    return true;
+  }
+
+  Future<bool> _answerUnresolvedIncidentsCommand(String prompt) async {
+    final unresolvedIncidents = _incidents
+        .where((incident) => incident.status != _IncidentStatus.resolved)
+        .toList(growable: false);
+    final headline = unresolvedIncidents.isEmpty
+        ? 'No unresolved incidents are live in Command.'
+        : '${unresolvedIncidents.length} unresolved incidents are live in Command.';
+    final summary = unresolvedIncidents.isEmpty
+        ? 'The current scope is clear. No incident is waiting for the next move.'
+        : unresolvedIncidents
+              .take(3)
+              .map(
+                (incident) =>
+                    '${incident.id} • ${_statusLabel(incident.status)} • ${incident.site}',
+              )
+              .join('  |  ');
+    if (!mounted) {
+      return true;
+    }
+    _setPlainLanguagePreview(
+      prompt,
+      OnyxCommandSurfacePreview.answered(
+        headline: headline,
+        label: 'UNRESOLVED INCIDENTS',
+        summary: summary,
+      ),
+    );
+    _appendCommandLedgerEntry(
+      unresolvedIncidents.isEmpty
+          ? 'Unresolved incident list answered with clear scope'
+          : 'Unresolved incident list answered from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      headline,
+      label: 'UNRESOLVED INCIDENTS',
+      detail: unresolvedIncidents.isEmpty
+          ? 'Command stayed in place because there are no unresolved incidents in the current scope.'
+          : 'ONYX kept the board in place and summarized the unresolved incident stack for the current scope.',
+      accent: unresolvedIncidents.isEmpty
+          ? const Color(0xFF10B981)
+          : const Color(0xFF8EC8FF),
+    );
+    return true;
+  }
+
+  Future<bool> _answerTodayDispatchesCommand(String prompt) async {
+    final now = DateTime.now().toLocal();
+    final todayDispatches =
+        _eventsInCommandScope()
+            .whereType<DecisionCreated>()
+            .where((event) {
+              final occurredAt = event.occurredAt.toLocal();
+              return occurredAt.year == now.year &&
+                  occurredAt.month == now.month &&
+                  occurredAt.day == now.day;
+            })
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final headline = todayDispatches.isEmpty
+        ? 'No dispatches were created today.'
+        : '${todayDispatches.length} dispatch${todayDispatches.length == 1 ? '' : 'es'} were created today.';
+    final summary = todayDispatches.isEmpty
+        ? 'The current scope has no dispatch creation events stamped for today.'
+        : todayDispatches
+              .take(3)
+              .map(
+                (dispatch) =>
+                    '${dispatch.dispatchId} • ${dispatch.siteId} • ${_hhmm(dispatch.occurredAt.toLocal())}',
+              )
+              .join('  |  ');
+    if (!mounted) {
+      return true;
+    }
+    _setPlainLanguagePreview(
+      prompt,
+      OnyxCommandSurfacePreview.answered(
+        headline: headline,
+        label: 'TODAY\'S DISPATCHES',
+        summary: summary,
+      ),
+    );
+    _appendCommandLedgerEntry(
+      todayDispatches.isEmpty
+          ? 'Today dispatch query answered with clear scope'
+          : 'Today dispatch query answered from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      headline,
+      label: 'TODAY\'S DISPATCHES',
+      detail: todayDispatches.isEmpty
+          ? 'Command stayed in place because there are no dispatch creation events for today in the current scope.'
+          : 'ONYX kept the board in place and summarized today\'s dispatch creation events for the current scope.',
+      accent: todayDispatches.isEmpty
+          ? const Color(0xFF10B981)
+          : const Color(0xFF8EC8FF),
+    );
+    return true;
+  }
+
+  Future<bool> _answerSiteMostAlertsThisWeekCommand(String prompt) async {
+    final window = _thisWeekWindowLocal();
+    final alertCountsBySite = <String, int>{};
+    for (final alert in _eventsInCommandScope(
+      includeAllSitesForClient: true,
+    ).whereType<IntelligenceReceived>()) {
+      final occurredAt = alert.occurredAt.toLocal();
+      if (occurredAt.isBefore(window.start) || occurredAt.isAfter(window.end)) {
+        continue;
+      }
+      final siteId = alert.siteId.trim();
+      if (siteId.isEmpty) {
+        continue;
+      }
+      alertCountsBySite.update(siteId, (count) => count + 1, ifAbsent: () => 1);
+    }
+    final rankedSites = alertCountsBySite.entries.toList(growable: false)
+      ..sort((a, b) {
+        final countCompare = b.value.compareTo(a.value);
+        if (countCompare != 0) {
+          return countCompare;
+        }
+        return a.key.compareTo(b.key);
+      });
+    final headline = rankedSites.isEmpty
+        ? 'No alert activity landed this week.'
+        : '${_humanizeOpsScopeLabel(rankedSites.first.key, fallback: rankedSites.first.key)} leads this week with ${rankedSites.first.value} alert${rankedSites.first.value == 1 ? '' : 's'}.';
+    final summary = rankedSites.isEmpty
+        ? 'No scoped alert intelligence landed since Monday 00:00 local time.'
+        : rankedSites
+              .take(3)
+              .map(
+                (entry) =>
+                    '${_humanizeOpsScopeLabel(entry.key, fallback: entry.key)} • ${entry.value} alert${entry.value == 1 ? '' : 's'}',
+              )
+              .join('  |  ');
+    if (!mounted) {
+      return true;
+    }
+    _setPlainLanguagePreview(
+      prompt,
+      OnyxCommandSurfacePreview.answered(
+        headline: headline,
+        label: 'THIS WEEK\'S ALERT LEADER',
+        summary: summary,
+      ),
+    );
+    _appendCommandLedgerEntry(
+      rankedSites.isEmpty
+          ? 'Weekly alert leader query answered with clear scope'
+          : 'Weekly alert leader query answered from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      headline,
+      label: 'THIS WEEK\'S ALERT LEADER',
+      detail: rankedSites.isEmpty
+          ? 'Command stayed in place because no alert intelligence landed since Monday 00:00 local time.'
+          : 'ONYX compared alert volume by site for this week and kept the board in place.',
+      accent: rankedSites.isEmpty
+          ? const Color(0xFF10B981)
+          : const Color(0xFF8EC8FF),
+    );
+    return true;
+  }
+
+  Future<bool> _answerLastNightIncidentsCommand(String prompt) async {
+    final window = _lastNightWindowLocal();
+    final lastNightIncidents =
+        _eventsInCommandScope()
+            .whereType<DecisionCreated>()
+            .where((event) {
+              final occurredAt = event.occurredAt.toLocal();
+              return !occurredAt.isBefore(window.start) &&
+                  occurredAt.isBefore(window.end);
+            })
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final headline = lastNightIncidents.isEmpty
+        ? 'No incidents were created last night.'
+        : '${lastNightIncidents.length} incident${lastNightIncidents.length == 1 ? '' : 's'} landed last night.';
+    final summary = lastNightIncidents.isEmpty
+        ? 'No scoped incident creation events landed between 18:00 and 06:00 local time.'
+        : lastNightIncidents
+              .take(3)
+              .map(
+                (incident) =>
+                    '${_incidentIdForDispatch(incident.dispatchId)} • ${incident.siteId} • ${_hhmm(incident.occurredAt.toLocal())}',
+              )
+              .join('  |  ');
+    if (!mounted) {
+      return true;
+    }
+    _setPlainLanguagePreview(
+      prompt,
+      OnyxCommandSurfacePreview.answered(
+        headline: headline,
+        label: 'LAST NIGHT\'S INCIDENTS',
+        summary: summary,
+      ),
+    );
+    _appendCommandLedgerEntry(
+      lastNightIncidents.isEmpty
+          ? 'Last night incident query answered with clear scope'
+          : 'Last night incident query answered from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      headline,
+      label: 'LAST NIGHT\'S INCIDENTS',
+      detail: lastNightIncidents.isEmpty
+          ? 'Command stayed in place because there were no incident creation events between 18:00 and 06:00 local time.'
+          : 'ONYX kept the board in place and summarized the incident stack from the local 18:00 to 06:00 window.',
+      accent: lastNightIncidents.isEmpty
+          ? const Color(0xFF10B981)
+          : const Color(0xFF8EC8FF),
+    );
+    return true;
+  }
+
+  _GuardVigilance? _resolveGuardForPrompt(String prompt) {
+    if (_vigilance.isEmpty) {
+      return null;
+    }
+    final normalizedPrompt = _normalizedCommandToken(prompt);
+    for (final guard in _vigilance) {
+      final normalizedCallsign = _normalizedCommandToken(guard.callsign);
+      if (normalizedCallsign.isNotEmpty &&
+          normalizedPrompt.contains(normalizedCallsign)) {
+        return guard;
+      }
+    }
+    return _focusedVigilanceGuard ?? _guardAttentionLeadFrom(_vigilance);
+  }
+
+  PatrolCompleted? _resolvePatrolReportForPrompt(String prompt) {
+    final patrols = _eventsInCommandScope().whereType<PatrolCompleted>().toList(
+      growable: false,
+    )..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    if (patrols.isEmpty) {
+      return null;
+    }
+    final normalizedPrompt = _normalizedCommandToken(prompt);
+    for (final patrol in patrols) {
+      final normalizedGuard = _normalizedCommandToken(patrol.guardId);
+      final normalizedRoute = _normalizedCommandToken(patrol.routeId);
+      if ((normalizedGuard.isNotEmpty &&
+              normalizedPrompt.contains(normalizedGuard)) ||
+          (normalizedRoute.isNotEmpty &&
+              normalizedPrompt.contains(normalizedRoute))) {
+        return patrol;
+      }
+    }
+    final focusedGuard = _focusedVigilanceGuard;
+    if (focusedGuard != null) {
+      final normalizedFocusedGuard = _normalizedCommandToken(
+        focusedGuard.callsign,
+      );
+      for (final patrol in patrols) {
+        if (_normalizedCommandToken(patrol.guardId) == normalizedFocusedGuard) {
+          return patrol;
+        }
+      }
+    }
+    return patrols.first;
+  }
+
+  String _normalizedCommandToken(String value) {
+    return value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  }
+
+  List<DispatchEvent> _eventsInCommandScope({
+    bool includeAllSitesForClient = false,
+  }) {
+    final scopeClientId = (widget.initialScopeClientId ?? '').trim();
+    final scopeSiteId = (widget.initialScopeSiteId ?? '').trim();
+    final hasScopeFocus = scopeClientId.isNotEmpty;
+    if (!hasScopeFocus) {
+      return widget.events;
+    }
+    return widget.events
+        .where((event) {
+          final clientId = switch (event) {
+            DecisionCreated value => value.clientId.trim(),
+            ResponseArrived value => value.clientId.trim(),
+            PartnerDispatchStatusDeclared value => value.clientId.trim(),
+            GuardCheckedIn value => value.clientId.trim(),
+            ExecutionCompleted value => value.clientId.trim(),
+            IntelligenceReceived value => value.clientId.trim(),
+            PatrolCompleted value => value.clientId.trim(),
+            IncidentClosed value => value.clientId.trim(),
+            _ => '',
+          };
+          final siteId = switch (event) {
+            DecisionCreated value => value.siteId.trim(),
+            ResponseArrived value => value.siteId.trim(),
+            PartnerDispatchStatusDeclared value => value.siteId.trim(),
+            GuardCheckedIn value => value.siteId.trim(),
+            ExecutionCompleted value => value.siteId.trim(),
+            IntelligenceReceived value => value.siteId.trim(),
+            PatrolCompleted value => value.siteId.trim(),
+            IncidentClosed value => value.siteId.trim(),
+            _ => '',
+          };
+          if (clientId != scopeClientId) {
+            return false;
+          }
+          if (scopeSiteId.isEmpty || includeAllSitesForClient) {
+            return true;
+          }
+          return siteId == scopeSiteId;
+        })
+        .toList(growable: false);
+  }
+
+  ({DateTime start, DateTime end}) _lastNightWindowLocal() {
+    final now = DateTime.now().toLocal();
+    final end = DateTime(now.year, now.month, now.day, 6);
+    final start = DateTime(
+      end.year,
+      end.month,
+      end.day,
+    ).subtract(const Duration(days: 1)).add(const Duration(hours: 18));
+    return (start: start, end: end);
+  }
+
+  ({DateTime start, DateTime end}) _thisWeekWindowLocal() {
+    final now = DateTime.now().toLocal();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final start = todayStart.subtract(
+      Duration(days: now.weekday - DateTime.monday),
+    );
+    return (start: start, end: now);
+  }
+
+  String _incidentPriorityPromptLabel(_IncidentPriority priority) {
+    return switch (priority) {
+      _IncidentPriority.p1Critical => 'critical',
+      _IncidentPriority.p2High => 'high',
+      _IncidentPriority.p3Medium => 'medium',
+      _IncidentPriority.p4Low => 'low',
+    };
+  }
+
+  Color _guardStatusAccent(_GuardVigilance guard) {
+    if (guard.decayLevel >= 90) {
+      return const Color(0xFFEF4444);
+    }
+    if (guard.decayLevel >= 75) {
+      return const Color(0xFFF59E0B);
+    }
+    return const Color(0xFF10B981);
+  }
+
+  Color _incidentSummaryAccent(_IncidentRecord incident) {
+    return switch (incident.priority) {
+      _IncidentPriority.p1Critical => const Color(0xFFEF4444),
+      _IncidentPriority.p2High => const Color(0xFFF59E0B),
+      _IncidentPriority.p3Medium => const Color(0xFF22D3EE),
+      _IncidentPriority.p4Low => const Color(0xFF10B981),
+    };
+  }
+
+  String _commandTriagePromptForIncident(
+    _IncidentRecord incident, {
+    required String incidentDetail,
+  }) {
+    return 'Triage incident ${incident.id} for ${incident.site}. '
+        'Incident type: ${incident.type}. '
+        'Priority: ${incident.priority.name}. '
+        'Summary: $incidentDetail';
+  }
+
+  Color _commandRecommendationAccent(OnyxToolTarget target) {
+    return switch (target) {
+      OnyxToolTarget.dispatchBoard => OnyxDesignTokens.redCritical,
+      OnyxToolTarget.tacticalTrack => OnyxDesignTokens.redCritical,
+      OnyxToolTarget.cctvReview => OnyxDesignTokens.amberWarning,
+      OnyxToolTarget.clientComms => OnyxDesignTokens.cyanInteractive,
+      OnyxToolTarget.reportsWorkspace => OnyxDesignTokens.purpleAdmin,
+    };
+  }
+
+  IconData _commandRecommendationIcon(OnyxToolTarget target) {
+    return switch (target) {
+      OnyxToolTarget.dispatchBoard => Icons.warning_amber_rounded,
+      OnyxToolTarget.tacticalTrack => Icons.monitor_heart_rounded,
+      OnyxToolTarget.cctvReview => Icons.videocam_rounded,
+      OnyxToolTarget.clientComms => Icons.mark_chat_read_rounded,
+      OnyxToolTarget.reportsWorkspace => Icons.description_rounded,
+    };
+  }
+
+  Future<void> _executeTypedCommandDecision({
+    required _IncidentRecord incident,
+    required BrainDecision decision,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+  }) async {
+    final recommendation = decision.toRecommendation();
+    await _executeSurfaceRecommendation(
+      incident: incident,
+      recommendation: recommendation,
+      clientCommsSnapshot: clientCommsSnapshot,
+      sourceLabel:
+          decision.decisionBias?.executionSourceLabel ?? 'typed triage',
+      commandBrainSnapshot: decision.toSnapshot(),
+    );
+  }
+
+  Future<void> _executeSurfaceRecommendation({
+    required _IncidentRecord incident,
+    required OnyxRecommendation recommendation,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required String sourceLabel,
+    OnyxCommandBrainSnapshot? commandBrainSnapshot,
+  }) async {
+    final result = _commandToolBridgeForIncident(
+      incident: incident,
+      clientCommsSnapshot: clientCommsSnapshot,
+    ).executeRecommendation(recommendation);
+    final commandOutcome = OnyxCommandSurfaceOutcomeMemory(
+      headline: result.headline,
+      label: recommendation.nextMoveLabel,
+      summary: result.summary,
+    );
+    _appendCommandLedgerEntry(
+      result.executed
+          ? '${recommendation.nextMoveLabel} opened from $sourceLabel'
+          : '${recommendation.nextMoveLabel} staged from $sourceLabel',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      result.receipt.headline,
+      label: result.receipt.label,
+      detail: result.receipt.detail,
+      accent: _commandRecommendationAccent(recommendation.target),
+      commandBrainSnapshot: commandBrainSnapshot,
+      commandOutcome: commandOutcome,
+    );
+  }
+
+  OnyxToolBridge _commandToolBridgeForIncident({
+    required _IncidentRecord incident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+  }) {
+    return _commandToolBridge(
+      activeIncident: incident,
+      clientCommsSnapshot: clientCommsSnapshot,
+    );
+  }
+
+  OnyxToolBridge _commandToolBridge({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+  }) {
+    final resolvedClientId = activeIncident?.clientId.trim().isNotEmpty ?? false
+        ? activeIncident!.clientId
+        : (clientCommsSnapshot?.clientId ?? widget.initialScopeClientId ?? '')
+              .trim();
+    final resolvedSiteId = activeIncident?.siteId.trim().isNotEmpty ?? false
+        ? activeIncident!.siteId
+        : (clientCommsSnapshot?.siteId ?? widget.initialScopeSiteId ?? '')
+              .trim();
+    final openClientComms = resolvedClientId.isEmpty || resolvedSiteId.isEmpty
+        ? null
+        : _openClientLaneAction(
+            clientId: resolvedClientId,
+            siteId: resolvedSiteId,
+          );
+    final scopeLabel = resolvedSiteId.isNotEmpty
+        ? _humanizeOpsScopeLabel(resolvedSiteId, fallback: resolvedSiteId)
+        : resolvedClientId.isNotEmpty
+        ? '$resolvedClientId • all sites'
+        : 'Global controller scope';
+    final incidentReference =
+        (activeIncident?.id ?? widget.focusIncidentReference).trim();
+    return OnyxToolBridge(
+      scopeLabel: scopeLabel,
+      incidentReference: incidentReference,
+      openDispatchBoard: activeIncident == null
+          ? null
+          : () {
+              unawaited(_openCommandAlarmBoard(activeIncident));
+              return true;
+            },
+      openTacticalTrack: activeIncident == null
+          ? null
+          : () {
+              unawaited(_openCommandTrackBoard(activeIncident));
+              return true;
+            },
+      openCctvReview: activeIncident == null
+          ? null
+          : () {
+              unawaited(_openCommandCctvBoard(activeIncident));
+              return true;
+            },
+      openClientComms: openClientComms == null
+          ? null
+          : () {
+              unawaited(
+                _openCommandClientLane(
+                  clientId: resolvedClientId,
+                  siteId: resolvedSiteId,
+                  clientCommsSnapshot: clientCommsSnapshot,
+                ),
+              );
+              return true;
+            },
+    );
+  }
+
+  Future<void> _submitPlainLanguageCommand({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+  }) async {
+    final prompt = _commandPromptController.text.trim();
+    if (prompt.isEmpty) {
+      _showLiveOpsFeedback(
+        'Type one command first.',
+        label: 'COMMAND INPUT',
+        detail:
+            'Ask for one outcome, like "review cctv", "check guard route", or "open client comms".',
+        accent: const Color(0xFF8EC8FF),
+      );
+      return;
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    final parsedCommand = _commandParser.parse(prompt);
+    if (parsedCommand.intent == OnyxCommandIntent.draftClientUpdate) {
+      final handled = await _stageClientDraftCommandForPrompt(
+        parsedCommand.prompt,
+        activeIncident: activeIncident,
+        clientCommsSnapshot: clientCommsSnapshot,
+      );
+      if (handled) {
+        return;
+      }
+    }
+    if (parsedCommand.intent == OnyxCommandIntent.patrolReportLookup) {
+      final handled = await _answerPatrolReportCommand(parsedCommand.prompt);
+      if (handled) {
+        return;
+      }
+    }
+    if (parsedCommand.intent == OnyxCommandIntent.guardStatusLookup) {
+      final handled = await _answerGuardStatusCommand(parsedCommand.prompt);
+      if (handled) {
+        return;
+      }
+    }
+    if (parsedCommand.intent == OnyxCommandIntent.showSiteMostAlertsThisWeek) {
+      final handled = await _answerSiteMostAlertsThisWeekCommand(
+        parsedCommand.prompt,
+      );
+      if (handled) {
+        return;
+      }
+    }
+    if (parsedCommand.intent == OnyxCommandIntent.showIncidentsLastNight) {
+      final handled = await _answerLastNightIncidentsCommand(
+        parsedCommand.prompt,
+      );
+      if (handled) {
+        return;
+      }
+    }
+    if (parsedCommand.intent == OnyxCommandIntent.showDispatchesToday) {
+      final handled = await _answerTodayDispatchesCommand(parsedCommand.prompt);
+      if (handled) {
+        return;
+      }
+    }
+    if (parsedCommand.intent == OnyxCommandIntent.showUnresolvedIncidents) {
+      final handled = await _answerUnresolvedIncidentsCommand(
+        parsedCommand.prompt,
+      );
+      if (handled) {
+        return;
+      }
+    }
+    if (parsedCommand.intent == OnyxCommandIntent.summarizeIncident) {
+      final handled = await _answerIncidentSummaryCommand(
+        parsedCommand.prompt,
+        activeIncident: activeIncident,
+      );
+      if (handled) {
+        return;
+      }
+    }
+    final decision = _commandDecisionForPrompt(
+      prompt,
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+    );
+    final commandBrainSnapshot = decision.toSnapshot();
+    final recommendation = decision.toRecommendation();
+    if (mounted) {
+      _setPlainLanguagePreview(
+        prompt,
+        OnyxCommandSurfacePreview.routed(commandBrainSnapshot),
+      );
+    }
+    final result = _commandToolBridge(
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+    ).executeRecommendation(recommendation);
+    final commandOutcome = OnyxCommandSurfaceOutcomeMemory(
+      headline: result.headline,
+      label: recommendation.nextMoveLabel,
+      summary: result.summary,
+    );
+    _appendCommandLedgerEntry(
+      result.executed
+          ? '${recommendation.nextMoveLabel} opened from plain-language command'
+          : '${recommendation.nextMoveLabel} staged from plain-language command',
+      type: _LedgerType.aiAction,
+      actor: 'ONYX',
+    );
+    _showLiveOpsFeedback(
+      result.receipt.headline,
+      label: result.receipt.label,
+      detail: '${result.receipt.detail} Last command: "$prompt".',
+      accent: _commandRecommendationAccent(recommendation.target),
+      commandBrainSnapshot: commandBrainSnapshot,
+      commandOutcome: commandOutcome,
+    );
+  }
+
+  Future<void> _openCommandTrackBoard(_IncidentRecord incident) async {
+    widget.onAutoAuditAction?.call(
+      'track_handoff_opened',
+      'Opened tactical track from the live operations war room for ${incident.id}.',
+    );
+    if (widget.onOpenTrackForIncident != null) {
+      widget.onOpenTrackForIncident!(incident.id);
+      return;
+    }
+    _focusIncidentFromBanner(incident);
+    await _ensureContextAndVigilancePanelVisible();
+  }
+
+  Future<void> _openCommandCctvBoard(_IncidentRecord incident) async {
+    widget.onAutoAuditAction?.call(
+      'cctv_handoff_opened',
+      'Opened CCTV review from the live operations war room for ${incident.id}.',
+    );
+    if (widget.onOpenCctvForIncident != null) {
+      widget.onOpenCctvForIncident!(incident.id);
+      return;
+    }
+    if (widget.onOpenCctv != null) {
+      widget.onOpenCctv!.call();
+      return;
+    }
+    _focusIncidentFromBanner(incident);
+    if (mounted) {
+      setState(() {
+        _activeTab = _ContextTab.visual;
+      });
+    }
+    await _ensureContextAndVigilancePanelVisible();
+  }
+
+  Future<void> _openCommandGuardsBoard(_GuardVigilance? guard) async {
+    if (widget.onOpenGuards != null) {
+      widget.onOpenGuards!.call();
+      return;
+    }
+    if (!_showDetailedWorkspace && mounted) {
+      setState(() {
+        _showDetailedWorkspace = true;
+      });
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _ensureContextAndVigilancePanelVisible();
+    if (guard != null) {
+      _showLiveOpsFeedback(
+        'Opening guard board for ${guard.callsign}.',
+        label: 'GUARDS',
+        detail:
+            'The simplified guards page is not connected here yet, so command restored the live vigilance context instead.',
+        accent: const Color(0xFFF59E0B),
+      );
+    }
+  }
+
+  Future<void> _openRosterPlannerFromCommand() async {
+    widget.onAutoAuditAction?.call(
+      'roster_planner_opened',
+      'Opened the month planner from the live operations war room to close a live coverage gap.',
+    );
+    _appendCommandLedgerEntry(
+      'Month planner opened from war room',
+      type: _LedgerType.escalation,
+    );
+    _showLiveOpsFeedback(
+      'Month planner warmed from war room.',
+      label: 'ROSTER WATCH',
+      detail:
+          'ONYX pinned the roster gap and opened the month planner so coverage can be closed before handoff.',
+      accent: widget.guardRosterSignalAccent ?? const Color(0xFFF59E0B),
+    );
+    if (widget.onOpenRosterPlanner != null) {
+      widget.onOpenRosterPlanner!.call();
+      return;
+    }
+    await _openCommandGuardsBoard(null);
+  }
+
+  Future<void> _openRosterAuditFromCommand() async {
+    _appendCommandLedgerEntry(
+      'Signed audit opened from war room',
+      type: _LedgerType.systemEvent,
+    );
+    _showLiveOpsFeedback(
+      'Signed roster audit opened from war room.',
+      label: 'AUTO-AUDIT',
+      detail:
+          'ONYX opened the signed occurrence-book record for the planner handoff so command can verify the chain without losing the live board.',
+      accent: const Color(0xFF63E6A1),
+    );
+    widget.onOpenRosterAudit?.call();
+  }
+
+  void _openAgentFromWarRoom(String incidentReference) {
+    final normalizedIncidentReference = incidentReference.trim();
+    if (normalizedIncidentReference.isEmpty) {
+      return;
+    }
+    widget.onAutoAuditAction?.call(
+      'agent_handoff_opened',
+      'Opened AI Copilot from the live operations war room for $normalizedIncidentReference.',
+    );
+    widget.onOpenAgentForIncident?.call(normalizedIncidentReference);
+  }
+
   Future<void> _openCommandClientLane({
     required String clientId,
     required String siteId,
     required LiveClientCommsSnapshot? clientCommsSnapshot,
   }) async {
-    if (clientCommsSnapshot != null) {
-      await _openClientLaneRecovery(clientCommsSnapshot);
-      return;
-    }
+    final scopeLabel = _humanizeOpsScopeLabel(siteId, fallback: siteId);
+    widget.onAutoAuditAction?.call(
+      'client_handoff_opened',
+      'Opened Client Comms from the live operations war room for $scopeLabel.',
+    );
     final openScopedLane = widget.onOpenClientViewForScope;
     if (openScopedLane != null) {
       openScopedLane(clientId, siteId);
       _showLiveOpsFeedback(
-        'Opening client lane for ${_humanizeOpsScopeLabel(siteId, fallback: siteId)}.',
+        'Opening Client Comms for $scopeLabel.',
         label: 'CLIENT COMMS',
         detail:
             'The dedicated client communications page is opening with the same scope already attached to the shift story.',
         accent: const Color(0xFF22D3EE),
       );
+      return;
+    }
+    if (clientCommsSnapshot != null) {
+      await _openClientLaneRecovery(clientCommsSnapshot);
       return;
     }
     await _openClientLaneRecovery(clientCommsSnapshot);
@@ -3650,22 +7128,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   ) {
     return switch (severity) {
       _CommandDecisionSeverity.critical => (
-        const Color(0xFFEF4444),
-        const Color(0xFF211014),
-        const Color(0xFF5A2228),
-        const Color(0xFFFFD7D7),
+        OnyxDesignTokens.redCritical,
+        OnyxDesignTokens.redSurface,
+        OnyxDesignTokens.redBorder,
+        OnyxDesignTokens.redCritical,
       ),
       _CommandDecisionSeverity.actionRequired => (
-        const Color(0xFFF59E0B),
-        const Color(0xFF20170D),
-        const Color(0xFF5D4420),
-        const Color(0xFFFFEDC7),
+        OnyxDesignTokens.amberWarning,
+        OnyxDesignTokens.amberSurface,
+        OnyxDesignTokens.amberBorder,
+        OnyxDesignTokens.amberWarning,
       ),
       _CommandDecisionSeverity.review => (
-        const Color(0xFF22D3EE),
-        const Color(0xFF0E1D23),
-        const Color(0xFF254856),
-        const Color(0xFFD7FBFF),
+        OnyxDesignTokens.cyanInteractive,
+        OnyxDesignTokens.cyanSurface,
+        OnyxDesignTokens.cyanBorder,
+        OnyxDesignTokens.cyanInteractive,
       ),
     };
   }
@@ -3704,24 +7182,26 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             label: activeIncident == null
                 ? 'No incident selected'
                 : 'Active ${activeIncident.id}',
-            foreground: const Color(0xFFEAF4FF),
-            background: const Color(0x1422D3EE),
-            border: const Color(0x553FAEEB),
+            foreground: OnyxDesignTokens.cyanInteractive,
+            background: OnyxDesignTokens.cyanInteractive.withValues(
+              alpha: 0.12,
+            ),
+            border: OnyxDesignTokens.cyanBorder,
             leadingIcon: Icons.hub_rounded,
           ),
           _chip(
             label: scopeLabel,
-            foreground: const Color(0xFFBFD3EE),
-            background: const Color(0x14000000),
-            border: const Color(0xFF35506F),
+            foreground: OnyxDesignTokens.textSecondary,
+            background: _commandPanelTintColor,
+            border: _commandBorderColor,
             leadingIcon: Icons.map_outlined,
           ),
           _chip(
             label:
-                '${_incidents.length} live lane${_incidents.length == 1 ? '' : 's'}',
-            foreground: const Color(0xFF9FD0FF),
-            background: const Color(0x14000000),
-            border: const Color(0xFF35506F),
+                '${_incidents.length} live incident${_incidents.length == 1 ? '' : 's'}',
+            foreground: OnyxDesignTokens.textPrimary,
+            background: _commandPanelTintColor,
+            border: _commandBorderColor,
             leadingIcon: Icons.view_agenda_outlined,
           ),
         ];
@@ -3732,11 +7212,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             _chip(
               key: const ValueKey('live-operations-workspace-focus-lead'),
               label: activeIncident == null
-                  ? 'Focus lead lane'
+                  ? 'Focus lead incident'
                   : activeIncident.id,
-              foreground: const Color(0xFFEAF4FF),
-              background: const Color(0x1A22D3EE),
-              border: const Color(0x5522D3EE),
+              foreground: OnyxDesignTokens.cyanInteractive,
+              background: OnyxDesignTokens.cyanInteractive.withValues(
+                alpha: 0.12,
+              ),
+              border: OnyxDesignTokens.cyanBorder,
               leadingIcon: Icons.center_focus_strong_rounded,
               onTap: _incidents.isEmpty ? null : _focusLeadIncident,
             ),
@@ -3744,9 +7226,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _chip(
                 key: const ValueKey('live-operations-workspace-focus-critical'),
                 label: 'Focus critical',
-                foreground: const Color(0xFFFFD6D6),
-                background: const Color(0x1AEF4444),
-                border: const Color(0x66EF4444),
+                foreground: OnyxDesignTokens.redCritical,
+                background: OnyxDesignTokens.redCritical.withValues(
+                  alpha: 0.12,
+                ),
+                border: OnyxDesignTokens.redBorder,
                 leadingIcon: Icons.warning_amber_rounded,
                 onTap: () => _focusIncidentFromBanner(criticalAlertIncident),
               ),
@@ -3754,9 +7238,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _chip(
                 key: const ValueKey('live-operations-workspace-toggle-queue'),
                 label: queueFilterActive ? 'Show all replies' : queueLabel,
-                foreground: const Color(0xFFFFE4B5),
-                background: const Color(0x1AF59E0B),
-                border: const Color(0x66F59E0B),
+                foreground: OnyxDesignTokens.amberWarning,
+                background: OnyxDesignTokens.amberWarning.withValues(
+                  alpha: 0.12,
+                ),
+                border: OnyxDesignTokens.amberBorder,
                 leadingIcon: Icons.schedule_rounded,
                 onTap: queueFilterActive
                     ? _clearControlInboxPriorityOnly
@@ -3768,6 +7254,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 siteId: scopeSiteId,
                 compact: true,
               ),
+            if (activeIncident != null && widget.onOpenAgentForIncident != null)
+              _chip(
+                key: const ValueKey('live-operations-workspace-open-agent'),
+                label: 'Ask Agent',
+                foreground: OnyxDesignTokens.purpleAdmin,
+                background: OnyxDesignTokens.purpleAdmin.withValues(
+                  alpha: 0.16,
+                ),
+                border: OnyxDesignTokens.purpleBorder,
+                leadingIcon: Icons.psychology_alt_rounded,
+                onTap: () => _openAgentFromWarRoom(activeIncident.id),
+              ),
             _workspaceContextChip(_ContextTab.details),
             _workspaceContextChip(_ContextTab.voip),
             _workspaceContextChip(_ContextTab.visual),
@@ -3776,17 +7274,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 key: const ValueKey(
                   'live-operations-workspace-open-client-lane',
                 ),
-                label: 'Open client lane',
-                foreground: const Color(0xFFDCF5FF),
-                background: const Color(0x1422D3EE),
-                border: const Color(0x553FAEEB),
+                label: 'OPEN CLIENT COMMS',
+                foreground: OnyxDesignTokens.cyanInteractive,
+                background: OnyxDesignTokens.cyanInteractive.withValues(
+                  alpha: 0.12,
+                ),
+                border: OnyxDesignTokens.cyanBorder,
                 leadingIcon: Icons.open_in_new_rounded,
                 onTap: openClientLaneAction,
               ),
           ],
         );
         final summaryMessage = activeIncident == null
-            ? 'Lead-lane recovery, queue triage, client-lane handoff, and details, VoIP, or visual pivots stay pinned in the rail and context boards below.'
+            ? 'Lead-incident recovery, queue triage, Client Comms handoff, and details, VoIP, or visual pivots stay pinned in the rail and context boards below.'
             : '${activeIncident.id} stays active while $queueLabel and $contextLabel controls remain anchored to the incident rail, reply inbox, and context board below.';
         final bannerChild = compact
             ? Column(
@@ -3826,7 +7326,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             const SizedBox(height: 0.52),
                             Text(
                               activeIncident == null
-                                  ? 'No incident is selected. The rail can pin the lead lane back into the board.'
+                                  ? 'No incident is selected. The rail can pin the lead incident back into the board.'
                                   : '${activeIncident.id} is active in the board while $queueLabel and $contextLabel context stay available without leaving the page.',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFFEAF4FF),
@@ -3837,7 +7337,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             ),
                             const SizedBox(height: 0.52),
                             Text(
-                              '$scopeLabel • ${_incidents.length} live lane${_incidents.length == 1 ? '' : 's'} in view',
+                              '$scopeLabel • ${_incidents.length} live incident${_incidents.length == 1 ? '' : 's'} in view',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFFB4C8E1),
                                 fontSize: 7.0,
@@ -3866,7 +7366,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   Text(
                     summaryMessage,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFB4C8E1),
+                      color: _commandBodyColor,
                       fontSize: 6.5,
                       fontWeight: FontWeight.w600,
                       height: 1.32,
@@ -3893,15 +7393,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8.2),
             gradient: const LinearGradient(
-              colors: [Color(0xFF101D30), Color(0xFF162740)],
+              colors: [Color(0xFFF4F8FC), Color(0xFFFFFFFF)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            border: Border.all(color: const Color(0xFF26405C)),
+            border: Border.all(color: _commandBorderStrongColor),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 14,
+                color: _commandShadowColor,
+                blurRadius: 12,
                 spreadRadius: 1,
               ),
             ],
@@ -3914,14 +7414,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Widget _liveOpsCommandReceiptCard() {
     final receipt = _commandReceipt;
+    final canOpenLatestAudit =
+        widget.latestAutoAuditReceipt != null &&
+        widget.onOpenLatestAudit != null;
+    final receiptReplayContextLine = _commandReceiptReplayContextLine();
+    final receiptOutcomeSummary =
+        receipt.continuityView.preferredOutcomeSummaryText ?? '';
+    final replayHistoryLine = _commandReplayHistoryLine();
     return Container(
       key: const ValueKey('live-operations-command-receipt'),
       width: double.infinity,
       padding: const EdgeInsets.all(3.3),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1724),
+        color: Color.alphaBlend(
+          receipt.accent.withValues(alpha: 0.08),
+          _commandPanelColor,
+        ),
         borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(color: receipt.accent.withValues(alpha: 0.4)),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.26)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3929,10 +7439,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             'LATEST COMMAND',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FAFD4),
-              fontSize: 7.1,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.85,
+              color: const Color(0xFF4D7FAE),
+              fontSize: 6.8,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.46,
             ),
           ),
           const SizedBox(height: 1.5),
@@ -3947,16 +7457,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               receipt.label,
               style: GoogleFonts.inter(
                 color: receipt.accent,
-                fontSize: 7.5,
-                fontWeight: FontWeight.w800,
+                fontSize: 7.2,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
           const SizedBox(height: 1.5),
           Text(
             receipt.headline,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF4FF),
+            style: GoogleFonts.inter(
+              color: _commandTitleColor,
               fontSize: 12.3,
               fontWeight: FontWeight.w700,
             ),
@@ -3965,15 +7475,157 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             receipt.detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFFB4C8E1),
+              color: _commandBodyColor,
               fontSize: 7.4,
               fontWeight: FontWeight.w600,
               height: 1.28,
             ),
           ),
+          if (receiptOutcomeSummary.isNotEmpty) ...[
+            const SizedBox(height: 1.4),
+            Text(
+              receiptOutcomeSummary,
+              key: const ValueKey(
+                'live-operations-command-receipt-command-outcome',
+              ),
+              style: GoogleFonts.inter(
+                color: _commandMutedColor,
+                fontSize: 7.1,
+                fontWeight: FontWeight.w700,
+                height: 1.28,
+              ),
+            ),
+          ],
+          if (receiptReplayContextLine != null) ...[
+            const SizedBox(height: 2.2),
+            Text(
+              'Command brain replay',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF4D7FAE),
+                fontSize: 6.8,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.42,
+              ),
+            ),
+            const SizedBox(height: 0.8),
+            Text(
+              receiptReplayContextLine,
+              key: const ValueKey(
+                'live-operations-command-receipt-command-brain-replay',
+              ),
+              style: GoogleFonts.inter(
+                color: _commandMutedColor,
+                fontSize: 7.1,
+                fontWeight: FontWeight.w700,
+                height: 1.28,
+              ),
+            ),
+          ],
+          if (replayHistoryLine != null) ...[
+            const SizedBox(height: 2.2),
+            Text(
+              'Replay continuity',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF4D7FAE),
+                fontSize: 6.8,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.42,
+              ),
+            ),
+            const SizedBox(height: 0.8),
+            Text(
+              replayHistoryLine,
+              key: const ValueKey(
+                'live-operations-command-receipt-replay-history',
+              ),
+              style: GoogleFonts.inter(
+                color: _commandMutedColor,
+                fontSize: 7.1,
+                fontWeight: FontWeight.w700,
+                height: 1.28,
+              ),
+            ),
+          ],
+          if (canOpenLatestAudit) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const ValueKey(
+                  'live-operations-command-view-latest-audit',
+                ),
+                onPressed: widget.onOpenLatestAudit,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF63E6A1),
+                  side: const BorderSide(color: Color(0xFF63E6A1)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                icon: const Icon(Icons.verified_rounded, size: 14),
+                label: const Text('OPEN SIGNED AUDIT'),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  bool get _hasAgentReturnReceipt => _commandReceipt.label == 'AGENT RETURN';
+  bool get _hasAutoAuditReceipt => _commandReceipt.label == 'AUTO-AUDIT';
+
+  _LiveOpsCommandReceipt _liveOpsCommandReceiptFromAutoAudit(
+    LiveOpsAutoAuditReceipt receipt,
+  ) {
+    return _LiveOpsCommandReceipt(
+      accent: receipt.accent,
+      continuityView: OnyxCommandSurfaceContinuityView(
+        commandReceipt: OnyxCommandSurfaceReceiptMemory(
+          label: receipt.label,
+          headline: receipt.headline,
+          detail: receipt.detail,
+        ),
+      ),
+    );
+  }
+
+  void _ingestAgentReturnIncidentReference({bool fromInit = false}) {
+    final ref = (widget.agentReturnIncidentReference ?? '').trim();
+    if (ref.isEmpty) {
+      return;
+    }
+    final receipt = _LiveOpsCommandReceipt(
+      accent: const Color(0xFF8B5CF6),
+      continuityView: OnyxCommandSurfaceContinuityView(
+        commandReceipt: OnyxCommandSurfaceReceiptMemory(
+          label: 'AGENT RETURN',
+          headline: 'Returned from Agent for $ref.',
+          detail:
+              'The live operations board stayed pinned so controllers can continue from the same incident without reopening the legacy workspace.',
+        ),
+      ),
+    );
+    if (fromInit) {
+      _commandReceipt = receipt;
+    } else if (mounted) {
+      setState(() {
+        _commandReceipt = receipt;
+      });
+    } else {
+      _commandReceipt = receipt;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      widget.onConsumeAgentReturnIncidentReference?.call(ref);
+    });
   }
 
   Widget _workspaceContextChip(_ContextTab tab) {
@@ -3981,9 +7633,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return _chip(
       key: ValueKey('live-operations-workspace-tab-${tab.name}'),
       label: _tabLabel(tab),
-      foreground: selected ? const Color(0xFFEAF4FF) : const Color(0xFF9AB1CF),
-      background: selected ? const Color(0x3322D3EE) : const Color(0x14000000),
-      border: selected ? const Color(0x6622D3EE) : const Color(0xFF35506F),
+      foreground: selected ? const Color(0xFF245A69) : const Color(0xFF556B80),
+      background: selected ? const Color(0xFFF1FAFC) : const Color(0xFFF5F8FC),
+      border: selected ? const Color(0xFFBEDAE1) : const Color(0xFFD4DFEA),
       leadingIcon: switch (tab) {
         _ContextTab.details => Icons.article_outlined,
         _ContextTab.voip => Icons.call_rounded,
@@ -4014,11 +7666,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         return Container(
           key: key,
           width: double.infinity,
-          padding: const EdgeInsets.all(2.5),
+          padding: const EdgeInsets.all(4.5),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6.8),
-            color: const Color(0xFF0B1523),
-            border: Border.all(color: const Color(0xFF203448)),
+            borderRadius: BorderRadius.circular(8.5),
+            color: const Color(0xFFFFFFFF),
+            border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -4026,23 +7678,23 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 title.toUpperCase(),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF6C87AD),
-                  fontSize: 6.6,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.85,
+                  color: const Color(0xFF556B80),
+                  fontSize: 6.9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.42,
                 ),
               ),
-              const SizedBox(height: 0.62),
+              const SizedBox(height: 1.4),
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF96AECD),
-                  fontSize: 6.6,
+                  color: const Color(0xFF7A8FA4),
+                  fontSize: 6.9,
                   fontWeight: FontWeight.w600,
-                  height: 1.22,
+                  height: 1.38,
                 ),
               ),
-              const SizedBox(height: 1.5),
+              const SizedBox(height: 3),
               if (boundedHeight) Expanded(child: child) else child,
             ],
           ),
@@ -4135,24 +7787,61 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     String label = 'LIVE COMMAND',
     String? detail,
     Color accent = const Color(0xFF8FD1FF),
+    OnyxCommandBrainSnapshot? commandBrainSnapshot,
+    OnyxCommandSurfaceOutcomeMemory? commandOutcome,
   }) {
-    if (_desktopWorkspaceActive && mounted) {
-      setState(() {
-        _commandReceipt = _LiveOpsCommandReceipt(
-          label: label,
-          headline: message,
-          detail:
-              detail ??
-              'The latest live-operations action stays pinned in the context rail while the active incident remains in focus.',
-          accent: accent,
-        );
-      });
+    if (!mounted) {
+      return;
+    }
+    final normalizedDetail =
+        detail ??
+        'The latest live-operations action stays pinned in the context rail while the active incident remains in focus.';
+    final continuityView = OnyxCommandSurfaceMemory(
+      commandBrainSnapshot: commandBrainSnapshot,
+      commandReceipt: OnyxCommandSurfaceReceiptMemory(
+        label: label,
+        headline: message,
+        detail: normalizedDetail,
+        target: commandBrainSnapshot?.target,
+      ),
+      commandOutcome: commandOutcome,
+    ).continuityView();
+    final receipt = _LiveOpsCommandReceipt(
+      accent: accent,
+      continuityView: continuityView,
+    );
+    _rememberReplayBackedCommandReceipt(receipt);
+    if (_desktopWorkspaceActive || commandBrainSnapshot != null) {
+      if (mounted) {
+        setState(() {
+          _commandReceipt = receipt;
+        });
+      } else {
+        _commandReceipt = receipt;
+      }
+    }
+    if (_desktopWorkspaceActive) {
       return;
     }
     final messenger = ScaffoldMessenger.maybeOf(context);
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      SnackBar(
+        backgroundColor: const Color(0xFFFFFFFF),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFFD6E1EC)),
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF172638),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 
@@ -4239,9 +7928,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           key: const ValueKey('live-operations-critical-alert-view-details'),
           onPressed: () => _focusIncidentFromBanner(incident),
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0x33EF4444),
-            foregroundColor: const Color(0xFFFFE4E4),
-            side: const BorderSide(color: Color(0x66FFB4B4)),
+            backgroundColor: const Color(0xFFFFF7F7),
+            foregroundColor: const Color(0xFFB91C1C),
+            side: const BorderSide(color: Color(0x66EF4444)),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(9),
@@ -4262,17 +7951,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF621313), Color(0xFF7A1616)],
+              colors: [Color(0xFFFFF1F1), Color(0xFFFFF7F7)],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
             borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: const Color(0xAAEF4444)),
+            border: Border.all(color: const Color(0x66EF4444)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x30EF4444),
-                blurRadius: 18,
-                spreadRadius: 1,
+                color: Color(0x14EF4444),
+                blurRadius: 12,
+                spreadRadius: 0,
               ),
             ],
           ),
@@ -4284,13 +7973,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       children: [
                         const Icon(
                           Icons.warning_amber_rounded,
-                          color: Color(0xFFFFB4B4),
+                          color: Color(0xFFEF4444),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'CRITICAL ALERT',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFFFD6D6),
+                            color: const Color(0xFFB91C1C),
                             fontSize: 9.6,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.9,
@@ -4302,7 +7991,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       '${incident.id} • ${incident.type} • ${incident.site}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFFFF1F1),
+                        color: const Color(0xFF172638),
                         fontSize: 10.8,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4316,7 +8005,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         Text(
                           '$statusLabel ${incident.timestamp}',
                           style: GoogleFonts.robotoMono(
-                            color: const Color(0xFFFFC7C7),
+                            color: const Color(0xFFB45309),
                             fontSize: 8.9,
                             fontWeight: FontWeight.w700,
                           ),
@@ -4330,13 +8019,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   children: [
                     const Icon(
                       Icons.warning_amber_rounded,
-                      color: Color(0xFFFFB4B4),
+                      color: Color(0xFFEF4444),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'CRITICAL ALERT',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFFFD6D6),
+                        color: const Color(0xFFB91C1C),
                         fontSize: 9.6,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.9,
@@ -4352,7 +8041,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       child: Text(
                         '${incident.id} • ${incident.type} • ${incident.site}',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFFFF1F1),
+                          color: const Color(0xFF172638),
                           fontSize: 10.8,
                           fontWeight: FontWeight.w700,
                         ),
@@ -4363,7 +8052,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       '$statusLabel ${incident.timestamp}',
                       style: GoogleFonts.robotoMono(
-                        color: const Color(0xFFFFC7C7),
+                        color: const Color(0xFFB45309),
                         fontSize: 8.9,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4381,6 +8070,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required _IncidentRecord? activeIncident,
     required LiveClientCommsSnapshot? clientCommsSnapshot,
     required LiveControlInboxSnapshot? controlInboxSnapshot,
+    Key? gridKey,
   }) {
     final activeIncidentCount = _incidents
         .where((incident) => incident.status != _IncidentStatus.resolved)
@@ -4393,6 +8083,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
     final activeLaneCount = clientCommsSnapshot == null ? 0 : 1;
     final watchCount = _sitesUnderWatchCount(clientCommsSnapshot);
+    final rosterAttention =
+        widget.guardRosterSignalNeedsAttention &&
+        (widget.guardRosterSignalHeadline ?? '').trim().isNotEmpty;
+    final displayedWatchCount = watchCount > 0
+        ? watchCount
+        : rosterAttention
+        ? 1
+        : 0;
     final highPriorityCount = controlInboxSnapshot == null
         ? 0
         : _controlInboxPriorityDraftCount(
@@ -4419,16 +8117,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       builder: (context, constraints) {
         final columnCount = constraints.maxWidth < 940 ? 2 : 4;
         final childAspectRatio = constraints.maxWidth < 520
-            ? 0.98
+            ? 1.12
             : constraints.maxWidth < 940
-            ? 1.42
-            : 2.05;
+            ? 1.72
+            : 2.78;
         return GridView.count(
-          key: const ValueKey('live-operations-command-overview'),
+          key: gridKey ?? const ValueKey('live-operations-command-overview'),
           crossAxisCount: columnCount,
           childAspectRatio: childAspectRatio,
-          crossAxisSpacing: 4.5,
-          mainAxisSpacing: 4.5,
+          crossAxisSpacing: 6,
+          mainAxisSpacing: 6,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           children: [
@@ -4441,18 +8139,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               statusLabel: 'Live',
               statusAccent: const Color(0xFFEF4444),
               value: '$activeIncidentCount',
-              title: 'Active Incidents',
+              title: 'Alarms',
               footnote: resolvedCount > 0
-                  ? '$resolvedCount cleared today'
-                  : 'No cleared incidents yet',
+                  ? '$resolvedCount cleared'
+                  : 'Nothing cleared',
               footnoteIcon: Icons.trending_up_rounded,
               footnoteAccent: const Color(0xFF34D399),
-              actionLabel: _incidents.isEmpty
-                  ? 'No live lane'
-                  : activeIncident == null
-                  ? 'Pin lead lane'
-                  : 'Refocus lead lane',
-              actionIcon: Icons.center_focus_strong_rounded,
               selected:
                   activeIncident != null &&
                   leadIncident != null &&
@@ -4468,12 +8160,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               statusLabel: 'Queue',
               statusAccent: const Color(0xFFF59E0B),
               value: '$pendingActionCount',
-              title: 'Pending Actions',
+              title: 'Queue',
               footnote: controlInboxSnapshot == null
-                  ? 'Control inbox sync offline'
+                  ? 'Inbox offline'
                   : highPriorityCount > 0
-                  ? '$highPriorityCount high priority'
-                  : 'All queues clear',
+                  ? '$highPriorityCount hot'
+                  : 'All clear',
               footnoteIcon: controlInboxSnapshot == null
                   ? Icons.cloud_off_rounded
                   : highPriorityCount > 0
@@ -4484,16 +8176,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   : highPriorityCount > 0
                   ? const Color(0xFFF87171)
                   : const Color(0xFF34D399),
-              actionLabel: controlInboxSnapshot == null
-                  ? 'Open action board'
-                  : queueFilterActive
-                  ? 'Show full queue'
-                  : 'Open priority queue',
-              actionIcon: controlInboxSnapshot == null
-                  ? Icons.alt_route_rounded
-                  : queueFilterActive
-                  ? Icons.unfold_more_rounded
-                  : Icons.playlist_add_check_circle_rounded,
               selected: queueFilterActive,
               onTap: controlInboxSnapshot == null
                   ? () {
@@ -4516,9 +8198,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ? const Color(0xFF22D3EE)
                   : const Color(0xFF4B6B8F),
               value: '$activeLaneCount',
-              title: 'Active Lanes',
+              title: 'Client Comms',
               footnote: clientCommsSnapshot == null
-                  ? 'Lane watch unavailable'
+                  ? 'Client Comms offline'
                   : 'Telegram ${clientCommsSnapshot.telegramHealthLabel}',
               footnoteIcon: clientCommsSnapshot == null
                   ? Icons.remove_circle_outline_rounded
@@ -4528,14 +8210,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   : _telegramHealthAccent(
                       clientCommsSnapshot.telegramHealthLabel,
                     ),
-              actionLabel: openClientLaneAction == null
-                  ? clientCommsSnapshot == null
-                        ? 'Open comms fallback'
-                        : 'Open in-page lane watch'
-                  : 'Open client lane',
-              actionIcon: openClientLaneAction == null
-                  ? Icons.route_rounded
-                  : Icons.open_in_new_rounded,
               selected: openClientLaneAction == null
                   ? _activeTab == _ContextTab.voip
                   : clientCommsSnapshot != null &&
@@ -4551,24 +8225,36 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 'live-operations-command-card-sites-under-watch',
               ),
               icon: Icons.visibility_rounded,
-              iconAccent: const Color(0xFF10B981),
-              statusLabel: watchCount > 0 ? 'Active' : 'Idle',
-              statusAccent: watchCount > 0
+              iconAccent: rosterAttention
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF10B981),
+              statusLabel: rosterAttention
+                  ? 'Gap'
+                  : watchCount > 0
+                  ? 'Active'
+                  : 'Idle',
+              statusAccent: rosterAttention
+                  ? const Color(0xFFF59E0B)
+                  : watchCount > 0
                   ? const Color(0xFF10B981)
                   : const Color(0xFF4B6B8F),
-              value: '$watchCount',
-              title: 'Sites Under Watch',
-              footnote: watchCount > 0 ? 'Full coverage' : 'Coverage idle',
-              footnoteIcon: Icons.shield_outlined,
-              footnoteAccent: watchCount > 0
+              value: '$displayedWatchCount',
+              title: 'Watch',
+              footnote: rosterAttention
+                  ? 'Roster hot'
+                  : watchCount > 0
+                  ? 'Coverage live'
+                  : 'Coverage idle',
+              footnoteIcon: rosterAttention
+                  ? Icons.event_busy_rounded
+                  : Icons.shield_outlined,
+              footnoteAccent: rosterAttention
+                  ? const Color(0xFFF59E0B)
+                  : watchCount > 0
                   ? const Color(0xFF34D399)
                   : const Color(0xFF9AB1CF),
-              actionLabel: watchCount > 0
-                  ? 'Open visual context'
-                  : 'Visual idle',
-              actionIcon: Icons.videocam_outlined,
               selected: _activeTab == _ContextTab.visual,
-              onTap: watchCount == 0
+              onTap: displayedWatchCount == 0
                   ? null
                   : () {
                       if ((_activeIncidentId ?? '').isEmpty &&
@@ -4597,12 +8283,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required String footnote,
     required IconData footnoteIcon,
     required Color footnoteAccent,
-    required String actionLabel,
-    required IconData actionIcon,
     bool selected = false,
     VoidCallback? onTap,
   }) {
     final interactive = onTap != null;
+    final emphasize =
+        interactive &&
+        value.trim() != '0' &&
+        statusLabel.trim().toUpperCase() != 'CLEAR';
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -4611,28 +8299,46 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         borderRadius: BorderRadius.circular(11),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final compact = constraints.maxWidth < 118;
+            final compact = constraints.maxWidth < 140;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 160),
-              padding: EdgeInsets.all(compact ? 5.0 : 6.5),
+              padding: EdgeInsets.all(compact ? 9 : 10.5),
               decoration: BoxDecoration(
                 color: selected
-                    ? const Color(0xFF101A28)
-                    : const Color(0xFF0D1117),
-                borderRadius: BorderRadius.circular(9.4),
+                    ? Color.alphaBlend(
+                        iconAccent.withValues(alpha: 0.18),
+                        _commandPanelColor,
+                      )
+                    : emphasize
+                    ? Color.alphaBlend(
+                        iconAccent.withValues(alpha: 0.12),
+                        _commandPanelColor,
+                      )
+                    : _commandPanelColor,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: selected
                       ? iconAccent.withValues(alpha: 0.56)
+                      : emphasize
+                      ? iconAccent.withValues(alpha: 0.28)
                       : interactive
-                      ? const Color(0xFF263342)
-                      : const Color(0xFF21262D),
+                      ? _commandBorderStrongColor
+                      : _commandBorderColor,
                 ),
                 boxShadow: selected
                     ? [
                         BoxShadow(
-                          color: iconAccent.withValues(alpha: 0.12),
-                          blurRadius: 18,
-                          spreadRadius: 1,
+                          color: iconAccent.withValues(alpha: 0.18),
+                          blurRadius: 14,
+                          spreadRadius: 0.3,
+                        ),
+                      ]
+                    : emphasize
+                    ? [
+                        BoxShadow(
+                          color: iconAccent.withValues(alpha: 0.10),
+                          blurRadius: 14,
+                          offset: const Offset(0, 8),
                         ),
                       ]
                     : null,
@@ -4640,133 +8346,115 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: statusAccent,
+                      shape: BoxShape.circle,
+                      boxShadow: emphasize
+                          ? [
+                              BoxShadow(
+                                color: statusAccent.withValues(alpha: 0.38),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : null,
+                    ),
+                  ),
+                  SizedBox(height: compact ? 7 : 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        width: compact ? 18 : 22,
-                        height: compact ? 18 : 22,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            compact ? 5.2 : 6.4,
+                      Icon(
+                        icon,
+                        size: compact ? 11 : 12,
+                        color: iconAccent.withValues(alpha: 0.88),
+                      ),
+                      SizedBox(width: compact ? 4 : 5),
+                      Expanded(
+                        child: Text(
+                          title.toUpperCase(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: OnyxTypographyTokens.sansFamily,
+                            color: emphasize
+                                ? iconAccent.withValues(alpha: 0.98)
+                                : _commandMutedColor,
+                            fontSize: 11,
+                            fontWeight: OnyxTypographyTokens.semibold,
+                            letterSpacing: 1.5,
+                            height: 1.04,
                           ),
-                          color: iconAccent.withValues(alpha: 0.14),
-                          border: Border.all(
-                            color: iconAccent.withValues(alpha: 0.32),
-                          ),
-                        ),
-                        child: Icon(
-                          icon,
-                          size: compact ? 10 : 12,
-                          color: iconAccent,
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 6),
                       Container(
                         padding: EdgeInsets.symmetric(
-                          horizontal: compact ? 3.0 : 4.4,
-                          vertical: compact ? 1.1 : 1.7,
+                          horizontal: compact ? 4.5 : 5.5,
+                          vertical: compact ? 2.0 : 2.4,
                         ),
                         decoration: BoxDecoration(
                           color: statusAccent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(
-                            compact ? 5.2 : 6.4,
+                          borderRadius: BorderRadius.circular(compact ? 6 : 7),
+                          border: Border.all(
+                            color: statusAccent.withValues(alpha: 0.26),
                           ),
                         ),
                         child: Text(
                           statusLabel.toUpperCase(),
                           style: GoogleFonts.inter(
                             color: statusAccent,
-                            fontSize: compact ? 6.8 : 8.0,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: compact ? 0.55 : 0.75,
+                            fontSize: compact ? 6.8 : 7.4,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: compact ? 0.34 : 0.46,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const Spacer(),
+                  SizedBox(height: compact ? 8 : 10),
                   Text(
                     value,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFF8FBFF),
-                      fontSize: compact ? 16.2 : 18.8,
-                      fontWeight: FontWeight.w900,
-                      height: 0.95,
+                    style: TextStyle(
+                      fontFamily: OnyxTypographyTokens.sansFamily,
+                      color: emphasize ? iconAccent : _commandTitleColor,
+                      fontSize: 48,
+                      fontWeight: OnyxTypographyTokens.extrabold,
+                      height: 1.0,
                     ),
                   ),
-                  SizedBox(height: compact ? 1.7 : 2.6),
-                  Text(
-                    title.toUpperCase(),
-                    maxLines: compact ? 2 : 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFB4BDC9),
-                      fontSize: compact ? 7.5 : 9.1,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: compact ? 0.45 : 0.75,
-                      height: 1.08,
-                    ),
-                  ),
-                  SizedBox(height: compact ? 2.2 : 3.5),
-                  Container(height: 1, color: const Color(0x14FFFFFF)),
-                  SizedBox(height: compact ? 2.2 : 3.5),
+                  const Spacer(),
                   Row(
                     children: [
                       Icon(
                         footnoteIcon,
-                        size: compact ? 9.5 : 11,
+                        size: compact ? 10 : 11,
                         color: footnoteAccent,
                       ),
-                      SizedBox(width: compact ? 2.3 : 3.5),
+                      SizedBox(width: compact ? 3 : 4),
                       Expanded(
                         child: Text(
                           footnote,
-                          maxLines: compact ? 2 : 1,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(
                             color: footnoteAccent,
-                            fontSize: compact ? 7.1 : 8.4,
-                            fontWeight: FontWeight.w700,
-                            height: 1.12,
+                            fontSize: compact ? 7.3 : 7.8,
+                            fontWeight: FontWeight.w600,
+                            height: 1.18,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  SizedBox(height: compact ? 2.2 : 3.5),
-                  Row(
-                    children: [
-                      Icon(
-                        actionIcon,
-                        size: compact ? 9.5 : 11,
-                        color: interactive
-                            ? iconAccent
-                            : const Color(0xFF5B6F87),
-                      ),
-                      SizedBox(width: compact ? 2.3 : 3.5),
-                      Expanded(
-                        child: Text(
-                          actionLabel,
-                          maxLines: compact ? 2 : 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: interactive
-                                ? const Color(0xFFE5EFFC)
-                                : const Color(0xFF7E91AA),
-                            fontSize: compact ? 7.1 : 8.4,
-                            fontWeight: FontWeight.w800,
-                            height: 1.12,
-                          ),
+                      if (interactive) ...[
+                        SizedBox(width: compact ? 2 : 4),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: compact ? 12 : 14,
+                          color: OnyxDesignTokens.borderSubtle,
                         ),
-                      ),
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: compact ? 9.5 : 11,
-                        color: interactive
-                            ? const Color(0xFF9AB9DB)
-                            : const Color(0xFF516173),
-                      ),
+                      ],
                     ],
                   ),
                 ],
@@ -4820,8 +8508,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       return Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
         decoration: const BoxDecoration(
-          color: Color(0xFF0A0D14),
-          border: Border(bottom: BorderSide(color: Color(0xFF1A2D49))),
+          color: _commandPanelColor,
+          border: Border(bottom: BorderSide(color: _commandBorderColor)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4840,13 +8528,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   '$hh:$mm',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE4EEFF),
+                    color: _commandTitleColor,
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(width: 10),
-                Container(width: 1, height: 16, color: const Color(0xFF22334C)),
+                Container(width: 1, height: 16, color: _commandBorderColor),
                 const SizedBox(width: 10),
                 Text(
                   'Combat Window Active',
@@ -4928,9 +8616,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     label: filteredReplyCount == 1
                         ? 'Show all replies (1)'
                         : 'Show all replies ($filteredReplyCount)',
-                    foreground: const Color(0xFFEAF4FF),
-                    background: const Color(0x334B6B8F),
-                    border: const Color(0x664B6B8F),
+                    foreground: const Color(0xFF3F6587),
+                    background: const Color(0xFFEFF4FA),
+                    border: _commandBorderStrongColor,
                     onTap: _clearControlInboxPriorityOnly,
                   ),
                 _chip(
@@ -4957,8 +8645,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       height: 50,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: const BoxDecoration(
-        color: Color(0xFF0A0D14),
-        border: Border(bottom: BorderSide(color: Color(0xFF1A2D49))),
+        color: _commandPanelColor,
+        border: Border(bottom: BorderSide(color: _commandBorderColor)),
       ),
       child: Row(
         children: [
@@ -4974,13 +8662,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             '$hh:$mm',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE4EEFF),
+              color: _commandTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(width: 8),
-          Container(width: 1, height: 16, color: const Color(0xFF22334C)),
+          Container(width: 1, height: 16, color: _commandBorderColor),
           const SizedBox(width: 8),
           Text(
             'Combat Window Active',
@@ -5061,9 +8749,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: filteredReplyCount == 1
                   ? 'Show all replies (1)'
                   : 'Show all replies ($filteredReplyCount)',
-              foreground: const Color(0xFFEAF4FF),
-              background: const Color(0x334B6B8F),
-              border: const Color(0x664B6B8F),
+              foreground: const Color(0xFF3F6587),
+              background: const Color(0xFFEFF4FA),
+              border: _commandBorderStrongColor,
               onTap: _clearControlInboxPriorityOnly,
             ),
           ],
@@ -5112,7 +8800,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final latestClientMessage = (snapshot.latestClientMessage ?? '').trim();
     final responseLabel = snapshot.pendingApprovalCount > 0
         ? 'Next ONYX reply waiting sign-off'
-        : 'Latest lane reply';
+        : 'Latest Client Comms reply';
     final responseText = snapshot.pendingApprovalCount > 0
         ? (snapshot.latestPendingDraft ?? '').trim()
         : (snapshot.latestOnyxReply ?? '').trim();
@@ -5128,7 +8816,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(4.5),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.16), const Color(0xFF0D1725)],
+          colors: [
+            Color.alphaBlend(
+              accent.withValues(alpha: 0.14),
+              _commandPanelColor,
+            ),
+            _commandPanelTintColor,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -5161,9 +8855,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'CLIENT LANE WATCH',
+                      'CLIENT COMMS WATCH',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8FAFD4),
+                        color: const Color(0xFF4D7FAE),
                         fontSize: 7.2,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.85,
@@ -5173,7 +8867,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       '$scopeLabel • ${_clientCommsNarrative(snapshot)}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: _commandTitleColor,
                         fontSize: 8.9,
                         fontWeight: FontWeight.w700,
                       ),
@@ -5182,9 +8876,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       linkedToActiveIncident
                           ? 'Linked to active incident ${activeIncident.id}, so control can feel client pressure without leaving the board.'
-                          : 'Watching the selected client lane so operator approval and delivery health stay visible before the next escalation.',
+                          : 'Watching the selected Client Comms flow so operator approval and delivery health stay visible before the next escalation.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB8CCE5),
+                        color: _commandBodyColor,
                         fontSize: 7.4,
                         fontWeight: FontWeight.w600,
                         height: 1.22,
@@ -5205,8 +8899,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     siteId: snapshot.siteId,
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFEAF4FF),
-                    side: BorderSide(color: accent.withValues(alpha: 0.52)),
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent.withValues(alpha: 0.42)),
+                    backgroundColor: _commandPanelColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 5,
                       vertical: 4.25,
@@ -5215,7 +8910,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ),
                   icon: const Icon(Icons.open_in_new_rounded, size: 14),
                   label: Text(
-                    'Open Client Lane',
+                    'OPEN CLIENT COMMS',
                     style: GoogleFonts.inter(
                       fontSize: 8.0,
                       fontWeight: FontWeight.w700,
@@ -5234,8 +8929,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       ? null
                       : () => _clearLearnedLaneStyle(snapshot),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF9EDCF0),
-                    side: const BorderSide(color: Color(0xFF245B72)),
+                    foregroundColor: const Color(0xFF2E6EA8),
+                    side: const BorderSide(color: _commandBorderStrongColor),
+                    backgroundColor: _commandPanelColor,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 5,
                       vertical: 4.25,
@@ -5248,7 +8944,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           height: 14,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Color(0xFF9EDCF0),
+                            color: Color(0xFF2E6EA8),
                           ),
                         )
                       : const Icon(Icons.refresh_rounded, size: 14),
@@ -5288,7 +8984,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               _commsChip(
                 icon: Icons.tune_rounded,
-                label: 'Lane voice ${snapshot.clientVoiceProfileLabel}',
+                label: 'Client voice ${snapshot.clientVoiceProfileLabel}',
                 accent: const Color(0xFF4B6B8F),
               ),
               _commsChip(
@@ -5365,16 +9061,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
-                          ? const Color(0xFFEAF4FF)
-                          : const Color(0xFF9AB1CF),
+                          ? const Color(0xFF2E6EA8)
+                          : _commandMutedColor,
                       backgroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
-                          ? const Color(0xFF1B3148)
-                          : Colors.transparent,
+                          ? const Color(0xFFEAF1FA)
+                          : _commandPanelColor,
                       side: BorderSide(
                         color: _laneVoiceOptionSelected(snapshot, option.$2)
-                            ? const Color(0xFF4B6B8F)
-                            : const Color(0xFF35506F),
+                            ? const Color(0xFF9EBBDA)
+                            : _commandBorderColor,
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 5.0,
@@ -5396,12 +9092,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             _liveClientLaneCue(snapshot),
             style: GoogleFonts.inter(
-              color: const Color(0xFF9FB7D5),
+              color: _commandBodyColor,
               fontSize: 7.4,
               fontWeight: FontWeight.w600,
               height: 1.24,
             ),
           ),
+          if (widget.onLoadCameraHealthFactPacketForScope != null ||
+              _clientLaneCameraPacketForScope(snapshot) != null) ...[
+            const SizedBox(height: 2.6),
+            _clientLaneCameraPreviewPanel(snapshot, accent: accent),
+          ],
           if (latestClientMessage.isNotEmpty) ...[
             const SizedBox(height: 2.8),
             _clientCommsTextBlock(
@@ -5409,7 +9110,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               text:
                   '$latestClientMessage${_commsMomentLabel(snapshot.latestClientMessageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestClientMessageAtUtc)}'}',
               borderColor: const Color(0xFF31506F),
-              textColor: const Color(0xFFD8E8FA),
+              textColor: _commandTitleColor,
             ),
           ],
           if (responseText.isNotEmpty) ...[
@@ -5419,7 +9120,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               text:
                   '$responseText${responseMoment.isEmpty ? '' : ' • $responseMoment'}',
               borderColor: accent,
-              textColor: const Color(0xFFEAF4FF),
+              textColor: _commandTitleColor,
             ),
           ],
           if ((snapshot.latestSmsFallbackStatus ?? '').trim().isNotEmpty) ...[
@@ -5429,7 +9130,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               text:
                   '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestSmsFallbackStatus!.trim())}${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc)}'}',
               borderColor: const Color(0xFF2E7D68),
-              textColor: const Color(0xFFDDFBF3),
+              textColor: _commandTitleColor,
             ),
           ],
           if ((snapshot.latestVoipStageStatus ?? '').trim().isNotEmpty) ...[
@@ -5439,7 +9140,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               text:
                   '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestVoipStageStatus!.trim())}${_commsMomentLabel(snapshot.latestVoipStageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestVoipStageAtUtc)}'}',
               borderColor: const Color(0xFF3E6AA6),
-              textColor: const Color(0xFFDCEBFF),
+              textColor: _commandTitleColor,
             ),
           ],
           if (snapshot.recentDeliveryHistoryLines.isNotEmpty) ...[
@@ -5448,7 +9149,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Recent delivery history',
               text: snapshot.recentDeliveryHistoryLines.join('\n'),
               borderColor: const Color(0xFF35506F),
-              textColor: const Color(0xFFDCE8FF),
+              textColor: _commandTitleColor,
             ),
           ],
           if (snapshot.learnedApprovalStyleExample.trim().isNotEmpty) ...[
@@ -5457,7 +9158,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Learned approval style',
               text: snapshot.learnedApprovalStyleExample.trim(),
               borderColor: const Color(0xFF245B72),
-              textColor: const Color(0xFFD9F7FF),
+              textColor: _commandTitleColor,
             ),
           ],
           if (_clientCommsOpsFootnote(snapshot).isNotEmpty) ...[
@@ -5465,8 +9166,762 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             Text(
               _clientCommsOpsFootnote(snapshot),
               style: GoogleFonts.inter(
-                color: const Color(0xFF9FB7D5),
+                color: _commandBodyColor,
                 fontSize: 7.7,
+                fontWeight: FontWeight.w600,
+                height: 1.24,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _clientLaneCameraPreviewPanel(
+    LiveClientCommsSnapshot snapshot, {
+    required Color accent,
+  }) {
+    final packet = _clientLaneCameraPacketForScope(snapshot);
+    final loadFailed =
+        _clientLaneCameraHealthLoadFailed &&
+        _clientLaneCameraHealthScopeKey ==
+            _scopeBusyKey(snapshot.clientId, snapshot.siteId);
+    final loading =
+        _clientLaneCameraHealthLoading &&
+        _clientLaneCameraHealthScopeKey ==
+            _scopeBusyKey(snapshot.clientId, snapshot.siteId);
+    final previewUri = packet?.currentVisualSnapshotUri == null
+        ? null
+        : _cacheBustedPreviewUri(packet!.currentVisualSnapshotUri!);
+    final verificationLabel = _commsMomentLabel(
+      packet?.currentVisualVerifiedAtUtc ?? packet?.lastSuccessfulVisualAtUtc,
+    );
+    final lastProbeLabel = _commsMomentLabel(
+      packet?.lastSuccessfulUpstreamProbeAtUtc,
+    );
+    final relayCheckLabel = _commsMomentLabel(
+      packet?.currentVisualRelayCheckedAtUtc,
+    );
+    final relayFrameLabel = _commsMomentLabel(
+      packet?.currentVisualRelayLastFrameAtUtc,
+    );
+    final continuousWatchStatus = (packet?.continuousVisualWatchStatus ?? '')
+        .trim();
+    final continuousWatchPostureLabel =
+        (packet?.continuousVisualWatchPostureLabel ?? '').trim();
+    final continuousWatchAttentionLabel =
+        (packet?.continuousVisualWatchAttentionLabel ?? '').trim();
+    final continuousWatchSourceLabel =
+        (packet?.continuousVisualWatchSourceLabel ?? '').trim();
+    final continuousWatchSweepLabel = _commsMomentLabel(
+      packet?.continuousVisualWatchLastSweepAtUtc,
+    );
+    final continuousWatchCandidateLabel = _commsMomentLabel(
+      packet?.continuousVisualWatchLastCandidateAtUtc,
+    );
+    final continuousWatchHotCameraLabel =
+        (packet?.continuousVisualWatchHotCameraLabel ??
+                packet?.continuousVisualWatchHotCameraId ??
+                '')
+            .trim();
+    final continuousWatchHotZoneLabel =
+        (packet?.continuousVisualWatchHotZoneLabel ?? '').trim();
+    final continuousWatchHotAreaLabel =
+        (packet?.continuousVisualWatchHotAreaLabel ?? '').trim();
+    final continuousWatchHotPriorityLabel =
+        (packet?.continuousVisualWatchHotWatchPriorityLabel ?? '').trim();
+    final continuousWatchHotStreak =
+        packet?.continuousVisualWatchHotCameraChangeStreakCount ?? 0;
+    final continuousWatchHotStage =
+        (packet?.continuousVisualWatchHotCameraChangeStage ?? '').trim();
+    final continuousWatchHotSinceLabel = _commsMomentLabel(
+      packet?.continuousVisualWatchHotCameraChangeActiveSinceUtc,
+    );
+    final continuousWatchHotScore =
+        packet?.continuousVisualWatchHotCameraSceneDeltaScore;
+    final correlatedContextLabel =
+        (packet?.continuousVisualWatchCorrelatedContextLabel ?? '').trim();
+    final correlatedPriorityLabel =
+        (packet?.continuousVisualWatchCorrelatedWatchPriorityLabel ?? '')
+            .trim();
+    final correlatedStage =
+        (packet?.continuousVisualWatchCorrelatedChangeStage ?? '').trim();
+    final correlatedCameraCount =
+        packet?.continuousVisualWatchCorrelatedCameraCount ?? 0;
+    final correlatedSinceLabel = _commsMomentLabel(
+      packet?.continuousVisualWatchCorrelatedActiveSinceUtc,
+    );
+    final correlatedCameraLabels =
+        packet?.continuousVisualWatchCorrelatedCameraLabels ?? const <String>[];
+    final relayIssue = _humanizeClientLaneRelayIssue(
+      packet?.currentVisualRelayLastError,
+    );
+    final relayStatus = packet?.currentVisualRelayStatus;
+    final localProxyStatus = packet?.scopedLocalProxyStatusLabel ?? 'unknown';
+    final localProxyUpstreamStatus =
+        (packet?.localProxyUpstreamStreamStatus ?? '').trim().toLowerCase();
+    final localProxyLastAlertLabel = _commsMomentLabel(
+      packet?.localProxyLastAlertAtUtc,
+    );
+    final localProxyLastSuccessLabel = _commsMomentLabel(
+      packet?.localProxyLastSuccessAtUtc,
+    );
+    final localProxyBufferedAlertCount =
+        packet?.localProxyBufferedAlertCount ?? 0;
+    final localProxyIssue = _humanizeClientLaneLocalProxyIssue(
+      packet?.localProxyLastError,
+    );
+    final previewModeLabel = _clientLaneCameraPreviewAutoRefresh
+        ? 'Refreshing stills every ${_clientLaneCameraPreviewRefreshInterval.inSeconds}s'
+        : 'Manual frame refresh';
+
+    return Container(
+      key: const ValueKey('client-lane-camera-preview-panel'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(7),
+      decoration: BoxDecoration(
+        color: _commandPanelColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.26)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'CURRENT CAMERA CHECK',
+                      style: GoogleFonts.inter(
+                        color: accent,
+                        fontSize: 7.2,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.85,
+                      ),
+                    ),
+                    const SizedBox(height: 1.2),
+                    Text(
+                      packet == null
+                          ? loadFailed
+                                ? 'The scoped camera health check failed. ONYX could not verify visual confirmation for this site on the last attempt.'
+                                : 'Refresh the scoped camera packet to verify whether ONYX has current visual confirmation or only recorder events.'
+                          : packet.safeClientExplanation,
+                      style: GoogleFonts.inter(
+                        color: _commandBodyColor,
+                        fontSize: 7.4,
+                        fontWeight: FontWeight.w600,
+                        height: 1.24,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: [
+                        _commsChip(
+                          icon: _clientLaneCameraPreviewAutoRefresh
+                              ? Icons.play_circle_fill_rounded
+                              : Icons.pause_circle_outline_rounded,
+                          label: previewModeLabel,
+                          accent: _clientLaneCameraPreviewAutoRefresh
+                              ? const Color(0xFF34D399)
+                              : const Color(0xFFF59E0B),
+                        ),
+                        if (_clientLaneCameraPreviewAutoRefresh && !loading)
+                          _commsChip(
+                            icon: Icons.timelapse_rounded,
+                            label: 'Operator preview only',
+                            accent: const Color(0xFF8FD1FF),
+                          ),
+                        if (packet == null && loadFailed)
+                          _commsChip(
+                            icon: Icons.error_outline_rounded,
+                            label: 'Load failed',
+                            accent: const Color(0xFFEF4444),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  OutlinedButton.icon(
+                    key: ValueKey(
+                      'client-lane-camera-refresh-${snapshot.clientId}-${snapshot.siteId}',
+                    ),
+                    onPressed: loading
+                        ? null
+                        : () => unawaited(
+                            _loadClientLaneCameraHealth(showFeedback: true),
+                          ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: accent,
+                      side: BorderSide(color: accent.withValues(alpha: 0.42)),
+                      backgroundColor: _commandPanelColor,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 5,
+                      ),
+                      minimumSize: const Size(0, 26),
+                    ),
+                    icon: loading
+                        ? SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: accent,
+                            ),
+                          )
+                        : const Icon(Icons.refresh_rounded, size: 14),
+                    label: Text(
+                      packet?.hasCurrentVisualConfirmation == true
+                          ? 'REFRESH FRAME'
+                          : 'REFRESH CHECK',
+                      style: GoogleFonts.inter(
+                        fontSize: 7.8,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  OutlinedButton.icon(
+                    key: ValueKey(
+                      'client-lane-camera-toggle-${snapshot.clientId}-${snapshot.siteId}',
+                    ),
+                    onPressed: _toggleClientLaneCameraPreviewAutoRefresh,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _clientLaneCameraPreviewAutoRefresh
+                          ? const Color(0xFF2E6EA8)
+                          : const Color(0xFF9A6700),
+                      side: BorderSide(
+                        color: _clientLaneCameraPreviewAutoRefresh
+                            ? const Color(0xFFBDD0E3)
+                            : const Color(0xFFE9D19A),
+                      ),
+                      backgroundColor: _commandPanelColor,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 5,
+                      ),
+                      minimumSize: const Size(0, 26),
+                    ),
+                    icon: Icon(
+                      _clientLaneCameraPreviewAutoRefresh
+                          ? Icons.pause_circle_outline_rounded
+                          : Icons.play_circle_outline_rounded,
+                      size: 14,
+                    ),
+                    label: Text(
+                      _clientLaneCameraPreviewAutoRefresh
+                          ? 'PAUSE PREVIEW'
+                          : 'RESUME PREVIEW',
+                      style: GoogleFonts.inter(
+                        fontSize: 7.8,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (packet != null) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [
+                _commsChip(
+                  icon: Icons.visibility_rounded,
+                  label: 'Camera ${packet.status.wireValue.toUpperCase()}',
+                  accent: switch (packet.status) {
+                    ClientCameraHealthStatus.live => const Color(0xFF34D399),
+                    ClientCameraHealthStatus.limited => const Color(0xFFF59E0B),
+                    ClientCameraHealthStatus.offline => const Color(0xFFEF4444),
+                  },
+                ),
+                _commsChip(
+                  icon: Icons.hub_rounded,
+                  label:
+                      'Path ${packet.path.wireValue.replaceAll('_', ' ').toUpperCase()}',
+                  accent: const Color(0xFF67E8F9),
+                ),
+                if (packet.hasScopedLocalProxyHealth)
+                  _commsChip(
+                    icon: Icons.router_rounded,
+                    label: _clientLaneLocalProxyChipLabel(localProxyStatus),
+                    accent: _clientLaneLocalProxyStatusAccent(localProxyStatus),
+                  ),
+                if (packet.localProxyUpstreamStreamConnected == true ||
+                    localProxyUpstreamStatus == 'connected')
+                  _commsChip(
+                    icon: Icons.link_rounded,
+                    label: 'Upstream CONNECTED',
+                    accent: const Color(0xFF34D399),
+                  ),
+                if (localProxyUpstreamStatus == 'reconnecting')
+                  _commsChip(
+                    icon: Icons.link_rounded,
+                    label: 'Upstream RECONNECTING...',
+                    accent: const Color(0xFFF59E0B),
+                  ),
+                if (localProxyBufferedAlertCount > 0)
+                  _commsChip(
+                    icon: Icons.notifications_active_rounded,
+                    label: 'Buffered alerts $localProxyBufferedAlertCount',
+                    accent: const Color(0xFF8FD1FF),
+                  ),
+                if (verificationLabel.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.image_rounded,
+                    label: 'Visual $verificationLabel',
+                    accent: const Color(0xFF8FD1FF),
+                  ),
+                if (lastProbeLabel.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.router_rounded,
+                    label: 'Probe $lastProbeLabel',
+                    accent: const Color(0xFFB9C8D8),
+                  ),
+                if (packet.hasCurrentVisualStreamRelay)
+                  _commsChip(
+                    icon: Icons.stream_rounded,
+                    label:
+                        'Relay ${_clientLaneRelayStatusLabel(relayStatus).toUpperCase()}',
+                    accent: _clientLaneRelayStatusAccent(relayStatus),
+                  ),
+                if (packet.hasCurrentVisualConfirmation &&
+                    !packet.hasCurrentVisualStreamRelay &&
+                    packet.currentVisualRelayCheckedAtUtc != null)
+                  _commsChip(
+                    icon: Icons.stream_rounded,
+                    label: 'Stream relay unavailable',
+                    accent: const Color(0xFFF59E0B),
+                  ),
+                if (continuousWatchStatus.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.radar_rounded,
+                    label:
+                        'Watch ${_clientLaneContinuousVisualWatchLabel(continuousWatchStatus).toUpperCase()}',
+                    accent: _clientLaneContinuousVisualWatchAccent(
+                      continuousWatchStatus,
+                    ),
+                  ),
+                if (continuousWatchPostureLabel.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.visibility_rounded,
+                    label:
+                        'Posture ${continuousWatchPostureLabel.toUpperCase()}',
+                    accent: _clientLaneContinuousVisualAttentionAccent(
+                      continuousWatchAttentionLabel,
+                    ),
+                  ),
+                if (continuousWatchAttentionLabel.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.notification_important_rounded,
+                    label:
+                        'Attention ${continuousWatchAttentionLabel.toUpperCase()}',
+                    accent: _clientLaneContinuousVisualAttentionAccent(
+                      continuousWatchAttentionLabel,
+                    ),
+                  ),
+                if (continuousWatchSourceLabel.isNotEmpty)
+                  _commsChip(
+                    icon: continuousWatchSourceLabel == 'cross_camera'
+                        ? Icons.account_tree_rounded
+                        : Icons.center_focus_strong_rounded,
+                    label: continuousWatchSourceLabel == 'cross_camera'
+                        ? 'Source CROSS-CAMERA'
+                        : 'Source SINGLE-CAMERA',
+                    accent: continuousWatchSourceLabel == 'cross_camera'
+                        ? const Color(0xFF8B5CF6)
+                        : const Color(0xFF67E8F9),
+                  ),
+                if (continuousWatchHotCameraLabel.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.videocam_rounded,
+                    label: continuousWatchHotZoneLabel.isEmpty
+                        ? 'Hot $continuousWatchHotCameraLabel'
+                        : 'Hot $continuousWatchHotCameraLabel • $continuousWatchHotZoneLabel',
+                    accent: const Color(0xFF8FD1FF),
+                  ),
+                if (continuousWatchHotAreaLabel.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.place_rounded,
+                    label: 'Area ${continuousWatchHotAreaLabel.toUpperCase()}',
+                    accent: const Color(0xFF67E8F9),
+                  ),
+                if (continuousWatchHotPriorityLabel.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.priority_high_rounded,
+                    label:
+                        'Rule ${continuousWatchHotPriorityLabel.toUpperCase()} PRIORITY',
+                    accent: _clientLaneContinuousVisualPriorityAccent(
+                      continuousWatchHotPriorityLabel,
+                    ),
+                  ),
+                if (continuousWatchHotStreak > 0)
+                  _commsChip(
+                    icon: Icons.timeline_rounded,
+                    label: 'Streak x$continuousWatchHotStreak',
+                    accent: continuousWatchStatus == 'alerting'
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFFF59E0B),
+                  ),
+                if (continuousWatchHotStage.isNotEmpty)
+                  _commsChip(
+                    icon: Icons.policy_rounded,
+                    label:
+                        'Deviation ${_clientLaneContinuousVisualStageLabel(continuousWatchHotStage).toUpperCase()}',
+                    accent: _clientLaneContinuousVisualStageAccent(
+                      continuousWatchHotStage,
+                    ),
+                  ),
+                if (correlatedContextLabel.isNotEmpty &&
+                    correlatedCameraCount > 1)
+                  _commsChip(
+                    icon: Icons.hub_rounded,
+                    label:
+                        'Correlation ${correlatedContextLabel.toUpperCase()} x$correlatedCameraCount',
+                    accent: const Color(0xFF8B5CF6),
+                  ),
+                if (correlatedPriorityLabel.isNotEmpty &&
+                    correlatedCameraCount > 1)
+                  _commsChip(
+                    icon: Icons.account_tree_rounded,
+                    label:
+                        'Cross-camera ${correlatedPriorityLabel.toUpperCase()}',
+                    accent: _clientLaneContinuousVisualPriorityAccent(
+                      correlatedPriorityLabel,
+                    ),
+                  ),
+                if (correlatedStage.isNotEmpty && correlatedCameraCount > 1)
+                  _commsChip(
+                    icon: Icons.call_split_rounded,
+                    label:
+                        'Stage ${_clientLaneContinuousVisualStageLabel(correlatedStage).toUpperCase()}',
+                    accent: _clientLaneContinuousVisualStageAccent(
+                      correlatedStage,
+                    ),
+                  ),
+              ],
+            ),
+            if ((packet.continuousVisualWatchSummary ?? '')
+                .trim()
+                .isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                packet.continuousVisualWatchSummary!.trim(),
+                style: GoogleFonts.inter(
+                  color: _commandBodyColor,
+                  fontSize: 7.4,
+                  fontWeight: FontWeight.w600,
+                  height: 1.24,
+                ),
+              ),
+            ],
+            if (continuousWatchHotCameraLabel.isNotEmpty ||
+                continuousWatchPostureLabel.isNotEmpty ||
+                correlatedContextLabel.isNotEmpty ||
+                continuousWatchSweepLabel.isNotEmpty ||
+                continuousWatchCandidateLabel.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(
+                [
+                  if (continuousWatchPostureLabel.isNotEmpty)
+                    'Watch posture: $continuousWatchPostureLabel${continuousWatchAttentionLabel.isEmpty ? '' : ' • ${continuousWatchAttentionLabel.toLowerCase()} attention'}${continuousWatchSourceLabel.isEmpty ? '' : ' • ${continuousWatchSourceLabel == 'cross_camera' ? 'cross-camera' : 'single-camera'}'}',
+                  if (correlatedContextLabel.isNotEmpty &&
+                      correlatedCameraCount > 1)
+                    'Cross-camera focus: $correlatedContextLabel • $correlatedCameraCount cameras${correlatedSinceLabel.isEmpty ? '' : ' • active $correlatedSinceLabel'}',
+                  if (continuousWatchHotCameraLabel.isNotEmpty)
+                    'Focus camera: $continuousWatchHotCameraLabel${continuousWatchHotAreaLabel.isEmpty ? '' : ' • $continuousWatchHotAreaLabel'}${continuousWatchHotScore == null ? '' : ' • delta ${(continuousWatchHotScore * 100).round()}%'}',
+                  if (correlatedCameraLabels.isNotEmpty)
+                    'Linked cameras: ${correlatedCameraLabels.join(', ')}.',
+                  if (continuousWatchHotSinceLabel.isNotEmpty)
+                    'Change since $continuousWatchHotSinceLabel.',
+                  if (continuousWatchSweepLabel.isNotEmpty)
+                    'Last watch sweep $continuousWatchSweepLabel.',
+                  if (continuousWatchCandidateLabel.isNotEmpty)
+                    'Last watch alert $continuousWatchCandidateLabel.',
+                ].join(' '),
+                style: GoogleFonts.inter(
+                  color: _commandMutedColor,
+                  fontSize: 7.1,
+                  fontWeight: FontWeight.w600,
+                  height: 1.24,
+                ),
+              ),
+            ],
+            if (packet.hasScopedLocalProxyHealth) ...[
+              const SizedBox(height: 5),
+              Text(
+                _clientLaneLocalProxySummary(
+                  packet,
+                  lastAlertLabel: localProxyLastAlertLabel,
+                  lastSuccessLabel: localProxyLastSuccessLabel,
+                ),
+                style: GoogleFonts.inter(
+                  color: _commandBodyColor,
+                  fontSize: 7.4,
+                  fontWeight: FontWeight.w600,
+                  height: 1.24,
+                ),
+              ),
+              if (localProxyIssue.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  localProxyIssue,
+                  style: GoogleFonts.inter(
+                    color: _commandMutedColor,
+                    fontSize: 7.1,
+                    fontWeight: FontWeight.w600,
+                    height: 1.24,
+                  ),
+                ),
+              ],
+            ],
+            if (packet.hasCurrentVisualStreamRelay) ...[
+              const SizedBox(height: 5),
+              Text(
+                _clientLaneRelaySummary(
+                  relayStatus,
+                  relayFrameLabel: relayFrameLabel,
+                  relayCheckLabel: relayCheckLabel,
+                  activeClientCount:
+                      packet.currentVisualRelayActiveClientCount ?? 0,
+                ),
+                style: GoogleFonts.inter(
+                  color: _commandBodyColor,
+                  fontSize: 7.4,
+                  fontWeight: FontWeight.w600,
+                  height: 1.24,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                relayIssue.isNotEmpty
+                    ? relayIssue
+                    : 'A browser-safe player URL is ready for operator use if this stream needs to be opened outside the current surface.',
+                style: GoogleFonts.inter(
+                  color: _commandMutedColor,
+                  fontSize: 7.1,
+                  fontWeight: FontWeight.w600,
+                  height: 1.24,
+                ),
+              ),
+            ] else if (packet.hasCurrentVisualConfirmation &&
+                (relayCheckLabel.isNotEmpty || relayIssue.isNotEmpty)) ...[
+              const SizedBox(height: 5),
+              Text(
+                [
+                  'A current frame is verified, but the operator stream relay is not ready yet.',
+                  if (relayCheckLabel.isNotEmpty)
+                    'Last relay check: $relayCheckLabel.',
+                ].join(' '),
+                style: GoogleFonts.inter(
+                  color: _commandBodyColor,
+                  fontSize: 7.4,
+                  fontWeight: FontWeight.w600,
+                  height: 1.24,
+                ),
+              ),
+              if (relayIssue.isNotEmpty) ...[
+                const SizedBox(height: 3),
+                Text(
+                  relayIssue,
+                  style: GoogleFonts.inter(
+                    color: _commandMutedColor,
+                    fontSize: 7.1,
+                    fontWeight: FontWeight.w600,
+                    height: 1.24,
+                  ),
+                ),
+              ],
+            ],
+          ],
+          if (previewUri != null) ...[
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Image.network(
+                  previewUri.toString(),
+                  key: ValueKey(
+                    'client-lane-camera-preview-image-${snapshot.clientId}-${snapshot.siteId}-$_clientLaneCameraPreviewNonce',
+                  ),
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: const Color(0xFFF4F8FC),
+                      alignment: Alignment.center,
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        'The latest frame could not be rendered in the browser. Refresh the check or copy the frame URL for direct inspection.',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: _commandBodyColor,
+                          fontSize: 7.6,
+                          fontWeight: FontWeight.w600,
+                          height: 1.24,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                SizedBox(
+                  width: 220,
+                  child: Text(
+                    [
+                      'Current visual confirmation',
+                      if ((packet?.currentVisualCameraId ?? '')
+                          .trim()
+                          .isNotEmpty)
+                        packet!.currentVisualCameraId!.trim(),
+                      if (verificationLabel.isNotEmpty) verificationLabel,
+                    ].join(' • '),
+                    style: GoogleFonts.inter(
+                      color: _commandTitleColor,
+                      fontSize: 7.7,
+                      fontWeight: FontWeight.w700,
+                      height: 1.24,
+                    ),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  key: ValueKey(
+                    'client-lane-camera-copy-${snapshot.clientId}-${snapshot.siteId}',
+                  ),
+                  onPressed: packet?.currentVisualSnapshotUri == null
+                      ? null
+                      : () =>
+                            unawaited(_copyClientLaneCameraPreviewUrl(packet!)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2E6EA8),
+                    side: const BorderSide(color: _commandBorderStrongColor),
+                    backgroundColor: _commandPanelColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 5,
+                    ),
+                    minimumSize: const Size(0, 26),
+                  ),
+                  icon: const Icon(Icons.link_rounded, size: 14),
+                  label: Text(
+                    'COPY FRAME URL',
+                    style: GoogleFonts.inter(
+                      fontSize: 7.8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (packet?.hasCurrentVisualStreamRelay == true)
+                  OutlinedButton.icon(
+                    key: ValueKey(
+                      'client-lane-camera-copy-player-${snapshot.clientId}-${snapshot.siteId}',
+                    ),
+                    onPressed: () =>
+                        unawaited(_copyClientLaneStreamPlayerUrl(packet!)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0F766E),
+                      side: const BorderSide(color: Color(0xFF99F6E4)),
+                      backgroundColor: _commandPanelColor,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 5,
+                      ),
+                      minimumSize: const Size(0, 26),
+                    ),
+                    icon: const Icon(Icons.stream_rounded, size: 14),
+                    label: Text(
+                      'COPY PLAYER URL',
+                      style: GoogleFonts.inter(
+                        fontSize: 7.8,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                OutlinedButton.icon(
+                  key: ValueKey(
+                    'client-lane-camera-open-live-${snapshot.clientId}-${snapshot.siteId}',
+                  ),
+                  onPressed: packet?.currentVisualSnapshotUri == null
+                      ? null
+                      : () => unawaited(_openClientLaneLiveView(packet!)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2E6EA8),
+                    side: const BorderSide(color: _commandBorderStrongColor),
+                    backgroundColor: _commandPanelColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 5,
+                    ),
+                    minimumSize: const Size(0, 26),
+                  ),
+                  icon: const Icon(Icons.open_in_full_rounded, size: 14),
+                  label: Text(
+                    'OPEN LIVE VIEW',
+                    style: GoogleFonts.inter(
+                      fontSize: 7.8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  key: ValueKey(
+                    'client-lane-camera-open-stream-${snapshot.clientId}-${snapshot.siteId}',
+                  ),
+                  onPressed: packet?.hasCurrentVisualStreamRelay == true
+                      ? () =>
+                            unawaited(_showClientLaneStreamRelayDialog(packet!))
+                      : null,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F766E),
+                    side: const BorderSide(color: Color(0xFF99F6E4)),
+                    backgroundColor: _commandPanelColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 5,
+                    ),
+                    minimumSize: const Size(0, 26),
+                  ),
+                  icon: const Icon(Icons.stream_rounded, size: 14),
+                  label: Text(
+                    'OPEN STREAM PLAYER',
+                    style: GoogleFonts.inter(
+                      fontSize: 7.8,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else if (!loading && packet != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              packet.hasLiveVisualAccess
+                  ? 'ONYX has visual confirmation on record for this scope, but a current proxy-backed frame is not available in the browser right now.'
+                  : 'No current frame is available yet. Treat this scope as event-backed or limited until a fresh visual confirmation is recorded.',
+              style: GoogleFonts.inter(
+                color: _commandBodyColor,
+                fontSize: 7.4,
                 fontWeight: FontWeight.w600,
                 height: 1.24,
               ),
@@ -5534,10 +9989,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       fallback: snapshot.selectedSiteId,
     );
     final selectedScopeNarrative = snapshot.selectedScopePendingCount > 0
-        ? '${snapshot.selectedScopePendingCount} pending in the selected lane'
+        ? '${snapshot.selectedScopePendingCount} pending in the selected scope'
         : snapshot.awaitingResponseCount > 0
         ? '${snapshot.awaitingResponseCount} fresh client ask${snapshot.awaitingResponseCount == 1 ? '' : 's'} waiting for ONYX shaping'
-        : 'selected lane is clear right now';
+        : 'selected scope is clear right now';
 
     return KeyedSubtree(
       key: _controlInboxPanelGlobalKey,
@@ -5547,12 +10002,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         padding: const EdgeInsets.all(4.3),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [accent.withValues(alpha: 0.15), const Color(0xFF0C1622)],
+            colors: [
+              Color.alphaBlend(
+                accent.withValues(alpha: 0.12),
+                _commandPanelColor,
+              ),
+              _commandPanelTintColor,
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(5.5),
-          border: Border.all(color: accent.withValues(alpha: 0.5)),
+          border: Border.all(color: accent.withValues(alpha: 0.32)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -5583,7 +10044,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           Text(
                             'CONTROL INBOX',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF8FAFD4),
+                              color: const Color(0xFF4D7FAE),
                               fontSize: 8.6,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.0,
@@ -5632,7 +10093,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                                   ? 'High priority 1'
                                                   : 'High priority $priorityDraftCount'),
                                         style: GoogleFonts.inter(
-                                          color: const Color(0xFFFFE1A8),
+                                          color: const Color(0xFF8A5A00),
                                           fontSize: 8.5,
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -5654,16 +10115,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0x334B6B8F),
+                                color: _commandPanelColor,
                                 borderRadius: BorderRadius.circular(999),
                                 border: Border.all(
-                                  color: const Color(0x664B6B8F),
+                                  color: _commandBorderStrongColor,
                                 ),
                               ),
                               child: Text(
                                 'Filtered ${displayedPendingDrafts.length}',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFEAF4FF),
+                                  color: const Color(0xFF3F6587),
                                   fontSize: 8.5,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -5740,7 +10201,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 });
                               },
                               style: TextButton.styleFrom(
-                                foregroundColor: const Color(0xFFBAE6FD),
+                                foregroundColor: const Color(0xFF2E6EA8),
                                 padding: EdgeInsets.zero,
                                 minimumSize: const Size(0, 0),
                                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -5764,9 +10225,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0x1438BDF8),
+                            color: const Color(0xFFEFF6FC),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0x5538BDF8)),
+                            border: Border.all(color: const Color(0xFFBDD6EA)),
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -5784,7 +10245,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 child: Text(
                                   'Tip: tap the queue chip to move between full and high-priority views. Long press it for a quick explanation of the current mode.',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFFD9F4FF),
+                                    color: _commandBodyColor,
                                     fontSize: 9.5,
                                     fontWeight: FontWeight.w600,
                                     height: 1.32,
@@ -5795,7 +10256,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               TextButton(
                                 onPressed: _dismissQueueStateHint,
                                 style: TextButton.styleFrom(
-                                  foregroundColor: const Color(0xFFBAE6FD),
+                                  foregroundColor: const Color(0xFF2E6EA8),
                                   padding: EdgeInsets.zero,
                                   minimumSize: const Size(0, 0),
                                   tapTargetSize:
@@ -5821,7 +10282,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             ? '${snapshot.awaitingResponseCount} live client ask${snapshot.awaitingResponseCount == 1 ? '' : 's'} waiting for response shaping'
                             : 'No client replies are waiting for approval',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF4FF),
+                          color: _commandTitleColor,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                         ),
@@ -5830,7 +10291,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       Text(
                         '$selectedScopeLabel • $selectedScopeNarrative',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFB8CCE5),
+                          color: _commandBodyColor,
                           fontSize: 9.5,
                           fontWeight: FontWeight.w600,
                           height: 1.3,
@@ -5851,8 +10312,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       siteId: snapshot.selectedSiteId,
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFEAF4FF),
-                      side: BorderSide(color: accent.withValues(alpha: 0.52)),
+                      foregroundColor: accent,
+                      backgroundColor: _commandPanelColor,
+                      side: BorderSide(color: accent.withValues(alpha: 0.42)),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
                         vertical: 6,
@@ -5861,7 +10323,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                     icon: const Icon(Icons.open_in_new_rounded, size: 15),
                     label: Text(
-                      'Open Client Lane',
+                      'OPEN CLIENT COMMS',
                       style: GoogleFonts.inter(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -5901,7 +10363,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 _commsChip(
                   icon: Icons.tune_rounded,
                   label:
-                      'Lane voice ${snapshot.selectedScopeClientVoiceProfileLabel}',
+                      'Client voice ${snapshot.selectedScopeClientVoiceProfileLabel}',
                   accent: const Color(0xFF4B6B8F),
                 ),
                 _commsChip(
@@ -5928,7 +10390,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       'Queue shape',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFA9BFD9),
+                        color: _commandMutedColor,
                         fontSize: 9.8,
                         fontWeight: FontWeight.w700,
                         height: 1.28,
@@ -6069,14 +10531,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               snapshot.selectedScopeClientVoiceProfileLabel,
                               option.$2,
                             )
-                            ? const Color(0xFFEAF4FF)
-                            : const Color(0xFF9AB1CF),
+                            ? const Color(0xFF245A86)
+                            : const Color(0xFF6C8198),
                         backgroundColor:
                             _laneVoiceOptionSelectedForLabel(
                               snapshot.selectedScopeClientVoiceProfileLabel,
                               option.$2,
                             )
-                            ? const Color(0xFF1B3148)
+                            ? const Color(0xFFEAF4FF)
                             : Colors.transparent,
                         side: BorderSide(
                           color:
@@ -6084,8 +10546,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 snapshot.selectedScopeClientVoiceProfileLabel,
                                 option.$2,
                               )
-                              ? const Color(0xFF4B6B8F)
-                              : const Color(0xFF35506F),
+                              ? const Color(0xFF9FC3E6)
+                              : const Color(0xFFD6E4F2),
                         ),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -6167,7 +10629,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         : const Color(0xFF4B6B8F);
     final scopeLabel = _humanizeOpsScopeLabel(ask.siteId, fallback: ask.siteId);
     final providerLabel = ask.messageProvider.trim().isEmpty
-        ? 'client lane'
+        ? 'Client Comms'
         : ask.messageProvider.trim();
 
     return Container(
@@ -6178,9 +10640,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1825),
+        color: _commandPanelColor,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: accent.withValues(alpha: 0.32)),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6195,7 +10657,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       '$scopeLabel • ${ask.author.trim().isEmpty ? 'Client' : ask.author.trim()}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: _commandTitleColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -6204,7 +10666,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       '$providerLabel • ${_commsMomentLabel(ask.occurredAtUtc)}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
+                        color: _commandMutedColor,
                         fontSize: 9.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -6224,7 +10686,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     siteId: ask.siteId,
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    foregroundColor: accent,
+                    backgroundColor: _commandPanelColor,
                     side: BorderSide(color: accent.withValues(alpha: 0.42)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -6252,7 +10715,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? Icons.my_location_rounded
                     : Icons.travel_explore_rounded,
                 label: ask.matchesSelectedScope
-                    ? 'Selected lane'
+                    ? 'Selected scope'
                     : 'Other scope',
                 accent: accent,
               ),
@@ -6263,7 +10726,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             label: 'Client asked',
             text: ask.body.trim(),
             borderColor: accent,
-            textColor: const Color(0xFFD8E8FA),
+            textColor: _commandTitleColor,
           ),
         ],
       ),
@@ -6292,9 +10755,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF101A27),
+        color: _commandPanelColor,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: accent.withValues(alpha: 0.36)),
+        border: Border.all(color: accent.withValues(alpha: 0.30)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6305,7 +10768,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 '$scopeLabel • Draft #${draft.updateId}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF4FF),
+                  color: _commandTitleColor,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -6314,7 +10777,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 '${draft.providerLabel.trim().isEmpty ? 'AI provider' : draft.providerLabel.trim()} • ${_commsMomentLabel(draft.createdAtUtc)}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8EA4C2),
+                  color: _commandMutedColor,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -6329,7 +10792,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         ? Icons.my_location_rounded
                         : Icons.travel_explore_rounded,
                     label: draft.matchesSelectedScope
-                        ? 'Selected lane'
+                        ? 'Selected scope'
                         : 'Other scope',
                     accent: accent,
                   ),
@@ -6365,20 +10828,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             label: 'Client asked',
             text: draft.sourceText.trim(),
             borderColor: const Color(0xFF31465F),
-            textColor: const Color(0xFFD4E4F7),
+            textColor: _commandTitleColor,
           ),
           const SizedBox(height: 6),
           _clientCommsTextBlock(
             label: 'ONYX draft',
             text: draft.draftText.trim(),
             borderColor: accent,
-            textColor: const Color(0xFFEAF4FF),
+            textColor: _commandTitleColor,
           ),
           const SizedBox(height: 6),
           Text(
             _controlInboxDraftCue(draft),
             style: GoogleFonts.inter(
-              color: const Color(0xFFB7CAE3),
+              color: _commandBodyColor,
               fontSize: 9.5,
               fontWeight: FontWeight.w600,
               height: 1.32,
@@ -6387,9 +10850,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           if (draft.usesLearnedApprovalStyle) ...[
             const SizedBox(height: 6),
             Text(
-              'This draft is already leaning on learned approval wording from this lane.',
+              'This draft is already leaning on learned approval wording from this Client Comms flow.',
               style: GoogleFonts.inter(
-                color: const Color(0xFFB7CAE3),
+                color: _commandBodyColor,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w600,
                 height: 1.32,
@@ -6407,7 +10870,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     : () => _approveControlInboxDraft(draft),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF2E7D5B),
-                  foregroundColor: const Color(0xFFEAF4FF),
+                  foregroundColor: const Color(0xFFF8FBFF),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 6,
@@ -6430,8 +10893,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? null
                     : () => _editControlInboxDraft(draft),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFB9D9FF),
-                  side: const BorderSide(color: Color(0xFF35506F)),
+                  foregroundColor: const Color(0xFF2E6EA8),
+                  backgroundColor: _commandPanelColor,
+                  side: const BorderSide(color: _commandBorderStrongColor),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 6,
@@ -6452,7 +10916,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     : () => _rejectControlInboxDraft(draft),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFF87171),
-                  side: const BorderSide(color: Color(0xFF5B242C)),
+                  backgroundColor: _commandPanelColor,
+                  side: const BorderSide(color: Color(0xFFE4B5BB)),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
                     vertical: 6,
@@ -6480,7 +10945,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           siteId: draft.siteId,
                         ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF8FD1FF),
+                    foregroundColor: accent,
+                    backgroundColor: _commandPanelColor,
                     side: BorderSide(color: accent.withValues(alpha: 0.42)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -6489,7 +10955,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ),
                   icon: const Icon(Icons.open_in_new_rounded, size: 13),
                   label: Text(
-                    'Open Client Lane',
+                    'OPEN CLIENT COMMS',
                     style: GoogleFonts.inter(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
@@ -6512,6 +10978,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       final priority = _priorityStyle(incident.priority);
       final isActive = incident.id == _activeIncidentId;
       final isP1 = incident.priority == _IncidentPriority.p1Critical;
+      final railAccent = isActive
+          ? const Color(0xFF22D3EE)
+          : priority.foreground;
+      final queueToneLabel = switch (incident.priority) {
+        _IncidentPriority.p1Critical => 'DO NOW',
+        _IncidentPriority.p2High => 'HOT',
+        _ => priority.label.toUpperCase(),
+      };
+      final actionHintLabel = switch (incident.status) {
+        _IncidentStatus.triaging => isP1 ? 'OPEN BOARD NOW' : 'OPEN BOARD',
+        _IncidentStatus.dispatched => 'TRACK UNIT',
+        _IncidentStatus.investigating => 'CHECK VISUAL',
+        _IncidentStatus.resolved => 'HOLD WATCH',
+      };
       return TweenAnimationBuilder<double>(
         duration: Duration(milliseconds: 180 + (index * 50)),
         tween: Tween(begin: 0, end: 1),
@@ -6528,198 +11008,238 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         child: AnimatedContainer(
           key: Key('incident-card-${incident.id}'),
           duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             color: isActive
-                ? const Color(0x3322D3EE)
+                ? const Color(0x4422D3EE)
                 : isP1
-                ? const Color(0x14EF4444)
-                : const Color(0x14000000),
+                ? const Color(0x24EF4444)
+                : const Color(0xFFFFFFFF),
             border: Border.all(
               color: isActive
-                  ? const Color(0x9922D3EE)
+                  ? const Color(0xFF4FDFFF)
                   : priority.border.withValues(alpha: 0.55),
             ),
             boxShadow: [
               if (isActive)
                 const BoxShadow(
-                  color: Color(0x4022D3EE),
-                  blurRadius: 20,
-                  spreadRadius: 1,
+                  color: Color(0x5522D3EE),
+                  blurRadius: 24,
+                  spreadRadius: 1.5,
                 ),
               if (isP1)
                 const BoxShadow(
-                  color: Color(0x24EF4444),
-                  blurRadius: 12,
+                  color: Color(0x30EF4444),
+                  blurRadius: 16,
                   spreadRadius: 1,
                 ),
             ],
           ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(10),
-            key: ValueKey('live-operations-incident-tile-${incident.id}'),
-            onTap: () {
-              setState(() {
-                _activeIncidentId = incident.id;
-              });
-            },
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 250;
-                final statusRow = Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(999),
-                        color: _statusChipColor(
-                          incident.status,
-                        ).withValues(alpha: 0.16),
-                        border: Border.all(
-                          color: _statusChipColor(
-                            incident.status,
-                          ).withValues(alpha: 0.44),
-                        ),
-                      ),
-                      child: Text(
-                        _statusLabel(incident.status),
-                        style: GoogleFonts.inter(
-                          color: _statusChipColor(incident.status),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    if (isActive)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 5,
-                            height: 5,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF22D3EE),
-                              shape: BoxShape.circle,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(width: 4.5, color: railAccent),
+                ),
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  key: ValueKey('live-operations-incident-tile-${incident.id}'),
+                  onTap: () {
+                    setState(() {
+                      _activeIncidentId = incident.id;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact = constraints.maxWidth < 250;
+                        final statusRow = Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                color: _statusChipColor(
+                                  incident.status,
+                                ).withValues(alpha: 0.16),
+                                border: Border.all(
+                                  color: _statusChipColor(
+                                    incident.status,
+                                  ).withValues(alpha: 0.44),
+                                ),
+                              ),
+                              child: Text(
+                                _statusLabel(incident.status),
+                                style: GoogleFonts.inter(
+                                  color: _statusChipColor(incident.status),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Active',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF22D3EE),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(999),
+                                color: railAccent.withValues(alpha: 0.14),
+                                border: Border.all(
+                                  color: railAccent.withValues(alpha: 0.38),
+                                ),
+                              ),
+                              child: Text(
+                                'NEXT $actionHintLabel',
+                                style: GoogleFonts.inter(
+                                  color: railAccent,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                  ],
-                );
-                final priorityChip = Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(999),
-                    color: priority.background,
-                    border: Border.all(color: priority.border),
-                  ),
-                  child: Text(
-                    priority.label,
-                    style: GoogleFonts.inter(
-                      color: priority.foreground,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                );
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          priority.icon,
-                          color: priority.foreground,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                            if (isActive)
                               Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      incident.id,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.robotoMono(
-                                        color: const Color(0xFF22D3EE),
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                      ),
+                                  Container(
+                                    width: 5,
+                                    height: 5,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF22D3EE),
+                                      shape: BoxShape.circle,
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 4),
                                   Text(
-                                    incident.timestamp,
+                                    'YOU',
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFF8BA3C4),
-                                      fontSize: 10,
+                                      color: const Color(0xFF22D3EE),
+                                      fontSize: 9,
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                incident.type,
-                                maxLines: compact ? 2 : 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFE6F0FF),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                incident.site,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFA4BAD7),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              statusRow,
-                            ],
+                          ],
+                        );
+                        final priorityChip = Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
                           ),
-                        ),
-                        if (!compact) ...[
-                          const SizedBox(width: 6),
-                          priorityChip,
-                        ],
-                      ],
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            color: priority.background,
+                            border: Border.all(color: priority.border),
+                          ),
+                          child: Text(
+                            queueToneLabel,
+                            style: GoogleFonts.inter(
+                              color: priority.foreground,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        );
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  priority.icon,
+                                  color: priority.foreground,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              incident.id,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.robotoMono(
+                                                color: const Color(0xFF22D3EE),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            incident.timestamp,
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF8BA3C4),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        incident.type,
+                                        maxLines: compact ? 2 : 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF172638),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'SITE ${incident.site}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(
+                                          color: const Color(0xFF556B80),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      statusRow,
+                                    ],
+                                  ),
+                                ),
+                                if (!compact) ...[
+                                  const SizedBox(width: 6),
+                                  priorityChip,
+                                ],
+                              ],
+                            ),
+                            if (compact) ...[
+                              const SizedBox(height: 8),
+                              priorityChip,
+                            ],
+                          ],
+                        );
+                      },
                     ),
-                    if (compact) ...[const SizedBox(height: 8), priorityChip],
-                  ],
-                );
-              },
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -6729,61 +11249,88 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final queueSummaryHeader = LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 260;
-        final children = <Widget>[
-          Container(
-            width: 8,
-            height: 8,
-            decoration: const BoxDecoration(
-              color: Color(0xFF10B981),
-              shape: BoxShape.circle,
+        Widget summaryChip({
+          required String label,
+          required String value,
+          required Color foreground,
+          required Color background,
+          required Color border,
+        }) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: border),
             ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            'Live',
-            style: GoogleFonts.inter(
-              color: const Color(0xFFA3BAD8),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.inter(
+                    color: foreground,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    height: 0.92,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFFE6F0FF),
+                    fontSize: 9.2,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.45,
+                  ),
+                ),
+              ],
             ),
-          ),
-          if (!compact) const Spacer(),
-          Text(
-            '${_incidents.where((incident) => incident.priority == _IncidentPriority.p1Critical).length} Critical',
-            style: GoogleFonts.inter(
-              color: const Color(0xFFEF4444),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+          );
+        }
+
+        final content = Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            summaryChip(
+              label: 'LIVE',
+              value: '${_incidents.length}',
+              foreground: const Color(0xFF4ADE80),
+              background: const Color(0x1A10B981),
+              border: const Color(0x6610B981),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${_incidents.where((incident) => incident.priority == _IncidentPriority.p2High).length} High',
-            style: GoogleFonts.inter(
-              color: const Color(0xFFF59E0B),
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
+            summaryChip(
+              label: 'RED',
+              value:
+                  '${_incidents.where((incident) => incident.priority == _IncidentPriority.p1Critical).length}',
+              foreground: const Color(0xFFF87171),
+              background: const Color(0x1AEF4444),
+              border: const Color(0x66EF4444),
             ),
-          ),
-        ];
+            summaryChip(
+              label: 'HOT',
+              value:
+                  '${_incidents.where((incident) => incident.priority == _IncidentPriority.p2High).length}',
+              foreground: const Color(0xFFFBBF24),
+              background: const Color(0x1AF59E0B),
+              border: const Color(0x66F59E0B),
+            ),
+          ],
+        );
 
         return compact
-            ? Wrap(
-                spacing: 8,
-                runSpacing: 6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: children
-                    .where((widget) => widget is! Spacer)
-                    .toList(),
-              )
-            : Row(children: children);
+            ? content
+            : Align(alignment: Alignment.centerLeft, child: content);
       },
     );
 
     if (wide) {
       return _panel(
         title: 'Incident Queue',
-        subtitle: 'All active incidents, priority sorted',
+        subtitle: 'Tap one incident. Work one move.',
         shellless: true,
         child: ListView(
           key: const ValueKey('live-operations-incident-queue-scroll-view'),
@@ -6806,7 +11353,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
     return _panel(
       title: 'Incident Queue',
-      subtitle: 'All active incidents, priority sorted',
+      subtitle: 'Tap one incident. Work one move.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -6835,18 +11382,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final priorityStyle = selectedIncident == null
         ? null
         : _priorityStyle(selectedIncident.priority);
-    final summary =
-        selectedIncident?.latestSceneReviewSummary?.trim().isNotEmpty == true
-        ? _compactContextLabel(
-            selectedIncident!.latestSceneReviewSummary!.trim(),
-          )
-        : selectedIncident?.latestIntelSummary?.trim().isNotEmpty == true
-        ? _compactContextLabel(selectedIncident!.latestIntelSummary!.trim())
-        : selectedIncident?.latestIntelHeadline?.trim().isNotEmpty == true
+    final focusInstruction = switch (selectedIncident?.status) {
+      _IncidentStatus.triaging
+          when selectedIncident?.priority == _IncidentPriority.p1Critical =>
+        'Critical incident live. Move now.',
+      _IncidentStatus.triaging => 'Board is ready. Make the next call.',
+      _IncidentStatus.dispatched => 'Unit is moving. Track and verify.',
+      _IncidentStatus.investigating => 'Visual proof is up. Check it now.',
+      _IncidentStatus.resolved => 'Hold watch. Keep the record clean.',
+      null => 'Pick the lead incident or open the full queue.',
+    };
+    final focusContext =
+        selectedIncident?.latestIntelHeadline?.trim().isNotEmpty == true
         ? selectedIncident!.latestIntelHeadline!.trim()
         : selectedIncident == null
-        ? 'The incident rail is standing by. Focus the lead lane, reopen the board, or drive the reply queue without leaving the operations shell.'
-        : '${selectedIncident.site} remains the selected live lane while the board and context rail stay one tap away.';
+        ? 'Queue ready.'
+        : '${selectedIncident.site} is the live incident in hand.';
     final criticalCount = _incidents
         .where((incident) => incident.priority == _IncidentPriority.p1Critical)
         .length;
@@ -6857,14 +11408,36 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(7),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF121E2F), Color(0xFF0C1624)],
+        gradient: LinearGradient(
+          colors: [
+            if (selectedIncident?.priority == _IncidentPriority.p1Critical)
+              const Color(0xFFFFF3F3)
+            else if (selectedIncident != null)
+              const Color(0xFFF3F9FD)
+            else
+              _commandPanelTintColor,
+            _commandPanelColor,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFF233C56)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 18, spreadRadius: 1),
+        border: Border.all(
+          color: selectedIncident?.priority == _IncidentPriority.p1Critical
+              ? const Color(0xFFE6B5B5)
+              : selectedIncident != null
+              ? const Color(0xFFBFD7E6)
+              : _commandBorderStrongColor,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: selectedIncident?.priority == _IncidentPriority.p1Critical
+                ? const Color(0x12EF4444)
+                : selectedIncident != null
+                ? const Color(0x1222D3EE)
+                : _commandShadowColor,
+            blurRadius: 18,
+            spreadRadius: 1,
+          ),
         ],
       ),
       child: LayoutBuilder(
@@ -6879,9 +11452,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   'live-operations-incident-focus-open-board',
                 ),
                 label: 'Board',
-                foreground: const Color(0xFFEAF4FF),
-                background: const Color(0x1A22D3EE),
-                border: const Color(0x5522D3EE),
+                foreground: const Color(0xFF0F6D84),
+                background: const Color(0xFFEAF8FB),
+                border: const Color(0xFF9DD3E4),
                 leadingIcon: Icons.view_compact_alt_outlined,
                 onTap: () => _openIncidentQueueBoardFocus(selectedIncident),
               ),
@@ -6891,14 +11464,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 label: 'Details',
                 foreground: _activeTab == _ContextTab.details
-                    ? const Color(0xFFEAF4FF)
-                    : const Color(0xFF9AB1CF),
+                    ? const Color(0xFF0F6D84)
+                    : _commandMutedColor,
                 background: _activeTab == _ContextTab.details
-                    ? const Color(0x3322D3EE)
-                    : const Color(0x14000000),
+                    ? const Color(0xFFEAF8FB)
+                    : _commandPanelColor,
                 border: _activeTab == _ContextTab.details
-                    ? const Color(0x6622D3EE)
-                    : const Color(0xFF35506F),
+                    ? const Color(0xFF9DD3E4)
+                    : _commandBorderColor,
                 leadingIcon: Icons.article_outlined,
                 onTap: () => _openIncidentQueueContextFocus(
                   selectedIncident,
@@ -6910,9 +11483,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   'live-operations-incident-focus-open-queue',
                 ),
                 label: 'Queue',
-                foreground: const Color(0xFFFFE4B5),
-                background: const Color(0x1AF59E0B),
-                border: const Color(0x66F59E0B),
+                foreground: const Color(0xFF8A6500),
+                background: const Color(0xFFFFF7E8),
+                border: const Color(0xFFE6D2A2),
                 leadingIcon: Icons.schedule_rounded,
                 onTap: _openIncidentQueueQueueFocus,
               ),
@@ -6921,9 +11494,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 label: selectedIncident == null
                     ? 'Lead lane'
                     : selectedIncident.id,
-                foreground: const Color(0xFFEAF4FF),
-                background: const Color(0x1422D3EE),
-                border: const Color(0x553FAEEB),
+                foreground: const Color(0xFF0F6D84),
+                background: const Color(0xFFEFF7FD),
+                border: const Color(0xFFB7D6EB),
                 leadingIcon: Icons.center_focus_strong_rounded,
                 onTap: _incidents.isEmpty ? null : _focusLeadIncident,
               ),
@@ -6933,9 +11506,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     'live-operations-incident-focus-focus-critical',
                   ),
                   label: 'Critical',
-                  foreground: const Color(0xFFFFD6D6),
-                  background: const Color(0x1AEF4444),
-                  border: const Color(0x66EF4444),
+                  foreground: const Color(0xFFB93838),
+                  background: const Color(0xFFFFF0F0),
+                  border: const Color(0xFFE6B5B5),
                   leadingIcon: Icons.warning_amber_rounded,
                   onTap: () =>
                       _focusCriticalIncidentFromQueue(criticalIncident),
@@ -6973,32 +11546,33 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'INCIDENT RAIL FOCUS',
+                          'YOU ARE HERE',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF8FAFD4),
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.0,
+                            color: const Color(0xFF0F6D84),
+                            fontSize: 8.8,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.1,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           selectedIncident == null
-                              ? 'No live lane selected'
-                              : 'Selected lane: ${selectedIncident.id}',
+                              ? 'QUEUE READY'
+                              : selectedIncident.id,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF94B0D2),
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w700,
+                            color: _commandMutedColor,
+                            fontSize: 8.8,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.55,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          selectedIncident?.type ?? 'Operations queue ready',
-                          style: GoogleFonts.rajdhani(
-                            color: const Color(0xFFEAF4FF),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                          selectedIncident?.type ?? 'War room queue ready',
+                          style: GoogleFonts.inter(
+                            color: _commandTitleColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
                             height: 1,
                           ),
                         ),
@@ -7008,13 +11582,67 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                summary,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFD8E7F7),
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color:
+                      selectedIncident?.priority == _IncidentPriority.p1Critical
+                      ? const Color(0xFFFFF4F4)
+                      : selectedIncident != null
+                      ? const Color(0xFFEAF8FB)
+                      : const Color(0xFFEFFAF4),
+                  border: Border.all(
+                    color:
+                        selectedIncident?.priority ==
+                            _IncidentPriority.p1Critical
+                        ? const Color(0xFFE6B5B5)
+                        : selectedIncident != null
+                        ? const Color(0xFFB7DCE8)
+                        : const Color(0xFFCBE4D6),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'DO THIS',
+                      style: GoogleFonts.inter(
+                        color:
+                            selectedIncident?.priority ==
+                                _IncidentPriority.p1Critical
+                            ? const Color(0xFFB93838)
+                            : selectedIncident != null
+                            ? const Color(0xFF0F6D84)
+                            : const Color(0xFF1D7A52),
+                        fontSize: 8.6,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      focusInstruction,
+                      style: GoogleFonts.inter(
+                        color: _commandTitleColor,
+                        fontSize: 12.2,
+                        fontWeight: FontWeight.w800,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      focusContext,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        color: _commandBodyColor,
+                        fontSize: 9.4,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 4),
@@ -7023,25 +11651,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 runSpacing: 4,
                 children: [
                   _chip(
-                    label:
-                        '${_incidents.length} live lane${_incidents.length == 1 ? '' : 's'}',
-                    foreground: const Color(0xFFEAF4FF),
-                    background: const Color(0x1422D3EE),
-                    border: const Color(0x553FAEEB),
+                    label: 'LIVE ${_incidents.length}',
+                    foreground: const Color(0xFF0F6D84),
+                    background: const Color(0xFFEAF8FB),
+                    border: const Color(0xFF9DD3E4),
                     leadingIcon: Icons.hub_rounded,
                   ),
                   _chip(
-                    label: '$criticalCount critical',
-                    foreground: const Color(0xFFFFD6D6),
-                    background: const Color(0x1AEF4444),
-                    border: const Color(0x66EF4444),
+                    label: 'RED $criticalCount',
+                    foreground: const Color(0xFFB93838),
+                    background: const Color(0xFFFFF0F0),
+                    border: const Color(0xFFE6B5B5),
                     leadingIcon: Icons.priority_high_rounded,
                   ),
                   _chip(
-                    label: queueLabel,
-                    foreground: const Color(0xFFFFE4B5),
-                    background: const Color(0x1AF59E0B),
-                    border: const Color(0x66F59E0B),
+                    label: queueLabel.toUpperCase(),
+                    foreground: const Color(0xFF8A6500),
+                    background: const Color(0xFFFFF7E8),
+                    border: const Color(0xFFE6D2A2),
                     leadingIcon: Icons.schedule_rounded,
                   ),
                   if (selectedIncident != null)
@@ -7099,8 +11726,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(9),
-          color: const Color(0x14000000),
-          border: Border.all(color: const Color(0xFF2A3F5F)),
+          color: isActive
+              ? statusColor.withValues(alpha: 0.08)
+              : const Color(0xFFF7FAFD),
+          border: Border.all(
+            color: isActive
+                ? statusColor.withValues(alpha: 0.32)
+                : const Color(0xFFD6E1EC),
+          ),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -7128,7 +11761,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         child: Text(
                           step.name,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFE7F1FF),
+                            color: const Color(0xFF172638),
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
                           ),
@@ -7149,7 +11782,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       step.timestamp!,
                       style: GoogleFonts.robotoMono(
-                        color: const Color(0xFF86A0C5),
+                        color: const Color(0xFF7A8FA4),
                         fontSize: 9.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -7160,7 +11793,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       step.details!,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFA6BDD9),
+                        color: const Color(0xFF556B80),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -7202,7 +11835,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0x66EF4444)),
                             foregroundColor: const Color(0xFFEF4444),
-                            backgroundColor: const Color(0x220F1419),
+                            backgroundColor: const Color(0xFFFFF7F7),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 4,
@@ -7220,8 +11853,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               : () => _pauseAutomation(activeIncident),
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0x333B82F6)),
-                            foregroundColor: const Color(0xFFBFD1EC),
-                            backgroundColor: const Color(0x11000000),
+                            foregroundColor: const Color(0xFF315A86),
+                            backgroundColor: const Color(0xFFFFFFFF),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 4,
@@ -7262,7 +11895,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       key: _actionLadderPanelGlobalKey,
       child: _panel(
         title: 'Action Ladder',
-        subtitle: 'AI execution path with human override control',
+        subtitle: 'One incident. One move. No guesswork.',
         shellless: wide,
         child: Column(
           children: [
@@ -7309,6 +11942,57 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ? 'Pin the lead incident back into the board to reopen override, queue, and context controls from one surface.'
         : '${currentStep.name} is driving the current response path while the queue and right-rail context stay available.';
     final queueLabel = _controlInboxTopBarQueueStateLabel();
+    final primaryAccent = currentStep.status == _LadderStepStatus.blocked
+        ? const Color(0xFFEF4444)
+        : _activeTab == _ContextTab.voip
+        ? const Color(0xFF3B82F6)
+        : _activeTab == _ContextTab.visual
+        ? const Color(0xFF10B981)
+        : const Color(0xFF22D3EE);
+    final commandLead = activeIncident == null
+        ? 'PICK THE LEAD LANE'
+        : currentStep.status == _LadderStepStatus.blocked
+        ? 'HUMAN CALL NEEDED'
+        : _activeTab != _ContextTab.details
+        ? 'OPEN THE FACTS'
+        : 'CLEAR THE NEXT MOVE';
+    final commandSubline = activeIncident == null
+        ? 'Start with the hottest live incident.'
+        : currentStep.status == _LadderStepStatus.blocked
+        ? 'Automation is blocked. Human override takes point.'
+        : _activeTab != _ContextTab.details
+        ? 'Pull the full incident facts forward before you act.'
+        : 'The board is pinned. Reopen queue and push the next command.';
+    final primaryActionLabel = activeIncident == null
+        ? 'PICK LEAD INCIDENT'
+        : currentStep.status == _LadderStepStatus.blocked
+        ? 'OVERRIDE NOW'
+        : _activeTab != _ContextTab.details
+        ? 'OPEN DETAILS'
+        : 'OPEN QUEUE';
+    final primaryActionIcon = activeIncident == null
+        ? Icons.center_focus_strong_rounded
+        : currentStep.status == _LadderStepStatus.blocked
+        ? Icons.gavel_rounded
+        : _activeTab != _ContextTab.details
+        ? Icons.article_outlined
+        : Icons.schedule_rounded;
+    final VoidCallback? primaryAction = activeIncident == null
+        ? (_incidents.isEmpty
+              ? null
+              : () async {
+                  _focusLeadIncident();
+                  await Future<void>.delayed(Duration.zero);
+                  await _ensureActionLadderPanelVisible();
+                })
+        : currentStep.status == _LadderStepStatus.blocked
+        ? () => _openOverrideDialog(activeIncident)
+        : _activeTab != _ContextTab.details
+        ? () => _openActionLadderContextFromBoard(
+            activeIncident,
+            _ContextTab.details,
+          )
+        : () => _openActionLadderQueueFromBoard(activeIncident);
 
     Widget insightPill({
       required String label,
@@ -7353,118 +12037,160 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(5.5),
         gradient: const LinearGradient(
-          colors: [Color(0xFF122033), Color(0xFF0C1624)],
+          colors: [_commandPanelColor, _commandPanelTintColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFF24405C)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 18, spreadRadius: 1),
+        border: Border.all(color: primaryAccent.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: primaryAccent.withValues(alpha: 0.1),
+            blurRadius: 22,
+            spreadRadius: 1,
+          ),
         ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 620;
-          final actionWrap = Wrap(
-            spacing: 2.2,
-            runSpacing: 2.2,
+          final actionWrap = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _chip(
-                key: const ValueKey('live-operations-board-focus-open-queue'),
-                label: 'Queue',
-                foreground: const Color(0xFFFFE4B5),
-                background: const Color(0x1AF59E0B),
-                border: const Color(0x66F59E0B),
-                leadingIcon: Icons.schedule_rounded,
-                onTap: () => _openActionLadderQueueFromBoard(activeIncident),
-              ),
-              _chip(
-                key: const ValueKey('live-operations-board-focus-open-details'),
-                label: 'Details',
-                foreground: _activeTab == _ContextTab.details
-                    ? const Color(0xFFEAF4FF)
-                    : const Color(0xFF9AB1CF),
-                background: _activeTab == _ContextTab.details
-                    ? const Color(0x3322D3EE)
-                    : const Color(0x14000000),
-                border: _activeTab == _ContextTab.details
-                    ? const Color(0x6622D3EE)
-                    : const Color(0xFF35506F),
-                leadingIcon: Icons.article_outlined,
-                onTap: () => _openActionLadderContextFromBoard(
-                  activeIncident,
-                  _ContextTab.details,
+              FilledButton.icon(
+                onPressed: primaryAction,
+                icon: Icon(primaryActionIcon, size: 15),
+                label: Text(primaryActionLabel),
+                style: FilledButton.styleFrom(
+                  backgroundColor: primaryAccent,
+                  foregroundColor: const Color(0xFFF8FCFF),
+                  disabledBackgroundColor: const Color(0x33233C56),
+                  disabledForegroundColor: const Color(0xFF7E93AF),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 11,
+                  ),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.3,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
-              _chip(
-                key: const ValueKey('live-operations-board-focus-open-voip'),
-                label: 'VoIP',
-                foreground: _activeTab == _ContextTab.voip
-                    ? const Color(0xFFEAF4FF)
-                    : const Color(0xFF9AB1CF),
-                background: _activeTab == _ContextTab.voip
-                    ? const Color(0x333B82F6)
-                    : const Color(0x14000000),
-                border: _activeTab == _ContextTab.voip
-                    ? const Color(0x663B82F6)
-                    : const Color(0xFF35506F),
-                leadingIcon: Icons.call_rounded,
-                onTap: () => _openActionLadderContextFromBoard(
-                  activeIncident,
-                  _ContextTab.voip,
-                ),
-              ),
-              _chip(
-                key: const ValueKey('live-operations-board-focus-open-visual'),
-                label: 'Visual',
-                foreground: _activeTab == _ContextTab.visual
-                    ? const Color(0xFFEAF4FF)
-                    : const Color(0xFF9AB1CF),
-                background: _activeTab == _ContextTab.visual
-                    ? const Color(0x3310B981)
-                    : const Color(0x14000000),
-                border: _activeTab == _ContextTab.visual
-                    ? const Color(0x6610B981)
-                    : const Color(0xFF35506F),
-                leadingIcon: Icons.videocam_outlined,
-                onTap: () => _openActionLadderContextFromBoard(
-                  activeIncident,
-                  _ContextTab.visual,
-                ),
-              ),
-              _chip(
-                key: const ValueKey('live-operations-board-focus-override'),
-                label: 'Override',
-                foreground: activeIncident == null
-                    ? const Color(0xFF7E93AF)
-                    : const Color(0xFFFFD6D6),
-                background: activeIncident == null
-                    ? const Color(0x14000000)
-                    : const Color(0x1AEF4444),
-                border: activeIncident == null
-                    ? const Color(0xFF35506F)
-                    : const Color(0x66EF4444),
-                leadingIcon: Icons.gavel_rounded,
-                onTap: activeIncident == null
-                    ? null
-                    : () => _openOverrideDialog(activeIncident),
-              ),
-              _chip(
-                key: const ValueKey('live-operations-board-focus-pause'),
-                label: 'Pause',
-                foreground: activeIncident == null
-                    ? const Color(0xFF7E93AF)
-                    : const Color(0xFFBFD1EC),
-                background: activeIncident == null
-                    ? const Color(0x14000000)
-                    : const Color(0x11000000),
-                border: activeIncident == null
-                    ? const Color(0xFF35506F)
-                    : const Color(0x333B82F6),
-                leadingIcon: Icons.pause_circle_outline_rounded,
-                onTap: activeIncident == null
-                    ? null
-                    : () => _pauseAutomation(activeIncident),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 2.2,
+                runSpacing: 2.2,
+                children: [
+                  _chip(
+                    key: const ValueKey(
+                      'live-operations-board-focus-open-queue',
+                    ),
+                    label: 'QUEUE',
+                    foreground: const Color(0xFF8A6500),
+                    background: const Color(0xFFFFF7E8),
+                    border: const Color(0xFFE6D2A2),
+                    leadingIcon: Icons.schedule_rounded,
+                    onTap: () =>
+                        _openActionLadderQueueFromBoard(activeIncident),
+                  ),
+                  _chip(
+                    key: const ValueKey(
+                      'live-operations-board-focus-open-details',
+                    ),
+                    label: 'DETAILS',
+                    foreground: _activeTab == _ContextTab.details
+                        ? const Color(0xFF0F6D84)
+                        : _commandMutedColor,
+                    background: _activeTab == _ContextTab.details
+                        ? const Color(0xFFEAF8FB)
+                        : _commandPanelColor,
+                    border: _activeTab == _ContextTab.details
+                        ? const Color(0xFF9DD3E4)
+                        : _commandBorderColor,
+                    leadingIcon: Icons.article_outlined,
+                    onTap: () => _openActionLadderContextFromBoard(
+                      activeIncident,
+                      _ContextTab.details,
+                    ),
+                  ),
+                  _chip(
+                    key: const ValueKey(
+                      'live-operations-board-focus-open-voip',
+                    ),
+                    label: 'CALL',
+                    foreground: _activeTab == _ContextTab.voip
+                        ? const Color(0xFF345A87)
+                        : _commandMutedColor,
+                    background: _activeTab == _ContextTab.voip
+                        ? const Color(0xFFF2F7FF)
+                        : _commandPanelColor,
+                    border: _activeTab == _ContextTab.voip
+                        ? const Color(0xFFBED4F6)
+                        : _commandBorderColor,
+                    leadingIcon: Icons.call_rounded,
+                    onTap: () => _openActionLadderContextFromBoard(
+                      activeIncident,
+                      _ContextTab.voip,
+                    ),
+                  ),
+                  _chip(
+                    key: const ValueKey(
+                      'live-operations-board-focus-open-visual',
+                    ),
+                    label: 'CAM',
+                    foreground: _activeTab == _ContextTab.visual
+                        ? const Color(0xFF176B4A)
+                        : _commandMutedColor,
+                    background: _activeTab == _ContextTab.visual
+                        ? const Color(0xFFEFFAF4)
+                        : _commandPanelColor,
+                    border: _activeTab == _ContextTab.visual
+                        ? const Color(0xFFC5E7D2)
+                        : _commandBorderColor,
+                    leadingIcon: Icons.videocam_outlined,
+                    onTap: () => _openActionLadderContextFromBoard(
+                      activeIncident,
+                      _ContextTab.visual,
+                    ),
+                  ),
+                  _chip(
+                    key: const ValueKey('live-operations-board-focus-override'),
+                    label: 'OVERRIDE',
+                    foreground: activeIncident == null
+                        ? _commandMutedColor
+                        : const Color(0xFFB93838),
+                    background: activeIncident == null
+                        ? _commandPanelColor
+                        : const Color(0xFFFFF0F0),
+                    border: activeIncident == null
+                        ? _commandBorderColor
+                        : const Color(0xFFE6B5B5),
+                    leadingIcon: Icons.gavel_rounded,
+                    onTap: activeIncident == null
+                        ? null
+                        : () => _openOverrideDialog(activeIncident),
+                  ),
+                  _chip(
+                    key: const ValueKey('live-operations-board-focus-pause'),
+                    label: 'HOLD',
+                    foreground: activeIncident == null
+                        ? _commandMutedColor
+                        : _commandBodyColor,
+                    background: activeIncident == null
+                        ? _commandPanelColor
+                        : _commandPanelColor,
+                    border: activeIncident == null
+                        ? _commandBorderColor
+                        : _commandBorderColor,
+                    leadingIcon: Icons.pause_circle_outline_rounded,
+                    onTap: activeIncident == null
+                        ? null
+                        : () => _pauseAutomation(activeIncident),
+                  ),
+                ],
               ),
             ],
           );
@@ -7500,12 +12226,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'ACTION LADDER FOCUS',
+                          'DO NOW',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF8FAFD4),
-                            fontSize: 7.3,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.85,
+                            color: primaryAccent.withValues(alpha: 0.95),
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
                           ),
                         ),
                         const SizedBox(height: 1.0),
@@ -7514,19 +12240,30 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               ? 'No incident selected'
                               : 'Active Incident: ${activeIncident.id}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF94B0D2),
+                            color: _commandMutedColor,
                             fontSize: 7.3,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 1.0),
                         Text(
-                          activeIncident?.type ?? 'Standby board',
-                          style: GoogleFonts.rajdhani(
-                            color: const Color(0xFFEAF4FF),
-                            fontSize: 12.6,
-                            fontWeight: FontWeight.w700,
+                          commandLead,
+                          style: GoogleFonts.inter(
+                            color: _commandTitleColor,
+                            fontSize: 13.6,
+                            fontWeight: FontWeight.w900,
                             height: 1,
+                          ),
+                        ),
+                        const SizedBox(height: 1.0),
+                        Text(
+                          activeIncident?.type ?? 'Standby board',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: _commandBodyColor,
+                            fontSize: 8.2,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -7536,14 +12273,26 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               const SizedBox(height: 1.6),
               Text(
-                summary,
-                maxLines: compact ? 4 : 3,
+                commandSubline,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFD8E7F7),
-                  fontSize: 7.7,
-                  fontWeight: FontWeight.w600,
+                  color: _commandBodyColor,
+                  fontSize: 8.1,
+                  fontWeight: FontWeight.w700,
                   height: 1.24,
+                ),
+              ),
+              const SizedBox(height: 1.6),
+              Text(
+                summary,
+                maxLines: compact ? 2 : 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: _commandMutedColor,
+                  fontSize: 7.2,
+                  fontWeight: FontWeight.w600,
+                  height: 1.18,
                 ),
               ),
               const SizedBox(height: 1.6),
@@ -7573,35 +12322,32 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   if (activeIncident != null)
                     insightPill(
                       label: activeIncident.site,
-                      foreground: const Color(0xFFDCF5FF),
-                      background: const Color(0x1422D3EE),
-                      border: const Color(0x553FAEEB),
+                      foreground: const Color(0xFF0F6D84),
+                      background: const Color(0xFFEAF8FB),
+                      border: const Color(0xFF9DD3E4),
                       icon: Icons.location_on_outlined,
                     ),
                   insightPill(
-                    label: currentStep.name,
-                    foreground: const Color(0xFFBDFBFF),
-                    background: const Color(0x1422D3EE),
-                    border: const Color(0x5522D3EE),
+                    label: currentStep.status == _LadderStepStatus.blocked
+                        ? 'OVERRIDE'
+                        : 'NOW ${currentStep.name}',
+                    foreground: currentStep.status == _LadderStepStatus.blocked
+                        ? const Color(0xFFFFD6D6)
+                        : const Color(0xFFBDFBFF),
+                    background: currentStep.status == _LadderStepStatus.blocked
+                        ? const Color(0x1AEF4444)
+                        : const Color(0x1422D3EE),
+                    border: currentStep.status == _LadderStepStatus.blocked
+                        ? const Color(0x66EF4444)
+                        : const Color(0x5522D3EE),
                     icon: _stepIcon(currentStep.status),
                   ),
                   insightPill(
-                    label: queueLabel,
-                    foreground: const Color(0xFFFFE4B5),
-                    background: const Color(0x1AF59E0B),
-                    border: const Color(0x66F59E0B),
-                    icon: Icons.schedule_rounded,
-                  ),
-                  insightPill(
-                    label: _tabLabel(_activeTab),
-                    foreground: const Color(0xFFEAF4FF),
-                    background: const Color(0x333B82F6),
-                    border: const Color(0x663B82F6),
-                    icon: switch (_activeTab) {
-                      _ContextTab.details => Icons.article_outlined,
-                      _ContextTab.voip => Icons.call_rounded,
-                      _ContextTab.visual => Icons.videocam_outlined,
-                    },
+                    label: activeIncident == null ? 'BOARD READY' : queueLabel,
+                    foreground: const Color(0xFF2B5E8B),
+                    background: const Color(0xFFF2F7FF),
+                    border: const Color(0xFFBED4F6),
+                    icon: Icons.view_compact_alt_outlined,
                   ),
                 ],
               ),
@@ -7800,7 +12546,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     switch (_activeTab) {
       case _ContextTab.details:
         summary = activeIncident == null
-            ? 'Details standby is ready. Reopen the queue, pin the lead lane, or keep guard vigilance visible while the next incident lands.'
+            ? 'Right rail ready. Open queue, details, call, or visual.'
             : ((activeIncident.latestSceneReviewSummary ??
                           activeIncident.latestIntelSummary ??
                           activeIncident.latestIntelHeadline)
@@ -7813,31 +12559,57 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         activeIncident.latestIntelHeadline)!
                     .trim(),
               )
-            : 'Incident details, evidence readiness, and client posture remain pinned for ${activeIncident.site}.';
+            : 'Details stay pinned for ${activeIncident.site}.';
       case _ContextTab.voip:
         summary = activeIncident == null
-            ? 'VoIP standby is ready. The right rail can keep the client lane in view while the next transcript comes online.'
-            : 'Live transcript, safe-word posture, and response scripting stay visible for ${activeIncident.id} while the ladder keeps moving.';
+            ? 'Call rail ready. Keep comms visible here.'
+            : 'Call posture stays live for ${activeIncident.id}.';
       case _ContextTab.visual:
         summary = activeIncident == null
-            ? 'Visual standby is ready. Reopen the queue or focus the guard rail while comparison evidence comes online.'
-            : 'Visual comparison stays live for ${activeIncident.id} with a ${_visualMatchScoreForIncident(activeIncident)}% match posture across current evidence.';
+            ? 'Visual rail ready. Reopen queue or compare footage here.'
+            : 'Visual match stays live for ${activeIncident.id} at ${_visualMatchScoreForIncident(activeIncident)}%.';
     }
+
+    final contextAccent = switch (_activeTab) {
+      _ContextTab.details => const Color(0xFF22D3EE),
+      _ContextTab.voip => const Color(0xFF60A5FA),
+      _ContextTab.visual => const Color(0xFF4ADE80),
+    };
+    final contextIcon = switch (_activeTab) {
+      _ContextTab.details => Icons.article_outlined,
+      _ContextTab.voip => Icons.call_rounded,
+      _ContextTab.visual => Icons.videocam_outlined,
+    };
+    final contextModeLabel = switch (_activeTab) {
+      _ContextTab.details => 'DETAILS',
+      _ContextTab.voip => 'CALL',
+      _ContextTab.visual => 'VISUAL',
+    };
 
     return Container(
       key: const ValueKey('live-operations-context-focus-card'),
       width: double.infinity,
       padding: const EdgeInsets.all(3.5),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(5.5),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF132131), Color(0xFF0C1724)],
+        borderRadius: BorderRadius.circular(8),
+        gradient: LinearGradient(
+          colors: [
+            Color.alphaBlend(
+              contextAccent.withValues(alpha: 0.18),
+              _commandPanelColor,
+            ),
+            _commandPanelTintColor,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFF233C56)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 18, spreadRadius: 1),
+        border: Border.all(color: contextAccent.withValues(alpha: 0.34)),
+        boxShadow: [
+          BoxShadow(
+            color: contextAccent.withValues(alpha: 0.08),
+            blurRadius: 14,
+            spreadRadius: 1,
+          ),
         ],
       ),
       child: LayoutBuilder(
@@ -7862,14 +12634,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 label: 'Details',
                 foreground: _activeTab == _ContextTab.details
-                    ? const Color(0xFFEAF4FF)
-                    : const Color(0xFF9AB1CF),
+                    ? const Color(0xFF0F6D84)
+                    : _commandMutedColor,
                 background: _activeTab == _ContextTab.details
-                    ? const Color(0x3322D3EE)
-                    : const Color(0x14000000),
+                    ? const Color(0xFFEAF8FB)
+                    : _commandPanelColor,
                 border: _activeTab == _ContextTab.details
-                    ? const Color(0x6622D3EE)
-                    : const Color(0xFF35506F),
+                    ? const Color(0xFFBCDCE4)
+                    : _commandBorderColor,
                 leadingIcon: Icons.article_outlined,
                 onTap: () =>
                     _openContextRailTab(activeIncident, _ContextTab.details),
@@ -7878,14 +12650,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 key: const ValueKey('live-operations-context-focus-open-voip'),
                 label: 'VoIP',
                 foreground: _activeTab == _ContextTab.voip
-                    ? const Color(0xFFEAF4FF)
-                    : const Color(0xFF9AB1CF),
+                    ? const Color(0xFF2E6EA8)
+                    : _commandMutedColor,
                 background: _activeTab == _ContextTab.voip
-                    ? const Color(0x333B82F6)
-                    : const Color(0x14000000),
+                    ? const Color(0xFFEFF4FA)
+                    : _commandPanelColor,
                 border: _activeTab == _ContextTab.voip
-                    ? const Color(0x663B82F6)
-                    : const Color(0xFF35506F),
+                    ? const Color(0xFFC4D8EC)
+                    : _commandBorderColor,
                 leadingIcon: Icons.call_rounded,
                 onTap: () =>
                     _openContextRailTab(activeIncident, _ContextTab.voip),
@@ -7896,14 +12668,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 label: 'Visual',
                 foreground: _activeTab == _ContextTab.visual
-                    ? const Color(0xFFEAF4FF)
-                    : const Color(0xFF9AB1CF),
+                    ? const Color(0xFF176B4A)
+                    : _commandMutedColor,
                 background: _activeTab == _ContextTab.visual
-                    ? const Color(0x3310B981)
-                    : const Color(0x14000000),
+                    ? const Color(0xFFEFFAF4)
+                    : _commandPanelColor,
                 border: _activeTab == _ContextTab.visual
-                    ? const Color(0x6610B981)
-                    : const Color(0xFF35506F),
+                    ? const Color(0xFFC6E8D4)
+                    : _commandBorderColor,
                 leadingIcon: Icons.videocam_outlined,
                 onTap: () =>
                     _openContextRailTab(activeIncident, _ContextTab.visual),
@@ -7928,10 +12700,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   key: const ValueKey(
                     'live-operations-context-focus-open-client-lane',
                   ),
-                  label: 'Client lane',
-                  foreground: const Color(0xFFDCF5FF),
-                  background: const Color(0x1422D3EE),
-                  border: const Color(0x553FAEEB),
+                  label: 'Client Comms',
+                  foreground: const Color(0xFF0F6D84),
+                  background: const Color(0xFFEAF8FB),
+                  border: const Color(0xFFBCDCE4),
                   leadingIcon: Icons.open_in_new_rounded,
                   onTap: openClientLaneAction,
                 ),
@@ -7948,23 +12720,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     width: 19.5,
                     height: 19.5,
                     decoration: BoxDecoration(
-                      color: const Color(0x1422D3EE),
+                      color: contextAccent.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(5.2),
-                      border: Border.all(color: const Color(0x3322D3EE)),
+                      border: Border.all(
+                        color: contextAccent.withValues(alpha: 0.32),
+                      ),
                     ),
-                    child: Icon(
-                      switch (_activeTab) {
-                        _ContextTab.details => Icons.article_outlined,
-                        _ContextTab.voip => Icons.call_rounded,
-                        _ContextTab.visual => Icons.videocam_outlined,
-                      },
-                      color: switch (_activeTab) {
-                        _ContextTab.details => const Color(0xFF8FD1FF),
-                        _ContextTab.voip => const Color(0xFF9BC3FF),
-                        _ContextTab.visual => const Color(0xFF86EFAC),
-                      },
-                      size: 11.0,
-                    ),
+                    child: Icon(contextIcon, color: contextAccent, size: 11.0),
                   ),
                   const SizedBox(width: 3.6),
                   Expanded(
@@ -7972,30 +12734,30 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'CONTEXT RAIL FOCUS',
+                          'RIGHT RAIL',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF8FAFD4),
+                            color: contextAccent.withValues(alpha: 0.96),
                             fontSize: 7.5,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w900,
                             letterSpacing: 0.9,
                           ),
                         ),
                         const SizedBox(height: 1.6),
                         Text(
                           activeIncident == null
-                              ? 'Right rail on standby'
-                              : '$tabLabel context for ${activeIncident.id}',
+                              ? '$contextModeLabel READY'
+                              : '$contextModeLabel FOR ${activeIncident.id}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF94B0D2),
+                            color: _commandBodyColor,
                             fontSize: 7.9,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         const SizedBox(height: 1.6),
                         Text(
-                          activeIncident?.site ?? 'Context ready',
-                          style: GoogleFonts.rajdhani(
-                            color: const Color(0xFFEAF4FF),
+                          activeIncident?.site ?? 'Pick the next drill-in',
+                          style: GoogleFonts.inter(
+                            color: _commandTitleColor,
                             fontSize: 14.0,
                             fontWeight: FontWeight.w700,
                             height: 1,
@@ -8012,7 +12774,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 maxLines: compact ? 4 : 3,
                 overflow: TextOverflow.ellipsis,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFD8E7F7),
+                  color: _commandBodyColor,
                   fontSize: 8.3,
                   fontWeight: FontWeight.w600,
                   height: 1.28,
@@ -8025,9 +12787,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 children: [
                   _chip(
                     label: tabLabel,
-                    foreground: const Color(0xFFEAF4FF),
-                    background: const Color(0x333B82F6),
-                    border: const Color(0x663B82F6),
+                    foreground: const Color(0xFF2E6EA8),
+                    background: const Color(0xFFEFF4FA),
+                    border: const Color(0xFFC4D8EC),
                     leadingIcon: switch (_activeTab) {
                       _ContextTab.details => Icons.article_outlined,
                       _ContextTab.voip => Icons.call_rounded,
@@ -8107,10 +12869,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }) {
     final wide = embeddedScroll;
     if (incident == null) {
-      return _muted('Select an incident from the queue.');
+      return _muted('Pick one live incident. Facts land here.');
     }
     final duress = _duressDetected(incident);
     final evidenceReady = _evidenceReadyLabel(incident);
+    final priority = _priorityStyle(incident.priority);
     final partnerProgress = _partnerProgressForIncident(incident);
     final siteActivity = _siteActivitySnapshotForIncident(incident);
     final moShadowPosture = _moShadowPostureForIncident(incident);
@@ -8118,15 +12881,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final suppressedReviews = _suppressedSceneReviewsForIncident(incident);
     final clientComms = _clientCommsSnapshotForIncident(incident);
     final rows = <Widget>[
-      _metaRow('Incident', incident.id),
-      _metaRow('Type', incident.type),
-      _metaRow('Site', '${incident.site} Gate'),
+      _detailsWhatMattersCard(
+        incident,
+        priority: priority,
+        duress: duress,
+        evidenceReady: evidenceReady,
+      ),
+      const SizedBox(height: 8),
+      _detailsFastFactsStrip(
+        incident,
+        priority: priority,
+        evidenceReady: evidenceReady,
+      ),
+      const SizedBox(height: 8),
       _metaRow('Address', '123 Main Road, Sandton, Johannesburg'),
       _metaRow('GPS', '-26.1076, 28.0567'),
-      _metaRow('Status', _statusLabel(incident.status)),
-      _metaRow('Risk Rating', '4/5'),
       _metaRow('SLA Tier', 'Gold'),
-      _metaRow('Client', 'Sandton HOA'),
       _metaRow('Contact', 'John Sovereign'),
       _metaRow('Client Safe Word', 'PHOENIX'),
       if (clientComms != null) ...[
@@ -8190,14 +12960,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0x66EF4444), width: 2),
-            color: const Color(0x22EF4444),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x30EF4444),
-                blurRadius: 14,
-                spreadRadius: 1,
-              ),
-            ],
+            color: const Color(0xFFFFF1F1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -8213,7 +12976,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   Text(
                     'SILENT DURESS DETECTED',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFFAAB2),
+                      color: const Color(0xFFB42318),
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -8224,8 +12987,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               FilledButton(
                 onPressed: () => _forceDispatch(incident),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFEF4444),
-                  foregroundColor: const Color(0xFFF8FCFF),
+                  backgroundColor: const Color(0xFFFFF1F1),
+                  foregroundColor: const Color(0xFFB42318),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: const BorderSide(color: Color(0xFFE8B6B6)),
+                  ),
                   textStyle: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -8247,6 +13014,240 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return ListView(
       key: const ValueKey('live-operations-details-scroll-view'),
       children: rows,
+    );
+  }
+
+  Widget _detailsWhatMattersCard(
+    _IncidentRecord incident, {
+    required _PriorityStyle priority,
+    required bool duress,
+    required String evidenceReady,
+  }) {
+    final accent = duress ? const Color(0xFFEF4444) : priority.foreground;
+    final leadLabel = duress
+        ? 'MOVE NOW'
+        : incident.priority == _IncidentPriority.p1Critical
+        ? 'RED'
+        : incident.priority == _IncidentPriority.p2High
+        ? 'ACT'
+        : 'WATCH';
+    final headline = duress
+        ? 'Silent duress flagged. Force the response.'
+        : (incident.latestSceneDecisionLabel ?? '').trim().isNotEmpty
+        ? incident.latestSceneDecisionLabel!.trim()
+        : (incident.latestSceneReviewLabel ?? '').trim().isNotEmpty
+        ? incident.latestSceneReviewLabel!.trim()
+        : (incident.latestIntelHeadline ?? '').trim().isNotEmpty
+        ? incident.latestIntelHeadline!.trim()
+        : '${incident.type} at ${incident.site}';
+    final detail = duress
+        ? 'Do not wait on automation. Dispatch and hold this incident until the unit confirms.'
+        : (incident.latestSceneDecisionSummary ?? '').trim().isNotEmpty
+        ? incident.latestSceneDecisionSummary!.trim()
+        : (incident.latestSceneReviewSummary ?? '').trim().isNotEmpty
+        ? incident.latestSceneReviewSummary!.trim()
+        : (incident.latestIntelSummary ?? '').trim().isNotEmpty
+        ? incident.latestIntelSummary!.trim()
+        : 'Board is pinned on this live incident. Work this one before you move.';
+    return Container(
+      key: ValueKey('live-operations-details-what-matters-${incident.id}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [accent.withValues(alpha: 0.16), const Color(0xFFFBFDFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.08),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: accent.withValues(alpha: 0.45)),
+                ),
+                child: Text(
+                  leadLabel,
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 9.2,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.45,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                incident.id,
+                style: GoogleFonts.robotoMono(
+                  color: const Color(0xFF556B80),
+                  fontSize: 10.2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            headline,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            detail,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF556B80),
+              fontSize: 10.1,
+              fontWeight: FontWeight.w700,
+              height: 1.28,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _commsChip(
+                icon: Icons.location_on_outlined,
+                label: incident.site,
+                accent: const Color(0xFF22D3EE),
+              ),
+              _commsChip(
+                icon: Icons.fiber_manual_record_rounded,
+                label: _statusLabel(incident.status),
+                accent: _statusChipColor(incident.status),
+              ),
+              _commsChip(
+                icon: Icons.verified_outlined,
+                label: evidenceReady,
+                accent: const Color(0xFF34D399),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailsFastFactsStrip(
+    _IncidentRecord incident, {
+    required _PriorityStyle priority,
+    required String evidenceReady,
+  }) {
+    Widget factTile({
+      required String label,
+      required String value,
+      required Color accent,
+      required IconData icon,
+    }) {
+      return Container(
+        constraints: const BoxConstraints(minWidth: 108),
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: accent.withValues(alpha: 0.34)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 12, color: accent),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 8.6,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.35,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFEAF4FF),
+                fontSize: 10.4,
+                fontWeight: FontWeight.w700,
+                height: 1.15,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 340;
+        final tiles = [
+          factTile(
+            label: 'SITE',
+            value: incident.site,
+            accent: const Color(0xFF22D3EE),
+            icon: Icons.location_on_outlined,
+          ),
+          factTile(
+            label: 'RISK',
+            value: priority.label,
+            accent: priority.foreground,
+            icon: priority.icon,
+          ),
+          factTile(
+            label: 'CLIENT',
+            value: 'Sandton HOA',
+            accent: const Color(0xFF3B82F6),
+            icon: Icons.apartment_rounded,
+          ),
+          factTile(
+            label: 'PROOF',
+            value: evidenceReady,
+            accent: const Color(0xFF34D399),
+            icon: Icons.verified_outlined,
+          ),
+        ];
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final tile in tiles)
+              SizedBox(
+                width: wide ? (constraints.maxWidth - 8) / 2 : double.infinity,
+                child: tile,
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -8296,17 +13297,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final accent = _clientCommsAccent(snapshot);
     final latestClientMessage =
         (snapshot.latestClientMessage ?? '').trim().isEmpty
-        ? 'Client lane is quiet right now. New messages will appear here.'
+        ? 'Client Comms is quiet right now. New messages will appear here.'
         : snapshot.latestClientMessage!.trim();
     final pendingDraft = (snapshot.latestPendingDraft ?? '').trim();
     final latestOnyxReply = (snapshot.latestOnyxReply ?? '').trim();
     final responseLabel = pendingDraft.isNotEmpty
         ? 'Pending ONYX Draft'
-        : 'Latest lane reply';
+        : 'Latest Client Comms reply';
     final responseText = pendingDraft.isNotEmpty
         ? pendingDraft
         : latestOnyxReply.isEmpty
-        ? 'No lane reply has been logged yet.'
+        ? 'No Client Comms reply has been logged yet.'
         : latestOnyxReply;
     final responseMoment = _commsMomentLabel(
       pendingDraft.isNotEmpty
@@ -8319,12 +13320,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.18), const Color(0xFF0C1622)],
+          colors: [accent.withValues(alpha: 0.12), const Color(0xFFFBFDFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: accent.withValues(alpha: 0.48)),
+        border: Border.all(color: accent.withValues(alpha: 0.26)),
+        boxShadow: [
+          BoxShadow(
+            color: accent.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -8337,7 +13345,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 child: Text(
                   'Client Comms Pulse',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
+                    color: const Color(0xFF172638),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
@@ -8354,7 +13362,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     siteId: snapshot.siteId,
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFEAF4FF),
+                    foregroundColor: const Color(0xFF315A86),
+                    backgroundColor: const Color(0xFFFFFFFF),
                     side: BorderSide(color: accent.withValues(alpha: 0.58)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -8364,7 +13373,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ),
                   icon: const Icon(Icons.open_in_new_rounded, size: 14),
                   label: Text(
-                    'Open Lane',
+                    'OPEN CLIENT COMMS',
                     style: GoogleFonts.inter(
                       fontSize: 10.2,
                       fontWeight: FontWeight.w700,
@@ -8382,8 +13391,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       ? null
                       : () => _clearLearnedLaneStyle(snapshot),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF9EDCF0),
-                    side: const BorderSide(color: Color(0xFF245B72)),
+                    foregroundColor: const Color(0xFF0F6A83),
+                    backgroundColor: const Color(0xFFF5FBFF),
+                    side: const BorderSide(color: Color(0xFF87CAE0)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 5,
@@ -8396,7 +13406,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           height: 14,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Color(0xFF9EDCF0),
+                            color: Color(0xFF0F6A83),
                           ),
                         )
                       : const Icon(Icons.refresh_rounded, size: 14),
@@ -8415,7 +13425,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             '${_humanizeOpsScopeLabel(snapshot.siteId, fallback: incident.site)} • ${_clientCommsNarrative(snapshot)}',
             style: GoogleFonts.inter(
-              color: const Color(0xFFCEE4FA),
+              color: const Color(0xFF556B80),
               fontSize: 10.4,
               fontWeight: FontWeight.w600,
               height: 1.28,
@@ -8512,16 +13522,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
-                          ? const Color(0xFFEAF4FF)
-                          : const Color(0xFF9AB1CF),
+                          ? const Color(0xFF172638)
+                          : const Color(0xFF556B80),
                       backgroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
-                          ? const Color(0xFF1B3148)
-                          : Colors.transparent,
+                          ? accent.withValues(alpha: 0.16)
+                          : const Color(0xFFFFFFFF),
                       side: BorderSide(
                         color: _laneVoiceOptionSelected(snapshot, option.$2)
-                            ? const Color(0xFF4B6B8F)
-                            : const Color(0xFF35506F),
+                            ? accent.withValues(alpha: 0.34)
+                            : const Color(0xFFD4DFEA),
                       ),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -8555,7 +13565,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             text:
                 '$latestClientMessage${_commsMomentLabel(snapshot.latestClientMessageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestClientMessageAtUtc)}'}',
             borderColor: const Color(0xFF31506F),
-            textColor: const Color(0xFFD8E8FA),
+            textColor: const Color(0xFF172638),
           ),
           const SizedBox(height: 7),
           _clientCommsTextBlock(
@@ -8563,7 +13573,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             text:
                 '$responseText${responseMoment.isEmpty ? '' : ' • $responseMoment'}',
             borderColor: accent,
-            textColor: const Color(0xFFEAF4FF),
+            textColor: const Color(0xFF172638),
           ),
           if ((snapshot.latestSmsFallbackStatus ?? '').trim().isNotEmpty) ...[
             const SizedBox(height: 7),
@@ -8572,7 +13582,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               text:
                   '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestSmsFallbackStatus!.trim())}${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestSmsFallbackAtUtc)}'}',
               borderColor: const Color(0xFF2E7D68),
-              textColor: const Color(0xFFDDFBF3),
+              textColor: const Color(0xFF166534),
             ),
           ],
           if ((snapshot.latestVoipStageStatus ?? '').trim().isNotEmpty) ...[
@@ -8582,7 +13592,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               text:
                   '${ClientDeliveryMessageFormatter.humanizeScopedCommsSummary(snapshot.latestVoipStageStatus!.trim())}${_commsMomentLabel(snapshot.latestVoipStageAtUtc).isEmpty ? '' : ' • ${_commsMomentLabel(snapshot.latestVoipStageAtUtc)}'}',
               borderColor: const Color(0xFF3E6AA6),
-              textColor: const Color(0xFFDCEBFF),
+              textColor: const Color(0xFF315A86),
             ),
           ],
           if (snapshot.recentDeliveryHistoryLines.isNotEmpty) ...[
@@ -8591,7 +13601,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Recent delivery history',
               text: snapshot.recentDeliveryHistoryLines.join('\n'),
               borderColor: const Color(0xFF35506F),
-              textColor: const Color(0xFFDCE8FF),
+              textColor: const Color(0xFF315A86),
             ),
           ],
           if (snapshot.learnedApprovalStyleExample.trim().isNotEmpty) ...[
@@ -8600,7 +13610,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               label: 'Learned approval style',
               text: snapshot.learnedApprovalStyleExample.trim(),
               borderColor: const Color(0xFF245B72),
-              textColor: const Color(0xFFD9F7FF),
+              textColor: const Color(0xFF0F6A83),
             ),
           ],
           if ((snapshot.telegramHealthDetail ?? '').trim().isNotEmpty ||
@@ -8628,22 +13638,26 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required String label,
     required Color accent,
   }) {
+    final foreground = Color.lerp(_commandTitleColor, accent, 0.72) ?? accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 3.5),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
+        color: Color.alphaBlend(
+          Colors.white.withValues(alpha: 0.62),
+          accent.withValues(alpha: 0.08),
+        ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.42)),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: const Color(0xFFEAF4FF)),
+          Icon(icon, size: 11, color: foreground),
           const SizedBox(width: 3.5),
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: foreground,
               fontSize: 9.1,
               fontWeight: FontWeight.w700,
             ),
@@ -8663,7 +13677,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(7.5),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1824),
+        color: _commandPanelColor,
         borderRadius: BorderRadius.circular(7.0),
         border: Border.all(color: borderColor.withValues(alpha: 0.52)),
       ),
@@ -8673,7 +13687,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _commandMutedColor,
               fontSize: 8.8,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.3,
@@ -8874,7 +13888,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0x665C7CFA)),
-        color: const Color(0x221B1F45),
+        color: const Color(0xFFF7F7FF),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -8884,7 +13898,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Next-Shift Drafts',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFC8D2FF),
+                  color: const Color(0xFF3F51B5),
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -8893,7 +13907,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 '${drafts.length} draft${drafts.length == 1 ? '' : 's'}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFA6BDD9),
+                  color: const Color(0xFF556B80),
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -8962,7 +13976,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0x665B9BD5)),
-        color: const Color(0x2214334A),
+        color: const Color(0xFFF5FBFF),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -8972,7 +13986,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Shadow MO Intelligence',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFB8D7FF),
+                  color: const Color(0xFF315A86),
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -8981,7 +13995,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 '${sitePosture.moShadowMatchCount} match${sitePosture.moShadowMatchCount == 1 ? '' : 'es'}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFA6BDD9),
+                  color: const Color(0xFF556B80),
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -9018,10 +14032,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       context: context,
       builder: (dialogContext) {
         return Dialog(
-          backgroundColor: const Color(0xFF08111B),
+          backgroundColor: _commandPanelColor,
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 24,
             vertical: 24,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _commandBorderColor),
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760, maxHeight: 720),
@@ -9037,7 +14055,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         child: Text(
                           'SHADOW MO DOSSIER',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF4FF),
+                            color: _commandTitleColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
@@ -9059,11 +14077,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             accent: const Color(0xFF8FD1FF),
                           );
                         },
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF315C86),
+                        ),
                         child: const Text('COPY JSON'),
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                        icon: const Icon(
+                          Icons.close,
+                          color: _commandMutedColor,
+                        ),
                       ),
                     ],
                   ),
@@ -9071,7 +14095,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   Text(
                     '${incident.site} • ${sitePosture.moShadowSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF4FF),
+                      color: _commandBodyColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -9086,9 +14110,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0x14000000),
+                            color: _commandPanelAltColor,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0x335B9BD5)),
+                            border: Border.all(color: _commandBorderColor),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -9096,7 +14120,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               Text(
                                 match.title,
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFB8D7FF),
+                                  color: _commandTitleColor,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -9105,7 +14129,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               Text(
                                 'Indicators ${match.matchedIndicators.join(', ')}',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF9AB5D7),
+                                  color: _commandBodyColor,
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -9115,7 +14139,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 Text(
                                   'Strength ${shadowMoStrengthSummary(match)}',
                                   style: GoogleFonts.robotoMono(
-                                    color: const Color(0xFF8FD1FF),
+                                    color: const Color(0xFF315C86),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -9126,7 +14150,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 Text(
                                   'Actions ${match.recommendedActionPlans.join(' • ')}',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFF8FD1FF),
+                                    color: const Color(0xFF315C86),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -9145,6 +14169,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                         sitePosture.moShadowSelectedEventId,
                                       );
                                     },
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFF315C86),
+                                      side: const BorderSide(
+                                        color: _commandBorderStrongColor,
+                                      ),
+                                      backgroundColor: _commandPanelColor,
+                                    ),
                                     child: const Text('OPEN EVIDENCE'),
                                   ),
                                 ),
@@ -9192,8 +14223,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF2A3D58)),
-        color: const Color(0x14000000),
+        border: Border.all(color: const Color(0xFFD4DFEA)),
+        color: const Color(0xFFFFFFFF),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -9203,7 +14234,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Activity Truth',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8FD1FF),
+                  color: const Color(0xFF315A86),
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                 ),
@@ -9212,7 +14243,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 '${snapshot.totalSignals} signals',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFA6BDD9),
+                  color: const Color(0xFF556B80),
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
@@ -9245,8 +14276,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     snapshot.selectedEventId,
                   );
                   _showLiveOpsFeedback(
-                    'Opening Events Review for activity truth.',
-                    label: 'ACTIVITY TRUTH',
+                    'Events scope warmed for activity truth.',
+                    label: 'EVENTS SCOPE',
                     detail:
                         'The scoped evidence handoff stays pinned in the context rail while the incident board remains in place.',
                     accent: const Color(0xFF67E8F9),
@@ -9264,7 +14295,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                child: const Text('Open Events Review'),
+                child: const Text('OPEN EVENTS SCOPE'),
               ),
             ),
           ],
@@ -9314,8 +14345,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF2A3D58)),
-        color: const Color(0x14000000),
+        border: Border.all(color: const Color(0xFFD4DFEA)),
+        color: const Color(0xFFFFFFFF),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -9325,7 +14356,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Suppressed ${widget.videoOpsLabel} Reviews',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFE4EEFF),
+                  color: const Color(0xFF172638),
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -9343,7 +14374,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             'Recent ${widget.videoOpsLabel} reviews ONYX held below the client notification threshold for this site.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF7F95B6),
+              color: const Color(0xFF556B80),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -9365,8 +14396,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(8),
-                color: const Color(0xFF0F1419),
-                border: Border.all(color: const Color(0xFF24364F)),
+                color: _commandPanelColor,
+                border: Border.all(color: _commandBorderColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -9378,7 +14409,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         child: Text(
                           intel.headline.trim(),
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFE4EEFF),
+                            color: _commandTitleColor,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -9401,7 +14432,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         ? 'Suppressed because the activity remained below threshold.'
                         : review.decisionSummary.trim(),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE4EEFF),
+                      color: _commandTitleColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -9410,7 +14441,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   Text(
                     'Scene review: ${review.summary.trim()}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF7F95B6),
+                      color: _commandBodyColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
@@ -9442,9 +14473,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       if (zoneLabel.isNotEmpty)
                         _contextChip(
                           label: zoneLabel,
-                          foreground: const Color(0xFFBFD7F2),
-                          background: const Color(0x14000000),
-                          border: const Color(0xFF2A3D58),
+                          foreground: const Color(0xFF556B80),
+                          background: const Color(0xFFF5F8FC),
+                          border: const Color(0xFFD4DFEA),
                         ),
                     ],
                   ),
@@ -9779,8 +14810,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF2A3D58)),
-        color: const Color(0x14000000),
+        border: Border.all(color: const Color(0xFFD4DFEA)),
+        color: const Color(0xFFFFFFFF),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -9790,7 +14821,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 'Partner Progression',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFE4EEFF),
+                  color: const Color(0xFF172638),
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -9808,7 +14839,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             '${progress.partnerLabel} • Latest ${_partnerDispatchStatusLabel(progress.latestStatus)} • ${_hhmm(progress.latestOccurredAt.toLocal())}',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE4EEFF),
+              color: const Color(0xFF172638),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -9820,9 +14851,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             children: [
               _contextChip(
                 label: 'Dispatch ${progress.dispatchId}',
-                foreground: const Color(0xFFBFD7F2),
-                background: const Color(0x14000000),
-                border: const Color(0xFF2A3D58),
+                foreground: const Color(0xFF556B80),
+                background: const Color(0xFFF5F8FC),
+                border: const Color(0xFFD4DFEA),
               ),
               if (trend != null)
                 _contextChip(
@@ -9860,7 +14891,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               '7-day partner history is available for review in Admin and Governance.',
               key: ValueKey<String>('live-partner-trend-reason-$incidentId'),
               style: GoogleFonts.inter(
-                color: const Color(0xFF8FA7C8),
+                color: const Color(0xFF556B80),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -9883,15 +14914,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: reached ? tone.$2 : const Color(0x14000000),
-        border: Border.all(color: reached ? tone.$3 : const Color(0xFF2A3D58)),
+        color: reached ? tone.$2 : const Color(0xFFF5F8FC),
+        border: Border.all(color: reached ? tone.$3 : const Color(0xFFD4DFEA)),
       ),
       child: Text(
         reached
             ? '${_partnerDispatchStatusLabel(status)} ${_hhmm(timestamp.toLocal())}'
             : '${_partnerDispatchStatusLabel(status)} Pending',
         style: GoogleFonts.inter(
-          color: reached ? tone.$1 : const Color(0xFF8FA7C8),
+          color: reached ? tone.$1 : const Color(0xFF556B80),
           fontSize: 10,
           fontWeight: FontWeight.w800,
         ),
@@ -9905,9 +14936,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       return _contextTabRecoveryDeck(
         key: const ValueKey('live-operations-voip-recovery'),
         eyebrow: 'VOIP CONTEXT READY',
-        title: 'No live call transcript is pinned yet.',
+        title: 'No live call is pinned yet.',
         summary:
-            'The context rail can still recover the lead lane, reopen the action ladder, or keep the client-lane posture visible while the next call transcript comes online.',
+            'Pick the lead incident and the call script lands here. Keep this tab open when client pressure matters.',
         accent: const Color(0xFF22D3EE),
         clientCommsSnapshot: widget.clientCommsSnapshot,
       );
@@ -9933,6 +14964,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             : 'Safe-word verification complete. Response team remains en route.',
       },
     ];
+    final callAccent = duress
+        ? const Color(0xFFEF4444)
+        : const Color(0xFF22D3EE);
+    final latestMessage = transcript.last['message'] ?? '';
     final items = List<Widget>.generate(transcript.length, (index) {
       final entry = transcript[index];
       final speaker = entry['speaker'] ?? '';
@@ -9943,11 +14978,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color: aiSpeaker ? const Color(0x1122D3EE) : const Color(0x14000000),
+          color: aiSpeaker ? const Color(0xFFEAF8FB) : _commandPanelColor,
           border: Border.all(
-            color: aiSpeaker
-                ? const Color(0x5522D3EE)
-                : const Color(0xFF2A3D58),
+            color: aiSpeaker ? const Color(0xFFBCDCE4) : _commandBorderColor,
           ),
         ),
         child: Column(
@@ -9960,7 +14993,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   style: GoogleFonts.inter(
                     color: aiSpeaker
                         ? const Color(0xFF22D3EE)
-                        : const Color(0xFFDCE9FF),
+                        : _commandTitleColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                   ),
@@ -9969,7 +15002,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   timestamp,
                   style: GoogleFonts.robotoMono(
-                    color: const Color(0xFF8EA8CB),
+                    color: _commandMutedColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -9981,8 +15014,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               message,
               style: GoogleFonts.inter(
                 color: index == transcript.length - 1 && duress
-                    ? const Color(0xFFFFAAB2)
-                    : const Color(0xFFE1ECFF),
+                    ? const Color(0xFFB42318)
+                    : _commandTitleColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -9991,20 +15024,127 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
       );
     });
+    final callFocusCard = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.alphaBlend(
+              callAccent.withValues(alpha: 0.14),
+              _commandPanelColor,
+            ),
+            _commandPanelTintColor,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: callAccent.withValues(alpha: 0.32)),
+        boxShadow: [
+          BoxShadow(
+            color: callAccent.withValues(alpha: 0.08),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: callAccent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: callAccent.withValues(alpha: 0.42)),
+                ),
+                child: Text(
+                  duress ? 'CALL ALERT' : 'CALL LIVE',
+                  style: GoogleFonts.inter(
+                    color: callAccent,
+                    fontSize: 9.2,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                incident.id,
+                style: GoogleFonts.robotoMono(
+                  color: const Color(0xFF4D7FAE),
+                  fontSize: 10.0,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            duress
+                ? 'Escalate the caller now.'
+                : 'Client is verified. Hold the line calm.',
+            style: GoogleFonts.inter(
+              color: _commandTitleColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            latestMessage,
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              color: _commandBodyColor,
+              fontSize: 10.1,
+              fontWeight: FontWeight.w700,
+              height: 1.28,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _commsChip(
+                icon: Icons.call_rounded,
+                label: duress ? 'voice stress high' : 'caller verified',
+                accent: callAccent,
+              ),
+              _commsChip(
+                icon: Icons.location_on_outlined,
+                label: incident.site,
+                accent: const Color(0xFF3B82F6),
+              ),
+              _commsChip(
+                icon: Icons.schedule_rounded,
+                label: transcript.last['timestamp'] ?? '',
+                accent: const Color(0xFFF59E0B),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
     final statusBanner = Container(
       padding: const EdgeInsets.all(9),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: const Color(0x1122D3EE),
-        border: Border.all(color: const Color(0x4422D3EE)),
+        color: callAccent.withValues(alpha: 0.12),
+        border: Border.all(color: callAccent.withValues(alpha: 0.36)),
       ),
       child: Row(
         children: [
           Container(
             width: 7,
             height: 7,
-            decoration: const BoxDecoration(
-              color: Color(0xFF22D3EE),
+            decoration: BoxDecoration(
+              color: callAccent,
               shape: BoxShape.circle,
             ),
           ),
@@ -10013,9 +15153,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             child: Text(
               'VoIP Call Active - Recording in progress',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8ED3FF),
+                color: _commandTitleColor,
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -10025,6 +15165,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     if (!wide) {
       return Column(
         children: [
+          callFocusCard,
+          const SizedBox(height: 6),
           statusBanner,
           const SizedBox(height: 6),
           for (var i = 0; i < items.length; i++) ...[
@@ -10035,11 +15177,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
     }
     return ListView.separated(
-      itemCount: items.length + 1,
+      itemCount: items.length + 2,
       separatorBuilder: (context, index) => const SizedBox(height: 6),
       itemBuilder: (context, index) {
-        if (index == 0) return statusBanner;
-        return items[index - 1];
+        if (index == 0) return callFocusCard;
+        if (index == 1) return statusBanner;
+        return items[index - 2];
       },
     );
   }
@@ -10051,7 +15194,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         eyebrow: 'VISUAL CONTEXT READY',
         title: 'No camera comparison is pinned yet.',
         summary:
-            'The visual rail can still recover the lead lane, reopen the action ladder, or keep the scoped client-lane posture visible while comparison evidence comes online.',
+            'The visual rail can still recover the lead incident, reopen the action ladder, or keep the scoped Client Comms posture visible while comparison evidence comes online.',
         accent: const Color(0xFFFACC15),
         clientCommsSnapshot: widget.clientCommsSnapshot,
       );
@@ -10064,7 +15207,129 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         : score >= 60
         ? const Color(0xFFFACC15)
         : const Color(0xFFEF4444);
+    final visualSummaryCard = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.alphaBlend(
+              scoreColor.withValues(alpha: 0.14),
+              _commandPanelColor,
+            ),
+            _commandPanelTintColor,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scoreColor.withValues(alpha: 0.30)),
+        boxShadow: [
+          BoxShadow(
+            color: scoreColor.withValues(alpha: 0.08),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: scoreColor.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: scoreColor.withValues(alpha: 0.42)),
+                ),
+                child: Text(
+                  score < 60
+                      ? 'VISUAL ALERT'
+                      : score >= 95
+                      ? 'VISUAL CLEAR'
+                      : 'VISUAL WATCH',
+                  style: GoogleFonts.inter(
+                    color: scoreColor,
+                    fontSize: 9.2,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$score%',
+                style: GoogleFonts.inter(
+                  color: scoreColor,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  height: 0.9,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Text(
+            score < 60
+                ? 'Visual mismatch needs human eyes.'
+                : score >= 95
+                ? 'Visual match is holding clean.'
+                : 'Visuals are mostly clean. Keep watch.',
+            style: GoogleFonts.inter(
+              color: _commandTitleColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            snapshotAvailable || clipAvailable
+                ? 'Proof is already attached to this incident. Compare quickly, then move.'
+                : 'Live visual proof is still loading for this incident.',
+            style: GoogleFonts.inter(
+              color: _commandBodyColor,
+              fontSize: 10.1,
+              fontWeight: FontWeight.w700,
+              height: 1.28,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _commsChip(
+                icon: Icons.camera_alt_outlined,
+                label: snapshotAvailable
+                    ? 'snapshot ready'
+                    : 'snapshot pending',
+                accent: snapshotAvailable
+                    ? const Color(0xFF34D399)
+                    : const Color(0xFFF59E0B),
+              ),
+              _commsChip(
+                icon: Icons.movie_outlined,
+                label: clipAvailable ? 'clip ready' : 'clip pending',
+                accent: clipAvailable
+                    ? const Color(0xFF34D399)
+                    : const Color(0xFFF59E0B),
+              ),
+              _commsChip(
+                icon: Icons.location_on_outlined,
+                label: incident.site,
+                accent: const Color(0xFF22D3EE),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
     final children = <Widget>[
+      visualSummaryCard,
+      const SizedBox(height: 8),
       _metaRow('NORM', 'NIGHT BASELINE'),
       _metaRow('LIVE', incident.timestamp),
       Row(
@@ -10072,7 +15337,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           Text(
             'Match Score',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB3D2),
+              color: _commandMutedColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -10080,7 +15345,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           const Spacer(),
           Text(
             '$score%',
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: scoreColor,
               fontSize: 38,
               height: 0.9,
@@ -10111,8 +15376,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: const Color(0x120F766E),
-            border: Border.all(color: const Color(0x5534D399)),
+            color: const Color(0xFFF2FBF7),
+            border: Border.all(color: const Color(0xFFB9DEC8)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -10132,8 +15397,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: const Color(0x18EF4444),
-            border: Border.all(color: const Color(0x55EF4444)),
+            color: const Color(0xFFFFF2F2),
+            border: Border.all(color: const Color(0xFFE7B4B4)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -10205,11 +15470,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               borderRadius: BorderRadius.circular(8),
               color: selected
                   ? statusColor.withValues(alpha: 0.16)
-                  : const Color(0x14000000),
+                  : _commandPanelTintColor,
               border: Border.all(
                 color: selected
                     ? statusColor.withValues(alpha: 0.72)
-                    : const Color(0xFF2A3C57),
+                    : _commandBorderColor,
                 width: selected ? 1.4 : 1,
               ),
             ),
@@ -10227,7 +15492,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           Text(
                             guard.callsign,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFE7F2FF),
+                              color: _commandTitleColor,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                             ),
@@ -10259,7 +15524,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       Text(
                         'Last check-in: ${guard.lastCheckIn}',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF8FA7C8),
+                          color: _commandMutedColor,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -10342,8 +15607,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(7),
-            color: const Color(0x14000000),
-            border: Border.all(color: const Color(0xFF2A3D58)),
+            color: _commandPanelTintColor,
+            border: Border.all(color: _commandBorderColor),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -10403,7 +15668,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         Text(
                           '$hh:$mm:$ss',
                           style: GoogleFonts.robotoMono(
-                            color: const Color(0xFF8EA8CB),
+                            color: _commandMutedColor,
                             fontSize: 9.5,
                             fontWeight: FontWeight.w600,
                           ),
@@ -10414,7 +15679,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       entry.description,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE0EBFF),
+                        color: _commandTitleColor,
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -10426,7 +15691,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           Text(
                             'Actor: ${entry.actor}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF9AB2D2),
+                              color: _commandBodyColor,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w600,
                             ),
@@ -10471,9 +15736,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       width: double.infinity,
       padding: panelPadding,
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: _commandPanelColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF21262D)),
+        border: Border.all(color: _commandBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -10505,7 +15770,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       'SOVEREIGN LEDGER',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFF8FBFF),
+                        color: _commandTitleColor,
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
                         letterSpacing: 0.3,
@@ -10515,7 +15780,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       'Immutable event chain',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8FAFD4),
+                        color: _commandBodyColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -10532,13 +15797,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFF10151C),
-                border: Border.all(color: const Color(0xFF223244)),
+                color: _commandPanelTintColor,
+                border: Border.all(color: _commandBorderColor),
               ),
               child: Text(
                 'No ledger events recorded yet for the current command window.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB2D2),
+                  color: _commandBodyColor,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -10594,8 +15859,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             : 'Chain status: Pending verification',
                         style: GoogleFonts.inter(
                           color: chainVerified
-                              ? const Color(0xFFD1FAE5)
-                              : const Color(0xFFFEF3C7),
+                              ? const Color(0xFF176B4A)
+                              : const Color(0xFF8A5A00),
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                         ),
@@ -10606,7 +15871,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             ? '$verifiedCount of ${ledger.length} events sealed${_lastLedgerVerificationAt == null ? '' : ' • ${_commsMomentLabel(_lastLedgerVerificationAt)}'}'
                             : '$verifiedCount of ${ledger.length} events sealed',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF9AB2D2),
+                          color: _commandBodyColor,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
@@ -10624,7 +15889,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 child: Text(
                   '${ledger.length} events recorded',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9AB2D2),
+                    color: _commandBodyColor,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -10636,8 +15901,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ? null
                     : () => _verifyLedgerChain(ledger),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFA78BFA),
-                  side: const BorderSide(color: Color(0x665B3FD1)),
+                  foregroundColor: const Color(0xFF6D28D9),
+                  backgroundColor: _commandPanelColor,
+                  side: const BorderSide(color: Color(0xFFD5C0FF)),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 9,
@@ -10833,8 +16099,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           : 'Board focus opened for ${active.id}.',
       label: 'INCIDENT RAIL',
       detail: active == null
-          ? 'The board is centered and ready for the next live lane without leaving the rail.'
-          : 'The selected lane stayed pinned while the action ladder moved into view for ${active.id}.',
+          ? 'The board is centered and ready for the next live incident without leaving the rail.'
+          : 'The selected incident stayed pinned while the action ladder moved into view for ${active.id}.',
       accent: const Color(0xFF22D3EE),
     );
   }
@@ -10863,7 +16129,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           : '$tabLabel context opened for ${active.id}.',
       label: 'INCIDENT RAIL',
       detail: active == null
-          ? 'The right rail stayed active so the next lane can land without losing operator context.'
+          ? 'The right rail stayed active so the next incident can land without losing operator context.'
           : 'The incident rail kept ${active.id} selected while ${tabLabel.toLowerCase()} posture moved forward in place.',
       accent: switch (tab) {
         _ContextTab.details => const Color(0xFF22D3EE),
@@ -10882,8 +16148,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           : 'Queue focus opened for ${active.id}.',
       label: 'INCIDENT RAIL',
       detail: active == null
-          ? 'The left rail moved directly into reply work while the board stayed ready for the next selected lane.'
-          : 'Reply work came forward in the left rail while ${active.id} remained the active live lane.',
+          ? 'The left rail moved directly into reply work while the board stayed ready for the next selected incident.'
+          : 'Reply work came forward in the left rail while ${active.id} remained the active live incident.',
       accent: const Color(0xFFF59E0B),
     );
   }
@@ -10893,10 +16159,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     await Future<void>.delayed(Duration.zero);
     await _ensureActionLadderPanelVisible();
     _showLiveOpsFeedback(
-      'Critical lane focused for ${incident.id}.',
+      'Critical incident focused for ${incident.id}.',
       label: 'INCIDENT RAIL',
       detail:
-          'The highest-risk live lane moved into the board while the rest of the queue stayed visible for follow-through.',
+          'The highest-risk live incident moved into the board while the rest of the queue stayed visible for follow-through.',
       accent: const Color(0xFFEF4444),
     );
   }
@@ -10910,10 +16176,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       width: compact ? null : double.infinity,
       padding: EdgeInsets.symmetric(horizontal: compact ? 7 : 9, vertical: 7),
       decoration: BoxDecoration(
-        color: selected ? const Color(0x3322D3EE) : const Color(0x14FFFFFF),
+        color: selected ? const Color(0xFFEAF8FB) : _commandPanelColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: selected ? const Color(0x6622D3EE) : const Color(0x33FFFFFF),
+          color: selected ? const Color(0xFFBCDCE4) : _commandBorderColor,
         ),
       ),
       alignment: Alignment.center,
@@ -10923,7 +16189,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         style: GoogleFonts.inter(
           fontSize: 9.5,
           fontWeight: FontWeight.w800,
-          color: selected ? const Color(0xFF22D3EE) : const Color(0xFFB8CAE4),
+          color: selected ? const Color(0xFF0F6D84) : _commandMutedColor,
         ),
       ),
     );
@@ -10960,8 +16226,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(3.5),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(6.5),
-            color: const Color(0xFF0E1A2B),
-            border: Border.all(color: const Color(0xFF223244)),
+            color: _commandPanelColor,
+            border: Border.all(color: _commandBorderColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -10969,19 +16235,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Text(
                 title.toUpperCase(),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF6C87AD),
-                  fontSize: 7.8,
+                  color: const Color(0xFF4D7FAE),
+                  fontSize: 7.5,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.54,
                 ),
               ),
               const SizedBox(height: 0.75),
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8EA5C5),
-                  fontSize: 8.2,
+                  color: _commandBodyColor,
+                  fontSize: 8.0,
                   fontWeight: FontWeight.w600,
+                  height: 1.34,
                 ),
               ),
               const SizedBox(height: 1.5),
@@ -11057,7 +16324,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   label,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8FA7C8),
+                    color: _commandMutedColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -11066,7 +16333,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   value,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE4EEFF),
+                    color: _commandTitleColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -11083,7 +16350,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 child: Text(
                   label,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8FA7C8),
+                    color: _commandMutedColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -11093,7 +16360,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 child: Text(
                   value,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE4EEFF),
+                    color: _commandTitleColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -11135,7 +16402,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       child: Text(
         message,
         style: GoogleFonts.inter(
-          color: const Color(0xFF7F95B6),
+          color: _commandMutedColor,
           fontSize: 9.5,
           fontWeight: FontWeight.w600,
         ),
@@ -11158,11 +16425,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return Container(
       key: key,
       width: double.infinity,
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1520),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accent.withValues(alpha: 0.42)),
+        color: _commandPanelColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.26)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -11173,32 +16440,32 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               eyebrow,
               style: GoogleFonts.inter(
                 color: accent,
-                fontSize: 8.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.9,
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              title,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFEAF4FF),
-                fontSize: 11,
+                fontSize: 7.8,
                 fontWeight: FontWeight.w700,
-                height: 1.35,
+                letterSpacing: 0.45,
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              summary,
+              title,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9CB1CC),
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-                height: 1.45,
+                color: _commandTitleColor,
+                fontSize: 10.2,
+                fontWeight: FontWeight.w700,
+                height: 1.42,
               ),
             ),
             const SizedBox(height: 5),
+            Text(
+              summary,
+              style: GoogleFonts.inter(
+                color: _commandBodyColor,
+                fontSize: 9.2,
+                fontWeight: FontWeight.w600,
+                height: 1.52,
+              ),
+            ),
+            const SizedBox(height: 6),
             Wrap(
               spacing: 4,
               runSpacing: 4,
@@ -11211,10 +16478,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 _contextChip(
                   label:
-                      '${_incidents.length} live lane${_incidents.length == 1 ? '' : 's'}',
-                  foreground: const Color(0xFFB8CAE4),
-                  background: const Color(0x14000000),
-                  border: const Color(0xFF2A3D58),
+                      '${_incidents.length} live incident${_incidents.length == 1 ? '' : 's'}',
+                  foreground: _commandMutedColor,
+                  background: _commandPanelTintColor,
+                  border: _commandBorderColor,
                 ),
                 if (leadIncident != null)
                   _contextChip(
@@ -11235,10 +16502,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     key: const ValueKey(
                       'live-operations-context-recovery-focus-lead',
                     ),
-                    label: 'Focus lead lane',
-                    foreground: const Color(0xFFEAF4FF),
-                    background: const Color(0x1A22D3EE),
-                    border: const Color(0x5522D3EE),
+                    label: 'Focus lead incident',
+                    foreground: const Color(0xFF0F6D84),
+                    background: const Color(0xFFEAF8FB),
+                    border: const Color(0xFFBCDCE4),
                     leadingIcon: Icons.center_focus_strong_rounded,
                     onTap: () async {
                       _focusLeadIncident();
@@ -11281,9 +16548,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     'live-operations-context-recovery-open-queue',
                   ),
                   label: 'Open action ladder',
-                  foreground: const Color(0xFFFFE4B5),
-                  background: const Color(0x1AF59E0B),
-                  border: const Color(0x66F59E0B),
+                  foreground: const Color(0xFF2E6EA8),
+                  background: const Color(0xFFEFF4FA),
+                  border: const Color(0xFFC4D8EC),
                   leadingIcon: Icons.schedule_rounded,
                   onTap: () async {
                     await _openPendingActionsRecovery();
@@ -11294,10 +16561,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     key: const ValueKey(
                       'live-operations-context-recovery-open-client-lane',
                     ),
-                    label: 'Recover client lane',
-                    foreground: const Color(0xFFDCF5FF),
-                    background: const Color(0x1422D3EE),
-                    border: const Color(0x553FAEEB),
+                    label: 'Recover Client Comms',
+                    foreground: const Color(0xFF0F6D84),
+                    background: const Color(0xFFEAF8FB),
+                    border: const Color(0xFFBCDCE4),
                     leadingIcon: Icons.forum_rounded,
                     onTap: () async {
                       await _openClientLaneRecovery(clientCommsSnapshot);
@@ -11347,110 +16614,130 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       return;
     }
     final controller = TextEditingController(text: draft.draftText);
-    final nextText = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF0E1620),
-          title: Text(
-            'Refine ONYX Draft',
-            style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
+    late final String? nextText;
+    try {
+      nextText = await showDialog<String>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            backgroundColor: _commandPanelColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: const BorderSide(color: _commandBorderColor),
             ),
-          ),
-          content: SizedBox(
-            width: 520,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: controller,
-                  builder: (context, value, child) {
-                    return Text(
-                      _controlInboxDraftCueForSignals(
-                        sourceText: draft.sourceText,
-                        replyText: value.text,
-                        clientVoiceProfileLabel: draft.clientVoiceProfileLabel,
-                        usesLearnedApprovalStyle:
-                            draft.usesLearnedApprovalStyle,
-                      ),
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFB7CAE3),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        height: 1.32,
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: controller,
-                  minLines: 5,
-                  maxLines: 9,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
+            title: Text(
+              'Refine ONYX Draft',
+              style: GoogleFonts.inter(
+                color: _commandTitleColor,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            content: SizedBox(
+              width: 520,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: controller,
+                    builder: (context, value, child) {
+                      return Text(
+                        _controlInboxDraftCueForSignals(
+                          sourceText: draft.sourceText,
+                          replyText: value.text,
+                          clientVoiceProfileLabel:
+                              draft.clientVoiceProfileLabel,
+                          usesLearnedApprovalStyle:
+                              draft.usesLearnedApprovalStyle,
+                        ),
+                        style: GoogleFonts.inter(
+                          color: _commandBodyColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          height: 1.32,
+                        ),
+                      );
+                    },
                   ),
-                  decoration: InputDecoration(
-                    hintText: 'Shape the final client-facing wording here.',
-                    hintStyle: GoogleFonts.inter(
-                      color: const Color(0xFF8EA4C2),
-                      fontSize: 12,
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: controller,
+                    minLines: 5,
+                    maxLines: 9,
+                    style: GoogleFonts.inter(
+                      color: _commandTitleColor,
+                      fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
-                    filled: true,
-                    fillColor: const Color(0xFF111D2A),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF35506F)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF35506F)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF4B6B8F)),
+                    decoration: InputDecoration(
+                      hintText: 'Shape the final client-facing wording here.',
+                      hintStyle: GoogleFonts.inter(
+                        color: _commandMutedColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      filled: true,
+                      fillColor: _commandPanelTintColor,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: _commandBorderColor,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: _commandBorderColor,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                          color: _commandBorderStrongColor,
+                        ),
+                      ),
                     ),
                   ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.inter(
+                    color: _commandMutedColor,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB1CF),
-                  fontWeight: FontWeight.w700,
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(context).pop(controller.text.trim()),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF2E7D5B),
+                  foregroundColor: const Color(0xFFEAF4FF),
+                ),
+                child: Text(
+                  'Save Draft',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                 ),
               ),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D5B),
-                foregroundColor: const Color(0xFFEAF4FF),
-              ),
-              child: Text(
-                'Save Draft',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w700),
-              ),
-            ),
-          ],
-        );
-      },
-    );
+            ],
+          );
+        },
+      );
+    } finally {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        controller.dispose();
+      });
+    }
     final normalizedText = (nextText ?? '').trim();
-    if (normalizedText.isEmpty || normalizedText == draft.draftText.trim()) {
+    if (!mounted ||
+        normalizedText.isEmpty ||
+        normalizedText == draft.draftText.trim()) {
       return;
     }
     setState(() {
@@ -11531,7 +16818,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF0E1A2B),
+              backgroundColor: const Color(0xFFFFFFFF),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: const BorderSide(color: Color(0x66EF4444)),
@@ -11539,7 +16826,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               title: Text(
                 'Override ${incident.id}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFFFC0C6),
+                  color: const Color(0xFF8F2D36),
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -11553,7 +16840,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     Text(
                       'Select a reason code (required):',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9AB2D2),
+                        color: const Color(0xFF556B80),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -11590,7 +16877,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 child: Text(
                                   code,
                                   style: GoogleFonts.robotoMono(
-                                    color: const Color(0xFFE8F2FF),
+                                    color: const Color(0xFF172638),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -11618,7 +16905,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           Navigator.of(context).pop();
                         },
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFEF4444),
+                    backgroundColor: const Color(0xFFFFF1F1),
+                    foregroundColor: const Color(0xFFB42318),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: const BorderSide(color: Color(0xFFE8B6B6)),
+                    ),
                   ),
                   child: const Text('Submit Override'),
                 ),
@@ -11945,7 +17237,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         siteId: '',
         priority: _IncidentPriority.p2High,
         type: 'Focused lane playback',
-        site: 'Focused Operations Lane',
+        site: 'Focused War Room',
         timestamp: _hhmm(DateTime.now().toLocal()),
         status: _statusOverrides[focusReference] ?? _IncidentStatus.dispatched,
       ),
@@ -12152,9 +17444,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? const EdgeInsets.symmetric(horizontal: 2.1, vertical: 0.88)
           : const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0x141C3C57),
+        color: const Color(0xFFF5F8FC),
         borderRadius: BorderRadius.circular(compact ? 999 : 9),
-        border: Border.all(color: const Color(0x4435506F)),
+        border: Border.all(color: const Color(0xFFD4DFEA)),
       ),
       child: compact
           ? Wrap(
@@ -12173,7 +17465,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   scopeLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
+                    color: const Color(0xFF172638),
                     fontSize: 6.1,
                     fontWeight: FontWeight.w700,
                   ),
@@ -12195,7 +17487,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 Text(
                   scopeLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
+                    color: const Color(0xFF172638),
                     fontSize: 8.4,
                     fontWeight: FontWeight.w700,
                   ),
@@ -12684,41 +17976,41 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   Color _statusChipColor(_IncidentStatus status) {
     return switch (status) {
-      _IncidentStatus.triaging => const Color(0xFF22D3EE),
-      _IncidentStatus.dispatched => const Color(0xFFF59E0B),
-      _IncidentStatus.investigating => const Color(0xFF3B82F6),
-      _IncidentStatus.resolved => const Color(0xFF10B981),
+      _IncidentStatus.triaging => OnyxDesignTokens.cyanInteractive,
+      _IncidentStatus.dispatched => OnyxDesignTokens.amberWarning,
+      _IncidentStatus.investigating => OnyxDesignTokens.purpleAdmin,
+      _IncidentStatus.resolved => OnyxDesignTokens.greenNominal,
     };
   }
 
   _PriorityStyle _priorityStyle(_IncidentPriority priority) {
     return switch (priority) {
-      _IncidentPriority.p1Critical => const _PriorityStyle(
+      _IncidentPriority.p1Critical => _PriorityStyle(
         label: 'P1',
-        foreground: Color(0xFFEF4444),
-        background: Color(0x33EF4444),
-        border: Color(0x66EF4444),
+        foreground: OnyxDesignTokens.redCritical,
+        background: OnyxDesignTokens.redCritical.withValues(alpha: 0.2),
+        border: OnyxDesignTokens.redCritical.withValues(alpha: 0.4),
         icon: Icons.local_fire_department_rounded,
       ),
-      _IncidentPriority.p2High => const _PriorityStyle(
+      _IncidentPriority.p2High => _PriorityStyle(
         label: 'P2',
-        foreground: Color(0xFFF59E0B),
-        background: Color(0x33F59E0B),
-        border: Color(0x66F59E0B),
-        icon: Icons.warning_amber_rounded,
+        foreground: OnyxDesignTokens.amberWarning,
+        background: OnyxDesignTokens.amberWarning.withValues(alpha: 0.2),
+        border: OnyxDesignTokens.amberWarning.withValues(alpha: 0.4),
+        icon: Icons.track_changes_rounded,
       ),
-      _IncidentPriority.p3Medium => const _PriorityStyle(
+      _IncidentPriority.p3Medium => _PriorityStyle(
         label: 'P3',
-        foreground: Color(0xFFFACC15),
-        background: Color(0x33FACC15),
-        border: Color(0x66FACC15),
+        foreground: OnyxDesignTokens.cyanInteractive,
+        background: OnyxDesignTokens.cyanInteractive.withValues(alpha: 0.2),
+        border: OnyxDesignTokens.cyanInteractive.withValues(alpha: 0.4),
         icon: Icons.schedule_rounded,
       ),
-      _IncidentPriority.p4Low => const _PriorityStyle(
+      _IncidentPriority.p4Low => _PriorityStyle(
         label: 'P4',
-        foreground: Color(0xFF3B82F6),
-        background: Color(0x333B82F6),
-        border: Color(0x663B82F6),
+        foreground: OnyxDesignTokens.greenNominal,
+        background: OnyxDesignTokens.greenNominal.withValues(alpha: 0.2),
+        border: OnyxDesignTokens.greenNominal.withValues(alpha: 0.4),
         icon: Icons.shield_outlined,
       ),
     };
@@ -12728,19 +18020,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return switch (type) {
       _LedgerType.aiAction => const _LedgerStyle(
         icon: Icons.psychology_alt_rounded,
-        color: Color(0xFF22D3EE),
+        color: OnyxDesignTokens.cyanInteractive,
       ),
       _LedgerType.humanOverride => const _LedgerStyle(
         icon: Icons.person_rounded,
-        color: Color(0xFF10B981),
+        color: OnyxDesignTokens.greenNominal,
       ),
       _LedgerType.systemEvent => const _LedgerStyle(
         icon: Icons.settings_rounded,
-        color: Color(0xFF3B82F6),
+        color: OnyxDesignTokens.purpleAdmin,
       ),
       _LedgerType.escalation => const _LedgerStyle(
         icon: Icons.priority_high_rounded,
-        color: Color(0xFFEF4444),
+        color: OnyxDesignTokens.redCritical,
       ),
     };
   }
@@ -12803,6 +18095,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   String _partnerDispatchStatusLabel(PartnerDispatchStatus status) {
     return switch (status) {
+      PartnerDispatchStatus.unknown => 'UNKNOWN',
       PartnerDispatchStatus.accepted => 'ACCEPT',
       PartnerDispatchStatus.onSite => 'ON SITE',
       PartnerDispatchStatus.allClear => 'ALL CLEAR',
@@ -12812,6 +18105,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
   (Color, Color, Color) _partnerProgressTone(PartnerDispatchStatus status) {
     return switch (status) {
+      PartnerDispatchStatus.unknown => (
+        const Color(0xFF94A3B8),
+        const Color(0x1494A3B8),
+        const Color(0x6694A3B8),
+      ),
       PartnerDispatchStatus.accepted => (
         const Color(0xFF38BDF8),
         const Color(0x1A38BDF8),
@@ -12839,60 +18137,61 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return switch (trendLabel.trim().toUpperCase()) {
       'IMPROVING' => const Color(0xFF34D399),
       'STABLE' => const Color(0xFF38BDF8),
-      'SLIPPING' => const Color(0xFFF97316),
-      'NEW' => const Color(0xFFFDE68A),
+      'SLIPPING' => const Color(0xFFF87171),
+      'NEW' => const Color(0xFF60A5FA),
       _ => const Color(0xFF9CB4D0),
     };
   }
 
   Color _clientCommsAccent(LiveClientCommsSnapshot snapshot) {
     if (snapshot.pendingApprovalCount > 0) {
-      return const Color(0xFFF59E0B);
+      return const Color(0xFF60A5FA);
     }
     final bridge = snapshot.telegramHealthLabel.trim().toLowerCase();
     final push = snapshot.pushSyncStatusLabel.trim().toLowerCase();
-    if (bridge == 'blocked' ||
-        bridge == 'degraded' ||
-        push == 'failed' ||
-        snapshot.telegramFallbackActive) {
-      return const Color(0xFFF97316);
+    if (bridge == 'blocked' || push == 'failed') {
+      return const Color(0xFFEF4444);
+    }
+    if (bridge == 'degraded' || snapshot.telegramFallbackActive) {
+      return const Color(0xFF38BDF8);
     }
     return const Color(0xFF22D3EE);
   }
 
   Color _controlInboxAccent(LiveControlInboxSnapshot snapshot) {
     if (snapshot.pendingApprovalCount > 0) {
-      return const Color(0xFFF59E0B);
+      return const Color(0xFF60A5FA);
     }
     if (snapshot.awaitingResponseCount > 0) {
       return const Color(0xFF22D3EE);
     }
     final bridge = snapshot.telegramHealthLabel.trim().toLowerCase();
-    if (snapshot.telegramFallbackActive ||
-        bridge == 'blocked' ||
-        bridge == 'degraded') {
-      return const Color(0xFFF97316);
+    if (bridge == 'blocked') {
+      return const Color(0xFFEF4444);
+    }
+    if (snapshot.telegramFallbackActive || bridge == 'degraded') {
+      return const Color(0xFF38BDF8);
     }
     return const Color(0xFF22D3EE);
   }
 
   String _clientLaneTopBarLabel(LiveClientCommsSnapshot? snapshot) {
     if (snapshot == null) {
-      return 'Client lane idle';
+      return 'Client Comms idle';
     }
     if (snapshot.pendingApprovalCount > 0) {
       return '${snapshot.pendingApprovalCount} Client Reply${snapshot.pendingApprovalCount == 1 ? '' : 's'} Awaiting';
     }
     if (snapshot.smsFallbackEligibleNow) {
-      return 'Client lane SMS fallback ready';
+      return 'Client Comms SMS fallback ready';
     }
     if (snapshot.telegramFallbackActive) {
-      return 'Client lane on fallback';
+      return 'Client Comms on fallback';
     }
     if (snapshot.clientInboundCount > 0) {
       return '${snapshot.clientInboundCount} Client Msg${snapshot.clientInboundCount == 1 ? '' : 's'} Live';
     }
-    return 'Client lane stable';
+    return 'Client Comms stable';
   }
 
   Color _clientLaneTopBarForeground(LiveClientCommsSnapshot? snapshot) {
@@ -12916,7 +18215,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return switch (label.trim().toLowerCase()) {
       'ok' => const Color(0xFF34D399),
       'blocked' => const Color(0xFFEF4444),
-      'degraded' => const Color(0xFFF59E0B),
+      'degraded' => const Color(0xFF60A5FA),
       'disabled' => const Color(0xFF8EA4C2),
       _ => const Color(0xFF38BDF8),
     };
@@ -12937,14 +18236,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     required bool eligibleNow,
   }) {
     if (eligibleNow) {
-      return const Color(0xFFF59E0B);
+      return const Color(0xFF60A5FA);
     }
     if (ready) {
       return const Color(0xFF34D399);
     }
     final normalized = label.trim().toLowerCase();
     if (normalized.contains('pending')) {
-      return const Color(0xFFF97316);
+      return const Color(0xFF38BDF8);
     }
     return const Color(0xFF8EA4C2);
   }
@@ -12952,7 +18251,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   Color _voiceReadinessAccent(String label) {
     return switch (label.trim().toLowerCase()) {
       'voip ready' => const Color(0xFF34D399),
-      'voip contact pending' => const Color(0xFFF59E0B),
+      'voip contact pending' => const Color(0xFF60A5FA),
       'voip staged' => const Color(0xFF38BDF8),
       _ => const Color(0xFF8EA4C2),
     };
@@ -12965,7 +18264,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final bridge = snapshot.telegramHealthLabel.trim().toLowerCase();
     final push = snapshot.pushSyncStatusLabel.trim().toLowerCase();
     if (bridge == 'blocked' || bridge == 'degraded') {
-      return 'delivery lane needs operator attention';
+      return 'Client Comms delivery posture needs operator attention.';
     }
     if (push == 'failed') {
       return 'push sync is failing and needs recovery';
@@ -12974,9 +18273,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       return 'telegram needs help and sms fallback is standing by';
     }
     if ((snapshot.latestClientMessage ?? '').trim().isNotEmpty) {
-      return 'client lane is active and being tracked';
+      return 'Client Comms is active and being tracked';
     }
-    return 'client lane is quiet for now';
+    return 'Client Comms is quiet for now';
   }
 
   String _clientCommsOpsFootnote(LiveClientCommsSnapshot snapshot) {
@@ -13015,6 +18314,225 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       return '${age.inHours}h ago • $hh:$mm';
     }
     return '${age.inDays}d ago • $hh:$mm';
+  }
+
+  String _humanizeClientLaneRelayIssue(String? raw) {
+    final trimmed = raw?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    if (trimmed.startsWith('Relay stream HTTP ')) {
+      final code = trimmed.substring('Relay stream HTTP '.length).trim();
+      return 'The MJPEG relay endpoint returned HTTP $code on the latest check.';
+    }
+    if (trimmed.startsWith('Relay player HTTP ')) {
+      final code = trimmed.substring('Relay player HTTP '.length).trim();
+      return 'The browser player endpoint returned HTTP $code on the latest check.';
+    }
+    final normalized = trimmed.toLowerCase();
+    if (normalized.contains('connection refused')) {
+      return 'The local relay was not accepting connections on the latest check.';
+    }
+    if (normalized.contains('timed out')) {
+      return 'The local relay check timed out before the player was confirmed.';
+    }
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
+  }
+
+  String _clientLaneRelayStatusLabel(ClientCameraRelayStatus? status) {
+    return switch (status ?? ClientCameraRelayStatus.unknown) {
+      ClientCameraRelayStatus.active => 'active',
+      ClientCameraRelayStatus.ready => 'ready',
+      ClientCameraRelayStatus.starting => 'starting',
+      ClientCameraRelayStatus.stale => 'stale',
+      ClientCameraRelayStatus.error => 'error',
+      ClientCameraRelayStatus.idle => 'idle',
+      ClientCameraRelayStatus.unknown => 'ready',
+    };
+  }
+
+  String _clientLaneContinuousVisualWatchLabel(String raw) {
+    return switch (raw.trim().toLowerCase()) {
+      'alerting' => 'alerting',
+      'active' => 'active',
+      'learning' => 'learning',
+      'degraded' => 'degraded',
+      'inactive' => 'inactive',
+      _ => 'active',
+    };
+  }
+
+  Color _clientLaneContinuousVisualWatchAccent(String raw) {
+    return switch (raw.trim().toLowerCase()) {
+      'alerting' => const Color(0xFFEF4444),
+      'active' => const Color(0xFF34D399),
+      'learning' => const Color(0xFF67E8F9),
+      'degraded' => const Color(0xFFF59E0B),
+      'inactive' => const Color(0xFF94A3B8),
+      _ => const Color(0xFF34D399),
+    };
+  }
+
+  String _clientLaneContinuousVisualStageLabel(String raw) {
+    return switch (raw.trim().toLowerCase()) {
+      'watching' => 'watching',
+      'sustained' => 'sustained',
+      'persistent' => 'persistent',
+      'idle' => 'idle',
+      _ => 'watching',
+    };
+  }
+
+  Color _clientLaneContinuousVisualStageAccent(String raw) {
+    return switch (raw.trim().toLowerCase()) {
+      'watching' => const Color(0xFFF59E0B),
+      'sustained' => const Color(0xFFFF8A65),
+      'persistent' => const Color(0xFFEF4444),
+      'idle' => const Color(0xFF94A3B8),
+      _ => const Color(0xFFF59E0B),
+    };
+  }
+
+  Color _clientLaneContinuousVisualPriorityAccent(String raw) {
+    return switch (raw.trim().toLowerCase()) {
+      'high' => const Color(0xFFEF4444),
+      'medium' => const Color(0xFFF59E0B),
+      'low' => const Color(0xFF94A3B8),
+      _ => const Color(0xFF8FD1FF),
+    };
+  }
+
+  Color _clientLaneContinuousVisualAttentionAccent(String raw) {
+    return switch (raw.trim().toLowerCase()) {
+      'urgent' => const Color(0xFFB91C1C),
+      'high' => const Color(0xFFEF4444),
+      'elevated' => const Color(0xFFF59E0B),
+      'watch' => const Color(0xFF67E8F9),
+      _ => const Color(0xFF8FD1FF),
+    };
+  }
+
+  Color _clientLaneRelayStatusAccent(ClientCameraRelayStatus? status) {
+    return switch (status ?? ClientCameraRelayStatus.unknown) {
+      ClientCameraRelayStatus.active => const Color(0xFF10B981),
+      ClientCameraRelayStatus.ready => const Color(0xFF34D399),
+      ClientCameraRelayStatus.starting => const Color(0xFF67E8F9),
+      ClientCameraRelayStatus.stale => const Color(0xFFF59E0B),
+      ClientCameraRelayStatus.error => const Color(0xFFEF4444),
+      ClientCameraRelayStatus.idle => const Color(0xFF94A3B8),
+      ClientCameraRelayStatus.unknown => const Color(0xFF34D399),
+    };
+  }
+
+  String _clientLaneRelaySummary(
+    ClientCameraRelayStatus? status, {
+    required String relayFrameLabel,
+    required String relayCheckLabel,
+    required int activeClientCount,
+  }) {
+    return switch (status ?? ClientCameraRelayStatus.unknown) {
+      ClientCameraRelayStatus.active => [
+        'Operator stream relay is actively serving frames on the temporary local bridge.',
+        if (activeClientCount > 0)
+          '$activeClientCount operator ${activeClientCount == 1 ? 'session is' : 'sessions are'} attached right now.',
+        if (relayFrameLabel.isNotEmpty) 'Latest frame $relayFrameLabel.',
+      ].join(' '),
+      ClientCameraRelayStatus.ready => [
+        'Operator stream relay is ready on the temporary local bridge.',
+        if (relayFrameLabel.isNotEmpty) 'Latest frame $relayFrameLabel.',
+        'Use the relay player for moving video, and keep resident replies grounded on verified visual confirmation rather than on the existence of the relay itself.',
+      ].join(' '),
+      ClientCameraRelayStatus.starting => [
+        'Operator stream relay is starting on the temporary local bridge.',
+        if (relayCheckLabel.isNotEmpty) 'Last relay check $relayCheckLabel.',
+        'A player request is open, but ONYX is still waiting for the next confirmed frame.',
+      ].join(' '),
+      ClientCameraRelayStatus.stale => [
+        'Operator stream relay is reachable, but the moving-video path looks stale right now.',
+        if (relayFrameLabel.isNotEmpty) 'Latest frame $relayFrameLabel.',
+        'Refresh the player if motion looks frozen.',
+      ].join(' '),
+      ClientCameraRelayStatus.error => [
+        'Operator stream relay is reachable, but it reported an error on the latest check.',
+        if (relayCheckLabel.isNotEmpty) 'Last relay check $relayCheckLabel.',
+        'Use the still-frame path until the relay clears.',
+      ].join(' '),
+      ClientCameraRelayStatus.idle => [
+        'Operator stream relay is available on the temporary local bridge, but it is idle right now.',
+        if (relayCheckLabel.isNotEmpty) 'Last relay check $relayCheckLabel.',
+        'Open the player when moving video is needed.',
+      ].join(' '),
+      ClientCameraRelayStatus.unknown =>
+        'Operator stream relay is ready on the temporary local bridge. Use the relay player for moving video, and keep resident replies grounded on verified visual confirmation rather than on the existence of the relay itself.',
+    };
+  }
+
+  String _clientLaneLocalProxySummary(
+    ClientCameraHealthFactPacket packet, {
+    required String lastAlertLabel,
+    required String lastSuccessLabel,
+  }) {
+    final upstreamStatus = (packet.localProxyUpstreamStreamStatus ?? '')
+        .trim()
+        .toLowerCase();
+    final parts = <String>[
+      'Scoped local proxy is ${packet.scopedLocalProxyStatusLabel}.',
+      if (upstreamStatus == 'connected' ||
+          packet.localProxyUpstreamStreamConnected == true)
+        'The upstream alert stream is connected right now.'
+      else if (upstreamStatus == 'reconnecting')
+        'The upstream alert stream is reconnecting right now.'
+      else if (packet.localProxyReachable == true &&
+          packet.localProxyRunning == true)
+        'The proxy is reachable, but the upstream alert stream is not currently attached.',
+      if ((packet.localProxyBufferedAlertCount ?? 0) > 0)
+        '${packet.localProxyBufferedAlertCount} alert${packet.localProxyBufferedAlertCount == 1 ? '' : 's'} buffered for this scope.',
+      if (lastAlertLabel.isNotEmpty) 'Last alert $lastAlertLabel.',
+      if (lastSuccessLabel.isNotEmpty) 'Last success $lastSuccessLabel.',
+    ];
+    return parts.join(' ');
+  }
+
+  String _humanizeClientLaneLocalProxyIssue(String? raw) {
+    final normalized = (raw ?? '').trim();
+    if (normalized.isEmpty) {
+      return '';
+    }
+    final lower = normalized.toLowerCase();
+    if (lower.contains('connection refused')) {
+      return 'The scoped local proxy is not accepting connections on the latest check.';
+    }
+    if (lower.contains('host is down')) {
+      return 'The recorder host reported as down on the latest proxy check.';
+    }
+    if (lower.contains('timed out')) {
+      return 'The upstream alert path timed out on the latest proxy check.';
+    }
+    if (lower.contains('http 5')) {
+      return 'The scoped local proxy returned an upstream server failure on the latest check.';
+    }
+    if (lower.contains('http 4')) {
+      return 'The scoped local proxy returned a request failure on the latest check.';
+    }
+    return normalized;
+  }
+
+  Color _clientLaneLocalProxyStatusAccent(String status) {
+    return switch (status.trim().toLowerCase()) {
+      'connected' => const Color(0xFF34D399),
+      'reconnecting' => const Color(0xFFF59E0B),
+      'ready' => const Color(0xFF38BDF8),
+      'degraded' => const Color(0xFFF59E0B),
+      'offline' => const Color(0xFFEF4444),
+      _ => const Color(0xFF94A3B8),
+    };
+  }
+
+  String _clientLaneLocalProxyChipLabel(String status) {
+    return switch (status.trim().toLowerCase()) {
+      'reconnecting' => 'Proxy RECONNECTING...',
+      _ => 'Proxy ${status.toUpperCase()}',
+    };
   }
 
   String _humanizeOpsScopeLabel(String raw, {required String fallback}) {

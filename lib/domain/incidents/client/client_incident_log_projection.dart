@@ -28,8 +28,11 @@ class ClientIncidentLogProjection {
           status = IncidentStatus.closed;
           break;
         case IncidentEventType.incidentEscalated:
-        case IncidentEventType.incidentSlaBreached:
           status = IncidentStatus.escalated;
+          break;
+        case IncidentEventType.incidentSlaBreached:
+        case IncidentEventType.incidentSlaClockDriftDetected:
+          // SLA breach is tracked separately from operator escalation.
           break;
         default:
           break;
@@ -49,7 +52,8 @@ class ClientIncidentLogProjection {
       severity: severity,
       status: status.name,
       detectedAt: first.timestamp,
-      resolvedAt: resolvedEvent.type == IncidentEventType.incidentResolved ||
+      resolvedAt:
+          resolvedEvent.type == IncidentEventType.incidentResolved ||
               resolvedEvent.type == IncidentEventType.incidentClosed
           ? resolvedEvent.timestamp
           : null,

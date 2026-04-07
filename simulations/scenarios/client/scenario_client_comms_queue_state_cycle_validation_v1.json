@@ -1,0 +1,67 @@
+{
+  "scenarioId": "client_comms_queue_state_cycle_validation_v1",
+  "title": "Validation: queue state chip should narrow the live ops inbox in place",
+  "description": "Validation replay for the live operations queue-state chip moving the inbox from full to high-priority mode without route reset.",
+  "category": "client_comms",
+  "scenarioSet": "validation",
+  "tags": ["route_persistence", "queue_control", "pending_draft"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T10:45:00Z",
+  "version": 1,
+  "status": "locked_validation",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_sandton"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:10:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_client_comms_idle.json"],
+      "projections": ["fixture_projections_client_comms_queue_state_full.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "active",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_queue_state_chip"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "live_operations_center",
+    "expectedIntent": "cycle_client_comms_queue_state",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [
+      {
+        "queueMode": "high_priority"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": [],
+    "expectedUiState": {
+      "surface": "live_ops_queue_state",
+      "queueMode": "high_priority",
+      "queueShapeVisible": true,
+      "highPriorityOnlyVisible": true,
+      "showAllRepliesVisible": true,
+      "pendingDraftCount": 2,
+      "highPriorityCount": 1,
+      "timingCount": 1,
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

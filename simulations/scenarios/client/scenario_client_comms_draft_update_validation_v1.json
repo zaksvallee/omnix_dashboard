@@ -1,0 +1,68 @@
+{
+  "scenarioId": "client_comms_draft_update_validation_v1",
+  "title": "Validation: client draft request stages a scoped reply",
+  "description": "Validation replay for a scoped client-update request routing into Client Comms and staging a draft for controller review.",
+  "category": "client_comms",
+  "scenarioSet": "validation",
+  "tags": ["client_status_query", "deterministic_read", "scoped_reply"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T09:10:00Z",
+  "version": 1,
+  "status": "locked_validation",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:00:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_client_comms_idle.json"],
+      "projections": ["fixture_projections_client_comms_ready.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "active",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "telegram",
+        "text": "Draft a client update for this site"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "client_comms",
+    "expectedIntent": "draft_client_update",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [
+      {
+        "status": "staged",
+        "channel": "telegram",
+        "scopeSiteId": "site_ms_vallee",
+        "deliveryState": "review_required"
+      }
+    ],
+    "expectedBlockedActions": ["send_without_review"],
+    "expectedUiState": {
+      "surface": "client_comms_draft_ready",
+      "draftReadyVisible": true,
+      "reviewRequiredVisible": true,
+      "sendBlockedReason": "review_required",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

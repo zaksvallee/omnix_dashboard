@@ -19,7 +19,7 @@ class SLAClock {
     required SLAProfile profile,
     required DateTime nowUtc,
   }) {
-    final start = DateTime.parse(record.detectedAt).toUtc();
+    final start = parseDetectedAtUtc(record.detectedAt);
 
     final minutes = SLAPolicy.resolveSlaMinutes(
       severity: record.severity,
@@ -39,5 +39,17 @@ class SLAClock {
       dueAt: due.toIso8601String(),
       breached: breached,
     );
+  }
+
+  static DateTime parseDetectedAtUtc(String detectedAt) {
+    final normalized = detectedAt.trim();
+    if (!normalized.endsWith('Z')) {
+      throw ArgumentError.value(
+        detectedAt,
+        'detectedAt',
+        'SLA detectedAt timestamps must be UTC and end with Z.',
+      );
+    }
+    return DateTime.parse(normalized).toUtc();
   }
 }

@@ -1,8 +1,7 @@
-// ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
-
 import 'dart:async';
-import 'dart:convert';
-import 'dart:html' as html;
+import 'dart:js_interop';
+
+import 'package:web/web.dart' as web;
 
 class DispatchSnapshotFileService {
   const DispatchSnapshotFileService();
@@ -12,35 +11,24 @@ class DispatchSnapshotFileService {
   Future<void> downloadJsonFile({
     required String filename,
     required String contents,
-  }) async {
-    final blob = html.Blob([utf8.encode(contents)], 'application/json');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..download = filename
-      ..style.display = 'none';
-    html.document.body?.append(anchor);
-    anchor.click();
-    anchor.remove();
-    html.Url.revokeObjectUrl(url);
-  }
+  }) => _downloadFile(
+    filename: filename,
+    contents: contents,
+    mimeType: 'application/json',
+  );
 
   Future<void> downloadTextFile({
     required String filename,
     required String contents,
-  }) async {
-    final blob = html.Blob([utf8.encode(contents)], 'text/plain;charset=utf-8');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..download = filename
-      ..style.display = 'none';
-    html.document.body?.append(anchor);
-    anchor.click();
-    anchor.remove();
-    html.Url.revokeObjectUrl(url);
-  }
+  }) => _downloadFile(
+    filename: filename,
+    contents: contents,
+    mimeType: 'text/plain;charset=utf-8',
+  );
 
   Future<String?> pickJsonFile() async {
-    final input = html.FileUploadInputElement()
+    final input = web.HTMLInputElement()
+      ..type = 'file'
       ..accept = '.json,application/json';
     input.click();
 
@@ -50,18 +38,36 @@ class DispatchSnapshotFileService {
       return null;
     }
 
-    final file = input.files?.first;
-    if (file == null) return null;
-    final reader = html.FileReader();
-    reader.readAsText(file);
-
-    try {
-      await reader.onLoad.first.timeout(const Duration(seconds: 30));
-    } on TimeoutException {
+    final file = input.files?.item(0);
+    if (file == null) {
       return null;
     }
 
-    final result = reader.result;
-    return result is String ? result : null;
+    try {
+      return (await file.text().toDart.timeout(const Duration(seconds: 30)))
+          .toDart;
+    } on TimeoutException {
+      return null;
+    }
+  }
+
+  Future<void> _downloadFile({
+    required String filename,
+    required String contents,
+    required String mimeType,
+  }) async {
+    final blob = web.Blob(
+      [contents.toJS].toJS,
+      web.BlobPropertyBag(type: mimeType),
+    );
+    final url = web.URL.createObjectURL(blob);
+    final anchor = web.HTMLAnchorElement()
+      ..href = url
+      ..download = filename
+      ..style.display = 'none';
+    web.document.body?.append(anchor);
+    anchor.click();
+    anchor.remove();
+    web.URL.revokeObjectURL(url);
   }
 }

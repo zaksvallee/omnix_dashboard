@@ -32,8 +32,7 @@ class MultiSiteComparisonProjection {
 
       final totalEscalations = events
           .where((e) =>
-              e.type == IncidentEventType.incidentEscalated ||
-              e.type == IncidentEventType.incidentSlaBreached)
+              e.type == IncidentEventType.incidentEscalated)
           .length;
 
       final totalSlaBreaches = events

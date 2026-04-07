@@ -18,6 +18,8 @@ class TelegramClientQuickActionAuditFormatter {
     return switch (action) {
       TelegramClientQuickAction.statusFull => _fullStatusPreview(lines),
       TelegramClientQuickAction.sleepCheck => lines.take(8).join(' | '),
+      TelegramClientQuickAction.cameraCheck => _fullStatusPreview(lines),
+      TelegramClientQuickAction.nextStep => lines.take(10).join(' | '),
       TelegramClientQuickAction.status => lines.take(10).join(' | '),
     };
   }

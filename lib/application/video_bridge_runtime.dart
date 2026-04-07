@@ -296,6 +296,8 @@ class DvrBackedVideoBridgeService implements VideoBridgeService {
       siteId: siteId,
     );
   }
+
+  DvrBridgeHealthSnapshot? healthSnapshot() => delegate.healthSnapshot();
 }
 
 class DvrBackedVideoEvidenceProbeService implements VideoEvidenceProbeService {

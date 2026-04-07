@@ -1,0 +1,25 @@
+{
+  "monitoringWatch": {
+    "pendingReviewCount": 1,
+    "reviewAction": {
+      "incidentReference": "INC-LIVEOPS-CHAIN",
+      "intelligenceId": "INTEL-LIVEOPS-CHAIN",
+      "reviewSurface": "cctv_review"
+    }
+  },
+  "dispatchBoard": {
+    "lane": "priority_response",
+    "dispatchCount": 0,
+    "dispatchAvailable": false
+  },
+  "trackOverview": {
+    "sitesVisible": 1,
+    "guardsVisible": 4,
+    "liveTrackingEnabled": true,
+    "trackHandoff": {
+      "siteId": "site_ms_vallee",
+      "incidentReference": "INC-LIVEOPS-CHAIN",
+      "trackLabel": "Ms Vallee chain track"
+    }
+  }
+}

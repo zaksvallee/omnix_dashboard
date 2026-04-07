@@ -13,6 +13,8 @@ import 'package:omnix_dashboard/presentation/reports/report_shell_binding_host.d
 import '../../fixtures/report_test_bundle.dart';
 import '../../fixtures/report_test_receipt.dart';
 
+DateTime _reportShellPreviewOccurredAtUtc() => DateTime.utc(2026, 3, 14);
+
 void main() {
   testWidgets('host emits shell updates for shared mutations and prune flow', (
     tester,
@@ -338,7 +340,7 @@ ReportPreviewRequest _previewRequest() {
     receiptEvent: buildTestReportGenerated(
       eventId: 'RPT-9',
       sequence: 9,
-      occurredAt: DateTime.utc(2026, 3, 14),
+      occurredAt: _reportShellPreviewOccurredAtUtc(),
       reportSchemaVersion: 2,
       projectionVersion: 2,
     ),

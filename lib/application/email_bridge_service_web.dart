@@ -1,6 +1,4 @@
-// ignore_for_file: avoid_dynamic_calls, avoid_web_libraries_in_flutter, deprecated_member_use
-
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
 class EmailBridgeService {
   const EmailBridgeService();
@@ -23,7 +21,7 @@ class EmailBridgeService {
     final url = recipient.isEmpty
         ? 'mailto:?$query'
         : 'mailto:$recipient?$query';
-    html.window.open(url, '_self');
+    web.window.open(url, '_self');
     return true;
   }
 }

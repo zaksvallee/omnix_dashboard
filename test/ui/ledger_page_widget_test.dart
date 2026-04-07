@@ -1,12 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/domain/evidence/client_ledger_repository.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/execution_denied.dart';
 import 'package:omnix_dashboard/ui/ledger_page.dart';
 
 import '../fixtures/report_test_receipt.dart';
+
+DateTime _ledgerPageOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 15, hour, minute);
+
+class _FakeLedgerRepository implements ClientLedgerRepository {
+  final List<ClientLedgerRow> rows;
+
+  const _FakeLedgerRepository({required this.rows});
+
+  @override
+  Future<ClientLedgerRow?> fetchLedgerRow({
+    required String clientId,
+    required String dispatchId,
+  }) async {
+    for (final row in rows) {
+      if (row.clientId == clientId && row.dispatchId == dispatchId) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  @override
+  Future<String?> fetchPreviousHash(String clientId) async {
+    final matching = rows.where((row) => row.clientId == clientId).toList();
+    if (matching.isEmpty) {
+      return null;
+    }
+    return matching.last.hash;
+  }
+
+  @override
+  Future<void> insertLedgerRow({
+    required String clientId,
+    required String dispatchId,
+    required String canonicalJson,
+    required String hash,
+    String? previousHash,
+  }) async {}
+
+  @override
+  Future<List<ClientLedgerRow>> listLedgerRows(String clientId) async {
+    return rows
+        .where((row) => row.clientId == clientId)
+        .toList(growable: false);
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -75,6 +123,40 @@ void main() {
     },
   );
 
+  testWidgets('ledger page loads Supabase rows through the ledger repository', (
+    tester,
+  ) async {
+    const repository = _FakeLedgerRepository(
+      rows: <ClientLedgerRow>[
+        ClientLedgerRow(
+          clientId: 'CLIENT-001',
+          dispatchId: 'DSP-2441',
+          canonicalJson: '{"event":"dispatch_confirmed"}',
+          hash: 'hash-2441',
+          previousHash: 'hash-2440',
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: LedgerPage(
+          clientId: 'CLIENT-001',
+          supabaseEnabled: true,
+          events: <DispatchEvent>[],
+          ledgerRepository: repository,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Supabase'), findsWidgets);
+    expect(
+      find.textContaining('Dispatch DSP-2441 continuity record'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('ledger page events action opens helper dialog', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -90,7 +172,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('ledger-view-events-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Events Link Ready'), findsOneWidget);
+    expect(find.text('Events Scope Ready'), findsOneWidget);
     expect(
       find.textContaining('forensic timeline, selected event payloads'),
       findsOneWidget,
@@ -104,7 +186,7 @@ void main() {
         buildTestReportGenerated(
           eventId: 'RPT-LEDGER-PAGE-1',
           sequence: 1,
-          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+          occurredAt: _ledgerPageOccurredAtUtc(6, 0),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           month: '2026-03',
@@ -154,7 +236,7 @@ void main() {
         buildTestReportGenerated(
           eventId: 'RPT-LEDGER-PAGE-LEGACY-1',
           sequence: 1,
-          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+          occurredAt: _ledgerPageOccurredAtUtc(6, 0),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           month: '2026-03',
@@ -196,7 +278,7 @@ void main() {
           eventId: 'DECISION-LEDGER-WORKSPACE-1',
           sequence: 1,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 15, 5, 45),
+          occurredAt: _ledgerPageOccurredAtUtc(5, 45),
           dispatchId: 'DISPATCH-7781',
           clientId: 'CLIENT-001',
           regionId: 'REGION-GP',
@@ -206,7 +288,7 @@ void main() {
           eventId: 'EXECUTION-DENIED-LEDGER-WORKSPACE-1',
           sequence: 2,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 15, 5, 52),
+          occurredAt: _ledgerPageOccurredAtUtc(5, 52),
           dispatchId: 'DISPATCH-7781',
           clientId: 'CLIENT-001',
           regionId: 'REGION-GP',
@@ -217,7 +299,7 @@ void main() {
         buildTestReportGenerated(
           eventId: 'RPT-LEDGER-WORKSPACE-1',
           sequence: 3,
-          occurredAt: DateTime.utc(2026, 3, 15, 6, 0),
+          occurredAt: _ledgerPageOccurredAtUtc(6, 0),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           month: '2026-03',

@@ -1,0 +1,64 @@
+{
+  "scenarioId": "track_live_ops_handoff_v1",
+  "title": "Live operations Track handoff should open detailed workspace",
+  "description": "A live operations Track handoff should open the detailed Track workspace directly without falling back to a legacy tactical surface.",
+  "category": "track_ui_state",
+  "scenarioSet": "replay",
+  "tags": ["route_persistence", "track_takeover", "priority_handoff"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T11:40:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_route",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:25:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_track_baseline.json"],
+      "projections": ["fixture_projections_track_handoff_priority_incident.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "elevated"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_track_handoff"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_detailed_workspace",
+    "expectedIntent": "open_track_handoff",
+    "expectedEscalationState": "track_opened",
+    "expectedProjectionChanges": [
+      {
+        "focusSiteId": "site_ms_vallee"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["dismiss_without_track"],
+    "expectedUiState": {
+      "surface": "live_ops_track_handoff",
+      "trackWorkspaceVisible": true,
+      "handoffVisible": true,
+      "incidentReference": "INC-7721-TRACK",
+      "siteId": "site_ms_vallee",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "alertFailure": {
+    "threshold": "critical",
+    "includeStatuses": ["locked_validation"],
+    "includeCategories": [],
+    "excludeCategories": [],
+    "excludeStatuses": [],
+    "groups": {
+      "admin_reads": {
+        "categories": ["admin_portfolio_read"]
+      },
+      "track_core": {
+        "scenarioIds": [
+          "track_fresh_entry_modern_overview_validation_v1",
+          "track_parent_rebuild_preserves_session_validation_v1"
+        ]
+      },
+      "live_ops_core": {
+        "scenarioIds": [
+          "guard_status_echo_3_validation_v1",
+          "patrol_report_guard001_validation_v1",
+          "client_comms_draft_update_validation_v1",
+          "client_comms_attention_queue_pending_draft_validation_v1",
+          "client_comms_queue_state_cycle_validation_v1",
+          "monitoring_review_action_cctv_handoff_validation_v1",
+          "monitoring_priority_sequence_review_dispatch_validation_v1",
+          "monitoring_priority_sequence_dispatch_track_validation_v1",
+          "monitoring_priority_sequence_review_track_validation_v1",
+          "monitoring_priority_sequence_review_dispatch_track_validation_v1",
+          "dispatch_attention_queue_handoff_validation_v1",
+          "track_live_ops_handoff_validation_v1"
+        ]
+      },
+      "watch_gates": {
+        "categories": ["monitoring_watch"]
+      },
+      "night_shift_ops": {
+        "tags": ["night_shift"]
+      }
+    },
+    "byScenarioSet": {
+      "validation": {
+        "threshold": "critical",
+        "includeStatuses": ["locked_validation"],
+        "byScenarioId": {
+          "monitoring_priority_sequence_review_track_validation_v1": {
+            "severityByScope": {
+              "sequence_fallback": "critical"
+            }
+          },
+          "track_parent_rebuild_preserves_session_validation_v1": {
+            "threshold": "high"
+          }
+        }
+      },
+      "replay": {
+        "threshold": "high",
+        "includeStatuses": [],
+        "byCategory": {
+          "monitoring_watch": {
+            "threshold": "medium",
+            "severityByScope": {
+              "specialist_degradation": "medium",
+              "specialist_conflict": "medium"
+            }
+          }
+        },
+        "byScenarioId": {
+          "monitoring_review_action_hard_constraint_conflict_v1": {
+            "severityByScope": {
+              "specialist_constraint": "medium"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
 
+DateTime _dispatchModelRanAtUtc(int hour) => DateTime.utc(2026, 3, 3, hour);
+
 void main() {
   group('IntakeStressProfile', () {
     test('round-trips through json', () {
@@ -59,7 +61,7 @@ void main() {
       final run = IntakeRunSummary(
         label: 'STR-0001',
         cancelled: false,
-        ranAtUtc: DateTime.utc(2026, 3, 3, 10),
+        ranAtUtc: _dispatchModelRanAtUtc(10),
         attempted: 1000,
         appended: 900,
         skipped: 100,
@@ -272,7 +274,7 @@ void main() {
       return IntakeRunSummary(
         label: 'STR-X',
         cancelled: false,
-        ranAtUtc: DateTime.utc(2026, 3, 3, 12),
+        ranAtUtc: _dispatchModelRanAtUtc(12),
         attempted: 1000,
         appended: 900,
         skipped: 100,

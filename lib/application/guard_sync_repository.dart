@@ -280,33 +280,37 @@ class SupabaseGuardSyncRepository implements GuardSyncRepository {
 
   @override
   Future<void> saveAssignments(List<GuardAssignment> assignments) async {
-    await client
-        .from('guard_assignments')
-        .delete()
-        .eq('client_id', clientId)
-        .eq('site_id', siteId)
-        .eq('guard_id', guardId);
-    if (assignments.isEmpty) return;
-    await client
-        .from('guard_assignments')
-        .insert(
-          assignments
-              .map(
-                (assignment) => {
-                  'assignment_id': assignment.assignmentId,
-                  'dispatch_id': assignment.dispatchId,
-                  'client_id': assignment.clientId,
-                  'site_id': assignment.siteId,
-                  'guard_id': assignment.guardId,
-                  'issued_at': assignment.issuedAt.toUtc().toIso8601String(),
-                  'acknowledged_at': assignment.acknowledgedAt
-                      ?.toUtc()
-                      .toIso8601String(),
-                  'duty_status': assignment.status.name,
-                },
-              )
-              .toList(growable: false),
-        );
+    if (assignments.isEmpty) {
+      await _deleteScopedAssignments();
+      return;
+    }
+
+    final rows = assignments
+        .map(
+          (assignment) => {
+            'assignment_id': assignment.assignmentId,
+            'dispatch_id': assignment.dispatchId,
+            'client_id': assignment.clientId,
+            'site_id': assignment.siteId,
+            'guard_id': assignment.guardId,
+            'issued_at': assignment.issuedAt.toUtc().toIso8601String(),
+            'acknowledged_at': assignment.acknowledgedAt
+                ?.toUtc()
+                .toIso8601String(),
+            'duty_status': assignment.status.name,
+          },
+        )
+        .toList(growable: false);
+    await client.from('guard_assignments').upsert(
+      rows,
+      onConflict: 'assignment_id',
+    );
+    await _deleteScopedAssignments(
+      keepAssignmentIds: assignments
+          .map((assignment) => assignment.assignmentId.trim())
+          .where((assignmentId) => assignmentId.isNotEmpty)
+          .toList(growable: false),
+    );
   }
 
   @override
@@ -385,36 +389,39 @@ class SupabaseGuardSyncRepository implements GuardSyncRepository {
 
   @override
   Future<void> saveQueuedOperations(List<GuardSyncOperation> operations) async {
-    await client
-        .from('guard_sync_operations')
-        .delete()
-        .eq('client_id', clientId)
-        .eq('site_id', siteId)
-        .eq('guard_id', guardId)
-        .eq('operation_status', 'queued');
-    if (operations.isEmpty) return;
-    await client
-        .from('guard_sync_operations')
-        .insert(
-          operations
-              .map((operation) {
-                final facadeMode = _operationFacadeMode(operation);
-                final facadeId = _operationFacadeId(operation);
-                return {
-                  'operation_id': operation.operationId,
-                  'operation_type': operation.type.name,
-                  'operation_status': 'queued',
-                  'client_id': clientId,
-                  'site_id': siteId,
-                  'guard_id': guardId,
-                  'occurred_at': operation.createdAt.toUtc().toIso8601String(),
-                  'payload': operation.payload,
-                  'facade_mode': facadeMode,
-                  'facade_id': facadeId,
-                };
-              })
-              .toList(growable: false),
-        );
+    if (operations.isEmpty) {
+      await _deleteScopedQueuedOperations();
+      return;
+    }
+
+    final rows = operations
+        .map((operation) {
+          final facadeMode = _operationFacadeMode(operation);
+          final facadeId = _operationFacadeId(operation);
+          return {
+            'operation_id': operation.operationId,
+            'operation_type': operation.type.name,
+            'operation_status': 'queued',
+            'client_id': clientId,
+            'site_id': siteId,
+            'guard_id': guardId,
+            'occurred_at': operation.createdAt.toUtc().toIso8601String(),
+            'payload': operation.payload,
+            'facade_mode': facadeMode,
+            'facade_id': facadeId,
+          };
+        })
+        .toList(growable: false);
+    await client.from('guard_sync_operations').upsert(
+      rows,
+      onConflict: 'operation_id',
+    );
+    await _deleteScopedQueuedOperations(
+      keepOperationIds: operations
+          .map((operation) => operation.operationId.trim())
+          .where((operationId) => operationId.isNotEmpty)
+          .toList(growable: false),
+    );
   }
 
   @override
@@ -460,6 +467,37 @@ class SupabaseGuardSyncRepository implements GuardSyncRepository {
           .eq('operation_status', 'failed');
     }
     return failedRows.length;
+  }
+
+  Future<void> _deleteScopedAssignments({
+    List<String> keepAssignmentIds = const <String>[],
+  }) async {
+    var query = client
+        .from('guard_assignments')
+        .delete()
+        .eq('client_id', clientId)
+        .eq('site_id', siteId)
+        .eq('guard_id', guardId);
+    if (keepAssignmentIds.isNotEmpty) {
+      query = query.not('assignment_id', 'in', keepAssignmentIds);
+    }
+    await query;
+  }
+
+  Future<void> _deleteScopedQueuedOperations({
+    List<String> keepOperationIds = const <String>[],
+  }) async {
+    var query = client
+        .from('guard_sync_operations')
+        .delete()
+        .eq('client_id', clientId)
+        .eq('site_id', siteId)
+        .eq('guard_id', guardId)
+        .eq('operation_status', 'queued');
+    if (keepOperationIds.isNotEmpty) {
+      query = query.not('operation_id', 'in', keepOperationIds);
+    }
+    await query;
   }
 }
 

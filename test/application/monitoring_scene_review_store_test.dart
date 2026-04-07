@@ -1,6 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 
+DateTime _sceneReviewStoreReviewedAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 14, 21, minute);
+
+String _sceneReviewStoreReviewedAtIsoString(int minute) =>
+    _sceneReviewStoreReviewedAtUtc(minute).toIso8601String();
+
 void main() {
   group('MonitoringSceneReviewStore', () {
     const store = MonitoringSceneReviewStore();
@@ -16,7 +22,7 @@ void main() {
         'decision_summary':
             'Escalated for urgent review because person activity was detected and confidence remained high.',
         'summary': 'Person visible near the boundary line.',
-        'reviewed_at_utc': '2026-03-14T21:14:00.000Z',
+        'reviewed_at_utc': _sceneReviewStoreReviewedAtIsoString(14),
       },
       });
 
@@ -30,7 +36,7 @@ void main() {
       );
       expect(
         restored['INTEL-1']?.reviewedAtUtc,
-        DateTime.utc(2026, 3, 14, 21, 14),
+        _sceneReviewStoreReviewedAtUtc(14),
       );
 
       final prepared = store.preparePersistedState(restored);
@@ -55,7 +61,7 @@ void main() {
         decisionSummary:
             ' Client alert sent because vehicle activity was detected and confidence remained medium. ',
         summary: ' Vehicle remains visible in the monitored lane. ',
-        reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 20),
+        reviewedAtUtc: _sceneReviewStoreReviewedAtUtc(20),
       );
 
       expect(record.intelligenceId, 'INTEL-2');

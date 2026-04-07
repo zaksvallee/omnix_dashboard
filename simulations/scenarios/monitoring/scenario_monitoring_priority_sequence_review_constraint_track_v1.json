@@ -1,0 +1,267 @@
+{
+  "scenarioId": "monitoring_priority_sequence_review_constraint_track_v1",
+  "title": "Live operations priority sequence should clear a hard constraint before Track",
+  "description": "A priority live operations sequence should open CCTV review under a hard specialist constraint, clear the constraint, and then resume Tactical Track in the same run.",
+  "category": "monitoring_watch",
+  "scenarioSet": "replay",
+  "tags": ["priority_handoff", "hard_constraint", "brain_recovery"],
+  "author": "zaks",
+  "createdAt": "2026-04-02T15:38:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:38:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": [
+        "fixture_events_monitoring_watch_match.json",
+        "fixture_events_dispatch_handoff.json"
+      ],
+      "projections": [
+        "fixture_projections_live_ops_priority_sequence_track_fallback.json"
+      ],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "elevated",
+    "dispatchState": "active",
+    "clientConversationState": "none",
+    "siteStatusState": "elevated"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_sequence",
+      "steps": [
+        {
+          "stepId": "open_review_action",
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist wants live review to stay open until visual verification is complete.",
+              "recommendedTarget": "cctvReview",
+              "confidence": 0.84,
+              "priority": "high",
+              "evidence": [
+                "Review action is already pinned to the watch event.",
+                "Visual verification queue is ready for controller review."
+              ],
+              "missingInfo": [],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            },
+            {
+              "specialist": "guardOps",
+              "sourceLabel": "scenario_replay",
+              "summary": "Guard Ops specialist requires a controller-held welfare dispatch before route execution continues.",
+              "recommendedTarget": "dispatchBoard",
+              "confidence": 0.93,
+              "priority": "critical",
+              "evidence": [
+                "Wearable telemetry still resembles a distress-shaped welfare pattern."
+              ],
+              "missingInfo": [
+                "Fresh guard voice confirmation is still missing."
+              ],
+              "allowRouteExecution": false,
+              "isHardConstraint": true
+            }
+          ]
+        },
+        {"stepId": "open_track_handoff"}
+      ]
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_detailed_workspace",
+    "expectedIntent": "open_live_ops_priority_sequence",
+    "expectedEscalationState": "track_opened",
+    "expectedProjectionChanges": [
+      {
+        "step": "specialist_conflict",
+        "sourceStepId": "open_review_action",
+        "target": "cctvReview",
+        "specialists": ["cctv", "guardOps"],
+        "recommendedTargets": ["cctvReview", "dispatchBoard"],
+        "summary": "cctv->cctvReview | guardOps->dispatchBoard"
+      },
+      {
+        "step": "specialist_constraint",
+        "sourceStepId": "open_review_action",
+        "specialist": "guardOps",
+        "constrainedTarget": "dispatchBoard",
+        "allowRouteExecution": false,
+        "summary": "cctv->cctvReview | guardOps->dispatchBoard => constraint:dispatchBoard"
+      },
+      {
+        "step": "review_opened",
+        "reviewSurface": "cctv_review"
+      },
+      {
+        "step": "specialist_constraint_cleared",
+        "resolvedByStepId": "open_track_handoff",
+        "previousTarget": "dispatchBoard",
+        "summary": "cctv->cctvReview | guardOps->dispatchBoard => constraint:dispatchBoard"
+      },
+      {
+        "step": "specialist_conflict_cleared",
+        "resolvedByStepId": "open_track_handoff",
+        "specialists": ["cctv", "guardOps"],
+        "previousTargets": ["cctvReview", "dispatchBoard"],
+        "summary": "cctv->cctvReview | guardOps->dispatchBoard"
+      },
+      {
+        "step": "track_opened",
+        "focusSiteId": "site_ms_vallee"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": [
+      "dismiss_without_review",
+      "dismiss_without_track"
+    ],
+    "expectedUiState": {
+      "surface": "live_ops_priority_sequence",
+      "reviewActionVisible": true,
+      "trackHandoffVisible": true,
+      "readyToTrackVisible": true,
+      "detailedWorkspaceVisible": true,
+      "incidentReference": "INC-LIVEOPS-CHAIN",
+      "siteId": "site_ms_vallee",
+      "trackLabel": "Ms Vallee chain track",
+      "finalRoute": "track_detailed_workspace",
+      "specialistConflictVisible": false,
+      "specialistConstraintVisible": false,
+      "routeExecutionBlockedVisible": false,
+      "allowRouteExecution": true,
+      "legacyWorkspaceVisible": false
+    },
+    "commandBrainSnapshot": {
+      "workItemId": "monitoring_priority_sequence_review_constraint_track_v1",
+      "mode": "deterministic",
+      "target": "tacticalTrack",
+      "nextMoveLabel": "OPEN TACTICAL TRACK",
+      "headline": "Tactical Track is the next move",
+      "summary": "One next move is staged in Tactical Track.",
+      "advisory": "Hard specialist constraint toward Dispatch Board cleared, so ONYX resumed the next move in Tactical Track.",
+      "confidence": 0.81,
+      "primaryPressure": "active signal watch",
+      "rationale": "Scenario replay reopened route execution and staged Tactical Track once the hard specialist constraint cleared.",
+      "supportingSpecialists": ["track"],
+      "contextHighlights": [
+        "Hard specialist constraint toward Dispatch Board cleared before Tactical Track resumed.",
+        "Track continuity reopened once route execution returned."
+      ],
+      "missingInfo": [],
+      "followUpLabel": "",
+      "followUpPrompt": "",
+      "allowRouteExecution": true,
+      "specialistAssessments": []
+    },
+    "commandBrainTimeline": [
+      {
+        "sequence": 1,
+        "stage": "open_review_action",
+        "note": "Review evidence staged for INC-LIVEOPS-CHAIN while hard specialist constraint blocked execution toward Dispatch Board.",
+        "snapshot": {
+          "workItemId": "monitoring_priority_sequence_review_constraint_track_v1",
+          "mode": "specialistConstraint",
+          "target": "dispatchBoard",
+          "nextMoveLabel": "OPEN DISPATCH BOARD",
+          "headline": "Dispatch Board is the next move",
+          "summary": "One next move is staged in Dispatch Board.",
+          "advisory": "Guard Ops specialist raised a hard constraint toward Dispatch Board, so ONYX blocked route execution until the contradiction is cleared.",
+          "confidence": 0.93,
+          "primaryPressure": "active signal watch",
+          "rationale": "Scenario replay held the deterministic gate in CCTV Review but staged a constrained move in Dispatch Board because guard ops specialist blocked route execution.",
+          "supportingSpecialists": ["cctv", "guardOps"],
+          "contextHighlights": [
+            "Guard Ops specialist blocked route execution toward Dispatch Board.",
+            "CCTV specialist still argued for CCTV Review."
+          ],
+          "missingInfo": [
+            "Hard specialist constraint still blocks route execution until the contradiction is resolved.",
+            "Fresh guard voice confirmation is still missing.",
+            "Guard Ops specialist constraint still needs operator clearance."
+          ],
+          "followUpLabel": "CLEAR HARD CONSTRAINT",
+          "followUpPrompt": "Resolve the hard specialist constraint and confirm whether Dispatch Board can be reopened safely.",
+          "allowRouteExecution": false,
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist wants live review to stay open until visual verification is complete.",
+              "recommendedTarget": "cctvReview",
+              "confidence": 0.84,
+              "priority": "high",
+              "evidence": [
+                "Review action is already pinned to the watch event.",
+                "Visual verification queue is ready for controller review."
+              ],
+              "missingInfo": [],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            },
+            {
+              "specialist": "guardOps",
+              "sourceLabel": "scenario_replay",
+              "summary": "Guard Ops specialist requires a controller-held welfare dispatch before route execution continues.",
+              "recommendedTarget": "dispatchBoard",
+              "confidence": 0.93,
+              "priority": "critical",
+              "evidence": [
+                "Wearable telemetry still resembles a distress-shaped welfare pattern."
+              ],
+              "missingInfo": [
+                "Fresh guard voice confirmation is still missing."
+              ],
+              "allowRouteExecution": false,
+              "isHardConstraint": true
+            }
+          ]
+        }
+      },
+      {
+        "sequence": 2,
+        "stage": "open_track_handoff",
+        "note": "Track handoff staged for site_ms_vallee after hard specialist constraint cleared toward Dispatch Board.",
+        "snapshot": {
+          "workItemId": "monitoring_priority_sequence_review_constraint_track_v1",
+          "mode": "deterministic",
+          "target": "tacticalTrack",
+          "nextMoveLabel": "OPEN TACTICAL TRACK",
+          "headline": "Tactical Track is the next move",
+          "summary": "One next move is staged in Tactical Track.",
+          "advisory": "Hard specialist constraint toward Dispatch Board cleared, so ONYX resumed the next move in Tactical Track.",
+          "confidence": 0.81,
+          "primaryPressure": "active signal watch",
+          "rationale": "Scenario replay reopened route execution and staged Tactical Track once the hard specialist constraint cleared.",
+          "supportingSpecialists": ["track"],
+          "contextHighlights": [
+            "Hard specialist constraint toward Dispatch Board cleared before Tactical Track resumed.",
+            "Track continuity reopened once route execution returned."
+          ],
+          "missingInfo": [],
+          "followUpLabel": "",
+          "followUpPrompt": "",
+          "allowRouteExecution": true,
+          "specialistAssessments": []
+        }
+      }
+    ]
+  }
+}

@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/evidence_certificate_export_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -20,18 +20,66 @@ import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'onyx_surface.dart';
 
-const _obSurfaceFill = Color(0xFF0E1A2B);
-const _obSurfaceElevated = Color(0xFF111F33);
-const _obSurfaceSoft = Color(0xFF13263A);
-const _obInputFill = Color(0xFF0A1626);
-const _obBorder = Color(0xFF223244);
-const _obBorderStrong = Color(0xFF33506F);
-const _obTextPrimary = Color(0xFFEAF4FF);
-const _obTextSecondary = Color(0xFF8EA4C2);
-const _obTextMuted = Color(0xFF6F84A3);
-const _obBlueAccent = Color(0xFF8FD1FF);
-const _obBlueAccentStrong = Color(0xFF19B4E5);
-const _obButtonFill = Color(0xFF15324B);
+const _obSurfaceFill = Color(0xFFFFFFFF);
+const _obSurfaceElevated = Color(0xFFFBFDFF);
+const _obSurfaceSoft = Color(0xFFF4F8FC);
+const _obInputFill = Color(0xFFF7FAFD);
+const _obBorder = Color(0xFFD6E1EC);
+const _obBorderStrong = Color(0xFFBFD1E2);
+const _obTextPrimary = Color(0xFF172638);
+const _obTextSecondary = Color(0xFF556B80);
+const _obTextMuted = Color(0xFF7A8FA4);
+const _obBlueAccent = Color(0xFF2F6AA3);
+const _obBlueAccentStrong = Color(0xFF1D9AD1);
+const _obButtonFill = Color(0xFF2F6AA3);
+
+class SovereignLedgerPinnedAuditEntry {
+  final String auditId;
+  final String clientId;
+  final String siteId;
+  final String recordCode;
+  final String title;
+  final String description;
+  final DateTime occurredAt;
+  final String actorLabel;
+  final String sourceLabel;
+  final String hash;
+  final String previousHash;
+  final Color accent;
+  final Map<String, Object?> payload;
+
+  const SovereignLedgerPinnedAuditEntry({
+    required this.auditId,
+    required this.clientId,
+    required this.siteId,
+    required this.recordCode,
+    required this.title,
+    required this.description,
+    required this.occurredAt,
+    required this.actorLabel,
+    required this.sourceLabel,
+    required this.hash,
+    required this.previousHash,
+    required this.accent,
+    required this.payload,
+  });
+}
+
+class DispatchAuditOpenRequest {
+  final String incidentReference;
+  final String auditId;
+  final String payloadType;
+  final String action;
+  final String? dispatchId;
+
+  const DispatchAuditOpenRequest({
+    required this.incidentReference,
+    required this.auditId,
+    required this.payloadType,
+    required this.action,
+    this.dispatchId,
+  });
+}
 
 class SovereignLedgerPage extends StatefulWidget {
   final String clientId;
@@ -42,6 +90,20 @@ class SovereignLedgerPage extends StatefulWidget {
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
+  final SovereignLedgerPinnedAuditEntry? pinnedAuditEntry;
+  final VoidCallback? onReturnToWarRoom;
+  final ValueChanged<DispatchAuditOpenRequest>? onOpenDispatchForIncident;
+  final ValueChanged<DispatchAuditOpenRequest>? onOpenReportForDispatchAudit;
+  final ValueChanged<DispatchAuditOpenRequest>? onOpenClientForIncident;
+  final ValueChanged<DispatchAuditOpenRequest>? onOpenAgentForIncident;
+  final ValueChanged<DispatchAuditOpenRequest>?
+  onOpenOperationsAgentForIncident;
+  final ValueChanged<DispatchAuditOpenRequest>? onOpenCctvForIncident;
+  final ValueChanged<DispatchAuditOpenRequest>? onOpenTrackForIncident;
+  final VoidCallback? onOpenManualIntelFromAudit;
+  final VoidCallback? onOpenVipPackageFromAudit;
+  final VoidCallback? onOpenRosterPlannerFromAudit;
+  final VoidCallback? onOpenSitesActionFromAudit;
 
   const SovereignLedgerPage({
     super.key,
@@ -52,6 +114,19 @@ class SovereignLedgerPage extends StatefulWidget {
     this.initialFocusReference = '',
     this.sceneReviewByIntelligenceId = const {},
     this.onOpenEventsForScope,
+    this.pinnedAuditEntry,
+    this.onReturnToWarRoom,
+    this.onOpenDispatchForIncident,
+    this.onOpenReportForDispatchAudit,
+    this.onOpenClientForIncident,
+    this.onOpenAgentForIncident,
+    this.onOpenOperationsAgentForIncident,
+    this.onOpenCctvForIncident,
+    this.onOpenTrackForIncident,
+    this.onOpenManualIntelFromAudit,
+    this.onOpenVipPackageFromAudit,
+    this.onOpenRosterPlannerFromAudit,
+    this.onOpenSitesActionFromAudit,
   });
 
   @override
@@ -60,11 +135,10 @@ class SovereignLedgerPage extends StatefulWidget {
 
 class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   static const _defaultCommandReceipt = _ObCommandReceipt(
-    label: 'OB READY',
-    message:
-        'ONYX turns real-world chaos into clear decisions and clean records.',
+    label: 'AUTO-AUDIT READY',
+    message: 'Pick one record. Check it fast. Move.',
     detail:
-        'AI, telemetry, and evidence continuity stay behind the scenes while controllers only work from the clean record that matters now.',
+        'Every shift action stays signed in the background so the controller only works from the record that matters now.',
     accent: Color(0xFF19B4E5),
   );
 
@@ -125,8 +199,14 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     final baseEntries = generatedEntries.isEmpty
         ? _fallbackEntries
         : generatedEntries;
-    final allEntries = <_ObEntryView>[..._manualEntries, ...baseEntries]
-      ..sort(_sortEntriesDescending);
+    final pinnedAuditEntry = widget.pinnedAuditEntry == null
+        ? null
+        : _pinnedAuditEntryToView(widget.pinnedAuditEntry!);
+    final allEntries = <_ObEntryView>[
+      ..._presentEntries(pinnedAuditEntry),
+      ..._manualEntries,
+      ...baseEntries,
+    ]..sort(_sortEntriesDescending);
     final guardPresets = _buildGuardPresets(allEntries);
     final siteOptions = _buildSiteOptions(allEntries);
     final filteredEntries = allEntries
@@ -296,26 +376,26 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           OnyxStoryHero(
-            eyebrow: 'CLEAN RECORD',
-            title: 'Occurrence Book',
+            eyebrow: 'WAR ROOM',
+            title: 'Sovereign Ledger',
             subtitle:
-                'Every controller note, guard update, and system fact lands once and stays linked to the shift story.',
+                'One clean record, one clear next move, full chain in the background.',
             icon: Icons.menu_book_rounded,
-            gradientColors: const [Color(0xFF102338), Color(0xFF0B151F)],
+            gradientColors: const [Color(0xFFF5FAFF), Color(0xFFFFFFFF)],
             metrics: [
               OnyxStoryMetric(
                 value: selected.recordCode,
                 label: 'focus',
-                foreground: const Color(0xFF8FD1FF),
-                background: const Color(0x1A8FD1FF),
-                border: const Color(0x668FD1FF),
+                foreground: const Color(0xFF2F6AA3),
+                background: const Color(0x142F6AA3),
+                border: const Color(0x332F6AA3),
               ),
               OnyxStoryMetric(
                 value: '$todayEntries',
                 label: 'today',
-                foreground: const Color(0xFF7A7CFF),
-                background: const Color(0x1A7A7CFF),
-                border: const Color(0x667A7CFF),
+                foreground: const Color(0xFF5B5CE2),
+                background: const Color(0x145B5CE2),
+                border: const Color(0x335B5CE2),
               ),
               OnyxStoryMetric(
                 value: '$incidentEntries',
@@ -340,9 +420,9 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
               OnyxStoryMetric(
                 value: '$totalEntries',
                 label: 'entries',
-                foreground: const Color(0xFFEAF4FF),
-                background: const Color(0x14000000),
-                border: const Color(0x3322405F),
+                foreground: _obTextPrimary,
+                background: const Color(0xFFFFFFFF),
+                border: _obBorder,
               ),
             ],
             actions: [
@@ -352,10 +432,13 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                     selected.linkedEventIds.isEmpty ||
                         widget.onOpenEventsForScope == null
                     ? null
-                    : () => _openSelectedEvents(selected, label: 'OPEN EVENTS'),
+                    : () => _openSelectedEvents(
+                        selected,
+                        label: 'OPEN EVENTS SCOPE',
+                      ),
                 style: _secondaryButtonStyle(),
                 icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                label: const Text('View Events'),
+                label: const Text('OPEN EVENTS SCOPE'),
               ),
               OutlinedButton.icon(
                 key: const ValueKey('ledger-hero-verify-button'),
@@ -366,14 +449,14 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 ),
                 style: _secondaryButtonStyle(),
                 icon: const Icon(Icons.verified_rounded, size: 18),
-                label: const Text('Verify Chain'),
+                label: const Text('Check Chain'),
               ),
               FilledButton.icon(
                 key: const ValueKey('ledger-open-composer'),
                 onPressed: () => _openComposer(guardPresets),
                 style: _primaryButtonStyle(),
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('New OB Entry'),
+                label: const Text('Add Entry Now'),
               ),
             ],
             banner: heroBannerChildren.isEmpty
@@ -462,7 +545,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           Row(
             children: [
               Text(
-                'New OB Entry',
+                'Add Entry Now',
                 style: GoogleFonts.inter(
                   color: _obTextPrimary,
                   fontSize: 24,
@@ -793,7 +876,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'OB Entries',
+            'TRACE RAIL',
             style: GoogleFonts.inter(
               color: _obTextPrimary,
               fontSize: 24,
@@ -803,8 +886,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           const SizedBox(height: 6),
           Text(
             entries.isEmpty
-                ? 'No entries match the current search or category filter.'
-                : '${entries.length} entries in the current view.',
+                ? 'Nothing matches the current filter.'
+                : '${entries.length} records ready right now.',
             style: GoogleFonts.inter(
               color: _obTextSecondary,
               fontSize: 14,
@@ -822,7 +905,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 border: Border.all(color: _obBorder),
               ),
               child: Text(
-                'Try a different search term or widen the category filter to bring records back into view.',
+                'Widen the filter or clear search to bring the record rail back.',
                 style: GoogleFonts.inter(
                   color: _obTextSecondary,
                   fontSize: 14,
@@ -867,19 +950,23 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: selected ? _obSurfaceSoft : _obSurfaceElevated,
+            color: selected
+                ? entry.accent.withValues(alpha: 0.08)
+                : _obSurfaceElevated,
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: selected ? _obBlueAccent : _obBorder,
+              color: selected
+                  ? entry.accent.withValues(alpha: 0.42)
+                  : _obBorder,
               width: selected ? 1.6 : 1,
             ),
             boxShadow: [
               BoxShadow(
                 color: const Color(
-                  0xFF0B2740,
-                ).withValues(alpha: selected ? 0.08 : 0.04),
-                blurRadius: 18,
-                offset: const Offset(0, 10),
+                  0xFF172638,
+                ).withValues(alpha: selected ? 0.08 : 0.05),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
@@ -1031,7 +1118,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Selected Record',
+                        'YOU ARE HERE',
                         style: GoogleFonts.inter(
                           color: _obBlueAccent,
                           fontSize: 11,
@@ -1115,20 +1202,20 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 onPressed: () => _runIntegrityCheck(entries),
                 style: _primaryButtonStyle(
                   backgroundColor: _obButtonFill,
-                  foregroundColor: _obBlueAccent,
+                  foregroundColor: Colors.white,
                 ),
                 icon: const Icon(Icons.verified_rounded, size: 18),
-                label: const Text('Verify Chain'),
+                label: const Text('Check Chain'),
               ),
               FilledButton.icon(
                 key: const ValueKey('ledger-context-export-ledger'),
                 onPressed: () => _exportLedger(entries),
                 style: _primaryButtonStyle(
                   backgroundColor: _obButtonFill,
-                  foregroundColor: _obBlueAccent,
+                  foregroundColor: Colors.white,
                 ),
                 icon: const Icon(Icons.download_rounded, size: 18),
-                label: const Text('Export OB Log'),
+                label: const Text('Copy Ledger'),
               ),
             ],
           ),
@@ -1139,7 +1226,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
             children: [
               _buildWorkspaceChip(
                 key: const ValueKey('ledger-workspace-view-case-file'),
-                label: 'Record',
+                label: 'Now',
                 selected: _workspaceView == _ObWorkspaceView.record,
                 onTap: () =>
                     setState(() => _workspaceView = _ObWorkspaceView.record),
@@ -1153,7 +1240,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
               ),
               _buildWorkspaceChip(
                 key: const ValueKey('ledger-workspace-view-trace'),
-                label: 'Linked',
+                label: 'Trace',
                 selected: _workspaceView == _ObWorkspaceView.linked,
                 onTap: () =>
                     setState(() => _workspaceView = _ObWorkspaceView.linked),
@@ -1177,6 +1264,32 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   }
 
   Widget _buildRecordView(_ObEntryView selected) {
+    final returnToWarRoomLabel = _returnToWarRoomLabelForSelected(selected);
+    final dispatchAuditDispatchId = _dispatchAuditDispatchIdForSelected(
+      selected,
+    );
+    final dispatchAuditIncidentReference =
+        _dispatchAuditIncidentReferenceForSelected(selected);
+    final dispatchAuditAction = _dispatchAuditActionForSelected(selected);
+    final liveOpsAuditIncidentReference =
+        _liveOpsAuditIncidentReferenceForSelected(selected);
+    final liveOpsAuditAction = _liveOpsAuditActionForSelected(selected);
+    final clientHandoffRoom = _clientHandoffRoomForSelected(selected);
+    final auditTargetCallout = _auditTargetCalloutForSelected(
+      selected,
+      clientHandoffRoom,
+    );
+    final riskIntelAuditAction = _riskIntelAuditActionForSelected(selected);
+    final riskIntelAuditEventIds = _riskIntelAuditEventIdsForSelected(selected);
+    final riskIntelSelectedEventId = _riskIntelSelectedEventIdForSelected(
+      selected,
+    );
+    final opensManualIntel = _selectedAuditOpensManualIntel(selected);
+    final vipAuditAction = _vipAuditActionForSelected(selected);
+    final opensVipPackageDesk = _selectedAuditOpensVipPackageDesk(selected);
+    final opensRosterPlanner = _selectedAuditOpensRosterPlanner(selected);
+    final sitesAuditAction = _sitesAuditActionForSelected(selected);
+    final opensSitesAction = _selectedAuditOpensSitesAction(selected);
     return Container(
       key: const ValueKey('ledger-workspace-panel-case-file'),
       width: double.infinity,
@@ -1190,7 +1303,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Record Detail',
+            'DO THIS NOW',
             style: GoogleFonts.inter(
               color: _obTextPrimary,
               fontSize: 20,
@@ -1205,6 +1318,12 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
               _DetailItem(label: 'Guard', value: selected.guardLabel),
               _DetailItem(label: 'Callsign', value: selected.callsign),
               _DetailItem(label: 'Site', value: selected.siteLabel),
+              if (clientHandoffRoom != null)
+                _DetailItem(
+                  key: const ValueKey('ledger-detail-room'),
+                  label: 'Room',
+                  value: clientHandoffRoom,
+                ),
               _DetailItem(
                 label: 'Occurred',
                 value: _formatUtcTimestamp(selected.occurredAt),
@@ -1220,6 +1339,19 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
               fontWeight: FontWeight.w800,
             ),
           ),
+          if (auditTargetCallout != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              auditTargetCallout,
+              key: const ValueKey('ledger-audit-target-callout'),
+              style: GoogleFonts.inter(
+                color: const Color(0xFF22D3EE),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Text(
             selected.description,
@@ -1240,10 +1372,10 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 onPressed: () => _exportEntryData(selected),
                 style: _primaryButtonStyle(
                   backgroundColor: _obButtonFill,
-                  foregroundColor: _obBlueAccent,
+                  foregroundColor: Colors.white,
                 ),
                 icon: const Icon(Icons.copy_rounded, size: 18),
-                label: const Text('Export Entry'),
+                label: const Text('Copy Entry'),
               ),
               FilledButton.icon(
                 key: const ValueKey('ledger-entry-view-event-review'),
@@ -1253,15 +1385,318 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                     ? null
                     : () => _openSelectedEvents(
                         selected,
-                        label: 'VIEW EVENT REVIEW',
+                        label: 'OPEN EVENTS SCOPE',
                       ),
                 style: _primaryButtonStyle(
                   backgroundColor: _obButtonFill,
-                  foregroundColor: _obBlueAccent,
+                  foregroundColor: Colors.white,
                 ),
                 icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                label: const Text('View Event Review'),
+                label: const Text('OPEN EVENTS SCOPE'),
               ),
+              if (dispatchAuditIncidentReference != null)
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-dispatch'),
+                  onPressed: widget.onOpenDispatchForIncident == null
+                      ? null
+                      : () => widget.onOpenDispatchForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            dispatchAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: _dispatchAuditPrimaryButtonBackground(
+                      dispatchAuditAction,
+                    ),
+                    foregroundColor: _dispatchAuditPrimaryButtonAccent(
+                      dispatchAuditAction,
+                    ),
+                  ),
+                  icon: Icon(
+                    _dispatchAuditPrimaryButtonIcon(dispatchAuditAction),
+                    size: 18,
+                  ),
+                  label: Text(
+                    _dispatchAuditPrimaryButtonLabel(dispatchAuditAction),
+                  ),
+                ),
+              if (dispatchAuditDispatchId != null &&
+                  dispatchAuditAction == 'report_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-dispatch-report'),
+                  onPressed: widget.onOpenReportForDispatchAudit == null
+                      ? null
+                      : () => widget.onOpenReportForDispatchAudit!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            dispatchAuditIncidentReference ??
+                                'INC-$dispatchAuditDispatchId',
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF102338),
+                    foregroundColor: const Color(0xFF8FD1FF),
+                  ),
+                  icon: const Icon(Icons.description_rounded, size: 18),
+                  label: const Text('OPEN REPORTS WORKSPACE'),
+                ),
+              if (dispatchAuditIncidentReference != null &&
+                  dispatchAuditAction == 'track_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-dispatch-track'),
+                  onPressed: widget.onOpenTrackForIncident == null
+                      ? null
+                      : () => widget.onOpenTrackForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            dispatchAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF12213A),
+                    foregroundColor: const Color(0xFF8FD1FF),
+                  ),
+                  icon: const Icon(Icons.near_me_rounded, size: 18),
+                  label: const Text('OPEN TACTICAL TRACK'),
+                ),
+              if (dispatchAuditIncidentReference != null &&
+                  dispatchAuditAction == 'client_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-client-handoff'),
+                  onPressed: widget.onOpenClientForIncident == null
+                      ? null
+                      : () => widget.onOpenClientForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            dispatchAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF0E2230),
+                    foregroundColor: const Color(0xFF22D3EE),
+                  ),
+                  icon: const Icon(Icons.forum_rounded, size: 18),
+                  label: Text(
+                    _clientHandoffButtonLabelForRoom(clientHandoffRoom),
+                  ),
+                ),
+              if (dispatchAuditIncidentReference != null &&
+                  dispatchAuditAction == 'cctv_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-cctv'),
+                  onPressed: widget.onOpenCctvForIncident == null
+                      ? null
+                      : () => widget.onOpenCctvForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            dispatchAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF14301F),
+                    foregroundColor: const Color(0xFF6EE7B7),
+                  ),
+                  icon: const Icon(Icons.videocam_outlined, size: 18),
+                  label: const Text('OPEN CCTV REVIEW'),
+                ),
+              if (riskIntelAuditEventIds.isNotEmpty &&
+                  (riskIntelAuditAction == 'feed_item_opened' ||
+                      riskIntelAuditAction == 'area_scope_opened'))
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-risk-intel-events'),
+                  onPressed: widget.onOpenEventsForScope == null
+                      ? null
+                      : () => widget.onOpenEventsForScope!(
+                          riskIntelAuditEventIds,
+                          riskIntelSelectedEventId,
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF1B1530),
+                    foregroundColor: const Color(0xFFC084FC),
+                  ),
+                  icon: const Icon(Icons.timeline_rounded, size: 18),
+                  label: const Text('OPEN EVENTS SCOPE'),
+                ),
+              if (opensManualIntel)
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-manual-intel'),
+                  onPressed: widget.onOpenManualIntelFromAudit,
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF14304A),
+                    foregroundColor: const Color(0xFF54C8FF),
+                  ),
+                  icon: const Icon(Icons.add_comment_rounded, size: 18),
+                  label: const Text('OPEN INTEL INTAKE'),
+                ),
+              if (opensVipPackageDesk)
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-vip-package'),
+                  onPressed: widget.onOpenVipPackageFromAudit,
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF173124),
+                    foregroundColor: vipAuditAction == 'package_review_opened'
+                        ? const Color(0xFF7DDCFF)
+                        : const Color(0xFF5BE2A3),
+                  ),
+                  icon: const Icon(Icons.shield_outlined, size: 18),
+                  label: Text(
+                    vipAuditAction == 'package_review_opened'
+                        ? 'OPEN PACKAGE REVIEW'
+                        : 'OPEN PACKAGE DESK',
+                  ),
+                ),
+              if (liveOpsAuditIncidentReference != null &&
+                  liveOpsAuditAction == 'track_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-live-ops-track'),
+                  onPressed: widget.onOpenTrackForIncident == null
+                      ? null
+                      : () => widget.onOpenTrackForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            liveOpsAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF12213A),
+                    foregroundColor: const Color(0xFF8FD1FF),
+                  ),
+                  icon: const Icon(Icons.near_me_rounded, size: 18),
+                  label: const Text('OPEN TACTICAL TRACK'),
+                ),
+              if (liveOpsAuditIncidentReference != null &&
+                  liveOpsAuditAction == 'dispatch_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-live-ops-dispatch'),
+                  onPressed: widget.onOpenDispatchForIncident == null
+                      ? null
+                      : () => widget.onOpenDispatchForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            liveOpsAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF102338),
+                    foregroundColor: const Color(0xFF8FD1FF),
+                  ),
+                  icon: const Icon(Icons.local_shipping_rounded, size: 18),
+                  label: const Text('OPEN DISPATCH BOARD'),
+                ),
+              if (liveOpsAuditIncidentReference != null &&
+                  liveOpsAuditAction == 'client_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey(
+                    'ledger-entry-open-live-ops-client-handoff',
+                  ),
+                  onPressed: widget.onOpenClientForIncident == null
+                      ? null
+                      : () => widget.onOpenClientForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            liveOpsAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF0E2230),
+                    foregroundColor: const Color(0xFF22D3EE),
+                  ),
+                  icon: const Icon(Icons.forum_rounded, size: 18),
+                  label: Text(
+                    _clientHandoffButtonLabelForRoom(clientHandoffRoom),
+                  ),
+                ),
+              if (liveOpsAuditIncidentReference != null &&
+                  liveOpsAuditAction == 'cctv_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-live-ops-cctv'),
+                  onPressed: widget.onOpenCctvForIncident == null
+                      ? null
+                      : () => widget.onOpenCctvForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            liveOpsAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF14301F),
+                    foregroundColor: const Color(0xFF6EE7B7),
+                  ),
+                  icon: const Icon(Icons.videocam_outlined, size: 18),
+                  label: const Text('OPEN CCTV REVIEW'),
+                ),
+              if (dispatchAuditIncidentReference != null &&
+                  dispatchAuditAction == 'agent_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-ai-copilot'),
+                  onPressed: widget.onOpenAgentForIncident == null
+                      ? null
+                      : () => widget.onOpenAgentForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            dispatchAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF241532),
+                    foregroundColor: const Color(0xFFC084FC),
+                  ),
+                  icon: const Icon(Icons.psychology_alt_rounded, size: 18),
+                  label: const Text('OPEN AI COPILOT'),
+                ),
+              if (liveOpsAuditIncidentReference != null &&
+                  liveOpsAuditAction == 'agent_handoff_opened')
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-live-ops-ai-copilot'),
+                  onPressed: widget.onOpenOperationsAgentForIncident == null
+                      ? null
+                      : () => widget.onOpenOperationsAgentForIncident!(
+                          _dispatchAuditOpenRequestForSelected(
+                            selected,
+                            liveOpsAuditIncidentReference,
+                          ),
+                        ),
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF241532),
+                    foregroundColor: const Color(0xFFC084FC),
+                  ),
+                  icon: const Icon(Icons.psychology_alt_rounded, size: 18),
+                  label: const Text('OPEN AI COPILOT'),
+                ),
+              if (opensRosterPlanner)
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-roster-planner'),
+                  onPressed: widget.onOpenRosterPlannerFromAudit,
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF2B1804),
+                    foregroundColor: const Color(0xFFFBBF24),
+                  ),
+                  icon: const Icon(Icons.calendar_month_rounded, size: 18),
+                  label: const Text('OPEN MONTH PLANNER'),
+                ),
+              if (opensSitesAction)
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-open-sites-action'),
+                  onPressed: widget.onOpenSitesActionFromAudit,
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF12213A),
+                    foregroundColor: _sitesAuditButtonAccent(sitesAuditAction),
+                  ),
+                  icon: Icon(_sitesAuditButtonIcon(sitesAuditAction), size: 18),
+                  label: Text(_sitesAuditButtonLabel(sitesAuditAction)),
+                ),
+              if (returnToWarRoomLabel != null)
+                FilledButton.icon(
+                  key: const ValueKey('ledger-entry-back-to-war-room'),
+                  onPressed: widget.onReturnToWarRoom,
+                  style: _primaryButtonStyle(
+                    backgroundColor: const Color(0xFF1B4332),
+                    foregroundColor: const Color(0xFF63E6A1),
+                  ),
+                  icon: const Icon(Icons.undo_rounded, size: 18),
+                  label: Text(returnToWarRoomLabel),
+                ),
             ],
           ),
           if (selected.sceneReview != null) ...[
@@ -1355,7 +1790,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Record Integrity',
+            'CHECK CHAIN',
             style: GoogleFonts.inter(
               color: _obTextPrimary,
               fontSize: 20,
@@ -1386,7 +1821,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           ),
           const SizedBox(height: 16),
           Text(
-            'The chain remains available for audit, but the controller workflow stays simple: review the note, decide on the next action, and move on.',
+            'The chain stays visible for audit while the controller only needs one move: check the record, confirm the state, and keep going.',
             style: GoogleFonts.inter(
               color: _obTextSecondary,
               fontSize: 14,
@@ -1417,7 +1852,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Linked Context',
+            'TRACE RAIL',
             style: GoogleFonts.inter(
               color: _obTextPrimary,
               fontSize: 20,
@@ -1427,7 +1862,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           const SizedBox(height: 12),
           if (selected.linkedEventIds.isEmpty)
             Text(
-              'No linked events are attached to this OB entry yet.',
+              'No linked events are pinned to this record yet.',
               style: GoogleFonts.inter(
                 color: _obTextSecondary,
                 fontSize: 14,
@@ -1551,43 +1986,6 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     );
   }
 
-  Widget _buildStatCard({
-    required String value,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _obSurfaceElevated,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _obBorder),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: color,
-              fontSize: 30,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: _obTextPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildHeroStatusChip({required String label, required Color color}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1606,6 +2004,311 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         ),
       ),
     );
+  }
+
+  String? _returnToWarRoomLabelForSelected(_ObEntryView selected) {
+    final pinnedAuditEntry = widget.pinnedAuditEntry;
+    if (widget.onReturnToWarRoom == null ||
+        pinnedAuditEntry == null ||
+        selected.id != pinnedAuditEntry.auditId) {
+      return null;
+    }
+    final sourceLabel = pinnedAuditEntry.sourceLabel.trim().toLowerCase();
+    if (sourceLabel.contains('dispatch')) {
+      return 'Back to Dispatch';
+    }
+    if (sourceLabel.contains('live ops')) {
+      return 'Back to Live Ops';
+    }
+    if (sourceLabel.contains('risk intel')) {
+      return 'Back to Risk Intel';
+    }
+    if (sourceLabel.contains('vip')) {
+      return 'Back to VIP';
+    }
+    if (sourceLabel.contains('sites')) {
+      return 'Back to Sites';
+    }
+    return 'Back to War Room';
+  }
+
+  String? _dispatchAuditIncidentReferenceForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'dispatch_auto_audit') {
+      return null;
+    }
+    final incidentReference =
+        (selected.payload['incident_reference'] as String? ?? '').trim();
+    return incidentReference.isEmpty ? null : incidentReference;
+  }
+
+  String? _dispatchAuditDispatchIdForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'dispatch_auto_audit') {
+      return null;
+    }
+    final dispatchId = (selected.payload['dispatch_id'] as String? ?? '')
+        .trim();
+    return dispatchId.isEmpty ? null : dispatchId;
+  }
+
+  String _dispatchAuditActionForSelected(_ObEntryView selected) {
+    return (selected.payload['action'] as String? ?? '').trim();
+  }
+
+  DispatchAuditOpenRequest _dispatchAuditOpenRequestForSelected(
+    _ObEntryView selected,
+    String incidentReference,
+  ) {
+    final payloadType = (selected.payload['type'] as String? ?? '').trim();
+    final action = (selected.payload['action'] as String? ?? '').trim();
+    final dispatchId = (selected.payload['dispatch_id'] as String? ?? '')
+        .trim();
+    return DispatchAuditOpenRequest(
+      incidentReference: incidentReference.trim(),
+      auditId: selected.id,
+      payloadType: payloadType,
+      action: action,
+      dispatchId: dispatchId.isEmpty ? null : dispatchId,
+    );
+  }
+
+  String _dispatchAuditPrimaryButtonLabel(String action) {
+    return switch (action.trim()) {
+      'dispatch_launched' => 'OPEN LIVE DISPATCH',
+      'dispatch_resolved' => 'OPEN CLOSURE BOARD',
+      'alarm_cleared' => 'OPEN CLEARED DISPATCH',
+      _ => 'OPEN DISPATCH BOARD',
+    };
+  }
+
+  IconData _dispatchAuditPrimaryButtonIcon(String action) {
+    return switch (action.trim()) {
+      'dispatch_resolved' || 'alarm_cleared' => Icons.verified_rounded,
+      _ => Icons.local_shipping_rounded,
+    };
+  }
+
+  Color _dispatchAuditPrimaryButtonAccent(String action) {
+    return switch (action.trim()) {
+      'dispatch_launched' => const Color(0xFFF59E0B),
+      'dispatch_resolved' || 'alarm_cleared' => const Color(0xFF63E6A1),
+      _ => const Color(0xFF8FD1FF),
+    };
+  }
+
+  Color _dispatchAuditPrimaryButtonBackground(String action) {
+    return switch (action.trim()) {
+      'dispatch_launched' => const Color(0xFF2B1804),
+      'dispatch_resolved' || 'alarm_cleared' => const Color(0xFF14301F),
+      _ => const Color(0xFF102338),
+    };
+  }
+
+  String? _liveOpsAuditIncidentReferenceForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'live_ops_auto_audit') {
+      return null;
+    }
+    final incidentReference =
+        (selected.payload['incident_reference'] as String? ?? '').trim();
+    return incidentReference.isEmpty ? null : incidentReference;
+  }
+
+  String _liveOpsAuditActionForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'live_ops_auto_audit') {
+      return '';
+    }
+    return (selected.payload['action'] as String? ?? '').trim();
+  }
+
+  String? _clientHandoffRoomForSelected(_ObEntryView selected) {
+    final payloadType = (selected.payload['type'] as String? ?? '').trim();
+    if (payloadType != 'dispatch_auto_audit' &&
+        payloadType != 'live_ops_auto_audit') {
+      return null;
+    }
+    final action = (selected.payload['action'] as String? ?? '').trim();
+    if (action != 'client_handoff_opened') {
+      return null;
+    }
+    final room =
+        (selected.payload['room'] as String? ??
+                selected.payload['room_key'] as String? ??
+                '')
+            .trim();
+    return room.isEmpty ? null : room;
+  }
+
+  String _clientHandoffButtonLabelForRoom(String? room) {
+    final normalizedRoom = (room ?? '').trim();
+    if (normalizedRoom.isEmpty) {
+      return 'Open Client Handoff';
+    }
+    return 'Open $normalizedRoom';
+  }
+
+  String? _auditTargetCalloutForSelected(_ObEntryView selected, String? room) {
+    final payloadType = (selected.payload['type'] as String? ?? '').trim();
+    final action = (selected.payload['action'] as String? ?? '').trim();
+    final normalizedRoom = (room ?? '').trim();
+    return switch ((payloadType, action)) {
+      ('dispatch_auto_audit', 'client_handoff_opened') ||
+      (
+        'live_ops_auto_audit',
+        'client_handoff_opened',
+      ) when normalizedRoom.isNotEmpty => 'ROOM TARGET • $normalizedRoom',
+      ('dispatch_auto_audit', 'track_handoff_opened') ||
+      (
+        'live_ops_auto_audit',
+        'track_handoff_opened',
+      ) => 'DESK TARGET • Tactical Track',
+      ('dispatch_auto_audit', 'cctv_handoff_opened') ||
+      (
+        'live_ops_auto_audit',
+        'cctv_handoff_opened',
+      ) => 'DESK TARGET • CCTV Review',
+      ('dispatch_auto_audit', 'agent_handoff_opened') ||
+      (
+        'live_ops_auto_audit',
+        'agent_handoff_opened',
+      ) => 'DESK TARGET • AI Copilot',
+      ('dispatch_auto_audit', 'report_handoff_opened') =>
+        'DESK TARGET • Reports Workspace',
+      ('dispatch_auto_audit', 'roster_planner_opened') ||
+      (
+        'live_ops_auto_audit',
+        'roster_planner_opened',
+      ) => 'DESK TARGET • Month Planner',
+      ('live_ops_auto_audit', 'dispatch_handoff_opened') =>
+        'DESK TARGET • Dispatch Board',
+      ('risk_intel_auto_audit', 'area_scope_opened') ||
+      (
+        'risk_intel_auto_audit',
+        'feed_item_opened',
+      ) => 'DESK TARGET • Events Scope',
+      ('risk_intel_auto_audit', 'manual_intel_opened') =>
+        'DESK TARGET • Intel Intake',
+      ('vip_auto_audit', 'package_review_opened') =>
+        'DESK TARGET • VIP Package Review',
+      ('vip_auto_audit', 'package_staging_opened') =>
+        'DESK TARGET • VIP Package Desk',
+      ('sites_auto_audit', 'site_builder_opened') => 'DESK TARGET • Site Desk',
+      ('sites_auto_audit', 'site_map_opened') => 'DESK TARGET • Site Map',
+      ('sites_auto_audit', 'site_settings_opened') =>
+        'DESK TARGET • Site Settings',
+      ('sites_auto_audit', 'site_guard_roster_opened') =>
+        'DESK TARGET • Guard Roster',
+      _ => null,
+    };
+  }
+
+  String _riskIntelAuditActionForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'risk_intel_auto_audit') {
+      return '';
+    }
+    return (selected.payload['action'] as String? ?? '').trim();
+  }
+
+  List<String> _riskIntelAuditEventIdsForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'risk_intel_auto_audit') {
+      return const <String>[];
+    }
+    final raw = selected.payload['scoped_event_ids'];
+    if (raw is! List) {
+      return const <String>[];
+    }
+    return raw
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  String? _riskIntelSelectedEventIdForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'risk_intel_auto_audit') {
+      return null;
+    }
+    final selectedEventId =
+        (selected.payload['selected_event_id'] as String? ?? '').trim();
+    return selectedEventId.isEmpty ? null : selectedEventId;
+  }
+
+  bool _selectedAuditOpensRosterPlanner(_ObEntryView selected) {
+    final payloadType = (selected.payload['type'] as String? ?? '').trim();
+    if (payloadType != 'dispatch_auto_audit' &&
+        payloadType != 'live_ops_auto_audit') {
+      return false;
+    }
+    return (selected.payload['action'] as String? ?? '').trim() ==
+        'roster_planner_opened';
+  }
+
+  bool _selectedAuditOpensManualIntel(_ObEntryView selected) {
+    final payloadType = (selected.payload['type'] as String? ?? '').trim();
+    if (payloadType != 'risk_intel_auto_audit') {
+      return false;
+    }
+    return (selected.payload['action'] as String? ?? '').trim() ==
+        'manual_intel_opened';
+  }
+
+  String _vipAuditActionForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'vip_auto_audit') {
+      return '';
+    }
+    return (selected.payload['action'] as String? ?? '').trim();
+  }
+
+  bool _selectedAuditOpensVipPackageDesk(_ObEntryView selected) {
+    final payloadType = (selected.payload['type'] as String? ?? '').trim();
+    if (payloadType != 'vip_auto_audit') {
+      return false;
+    }
+    final action = (selected.payload['action'] as String? ?? '').trim();
+    return action == 'package_staging_opened' ||
+        action == 'package_review_opened';
+  }
+
+  String _sitesAuditActionForSelected(_ObEntryView selected) {
+    if (selected.payload['type'] != 'sites_auto_audit') {
+      return '';
+    }
+    return (selected.payload['action'] as String? ?? '').trim();
+  }
+
+  bool _selectedAuditOpensSitesAction(_ObEntryView selected) {
+    final action = _sitesAuditActionForSelected(selected);
+    return action == 'site_builder_opened' ||
+        action == 'site_map_opened' ||
+        action == 'site_settings_opened' ||
+        action == 'site_guard_roster_opened';
+  }
+
+  String _sitesAuditButtonLabel(String action) {
+    return switch (action.trim()) {
+      'site_builder_opened' => 'OPEN SITE DESK',
+      'site_map_opened' => 'OPEN SITE MAP',
+      'site_settings_opened' => 'OPEN SITE SETTINGS',
+      'site_guard_roster_opened' => 'OPEN GUARD ROSTER',
+      _ => 'OPEN SITE DESK',
+    };
+  }
+
+  IconData _sitesAuditButtonIcon(String action) {
+    return switch (action.trim()) {
+      'site_builder_opened' => Icons.add_business_rounded,
+      'site_map_opened' => Icons.map_rounded,
+      'site_settings_opened' => Icons.settings_rounded,
+      'site_guard_roster_opened' => Icons.groups_rounded,
+      _ => Icons.domain_rounded,
+    };
+  }
+
+  Color _sitesAuditButtonAccent(String action) {
+    return switch (action.trim()) {
+      'site_builder_opened' => const Color(0xFF8FD1FF),
+      'site_map_opened' => const Color(0xFF54C8FF),
+      'site_settings_opened' => const Color(0xFFFFC247),
+      'site_guard_roster_opened' => const Color(0xFF63E6A1),
+      _ => const Color(0xFF8FD1FF),
+    };
   }
 
   Widget _buildContextChip({required String label, required Color color}) {
@@ -1726,6 +2429,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       children: items
           .map(
             (item) => Container(
+              key: item.key,
               width: 190,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
@@ -1938,7 +2642,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       border: Border.all(color: _obBorder),
       boxShadow: [
         BoxShadow(
-          color: const Color(0xFF0B2740).withValues(alpha: 0.06),
+          color: const Color(0xFF172638).withValues(alpha: 0.07),
           blurRadius: 24,
           offset: const Offset(0, 12),
         ),
@@ -1956,7 +2660,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
 
   ButtonStyle _primaryButtonStyle({
     Color backgroundColor = _obButtonFill,
-    Color foregroundColor = _obBlueAccent,
+    Color foregroundColor = Colors.white,
   }) {
     return FilledButton.styleFrom(
       backgroundColor: backgroundColor,
@@ -1970,6 +2674,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   ButtonStyle _secondaryButtonStyle() {
     return OutlinedButton.styleFrom(
       foregroundColor: _obTextPrimary,
+      backgroundColor: Colors.white,
       side: const BorderSide(color: _obBorder),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -2039,9 +2744,10 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       'flagged': _draftFlagged,
       'refined': true,
     };
-    final hash = sha256
-        .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
-        .toString();
+    final hash = EvidenceCertificateExportService.chainedPayloadHash(
+      payload: payload,
+      previousHash: previousHash,
+    );
     final entry = _ObEntryView(
       id: 'MAN-$nextSequence',
       sequence: nextSequence,
@@ -2182,7 +2888,22 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     }
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      SnackBar(
+        backgroundColor: const Color(0xFFFFFFFF),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFFD6E1EC)),
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF172638),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 }
@@ -2313,10 +3034,11 @@ class _GuardPreset {
 }
 
 class _DetailItem {
+  final Key? key;
   final String label;
   final String value;
 
-  const _DetailItem({required this.label, required this.value});
+  const _DetailItem({this.key, required this.label, required this.value});
 }
 
 class _ObCommandReceipt {
@@ -2379,6 +3101,37 @@ class _ObEntryView {
     required this.payload,
     this.sceneReview,
   });
+}
+
+_ObEntryView _pinnedAuditEntryToView(SovereignLedgerPinnedAuditEntry entry) {
+  return _ObEntryView(
+    id: entry.auditId,
+    sequence: entry.occurredAt.microsecondsSinceEpoch,
+    recordCode: entry.recordCode,
+    title: entry.title,
+    description: entry.description,
+    category: _ObCategory.handover,
+    occurredAt: entry.occurredAt.toUtc(),
+    siteLabel: _displaySiteLabel(entry.siteId),
+    guardLabel: entry.actorLabel,
+    callsign: 'AUTO-AUDIT',
+    locationDetail: entry.sourceLabel,
+    incident: false,
+    flagged: true,
+    verified: true,
+    statusLabel: 'SIGNED',
+    linkedEventIds: const <String>[],
+    hash: entry.hash,
+    previousHash: entry.previousHash,
+    accent: entry.accent,
+    payload: entry.payload,
+  );
+}
+
+Iterable<_ObEntryView> _presentEntries(_ObEntryView? entry) sync* {
+  if (entry != null) {
+    yield entry;
+  }
 }
 
 const List<_GuardPreset> _defaultGuardPresets = [
@@ -2530,9 +3283,10 @@ List<_ObEntryView> _buildObEntries(
         : null;
     final category = _categoryForEvent(event);
     final payload = _payloadForEvent(event, sceneReview: sceneReview);
-    final hash = sha256
-        .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
-        .toString();
+    final hash = EvidenceCertificateExportService.chainedPayloadHash(
+      payload: payload,
+      previousHash: previousHash,
+    );
 
     built.add(
       _ObEntryView(
@@ -2572,7 +3326,7 @@ Map<String, Object?> _payloadForEvent(
   final payload = <String, Object?>{
     'event_id': event.eventId,
     'sequence': event.sequence,
-    'type': event.runtimeType.toString(),
+    'type': event.toAuditTypeKey(),
     'occurred_at_utc': event.occurredAt.toUtc().toIso8601String(),
     'client_id': _eventClientId(event),
     'site_id': _eventSiteId(event),
@@ -3044,6 +3798,7 @@ String? _resolveSelectedEntryId({
   if (normalizedFocus.isNotEmpty) {
     for (final entry in entries) {
       final fields = [
+        entry.id,
         entry.recordCode,
         entry.title,
         entry.description,

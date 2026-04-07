@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/ui/app_shell.dart';
 
+DateTime _appShellTickerOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 11, hour, minute);
+
 void main() {
   testWidgets('AppShell uses drawer navigation on mobile widths', (
     tester,
@@ -89,10 +92,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('COMMAND'), findsOneWidget);
-    expect(find.text('SYSTEMS NOMINAL'), findsOneWidget);
+    expect(find.text('READY'), findsOneWidget);
+    expect(find.text('War Room Shell'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('app-shell-quick-jump-icon')),
+      findsOneWidget,
+    );
     expect(find.text('12'), findsOneWidget);
-    expect(find.text('7 ACTIVE'), findsOneWidget);
-    expect(find.text('9 On Shift'), findsOneWidget);
   });
 
   testWidgets('AppShell renders dynamic sidebar badges and shell top bar', (
@@ -122,9 +128,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('COMMAND'), findsOneWidget);
-    expect(find.text('SYSTEMS NOMINAL'), findsOneWidget);
+    expect(find.text('READY'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('app-shell-quick-jump-field')),
+      find.byKey(const ValueKey('app-shell-quick-jump-icon')),
       findsOneWidget,
     );
     expect(find.text('41'), findsOneWidget);
@@ -183,14 +189,14 @@ void main() {
               sourceType: 'radio',
               provider: 'zello',
               headline: 'All clear confirmed on north gate channel',
-              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 14),
+              occurredAtUtc: _appShellTickerOccurredAtUtc(10, 14),
             ),
             OnyxIntelTickerItem(
               id: 'INT-2',
               sourceType: 'hardware',
               provider: 'hikvision',
               headline: 'Perimeter line-crossing alert camera CAM-22',
-              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 15),
+              occurredAtUtc: _appShellTickerOccurredAtUtc(10, 15),
             ),
           ],
           child: const SizedBox.expand(),
@@ -228,21 +234,21 @@ void main() {
               sourceType: 'news',
               provider: 'newsapi.org',
               headline: 'Regional protest planned near Sandton',
-              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 10),
+              occurredAtUtc: _appShellTickerOccurredAtUtc(10, 10),
             ),
             OnyxIntelTickerItem(
               id: 'INT-H-1',
               sourceType: 'hardware',
               provider: 'hikvision',
               headline: 'Perimeter line crossing CAM-22',
-              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 12),
+              occurredAtUtc: _appShellTickerOccurredAtUtc(10, 12),
             ),
             OnyxIntelTickerItem(
               id: 'INT-R-1',
               sourceType: 'radio',
               provider: 'zello',
               headline: 'Control room acknowledged all clear',
-              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 14),
+              occurredAtUtc: _appShellTickerOccurredAtUtc(10, 14),
             ),
           ],
           child: const SizedBox.expand(),
@@ -285,14 +291,14 @@ void main() {
               sourceType: 'dvr',
               provider: 'hikvision-dvr',
               headline: 'Vehicle detected at loading bay',
-              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 16),
+              occurredAtUtc: _appShellTickerOccurredAtUtc(10, 16),
             ),
             OnyxIntelTickerItem(
               id: 'INT-H-1',
               sourceType: 'hardware',
               provider: 'frigate',
               headline: 'Perimeter line crossing CAM-22',
-              occurredAtUtc: DateTime.utc(2026, 3, 11, 10, 12),
+              occurredAtUtc: _appShellTickerOccurredAtUtc(10, 12),
             ),
           ],
           child: const SizedBox.expand(),
@@ -334,7 +340,7 @@ void main() {
               sourceType: 'news',
               provider: 'newsapi.org',
               headline: 'New threat advisory issued',
-              occurredAtUtc: DateTime.utc(2026, 3, 11, 11, 14),
+              occurredAtUtc: _appShellTickerOccurredAtUtc(11, 14),
             ),
           ],
           child: const SizedBox.expand(),
@@ -373,7 +379,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('app-shell-quick-jump-field')));
+    await tester.tap(find.byKey(const ValueKey('app-shell-quick-jump-icon')));
     await tester.pumpAndSettle();
 
     expect(find.text('Quick jump'), findsOneWidget);
@@ -394,53 +400,52 @@ void main() {
     expect(selectedRoute, OnyxRoute.ledger);
   });
 
-  testWidgets(
-    'AppShell exposes compact quick jump when the full field is hidden',
-    (tester) async {
-      tester.view.physicalSize = const Size(1280, 900);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() {
-        tester.view.resetPhysicalSize();
-        tester.view.resetDevicePixelRatio();
-      });
+  testWidgets('AppShell exposes quick jump from compact desktop widths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
-      OnyxRoute? selectedRoute;
-      await tester.pumpWidget(
-        MaterialApp(
-          home: AppShell(
-            currentRoute: OnyxRoute.dashboard,
-            onRouteChanged: (route) => selectedRoute = route,
-            child: const SizedBox.expand(),
-          ),
+    OnyxRoute? selectedRoute;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          currentRoute: OnyxRoute.dashboard,
+          onRouteChanged: (route) => selectedRoute = route,
+          child: const SizedBox.expand(),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('app-shell-quick-jump-field')),
-        findsNothing,
-      );
-      await tester.tap(find.byKey(const ValueKey('app-shell-quick-jump-icon')));
-      await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('app-shell-quick-jump-icon')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('app-shell-quick-jump-icon')));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Quick jump'), findsOneWidget);
-      await tester.enterText(
-        find.byKey(const ValueKey('app-shell-quick-jump-input')),
-        'Admin',
-      );
-      await tester.pumpAndSettle();
+    expect(find.text('Quick jump'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('app-shell-quick-jump-input')),
+      'Admin',
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.descendant(
-          of: find.byType(Dialog),
-          matching: find.widgetWithText(InkWell, 'Admin'),
-        ),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byType(Dialog),
+        matching: find.widgetWithText(InkWell, 'Admin'),
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(selectedRoute, OnyxRoute.admin);
-    },
-  );
+    expect(selectedRoute, OnyxRoute.admin);
+  });
 
   testWidgets('AppShell status button shows the live summary snack', (
     tester,
@@ -470,9 +475,7 @@ void main() {
     await tester.pump();
 
     expect(
-      find.text(
-        'Systems nominal. 5 active incidents, 2 AI actions, 7 guards online.',
-      ),
+      find.text('Ready. 5 live incidents, 2 AI moves, 7 guards on floor.'),
       findsOneWidget,
     );
   });
@@ -537,5 +540,63 @@ void main() {
       find.byKey(const ValueKey('app-shell-quick-jump-input')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('AppShell parent rebuild does not restart intel ticker timing', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    var parentTick = 0;
+    StateSetter? rebuildParent;
+    final items = List<OnyxIntelTickerItem>.generate(
+      10,
+      (index) => OnyxIntelTickerItem(
+        id: 'INT-$index',
+        sourceType: 'radio',
+        provider: 'zello',
+        headline: 'Ticker item $index',
+        occurredAtUtc: _appShellTickerOccurredAtUtc(10, 10 + index),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            rebuildParent = setState;
+            return AppShell(
+              currentRoute: OnyxRoute.aiQueue,
+              onRouteChanged: (_) {},
+              operatorShiftLabel: 'tick-$parentTick',
+              intelTickerItems: items,
+              child: const SizedBox.expand(),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tickerScrollable = tester
+        .stateList<ScrollableState>(find.byType(Scrollable))
+        .firstWhere((state) => state.position.maxScrollExtent > 0);
+
+    expect(tickerScrollable.position.pixels, 0);
+
+    await tester.pump(const Duration(seconds: 2));
+    rebuildParent?.call(() {
+      parentTick += 1;
+    });
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(tickerScrollable.position.pixels, greaterThan(0));
   });
 }

@@ -105,7 +105,8 @@ class MonitoringShiftNotificationService {
         incident,
         defaultLine: 'A response deployment has been initiated.',
       ),
-      defaultPendingLine: 'No dispatch action has been initiated at this stage.',
+      defaultPendingLine:
+          'No dispatch action has been initiated at this stage.',
     );
     final monitoringLine = _monitoringLine(
       incident,
@@ -162,14 +163,13 @@ class MonitoringShiftNotificationService {
         defaultLine:
             'A response deployment has been initiated while ONYX maintains focused observation on the affected camera.',
       ),
-      defaultPendingLine:
-          _isFireEmergency(incident)
-              ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent fire review.'
-              : _isLeakEmergency(incident)
-              ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent flood or leak review.'
-              : _isEnvironmentHazard(incident)
-              ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent hazard review.'
-              : 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent review.',
+      defaultPendingLine: _isFireEmergency(incident)
+          ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent fire review.'
+          : _isLeakEmergency(incident)
+          ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent flood or leak review.'
+          : _isEnvironmentHazard(incident)
+          ? 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent hazard review.'
+          : 'No dispatch action has been initiated yet. ONYX has elevated this event for urgent review.',
     );
     final monitoringLine = _monitoringLine(
       incident,
@@ -320,10 +320,19 @@ class MonitoringShiftNotificationService {
     if (_isEnvironmentHazard(incident)) {
       return 'ONYX has detected likely environmental hazard indicators on ${incident.cameraLabel}';
     }
-    final objectLabel = incident.objectLabel.trim().isEmpty
-        ? 'movement'
-        : '${incident.objectLabel.trim()} movement';
+    final objectLabel = _movementLeadObjectLabel(incident.objectLabel);
     return 'ONYX has detected $objectLabel on ${incident.cameraLabel}';
+  }
+
+  String _movementLeadObjectLabel(String rawObjectLabel) {
+    final trimmed = rawObjectLabel.trim();
+    final normalized = trimmed.toLowerCase();
+    if (normalized.isEmpty ||
+        normalized == 'movement' ||
+        normalized == 'motion') {
+      return 'movement';
+    }
+    return '$trimmed movement';
   }
 
   String _incidentEscalationLeadLine(MonitoringIncidentUpdate incident) {
@@ -467,7 +476,9 @@ class MonitoringShiftNotificationService {
   String? _actionMixSummary(MonitoringShiftSummary summary) {
     final parts = <String>[];
     if (summary.alertCount > 0) {
-      parts.add(summary.alertCount == 1 ? '1 alert' : '${summary.alertCount} alerts');
+      parts.add(
+        summary.alertCount == 1 ? '1 alert' : '${summary.alertCount} alerts',
+      );
     }
     if (summary.repeatCount > 0) {
       parts.add(

@@ -12,4 +12,6 @@ abstract class DispatchEvent {
   });
 
   DispatchEvent copyWithSequence(int sequence);
+
+  String toAuditTypeKey();
 }

@@ -1,0 +1,13 @@
+{
+  "events": [
+    {
+      "eventId": "evt_patrol_guard001_001",
+      "kind": "patrol_completed",
+      "guardId": "Guard001",
+      "routeId": "NORTH-PERIMETER",
+      "siteId": "SITE-MS-VALLEE-RESIDENCE",
+      "durationSeconds": 1020,
+      "occurredAt": "2026-03-30T22:12:00+02:00"
+    }
+  ]
+}

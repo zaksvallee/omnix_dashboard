@@ -3,6 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_view.dart';
 
+DateTime _videoFleetReferenceUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 15, hour, minute);
+
 void main() {
   group('VideoFleetScopeHealthSections', () {
     test('partitions scopes and computes summary counts', () {
@@ -436,7 +439,7 @@ void main() {
         focusDetailForWatchAction(
           const <VideoFleetScopeHealthView>[alpha, beta],
           VideoFleetWatchActionDrilldown.temporaryIdentity,
-          referenceUtc: DateTime.utc(2026, 3, 15, 17, 3),
+          referenceUtc: _videoFleetReferenceUtc(17, 3),
         ),
         'Showing fleet scopes where ONYX matched a one-time approved face or plate. Each scope shows the approval expiry when available. Soonest expiry: Beta Temporary approval expires in 42m. (2026-03-15 17:45 UTC).',
       );
@@ -477,7 +480,7 @@ void main() {
       final ordered = orderFleetScopesForWatchAction(
         const <VideoFleetScopeHealthView>[alpha, beta],
         VideoFleetWatchActionDrilldown.temporaryIdentity,
-        referenceUtc: DateTime.utc(2026, 3, 15, 17, 3),
+        referenceUtc: _videoFleetReferenceUtc(17, 3),
       );
 
       expect(ordered.map((scope) => scope.siteName).toList(), [
@@ -521,28 +524,28 @@ void main() {
       expect(
         identityPolicyAccentColorForScope(
           temporaryScope,
-          referenceUtc: DateTime.utc(2026, 3, 15, 12, 0),
+          referenceUtc: _videoFleetReferenceUtc(12, 0),
         ),
         const Color(0xFF60A5FA),
       );
       expect(
         identityPolicyAccentColorForScope(
           temporaryScope,
-          referenceUtc: DateTime.utc(2026, 3, 15, 15, 30),
+          referenceUtc: _videoFleetReferenceUtc(15, 30),
         ),
         const Color(0xFFFBBF24),
       );
       expect(
         identityPolicyAccentColorForScope(
           temporaryScope,
-          referenceUtc: DateTime.utc(2026, 3, 15, 17, 30),
+          referenceUtc: _videoFleetReferenceUtc(17, 30),
         ),
         const Color(0xFFF87171),
       );
       expect(
         temporaryIdentityAccentColorForScopes(<VideoFleetScopeHealthView>[
           temporaryScope,
-        ], referenceUtc: DateTime.utc(2026, 3, 15, 15, 30)),
+        ], referenceUtc: _videoFleetReferenceUtc(15, 30)),
         const Color(0xFFFBBF24),
       );
       expect(

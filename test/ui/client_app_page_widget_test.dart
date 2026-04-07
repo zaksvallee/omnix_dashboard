@@ -9,6 +9,9 @@ import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/response_arrived.dart';
 import 'package:omnix_dashboard/ui/client_app_page.dart';
 
+DateTime _clientAppOccurredAtUtc(int day, int hour, int minute) =>
+    DateTime.utc(2026, 3, day, hour, minute);
+
 void main() {
   Finder richDetailLine(String text) {
     return find.byWidgetPredicate(
@@ -138,6 +141,358 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('client app page applies staged composer prefill for control', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    var consumedCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: const <DispatchEvent>[],
+          viewerRole: ClientAppViewerRole.control,
+          initialComposerPrefill: const ClientAppComposerPrefill(
+            id: 'agent-prefill-1',
+            text: 'Agent staged draft for residents.',
+            originalDraftText: 'Agent staged draft for residents.',
+            type: ClientAppComposerPrefillType.dispatch,
+            commandMessage: 'Agent draft is open for Residents',
+            commandDetail:
+                'Review this staged client update in the live control composer before sending.',
+          ),
+          onInitialComposerPrefillConsumed: () {
+            consumedCount += 1;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final composerField = find.descendant(
+      of: find.byKey(const ValueKey('client-chat-composer-command-deck')),
+      matching: find.byType(TextField),
+    );
+    expect(composerField, findsOneWidget);
+    expect(
+      tester.widget<TextField>(composerField).controller?.text,
+      'Agent staged draft for residents.',
+    );
+    expect(find.text('Agent draft is open for Residents'), findsWidgets);
+    expect(consumedCount, 1);
+
+    await tester.pump(const Duration(milliseconds: 1000));
+  });
+
+  testWidgets(
+    'client app page auto-assists staged control prefills when AI assist is available',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: const <DispatchEvent>[],
+            viewerRole: ClientAppViewerRole.control,
+            initialComposerPrefill: const ClientAppComposerPrefill(
+              id: 'agent-prefill-ai-1',
+              text: 'Agent staged draft for residents.',
+              originalDraftText: 'Agent staged draft for residents.',
+              type: ClientAppComposerPrefillType.dispatch,
+            ),
+            onAiAssistComposerDraft: (
+              clientId,
+              siteId,
+              room,
+              currentDraftText,
+            ) async {
+              return 'AI-assisted staged reply for Residents.';
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 1000));
+
+      final composerField = find.descendant(
+        of: find.byKey(const ValueKey('client-chat-composer-command-deck')),
+        matching: find.byType(TextField),
+      );
+      expect(
+        tester.widget<TextField>(composerField).controller?.text,
+        'AI-assisted staged reply for Residents.',
+      );
+    },
+  );
+
+  testWidgets(
+    'client app page keeps staged control prefills stable when auto AI assist fails',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: const <DispatchEvent>[],
+            viewerRole: ClientAppViewerRole.control,
+            initialComposerPrefill: const ClientAppComposerPrefill(
+              id: 'agent-prefill-ai-fail-1',
+              text: 'Agent staged draft for residents.',
+              originalDraftText: 'Agent staged draft for residents.',
+              type: ClientAppComposerPrefillType.dispatch,
+            ),
+            onAiAssistComposerDraft: (
+              clientId,
+              siteId,
+              room,
+              currentDraftText,
+            ) async {
+              throw StateError('assist offline');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 1000));
+
+      final composerField = find.descendant(
+        of: find.byKey(const ValueKey('client-chat-composer-command-deck')),
+        matching: find.byType(TextField),
+      );
+      expect(
+        tester.widget<TextField>(composerField).controller?.text,
+        'Agent staged draft for residents.',
+      );
+      expect(
+        find.text('AI assist could not refine this draft right now.'),
+        findsWidgets,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('client app page can AI assist the live reply composer', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    late String assistedClientId;
+    late String assistedSiteId;
+    late String assistedRoom;
+    late String assistedDraft;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          events: const <DispatchEvent>[],
+          viewerRole: ClientAppViewerRole.control,
+          onAiAssistComposerDraft: (
+            clientId,
+            siteId,
+            room,
+            currentDraftText,
+          ) async {
+            assistedClientId = clientId;
+            assistedSiteId = siteId;
+            assistedRoom = room;
+            assistedDraft = currentDraftText;
+            return 'AI-assisted calm follow-up for the resident thread.';
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final composerField = find.descendant(
+      of: find.byKey(const ValueKey('client-chat-composer-command-deck')),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(composerField, 'Manual draft from control.');
+    final aiAssistAction = find.byKey(
+      const ValueKey('client-chat-ai-assist-action'),
+    );
+    await tester.ensureVisible(aiAssistAction);
+    await tester.tap(aiAssistAction);
+    await tester.pumpAndSettle();
+
+    expect(assistedClientId, 'CLIENT-001');
+    expect(assistedSiteId, 'SITE-SANDTON');
+    expect(assistedRoom, 'Residents');
+    expect(assistedDraft, 'Manual draft from control.');
+    expect(
+      tester.widget<TextField>(composerField).controller?.text,
+      'AI-assisted calm follow-up for the resident thread.',
+    );
+    await tester.pump(const Duration(milliseconds: 1000));
+  });
+
+  testWidgets(
+    'client app page keeps the live composer stable when manual AI assist fails',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: const <DispatchEvent>[],
+            viewerRole: ClientAppViewerRole.control,
+            onAiAssistComposerDraft: (
+              clientId,
+              siteId,
+              room,
+              currentDraftText,
+            ) async {
+              throw StateError('assist offline');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final composerField = find.descendant(
+        of: find.byKey(const ValueKey('client-chat-composer-command-deck')),
+        matching: find.byType(TextField),
+      );
+      await tester.enterText(composerField, 'Manual draft from control.');
+      final aiAssistAction = find.byKey(
+        const ValueKey('client-chat-ai-assist-action'),
+      );
+      await tester.ensureVisible(aiAssistAction);
+      await tester.tap(aiAssistAction);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<TextField>(composerField).controller?.text,
+        'Manual draft from control.',
+      );
+      expect(
+        find.text('AI assist could not refine this draft right now.'),
+        findsWidgets,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'client app page sends dispatch review even when learned approval persistence fails',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: const <DispatchEvent>[],
+            viewerRole: ClientAppViewerRole.control,
+            initialComposerPrefill: const ClientAppComposerPrefill(
+              id: 'agent-prefill-learning-fail-1',
+              text: 'Agent staged draft for residents.',
+              originalDraftText: 'Agent staged draft for residents.',
+              type: ClientAppComposerPrefillType.dispatch,
+            ),
+            onRecordApprovedDraftLearning: (originalDraft, approvedDraft) async {
+              throw StateError('learning store offline');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final composerField = find.descendant(
+        of: find.byKey(const ValueKey('client-chat-composer-command-deck')),
+        matching: find.byType(TextField),
+      );
+      final sendAction = find.byKey(const ValueKey('client-chat-send-action'));
+      await tester.ensureVisible(sendAction);
+      await tester.tap(sendAction);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<TextField>(composerField).controller?.text, isEmpty);
+      expect(find.text('Agent staged draft for residents.'), findsWidgets);
+      expect(
+        find.text(
+          'Dispatch review sent, but approval-style learning was not saved.',
+        ),
+        findsWidgets,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('client app page ingests evidence returns into the room lane', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? consumedAuditId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientAppPage(
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          initialSelectedRoom: 'Residents',
+          events: const <DispatchEvent>[],
+          evidenceReturnReceipt: const ClientAppEvidenceReturnReceipt(
+            auditId: 'client-room-audit-1',
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            label: 'EVIDENCE RETURN',
+            headline: 'Returned to the Security Desk lane from evidence.',
+            detail:
+                'The signed room handoff was verified in the ledger. Keep the same lane open and finish the room reply from here.',
+            room: 'Security Desk',
+            accent: Color(0xFF22D3EE),
+          ),
+          onConsumeEvidenceReturnReceipt: (auditId) {
+            consumedAuditId = auditId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('client-app-evidence-return-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('EVIDENCE RETURN'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('client-app-evidence-return-banner')),
+        matching: find.text('Returned to the Security Desk lane from evidence.'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Focus lane: Security Desk'), findsOneWidget);
+    expect(
+      find.text(
+        'The signed room handoff was verified in the ledger. Keep the same lane open and finish the room reply from here.',
+      ),
+      findsOneWidget,
+    );
+    expect(consumedAuditId, 'client-room-audit-1');
+  });
+
   testWidgets('client app page shows client comms surfaces', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1600, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -152,7 +507,7 @@ void main() {
               eventId: 'intel-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 15),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 15),
               intelligenceId: 'INT-001',
               provider: 'newsapi.org',
               sourceType: 'news',
@@ -170,7 +525,7 @@ void main() {
               eventId: 'dispatch-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
               dispatchId: 'DISP-001',
               clientId: 'CLIENT-001',
               regionId: 'REGION-GAUTENG',
@@ -408,12 +763,12 @@ void main() {
       clientComposer.controller?.text,
       'Please share the latest ETA for security response activated in Residents.',
     );
-    expect(clientComposer.decoration?.fillColor, const Color(0xFF11243A));
+    expect(clientComposer.decoration?.fillColor, const Color(0xFFE8F1FF));
     expect(
       (clientComposer.decoration?.enabledBorder as OutlineInputBorder)
           .borderSide
           .color,
-      const Color(0xFF8FD1FF),
+      const Color(0xFFB7CDE2),
     );
     await tester.pump(const Duration(milliseconds: 950));
     final reviewAdvisoryButton = find.widgetWithText(
@@ -532,7 +887,7 @@ void main() {
                 eventId: 'intel-workspace-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 4, 10, 15),
+                occurredAt: _clientAppOccurredAtUtc(4, 10, 15),
                 intelligenceId: 'INT-WS-001',
                 provider: 'newsapi.org',
                 sourceType: 'news',
@@ -549,7 +904,7 @@ void main() {
                 eventId: 'dispatch-workspace-1',
                 sequence: 2,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+                occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
                 dispatchId: 'DISP-001',
                 clientId: 'CLIENT-001',
                 regionId: 'REGION-GAUTENG',
@@ -560,7 +915,7 @@ void main() {
               ClientAppMessage(
                 author: 'Client',
                 body: 'Trustees would like the next checkpoint update.',
-                occurredAt: DateTime.utc(2026, 3, 4, 10, 25),
+                occurredAt: _clientAppOccurredAtUtc(4, 10, 25),
                 roomKey: 'Trustees',
               ),
             ],
@@ -569,7 +924,7 @@ void main() {
                 messageKey: 'delivery-1',
                 title: 'Telegram Sync Retry',
                 body: 'Residents push delivery is waiting for operator retry.',
-                occurredAt: DateTime.utc(2026, 3, 4, 10, 27),
+                occurredAt: _clientAppOccurredAtUtc(4, 10, 27),
                 targetChannel: ClientAppAcknowledgementChannel.resident,
                 priority: true,
                 status: ClientPushDeliveryStatus.queued,
@@ -577,7 +932,7 @@ void main() {
             ],
             pushSyncHistory: [
               ClientPushSyncAttempt(
-                occurredAt: DateTime.utc(2026, 3, 4, 10, 28),
+                occurredAt: _clientAppOccurredAtUtc(4, 10, 28),
                 status: 'failed',
                 failureReason: 'timeout',
                 queueSize: 1,
@@ -585,7 +940,7 @@ void main() {
             ],
             backendProbeHistory: [
               ClientBackendProbeAttempt(
-                occurredAt: DateTime.utc(2026, 3, 4, 10, 29),
+                occurredAt: _clientAppOccurredAtUtc(4, 10, 29),
                 status: 'ok',
               ),
             ],
@@ -998,7 +1353,7 @@ void main() {
             ClientAppMessage(
               author: 'Client',
               body: 'Please confirm gate team status.',
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 25),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 25),
               roomKey: 'Trustees',
               viewerRole: 'client',
             ),
@@ -1120,7 +1475,7 @@ void main() {
             ClientAppMessage(
               author: 'Client',
               body: 'Internal update from client lane.',
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 25),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 25),
               roomKey: 'Residents',
               viewerRole: 'client',
               messageSource: 'in_app',
@@ -1129,7 +1484,7 @@ void main() {
             ClientAppMessage(
               author: 'ONYX AI',
               body: 'Telegram response generated for client.',
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 26),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 26),
               roomKey: 'Residents',
               viewerRole: 'client',
               messageSource: 'telegram',
@@ -1184,7 +1539,7 @@ void main() {
               eventId: 'dispatch-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
               dispatchId: 'DISP-001',
               clientId: 'CLIENT-001',
               regionId: 'REGION-GAUTENG',
@@ -1275,7 +1630,7 @@ void main() {
               eventId: 'intel-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 15),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 15),
               intelligenceId: 'INT-001',
               provider: 'newsapi.org',
               sourceType: 'news',
@@ -1292,7 +1647,7 @@ void main() {
               eventId: 'dispatch-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
               dispatchId: 'DISP-001',
               clientId: 'CLIENT-001',
               regionId: 'REGION-GAUTENG',
@@ -1406,7 +1761,7 @@ void main() {
       controlComposer.controller?.text,
       'Control is checking the dispatch response for Resident Feed now.',
     );
-    expect(controlComposer.decoration?.fillColor, const Color(0xFF11243A));
+    expect(controlComposer.decoration?.fillColor, const Color(0xFFE8F1FF));
     await tester.pump(const Duration(milliseconds: 950));
     final deskOpsRoomTile = find.ancestor(
       of: find.text('Desk Ops').first,
@@ -1541,7 +1896,7 @@ void main() {
               eventId: 'intel-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 15),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 15),
               intelligenceId: 'INT-001',
               provider: 'newsapi.org',
               sourceType: 'news',
@@ -1675,7 +2030,7 @@ void main() {
               eventId: 'dispatch-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
               dispatchId: 'DISP-001',
               clientId: 'CLIENT-001',
               regionId: 'REGION-GAUTENG',
@@ -1855,7 +2210,7 @@ void main() {
                   eventId: 'dispatch-voice-1',
                   sequence: 1,
                   version: 1,
-                  occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+                  occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
                   dispatchId: 'DISP-VOICE-1',
                   clientId: 'CLIENT-001',
                   regionId: 'REGION-GAUTENG',
@@ -1922,7 +2277,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1600, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final occurredAt = DateTime.utc(2026, 3, 4, 10, 20);
+    final occurredAt = _clientAppOccurredAtUtc(4, 10, 20);
     final messageKey =
         'system:${occurredAt.millisecondsSinceEpoch}:'
         'Security response activated:'
@@ -1939,7 +2294,7 @@ void main() {
               messageKey: messageKey,
               channel: ClientAppAcknowledgementChannel.control,
               acknowledgedBy: 'Control',
-              acknowledgedAt: DateTime.utc(2026, 3, 4, 10, 21),
+              acknowledgedAt: _clientAppOccurredAtUtc(4, 10, 21),
             ),
           ],
           events: [
@@ -2034,7 +2389,7 @@ void main() {
               eventId: 'arrived-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 25),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 25),
               dispatchId: 'DISP-001',
               guardId: 'GUARD-7',
               clientId: 'CLIENT-001',
@@ -2045,7 +2400,7 @@ void main() {
               eventId: 'dispatch-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
               dispatchId: 'DISP-001',
               clientId: 'CLIENT-001',
               regionId: 'REGION-GAUTENG',
@@ -2091,7 +2446,7 @@ void main() {
               eventId: 'dispatch-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
               dispatchId: 'DISP-001',
               clientId: 'CLIENT-001',
               regionId: 'REGION-GAUTENG',
@@ -2131,7 +2486,7 @@ void main() {
         .map((container) => container.decoration)
         .whereType<BoxDecoration>();
     final controlIncidentDecoration = controlIncidentDecorations.firstWhere(
-      (decoration) => decoration.color == const Color(0xFF0E1A2B),
+      (decoration) => decoration.color == const Color(0xFFE8F1FF),
     );
     expect(
       (controlIncidentDecoration.border! as Border).top.color,
@@ -2184,7 +2539,7 @@ void main() {
               eventId: 'dispatch-2',
               sequence: 3,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 30),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 30),
               dispatchId: 'DISP-002',
               clientId: 'CLIENT-001',
               regionId: 'REGION-GAUTENG',
@@ -2194,7 +2549,7 @@ void main() {
               eventId: 'arrived-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 25),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 25),
               dispatchId: 'DISP-001',
               guardId: 'GUARD-7',
               clientId: 'CLIENT-001',
@@ -2205,7 +2560,7 @@ void main() {
               eventId: 'dispatch-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+              occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
               dispatchId: 'DISP-001',
               clientId: 'CLIENT-001',
               regionId: 'REGION-GAUTENG',
@@ -2257,13 +2612,13 @@ void main() {
           events: const [],
           pushSyncHistory: [
             ClientPushSyncAttempt(
-              occurredAt: DateTime.utc(2026, 3, 5, 10, 30),
+              occurredAt: _clientAppOccurredAtUtc(5, 10, 30),
               status: 'failed',
               failureReason: 'timeout',
               queueSize: 2,
             ),
             ClientPushSyncAttempt(
-              occurredAt: DateTime.utc(2026, 3, 5, 10, 31),
+              occurredAt: _clientAppOccurredAtUtc(5, 10, 31),
               status: 'ok',
               queueSize: 0,
             ),
@@ -2401,7 +2756,7 @@ void main() {
               'voip:asterisk staged call for Waterfall command desk.',
           pushSyncHistory: [
             ClientPushSyncAttempt(
-              occurredAt: DateTime.utc(2026, 3, 5, 10, 30),
+              occurredAt: _clientAppOccurredAtUtc(5, 10, 30),
               status: 'sms-fallback-ok',
               failureReason: 'sms:bulksms sent 2/2 after telegram blocked.',
               queueSize: 2,
@@ -2440,15 +2795,15 @@ void main() {
           siteId: 'SITE-SANDTON',
           events: const [],
           backendProbeStatusLabel: 'ok',
-          backendProbeLastRunAtUtc: DateTime.utc(2026, 3, 5, 11, 0),
+          backendProbeLastRunAtUtc: _clientAppOccurredAtUtc(5, 11, 0),
           backendProbeHistory: [
             ClientBackendProbeAttempt(
-              occurredAt: DateTime.utc(2026, 3, 5, 10, 59),
+              occurredAt: _clientAppOccurredAtUtc(5, 10, 59),
               status: 'failed',
               failureReason: 'network timeout',
             ),
             ClientBackendProbeAttempt(
-              occurredAt: DateTime.utc(2026, 3, 5, 11, 0),
+              occurredAt: _clientAppOccurredAtUtc(5, 11, 0),
               status: 'ok',
             ),
           ],
@@ -2503,6 +2858,75 @@ void main() {
   });
 
   testWidgets(
+    'client app delivery recovery actions stay pinned when retry or probe callbacks fail',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1600, 1400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ClientAppPage(
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            events: const [],
+            pushSyncStatusLabel: 'degraded',
+            pushSyncHistory: [
+              ClientPushSyncAttempt(
+                occurredAt: _clientAppOccurredAtUtc(5, 10, 58),
+                status: 'failed',
+                failureReason: 'bridge offline',
+                queueSize: 1,
+              ),
+            ],
+            backendProbeStatusLabel: 'failed',
+            backendProbeLastRunAtUtc: _clientAppOccurredAtUtc(5, 11, 0),
+            backendProbeHistory: [
+              ClientBackendProbeAttempt(
+                occurredAt: _clientAppOccurredAtUtc(5, 11, 0),
+                status: 'failed',
+                failureReason: 'network timeout',
+              ),
+            ],
+            onRetryPushSync: () async {
+              throw StateError('retry failed');
+            },
+            onRunBackendProbe: () async {
+              throw StateError('probe failed');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final retryAction = find.byKey(
+        const ValueKey('client-delivery-telemetry-retry-sync'),
+      );
+      await tester.ensureVisible(retryAction);
+      await tester.tap(retryAction);
+      await tester.pump();
+
+      expect(
+        find.text('Push sync retry could not complete right now.'),
+        findsWidgets,
+      );
+      expect(tester.takeException(), isNull);
+
+      final runProbeAction = find.byKey(
+        const ValueKey('client-delivery-telemetry-run-probe'),
+      );
+      await tester.ensureVisible(runProbeAction);
+      await tester.tap(runProbeAction);
+      await tester.pump();
+
+      expect(
+        find.text('Backend probe could not complete right now.'),
+        findsWidgets,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'no selected incident action opens the first available incident thread',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1600, 1400));
@@ -2519,7 +2943,7 @@ void main() {
                 eventId: 'dispatch-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 4, 10, 20),
+                occurredAt: _clientAppOccurredAtUtc(4, 10, 20),
                 dispatchId: 'DISP-001',
                 clientId: 'CLIENT-001',
                 regionId: 'REGION-GAUTENG',

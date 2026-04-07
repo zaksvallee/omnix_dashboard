@@ -41,25 +41,25 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final addSite = find.text('ADD SITE').first;
+    final addSite = find.text('OPEN SITE DESK').first;
     await tester.ensureVisible(addSite);
     await tester.tap(addSite, warnIfMissed: false);
     await tester.pump();
     expect(addSiteTapped, 1);
 
-    final viewOnMap = find.text('VIEW ON MAP').first;
+    final viewOnMap = find.text('OPEN SITE MAP').first;
     await tester.ensureVisible(viewOnMap);
     await tester.tap(viewOnMap, warnIfMissed: false);
     await tester.pump();
     expect(mappedSiteId, isNotNull);
 
-    final siteSettings = find.text('SITE SETTINGS').first;
+    final siteSettings = find.text('OPEN SITE SETTINGS').first;
     await tester.ensureVisible(siteSettings);
     await tester.tap(siteSettings, warnIfMissed: false);
     await tester.pump();
     expect(settingsSiteId, isNotNull);
 
-    final guardRoster = find.text('GUARD ROSTER').first;
+    final guardRoster = find.text('OPEN GUARD ROSTER').first;
     await tester.ensureVisible(guardRoster);
     await tester.tap(guardRoster, warnIfMissed: false);
     await tester.pump();
@@ -137,7 +137,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Tactical Link Ready'), findsOneWidget);
+      expect(find.text('Site Map Ready'), findsOneWidget);
       expect(
         find.textContaining('watch posture, limited coverage'),
         findsOneWidget,
@@ -220,6 +220,50 @@ void main() {
       find.byKey(const ValueKey('sites-workspace-panel-checkpoints')),
       findsOneWidget,
     );
-    expect(find.text('CHECKPOINT COMMAND BOARD'), findsOneWidget);
+    expect(find.text('CHECKPOINT BOARD'), findsOneWidget);
+  });
+
+  testWidgets('sites command shows latest auto-audit receipt and opens audit', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var openedLatestAudit = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SitesCommandPage(
+          events: const <DispatchEvent>[],
+          latestAutoAuditReceipt: const SitesAutoAuditReceipt(
+            auditId: 'SITES-AUDIT-1',
+            label: 'AUTO-AUDIT',
+            headline: 'Sites action signed automatically.',
+            detail:
+                'Opened site settings for Meridian Tower. • hash 1234567890',
+            accent: Color(0xFF63E6A1),
+          ),
+          onOpenLatestAudit: () {
+            openedLatestAudit = true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('sites-latest-audit-panel')),
+      findsOneWidget,
+    );
+    expect(find.text('Sites action signed automatically.'), findsOneWidget);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('sites-view-latest-audit-button')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('sites-view-latest-audit-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedLatestAudit, isTrue);
   });
 }

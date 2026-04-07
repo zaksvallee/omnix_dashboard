@@ -1,9 +1,10 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../application/export_coordinator.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
 import '../application/monitoring_orchestrator_service.dart';
@@ -68,6 +69,7 @@ class EventsReviewPage extends StatefulWidget {
 }
 
 class _SeededDispatchEvent extends DispatchEvent {
+  static const String auditTypeKey = 'seeded_dispatch_event';
   final String summary;
   final String clientId;
   final String regionId;
@@ -97,9 +99,13 @@ class _SeededDispatchEvent extends DispatchEvent {
       siteId: siteId,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }
 
 class _EventsReviewPageState extends State<EventsReviewPage> {
+  static const _exportCoordinator = ExportCoordinator();
   static const _siteActivityService = SiteActivityIntelligenceService();
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _orchestratorService = MonitoringOrchestratorService();
@@ -129,6 +135,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   final Map<String, GlobalKey> _rowKeys = <String, GlobalKey>{};
   String _lastAutoEnsuredEventId = '';
   bool _desktopWorkspaceActive = false;
+  bool _selectedEventSyncQueued = false;
+  DispatchEvent? _pendingSelectedEvent;
+  bool _desktopWorkspaceSyncQueued = false;
+  bool? _pendingDesktopWorkspaceActive;
 
   ({String clientId, String siteId})? _governanceScopeForEvents(
     List<DispatchEvent> events,
@@ -209,14 +219,57 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             _selectedEvent = nextSelectedEvent;
           }
         });
-      } else if (selectedChanged) {
-        _selectedEvent = nextSelectedEvent;
       }
       if (selectedChanged &&
           (widget.initialSelectedEventId ?? '').trim().isNotEmpty) {
         _lastAutoEnsuredEventId = '';
       }
     }
+  }
+
+  void _queueSelectedEventSync(DispatchEvent? nextSelectedEvent) {
+    _pendingSelectedEvent = nextSelectedEvent;
+    if (_selectedEventSyncQueued) {
+      return;
+    }
+    _selectedEventSyncQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _selectedEventSyncQueued = false;
+      if (!mounted) {
+        return;
+      }
+      final nextEvent = _pendingSelectedEvent;
+      _pendingSelectedEvent = null;
+      if ((_selectedEvent?.eventId ?? '') == (nextEvent?.eventId ?? '')) {
+        return;
+      }
+      setState(() {
+        _selectedEvent = nextEvent;
+      });
+    });
+  }
+
+  void _queueDesktopWorkspaceSync(bool desktopWorkspaceActive) {
+    _pendingDesktopWorkspaceActive = desktopWorkspaceActive;
+    if (_desktopWorkspaceSyncQueued) {
+      return;
+    }
+    _desktopWorkspaceSyncQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _desktopWorkspaceSyncQueued = false;
+      if (!mounted) {
+        return;
+      }
+      final nextDesktopWorkspaceActive =
+          _pendingDesktopWorkspaceActive ?? _desktopWorkspaceActive;
+      _pendingDesktopWorkspaceActive = null;
+      if (_desktopWorkspaceActive == nextDesktopWorkspaceActive) {
+        return;
+      }
+      setState(() {
+        _desktopWorkspaceActive = nextDesktopWorkspaceActive;
+      });
+    });
   }
 
   @override
@@ -282,12 +335,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             openGovernanceAction();
             if (focusedFallbackScope == null) {
               _showActionMessage(
-                'Governance opened for the reconstructed review reference.',
+                'Governance Desk opened for the reconstructed evidence.',
               );
               return;
             }
             _showActionMessage(
-              'Governance opened for ${focusedFallbackScope.clientId}/${focusedFallbackScope.siteId}.',
+              'Governance Desk opened for ${focusedFallbackScope.clientId}/${focusedFallbackScope.siteId}.',
             );
           };
     final openFocusedFallbackLedgerAction =
@@ -295,7 +348,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ? null
         : () {
             widget.onOpenLedger!(requestedSelectedId);
-            _showActionMessage('Ledger focus opened for $requestedSelectedId.');
+            _showActionMessage(
+              'Sovereign Ledger opened for $requestedSelectedId.',
+            );
           };
     final scopeFilteredBase = scopedEventIdsWithFocusedFallback.isEmpty
         ? filtered
@@ -370,7 +425,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         : requestedSelectionFound
         ? requestedSelectedEvent
         : prioritizedEvents.first;
-    _selectedEvent = selected;
+    if ((_selectedEvent?.eventId ?? '') != (selected?.eventId ?? '')) {
+      _queueSelectedEventSync(selected);
+    }
     final desktopWorkspace = MediaQuery.sizeOf(context).width >= 1240;
     if (selected != null && requestedSelectionFound && desktopWorkspace) {
       _scheduleEnsureVisible(selected.eventId);
@@ -435,7 +492,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'events-focused-fallback-open-governance',
                       ),
                       icon: Icons.verified_user_outlined,
-                      label: 'Open Governance Scope',
+                      label: 'OPEN GOVERNANCE DESK',
                       accent: const Color(0xFF8FD1FF),
                       onPressed: openFocusedFallbackGovernanceAction,
                     ),
@@ -444,7 +501,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         'events-focused-fallback-open-ledger',
                       ),
                       icon: Icons.account_balance_wallet_outlined,
-                      label: 'Open Ledger Focus',
+                      label: 'OPEN SOVEREIGN LEDGER',
                       accent: const Color(0xFFF1B872),
                       onPressed: openFocusedFallbackLedgerAction,
                     ),
@@ -464,7 +521,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               border: Border.all(color: const Color(0x6635506F)),
             ),
             child: Text(
-              'Focused reference $requestedSelectedId is still outside the current filtered stream. Clear the active filters or use the recovery handoffs above to continue review.',
+              'Focused reference $requestedSelectedId is outside the current filters. Clear filters or use the desk targets above to reopen the right scope.',
               style: GoogleFonts.inter(
                 color: const Color(0xFFEAF1FB),
                 fontSize: 11,
@@ -572,7 +629,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 if (readinessScopeSummary.reviewRefs.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Review refs: ${readinessScopeSummary.reviewRefs.join(', ')}',
+                    'Evidence refs: ${readinessScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
                       color: const Color(0xFF8FD1FF),
                       fontSize: 10,
@@ -603,7 +660,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     ),
                     if (openGovernanceAction != null)
                       _outlineAction(
-                        'OPEN GOVERNANCE',
+                        'OPEN GOVERNANCE DESK',
                         actionKey: const ValueKey(
                           'events-readiness-open-governance-action',
                         ),
@@ -767,7 +824,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 if (tomorrowScopeSummary.reviewRefs.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Review refs: ${tomorrowScopeSummary.reviewRefs.join(', ')}',
+                    'Evidence refs: ${tomorrowScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
                       color: const Color(0xFF8FD1FF),
                       fontSize: 10,
@@ -783,7 +840,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0x44F59E0B)),
-                      color: const Color(0x12000000),
+                      color: const Color(0xFFFFF7EA),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -800,7 +857,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           tomorrowScopeSummary.history!.summary,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFAFC2DB),
+                            color: const Color(0xFF556B80),
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -816,7 +873,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             '${point.promotionPressureSummary.isEmpty ? '' : ' • promotion ${point.promotionPressureSummary}'}'
                             '${point.promotionExecutionSummary.isEmpty ? '' : ' • execution ${point.promotionExecutionSummary}'}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF1FB),
+                              color: const Color(0xFF2C3E50),
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -849,7 +906,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     ),
                     if (openGovernanceAction != null)
                       _outlineAction(
-                        'OPEN GOVERNANCE',
+                        'OPEN GOVERNANCE DESK',
                         actionKey: const ValueKey(
                           'events-tomorrow-open-governance-action',
                         ),
@@ -939,7 +996,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 if (syntheticScopeSummary.reviewRefs.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Review refs: ${syntheticScopeSummary.reviewRefs.join(', ')}',
+                    'Evidence refs: ${syntheticScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
                       color: const Color(0xFF8FD1FF),
                       fontSize: 10,
@@ -1166,7 +1223,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0x338B5CF6)),
-                      color: const Color(0x12000000),
+                      color: const Color(0xFFF6F0FF),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1183,7 +1240,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           syntheticScopeSummary.history!.summary,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFAFC2DB),
+                            color: const Color(0xFF556B80),
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1194,7 +1251,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           Text(
                             '${point.date} • ${point.summaryLine}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF1FB),
+                              color: const Color(0xFF2C3E50),
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1334,7 +1391,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     ),
                     if (openGovernanceAction != null)
                       _outlineAction(
-                        'OPEN GOVERNANCE',
+                        'OPEN GOVERNANCE DESK',
                         actionKey: const ValueKey(
                           'events-synthetic-open-governance-action',
                         ),
@@ -1539,7 +1596,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 if (shadowScopeSummary.reviewRefs.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Review refs: ${shadowScopeSummary.reviewRefs.join(', ')}',
+                    'Evidence refs: ${shadowScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
                       color: const Color(0xFF8FD1FF),
                       fontSize: 10,
@@ -1568,7 +1625,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     ),
                     if (openGovernanceAction != null)
                       _outlineAction(
-                        'OPEN GOVERNANCE',
+                        'OPEN GOVERNANCE DESK',
                         actionKey: const ValueKey(
                           'events-shadow-open-governance-action',
                         ),
@@ -1651,7 +1708,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 if (activityScopeSummary.reviewRefs.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Review refs: ${activityScopeSummary.reviewRefs.join(', ')}',
+                    'Evidence refs: ${activityScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
                       color: const Color(0xFF8FD1FF),
                       fontSize: 10,
@@ -1667,7 +1724,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0x3322D3EE)),
-                      color: const Color(0x12000000),
+                      color: const Color(0xFFF0FAFF),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1684,7 +1741,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           activityScopeSummary.history!.summary,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFAFC2DB),
+                            color: const Color(0xFF556B80),
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1695,7 +1752,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           Text(
                             '${point.date} • ${point.summaryLine}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF1FB),
+                              color: const Color(0xFF2C3E50),
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1742,7 +1799,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               border: Border.all(color: const Color(0x4422D3EE)),
             ),
             child: Text(
-              'Visit-scoped review active for ${scopedEventIds.length} linked event${scopedEventIds.length == 1 ? '' : 's'}.',
+              'Events Scope narrowed to ${scopedEventIds.length} linked event${scopedEventIds.length == 1 ? '' : 's'} for this visit.',
               style: GoogleFonts.inter(
                 color: const Color(0xFFEAF1FB),
                 fontSize: 11,
@@ -1846,11 +1903,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       onOpenGovernanceScope:
                           openGovernanceAction ??
                           () => _showActionMessage(
-                            'Governance handoff unlocks once the review lane narrows to a single scope.',
+                            'Governance Desk opens once Events Scope narrows to a single scope.',
                           ),
                       onOpenLedgerFocus: selected == null
                           ? () => _showActionMessage(
-                              'Select an event before opening a ledger focus.',
+                              'Pick one event to open Sovereign Ledger.',
                             )
                           : () {
                               logUiAction(
@@ -1862,7 +1919,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                                 return;
                               }
                               _showActionMessage(
-                                'Open Sovereign Ledger to inspect ${selected.eventId}.',
+                                'Sovereign Ledger is ready for ${selected.eventId}.',
                               );
                             },
                       shellless: true,
@@ -1896,7 +1953,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         final desktopWorkspace = constraints.maxWidth >= 1240;
         final boundedHeight =
             constraints.hasBoundedHeight && constraints.maxHeight.isFinite;
-        _desktopWorkspaceActive = desktopWorkspace;
+        if (_desktopWorkspaceActive != desktopWorkspace) {
+          _queueDesktopWorkspaceSync(desktopWorkspace);
+        }
         void focusAiDecisions() {
           setState(() => _activeFilter = 'AI DECISION');
         }
@@ -1911,15 +1970,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             return;
           }
           _showActionMessage(
-            'Governance handoff unlocks once the review lane narrows to a single scope.',
+            'Governance Desk opens once Events Scope narrows to a single scope.',
           );
         }
 
         void openLedgerFocus() {
           if (selected == null) {
-            _showActionMessage(
-              'Select an event before opening a ledger focus.',
-            );
+            _showActionMessage('Pick one event to open Sovereign Ledger.');
             return;
           }
           logUiAction(
@@ -1931,7 +1988,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             return;
           }
           _showActionMessage(
-            'Open Sovereign Ledger to inspect ${selected.eventId}.',
+            'Sovereign Ledger is ready for ${selected.eventId}.',
           );
         }
 
@@ -1953,9 +2010,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
         final opsRail = _reviewWorkspacePanel(
           key: const ValueKey('events-workspace-panel-ops'),
-          title: 'Review Ops Rail',
+          title: 'PICK A SCOPE',
           subtitle:
-              'Filter the forensic lane, pivot to the right evidence queue, and hand the current scope into governance or ledger review.',
+              'Lock one lane, cut the noise, and keep the handoff path visible.',
           shellless: true,
           expandChild: true,
           child: SingleChildScrollView(
@@ -1976,18 +2033,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         final timelineBoard = _reviewWorkspacePanel(
           key: const ValueKey('events-workspace-panel-timeline'),
-          title: 'Forensic Event Rail',
+          title: 'LIVE REVIEW',
           subtitle:
-              'Prioritized event sequence for the active review lane, with selections preserved in place.',
+              'The live lane stays ranked so the top decision stays obvious.',
           shellless: true,
           expandChild: true,
           child: _timelinePane(events: prioritizedEvents, bounded: true),
         );
         final detailBoard = _reviewWorkspacePanel(
           key: const ValueKey('events-workspace-panel-detail'),
-          title: 'Selected Event Board',
+          title: 'DO THIS NOW',
           subtitle:
-              'Ledger continuity, scene review context, and export controls for the active event.',
+              'Keep the selected event ready for Governance Desk, Sovereign Ledger, and export.',
           shellless: true,
           expandChild: true,
           child: _detailPane(
@@ -2065,17 +2122,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF09111A),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF1F2B3A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF1FB),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -2084,7 +2141,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           Text(
             subtitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: const Color(0xFF556B80),
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -2131,16 +2188,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             if (scopedEventCount > 0)
               _heroChip('Scoped', '$scopedEventCount linked'),
             _heroChip(
-              'Governance',
+              'Governance Desk',
               governanceReady ? 'scope ready' : 'mixed scope',
             ),
           ],
         ),
         const SizedBox(height: 6),
         Text(
-          'Review resets, AI and alarm pivots, plus governance and ledger routing now stay pinned in the ops rail and selected-event focus card below.',
+          'AI pivots, alarm pivots, Governance Desk, and Sovereign Ledger stay armed below.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF9AB1CF),
+            color: const Color(0xFF556B80),
             fontSize: 10,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -2159,9 +2216,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF09111A),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF1F2B3A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: bannerContent,
     );
@@ -2184,18 +2241,18 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFF102337),
+              : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.5)
-                : const Color(0xFF29425F),
+                : const Color(0xFFD6E1EC),
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFFEAF1FB),
+            color: selected ? accent : const Color(0xFF556B80),
             fontSize: 9.5,
             fontWeight: FontWeight.w800,
           ),
@@ -2225,19 +2282,17 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF102337),
+            color: const Color(0xFFFFFFFF),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF29425F)),
+            border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                selected == null
-                    ? 'No event selected.'
-                    : _eventSummary(selected),
+                selected == null ? 'Pick one event.' : _eventSummary(selected),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF1FB),
+                  color: const Color(0xFF172638),
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -2269,37 +2324,37 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         _reviewWorkspaceCommandReceipt(selected: selected),
         const SizedBox(height: 6),
         _outlineAction(
-          'RESET REVIEW FILTERS',
+          'RESET FILTERS',
           actionKey: const ValueKey('events-workspace-reset-filters'),
           onTap: onResetFilters,
         ),
         const SizedBox(height: 5),
         _outlineAction(
-          'FOCUS AI DECISIONS',
+          'AI DECISIONS',
           actionKey: const ValueKey('events-workspace-focus-ai-decision'),
           onTap: onFocusAiDecisions,
         ),
         const SizedBox(height: 5),
         _outlineAction(
-          'FOCUS ALARM TRIGGERS',
+          'ALARM TRIGGERS',
           actionKey: const ValueKey('events-workspace-focus-alarm-triggered'),
           onTap: onFocusAlarmTriggers,
         ),
         const SizedBox(height: 5),
         _outlineAction(
-          'OPEN GOVERNANCE SCOPE',
+          'OPEN GOVERNANCE DESK',
           actionKey: const ValueKey('events-workspace-open-governance'),
           onTap: onOpenGovernanceScope,
         ),
         const SizedBox(height: 5),
         _outlineAction(
-          'OPEN LEDGER FOCUS',
+          'OPEN SOVEREIGN LEDGER',
           actionKey: const ValueKey('events-workspace-open-ledger'),
           onTap: onOpenLedgerFocus,
         ),
         const SizedBox(height: 5),
         _outlineAction(
-          'COPY SELECTED EVENT',
+          'COPY EVENT',
           actionKey: const ValueKey('events-workspace-copy-selected'),
           onTap: () {
             if (selected == null) {
@@ -2317,30 +2372,28 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
   Widget _reviewWorkspaceCommandReceipt({required DispatchEvent? selected}) {
     final hasFeedback = _lastActionFeedback.trim().isNotEmpty;
-    final headline = hasFeedback
-        ? _lastActionFeedback
-        : 'Forensic workspace ready.';
+    final headline = hasFeedback ? _lastActionFeedback : 'Board ready.';
     final label = hasFeedback
         ? 'LATEST COMMAND'
         : selected == null
-        ? 'FORENSIC LANE'
-        : 'SELECTED EVENT';
+        ? 'WAR ROOM'
+        : 'YOU ARE HERE';
     final detail = hasFeedback
-        ? 'The latest review handoff stays pinned in the ops rail while the timeline and selected-event board remain in place.'
+        ? 'The last routed move stays pinned while Events Scope and the focus card stay hot.'
         : selected == null
-        ? 'Choose an event to keep its ledger continuity, evidence chain, and export actions in view.'
-        : 'Tracking ${selected.eventId} while filters, governance, and ledger pivots stay available in the same workspace.';
+        ? 'Pick one event to keep Governance Desk, Sovereign Ledger, and export ready.'
+        : 'Tracking ${selected.eventId} while Governance Desk, Sovereign Ledger, and export stay one tap away.';
     return Container(
       key: const ValueKey('events-workspace-command-receipt'),
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1926),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: hasFeedback
-              ? const Color(0xFF2E6DA4)
-              : const Color(0xFF29425F),
+              ? const Color(0xFFBFD7EA)
+              : const Color(0xFFD6E1EC),
         ),
       ),
       child: Column(
@@ -2350,8 +2403,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             label,
             style: GoogleFonts.inter(
               color: hasFeedback
-                  ? const Color(0xFF8FD1FF)
-                  : const Color(0xFF8EA4C2),
+                  ? const Color(0xFF2F6AA3)
+                  : const Color(0xFF7A8FA4),
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -2360,8 +2413,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           const SizedBox(height: 5),
           Text(
             headline,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF1FB),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 22,
               fontWeight: FontWeight.w700,
               height: 1,
@@ -2371,7 +2424,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9EB4D0),
+              color: const Color(0xFF556B80),
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -2395,12 +2448,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ? null
         : () => widget.onOpenLedger!(selected.eventId);
     return OnyxStoryHero(
-      eyebrow: 'OPERATIONAL TRUTH',
-      title: 'Events & Forensic Timeline',
-      subtitle:
-          'Review the facts behind alarms, dispatches, OB notes, and client communication without surfacing the hidden AI work.',
+      eyebrow: 'WAR ROOM',
+      title: 'Events War Room',
+      subtitle: 'Pick the lane, lock the facts, and move the case fast.',
       icon: Icons.timeline_rounded,
-      gradientColors: const [Color(0xFF1E1A32), Color(0xFF0F1728)],
+      gradientColors: const [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
       metrics: [
         OnyxStoryMetric(
           value: '$visibleEvents',
@@ -2412,9 +2464,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         OnyxStoryMetric(
           value: '$totalEvents',
           label: 'events',
-          foreground: const Color(0xFFEAF4FF),
-          background: const Color(0x14000000),
-          border: const Color(0x333B355E),
+          foreground: const Color(0xFF172638),
+          background: const Color(0xFFFFFFFF),
+          border: const Color(0xFFD6E1EC),
         ),
         OnyxStoryMetric(
           value: latestSequence,
@@ -2435,14 +2487,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         _heroActionButton(
           key: const ValueKey('events-routed-view-governance-button'),
           icon: Icons.open_in_new,
-          label: 'View Governance',
+          label: 'OPEN GOVERNANCE DESK',
           accent: const Color(0xFF93C5FD),
           onPressed: openGovernanceAction,
         ),
         _heroActionButton(
           key: const ValueKey('events-routed-view-ledger-button'),
           icon: Icons.account_tree_outlined,
-          label: 'View Ledger',
+          label: 'OPEN SOVEREIGN LEDGER',
           accent: const Color(0xFFA78BFA),
           onPressed: openLedgerAction,
         ),
@@ -2455,9 +2507,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0x14000000),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x33000000)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: RichText(
         text: TextSpan(
@@ -2465,7 +2517,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             TextSpan(
               text: '$label: ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: const Color(0xFF7A8FA4),
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -2473,7 +2525,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
+                color: const Color(0xFF172638),
                 fontSize: 9.5,
                 fontWeight: FontWeight.w800,
               ),
@@ -2499,7 +2551,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
-        disabledBackgroundColor: const Color(0x12000000),
+        disabledBackgroundColor: const Color(0xFFF0F4F8),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -2519,6 +2571,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   }) {
     if (focusedEventId.trim().isEmpty ||
         baseEvents.any((event) => event.eventId == focusedEventId)) {
+      return baseEvents;
+    }
+    if (fallbackScope == null && !kDebugMode) {
       return baseEvents;
     }
     var maxSequence = 0;
@@ -2565,9 +2620,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     ({String clientId, String siteId})? scope,
   ) {
     if (scope == null) {
-      return 'Requested review reference $focusedEventId was reconstructed in-page so command can continue triage before live ingest catches up.';
+      return 'Requested evidence $focusedEventId was rebuilt in-page so triage can continue while live ingest catches up.';
     }
-    return 'Requested review reference $focusedEventId was reconstructed for ${scope.clientId}/${scope.siteId}, keeping the scoped evidence board active while live ingest catches up.';
+    return 'Requested evidence $focusedEventId was rebuilt for ${scope.clientId}/${scope.siteId}, keeping Events Scope live while live ingest catches up.';
   }
 
   String _focusedFallbackBannerDetail(
@@ -2575,9 +2630,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     ({String clientId, String siteId})? scope,
   ) {
     if (scope == null) {
-      return 'The reconstructed row stays selectable in this review lane so operators can open governance or ledger follow-up immediately.';
+      return 'The rebuilt row stays selectable so Governance Desk and Sovereign Ledger can reopen immediately.';
     }
-    return 'The reconstructed row for $focusedEventId now stays inside the scoped lane for ${scope.clientId}/${scope.siteId}, so governance and ledger handoffs can continue without waiting for replay.';
+    return 'The rebuilt row for $focusedEventId stays inside Events Scope for ${scope.clientId}/${scope.siteId}, so Governance Desk and Sovereign Ledger stay warm without waiting for replay.';
   }
 
   Set<String> _normalizedScopedEventIds(Iterable<String> eventIds) {
@@ -2888,35 +2943,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     }
     final report = widget.morningSovereignReportHistory.firstWhere(
       (item) => item.date.trim() == normalizedReportDate,
-      orElse: () => SovereignReport(
-        date: normalizedReportDate,
-        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
-          0,
-          isUtc: true,
-        ),
-        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 0,
-          hashVerified: false,
-          integrityScore: 0,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 0,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 0,
-          driftDetected: 0,
-          avgMatchScore: 0,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-      ),
+      orElse: () => _emptySovereignReport(normalizedReportDate),
     );
     if (report.generatedAtUtc.millisecondsSinceEpoch == 0) {
       return null;
@@ -3438,39 +3465,40 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return dates.length == 1 ? dates.first : dates.last;
   }
 
+  SovereignReport _emptySovereignReport(String reportDate) {
+    return SovereignReport(
+      date: reportDate,
+      generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 0,
+        hashVerified: false,
+        integrityScore: 0,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 0,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 0,
+        driftDetected: 0,
+        avgMatchScore: 0,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+    );
+  }
+
   SovereignReport _reportForDate(String? reportDate) {
     final normalizedReportDate = (reportDate ?? '').trim();
     return widget.morningSovereignReportHistory.firstWhere(
       (report) => report.date.trim() == normalizedReportDate,
-      orElse: () => SovereignReport(
-        date: normalizedReportDate,
-        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
-          0,
-          isUtc: true,
-        ),
-        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 0,
-          hashVerified: false,
-          integrityScore: 0,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 0,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 0,
-          driftDetected: 0,
-          avgMatchScore: 0,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-      ),
+      orElse: () => _emptySovereignReport(normalizedReportDate),
     );
   }
 
@@ -3519,35 +3547,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       );
     final currentReport = reports.firstWhere(
       (report) => report.date.trim() == normalizedReportDate,
-      orElse: () => SovereignReport(
-        date: normalizedReportDate,
-        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
-          0,
-          isUtc: true,
-        ),
-        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 0,
-          hashVerified: false,
-          integrityScore: 0,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 0,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 0,
-          driftDetected: 0,
-          avgMatchScore: 0,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-      ),
+      orElse: () => _emptySovereignReport(normalizedReportDate),
     );
     return reports
         .where(
@@ -3631,35 +3631,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       );
     final currentReport = reports.firstWhere(
       (report) => report.date.trim() == normalizedReportDate,
-      orElse: () => SovereignReport(
-        date: normalizedReportDate,
-        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
-          0,
-          isUtc: true,
-        ),
-        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 0,
-          hashVerified: false,
-          integrityScore: 0,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 0,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 0,
-          driftDetected: 0,
-          avgMatchScore: 0,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-      ),
+      orElse: () => _emptySovereignReport(normalizedReportDate),
     );
     return reports
         .where(
@@ -3719,35 +3691,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       );
     final currentReport = reports.firstWhere(
       (report) => report.date.trim() == normalizedReportDate,
-      orElse: () => SovereignReport(
-        date: normalizedReportDate,
-        generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
-          0,
-          isUtc: true,
-        ),
-        shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 0,
-          hashVerified: false,
-          integrityScore: 0,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 0,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 0,
-          driftDetected: 0,
-          avgMatchScore: 0,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-      ),
+      orElse: () => _emptySovereignReport(normalizedReportDate),
     );
     return reports
         .where(
@@ -4062,38 +4006,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     if (normalizedReportDate.isNotEmpty) {
       final currentReport = widget.morningSovereignReportHistory.firstWhere(
         (report) => report.date.trim() == normalizedReportDate,
-        orElse: () => SovereignReport(
-          date: normalizedReportDate,
-          generatedAtUtc: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
-          shiftWindowStartUtc: DateTime.fromMillisecondsSinceEpoch(
-            0,
-            isUtc: true,
-          ),
-          shiftWindowEndUtc: DateTime.fromMillisecondsSinceEpoch(
-            0,
-            isUtc: true,
-          ),
-          ledgerIntegrity: const SovereignReportLedgerIntegrity(
-            totalEvents: 0,
-            hashVerified: false,
-            integrityScore: 0,
-          ),
-          aiHumanDelta: const SovereignReportAiHumanDelta(
-            aiDecisions: 0,
-            humanOverrides: 0,
-            overrideReasons: <String, int>{},
-          ),
-          normDrift: const SovereignReportNormDrift(
-            sitesMonitored: 0,
-            driftDetected: 0,
-            avgMatchScore: 0,
-          ),
-          complianceBlockage: const SovereignReportComplianceBlockage(
-            psiraExpired: 0,
-            pdpExpired: 0,
-            totalBlocked: 0,
-          ),
-        ),
+        orElse: () => _emptySovereignReport(normalizedReportDate),
       );
       final currentPlans = _syntheticWarRoomService.buildSimulationPlans(
         events: scopedEvents,
@@ -4564,9 +4477,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF1F2B3A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4579,7 +4492,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 children: [
                   const Icon(
                     Icons.filter_alt_outlined,
-                    color: Color(0xFF7D93B1),
+                    color: Color(0xFF556B80),
                     size: 16,
                   ),
                   const SizedBox(width: 8),
@@ -4588,7 +4501,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       'FORENSIC FILTERS:',
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7D93B1),
+                        color: const Color(0xFF556B80),
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.7,
@@ -4606,23 +4519,23 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF111822),
+                    color: const Color(0xFFFFFFFF),
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: const Color(0xFF2A374A)),
+                    border: Border.all(color: const Color(0xFFD6E1EC)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
                         Icons.replay_rounded,
-                        color: Color(0xFF9BB0CE),
+                        color: Color(0xFF7A8FA4),
                         size: 13,
                       ),
                       const SizedBox(width: 6),
                       Text(
                         'RESET',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF9BB0CE),
+                          color: const Color(0xFF556B80),
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -4738,9 +4651,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF1F2B3A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: events.isEmpty
           ? const OnyxEmptyState(label: 'No events match the current filters.')
@@ -4764,10 +4677,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF0E2A32) : const Color(0xFF0D131A),
+          color: selected
+              ? typeColor.withValues(alpha: 0.12)
+              : const Color(0xFFF7FAFD),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFF1B9CB7) : const Color(0xFF1F2B3A),
+            color: selected ? const Color(0xFF1B9CB7) : const Color(0xFFD6E1EC),
           ),
         ),
         child: Row(
@@ -4781,14 +4696,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     width: 30,
                     height: 30,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF293340),
+                      color: Color(0xFFEAF1F8),
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
                     child: Text(
                       '${event.sequence}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFD9E7FA),
+                        color: const Color(0xFF172638),
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4824,7 +4739,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         _clock12(event.occurredAt),
                         style: GoogleFonts.inter(
-                          color: const Color(0x808EA4C2),
+                          color: const Color(0xFF7A8FA4),
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -4835,7 +4750,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     _eventSummary(event),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF1FB),
+                      color: const Color(0xFF172638),
                       fontSize: 17,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4844,7 +4759,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     _eventMetaLine(event),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9BB0CE),
+                      color: const Color(0xFF556B80),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4857,7 +4772,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               Icons.chevron_right_rounded,
               color: selected
                   ? const Color(0xFF22D3EE)
-                  : const Color(0x668EA4C2),
+                  : const Color(0xFF9FB2C3),
               size: 18,
             ),
           ],
@@ -4880,9 +4795,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ? const ValueKey('events-detail-empty')
           : ValueKey('events-detail-${selected.eventId}'),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C1117),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1F2B3A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: bounded
           ? SingleChildScrollView(
@@ -4917,7 +4832,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Text(
           'EVENT DETAIL',
           style: GoogleFonts.inter(
-            color: const Color(0xFF7D93B1),
+            color: const Color(0xFF7A8FA4),
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.8,
@@ -4940,7 +4855,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   'PARTNER DISPATCH CHAIN',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9BB0CE),
+                    color: const Color(0xFF7A8FA4),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.7,
@@ -5042,7 +4957,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   'VISIT TIMELINE',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9BB0CE),
+                    color: const Color(0xFF7A8FA4),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.7,
@@ -5127,7 +5042,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               Text(
                 'CONTEXT',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9BB0CE),
+                  color: const Color(0xFF7A8FA4),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
@@ -5182,7 +5097,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   'SCENE REVIEW',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9BB0CE),
+                    color: const Color(0xFF7A8FA4),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.7,
@@ -5217,7 +5132,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               Text(
                 'PAYLOAD DATA',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9BB0CE),
+                  color: const Color(0xFF7A8FA4),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
@@ -5228,16 +5143,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0A0E14),
+                  color: const Color(0xFFF7FAFD),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF223244)),
+                  border: Border.all(color: const Color(0xFFD6E1EC)),
                 ),
                 child: Text(
                   const JsonEncoder.withIndent(
                     '  ',
                   ).convert(_eventPayload(selected)),
                   style: GoogleFonts.robotoMono(
-                    color: const Color(0xFFD9E7FA),
+                    color: const Color(0xFF172638),
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                   ),
@@ -5254,15 +5169,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               Text(
                 'VERSION INFO',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9BB0CE),
+                  color: const Color(0xFF7A8FA4),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.7,
                 ),
               ),
               const SizedBox(height: 8),
-              _contextRow('Schema Version', 'v2.1.0'),
-              _contextRow('Event Source', 'ONYX Core'),
+              _contextRow('Schema Version', _eventSchemaVersionLabel(selected)),
+              _contextRow('Event Source', _eventSourceLabel(selected)),
               _contextRow(
                 'Chain Position',
                 'Verified',
@@ -5273,7 +5188,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ),
         const SizedBox(height: 8),
         _outlineAction(
-          'VIEW IN LEDGER',
+          'OPEN SOVEREIGN LEDGER',
           actionKey: const ValueKey('events-view-ledger-action'),
           onTap: () {
             logUiAction(
@@ -5285,7 +5200,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               return;
             }
             _showActionMessage(
-              'Open Sovereign Ledger to inspect ${selected.eventId}.',
+              'Sovereign Ledger is ready for ${selected.eventId}.',
             );
           },
         ),
@@ -5299,7 +5214,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Text(
           'Selected Event',
           style: GoogleFonts.inter(
-            color: const Color(0x668EA4C2),
+            color: const Color(0xFF7A8FA4),
             fontSize: 10,
             fontWeight: FontWeight.w600,
           ),
@@ -5338,12 +5253,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.18), const Color(0xFF101A2B)],
+          colors: [accent.withValues(alpha: 0.12), const Color(0xFFFFFFFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withValues(alpha: 0.34)),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5366,7 +5281,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'EVENT IN FOCUS',
+                      'DO THIS NOW',
                       style: GoogleFonts.inter(
                         color: accent,
                         fontSize: 10,
@@ -5378,8 +5293,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     Text(
                       selected.eventId,
                       key: const ValueKey('events-selected-event-id'),
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFEAF1FB),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF172638),
                         fontSize: 24,
                         fontWeight: FontWeight.w700,
                         height: 0.95,
@@ -5411,7 +5326,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           Text(
             _eventSummary(selected),
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF1FB),
+              color: const Color(0xFF172638),
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.3,
@@ -5421,7 +5336,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           Text(
             '${_eventMetaLine(selected)}  •  ${_fullTimestamp(selected.occurredAt)}',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9EB4D0),
+              color: const Color(0xFF556B80),
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -5443,10 +5358,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           const SizedBox(height: 8),
           Text(
             sceneReview == null
-                ? 'Ledger continuity, export controls, and governance handoff are ready from this event board.'
-                : 'Scene review context is attached, so governance and ledger handoff can move directly from this focused event.',
+                ? 'Governance Desk, Sovereign Ledger, and export are ready from this focused event.'
+                : 'Scene evidence is attached, so Governance Desk and Sovereign Ledger can open directly from this event.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9EB4D0),
+              color: const Color(0xFF556B80),
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -5455,9 +5370,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           const SizedBox(height: 8),
           if (summaryOnly)
             Text(
-              'Governance handoff, ledger focus, and export controls stay pinned in the ops rail and selected-event workspace, so this focus card can stay status-first on desktop.',
+              'Governance Desk, Sovereign Ledger, and export stay pinned beside this focused event, so the card can stay loud on desktop.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF9EB4D0),
+                color: const Color(0xFF556B80),
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -5470,7 +5385,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               children: [
                 _reviewWorkspaceBannerAction(
                   key: const ValueKey('events-selected-focus-open-governance'),
-                  label: 'Governance Scope',
+                  label: 'GOVERNANCE DESK',
                   selected: onOpenGovernanceScope != null,
                   accent: onOpenGovernanceScope != null
                       ? const Color(0xFF22D3EE)
@@ -5479,13 +5394,13 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       onOpenGovernanceScope ??
                       () {
                         _showActionMessage(
-                          'Open Governance to continue review for ${selected.eventId}.',
+                          'Open Governance Desk to continue review for ${selected.eventId}.',
                         );
                       },
                 ),
                 _reviewWorkspaceBannerAction(
                   key: const ValueKey('events-selected-focus-open-ledger'),
-                  label: 'Ledger Focus',
+                  label: 'SOVEREIGN LEDGER',
                   selected: widget.onOpenLedger != null,
                   accent: widget.onOpenLedger != null
                       ? const Color(0xFFA78BFA)
@@ -5500,20 +5415,20 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       return;
                     }
                     _showActionMessage(
-                      'Open Sovereign Ledger to inspect ${selected.eventId}.',
+                      'Sovereign Ledger is ready for ${selected.eventId}.',
                     );
                   },
                 ),
                 _reviewWorkspaceBannerAction(
                   key: const ValueKey('events-selected-focus-copy'),
-                  label: 'Copy Event',
+                  label: 'Copy',
                   selected: false,
                   accent: const Color(0xFF8FD1FF),
                   onTap: () => _exportEventData(selected),
                 ),
                 _reviewWorkspaceBannerAction(
                   key: const ValueKey('events-selected-focus-export'),
-                  label: 'Export Event',
+                  label: 'Export',
                   selected: false,
                   accent: const Color(0xFFF1B872),
                   onTap: () => _exportEventData(selected),
@@ -5530,9 +5445,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: child,
     );
@@ -5545,7 +5460,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Text(
           label,
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
+            color: const Color(0xFF7A8FA4),
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -5554,7 +5469,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         Text(
           value,
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF1FB),
+            color: const Color(0xFF172638),
             fontSize: 30,
             height: 0.95,
             fontWeight: FontWeight.w700,
@@ -5575,7 +5490,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             child: Text(
               key,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9BB0CE),
+                color: const Color(0xFF7A8FA4),
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -5587,7 +5502,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               value,
               textAlign: TextAlign.right,
               style: GoogleFonts.inter(
-                color: valueColor ?? const Color(0xFFEAF1FB),
+                color: valueColor ?? const Color(0xFF172638),
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -5611,15 +5526,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF0D1117),
+          color: const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF2A374A)),
+          border: Border.all(color: const Color(0xFFD6E1EC)),
         ),
         child: Text(
           text,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: const Color(0xFFD9E7FA),
+            color: const Color(0xFF172638),
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.3,
@@ -5650,10 +5565,12 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF10222F) : const Color(0xFF0A0E14),
+          color: selected
+              ? typeColor.withValues(alpha: 0.12)
+              : const Color(0xFFF7FAFD),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFF22D3EE) : const Color(0xFF223244),
+            color: selected ? const Color(0xFF22D3EE) : const Color(0xFFD6E1EC),
           ),
         ),
         child: Row(
@@ -5667,7 +5584,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     width: 30,
                     height: 30,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF162232),
+                      color: const Color(0xFFEAF1F8),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     alignment: Alignment.center,
@@ -5718,7 +5635,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         _clock12(event.occurredAt),
                         style: GoogleFonts.inter(
-                          color: const Color(0x808EA4C2),
+                          color: const Color(0xFF7A8FA4),
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -5729,7 +5646,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     _eventSummary(event),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF1FB),
+                      color: const Color(0xFF172638),
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -5758,15 +5675,15 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   Widget _visitBadge(
     String label, {
     Key? key,
-    Color textColor = const Color(0xFF9BB0CE),
+    Color textColor = const Color(0xFF556B80),
   }) {
     return Container(
       key: key,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF111822),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF2A374A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Text(
         label,
@@ -5793,9 +5710,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       decoration: BoxDecoration(
         color: reached
             ? color.withValues(alpha: 0.14)
-            : const Color(0xFF111822),
+            : const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: reached ? color : const Color(0xFF2A374A)),
+        border: Border.all(color: reached ? color : const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5815,8 +5732,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             reached ? _clock12(timestamp) : 'Pending',
             style: GoogleFonts.inter(
               color: reached
-                  ? const Color(0xFFEAF1FB)
-                  : const Color(0xFF8EA4C2),
+                  ? const Color(0xFF172638)
+                  : const Color(0xFF7A8FA4),
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -5826,74 +5743,51 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     );
   }
 
-  void _exportEventData(DispatchEvent event) {
-    final payloadJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(_eventPayload(event));
-    Clipboard.setData(ClipboardData(text: payloadJson));
-    logUiAction(
-      'events.export_event_data',
-      context: {'event_id': event.eventId},
+  Future<void> _exportEventData(DispatchEvent event) async {
+    await _exportCoordinator.copyJson(
+      _eventPayload(event),
+      label: 'events.export_event_data',
     );
     _showActionMessage('Event payload copied for ${event.eventId}.');
   }
 
-  void _copyActivityCaseFileJson(_ActivityScopeSummary summary) {
-    final payloadJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(_activityCaseFilePayload(summary));
-    Clipboard.setData(ClipboardData(text: payloadJson));
-    logUiAction(
-      'events.export_activity_casefile_json',
-      context: {'site_id': summary.siteId, 'event_count': summary.eventCount},
+  Future<void> _copyActivityCaseFileJson(_ActivityScopeSummary summary) async {
+    await _exportCoordinator.copyJson(
+      _activityCaseFilePayload(summary),
+      label: 'events.export_activity_casefile_json',
     );
     _showActionMessage('Activity case file JSON copied.');
   }
 
-  void _copyReadinessCaseFileJson(_ReadinessScopeSummary summary) {
-    final payloadJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(_readinessCaseFilePayload(summary));
-    Clipboard.setData(ClipboardData(text: payloadJson));
-    logUiAction(
-      'events.export_readiness_casefile_json',
-      context: {
-        'lead_region_id': summary.leadRegionId,
-        'lead_site_id': summary.leadSiteId,
-        'event_count': summary.eventCount,
-      },
+  Future<void> _copyReadinessCaseFileJson(
+    _ReadinessScopeSummary summary,
+  ) async {
+    await _exportCoordinator.copyJson(
+      _readinessCaseFilePayload(summary),
+      label: 'events.export_readiness_casefile_json',
     );
     _showActionMessage('Readiness case file JSON copied.');
   }
 
-  void _copyShadowCaseFileJson(_ShadowScopeSummary summary) {
-    final payloadJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(_shadowCaseFilePayload(summary));
-    Clipboard.setData(ClipboardData(text: payloadJson));
-    logUiAction(
-      'events.export_shadow_casefile_json',
-      context: {'event_count': summary.eventCount},
+  Future<void> _copyShadowCaseFileJson(_ShadowScopeSummary summary) async {
+    await _exportCoordinator.copyJson(
+      _shadowCaseFilePayload(summary),
+      label: 'events.export_shadow_casefile_json',
     );
     _showActionMessage('Shadow MO case file JSON copied.');
   }
 
-  void _copySyntheticCaseFileJson(_SyntheticScopeSummary summary) {
-    final payloadJson = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(_syntheticCaseFilePayload(summary));
-    Clipboard.setData(ClipboardData(text: payloadJson));
-    logUiAction(
-      'events.export_synthetic_casefile_json',
-      context: {
-        'event_count': summary.eventCount,
-        'mode_label': summary.modeLabel,
-      },
+  Future<void> _copySyntheticCaseFileJson(
+    _SyntheticScopeSummary summary,
+  ) async {
+    await _exportCoordinator.copyJson(
+      _syntheticCaseFilePayload(summary),
+      label: 'events.export_synthetic_casefile_json',
     );
     _showActionMessage('Synthetic case file JSON copied.');
   }
 
-  void _copyActivityCaseFileCsv(_ActivityScopeSummary summary) {
+  Future<void> _copyActivityCaseFileCsv(_ActivityScopeSummary summary) async {
     final previousReportDate =
         summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
@@ -5942,15 +5836,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
       }
     }
-    Clipboard.setData(ClipboardData(text: lines.join('\n')));
-    logUiAction(
-      'events.export_activity_casefile_csv',
-      context: {'site_id': summary.siteId, 'event_count': summary.eventCount},
+    await _exportCoordinator.copyCsv(
+      lines,
+      label: 'events.export_activity_casefile_csv',
     );
     _showActionMessage('Activity case file CSV copied.');
   }
 
-  void _copyReadinessCaseFileCsv(_ReadinessScopeSummary summary) {
+  Future<void> _copyReadinessCaseFileCsv(
+    _ReadinessScopeSummary summary,
+  ) async {
     final previousReportDate = summary.historicalFocus
         ? widget.currentMorningSovereignReportDate
         : null;
@@ -5979,19 +5874,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       if ((previousReportDate ?? '').trim().isNotEmpty)
         'previous_case_file_command,${_readinessCaseFileCommand(previousReportDate!.trim())}',
     ];
-    Clipboard.setData(ClipboardData(text: lines.join('\n')));
-    logUiAction(
-      'events.export_readiness_casefile_csv',
-      context: {
-        'lead_region_id': summary.leadRegionId,
-        'lead_site_id': summary.leadSiteId,
-        'event_count': summary.eventCount,
-      },
+    await _exportCoordinator.copyCsv(
+      lines,
+      label: 'events.export_readiness_casefile_csv',
     );
     _showActionMessage('Readiness case file CSV copied.');
   }
 
-  void _copyShadowCaseFileCsv(_ShadowScopeSummary summary) {
+  Future<void> _copyShadowCaseFileCsv(_ShadowScopeSummary summary) async {
     final previousReportDate = summary.historicalFocus
         ? widget.currentMorningSovereignReportDate
         : null;
@@ -6072,15 +5962,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
       }
     }
-    Clipboard.setData(ClipboardData(text: lines.join('\n')));
-    logUiAction(
-      'events.export_shadow_casefile_csv',
-      context: {'event_count': summary.eventCount},
+    await _exportCoordinator.copyCsv(
+      lines,
+      label: 'events.export_shadow_casefile_csv',
     );
     _showActionMessage('Shadow MO case file CSV copied.');
   }
 
-  void _copySyntheticCaseFileCsv(_SyntheticScopeSummary summary) {
+  Future<void> _copySyntheticCaseFileCsv(
+    _SyntheticScopeSummary summary,
+  ) async {
     final previousReportDate =
         summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
@@ -6184,33 +6075,26 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
       }
     }
-    Clipboard.setData(ClipboardData(text: lines.join('\n')));
-    logUiAction(
-      'events.export_synthetic_casefile_csv',
-      context: {
-        'event_count': summary.eventCount,
-        'mode_label': summary.modeLabel,
-      },
+    await _exportCoordinator.copyCsv(
+      lines,
+      label: 'events.export_synthetic_casefile_csv',
     );
     _showActionMessage('Synthetic case file CSV copied.');
   }
 
-  void _copyTomorrowCaseFileJson(_TomorrowPostureScopeSummary summary) {
-    final pretty = const JsonEncoder.withIndent(
-      '  ',
-    ).convert(_tomorrowCaseFilePayload(summary));
-    Clipboard.setData(ClipboardData(text: pretty));
-    logUiAction(
-      'events.export_tomorrow_casefile_json',
-      context: {
-        'report_date': summary.reportDate,
-        'draft_count': summary.draftCount,
-      },
+  Future<void> _copyTomorrowCaseFileJson(
+    _TomorrowPostureScopeSummary summary,
+  ) async {
+    await _exportCoordinator.copyJson(
+      _tomorrowCaseFilePayload(summary),
+      label: 'events.export_tomorrow_casefile_json',
     );
     _showActionMessage('Tomorrow posture case file JSON copied.');
   }
 
-  void _copyTomorrowCaseFileCsv(_TomorrowPostureScopeSummary summary) {
+  Future<void> _copyTomorrowCaseFileCsv(
+    _TomorrowPostureScopeSummary summary,
+  ) async {
     final previousReportDate =
         summary.history != null && summary.history!.points.length > 1
         ? summary.history!.points[1].date
@@ -6285,13 +6169,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
       }
     }
-    Clipboard.setData(ClipboardData(text: lines.join('\n')));
-    logUiAction(
-      'events.export_tomorrow_casefile_csv',
-      context: {
-        'report_date': summary.reportDate,
-        'draft_count': summary.draftCount,
-      },
+    await _exportCoordinator.copyCsv(
+      lines,
+      label: 'events.export_tomorrow_casefile_csv',
     );
     _showActionMessage('Tomorrow posture case file CSV copied.');
   }
@@ -6647,7 +6527,22 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     }
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      SnackBar(
+        backgroundColor: const Color(0xFFFFFFFF),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFFD6E1EC)),
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF172638),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 
@@ -6688,16 +6583,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1A22D3EE) : const Color(0xFF111822),
+          color: selected ? const Color(0x1A22D3EE) : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: selected ? const Color(0x803EA2FF) : const Color(0xFF2A374A),
+            color: selected ? const Color(0x803EA2FF) : const Color(0xFFD6E1EC),
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFF22D3EE) : const Color(0xFF9BB0CE),
+            color: selected ? const Color(0xFF22D3EE) : const Color(0xFF556B80),
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -7008,7 +6903,7 @@ class _PartnerScopeSummary {
     final detailSuffix = detailParts.isEmpty
         ? ''
         : ' ${detailParts.join(' • ')}';
-    return 'Partner dispatch review active for $eventCount declared $actionWord.$detailSuffix';
+    return 'Partner dispatch scope active for $eventCount declared $actionWord.$detailSuffix';
   }
 }
 
@@ -7474,6 +7369,7 @@ class _PartnerTrendSummary {
 
 String _partnerStatusLabel(PartnerDispatchStatus status) {
   return switch (status) {
+    PartnerDispatchStatus.unknown => 'UNKNOWN',
     PartnerDispatchStatus.accepted => 'ACCEPT',
     PartnerDispatchStatus.onSite => 'ON SITE',
     PartnerDispatchStatus.allClear => 'ALL CLEAR',
@@ -7483,6 +7379,7 @@ String _partnerStatusLabel(PartnerDispatchStatus status) {
 
 Color _partnerStatusColor(PartnerDispatchStatus status) {
   return switch (status) {
+    PartnerDispatchStatus.unknown => const Color(0xFF94A3B8),
     PartnerDispatchStatus.accepted => const Color(0xFF38BDF8),
     PartnerDispatchStatus.onSite => const Color(0xFFF59E0B),
     PartnerDispatchStatus.allClear => const Color(0xFF10B981),
@@ -7569,7 +7466,7 @@ String _eventTypeLabel(DispatchEvent event) {
   if (event is ExecutionCompleted) return 'DISPATCH SENT';
   if (event is PatrolCompleted) return 'PATROL COMPLETED';
   if (event is IncidentClosed) return 'INCIDENT CLOSED';
-  return event.runtimeType.toString().toUpperCase();
+  return event.toAuditTypeKey().toUpperCase();
 }
 
 String _eventSummary(DispatchEvent event) {
@@ -7690,21 +7587,39 @@ String _eventRegionId(DispatchEvent event) {
   return 'REGION-UNKNOWN';
 }
 
+String _eventSchemaVersionLabel(DispatchEvent event) {
+  return 'v${event.version}';
+}
+
+String _eventSourceLabel(DispatchEvent event) {
+  if (event is IntelligenceReceived) {
+    final provider = event.provider.trim();
+    if (provider.isNotEmpty) {
+      return provider;
+    }
+    final sourceType = event.sourceType.trim();
+    if (sourceType.isNotEmpty) {
+      return sourceType;
+    }
+  }
+  return event.toAuditTypeKey();
+}
+
 String _clock12(DateTime value) {
-  final local = value.toUtc();
-  var hour = local.hour;
-  final minute = local.minute.toString().padLeft(2, '0');
-  final second = local.second.toString().padLeft(2, '0');
+  final utc = value.toUtc();
+  var hour = utc.hour;
+  final minute = utc.minute.toString().padLeft(2, '0');
+  final second = utc.second.toString().padLeft(2, '0');
   final suffix = hour >= 12 ? 'PM' : 'AM';
   hour = hour % 12;
   if (hour == 0) hour = 12;
-  return '$hour:$minute:$second $suffix';
+  return '$hour:$minute:$second $suffix UTC';
 }
 
 String _fullTimestamp(DateTime value) {
-  final local = value.toUtc();
-  final month = local.month;
-  final day = local.day;
-  final year = local.year;
-  return '$month/$day/$year, ${_clock12(local)}';
+  final utc = value.toUtc();
+  final month = utc.month;
+  final day = utc.day;
+  final year = utc.year;
+  return '$month/$day/$year, ${_clock12(utc)}';
 }

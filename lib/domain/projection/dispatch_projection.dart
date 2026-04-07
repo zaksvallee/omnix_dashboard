@@ -24,7 +24,7 @@ class DispatchProjection {
         regionId: event.regionId,
         siteId: event.siteId,
         dispatchId: event.dispatchId,
-        status: event.success ? 'EXECUTED' : 'FAILED',
+        status: event.success ? 'CONFIRMED' : 'FAILED',
       );
       return;
     }

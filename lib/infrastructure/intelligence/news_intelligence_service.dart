@@ -52,6 +52,7 @@ class NewsSourceDiagnostic {
 
 class NewsIntelligenceService {
   final http.Client _client;
+  final bool _ownsClient;
   final String newsApiOrgKey;
   final String newsApiAiKey;
   final String newsDataIoKey;
@@ -61,6 +62,7 @@ class NewsIntelligenceService {
   final String baseQuery;
   final double? weatherLat;
   final double? weatherLon;
+  final Duration requestTimeout;
 
   NewsIntelligenceService({
     http.Client? client,
@@ -73,7 +75,9 @@ class NewsIntelligenceService {
     String? baseQuery,
     double? weatherLat,
     double? weatherLon,
+    this.requestTimeout = const Duration(seconds: 5),
   }) : _client = client ?? http.Client(),
+       _ownsClient = client == null,
        newsApiOrgKey = (newsApiOrgKey ?? _defaultNewsApiOrgKey()).trim(),
        newsApiAiKey = (newsApiAiKey ?? _defaultNewsApiAiKey()).trim(),
        newsDataIoKey = (newsDataIoKey ?? _defaultNewsDataIoKey()).trim(),
@@ -84,6 +88,12 @@ class NewsIntelligenceService {
        baseQuery = (baseQuery ?? _defaultNewsQuery()).trim(),
        weatherLat = weatherLat ?? _parseDouble(_defaultSiteLat()),
        weatherLon = weatherLon ?? _parseDouble(_defaultSiteLon());
+
+  void dispose() {
+    if (_ownsClient) {
+      _client.close();
+    }
+  }
 
   List<String> get configuredProviders {
     final providers = <String>[];
@@ -261,7 +271,8 @@ class NewsIntelligenceService {
             regionId: regionId,
             siteId: siteId,
           ),
-        'community-feed' when communityFeedJson.isNotEmpty => _parseCommunityFeed(
+        'community-feed' when communityFeedJson.isNotEmpty =>
+          _parseCommunityFeed(
             clientId: clientId,
             regionId: regionId,
             siteId: siteId,
@@ -320,24 +331,22 @@ class NewsIntelligenceService {
     required String regionId,
     required String siteId,
   }) async {
-    final requests = <Future<List<NormalizedIntelRecord>>>[];
-    final feedDistribution = <String, int>{};
+    final requests =
+        <Future<({String provider, List<NormalizedIntelRecord> records})>>[];
     final locationQuery = _locationQuery(regionId: regionId, siteId: siteId);
 
-    Future<void> collect(
+    void collect(
       String provider,
       Future<List<NormalizedIntelRecord>> Function() action,
-    ) async {
-      final records = await action();
-      if (records.isEmpty) {
-        return;
-      }
-      feedDistribution[provider] = records.length;
-      requests.add(Future<List<NormalizedIntelRecord>>.value(records));
+    ) {
+      requests.add(() async {
+        final records = await action();
+        return (provider: provider, records: records);
+      }());
     }
 
     if (_hasUsableCredential(newsApiOrgKey)) {
-      await collect(
+      collect(
         'newsapi.org',
         () => _fetchNewsApiOrg(
           clientId: clientId,
@@ -348,7 +357,7 @@ class NewsIntelligenceService {
       );
     }
     if (_hasUsableCredential(newsDataIoKey)) {
-      await collect(
+      collect(
         'newsdata.io',
         () => _fetchNewsDataIo(
           clientId: clientId,
@@ -359,7 +368,7 @@ class NewsIntelligenceService {
       );
     }
     if (_hasUsableCredential(newsApiAiKey)) {
-      await collect(
+      collect(
         'newsapi.ai',
         () => _fetchNewsApiAi(
           clientId: clientId,
@@ -370,7 +379,7 @@ class NewsIntelligenceService {
       );
     }
     if (_hasUsableCredential(worldNewsApiKey)) {
-      await collect(
+      collect(
         'worldnewsapi.com',
         () => _fetchWorldNewsApi(
           clientId: clientId,
@@ -383,7 +392,7 @@ class NewsIntelligenceService {
     if (_hasUsableCredential(openWeatherKey) &&
         weatherLat != null &&
         weatherLon != null) {
-      await collect(
+      collect(
         'openweather.org',
         () => _fetchOpenWeatherAlerts(
           clientId: clientId,
@@ -393,7 +402,7 @@ class NewsIntelligenceService {
       );
     }
     if (communityFeedJson.isNotEmpty) {
-      await collect(
+      collect(
         'community-feed',
         () async => _parseCommunityFeed(
           clientId: clientId,
@@ -403,15 +412,21 @@ class NewsIntelligenceService {
       );
     }
 
-    if (feedDistribution.isEmpty) {
+    if (requests.isEmpty) {
       throw const FormatException(
         'No news or community providers configured. Add at least one ONYX_* source.',
       );
     }
 
+    final results = await Future.wait(requests);
+    final feedDistribution = <String, int>{};
     final records = <NormalizedIntelRecord>[];
-    for (final batch in requests) {
-      records.addAll(await batch);
+    for (final result in results) {
+      if (result.records.isEmpty) {
+        continue;
+      }
+      feedDistribution[result.provider] = result.records.length;
+      records.addAll(result.records);
     }
 
     if (records.isEmpty) {
@@ -440,7 +455,7 @@ class NewsIntelligenceService {
       'sortBy': 'publishedAt',
       'apiKey': newsApiOrgKey,
     });
-    final response = await _client.get(uri);
+    final response = await _client.get(uri).timeout(requestTimeout);
     _throwIfFailed(response, provider: 'newsapi.org');
     final decoded = _decodeMap(response.body, provider: 'newsapi.org');
     return _normalizeArticles(
@@ -476,7 +491,7 @@ class NewsIntelligenceService {
       'language': 'en',
       'size': '10',
     });
-    final response = await _client.get(uri);
+    final response = await _client.get(uri).timeout(requestTimeout);
     _throwIfFailed(response, provider: 'newsdata.io');
     final decoded = _decodeMap(response.body, provider: 'newsdata.io');
     return _normalizeArticles(
@@ -510,17 +525,19 @@ class NewsIntelligenceService {
     required String query,
   }) async {
     final uri = Uri.https('eventregistry.org', '/api/v1/article/getArticles');
-    final response = await _client.post(
-      uri,
-      headers: const {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'apiKey': newsApiAiKey,
-        'keyword': query,
-        'lang': 'eng',
-        'articlesCount': 10,
-        'resultType': 'articles',
-      }),
-    );
+    final response = await _client
+        .post(
+          uri,
+          headers: const {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'apiKey': newsApiAiKey,
+            'keyword': query,
+            'lang': 'eng',
+            'articlesCount': 10,
+            'resultType': 'articles',
+          }),
+        )
+        .timeout(requestTimeout);
     _throwIfFailed(response, provider: 'newsapi.ai');
     final decoded = _decodeMap(response.body, provider: 'newsapi.ai');
     final articles = _asMap(decoded['articles'])['results'] is List
@@ -573,10 +590,9 @@ class NewsIntelligenceService {
     ];
     http.Response? response;
     for (final attemptRequest in attempts) {
-      final attempt = await _client.get(
-        attemptRequest.uri,
-        headers: attemptRequest.headers,
-      );
+      final attempt = await _client
+          .get(attemptRequest.uri, headers: attemptRequest.headers)
+          .timeout(requestTimeout);
       response = attempt;
       if (attempt.statusCode >= 200 && attempt.statusCode < 300) {
         break;
@@ -633,7 +649,7 @@ class NewsIntelligenceService {
       'exclude': 'current,minutely,hourly,daily',
       'appid': openWeatherKey,
     });
-    final response = await _client.get(uri);
+    final response = await _client.get(uri).timeout(requestTimeout);
     _throwIfFailed(response, provider: 'openweather.org');
     final decoded = _decodeMap(response.body, provider: 'openweather.org');
     return _normalizeArticles(
@@ -662,7 +678,14 @@ class NewsIntelligenceService {
     required String regionId,
     required String siteId,
   }) {
-    final decoded = jsonDecode(communityFeedJson);
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(communityFeedJson);
+    } on FormatException catch (error) {
+      throw FormatException(
+        'community-feed returned invalid JSON payload: ${error.message}',
+      );
+    }
     final entries = decoded is List
         ? _asList(decoded)
         : (() {

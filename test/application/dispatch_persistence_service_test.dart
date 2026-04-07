@@ -336,6 +336,28 @@ void main() {
       expect(cleared, isNull);
     });
 
+    test(
+      'reading a blank monitoring watch audit summary does not clear storage on read',
+      () async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(
+          DispatchPersistenceService.monitoringWatchAuditSummaryKey,
+          '   ',
+        );
+        final service = await DispatchPersistenceService.create();
+
+        final restored = await service.readMonitoringWatchAuditSummary();
+
+        expect(restored, isNull);
+        expect(
+          prefs.getString(
+            DispatchPersistenceService.monitoringWatchAuditSummaryKey,
+          ),
+          '   ',
+        );
+      },
+    );
+
     test('saves, restores, and clears monitoring watch audit history', () async {
       final service = await DispatchPersistenceService.create();
       const history = <String>[
@@ -373,6 +395,28 @@ void main() {
         await service.clearMonitoringWatchRecoveryState();
         final cleared = await service.readMonitoringWatchRecoveryState();
         expect(cleared, isEmpty);
+      },
+    );
+
+    test(
+      'does not register scoped conversation keys for half-empty scope ids',
+      () async {
+        final service = await DispatchPersistenceService.create();
+
+        await service.saveScopedClientAppMessages(
+          <ClientAppMessage>[
+            ClientAppMessage(
+              author: 'ONYX',
+              body: 'Test',
+              occurredAt: DateTime.utc(2026, 4, 7, 12, 0),
+            ),
+          ],
+          clientId: 'CLIENT-1',
+          siteId: '   ',
+        );
+
+        final scopeKeys = await service.readClientConversationScopeKeys();
+        expect(scopeKeys, isEmpty);
       },
     );
 
@@ -609,6 +653,10 @@ void main() {
             failureReason: 'timeout',
             queueSize: 2,
           ),
+        ],
+        telegramDeliveredMessageKeys: const <String>[
+          'dispatch-created:telegram:test-client-chat:',
+          'dispatch-created:telegram:test-client-chat:11',
         ],
         backendProbeStatusLabel: 'failed',
         backendProbeLastRunAtUtc: DateTime.utc(2026, 3, 5, 10, 32),

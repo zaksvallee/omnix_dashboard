@@ -13,12 +13,30 @@ import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
 
+class SitesAutoAuditReceipt {
+  final String auditId;
+  final String label;
+  final String headline;
+  final String detail;
+  final Color accent;
+
+  const SitesAutoAuditReceipt({
+    required this.auditId,
+    required this.label,
+    required this.headline,
+    required this.detail,
+    required this.accent,
+  });
+}
+
 class SitesCommandPage extends StatefulWidget {
   final List<DispatchEvent> events;
   final VoidCallback? onAddSite;
   final void Function(String siteId, String siteName)? onOpenMapForSite;
   final void Function(String siteId, String siteName)? onOpenSiteSettings;
   final void Function(String siteId, String siteName)? onOpenGuardRoster;
+  final SitesAutoAuditReceipt? latestAutoAuditReceipt;
+  final VoidCallback? onOpenLatestAudit;
 
   const SitesCommandPage({
     super.key,
@@ -27,6 +45,8 @@ class SitesCommandPage extends StatefulWidget {
     this.onOpenMapForSite,
     this.onOpenSiteSettings,
     this.onOpenGuardRoster,
+    this.latestAutoAuditReceipt,
+    this.onOpenLatestAudit,
   });
 
   @override
@@ -348,7 +368,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             ),
             _workspaceStatusPill(
               icon: Icons.radar_outlined,
-              label: 'Lane ${_laneLabel(_siteLaneFilter)}',
+              label: 'Scope ${_laneLabel(_siteLaneFilter)}',
               accent: _laneAccent(_siteLaneFilter),
             ),
             _workspaceStatusPill(
@@ -372,9 +392,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         ),
         const SizedBox(height: 5),
         Text(
-          'Lane pivots stay pinned in the roster, while response, coverage, checkpoints, tactical, settings, and roster actions stay anchored to the selected-site workspace below.',
+          'Pick one site. Push Site Map, Site Settings, or Guard Roster fast.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF9AB1CF),
+            color: const Color(0xFF556B80),
             fontSize: 10,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -393,9 +413,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: content,
     );
@@ -409,99 +429,94 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     required int totalGuards,
     Widget? workspaceBanner,
   }) {
-    return OnyxStoryHero(
-      eyebrow: 'SITE POSTURE',
-      title: 'Sites & Deployment',
-      subtitle:
-          'See current site posture, direct weak points, and move to the next operational action quickly.',
-      icon: Icons.apartment_rounded,
-      gradientColors: const [Color(0xFF102338), Color(0xFF0B151F)],
-      metrics: [
-        OnyxStoryMetric(
-          value: selected.id,
-          label: 'focus',
-          foreground: Color(0xFF8FD1FF),
-          background: Color(0x1A8FD1FF),
-          border: Color(0x668FD1FF),
-        ),
-        OnyxStoryMetric(
-          value: '$strongCount',
-          label: 'strong',
-          foreground: const Color(0xFF34D399),
-          background: const Color(0x1A34D399),
-          border: const Color(0x6634D399),
-        ),
-        OnyxStoryMetric(
-          value: '$atRiskCount',
-          label: 'need review',
-          foreground: atRiskCount > 0
-              ? const Color(0xFFF59E0B)
-              : const Color(0xFF9AB1CF),
-          background: atRiskCount > 0
-              ? const Color(0x1AF59E0B)
-              : const Color(0x1A94A3B8),
-          border: atRiskCount > 0
-              ? const Color(0x66F59E0B)
-              : const Color(0x6694A3B8),
-        ),
-        OnyxStoryMetric(
-          value: '$totalGuards',
-          label: 'on site',
-          foreground: const Color(0xFF22D3EE),
-          background: const Color(0x1A22D3EE),
-          border: const Color(0x6622D3EE),
-        ),
-        OnyxStoryMetric(
-          value: '$totalSites',
-          label: 'sites',
-          foreground: const Color(0xFFEAF4FF),
-          background: const Color(0x14000000),
-          border: const Color(0x3322405F),
-        ),
-      ],
-      actions: [
-        _heroActionButton(
-          key: const ValueKey('sites-view-tactical-button'),
-          icon: Icons.open_in_new,
-          label: 'View Tactical',
-          accent: const Color(0xFF93C5FD),
-          onPressed: () => _openTacticalForSite(context, selected),
-        ),
-      ],
-      banner: workspaceBanner,
-    );
-  }
-
-  Widget _heroChip(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0x14000000),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x33000000)),
+    final heroActions = <Widget>[
+      _heroActionButton(
+        key: const ValueKey('sites-view-tactical-button'),
+        icon: Icons.map_outlined,
+        label: 'OPEN SITE MAP',
+        accent: const Color(0xFF93C5FD),
+        onPressed: () => _openTacticalForSite(context, selected),
       ),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
+      if (widget.onOpenSiteSettings != null)
+        _heroActionButton(
+          key: const ValueKey('sites-hero-edit-site-button'),
+          icon: Icons.edit_outlined,
+          label: 'OPEN SITE SETTINGS',
+          accent: const Color(0xFF7FD8A5),
+          onPressed: () => _openSiteSettings(selected),
+        ),
+      if (widget.onOpenGuardRoster != null)
+        _heroActionButton(
+          key: const ValueKey('sites-hero-assign-guards-button'),
+          icon: Icons.badge_outlined,
+          label: 'OPEN GUARD ROSTER',
+          accent: const Color(0xFFF6C067),
+          onPressed: () => _openGuardRoster(selected),
+        ),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OnyxStoryHero(
+          eyebrow: 'SITE POSTURE',
+          title: 'Sites & Deployment',
+          subtitle: 'Pick the site, fix the weak point, and move.',
+          icon: Icons.apartment_rounded,
+          gradientColors: const [Color(0xFFF5FAFF), Color(0xFFFFFFFF)],
+          metrics: [
+            OnyxStoryMetric(
+              value: selected.id,
+              label: 'focus',
+              foreground: Color(0xFF2F6AA3),
+              background: Color(0x142F6AA3),
+              border: Color(0x332F6AA3),
             ),
-            TextSpan(
-              text: value,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-              ),
+            OnyxStoryMetric(
+              value: '$strongCount',
+              label: 'strong',
+              foreground: const Color(0xFF34D399),
+              background: const Color(0x1A34D399),
+              border: const Color(0x6634D399),
+            ),
+            OnyxStoryMetric(
+              value: '$atRiskCount',
+              label: 'need review',
+              foreground: atRiskCount > 0
+                  ? const Color(0xFFF59E0B)
+                  : const Color(0xFF9AB1CF),
+              background: atRiskCount > 0
+                  ? const Color(0x1AF59E0B)
+                  : const Color(0x1A94A3B8),
+              border: atRiskCount > 0
+                  ? const Color(0x66F59E0B)
+                  : const Color(0x6694A3B8),
+            ),
+            OnyxStoryMetric(
+              value: '$totalGuards',
+              label: 'on site',
+              foreground: const Color(0xFF22D3EE),
+              background: const Color(0x1A22D3EE),
+              border: const Color(0x6622D3EE),
+            ),
+            OnyxStoryMetric(
+              value: '$totalSites',
+              label: 'sites',
+              foreground: const Color(0xFF172638),
+              background: const Color(0xFFFFFFFF),
+              border: const Color(0xFFD6E1EC),
             ),
           ],
+          actions: heroActions,
+          banner: workspaceBanner,
         ),
-      ),
+        if (widget.latestAutoAuditReceipt != null) ...[
+          const SizedBox(height: 8),
+          _SitesAuditReceipt(
+            receipt: widget.latestAutoAuditReceipt!,
+            onOpenLatestAudit: widget.onOpenLatestAudit,
+          ),
+        ],
+      ],
     );
   }
 
@@ -549,18 +564,18 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF111827),
+          backgroundColor: const Color(0xFFFFFFFF),
           title: Text(
-            'Tactical Link Ready',
+            'Site Map Ready',
             style: GoogleFonts.inter(
-              color: const Color(0xFFF6FBFF),
+              color: const Color(0xFF172638),
               fontWeight: FontWeight.w800,
             ),
           ),
           content: Text(
-            'Use Tactical to inspect watch posture, limited coverage, and deployment context for the selected site.',
+            'Use Site Map to inspect watch posture, limited coverage, and deployment context for the selected site.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFD6E2F2),
+              color: const Color(0xFF556B80),
               height: 1.45,
             ),
           ),
@@ -605,20 +620,20 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
                   color: widget.onAddSite == null
-                      ? const Color(0xFF1D2937)
+                      ? const Color(0xFFF1F5F9)
                       : const Color(0xFF3B82F6),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: widget.onAddSite == null
-                        ? const Color(0xFF314154)
+                        ? const Color(0xFFD6E1EC)
                         : const Color(0x80448FFF),
                   ),
                 ),
                 child: Text(
-                  'ADD SITE',
+                  'OPEN SITE DESK',
                   style: GoogleFonts.inter(
                     color: widget.onAddSite == null
-                        ? const Color(0xFF8EA4C2)
+                        ? const Color(0xFF94A3B8)
                         : const Color(0xFFEAF1FB),
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -631,10 +646,10 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         const SizedBox(height: 6),
         Text(
           visibleCount == 0
-              ? 'No sites match the active lane. Switch lanes to recover the roster.'
-              : '$visibleCount of ${allSites.length} sites are in the active command lane.',
+              ? 'No sites match the active scope. Switch scopes to recover the roster.'
+              : '$visibleCount of ${allSites.length} sites are in the active site scope.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
+            color: const Color(0xFF556B80),
             fontSize: 10,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -681,9 +696,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: const Color(0xFF101923),
+            color: const Color(0xFFFFFFFF),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF253345)),
+            border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
           child: Row(
             children: [
@@ -711,14 +726,14 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF101923),
+              color: const Color(0xFFFFFFFF),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF253345)),
+              border: Border.all(color: const Color(0xFFD6E1EC)),
             ),
             child: Text(
-              'No sites are currently in this lane. Choose another lane to continue issuing commands.',
+              'No sites are currently in this scope. Choose another scope to continue issuing commands.',
               style: GoogleFonts.inter(
-                color: const Color(0xFFD9E7FA),
+                color: const Color(0xFF556B80),
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
                 height: 1.5,
@@ -738,9 +753,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1E2A3A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: body,
     );
@@ -769,16 +784,21 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           gradient: selected
-              ? const LinearGradient(
-                  colors: [Color(0xFF112D38), Color(0xFF0D1821)],
+              ? LinearGradient(
+                  colors: [
+                    status.withValues(alpha: 0.14),
+                    const Color(0xFFFFFFFF),
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: selected ? null : const Color(0xFF0D131A),
+          color: selected ? null : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFF2A6F8A) : const Color(0xFF1F2B3B),
+            color: selected
+                ? status.withValues(alpha: 0.48)
+                : const Color(0xFFD6E1EC),
           ),
         ),
         child: Column(
@@ -796,7 +816,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   ),
                   child: Icon(
                     _statusIcon(site.status),
-                    color: const Color(0xFFEAF1FB),
+                    color: status,
                     size: 16,
                   ),
                 ),
@@ -808,7 +828,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       Text(
                         site.displayName,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF1FB),
+                          color: const Color(0xFF172638),
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
@@ -817,7 +837,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       Text(
                         site.location,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF9BB0C8),
+                          color: const Color(0xFF556B80),
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -826,7 +846,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       Text(
                         site.id,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF6F839C),
+                          color: const Color(0xFF7A8FA4),
                           fontSize: 9.5,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.8,
@@ -890,8 +910,8 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       site.checkpointsTotal,
     );
     final focusCopy = visibleSiteCount == 0
-        ? 'No sites match this lane right now. Holding ${site.displayName} in focus so command context stays intact.'
-        : '$visibleSiteCount of $totalSiteCount sites are visible in the current lane. ${_siteDirective(site)}';
+        ? 'No sites match this scope right now. Holding ${site.displayName} in focus so command context stays intact.'
+        : '$visibleSiteCount of $totalSiteCount sites are visible in the current scope. ${_siteDirective(site)}';
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -902,7 +922,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'SITE OPERATIONS WORKSPACE',
+                  'SITE DESK',
                   style: GoogleFonts.inter(
                     color: const Color(0xFF7B8FA8),
                     fontSize: 10,
@@ -917,7 +937,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       child: Text(
                         site.displayName,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFEAF1FB),
+                          color: const Color(0xFF172638),
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
                         ),
@@ -931,7 +951,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 Text(
                   '${site.location}  •  ${site.id}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFA5B6CB),
+                    color: const Color(0xFF556B80),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -943,7 +963,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               runSpacing: 6,
               children: [
                 _miniButton(
-                  'VIEW ON MAP',
+                  'OPEN SITE MAP',
                   key: const ValueKey('sites-view-on-map-button'),
                   primary: true,
                   enabled: widget.onOpenMapForSite != null,
@@ -959,13 +979,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   },
                 ),
                 _miniButton(
-                  'SITE SETTINGS',
+                  'OPEN SITE SETTINGS',
                   key: const ValueKey('sites-site-settings-button'),
                   enabled: widget.onOpenSiteSettings != null,
                   onTap: () => _openSiteSettings(site),
                 ),
                 _miniButton(
-                  'GUARD ROSTER',
+                  'OPEN GUARD ROSTER',
                   key: const ValueKey('sites-guard-roster-button'),
                   enabled: widget.onOpenGuardRoster != null,
                   onTap: () => _openGuardRoster(site),
@@ -996,13 +1016,16 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF11273A), Color(0xFF0D1620)],
+            gradient: LinearGradient(
+              colors: [
+                _statusColor(site.status).withValues(alpha: 0.14),
+                const Color(0xFFFFFFFF),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF27425D)),
+            border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -1011,19 +1034,29 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'COMMAND FOCUS',
+                    'DO THIS NOW',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF8EA4C2),
+                      color: _statusColor(site.status),
                       fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.9,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
                     ),
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    focusCopy,
+                    _siteNextMoveLabel(site),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFF4F8FF),
+                      color: const Color(0xFF172638),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      height: 0.92,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _siteNextMoveDetail(site),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF556B80),
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       height: 1.5,
@@ -1034,13 +1067,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                     spacing: 6,
                     runSpacing: 6,
                     children: [
+                      _siteMetricChip('Focus', _statusLabel(site.status)),
                       _siteMetricChip(
                         'Response',
                         '${site.responseRate.round()}%',
                       ),
                       _siteMetricChip('Coverage', '$guardFill%'),
                       _siteMetricChip('Checkpoints', '$checkpointFill%'),
-                      _siteMetricChip('Last Incident', site.lastIncident),
                     ],
                   ),
                 ],
@@ -1048,21 +1081,21 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               final directive = Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: const Color(0x14000000),
+                  color: const Color(0xFFFFFFFF),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0x33527AA6)),
+                  border: Border.all(color: const Color(0xFFD6E1EC)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _commandDetailRow(
-                      label: 'Directive',
-                      value: _siteDirective(site),
+                      label: 'Scope',
+                      value: focusCopy,
                       accent: _statusColor(site.status),
                     ),
                     const SizedBox(height: 6),
                     _commandDetailRow(
-                      label: 'Lane State',
+                      label: 'Desk View',
                       value: _workspaceViewTitle(_workspaceView),
                       accent: const Color(0xFF38BDF8),
                     ),
@@ -1136,9 +1169,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Container(
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E141C),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1E2A3A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: body,
     );
@@ -1220,7 +1253,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         const SizedBox(height: 10),
         _workspaceSplitCards(
           left: _panelCard(
-            title: 'RESPONSE COMMAND BOARD',
+            title: 'RESPONSE BOARD',
             shellless: shelllessSections,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1427,7 +1460,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           _WorkspaceKpi(
             title: 'VISIBLE SITES',
             value: '$visibleSiteCount/$totalSiteCount',
-            helper: 'Network lane scope',
+            helper: 'Network scope',
             helperColor: const Color(0xFF8EA4C2),
           ),
         ]),
@@ -1473,7 +1506,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _commandDetailRow(
-                  label: 'Primary lane',
+                  label: 'Primary watch',
                   value:
                       '${site.guardsActive} guards covering the main response ring',
                   accent: const Color(0xFF38BDF8),
@@ -1528,7 +1561,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               ]);
               final right = _pulseColumn([
                 _PulseMetric(
-                  'Command Lane',
+                  'Command Scope',
                   '$visibleSiteCount/$totalSiteCount',
                   const Color(0xFF8EA4C2),
                 ),
@@ -1605,7 +1638,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           _WorkspaceKpi(
             title: 'ASSURANCE',
             value: '$assuranceScore%',
-            helper: '$visibleSiteCount/$totalSiteCount in lane',
+            helper: '$visibleSiteCount/$totalSiteCount in scope',
             helperColor: const Color(0xFF38BDF8),
           ),
           _WorkspaceKpi(
@@ -1618,7 +1651,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         const SizedBox(height: 10),
         _workspaceSplitCards(
           left: _panelCard(
-            title: 'CHECKPOINT COMMAND BOARD',
+            title: 'CHECKPOINT BOARD',
             shellless: shelllessSections,
             child: Column(
               children: [
@@ -1677,9 +1710,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 ),
                 const SizedBox(height: 10),
                 _commandDetailRow(
-                  label: 'Lane scope',
+                  label: 'Checkpoint scope',
                   value:
-                      '$visibleSiteCount of $totalSiteCount sites are visible in this checkpoint lane.',
+                      '$visibleSiteCount of $totalSiteCount sites are visible in this checkpoint scope.',
                   accent: const Color(0xFF38BDF8),
                 ),
               ],
@@ -1724,7 +1757,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   _statusColor(site.status),
                 ),
                 _PulseMetric(
-                  'Visible Lane',
+                  'Visible Scope',
                   '$visibleSiteCount/$totalSiteCount',
                   const Color(0xFF8EA4C2),
                 ),
@@ -1806,10 +1839,10 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF113245) : const Color(0xFF101923),
+          color: selected ? const Color(0xFFEAF7FF) : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF2D89A7) : const Color(0xFF253345),
+            color: selected ? const Color(0xFF7DB6D1) : const Color(0xFFD6E1EC),
           ),
         ),
         child: Row(
@@ -1819,8 +1852,8 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               label,
               style: GoogleFonts.inter(
                 color: selected
-                    ? const Color(0xFFEAF1FB)
-                    : const Color(0xFF9BB0C8),
+                    ? const Color(0xFF2F6AA3)
+                    : const Color(0xFF556B80),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -1830,14 +1863,14 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
                 color: selected
-                    ? const Color(0xFF0F2532)
-                    : const Color(0xFF0D131A),
+                    ? const Color(0xFFD9EEF9)
+                    : const Color(0xFFF4F8FC),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 '$count',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF1FB),
+                  color: const Color(0xFF172638),
                   fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1863,16 +1896,16 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF123244) : const Color(0xFF111822),
+          color: selected ? const Color(0xFFEAF7FF) : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF2D89A7) : const Color(0xFF2A374A),
+            color: selected ? const Color(0xFF7DB6D1) : const Color(0xFFD6E1EC),
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFFEAF1FB) : const Color(0xFF9BB0C8),
+            color: selected ? const Color(0xFF2F6AA3) : const Color(0xFF556B80),
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
@@ -1923,7 +1956,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       child: Text(
         _statusLabel(status).toUpperCase(),
         style: GoogleFonts.inter(
-          color: const Color(0xFFEAF1FB),
+          color: color,
           fontSize: 9,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.8,
@@ -1936,9 +1969,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF101923),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF263446)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: RichText(
         text: TextSpan(
@@ -1946,7 +1979,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             TextSpan(
               text: '$label ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF7D93B1),
+                color: const Color(0xFF7A8FA4),
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -1954,7 +1987,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
+                color: const Color(0xFF172638),
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -1979,7 +2012,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFA5B6CB),
+                  color: const Color(0xFF556B80),
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1988,7 +2021,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             Text(
               '$percent%',
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
+                color: const Color(0xFF172638),
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -2002,7 +2035,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             height: 6,
             child: LinearProgressIndicator(
               value: percent / 100,
-              backgroundColor: const Color(0xFF0A0E14),
+              backgroundColor: const Color(0xFFE3EBF3),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -2032,7 +2065,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         Text(
           value,
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF1FB),
+            color: const Color(0xFF172638),
             fontSize: 10.5,
             fontWeight: FontWeight.w700,
             height: 1.45,
@@ -2059,7 +2092,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF111F33),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
@@ -2071,7 +2104,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: const Color(0xFF172638),
               fontSize: 9,
               fontWeight: FontWeight.w700,
             ),
@@ -2101,9 +2134,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
 
   String _workspaceViewTitle(_SiteWorkspaceView view) {
     return switch (view) {
-      _SiteWorkspaceView.response => 'Response Command Board',
+      _SiteWorkspaceView.response => 'Response Board',
       _SiteWorkspaceView.coverage => 'Coverage Grid',
-      _SiteWorkspaceView.checkpoints => 'Checkpoint Command Board',
+      _SiteWorkspaceView.checkpoints => 'Checkpoint Board',
     };
   }
 
@@ -2116,7 +2149,29 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       _SiteStatus.atRisk =>
         'Reinforce the active perimeter and tighten supervisor visibility before the next incident cycle.',
       _SiteStatus.critical =>
-        'Escalate field oversight immediately and rebalance guard coverage across the exposed lane.',
+        'Escalate field oversight immediately and rebalance guard coverage across the exposed site perimeter.',
+    };
+  }
+
+  String _siteNextMoveLabel(_SiteViewModel site) {
+    return switch (site.status) {
+      _SiteStatus.strong => 'HOLD THE SITE',
+      _SiteStatus.stable => 'KEEP PATROL MOVING',
+      _SiteStatus.atRisk => 'CHECK COVERAGE',
+      _SiteStatus.critical => 'ESCALATE NOW',
+    };
+  }
+
+  String _siteNextMoveDetail(_SiteViewModel site) {
+    return switch (site.status) {
+      _SiteStatus.strong =>
+        'Posture is controlled. Keep the watchline clean and preserve the reserve.',
+      _SiteStatus.stable =>
+        'The site is holding. Keep patrol rhythm tight and stay ahead of the next gap.',
+      _SiteStatus.atRisk =>
+        'Coverage or checkpoint pressure is building. Open the map or move guards before the next alert.',
+      _SiteStatus.critical =>
+        'This site needs immediate command attention. Open the map, tighten the scope, and rebalance guard coverage now.',
     };
   }
 
@@ -2130,7 +2185,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     if (site.checkpointsCompleted < site.checkpointsTotal) {
       return 'Checkpoint follow-through is still open, so assurance depends on the next patrol loop closing cleanly.';
     }
-    return 'Current posture is controlled. Keep the same deployment tempo and continue monitoring the wider lane.';
+    return 'Current posture is controlled. Keep the same deployment tempo and continue monitoring the wider site network.';
   }
 
   String _statusLabel(_SiteStatus status) {
@@ -2174,19 +2229,21 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: enabled
-              ? (primary ? const Color(0xFF3B82F6) : const Color(0xFF111822))
-              : const Color(0xFF1D2937),
+              ? (primary ? const Color(0xFF3B82F6) : const Color(0xFFFFFFFF))
+              : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: enabled
-                ? (primary ? const Color(0xFF4E8FFF) : const Color(0xFF2A374A))
-                : const Color(0xFF314154),
+                ? (primary ? const Color(0xFF4E8FFF) : const Color(0xFFD6E1EC))
+                : const Color(0xFFD6E1EC),
           ),
         ),
         child: Text(
           text,
           style: GoogleFonts.inter(
-            color: enabled ? const Color(0xFFEAF1FB) : const Color(0xFF8EA4C2),
+            color: enabled
+                ? (primary ? const Color(0xFFFFFFFF) : const Color(0xFF172638))
+                : const Color(0xFF94A3B8),
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
@@ -2206,9 +2263,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: width,
       padding: const EdgeInsets.fromLTRB(7, 7, 7, 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF111822),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A374A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2216,7 +2273,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
+              color: const Color(0xFF7A8FA4),
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
@@ -2226,7 +2283,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF1FB),
+              color: const Color(0xFF172638),
               fontSize: 30,
               height: 0.95,
               fontWeight: FontWeight.w300,
@@ -2258,7 +2315,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9BB0CE),
+              color: const Color(0xFF7A8FA4),
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
@@ -2273,9 +2330,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF111822),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF2A374A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2283,7 +2340,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9BB0CE),
+              color: const Color(0xFF7A8FA4),
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
@@ -2304,7 +2361,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             Text(
               label,
               style: GoogleFonts.inter(
-                color: const Color(0xFFD9E7FA),
+                color: const Color(0xFF172638),
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -2313,7 +2370,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             Text(
               '$percent%',
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
+                color: const Color(0xFF172638),
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -2327,7 +2384,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             height: 7,
             child: LinearProgressIndicator(
               value: percent / 100,
-              backgroundColor: const Color(0xFF0A0E14),
+              backgroundColor: const Color(0xFFE3EBF3),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -2346,7 +2403,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 child: Text(
                   metric.label,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFA5B6CB),
+                    color: const Color(0xFF556B80),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -2365,6 +2422,104 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           const SizedBox(height: 5),
         ],
       ],
+    );
+  }
+}
+
+class _SitesAuditReceipt extends StatelessWidget {
+  final SitesAutoAuditReceipt receipt;
+  final VoidCallback? onOpenLatestAudit;
+
+  const _SitesAuditReceipt({required this.receipt, this.onOpenLatestAudit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('sites-latest-audit-panel'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LATEST COMMAND',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF6B7F93),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: receipt.accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: receipt.accent.withValues(alpha: 0.45)),
+            ),
+            child: Text(
+              receipt.label,
+              style: GoogleFonts.inter(
+                color: receipt.accent,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            receipt.headline,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              height: 0.96,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            receipt.detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF556B80),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              height: 1.45,
+            ),
+          ),
+          if (onOpenLatestAudit != null) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const ValueKey('sites-view-latest-audit-button'),
+              onPressed: onOpenLatestAudit,
+              icon: const Icon(Icons.verified_rounded, size: 16),
+              label: const Text('OPEN SIGNED AUDIT'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1C8E60),
+                side: const BorderSide(color: Color(0xFF63E6A1)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                textStyle: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.4,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

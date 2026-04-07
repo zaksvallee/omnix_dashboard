@@ -1,8 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
+
+class _ClosableHttpClient extends http.BaseClient {
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(Stream<List<int>>.empty(), 200);
+  }
+
+  @override
+  void close() {
+    closed = true;
+    super.close();
+  }
+}
 
 void main() {
   test(
@@ -35,6 +52,23 @@ void main() {
       );
     },
   );
+
+  test('NewsIntelligenceService leaves injected client open on dispose', () {
+    final client = _ClosableHttpClient();
+    final service = NewsIntelligenceService(
+      client: client,
+      newsApiOrgKey: '',
+      newsApiAiKey: '',
+      newsDataIoKey: '',
+      worldNewsApiKey: '',
+      openWeatherKey: '',
+      communityFeedJson: '',
+    );
+
+    service.dispose();
+
+    expect(client.closed, isFalse);
+  });
 
   test(
     'NewsIntelligenceService normalizes configured provider payloads',
@@ -145,18 +179,71 @@ void main() {
   );
 
   test(
-    'NewsIntelligenceService can probe a configured provider',
+    'NewsIntelligenceService reports malformed community feed JSON as a format error',
     () async {
+      final service = NewsIntelligenceService(
+        client: MockClient((_) async => http.Response('{}', 200)),
+        newsApiOrgKey: '',
+        newsApiAiKey: '',
+        newsDataIoKey: '',
+        worldNewsApiKey: '',
+        openWeatherKey: '',
+        communityFeedJson: '{not-json',
+      );
+
+      await expectLater(
+        () => service.fetchLatest(
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SANDTON',
+        ),
+        throwsA(
+          isA<FormatException>().having(
+            (error) => error.message,
+            'message',
+            contains('community-feed returned invalid JSON payload'),
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'NewsIntelligenceService fetches configured providers in parallel',
+    () async {
+      final bothStarted = Completer<void>();
+      final seenHosts = <String>{};
+
       final client = MockClient((request) async {
-        if (request.url.host == 'newsapi.org') {
+        if (request.url.host == 'newsapi.org' ||
+            request.url.host == 'newsdata.io') {
+          seenHosts.add(request.url.host);
+          if (seenHosts.length == 2 && !bothStarted.isCompleted) {
+            bothStarted.complete();
+          }
+          await bothStarted.future.timeout(const Duration(milliseconds: 100));
+          if (request.url.host == 'newsapi.org') {
+            return http.Response('''
+            {
+              "articles": [
+                {
+                  "url": "https://example.com/a",
+                  "title": "Armed robbery warning in Sandton",
+                  "description": "Security teams warn of syndicate activity near office parks.",
+                  "publishedAt": "2026-03-03T10:00:00Z"
+                }
+              ]
+            }
+            ''', 200);
+          }
           return http.Response('''
           {
-            "articles": [
+            "results": [
               {
-                "url": "https://example.com/probe",
-                "title": "Probe event",
-                "description": "Probe reached provider.",
-                "publishedAt": "2026-03-03T10:00:00Z"
+                "article_id": "nd-1",
+                "title": "Storm alert issued for Gauteng",
+                "description": "Weather alert may disrupt patrol routes tonight.",
+                "pubDate": "2026-03-03T11:00:00Z"
               }
             ]
           }
@@ -168,25 +255,63 @@ void main() {
       final service = NewsIntelligenceService(
         client: client,
         newsApiOrgKey: 'org-key',
+        newsDataIoKey: 'data-key',
         newsApiAiKey: '',
-        newsDataIoKey: '',
         worldNewsApiKey: '',
         openWeatherKey: '',
       );
 
-      final result = await service.probeProvider(
-        provider: 'newsapi.org',
+      final batch = await service.fetchLatest(
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
         siteId: 'SITE-SANDTON',
       );
 
-      expect(result.provider, 'newsapi.org');
-      expect(result.status, 'reachable');
-      expect(result.detail, contains('1 ingestible record'));
-      expect(result.checkedAtUtc, isNotEmpty);
+      expect(batch.records, hasLength(2));
+      expect(seenHosts, {'newsapi.org', 'newsdata.io'});
     },
   );
+
+  test('NewsIntelligenceService can probe a configured provider', () async {
+    final client = MockClient((request) async {
+      if (request.url.host == 'newsapi.org') {
+        return http.Response('''
+          {
+            "articles": [
+              {
+                "url": "https://example.com/probe",
+                "title": "Probe event",
+                "description": "Probe reached provider.",
+                "publishedAt": "2026-03-03T10:00:00Z"
+              }
+            ]
+          }
+          ''', 200);
+      }
+      return http.Response('{}', 404);
+    });
+
+    final service = NewsIntelligenceService(
+      client: client,
+      newsApiOrgKey: 'org-key',
+      newsApiAiKey: '',
+      newsDataIoKey: '',
+      worldNewsApiKey: '',
+      openWeatherKey: '',
+    );
+
+    final result = await service.probeProvider(
+      provider: 'newsapi.org',
+      clientId: 'CLIENT-001',
+      regionId: 'REGION-GAUTENG',
+      siteId: 'SITE-SANDTON',
+    );
+
+    expect(result.provider, 'newsapi.org');
+    expect(result.status, 'reachable');
+    expect(result.detail, contains('1 ingestible record'));
+    expect(result.checkedAtUtc, isNotEmpty);
+  });
 
   test(
     'NewsIntelligenceService treats placeholder keys as missing config',
@@ -241,10 +366,7 @@ void main() {
         diagnosticsByProvider['openweather.org']?.status,
         'missing key (placeholder)',
       );
-      expect(
-        diagnosticsByProvider['community-feed']?.status,
-        'configured',
-      );
+      expect(diagnosticsByProvider['community-feed']?.status, 'configured');
     },
   );
 

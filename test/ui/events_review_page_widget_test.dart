@@ -11,6 +11,33 @@ import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/ui/events_review_page.dart';
 
+DateTime _eventsReviewFallbackOccurredAtUtc() =>
+    DateTime.utc(2026, 3, 18, 7, 0);
+
+DateTime _eventsReviewMarch6OccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 6, 11, minute);
+
+DateTime _eventsReviewMarch6LateOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 6, 23, minute);
+
+DateTime _eventsReviewMarch17ShadowOccurredAtUtc() =>
+    DateTime.utc(2026, 3, 17, 0, 20);
+
+DateTime _eventsReviewMarch17MidnightOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 17, 0, minute);
+
+DateTime _eventsReviewMarch17OccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 17, 1, minute);
+
+DateTime _eventsReviewMarch16OccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 16, hour, minute);
+
+DateTime _eventsReviewReportGeneratedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 6, 0);
+
+DateTime _eventsReviewShiftStartedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 22, 0);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const promotionDecisionStore = MoPromotionDecisionStore();
@@ -30,7 +57,7 @@ void main() {
         eventId: 'INT-HERO-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 0),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(0),
         intelligenceId: 'INTEL-HERO-001',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -60,7 +87,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
+    expect(find.text('Events War Room'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('events-routed-view-governance-button')),
@@ -101,7 +128,7 @@ void main() {
         eventId: 'INT-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 0),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(0),
         intelligenceId: 'INTEL-001',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -187,7 +214,7 @@ void main() {
         eventId: 'ALARM-WS-1',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 2),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(2),
         dispatchId: 'DISP-WS-1',
         operatorId: 'OP-WS-1',
         reason: 'Alarm requires human escalation.',
@@ -199,7 +226,7 @@ void main() {
         eventId: 'INT-WS-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 0),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(0),
         intelligenceId: 'INTEL-WS-001',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -315,7 +342,7 @@ void main() {
         eventId: 'INT-DVR-1',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 2),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(2),
         intelligenceId: 'INTEL-DVR-001',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -332,7 +359,7 @@ void main() {
         eventId: 'INT-HW-1',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 1),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(1),
         intelligenceId: 'INTEL-HW-001',
         provider: 'frigate',
         sourceType: 'hardware',
@@ -349,7 +376,7 @@ void main() {
         eventId: 'INT-NEWS-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 0),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(0),
         intelligenceId: 'INTEL-NEWS-001',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -391,7 +418,7 @@ void main() {
         eventId: 'INT-DVR-2',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 5),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(5),
         intelligenceId: 'INTEL-DVR-002',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -420,7 +447,7 @@ void main() {
               decisionSummary:
                   'Escalated for urgent review because person activity was detected, the scene suggested boundary proximity, and confidence remained high.',
               summary: 'Person visible near the boundary line.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 5),
+              reviewedAtUtc: _eventsReviewMarch6OccurredAtUtc(5),
             ),
           },
         ),
@@ -444,7 +471,7 @@ void main() {
         eventId: 'INT-DVR-4',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 8),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(8),
         intelligenceId: 'INTEL-DVR-004',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -473,7 +500,7 @@ void main() {
               decisionSummary:
                   'Escalated for urgent review because face match PERSON-44 was flagged and the event metadata suggested an unauthorized or watchlist context.',
               summary: 'Flagged face and plate remained in frame.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 8),
+              reviewedAtUtc: _eventsReviewMarch6OccurredAtUtc(8),
             ),
           },
         ),
@@ -496,7 +523,7 @@ void main() {
         eventId: 'INT-DVR-FLAGGED',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 9),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(9),
         intelligenceId: 'INTEL-DVR-FLAGGED',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -513,7 +540,7 @@ void main() {
         eventId: 'INT-DVR-ALLOWLISTED',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 8),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(8),
         intelligenceId: 'INTEL-DVR-ALLOWLISTED',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -530,7 +557,7 @@ void main() {
         eventId: 'INT-DVR-OTHER',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 7),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(7),
         intelligenceId: 'INTEL-DVR-OTHER',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -547,7 +574,7 @@ void main() {
         eventId: 'INT-DVR-TEMP',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 6),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(6),
         intelligenceId: 'INTEL-DVR-TEMP',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -575,7 +602,7 @@ void main() {
               decisionSummary:
                   'Escalated for urgent review because face match PERSON-44 was flagged and the event metadata suggested an unauthorized or watchlist context.',
               summary: 'Flagged face and plate remained in frame.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 9),
+              reviewedAtUtc: _eventsReviewMarch6OccurredAtUtc(9),
             ),
             'INTEL-DVR-ALLOWLISTED': MonitoringSceneReviewRecord(
               intelligenceId: 'INTEL-DVR-ALLOWLISTED',
@@ -585,7 +612,7 @@ void main() {
               decisionSummary:
                   'Suppressed because the face and plate were allowlisted for this site.',
               summary: 'Resident remained within the expected arrival lane.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 8),
+              reviewedAtUtc: _eventsReviewMarch6OccurredAtUtc(8),
             ),
             'INTEL-DVR-TEMP': MonitoringSceneReviewRecord(
               intelligenceId: 'INTEL-DVR-TEMP',
@@ -595,7 +622,7 @@ void main() {
               decisionSummary:
                   'Suppressed because the matched identity has a one-time approval until 2026-03-15 18:00 UTC and the activity remained below the client notification threshold.',
               summary: 'Visitor remained within the expected arrival lane.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 6, 11, 6),
+              reviewedAtUtc: _eventsReviewMarch6OccurredAtUtc(6),
             ),
           },
         ),
@@ -642,7 +669,7 @@ void main() {
         eventId: 'VISIT-EVT-1',
         sequence: 4,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 8),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(8),
         intelligenceId: 'INTEL-VISIT-001',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -660,7 +687,7 @@ void main() {
         eventId: 'VISIT-EVT-2',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 10),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(10),
         intelligenceId: 'INTEL-VISIT-002',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -678,7 +705,7 @@ void main() {
         eventId: 'VISIT-EVT-3',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 12),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(12),
         intelligenceId: 'INTEL-VISIT-003',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -696,7 +723,7 @@ void main() {
         eventId: 'OTHER-EVT-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 8),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(8),
         intelligenceId: 'INTEL-OTHER-001',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -782,7 +809,7 @@ void main() {
         eventId: 'PARTNER-EVT-1',
         sequence: 4,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 23, 14),
+        occurredAt: _eventsReviewMarch6LateOccurredAtUtc(14),
         dispatchId: 'INC-8821',
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
@@ -797,7 +824,7 @@ void main() {
         eventId: 'PARTNER-EVT-2',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 23, 19),
+        occurredAt: _eventsReviewMarch6LateOccurredAtUtc(19),
         dispatchId: 'INC-8821',
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
@@ -812,7 +839,7 @@ void main() {
         eventId: 'PARTNER-EVT-3',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 23, 27),
+        occurredAt: _eventsReviewMarch6LateOccurredAtUtc(27),
         dispatchId: 'INC-8821',
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
@@ -827,7 +854,7 @@ void main() {
         eventId: 'OTHER-EVT-2',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 23, 30),
+        occurredAt: _eventsReviewMarch6LateOccurredAtUtc(30),
         intelligenceId: 'INTEL-OTHER-002',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -849,9 +876,9 @@ void main() {
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-14',
-              generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(14),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(13),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(14),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -900,9 +927,9 @@ void main() {
             ),
             SovereignReport(
               date: '2026-03-15',
-              generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(15),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(14),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(15),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -963,7 +990,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Partner dispatch review active for 3 declared actions.',
+        'Partner dispatch scope active for 3 declared actions.',
         skipOffstage: false,
       ),
       findsOneWidget,
@@ -1025,7 +1052,7 @@ void main() {
         eventId: 'INT-DVR-3',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 11, 7),
+        occurredAt: _eventsReviewMarch6OccurredAtUtc(7),
         intelligenceId: 'INTEL-DVR-003',
         provider: 'hikvision_dvr',
         sourceType: 'dvr',
@@ -1103,7 +1130,7 @@ void main() {
         eventId: 'ACTIVITY-1',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 0),
+        occurredAt: _eventsReviewMarch16OccurredAtUtc(21, 0),
         intelligenceId: 'INTEL-ACTIVITY-1',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -1122,7 +1149,7 @@ void main() {
         eventId: 'ACTIVITY-2',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+        occurredAt: _eventsReviewShiftStartedAtUtc(16),
         intelligenceId: 'INTEL-ACTIVITY-2',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -1141,7 +1168,7 @@ void main() {
         eventId: 'ACTIVITY-3',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 17, 0, 30),
+        occurredAt: _eventsReviewMarch17MidnightOccurredAtUtc(30),
         intelligenceId: 'INTEL-ACTIVITY-3',
         provider: 'hikvision-dvr',
         sourceType: 'dvr',
@@ -1160,7 +1187,7 @@ void main() {
         eventId: 'INT-UNRELATED',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+        occurredAt: _eventsReviewMarch17OccurredAtUtc(0),
         intelligenceId: 'INTEL-UNRELATED',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -1182,9 +1209,9 @@ void main() {
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-17',
-              generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(17),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(16),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(17),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -1222,9 +1249,9 @@ void main() {
             ),
             SovereignReport(
               date: '2026-03-16',
-              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(16),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(15),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(16),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 8,
                 hashVerified: true,
@@ -1315,7 +1342,7 @@ void main() {
     );
     expect(
       find.textContaining(
-        'Review refs: ACTIVITY-1, ACTIVITY-3',
+        'Evidence refs: ACTIVITY-1, ACTIVITY-3',
         skipOffstage: false,
       ),
       findsOneWidget,
@@ -1479,7 +1506,7 @@ void main() {
               eventId: 'SHADOW-NEWS-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
+              occurredAt: _eventsReviewMarch17ShadowOccurredAtUtc(),
               intelligenceId: 'SHADOW-NEWS-INTEL-1',
               provider: 'newsdesk',
               sourceType: 'news',
@@ -1497,7 +1524,7 @@ void main() {
               eventId: 'SHADOW-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              occurredAt: _eventsReviewMarch17OccurredAtUtc(0),
               intelligenceId: 'SHADOW-INTEL-1',
               provider: 'frigate',
               sourceType: 'cctv',
@@ -1522,7 +1549,7 @@ void main() {
                   'Likely spoofed service access with abnormal roaming.',
               summary:
                   'Likely maintenance impersonation moving across office zones.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+              reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(2),
             ),
           },
           initialScopedEventIds: const ['SHADOW-1'],
@@ -1531,9 +1558,9 @@ void main() {
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-16',
-              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(16),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(15),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(16),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 0,
                 hashVerified: true,
@@ -1557,9 +1584,9 @@ void main() {
             ),
             SovereignReport(
               date: '2026-03-15',
-              generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(15),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(14),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(15),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 0,
                 hashVerified: true,
@@ -1749,7 +1776,7 @@ void main() {
               eventId: 'READY-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              occurredAt: _eventsReviewMarch17OccurredAtUtc(0),
               intelligenceId: 'READY-INTEL-1',
               provider: 'frigate',
               sourceType: 'cctv',
@@ -1766,7 +1793,7 @@ void main() {
               eventId: 'READY-2',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 1, 5),
+              occurredAt: _eventsReviewMarch17OccurredAtUtc(5),
               intelligenceId: 'READY-INTEL-2',
               provider: 'frigate',
               sourceType: 'cctv',
@@ -1788,7 +1815,7 @@ void main() {
               decisionLabel: 'Escalation Candidate',
               decisionSummary: 'Escalated due to repeat boundary pressure.',
               summary: 'Repeated movement near the east wall.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+              reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(2),
             ),
             'READY-INTEL-2': MonitoringSceneReviewRecord(
               intelligenceId: 'READY-INTEL-2',
@@ -1798,7 +1825,7 @@ void main() {
               decisionSummary:
                   'Repeat pressure is spreading across the region.',
               summary: 'Sibling site movement linked to the same corridor.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 6),
+              reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(6),
             ),
           },
           initialScopedEventIds: const ['READY-1', 'READY-2'],
@@ -1969,7 +1996,7 @@ void main() {
                 eventId: 'READY-SCOPE-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+                occurredAt: _eventsReviewMarch17OccurredAtUtc(0),
                 intelligenceId: 'READY-SCOPE-INTEL-1',
                 provider: 'frigate',
                 sourceType: 'cctv',
@@ -1991,7 +2018,7 @@ void main() {
                 decisionLabel: 'Escalation Candidate',
                 decisionSummary: 'Escalated due to repeat boundary pressure.',
                 summary: 'Repeated movement near the east wall.',
-                reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+                reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(2),
               ),
             },
             initialScopedEventIds: ['READY-SCOPE-1'],
@@ -2034,7 +2061,7 @@ void main() {
         eventId: 'READY-SCOPE-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 18, 7, 0),
+        occurredAt: _eventsReviewFallbackOccurredAtUtc(),
         intelligenceId: 'INTEL-READY-SCOPE-1',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -2069,7 +2096,7 @@ void main() {
 
     expect(
       find.text(
-        'Requested review reference READY-SCOPE-MISSING was reconstructed for CLIENT-001/SITE-ALPHA, keeping the scoped evidence board active while live ingest catches up.',
+        'Requested evidence READY-SCOPE-MISSING was rebuilt for CLIENT-001/SITE-ALPHA, keeping Events Scope live while live ingest catches up.',
       ),
       findsOneWidget,
     );
@@ -2119,7 +2146,7 @@ void main() {
               eventId: 'SYN-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              occurredAt: _eventsReviewMarch17OccurredAtUtc(0),
               intelligenceId: 'SYN-INTEL-1',
               provider: 'frigate',
               sourceType: 'cctv',
@@ -2136,7 +2163,7 @@ void main() {
               eventId: 'SYN-2',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 1, 5),
+              occurredAt: _eventsReviewMarch17OccurredAtUtc(5),
               intelligenceId: 'SYN-INTEL-2',
               provider: 'frigate',
               sourceType: 'cctv',
@@ -2158,7 +2185,7 @@ void main() {
               decisionLabel: 'Escalation Candidate',
               decisionSummary: 'Escalated due to repeat boundary pressure.',
               summary: 'Repeated movement near the east wall.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+              reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(2),
             ),
             'SYN-INTEL-2': MonitoringSceneReviewRecord(
               intelligenceId: 'SYN-INTEL-2',
@@ -2168,7 +2195,7 @@ void main() {
               decisionSummary:
                   'Repeat pressure is spreading across the region.',
               summary: 'Sibling site movement linked to the same corridor.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 6),
+              reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(6),
             ),
           },
           initialScopedEventIds: const ['SYN-1', 'SYN-2'],
@@ -2177,9 +2204,9 @@ void main() {
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-17',
-              generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(17),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(16),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(17),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -2203,9 +2230,9 @@ void main() {
             ),
             SovereignReport(
               date: '2026-03-16',
-              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(16),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(15),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(16),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 6,
                 hashVerified: true,
@@ -2453,7 +2480,7 @@ void main() {
               eventId: 'SYN-HIST-NEWS-CURRENT',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
+              occurredAt: _eventsReviewMarch17ShadowOccurredAtUtc(),
               intelligenceId: 'SYN-HIST-NEWS-INTEL-CURRENT',
               provider: 'newsdesk',
               sourceType: 'news',
@@ -2471,7 +2498,7 @@ void main() {
               eventId: 'SYN-HIST-LIVE-CURRENT',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              occurredAt: _eventsReviewMarch17OccurredAtUtc(0),
               intelligenceId: 'SYN-HIST-LIVE-INTEL-CURRENT',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -2493,7 +2520,7 @@ void main() {
               eventId: 'SYN-HIST-NEWS-PRIOR',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 0, 20),
+              occurredAt: _eventsReviewMarch16OccurredAtUtc(0, 20),
               intelligenceId: 'SYN-HIST-NEWS-INTEL-PRIOR',
               provider: 'newsdesk',
               sourceType: 'news',
@@ -2511,7 +2538,7 @@ void main() {
               eventId: 'SYN-HIST-LIVE-PRIOR',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 1, 0),
+              occurredAt: _eventsReviewMarch16OccurredAtUtc(1, 0),
               intelligenceId: 'SYN-HIST-LIVE-INTEL-PRIOR',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -2540,7 +2567,7 @@ void main() {
                   'Likely spoofed service access with abnormal roaming.',
               summary:
                   'Likely maintenance impersonation moving across office zones.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+              reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(2),
             ),
             'SYN-HIST-LIVE-INTEL-PRIOR': MonitoringSceneReviewRecord(
               intelligenceId: 'SYN-HIST-LIVE-INTEL-PRIOR',
@@ -2551,7 +2578,7 @@ void main() {
                   'Likely spoofed service access with abnormal roaming.',
               summary:
                   'Likely maintenance impersonation moving across office zones.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 2),
+              reviewedAtUtc: _eventsReviewMarch16OccurredAtUtc(1, 2),
             ),
           },
           initialScopedEventIds: const [
@@ -2563,9 +2590,9 @@ void main() {
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-17',
-              generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(17),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(16),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(17),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 2,
                 hashVerified: true,
@@ -2589,9 +2616,9 @@ void main() {
             ),
             SovereignReport(
               date: '2026-03-16',
-              generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+              generatedAtUtc: _eventsReviewReportGeneratedAtUtc(16),
+              shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(15),
+              shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(16),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 2,
                 hashVerified: true,
@@ -2728,7 +2755,7 @@ void main() {
                 eventId: 'TOM-1',
                 sequence: 2,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+                occurredAt: _eventsReviewMarch17OccurredAtUtc(0),
                 intelligenceId: 'TOM-INTEL-1',
                 provider: 'hikvision',
                 sourceType: 'dvr',
@@ -2745,7 +2772,7 @@ void main() {
                 eventId: 'TOM-2',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 17, 1, 5),
+                occurredAt: _eventsReviewMarch17OccurredAtUtc(5),
                 intelligenceId: 'TOM-INTEL-2',
                 provider: 'hikvision',
                 sourceType: 'dvr',
@@ -2762,7 +2789,7 @@ void main() {
                 eventId: 'TOM-PREV-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 1, 10),
+                occurredAt: _eventsReviewMarch16OccurredAtUtc(1, 10),
                 intelligenceId: 'TOM-PREV-INTEL-1',
                 provider: 'hikvision',
                 sourceType: 'dvr',
@@ -2785,7 +2812,7 @@ void main() {
                 decisionSummary:
                     'Escalated because fire or smoke indicators were detected.',
                 summary: 'Smoke plume visible inside the plant room.',
-                reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+                reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(2),
               ),
               'TOM-INTEL-2': MonitoringSceneReviewRecord(
                 intelligenceId: 'TOM-INTEL-2',
@@ -2795,7 +2822,7 @@ void main() {
                 decisionSummary:
                     'Escalated because smoke pressure is increasing.',
                 summary: 'Smoke signature is thickening on the same site.',
-                reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 6),
+                reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(6),
               ),
               'TOM-PREV-INTEL-1': MonitoringSceneReviewRecord(
                 intelligenceId: 'TOM-PREV-INTEL-1',
@@ -2805,7 +2832,7 @@ void main() {
                 decisionSummary:
                     'Escalated because earlier fire indicators were detected.',
                 summary: 'Previous shift smoke visible inside the plant room.',
-                reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 12),
+                reviewedAtUtc: _eventsReviewMarch16OccurredAtUtc(1, 12),
               ),
             },
             initialScopedEventIds: const ['TOM-1', 'TOM-2'],
@@ -2814,9 +2841,9 @@ void main() {
             morningSovereignReportHistory: [
               SovereignReport(
                 date: '2026-03-17',
-                generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
-                shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 22, 0),
-                shiftWindowEndUtc: DateTime.utc(2026, 3, 17, 6, 0),
+                generatedAtUtc: _eventsReviewReportGeneratedAtUtc(17),
+                shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(16),
+                shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(17),
                 ledgerIntegrity: const SovereignReportLedgerIntegrity(
                   totalEvents: 8,
                   hashVerified: true,
@@ -2840,9 +2867,9 @@ void main() {
               ),
               SovereignReport(
                 date: '2026-03-16',
-                generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-                shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
-                shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+                generatedAtUtc: _eventsReviewReportGeneratedAtUtc(16),
+                shiftWindowStartUtc: _eventsReviewShiftStartedAtUtc(15),
+                shiftWindowEndUtc: _eventsReviewReportGeneratedAtUtc(16),
                 ledgerIntegrity: const SovereignReportLedgerIntegrity(
                   totalEvents: 6,
                   hashVerified: true,
@@ -3075,7 +3102,7 @@ void main() {
               eventId: 'SHADOW-NEWS-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
+              occurredAt: _eventsReviewMarch17ShadowOccurredAtUtc(),
               intelligenceId: 'SHADOW-NEWS-INTEL-1',
               provider: 'newsdesk',
               sourceType: 'news',
@@ -3093,7 +3120,7 @@ void main() {
               eventId: 'SHADOW-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              occurredAt: _eventsReviewMarch17OccurredAtUtc(0),
               intelligenceId: 'SHADOW-INTEL-1',
               provider: 'frigate',
               sourceType: 'cctv',
@@ -3118,7 +3145,7 @@ void main() {
                   'Likely spoofed service access with abnormal roaming.',
               summary:
                   'Likely maintenance impersonation moving across office zones.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+              reviewedAtUtc: _eventsReviewMarch17OccurredAtUtc(2),
             ),
           },
           initialScopedEventIds: const ['SHADOW-NEWS-1', 'SHADOW-1'],

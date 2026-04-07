@@ -15,6 +15,8 @@ class ClientLedgerRow {
 }
 
 abstract class ClientLedgerRepository {
+  Future<List<ClientLedgerRow>> listLedgerRows(String clientId);
+
   Future<String?> fetchPreviousHash(String clientId);
 
   Future<ClientLedgerRow?> fetchLedgerRow({

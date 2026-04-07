@@ -5,13 +5,17 @@ import 'package:crypto/crypto.dart';
 
 import 'monitoring_scene_review_store.dart';
 import 'report_scene_review_snapshot_builder.dart';
+import 'reports_workspace_agent.dart';
 import '../domain/crm/reporting/report_branding_configuration.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
 import '../domain/crm/crm_event.dart';
 import '../domain/crm/export/pdf_report_exporter.dart';
+import '../domain/crm/reporting/client_narrative_result.dart';
+import '../domain/crm/reporting/report_audience.dart';
 import '../domain/crm/reporting/report_bundle.dart';
 import '../domain/crm/reporting/report_bundle_assembler.dart';
 import '../domain/crm/reporting/report_bundle_canonicalizer.dart';
+import '../domain/crm/reporting/report_sections.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/execution_completed.dart';
 import '../domain/events/execution_denied.dart';
@@ -31,6 +35,9 @@ typedef IncidentEventsProvider =
     });
 
 typedef CRMEventsProvider = List<CRMEvent> Function({required String clientId});
+
+typedef GuardReportingProfilesLoader =
+    Future<Map<String, GuardReportingProfile>> Function();
 
 class GeneratedReportResult {
   final ReportBundle bundle;
@@ -88,12 +95,16 @@ class ReportGenerationService {
   final IncidentEventsProvider? incidentEventsProvider;
   final CRMEventsProvider? crmEventsProvider;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final Map<String, GuardReportingProfile> guardProfilesById;
+  final GuardReportingProfilesLoader? guardProfilesLoader;
 
   const ReportGenerationService({
     required this.store,
     this.incidentEventsProvider,
     this.crmEventsProvider,
     this.sceneReviewByIntelligenceId = const {},
+    this.guardProfilesById = const {},
+    this.guardProfilesLoader,
   });
 
   Future<GeneratedReportResult> generatePdfReport({
@@ -105,6 +116,8 @@ class ReportGenerationService {
     ReportSectionConfiguration sectionConfiguration =
         const ReportSectionConfiguration(),
     String investigationContextKey = '',
+    ReportsWorkspaceAgent? narrativeAgent,
+    ReportAudience audience = ReportAudience.client,
   }) async {
     final currentMonth = _monthKey(nowUtc);
     final previousMonth = _monthKey(
@@ -153,6 +166,7 @@ class ReportGenerationService {
       intelligenceEvents: tenantEvents.whereType<IntelligenceReceived>(),
       sceneReviewByIntelligenceId: sceneReviewByIntelligenceId,
     );
+    final guardProfiles = await _loadGuardProfiles();
 
     final bundle = ReportBundleAssembler.build(
       clientId: clientId,
@@ -162,6 +176,7 @@ class ReportGenerationService {
       crmEvents: crmEvents,
       dispatchEvents: tenantEvents,
       sceneReview: sceneReview,
+      guardProfilesById: guardProfiles,
       brandingConfiguration: brandingConfiguration,
       sectionConfiguration: sectionConfiguration,
     );
@@ -192,7 +207,18 @@ class ReportGenerationService {
     final canonicalHash = sha256
         .convert(Uint8List.fromList(utf8.encode(canonicalJson)))
         .toString();
-    final pdfBytes = await PDFReportExporter.generate(bundle);
+    final narrative = narrativeAgent != null
+        ? await narrativeAgent.generateNarrative(
+            bundle: bundle,
+            audience: audience,
+          )
+        : ClientNarrativeResult.fallback(
+            clientId: bundle.clientSnapshot.clientId,
+            month: bundle.clientSnapshot.reportingPeriod,
+            audience: audience,
+          );
+    final pdfBundle = bundle.withNarrative(narrative);
+    final pdfBytes = await PDFReportExporter.generate(pdfBundle);
     final pdfHash = sha256.convert(pdfBytes).toString();
 
     final receiptEvent = ReportGenerated(
@@ -226,7 +252,7 @@ class ReportGenerationService {
     store.append(receiptEvent);
 
     return GeneratedReportResult(
-      bundle: bundle,
+      bundle: pdfBundle,
       pdfBytes: pdfBytes,
       receiptEvent: receiptEvent,
     );
@@ -419,10 +445,26 @@ class ReportGenerationService {
       crmEvents: crmEvents,
       dispatchEvents: scopedEvents,
       sceneReview: sceneReview,
+      guardProfilesById: guardProfilesById,
       brandingConfiguration: receipt.brandingConfiguration,
       sectionConfiguration: receipt.sectionConfiguration,
     );
     return bundle;
+  }
+
+  Future<Map<String, GuardReportingProfile>> _loadGuardProfiles() async {
+    if (guardProfilesLoader == null) {
+      return guardProfilesById;
+    }
+    try {
+      final loadedProfiles = await guardProfilesLoader!.call();
+      if (loadedProfiles.isEmpty) {
+        return guardProfilesById;
+      }
+      return loadedProfiles;
+    } catch (_) {
+      return guardProfilesById;
+    }
   }
 
   static String _monthKey(DateTime utc) {

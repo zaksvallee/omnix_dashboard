@@ -1,0 +1,86 @@
+{
+  "scenarioId": "monitoring_priority_sequence_dispatch_track_validation_v1",
+  "title": "Validation: live operations priority sequence should chain dispatch and Track",
+  "description": "Validation replay for an alternate live operations priority sequence that opens dispatch and then pivots directly into Track without CCTV review.",
+  "category": "monitoring_watch",
+  "scenarioSet": "validation",
+  "tags": ["priority_handoff", "route_persistence", "multi_surface"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T12:40:00Z",
+  "version": 1,
+  "status": "locked_validation",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:31:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": [
+        "fixture_events_monitoring_watch_match.json",
+        "fixture_events_dispatch_handoff.json"
+      ],
+      "projections": ["fixture_projections_live_ops_priority_sequence.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "elevated",
+    "dispatchState": "active",
+    "clientConversationState": "none",
+    "siteStatusState": "elevated"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_sequence",
+      "steps": [
+        {"stepId": "open_dispatch_handoff"},
+        {"stepId": "open_track_handoff"}
+      ]
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_detailed_workspace",
+    "expectedIntent": "open_live_ops_priority_sequence",
+    "expectedEscalationState": "track_opened",
+    "expectedProjectionChanges": [
+      {
+        "step": "dispatch_opened",
+        "dispatchSelection": "DSP-CHAIN-1"
+      },
+      {
+        "step": "track_opened",
+        "focusSiteId": "site_ms_vallee"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": [
+      "dismiss_without_dispatch",
+      "dismiss_without_track"
+    ],
+    "expectedUiState": {
+      "surface": "live_ops_priority_sequence",
+      "dispatchHandoffVisible": true,
+      "readyToDispatchVisible": true,
+      "trackHandoffVisible": true,
+      "readyToTrackVisible": true,
+      "detailedWorkspaceVisible": true,
+      "incidentReference": "INC-LIVEOPS-CHAIN",
+      "dispatchId": "DSP-CHAIN-1",
+      "priorityLane": "priority_response",
+      "siteId": "site_ms_vallee",
+      "trackLabel": "Ms Vallee chain track",
+      "finalRoute": "track_detailed_workspace",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

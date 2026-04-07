@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class ListenerAlarmAdvisoryRecorded extends DispatchEvent {
+  static const String auditTypeKey = 'listener_alarm_advisory_recorded';
   final String clientId;
   final String regionId;
   final String siteId;
@@ -60,4 +61,7 @@ class ListenerAlarmAdvisoryRecorded extends DispatchEvent {
       failedCount: failedCount,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

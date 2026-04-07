@@ -1,0 +1,63 @@
+{
+  "scenarioId": "monitoring_watchlist_match_review_validation_v1",
+  "title": "Validation: watchlist match queues review before dispatch",
+  "description": "Validation replay for a watchlist-linked face match routing into monitoring watch review and blocking direct dispatch until review is completed.",
+  "category": "monitoring_watch",
+  "scenarioSet": "validation",
+  "tags": ["false_positive", "night_shift", "guard_offline", "watch_review"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T09:15:00Z",
+  "version": 1,
+  "status": "validation_candidate",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:05:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_monitoring_watch_match.json"],
+      "projections": ["fixture_projections_monitoring_watch_review.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "active",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [
+      {
+        "kind": "fr_watchlist_match",
+        "siteId": "site_ms_vallee",
+        "cameraId": "cam_gate_01"
+      }
+    ],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "monitoring_watch",
+    "expectedIntent": "review_watch_signal",
+    "expectedEscalationState": "review_pending",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["dispatch_without_review"],
+    "expectedUiState": {
+      "surface": "monitoring_watch_review",
+      "verificationRailVisible": true,
+      "watchlistQueueVisible": true,
+      "reviewGateActive": true,
+      "directDispatchAllowed": false,
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

@@ -4,13 +4,16 @@ import 'package:omnix_dashboard/application/report_generation_service.dart';
 import 'package:omnix_dashboard/application/report_receipt_export_payload.dart';
 import 'package:omnix_dashboard/application/report_receipt_scene_filter.dart';
 
+import '../fixtures/report_test_bundle.dart';
 import '../fixtures/report_test_receipt.dart';
+
+DateTime _reportReceiptOccurredAtUtc() => DateTime.utc(2026, 3, 14, 22, 0);
 
 void main() {
   test('build returns receipt export envelope for all filter', () {
     final receipt = buildTestReportGenerated(
       eventId: 'RPT-1',
-      occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+      occurredAt: _reportReceiptOccurredAtUtc(),
       reportSchemaVersion: 1,
     );
 
@@ -46,7 +49,7 @@ void main() {
   test('build includes focused receipt only for latest-action filters', () {
     final receipt = buildTestReportGenerated(
       eventId: 'RPT-ALERT-1',
-      occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+      occurredAt: _reportReceiptOccurredAtUtc(),
       reportSchemaVersion: 2,
     );
     const summary = ReportReceiptSceneReviewSummary(
@@ -57,8 +60,7 @@ void main() {
       escalationCandidates: 0,
       topPosture: 'reviewed',
       latestActionBucket: ReportReceiptLatestActionBucket.alerts,
-      latestActionTaken:
-          '2026-03-14T21:14:00.000Z • Camera 1 • Monitoring Alert • Vehicle remained visible in the monitored driveway.',
+      latestActionTaken: reportTestMonitoringAlertActionTaken,
     );
 
     final payload = ReportReceiptExportPayload.build(
@@ -87,7 +89,7 @@ void main() {
     expect(focusedReceipt['latestActionBucket'], 'alerts');
     expect(
       focusedReceipt['latestActionTaken'],
-      '2026-03-14T21:14:00.000Z • Camera 1 • Monitoring Alert • Vehicle remained visible in the monitored driveway.',
+      reportTestMonitoringAlertActionTaken,
     );
   });
 
@@ -96,7 +98,7 @@ void main() {
     () {
       final receipt = buildTestReportGenerated(
         eventId: 'RPT-CONFIG-1',
-        occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+        occurredAt: _reportReceiptOccurredAtUtc(),
         reportSchemaVersion: 3,
         primaryBrandLabel: 'VISION Tactical',
         endorsementLine: 'Powered by ONYX',
@@ -158,7 +160,7 @@ void main() {
   test('build carries governance entry context when provided', () {
     final receipt = buildTestReportGenerated(
       eventId: 'RPT-CONTEXT-1',
-      occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+      occurredAt: _reportReceiptOccurredAtUtc(),
       reportSchemaVersion: 3,
     );
 
@@ -186,7 +188,7 @@ void main() {
     () {
       final receipt = buildTestReportGenerated(
         eventId: 'RPT-SINGLE-1',
-        occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+        occurredAt: _reportReceiptOccurredAtUtc(),
         reportSchemaVersion: 1,
       );
 

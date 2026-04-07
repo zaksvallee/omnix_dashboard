@@ -98,7 +98,7 @@ class MonitoringWatchEscalationPolicyService {
     required String prefix,
   }) {
     final reasons = <String>[];
-    final objectLabel = assessment.objectLabel.trim().toLowerCase();
+    final objectLabel = _activityObjectLabelForSummary(assessment);
     if (assessment.fireSignal) {
       reasons.add('fire or smoke indicators were detected');
     } else if (assessment.waterLeakSignal) {
@@ -162,6 +162,36 @@ class MonitoringWatchEscalationPolicyService {
     if (assessment.loiteringConcern) {
       reasons.add('the scene suggested possible loitering');
     }
+    if (assessment.trackedPostureLabel.trim().isNotEmpty &&
+        assessment.trackedPresenceWindow > Duration.zero) {
+      final seconds = assessment.trackedPresenceWindow.inSeconds;
+      final minutes = seconds ~/ 60;
+      final remainderSeconds = seconds % 60;
+      final durationLabel = minutes > 0
+          ? remainderSeconds == 0
+                ? '$minutes minute${minutes == 1 ? '' : 's'}'
+                : '$minutes minute${minutes == 1 ? '' : 's'} ${remainderSeconds.toString().padLeft(2, '0')} second${remainderSeconds == 1 ? '' : 's'}'
+          : '$seconds second${seconds == 1 ? '' : 's'}';
+      reasons.add(
+        'the same tracked subject remained in view for $durationLabel and was assessed as ${assessment.trackedPostureLabel}',
+      );
+    }
+    switch (assessment.zoneSensitivity) {
+      case MonitoringWatchZoneSensitivity.sensitiveZone:
+        reasons.add('the activity remained in a sensitive site zone');
+        break;
+      case MonitoringWatchZoneSensitivity.restrictedZone:
+        reasons.add('the activity remained in a restricted entry zone');
+        break;
+      case MonitoringWatchZoneSensitivity.publicApproach:
+        reasons.add('the activity remained in a public approach lane');
+        break;
+      case MonitoringWatchZoneSensitivity.managedApproach:
+        reasons.add('the activity remained in a managed site approach');
+        break;
+      case MonitoringWatchZoneSensitivity.none:
+        break;
+    }
     if (assessment.groupedEventCount > 1) {
       reasons.add('${assessment.groupedEventCount} correlated signals arrived');
     }
@@ -174,6 +204,25 @@ class MonitoringWatchEscalationPolicyService {
         reasons.add('confidence remained low');
     }
     return '$prefix ${_joinReasons(reasons)}.';
+  }
+
+  String _activityObjectLabelForSummary(
+    MonitoringWatchSceneAssessment assessment,
+  ) {
+    final objectLabel = assessment.objectLabel.trim().toLowerCase();
+    if (objectLabel.isNotEmpty &&
+        objectLabel != 'movement' &&
+        objectLabel != 'motion' &&
+        objectLabel != 'unknown') {
+      return objectLabel;
+    }
+    if ((assessment.faceMatchId ?? '').trim().isNotEmpty) {
+      return 'person';
+    }
+    if ((assessment.plateNumber ?? '').trim().isNotEmpty) {
+      return 'vehicle';
+    }
+    return objectLabel;
   }
 
   String _joinReasons(List<String> reasons) {

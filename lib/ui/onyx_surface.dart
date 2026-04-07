@@ -3,6 +3,21 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'layout_breakpoints.dart';
 
+const _onyxCanvasColor = Color(0xFFF5F7FB);
+const _onyxPanelColor = Color(0xFFFFFFFF);
+const _onyxPanelTint = Color(0xFFF7FAFE);
+const _onyxPanelBorder = Color(0xFFD7E1EC);
+const _onyxSelectedPanel = Color(0xFFE8F1FF);
+const _onyxSelectedBorder = Color(0xFF9EC1E8);
+const _onyxTitleColor = Color(0xFF142235);
+const _onyxBodyColor = Color(0xFF516882);
+const _onyxMutedColor = Color(0xFF6A7D93);
+const _onyxAccentBlue = Color(0xFF5B86B1);
+
+Color _softenHeroColor(Color color) {
+  return Color.lerp(color, Colors.white, 0.82)!;
+}
+
 class OnyxPageScaffold extends StatelessWidget {
   final Widget child;
 
@@ -11,7 +26,7 @@ class OnyxPageScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final surface = DecoratedBox(
-      decoration: const BoxDecoration(color: Color(0xFF0C1220)),
+      decoration: const BoxDecoration(color: _onyxCanvasColor),
       child: Stack(
         children: [
           Positioned(
@@ -24,7 +39,7 @@ class OnyxPageScaffold extends StatelessWidget {
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    colors: [Color(0x180F5EA8), Color(0x00040A16)],
+                    colors: [Color(0x225B86B1), Color(0x00F5F7FB)],
                   ),
                 ),
               ),
@@ -40,7 +55,7 @@ class OnyxPageScaffold extends StatelessWidget {
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    colors: [Color(0x100F4A87), Color(0x00040A16)],
+                    colors: [Color(0x145B86B1), Color(0x00F5F7FB)],
                   ),
                 ),
               ),
@@ -53,7 +68,7 @@ class OnyxPageScaffold extends StatelessWidget {
     if (Scaffold.maybeOf(context) != null) {
       return surface;
     }
-    return Scaffold(backgroundColor: const Color(0xFF040A16), body: surface);
+    return Scaffold(backgroundColor: _onyxCanvasColor, body: surface);
   }
 }
 
@@ -74,11 +89,9 @@ class OnyxPageHeader extends StatelessWidget {
     final titleCard = Container(
       padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _onyxPanelColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFF17324F).withValues(alpha: 0.55),
-        ),
+        border: Border.all(color: _onyxPanelBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -87,15 +100,15 @@ class OnyxPageHeader extends StatelessWidget {
             width: 36,
             height: 3,
             decoration: BoxDecoration(
-              color: const Color(0xFF3C79BB),
+              color: _onyxAccentBlue,
               borderRadius: BorderRadius.circular(999),
             ),
           ),
           const SizedBox(height: 6),
           Text(
             title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            style: GoogleFonts.inter(
+              color: _onyxTitleColor,
               fontSize: 19,
               fontWeight: FontWeight.w700,
             ),
@@ -104,7 +117,7 @@ class OnyxPageHeader extends StatelessWidget {
           Text(
             subtitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _onyxMutedColor,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
@@ -116,9 +129,9 @@ class OnyxPageHeader extends StatelessWidget {
     final actionCard = Container(
       padding: const EdgeInsets.all(1),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _onyxPanelTint,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _onyxPanelBorder),
       ),
       child: Wrap(
         spacing: 4,
@@ -193,17 +206,23 @@ class OnyxStoryHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final softenedGradient = gradientColors
+        .map(_softenHeroColor)
+        .toList(growable: false);
+    final accentColor = gradientColors.isNotEmpty
+        ? Color.lerp(gradientColors.first, _onyxAccentBlue, 0.45)!
+        : _onyxAccentBlue;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: gradientColors,
+          colors: softenedGradient,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _onyxPanelBorder),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -219,12 +238,10 @@ class OnyxStoryHero extends StatelessWidget {
                     height: 42,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      color: const Color(0xFF0B1119),
-                      border: Border.all(
-                        color: const Color(0xFF33475F).withValues(alpha: 0.8),
-                      ),
+                      color: _onyxSelectedPanel,
+                      border: Border.all(color: _onyxSelectedBorder),
                     ),
-                    child: Icon(icon, color: const Color(0xFFEAF4FF), size: 20),
+                    child: Icon(icon, color: accentColor, size: 20),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -235,7 +252,7 @@ class OnyxStoryHero extends StatelessWidget {
                           Text(
                             eyebrow!,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF8FD1FF),
+                              color: accentColor,
                               fontSize: 10,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 1.0,
@@ -245,8 +262,8 @@ class OnyxStoryHero extends StatelessWidget {
                         ],
                         Text(
                           title,
-                          style: GoogleFonts.rajdhani(
-                            color: const Color(0xFFF6FBFF),
+                          style: GoogleFonts.inter(
+                            color: _onyxTitleColor,
                             fontSize: compact ? 20 : 24,
                             fontWeight: FontWeight.w700,
                             height: 0.96,
@@ -256,7 +273,7 @@ class OnyxStoryHero extends StatelessWidget {
                         Text(
                           subtitle,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF95A9C7),
+                            color: _onyxMutedColor,
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                             height: 1.4,
@@ -307,10 +324,7 @@ class OnyxStoryHero extends StatelessWidget {
                     ),
                   ],
                 ),
-              if (banner != null) ...[
-                const SizedBox(height: 10),
-                banner!,
-              ],
+              if (banner != null) ...[const SizedBox(height: 10), banner!],
             ],
           );
         },
@@ -319,6 +333,9 @@ class OnyxStoryHero extends StatelessWidget {
   }
 
   Widget _metricChip(OnyxStoryMetric metric) {
+    final labelColor = metric.background.computeLuminance() < 0.55
+        ? Colors.white
+        : _onyxBodyColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
@@ -340,7 +357,7 @@ class OnyxStoryHero extends StatelessWidget {
             TextSpan(
               text: metric.label,
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF4FF),
+                color: labelColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -384,15 +401,15 @@ class OnyxSectionCard extends StatelessWidget {
                 width: 34,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3B76B6),
+                  color: _onyxAccentBlue,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 title,
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFE6F1FF),
+                style: GoogleFonts.inter(
+                  color: _onyxTitleColor,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
@@ -402,7 +419,7 @@ class OnyxSectionCard extends StatelessWidget {
                 Text(
                   subtitle!,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA4C2),
+                    color: _onyxMutedColor,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -417,14 +434,14 @@ class OnyxSectionCard extends StatelessWidget {
             width: double.infinity,
             padding: padding ?? const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: const Color(0xFF0E1A2B),
+              color: _onyxPanelColor,
               borderRadius: BorderRadius.circular(11),
-              border: Border.all(color: const Color(0xFF223244)),
+              border: Border.all(color: _onyxPanelBorder),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x12000000),
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
+                  color: Color(0x0A081B33),
+                  blurRadius: 14,
+                  offset: Offset(0, 5),
                 ),
               ],
             ),
@@ -442,14 +459,14 @@ class OnyxSectionCard extends StatelessWidget {
           width: double.infinity,
           padding: padding ?? const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: const Color(0xFF0E1A2B),
+            color: _onyxPanelColor,
             borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: const Color(0xFF223244)),
+            border: Border.all(color: _onyxPanelBorder),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x12000000),
-                blurRadius: 8,
-                offset: Offset(0, 3),
+                color: Color(0x0A081B33),
+                blurRadius: 14,
+                offset: Offset(0, 5),
               ),
             ],
           ),
@@ -460,15 +477,15 @@ class OnyxSectionCard extends StatelessWidget {
                 width: 34,
                 height: 3,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3B76B6),
+                  color: _onyxAccentBlue,
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 title,
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFE6F1FF),
+                style: GoogleFonts.inter(
+                  color: _onyxTitleColor,
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                 ),
@@ -478,7 +495,7 @@ class OnyxSectionCard extends StatelessWidget {
                 Text(
                   subtitle!,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA4C2),
+                    color: _onyxMutedColor,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -632,7 +649,7 @@ class OnyxTruncationHint extends StatelessWidget {
     required this.totalCount,
     required this.subject,
     this.hiddenDescriptor = 'older rows',
-    this.color = const Color(0xFF8EA4C2),
+    this.color = _onyxMutedColor,
     this.fontSize = 11,
     this.fontWeight = FontWeight.w600,
   });
@@ -672,14 +689,14 @@ class OnyxSummaryStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _onyxPanelTint,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _onyxPanelBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
+            color: Color(0x0A081B33),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -698,7 +715,7 @@ class OnyxSummaryStat extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
+              color: _onyxMutedColor,
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
             ),
@@ -706,7 +723,7 @@ class OnyxSummaryStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: accent,
               fontSize: 16,
               fontWeight: FontWeight.w800,
@@ -720,27 +737,27 @@ class OnyxSummaryStat extends StatelessWidget {
 
 BoxDecoration onyxWorkspaceSurfaceDecoration() {
   return BoxDecoration(
-    color: const Color(0xFF0E1A2B),
+    color: _onyxPanelColor,
     borderRadius: BorderRadius.circular(14),
-    border: Border.all(color: const Color(0xFF223244)),
+    border: Border.all(color: _onyxPanelBorder),
     boxShadow: const [
-      BoxShadow(color: Color(0x10000000), blurRadius: 8, offset: Offset(0, 3)),
+      BoxShadow(color: Color(0x08081B33), blurRadius: 10, offset: Offset(0, 3)),
     ],
   );
 }
 
 BoxDecoration onyxSelectableRowSurfaceDecoration({required bool isSelected}) {
   return BoxDecoration(
-    color: isSelected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
+    color: isSelected ? _onyxSelectedPanel : _onyxPanelColor,
     borderRadius: BorderRadius.circular(12),
     border: Border.all(
-      color: isSelected ? const Color(0xFF5D91C6) : const Color(0xFF223244),
+      color: isSelected ? _onyxSelectedBorder : _onyxPanelBorder,
     ),
     boxShadow: isSelected
         ? const [
             BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 8,
+              color: Color(0x08081B33),
+              blurRadius: 10,
               offset: Offset(0, 3),
             ),
           ]
@@ -750,38 +767,38 @@ BoxDecoration onyxSelectableRowSurfaceDecoration({required bool isSelected}) {
 
 BoxDecoration onyxPanelSurfaceDecoration({double radius = 12}) {
   return BoxDecoration(
-    color: const Color(0xFF0E1A2B),
+    color: _onyxPanelColor,
     borderRadius: BorderRadius.circular(radius),
-    border: Border.all(color: const Color(0xFF223244)),
+    border: Border.all(color: _onyxPanelBorder),
     boxShadow: const [
-      BoxShadow(color: Color(0x10000000), blurRadius: 8, offset: Offset(0, 3)),
+      BoxShadow(color: Color(0x08081B33), blurRadius: 10, offset: Offset(0, 3)),
     ],
   );
 }
 
 BoxDecoration onyxForensicSurfaceCardDecoration() {
   return BoxDecoration(
-    color: const Color(0xFF0E1A2B),
+    color: _onyxPanelTint,
     borderRadius: BorderRadius.circular(18),
-    border: Border.all(color: const Color(0xFF223244)),
+    border: Border.all(color: _onyxPanelBorder),
     boxShadow: const [
-      BoxShadow(color: Color(0x12000000), blurRadius: 10, offset: Offset(0, 3)),
+      BoxShadow(color: Color(0x08081B33), blurRadius: 12, offset: Offset(0, 3)),
     ],
   );
 }
 
 BoxDecoration onyxForensicRowDecoration({required bool isSelected}) {
   return BoxDecoration(
-    color: isSelected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
+    color: isSelected ? _onyxSelectedPanel : _onyxPanelColor,
     borderRadius: BorderRadius.circular(16),
     border: Border.all(
-      color: isSelected ? const Color(0xFF5D91C6) : const Color(0xFF223244),
+      color: isSelected ? _onyxSelectedBorder : _onyxPanelBorder,
     ),
     boxShadow: isSelected
         ? const [
             BoxShadow(
-              color: Color(0x10000000),
-              blurRadius: 8,
+              color: Color(0x08081B33),
+              blurRadius: 10,
               offset: Offset(0, 3),
             ),
           ]
@@ -801,14 +818,14 @@ class OnyxEmptyState extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 420),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF0E1A2B),
+          color: _onyxPanelColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF223244)),
+          border: Border.all(color: _onyxPanelBorder),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
+            color: _onyxMutedColor,
             fontSize: 13,
             fontWeight: FontWeight.w600,
             height: 1.4,

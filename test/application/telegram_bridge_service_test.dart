@@ -99,6 +99,54 @@ void main() {
     expect(markup['resize_keyboard'], isTrue);
   });
 
+  test('http bridge sendPhoto uploads bytes with caption', () async {
+    late Uri requestUri;
+    late http.MultipartRequest multipart;
+    final client = MockClient.streaming((request, _) async {
+      requestUri = request.url;
+      expect(request, isA<http.MultipartRequest>());
+      multipart = request as http.MultipartRequest;
+      return http.StreamedResponse(
+        Stream<List<int>>.fromIterable([
+          utf8.encode('{"ok":true,"result":{"message_id":13}}'),
+        ]),
+        200,
+        headers: const {'content-type': 'application/json'},
+      );
+    });
+    final service = HttpTelegramBridgeService(
+      client: client,
+      botToken: 'token-123',
+    );
+
+    final result = await service.sendMessages(
+      messages: const [
+        TelegramBridgeMessage(
+          messageKey: 'm-photo',
+          chatId: '-5247743742',
+          messageThreadId: 77,
+          text: 'Current verified frame from Camera 11 at MS Vallee Residence.',
+          photoBytes: <int>[1, 2, 3, 4],
+          photoFilename: 'vallee-camera-11.jpg',
+        ),
+      ],
+    );
+
+    expect(requestUri.path, '/bottoken-123/sendPhoto');
+    expect(multipart.fields['chat_id'], '-5247743742');
+    expect(multipart.fields['message_thread_id'], '77');
+    expect(
+      multipart.fields['caption'],
+      'Current verified frame from Camera 11 at MS Vallee Residence.',
+    );
+    expect(multipart.files, hasLength(1));
+    expect(multipart.files.single.field, 'photo');
+    expect(multipart.files.single.filename, 'vallee-camera-11.jpg');
+    expect(result.sentCount, 1);
+    expect(result.failedCount, 0);
+    expect(result.telegramMessageIdsByMessageKey['m-photo'], 13);
+  });
+
   test(
     'http bridge returns description for failed telegram response',
     () async {

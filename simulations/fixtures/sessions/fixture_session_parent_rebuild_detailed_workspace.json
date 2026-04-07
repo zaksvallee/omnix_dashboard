@@ -1,0 +1,8 @@
+{
+  "sessionMode": "parent_rebuild",
+  "persistedWorkspace": "modern_detailed_workspace",
+  "persistedDrilldown": "map",
+  "persistedRouteState": {
+    "surface": "track_detailed_workspace"
+  }
+}

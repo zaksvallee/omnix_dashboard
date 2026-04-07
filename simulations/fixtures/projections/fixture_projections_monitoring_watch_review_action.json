@@ -1,0 +1,10 @@
+{
+  "monitoringWatch": {
+    "pendingReviewCount": 1,
+    "reviewAction": {
+      "incidentReference": "INC-DSP-VISUAL",
+      "intelligenceId": "INTEL-DSP-VISUAL",
+      "reviewSurface": "cctv_review"
+    }
+  }
+}

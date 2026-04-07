@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/evidence/client_ledger_repository.dart';
 
@@ -5,6 +7,37 @@ class SupabaseClientLedgerRepository implements ClientLedgerRepository {
   final SupabaseClient client;
 
   SupabaseClientLedgerRepository(this.client);
+
+  @override
+  Future<List<ClientLedgerRow>> listLedgerRows(String clientId) async {
+    try {
+      final response = await client
+          .from('client_evidence_ledger')
+          .select('client_id, dispatch_id, canonical_json, hash, previous_hash')
+          .eq('client_id', clientId)
+          .order('created_at', ascending: true);
+
+      return List<Map<String, dynamic>>.from(response)
+          .map(
+            (row) => ClientLedgerRow(
+              clientId: (row['client_id'] ?? '').toString(),
+              dispatchId: (row['dispatch_id'] ?? '').toString(),
+              canonicalJson: (row['canonical_json'] ?? '').toString(),
+              hash: (row['hash'] ?? '').toString(),
+              previousHash: row['previous_hash'] as String?,
+            ),
+          )
+          .toList(growable: false);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to list client ledger rows for $clientId.',
+        name: 'SupabaseClientLedgerRepository',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
 
   @override
   Future<String?> fetchPreviousHash(String clientId) async {
@@ -20,8 +53,14 @@ class SupabaseClientLedgerRepository implements ClientLedgerRepository {
       if (response == null) return null;
 
       return response['hash'] as String?;
-    } catch (_) {
-      return null;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to fetch previous client ledger hash for $clientId.',
+        name: 'SupabaseClientLedgerRepository',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 
@@ -50,8 +89,14 @@ class SupabaseClientLedgerRepository implements ClientLedgerRepository {
         hash: (response['hash'] ?? '').toString(),
         previousHash: response['previous_hash'] as String?,
       );
-    } catch (_) {
-      return null;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to fetch client ledger row for $clientId/$dispatchId.',
+        name: 'SupabaseClientLedgerRepository',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 
@@ -71,8 +116,14 @@ class SupabaseClientLedgerRepository implements ClientLedgerRepository {
         'hash': hash,
         'previous_hash': previousHash,
       });
-    } catch (_) {
-      // Keep command flow active even when external ledger infra is unavailable.
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to insert client ledger row for $clientId/$dispatchId.',
+        name: 'SupabaseClientLedgerRepository',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 }

@@ -1,0 +1,18 @@
+{
+  "events": [
+    {
+      "eventId": "evt_incident_summary_001",
+      "kind": "incident_started",
+      "incidentReference": "INC-8829-QX",
+      "siteId": "site_ms_vallee",
+      "occurredAt": "2026-03-30T19:20:00+02:00"
+    },
+    {
+      "eventId": "evt_incident_summary_002",
+      "kind": "scene_review",
+      "incidentReference": "INC-8829-QX",
+      "siteId": "site_ms_vallee",
+      "occurredAt": "2026-03-30T19:26:00+02:00"
+    }
+  ]
+}

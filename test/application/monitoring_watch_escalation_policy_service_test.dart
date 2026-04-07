@@ -41,7 +41,10 @@ void main() {
       expect(decision.incidentStatusLabel, 'Repeat Activity');
       expect(decision.shouldIncrementEscalation, isTrue);
       expect(decision.decisionSummary, contains('Repeat activity update sent'));
-      expect(decision.decisionSummary, contains('vehicle activity was detected'));
+      expect(
+        decision.decisionSummary,
+        contains('vehicle activity was detected'),
+      );
     });
 
     test('routes escalation candidates into urgent review', () {
@@ -64,7 +67,10 @@ void main() {
       expect(decision.title, 'ONYX Escalation Review');
       expect(decision.shouldIncrementEscalation, isTrue);
       expect(decision.decisionSummary, contains('Escalated for urgent review'));
-      expect(decision.decisionSummary, contains('person activity was detected'));
+      expect(
+        decision.decisionSummary,
+        contains('person activity was detected'),
+      );
     });
 
     test('uses fire-specific escalation rationale for fire emergencies', () {
@@ -89,61 +95,106 @@ void main() {
         decision.decisionSummary,
         contains('fire or smoke indicators were detected'),
       );
-      expect(decision.decisionSummary, isNot(contains('activity was detected')));
-    });
-
-    test('uses water-specific escalation rationale for flood or leak emergencies', () {
-      final decision = service.decide(
-        const MonitoringWatchSceneAssessment(
-          objectLabel: 'water',
-          effectiveRiskScore: 95,
-          confidence: MonitoringWatchSceneConfidence.high,
-          postureLabel: 'flood or leak emergency',
-          shouldNotifyClient: true,
-          shouldEscalate: true,
-          repeatActivity: false,
-          waterLeakSignal: true,
-        ),
-      );
-
-      expect(
-        decision.kind,
-        MonitoringWatchNotificationKind.escalationCandidate,
-      );
       expect(
         decision.decisionSummary,
-        contains('water leak or flooding indicators were detected'),
+        isNot(contains('activity was detected')),
       );
-      expect(decision.decisionSummary, isNot(contains('activity was detected')));
     });
 
-    test('includes boundary, loitering, grouping, and confidence in alert rationale', () {
+    test(
+      'uses water-specific escalation rationale for flood or leak emergencies',
+      () {
+        final decision = service.decide(
+          const MonitoringWatchSceneAssessment(
+            objectLabel: 'water',
+            effectiveRiskScore: 95,
+            confidence: MonitoringWatchSceneConfidence.high,
+            postureLabel: 'flood or leak emergency',
+            shouldNotifyClient: true,
+            shouldEscalate: true,
+            repeatActivity: false,
+            waterLeakSignal: true,
+          ),
+        );
+
+        expect(
+          decision.kind,
+          MonitoringWatchNotificationKind.escalationCandidate,
+        );
+        expect(
+          decision.decisionSummary,
+          contains('water leak or flooding indicators were detected'),
+        );
+        expect(
+          decision.decisionSummary,
+          isNot(contains('activity was detected')),
+        );
+      },
+    );
+
+    test(
+      'includes boundary, loitering, grouping, and confidence in alert rationale',
+      () {
+        final decision = service.decide(
+          const MonitoringWatchSceneAssessment(
+            objectLabel: 'person',
+            effectiveRiskScore: 82,
+            confidence: MonitoringWatchSceneConfidence.high,
+            postureLabel: 'boundary loitering concern',
+            shouldNotifyClient: true,
+            shouldEscalate: false,
+            repeatActivity: false,
+            boundaryConcern: true,
+            loiteringConcern: true,
+            groupedEventCount: 3,
+          ),
+        );
+
+        expect(decision.kind, MonitoringWatchNotificationKind.incident);
+        expect(
+          decision.decisionSummary,
+          contains('the scene suggested boundary proximity'),
+        );
+        expect(
+          decision.decisionSummary,
+          contains('the scene suggested possible loitering'),
+        );
+        expect(
+          decision.decisionSummary,
+          contains('3 correlated signals arrived'),
+        );
+        expect(decision.decisionSummary, contains('confidence remained high'));
+      },
+    );
+
+    test('includes tracked dwell rationale in summaries', () {
       final decision = service.decide(
         const MonitoringWatchSceneAssessment(
           objectLabel: 'person',
-          effectiveRiskScore: 82,
+          effectiveRiskScore: 88,
           confidence: MonitoringWatchSceneConfidence.high,
-          postureLabel: 'boundary loitering concern',
+          postureLabel: 'dwell alert',
           shouldNotifyClient: true,
           shouldEscalate: false,
           repeatActivity: false,
-          boundaryConcern: true,
-          loiteringConcern: true,
-          groupedEventCount: 3,
+          trackedPresenceWindow: Duration(minutes: 2, seconds: 10),
+          trackedPostureStage: MonitoringWatchTrackedPostureStage.suspicious,
+          trackedPostureLabel: 'dwell alert',
+          zoneSensitivity: MonitoringWatchZoneSensitivity.restrictedZone,
         ),
       );
 
       expect(decision.kind, MonitoringWatchNotificationKind.incident);
       expect(
         decision.decisionSummary,
-        contains('the scene suggested boundary proximity'),
+        contains(
+          'the same tracked subject remained in view for 2 minutes 10 seconds and was assessed as dwell alert',
+        ),
       );
       expect(
         decision.decisionSummary,
-        contains('the scene suggested possible loitering'),
+        contains('the activity remained in a restricted entry zone'),
       );
-      expect(decision.decisionSummary, contains('3 correlated signals arrived'));
-      expect(decision.decisionSummary, contains('confidence remained high'));
     });
 
     test('includes FR/LPR watchlist rationale in escalation summary', () {
@@ -173,9 +224,67 @@ void main() {
       expect(decision.decisionSummary, contains('plate CA123456 was flagged'));
       expect(
         decision.decisionSummary,
-        contains('the event metadata suggested an unauthorized or watchlist context'),
+        contains(
+          'the event metadata suggested an unauthorized or watchlist context',
+        ),
       );
     });
+
+    test(
+      'uses person activity lead for face matches even when the assessment label is generic',
+      () {
+        final decision = service.decide(
+          const MonitoringWatchSceneAssessment(
+            objectLabel: 'movement',
+            effectiveRiskScore: 83,
+            confidence: MonitoringWatchSceneConfidence.high,
+            postureLabel: 'monitoring alert',
+            shouldNotifyClient: true,
+            shouldEscalate: false,
+            repeatActivity: false,
+            faceMatchId: 'RESIDENT-44',
+          ),
+        );
+
+        expect(decision.kind, MonitoringWatchNotificationKind.incident);
+        expect(
+          decision.decisionSummary,
+          contains('person activity was detected'),
+        );
+        expect(
+          decision.decisionSummary,
+          isNot(contains('movement activity was detected')),
+        );
+      },
+    );
+
+    test(
+      'uses vehicle activity lead for plate hits even when the assessment label is generic',
+      () {
+        final decision = service.decide(
+          const MonitoringWatchSceneAssessment(
+            objectLabel: 'unknown',
+            effectiveRiskScore: 79,
+            confidence: MonitoringWatchSceneConfidence.medium,
+            postureLabel: 'monitoring alert',
+            shouldNotifyClient: true,
+            shouldEscalate: false,
+            repeatActivity: false,
+            plateNumber: 'CA123456',
+          ),
+        );
+
+        expect(decision.kind, MonitoringWatchNotificationKind.incident);
+        expect(
+          decision.decisionSummary,
+          contains('vehicle activity was detected'),
+        );
+        expect(
+          decision.decisionSummary,
+          isNot(contains('movement activity was detected')),
+        );
+      },
+    );
 
     test('uses allowlist-specific suppression summary for known identities', () {
       final decision = service.decide(

@@ -14,6 +14,9 @@ import 'package:omnix_dashboard/ui/live_operations_page.dart';
 import 'package:omnix_dashboard/ui/sites_command_page.dart';
 import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
 
+DateTime _actionabilityOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 11, 10, minute);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -37,7 +40,7 @@ void main() {
         eventId: 'DEC-CTA-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 11, 10, 0),
+        occurredAt: _actionabilityOccurredAtUtc(0),
         dispatchId: 'DISP-CTA-1',
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',
@@ -47,7 +50,7 @@ void main() {
         eventId: 'INT-CTA-1',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 11, 10, 5),
+        occurredAt: _actionabilityOccurredAtUtc(5),
         intelligenceId: 'INTEL-CTA-1',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -119,6 +122,14 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    final clientsToggle = find.byKey(
+      const ValueKey('clients-toggle-detailed-workspace'),
+    );
+    if (clientsToggle.evaluate().isNotEmpty) {
+      await tester.ensureVisible(clientsToggle.first);
+      await tester.tap(clientsToggle.first);
+      await tester.pumpAndSettle();
+    }
     final retryPushSync = tester.widget<InkWell>(
       find.byKey(const ValueKey('clients-retry-push-sync-action')),
     );

@@ -1,0 +1,11 @@
+{
+  "events": [
+    {
+      "eventId": "evt_watch_match_001",
+      "kind": "fr_watchlist_match",
+      "siteId": "site_ms_vallee",
+      "cameraId": "cam_gate_01",
+      "occurredAt": "2026-03-30T20:02:00+02:00"
+    }
+  ]
+}

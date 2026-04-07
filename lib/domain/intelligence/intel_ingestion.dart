@@ -18,6 +18,7 @@ class NormalizedIntelRecord {
   final String? zone;
   final String? objectLabel;
   final double? objectConfidence;
+  final String? trackId;
   final String? faceMatchId;
   final double? faceConfidence;
   final String? plateNumber;
@@ -40,6 +41,7 @@ class NormalizedIntelRecord {
     this.zone,
     this.objectLabel,
     this.objectConfidence,
+    this.trackId,
     this.faceMatchId,
     this.faceConfidence,
     this.plateNumber,
@@ -119,37 +121,38 @@ class DeterministicIntelligenceIngestionService {
       }
 
       final event = IntelligenceReceived(
-          eventId: 'E-$intelligenceId',
-          sequence: 0,
-          version: 1,
-          occurredAt: record.occurredAtUtc.toUtc(),
-          intelligenceId: intelligenceId,
-          provider: record.provider,
-          sourceType: record.sourceType,
-          externalId: record.externalId,
-          clientId: record.clientId,
-          regionId: record.regionId,
-          siteId: record.siteId,
-          cameraId: record.cameraId,
-          zone: record.zone,
-          objectLabel: record.objectLabel,
-          objectConfidence: record.objectConfidence,
-          faceMatchId: record.faceMatchId,
-          faceConfidence: record.faceConfidence,
-          plateNumber: record.plateNumber,
-          plateConfidence: record.plateConfidence,
-          headline: record.headline,
-          summary: record.summary,
-          riskScore: record.riskScore,
-          snapshotUrl: record.snapshotUrl,
-          clipUrl: record.clipUrl,
-          canonicalHash: canonicalHash,
-          snapshotReferenceHash: snapshotReferenceHash.isEmpty
-              ? null
-              : snapshotReferenceHash,
-          clipReferenceHash: clipReferenceHash.isEmpty ? null : clipReferenceHash,
-          evidenceRecordHash: evidenceRecordHash,
-        );
+        eventId: 'E-$intelligenceId',
+        sequence: 0,
+        version: 1,
+        occurredAt: record.occurredAtUtc.toUtc(),
+        intelligenceId: intelligenceId,
+        provider: record.provider,
+        sourceType: record.sourceType,
+        externalId: record.externalId,
+        clientId: record.clientId,
+        regionId: record.regionId,
+        siteId: record.siteId,
+        cameraId: record.cameraId,
+        zone: record.zone,
+        objectLabel: record.objectLabel,
+        objectConfidence: record.objectConfidence,
+        trackId: record.trackId,
+        faceMatchId: record.faceMatchId,
+        faceConfidence: record.faceConfidence,
+        plateNumber: record.plateNumber,
+        plateConfidence: record.plateConfidence,
+        headline: record.headline,
+        summary: record.summary,
+        riskScore: record.riskScore,
+        snapshotUrl: record.snapshotUrl,
+        clipUrl: record.clipUrl,
+        canonicalHash: canonicalHash,
+        snapshotReferenceHash: snapshotReferenceHash.isEmpty
+            ? null
+            : snapshotReferenceHash,
+        clipReferenceHash: clipReferenceHash.isEmpty ? null : clipReferenceHash,
+        evidenceRecordHash: evidenceRecordHash,
+      );
       store.append(event);
       appendedEvents.add(event);
       knownIntelIds.add(intelligenceId);
@@ -176,6 +179,7 @@ class DeterministicIntelligenceIngestionService {
       'zone': record.zone,
       'objectLabel': record.objectLabel,
       'objectConfidence': record.objectConfidence,
+      'trackId': record.trackId,
       'faceMatchId': record.faceMatchId,
       'faceConfidence': record.faceConfidence,
       'plateNumber': record.plateNumber,

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_watch_runtime_store.dart';
+import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 
 void main() {
   group('MonitoringWatchRuntimeStore', () {
@@ -205,6 +206,110 @@ void main() {
       );
     });
 
+    test('persists tracked subjects and prunes stale history', () {
+      final runtime = store.applyTrackedActivity(
+        runtime: MonitoringWatchRuntimeState(
+          startedAtUtc: DateTime.utc(2026, 3, 14, 10, 0),
+          trackedSubjects: {
+            'track-stale': MonitoringWatchTrackedSubjectState(
+              trackId: 'track-stale',
+              cameraId: 'CAM-2',
+              objectLabel: 'person',
+              firstSeenAtUtc: DateTime.utc(2026, 3, 14, 9, 30),
+              lastSeenAtUtc: DateTime.utc(2026, 3, 14, 9, 40),
+              eventCount: 2,
+            ),
+          },
+        ),
+        events: [
+          _intel(
+            id: 'track-1',
+            occurredAt: DateTime.utc(2026, 3, 14, 10, 4),
+            cameraId: 'CAM-1',
+            objectLabel: 'person',
+            trackId: 'track-7',
+          ),
+          _intel(
+            id: 'track-2',
+            occurredAt: DateTime.utc(2026, 3, 14, 10, 7),
+            cameraId: 'CAM-1',
+            objectLabel: 'person',
+            trackId: 'track-7',
+          ),
+        ],
+        observedAtUtc: DateTime.utc(2026, 3, 14, 10, 7),
+      );
+
+      expect(runtime.trackedSubjects.keys, ['track-7']);
+      final tracked = runtime.trackedSubjects['track-7']!;
+      expect(tracked.cameraId, 'CAM-1');
+      expect(tracked.objectLabel, 'person');
+      expect(tracked.firstSeenAtUtc, DateTime.utc(2026, 3, 14, 10, 4));
+      expect(tracked.lastSeenAtUtc, DateTime.utc(2026, 3, 14, 10, 7));
+      expect(tracked.eventCount, 2);
+
+      final prepared = store.preparePersistedState({
+        'CLIENT-A|SITE-A': runtime,
+      });
+      final restored = store.parsePersistedState(prepared.serializedState);
+      expect(restored['CLIENT-A|SITE-A']!.trackedSubjects.keys, ['track-7']);
+      expect(
+        restored['CLIENT-A|SITE-A']!.trackedSubjects['track-7']!.eventCount,
+        2,
+      );
+    });
+
+    test(
+      'persists semantic person and vehicle labels for FR and LPR tracked subjects',
+      () {
+        final runtime = store.applyTrackedActivity(
+          runtime: MonitoringWatchRuntimeState(
+            startedAtUtc: DateTime.utc(2026, 3, 14, 10, 0),
+          ),
+          events: [
+            _intel(
+              id: 'track-fr',
+              occurredAt: DateTime.utc(2026, 3, 14, 10, 4),
+              cameraId: 'CAM-LOBBY',
+              objectLabel: '',
+              trackId: 'track-fr-1',
+              faceMatchId: 'RESIDENT-44',
+            ),
+            _intel(
+              id: 'track-lpr',
+              occurredAt: DateTime.utc(2026, 3, 14, 10, 5),
+              cameraId: 'CAM-DRIVE',
+              objectLabel: '',
+              trackId: 'track-lpr-1',
+              plateNumber: 'CA123456',
+            ),
+          ],
+          observedAtUtc: DateTime.utc(2026, 3, 14, 10, 5),
+        );
+
+        expect(runtime.trackedSubjects['track-fr-1']!.objectLabel, 'person');
+        expect(runtime.trackedSubjects['track-lpr-1']!.objectLabel, 'vehicle');
+
+        final prepared = store.preparePersistedState({
+          'CLIENT-A|SITE-A': runtime,
+        });
+        final restored = store.parsePersistedState(prepared.serializedState);
+
+        expect(
+          restored['CLIENT-A|SITE-A']!
+              .trackedSubjects['track-fr-1']!
+              .objectLabel,
+          'person',
+        );
+        expect(
+          restored['CLIENT-A|SITE-A']!
+              .trackedSubjects['track-lpr-1']!
+              .objectLabel,
+          'vehicle',
+        );
+      },
+    );
+
     test('applies client decision context to runtime', () {
       final updated = store.applyClientDecision(
         runtime: MonitoringWatchRuntimeState(
@@ -268,4 +373,38 @@ void main() {
       ]);
     });
   });
+}
+
+IntelligenceReceived _intel({
+  required String id,
+  required DateTime occurredAt,
+  String? cameraId,
+  String? objectLabel,
+  String? trackId,
+  String? faceMatchId,
+  String? plateNumber,
+}) {
+  return IntelligenceReceived(
+    eventId: 'event-$id',
+    sequence: 1,
+    version: 1,
+    occurredAt: occurredAt,
+    intelligenceId: id,
+    provider: 'test-provider',
+    sourceType: 'dvr',
+    externalId: 'ext-$id',
+    clientId: 'CLIENT-A',
+    regionId: 'REGION-A',
+    siteId: 'SITE-A',
+    cameraId: cameraId,
+    objectLabel: objectLabel,
+    objectConfidence: 0.8,
+    trackId: trackId,
+    faceMatchId: faceMatchId,
+    plateNumber: plateNumber,
+    headline: 'Test event',
+    summary: 'Tracked subject event',
+    riskScore: 45,
+    canonicalHash: 'hash-$id',
+  );
 }

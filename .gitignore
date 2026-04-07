@@ -13,6 +13,7 @@ pubspec.lock
 
 # Flutter build outputs
 /build/
+/coverage/
 /ios/Flutter/Flutter.framework
 /ios/Flutter/Flutter.podspec
 
@@ -28,6 +29,9 @@ pubspec.lock
 
 # Local runtime config files (may contain secrets)
 config/*.local.json
+flutter_*.log
+tmp/
+tmp*.png
 tmp/*.local.json
 tmp/onyx*.json
 tmp/telegram_quick_action_live*.log
@@ -37,3 +41,5 @@ tmp/vallee_probe/
 tmp/guard_field_validation/
 tmp/guard_gate_reports/
 supabase/.temp/
+yolov8l.pt
+yolov8n.pt

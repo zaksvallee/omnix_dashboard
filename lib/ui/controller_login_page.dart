@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
-import 'app_shell.dart';
+import '../domain/authority/onyx_route.dart';
+import 'theme/onyx_design_tokens.dart';
 
 class ControllerLoginAccount {
   final String username;
@@ -55,14 +55,16 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
     ControllerLoginAccount? match;
     for (final account in widget.demoAccounts) {
       if (account.username.toLowerCase() == username &&
-          account.password == password) {
+          account.password.trim() == password) {
         match = account;
         break;
       }
     }
     if (match == null) {
       setState(() {
-        _errorText = 'Use one of the demo accounts below to continue.';
+        _errorText = widget.demoAccounts.isEmpty
+            ? 'Demo accounts are unavailable in this build.'
+            : 'Use one of the demo accounts below to continue.';
       });
       return;
     }
@@ -75,7 +77,7 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
   void _fillDemoAccount(ControllerLoginAccount account) {
     setState(() {
       _usernameController.text = account.username;
-      _passwordController.text = account.password;
+      _passwordController.text = account.password.trim();
       _errorText = '';
     });
   }
@@ -93,7 +95,7 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: const ValueKey('controller-login-page'),
-      backgroundColor: const Color(0xFF090D14),
+      backgroundColor: OnyxDesignTokens.backgroundPrimary,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -121,17 +123,19 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                               width: 72,
                               height: 72,
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: const Color(0xFF253246),
+                                borderRadius: BorderRadius.circular(
+                                  OnyxRadiusTokens.xl,
                                 ),
-                                color: const Color(0xFF0E1622),
+                                border: Border.all(
+                                  color: OnyxDesignTokens.borderSubtle,
+                                ),
+                                color: OnyxDesignTokens.cardSurface,
                               ),
                               alignment: Alignment.center,
                               child: const Icon(
                                 Icons.shield_outlined,
                                 size: 34,
-                                color: Color(0xFF27C1F3),
+                                color: OnyxDesignTokens.cyanInteractive,
                               ),
                             );
                           },
@@ -141,21 +145,23 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                       Text(
                         'ONYX SECURITY',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.rajdhani(
-                          color: const Color(0xFFF5F7FB),
+                        style: const TextStyle(
+                          fontFamily: OnyxTypographyTokens.sansFamily,
+                          color: OnyxDesignTokens.textPrimary,
                           fontSize: 38,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
+                          fontWeight: OnyxTypographyTokens.extrabold,
+                          letterSpacing: OnyxTypographyTokens.trackingHeadline,
                         ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'Operations Control Platform',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF7B879A),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
+                        style: const TextStyle(
+                          fontFamily: OnyxTypographyTokens.sansFamily,
+                          color: OnyxDesignTokens.textSecondary,
+                          fontSize: OnyxTypographyTokens.bodyLg,
+                          fontWeight: OnyxTypographyTokens.medium,
                         ),
                       ),
                       const SizedBox(height: 28),
@@ -165,10 +171,11 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                           children: [
                             Text(
                               'Controller Login',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFF3F7FC),
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
+                              style: const TextStyle(
+                                fontFamily: OnyxTypographyTokens.sansFamily,
+                                color: OnyxDesignTokens.textPrimary,
+                                fontSize: OnyxTypographyTokens.titleMd,
+                                fontWeight: OnyxTypographyTokens.extrabold,
                               ),
                             ),
                             const SizedBox(height: 20),
@@ -199,10 +206,11 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                               Text(
                                 _errorText,
                                 key: const ValueKey('controller-login-error'),
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFFF87171),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                                style: const TextStyle(
+                                  fontFamily: OnyxTypographyTokens.sansFamily,
+                                  color: OnyxDesignTokens.redCritical,
+                                  fontSize: OnyxTypographyTokens.labelLg,
+                                  fontWeight: OnyxTypographyTokens.semibold,
                                 ),
                               ),
                             ],
@@ -213,17 +221,22 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                                 key: const ValueKey('controller-login-submit'),
                                 onPressed: _submit,
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFF1CB8E7),
-                                  foregroundColor: const Color(0xFFF8FCFF),
+                                  backgroundColor:
+                                      OnyxDesignTokens.cyanInteractive,
+                                  foregroundColor:
+                                      OnyxDesignTokens.backgroundPrimary,
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 20,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.circular(
+                                      OnyxRadiusTokens.lg,
+                                    ),
                                   ),
-                                  textStyle: GoogleFonts.inter(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
+                                  textStyle: const TextStyle(
+                                    fontFamily: OnyxTypographyTokens.sansFamily,
+                                    fontSize: OnyxTypographyTokens.titleMd,
+                                    fontWeight: OnyxTypographyTokens.extrabold,
                                   ),
                                 ),
                                 child: const Text('Sign In'),
@@ -239,11 +252,13 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                           children: [
                             Text(
                               'DEMO ACCOUNTS',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF6F7A8A),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.1,
+                              style: const TextStyle(
+                                fontFamily: OnyxTypographyTokens.sansFamily,
+                                color: OnyxDesignTokens.textSecondary,
+                                fontSize: OnyxTypographyTokens.labelLg,
+                                fontWeight: OnyxTypographyTokens.extrabold,
+                                letterSpacing:
+                                    OnyxTypographyTokens.trackingCaps,
                               ),
                             ),
                             const SizedBox(height: 18),
@@ -260,11 +275,13 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                                     vertical: 14,
                                   ),
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: const Color(0xFF202A38),
+                                    borderRadius: BorderRadius.circular(
+                                      OnyxRadiusTokens.md,
                                     ),
-                                    color: const Color(0xFF0B1119),
+                                    border: Border.all(
+                                      color: OnyxDesignTokens.borderSubtle,
+                                    ),
+                                    color: OnyxDesignTokens.backgroundSecondary,
                                   ),
                                   child: Row(
                                     children: [
@@ -277,26 +294,31 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                                           children: [
                                             Text(
                                               account.username,
-                                              style: GoogleFonts.robotoMono(
-                                                color: const Color(0xFFEAF4FF),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
+                                              style: const TextStyle(
+                                                fontFamily: OnyxTypographyTokens
+                                                    .sansFamily,
+                                                color: OnyxDesignTokens
+                                                    .textPrimary,
+                                                fontSize: OnyxTypographyTokens
+                                                    .labelLg,
+                                                fontWeight:
+                                                    OnyxTypographyTokens.bold,
+                                                letterSpacing:
+                                                    OnyxTypographyTokens
+                                                        .trackingLabel,
                                               ),
                                             ),
                                             Text(
                                               account.roleLabel,
-                                              style: GoogleFonts.inter(
-                                                color: const Color(0xFF27C1F3),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            Text(
-                                              '/ ${account.password}',
-                                              style: GoogleFonts.robotoMono(
-                                                color: const Color(0xFF7D8EA5),
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
+                                              style: const TextStyle(
+                                                fontFamily: OnyxTypographyTokens
+                                                    .sansFamily,
+                                                color: OnyxDesignTokens
+                                                    .cyanInteractive,
+                                                fontSize: OnyxTypographyTokens
+                                                    .labelLg,
+                                                fontWeight:
+                                                    OnyxTypographyTokens.bold,
                                               ),
                                             ),
                                           ],
@@ -305,10 +327,14 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                                       const SizedBox(width: 16),
                                       Text(
                                         account.accessLabel,
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF7D8EA5),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                                        style: const TextStyle(
+                                          fontFamily:
+                                              OnyxTypographyTokens.sansFamily,
+                                          color: OnyxDesignTokens.textSecondary,
+                                          fontSize:
+                                              OnyxTypographyTokens.labelLg,
+                                          fontWeight:
+                                              OnyxTypographyTokens.semibold,
                                         ),
                                       ),
                                     ],
@@ -324,19 +350,22 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
                                 key: const ValueKey('controller-login-reset'),
                                 onPressed: _resetPreview,
                                 style: OutlinedButton.styleFrom(
-                                  foregroundColor: const Color(0xFFF87171),
+                                  foregroundColor: OnyxDesignTokens.redCritical,
                                   side: const BorderSide(
-                                    color: Color(0xFF7F1D1D),
+                                    color: OnyxDesignTokens.redBorder,
                                   ),
                                   padding: const EdgeInsets.symmetric(
                                     vertical: 16,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
+                                    borderRadius: BorderRadius.circular(
+                                      OnyxRadiusTokens.md,
+                                    ),
                                   ),
-                                  textStyle: GoogleFonts.inter(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
+                                  textStyle: const TextStyle(
+                                    fontFamily: OnyxTypographyTokens.sansFamily,
+                                    fontSize: OnyxTypographyTokens.bodyLg,
+                                    fontWeight: OnyxTypographyTokens.bold,
                                   ),
                                 ),
                                 child: const Text('Clear Cache & Reset'),
@@ -361,13 +390,13 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
     return Container(
       padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D131C),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF1E2836)),
-        boxShadow: const [
+        color: OnyxDesignTokens.cardSurface,
+        borderRadius: BorderRadius.circular(OnyxRadiusTokens.panel),
+        border: Border.all(color: OnyxDesignTokens.borderSubtle),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x2A000000),
-            blurRadius: 30,
+            color: OnyxDesignTokens.backgroundPrimary.withValues(alpha: 0.42),
+            blurRadius: 28,
             offset: Offset(0, 14),
           ),
         ],
@@ -379,10 +408,11 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
   Widget _buildLabel(String text) {
     return Text(
       text,
-      style: GoogleFonts.inter(
-        color: const Color(0xFFB2BECE),
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
+      style: const TextStyle(
+        fontFamily: OnyxTypographyTokens.sansFamily,
+        color: OnyxDesignTokens.textSecondary,
+        fontSize: OnyxTypographyTokens.bodyMd,
+        fontWeight: OnyxTypographyTokens.bold,
       ),
     );
   }
@@ -404,36 +434,38 @@ class _ControllerLoginPageState extends State<ControllerLoginPage> {
       autofocus: autofocus,
       textInputAction: textInputAction,
       onSubmitted: onSubmitted,
-      style: GoogleFonts.inter(
-        color: const Color(0xFFF3F7FC),
-        fontSize: 15,
-        fontWeight: FontWeight.w600,
+      style: const TextStyle(
+        fontFamily: OnyxTypographyTokens.sansFamily,
+        color: OnyxDesignTokens.textPrimary,
+        fontSize: OnyxTypographyTokens.bodyLg,
+        fontWeight: OnyxTypographyTokens.semibold,
       ),
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: GoogleFonts.inter(
-          color: const Color(0xFF5F6A7B),
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
+        hintStyle: const TextStyle(
+          fontFamily: OnyxTypographyTokens.sansFamily,
+          color: OnyxDesignTokens.textMuted,
+          fontSize: OnyxTypographyTokens.bodyLg,
+          fontWeight: OnyxTypographyTokens.medium,
         ),
-        prefixIcon: Icon(icon, color: const Color(0xFF5F6A7B)),
         filled: true,
-        fillColor: const Color(0xFF0A1018),
+        fillColor: OnyxDesignTokens.backgroundSecondary,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 18,
         ),
+        prefixIcon: Icon(icon, color: OnyxDesignTokens.textMuted),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF222D3C)),
+          borderRadius: BorderRadius.circular(OnyxRadiusTokens.lg),
+          borderSide: const BorderSide(color: OnyxDesignTokens.borderSubtle),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF222D3C)),
+          borderRadius: BorderRadius.circular(OnyxRadiusTokens.lg),
+          borderSide: const BorderSide(color: OnyxDesignTokens.borderSubtle),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF27C1F3)),
+          borderRadius: BorderRadius.circular(OnyxRadiusTokens.lg),
+          borderSide: const BorderSide(color: OnyxDesignTokens.cyanInteractive),
         ),
       ),
     );

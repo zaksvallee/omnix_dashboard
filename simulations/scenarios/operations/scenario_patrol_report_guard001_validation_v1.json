@@ -1,0 +1,64 @@
+{
+  "scenarioId": "patrol_report_guard001_validation_v1",
+  "title": "Validation: patrol report command answers with route and site detail",
+  "description": "Validation replay for a scoped patrol report query staying in live operations with explicit route, site, and duration markers.",
+  "category": "guard_ops_read",
+  "scenarioSet": "validation",
+  "tags": ["deterministic_read", "night_shift", "route_persistence"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T09:22:00Z",
+  "version": 1,
+  "status": "locked_validation",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T22:15:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_guard_ops_patrol_report.json"],
+      "projections": ["fixture_projections_guard_ops_status.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "console",
+        "text": "Show last patrol report for Guard001"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "live_operations_center",
+    "expectedIntent": "patrol_report_lookup",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": [],
+    "expectedUiState": {
+      "surface": "patrol_report_answer",
+      "liveOpsCommandPreviewVisible": true,
+      "patrolReportVisible": true,
+      "guardId": "Guard001",
+      "routeLabel": "North Perimeter",
+      "siteLabel": "Site Ms Vallee Residence",
+      "durationMinutes": 17,
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

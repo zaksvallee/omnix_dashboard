@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'dvr_scope_config.dart';
 import 'dvr_ingest_contract.dart';
 
 class OnyxRadioIntegrationProfile {
@@ -187,6 +188,9 @@ class OnyxVideoIntegrationProfile {
 
   bool get isDvr => kind == 'dvr';
 
+  bool get supportsMonitoringWatch =>
+      isDvr && configured && liveMonitoringEnabled;
+
   List<String> get capabilityLabels {
     final labels = <String>[];
     if (liveMonitoringEnabled) {
@@ -241,6 +245,47 @@ class OnyxOpsIntegrationProfile {
       return dvr.toVideoProfile();
     }
     return cctv.toVideoProfile();
+  }
+
+  static OnyxVideoIntegrationProfile activeVideoFromDvrScopes(
+    List<DvrScopeConfig> scopes, {
+    String preferredClientId = '',
+    String preferredSiteId = '',
+  }) {
+    final configuredScopes = scopes
+        .where((scope) => scope.configured || scope.hikConnectConfigured)
+        .toList(growable: false);
+    if (configuredScopes.isEmpty) {
+      return const OnyxVideoIntegrationProfile(
+        kind: 'dvr',
+        provider: '',
+        eventsUrl: null,
+        liveMonitoringEnabled: false,
+        facialRecognitionEnabled: false,
+        licensePlateRecognitionEnabled: false,
+      );
+    }
+    final preferred = configuredScopes.cast<DvrScopeConfig?>().firstWhere(
+      (scope) =>
+          scope?.clientId.trim() == preferredClientId.trim() &&
+          scope?.siteId.trim() == preferredSiteId.trim(),
+      orElse: () => null,
+    );
+    final selectedScope = preferred ?? configuredScopes.first;
+    final providerProfile = DvrProviderProfile.fromProvider(
+      selectedScope.provider.trim(),
+    );
+    return OnyxVideoIntegrationProfile(
+      kind: 'dvr',
+      provider: selectedScope.provider,
+      eventsUrl: selectedScope.eventsUri ?? selectedScope.apiBaseUri,
+      liveMonitoringEnabled:
+          providerProfile?.capabilities.liveMonitoringEnabled ?? false,
+      facialRecognitionEnabled:
+          providerProfile?.capabilities.facialRecognitionEnabled ?? false,
+      licensePlateRecognitionEnabled:
+          providerProfile?.capabilities.licensePlateRecognitionEnabled ?? false,
+    );
   }
 
   factory OnyxOpsIntegrationProfile.fromEnvironment({

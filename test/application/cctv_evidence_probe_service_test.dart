@@ -103,4 +103,39 @@ void main() {
     expect(result.snapshot.droppedCount, 2);
     expect(result.snapshot.lastAlert, contains('queue drop 2'));
   });
+
+  test(
+    'evidence probe persists vehicle semantics for plate-hit records without object labels',
+    () async {
+      final client = MockClient((request) async => http.Response('', 200));
+      final service = HttpCctvEvidenceProbeService(
+        client: client,
+        maxQueueDepth: 2,
+      );
+
+      final result = await service.probeBatch([
+        NormalizedIntelRecord(
+          provider: 'hik_connect_openapi',
+          sourceType: 'hardware',
+          externalId: 'evt-lpr-1',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SANDTON',
+          cameraId: 'driveway-cam',
+          zone: 'front_drive',
+          objectLabel: '',
+          plateNumber: 'CA123456',
+          headline: 'HIK CONNECT ANPR',
+          summary: 'plate hit without semantic label',
+          riskScore: 68,
+          occurredAtUtc: DateTime.now().toUtc(),
+          snapshotUrl:
+              'https://edge.example.com/api/events/evt-lpr-1/snapshot.jpg',
+        ),
+      ]);
+
+      expect(result.snapshot.cameras, hasLength(1));
+      expect(result.snapshot.cameras.single.lastObjectLabel, 'vehicle');
+    },
+  );
 }

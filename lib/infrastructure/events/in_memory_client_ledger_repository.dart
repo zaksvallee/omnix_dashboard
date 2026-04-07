@@ -18,6 +18,22 @@ class InMemoryClientLedgerRepository implements ClientLedgerRepository {
   }
 
   @override
+  Future<List<ClientLedgerRow>> listLedgerRows(String clientId) async {
+    final rows = _rowsByClient[clientId] ?? const <_LedgerRow>[];
+    return rows
+        .map(
+          (row) => ClientLedgerRow(
+            clientId: clientId,
+            dispatchId: row.dispatchId,
+            canonicalJson: row.canonicalJson,
+            hash: row.hash,
+            previousHash: row.previousHash,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  @override
   Future<String?> fetchPreviousHash(String clientId) async {
     final rows = _rowsByClient[clientId];
     if (rows == null || rows.isEmpty) return null;

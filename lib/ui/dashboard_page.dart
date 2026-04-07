@@ -678,7 +678,7 @@ class _TopBar extends StatelessWidget {
           final compact = constraints.maxWidth < 1200;
           final headerTitle = Text(
             'Command Dashboard',
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: const Color(0xFFE8F1FF),
               fontSize: compact ? 12.9 : 14.8,
               fontWeight: FontWeight.w700,
@@ -704,7 +704,7 @@ class _TopBar extends StatelessWidget {
             ),
             child: Text(
               threat.label,
-              style: GoogleFonts.rajdhani(
+              style: GoogleFonts.inter(
                 color: threat.accent,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.0,
@@ -794,12 +794,12 @@ class _ExecutiveSummary extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(0.62, 0.46, 0.62, 0.5),
           decoration: BoxDecoration(
-            color: const Color(0xFF0E1A2B),
+            color: const Color(0xFFFFFFFF),
             borderRadius: BorderRadius.circular(3.0),
-            border: Border.all(color: const Color(0xFF243549)),
+            border: Border.all(color: const Color(0xFFD6E1EC)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x12000000),
+                color: Color(0x08000000),
                 blurRadius: 8,
                 offset: Offset(0, 2),
               ),
@@ -815,8 +815,8 @@ class _ExecutiveSummary extends StatelessWidget {
                 children: [
                   Text(
                     'KPI Band',
-                    style: GoogleFonts.rajdhani(
-                      color: const Color(0xFFE8F1FF),
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF172638),
                       fontSize: compact ? 6.7 : 7.0,
                       fontWeight: FontWeight.w700,
                     ),
@@ -837,8 +837,8 @@ class _ExecutiveSummary extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(0.34, 0.2, 0.34, 0.2),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2.45),
-                  border: Border.all(color: const Color(0xFF223244)),
-                  color: const Color(0xFF0C1727),
+                  border: Border.all(color: const Color(0xFFD6E1EC)),
+                  color: const Color(0xFFF7FAFD),
                 ),
                 child: Wrap(
                   spacing: 0.12,
@@ -878,7 +878,7 @@ class _ExecutiveSummary extends StatelessWidget {
                   Text(
                     'High-risk intel ${snapshot.highRiskIntelligence}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF8AA2C0),
+                      color: const Color(0xFF6B7F93),
                       fontSize: 4.0,
                       fontWeight: FontWeight.w700,
                     ),
@@ -886,7 +886,7 @@ class _ExecutiveSummary extends StatelessWidget {
                   Text(
                     'Field ${snapshot.totalCheckIns} check-ins • ${snapshot.totalPatrols} patrols',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF7088A9),
+                      color: const Color(0xFF6B7F93),
                       fontSize: 4.0,
                       fontWeight: FontWeight.w700,
                     ),
@@ -898,7 +898,7 @@ class _ExecutiveSummary extends StatelessWidget {
                 Text(
                   'Top triage signals: ${triage.topSignalsSummary}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7D93B1),
+                    color: const Color(0xFF556B80),
                     fontSize: 4.2,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -936,7 +936,7 @@ class _SummaryStripItem extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FA6C5),
+              color: const Color(0xFF6B7F93),
               fontSize: 3.7,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,
@@ -945,8 +945,8 @@ class _SummaryStripItem extends StatelessWidget {
           const SizedBox(height: 0.06),
           Text(
             value,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F2FF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 7.8,
               height: 0.88,
               fontWeight: FontWeight.w700,
@@ -1175,9 +1175,9 @@ class _DashboardOperationsWorkspaceState
       width: double.infinity,
       padding: const EdgeInsets.all(0.24),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B1521),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(2.15),
-        border: Border.all(color: const Color(0xFF27425D)),
+        border: Border.all(color: const Color(0xFFD4DFEA)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1576,18 +1576,18 @@ class _DashboardOperationsWorkspaceState
               ? row.split('•').last.trim()
               : 'Unknown scope';
           final lane = switch (status) {
-            'EXECUTED' => _DashboardDispatchLane.resolved,
+            'CONFIRMED' || 'EXECUTED' => _DashboardDispatchLane.resolved,
             'FAILED' || 'DENIED' => _DashboardDispatchLane.risk,
             _ => _DashboardDispatchLane.open,
           };
           final accent = switch (status) {
-            'EXECUTED' => const Color(0xFF8EF3C0),
+            'CONFIRMED' || 'EXECUTED' => const Color(0xFF8EF3C0),
             'FAILED' => const Color(0xFFFF8E9A),
             'DENIED' => const Color(0xFFFFB44D),
             _ => const Color(0xFF63BDFF),
           };
           final directive = switch (status) {
-            'EXECUTED' =>
+            'CONFIRMED' || 'EXECUTED' =>
               'Dispatch chain completed successfully. Hold the evidence trail and monitor follow-through.',
             'FAILED' =>
               'Dispatch failed in execution. Route this chain into rapid command review before pressure spreads.',
@@ -2250,7 +2250,7 @@ class _DashboardOperationsWorkspaceState
         const SizedBox(height: 0.0),
         Text(
           model.title,
-          style: GoogleFonts.rajdhani(
+          style: GoogleFonts.inter(
             color: const Color(0xFFEAF2FF),
             fontSize: 7.0,
             height: 0.95,
@@ -2302,7 +2302,7 @@ class _DashboardOperationsWorkspaceState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 0.5, vertical: 0.2),
       decoration: BoxDecoration(
-        color: const Color(0x14000000),
+        color: const Color(0xFFF5F8FC),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: metric.accent.withValues(alpha: 0.45)),
       ),
@@ -2312,7 +2312,7 @@ class _DashboardOperationsWorkspaceState
             TextSpan(
               text: '${metric.label} ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: const Color(0xFF556B80),
                 fontSize: 3.6,
                 fontWeight: FontWeight.w700,
               ),
@@ -2347,7 +2347,7 @@ class _DashboardOperationsWorkspaceState
           children: [
             Text(
               title,
-              style: GoogleFonts.rajdhani(
+              style: GoogleFonts.inter(
                 color: const Color(0xFFEAF2FF),
                 fontSize: 9.9,
                 fontWeight: FontWeight.w700,
@@ -2374,17 +2374,17 @@ class _DashboardOperationsWorkspaceState
       width: double.infinity,
       padding: const EdgeInsets.all(2.6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B1421),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(6.0),
-        border: Border.all(color: const Color(0xFF243549)),
+        border: Border.all(color: const Color(0xFFD4DFEA)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF2FF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 9.9,
               fontWeight: FontWeight.w700,
             ),
@@ -2393,7 +2393,7 @@ class _DashboardOperationsWorkspaceState
           Text(
             subtitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
+              color: const Color(0xFF556B80),
               fontSize: 5.5,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -2448,7 +2448,7 @@ class _DashboardOperationsWorkspaceState
           const SizedBox(height: 1.1),
           Text(
             title,
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: const Color(0xFFEAF2FF),
               fontSize: 13.8,
               height: 0.95,
@@ -2523,7 +2523,7 @@ class _DashboardOperationsWorkspaceState
           const SizedBox(height: 0.4),
           Text(
             metric.value,
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: const Color(0xFFEAF2FF),
               fontSize: 11.9,
               height: 0.95,
@@ -3017,7 +3017,7 @@ class _WorkspaceListCard extends StatelessWidget {
             const SizedBox(width: 2.9),
             Text(
               trailing,
-              style: GoogleFonts.rajdhani(
+              style: GoogleFonts.inter(
                 color: accent,
                 fontSize: 10.3,
                 fontWeight: FontWeight.w800,
@@ -3848,7 +3848,7 @@ class _RightRail extends StatelessWidget {
               const SizedBox(height: 0.8),
               Text(
                 '${threat.label} posture',
-                style: GoogleFonts.rajdhani(
+                style: GoogleFonts.inter(
                   color: threat.accent,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w800,
@@ -4719,7 +4719,7 @@ class _DashboardAdvancedExportPanelState
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: const Color(0x12000000),
+        color: accent.withValues(alpha: 0.08),
         border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Column(
@@ -5238,11 +5238,11 @@ class _HeaderStat extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 1.9, vertical: 1.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(5.8),
-        color: const Color(0xFF0E1A2B),
-        border: Border.all(color: const Color(0xFF223244)),
+        color: const Color(0xFFFFFFFF),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x10000000),
+            color: Color(0x06000000),
             blurRadius: 6,
             offset: Offset(0, 2),
           ),
@@ -5263,7 +5263,7 @@ class _HeaderStat extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
+              color: const Color(0xFF6B7F93),
               fontSize: 4.9,
               fontWeight: FontWeight.w700,
             ),
@@ -5271,8 +5271,8 @@ class _HeaderStat extends StatelessWidget {
           const SizedBox(height: 0.56),
           Text(
             value,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE7F0FF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 7.6,
               fontWeight: FontWeight.w800,
             ),
@@ -5305,12 +5305,12 @@ class _DashboardCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(1.0),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(3.05),
-        border: Border.all(color: const Color(0xFF243549)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12000000),
+            color: Color(0x08000000),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
@@ -5330,8 +5330,8 @@ class _DashboardCard extends StatelessWidget {
           const SizedBox(height: 0.14),
           Text(
             title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 7.4,
               fontWeight: FontWeight.w700,
             ),
@@ -5341,7 +5341,7 @@ class _DashboardCard extends StatelessWidget {
             Text(
               subtitle,
               style: GoogleFonts.inter(
-                color: const Color(0xFF7D93B1),
+                color: const Color(0xFF556B80),
                 fontSize: 4.2,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
@@ -5389,7 +5389,7 @@ class _RailMetricRow extends StatelessWidget {
               softWrap: true,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.rajdhani(
+              style: GoogleFonts.inter(
                 color: const Color(0xFFEAF2FF),
                 fontSize: 7.9,
                 fontWeight: FontWeight.w800,
@@ -5435,7 +5435,7 @@ class _MixBar extends StatelessWidget {
             ),
             Text(
               '$value',
-              style: GoogleFonts.rajdhani(
+              style: GoogleFonts.inter(
                 color: accent,
                 fontSize: 11.0,
                 fontWeight: FontWeight.w800,

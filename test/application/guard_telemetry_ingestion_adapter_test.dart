@@ -7,6 +7,21 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:omnix_dashboard/application/guard_telemetry_ingestion_adapter.dart';
 
+class _ClosableHttpClient extends http.BaseClient {
+  bool closed = false;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(Stream<List<int>>.empty(), 200);
+  }
+
+  @override
+  void close() {
+    closed = true;
+    super.close();
+  }
+}
+
 void main() {
   test('demo adapter emits wearable heartbeat sample', () async {
     final adapter = DemoGuardTelemetryIngestionAdapter(
@@ -81,6 +96,37 @@ void main() {
     expect(status.readiness, GuardTelemetryAdapterReadiness.ready);
     expect(status.isStub, isFalse);
     expect(status.adapterLabel, 'http_connector');
+  });
+
+  test('http adapter closes owned client on dispose', () {
+    final client = _ClosableHttpClient();
+    final adapter = HttpGuardTelemetryIngestionAdapter(
+      config: GuardTelemetryHttpConfig(
+        wearableHeartbeatUri: Uri.parse('https://wearable.example.com/hb'),
+        deviceHealthUri: Uri.parse('https://device.example.com/health'),
+      ),
+      client: client,
+      ownsClient: true,
+    );
+
+    adapter.dispose();
+
+    expect(client.closed, isTrue);
+  });
+
+  test('http adapter leaves injected client open when not owned', () {
+    final client = _ClosableHttpClient();
+    final adapter = HttpGuardTelemetryIngestionAdapter(
+      config: GuardTelemetryHttpConfig(
+        wearableHeartbeatUri: Uri.parse('https://wearable.example.com/hb'),
+        deviceHealthUri: Uri.parse('https://device.example.com/health'),
+      ),
+      client: client,
+    );
+
+    adapter.dispose();
+
+    expect(client.closed, isFalse);
   });
 
   test('factory returns native adapter when native sdk is preferred', () {

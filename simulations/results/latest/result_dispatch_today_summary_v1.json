@@ -1,0 +1,30 @@
+{
+  "scenarioId": "dispatch_today_summary_v1",
+  "runId": "2026-04-01T13:29:48.547283Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "dispatch_board",
+    "actualIntent": "dispatch_today_lookup",
+    "actualEscalationState": "none",
+    "actualProjectionChanges": [],
+    "actualDrafts": [
+      {
+        "type": "dispatch_summary",
+        "dispatchCount": 2,
+        "dispatchIds": [
+          "DSP-TODAY-1",
+          "DSP-TODAY-2"
+        ]
+      }
+    ],
+    "actualBlockedActions": [],
+    "actualUiState": {
+      "surface": "dispatch_today_summary",
+      "dispatchListVisible": true,
+      "dispatchCount": 2
+    },
+    "appendedEvents": [],
+    "notes": "Summarized 2 dispatch creation event(s) for 2026-03-30."
+  },
+  "mismatches": []
+}

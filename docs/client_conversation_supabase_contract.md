@@ -34,9 +34,10 @@ The repository writes these columns:
 
 Current write behavior:
 
-- delete all rows matching `client_id` + `site_id`
-- insert the current in-memory message list
-- if `message_source` / `message_provider` are not present on the target schema, retry insert without those columns
+- read existing rows for the scope
+- insert only missing logical messages from the current in-memory list
+- do not perform a scope-wide delete before inserting replacement rows
+- if `message_source` / `message_provider` are not present on the target schema, retry the safe insert without those columns
 
 Current read behavior:
 
@@ -64,8 +65,9 @@ The repository writes these columns:
 
 Current write behavior:
 
-- delete all rows matching `client_id` + `site_id`
-- insert the current in-memory acknowledgement list
+- read existing rows for the scope when available
+- upsert the current in-memory acknowledgement list using `client_id,site_id,message_key,channel`
+- prune stale acknowledgement rows only after the safe write succeeds
 
 Current read behavior:
 
@@ -100,9 +102,10 @@ The repository writes these columns:
 
 Current write behavior:
 
-- delete all rows matching `client_id` + `site_id`
-- insert the current in-memory push queue
-- if `delivery_provider` is not present on the target schema, retry insert without that column
+- read existing rows for the scope when available
+- upsert the current in-memory push queue using `client_id,site_id,message_key`
+- prune stale queue rows only after the safe write succeeds
+- if `delivery_provider` is not present on the target schema, retry the safe upsert without that column
 
 Current read behavior:
 

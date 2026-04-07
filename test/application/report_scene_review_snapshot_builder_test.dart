@@ -2,7 +2,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/application/report_scene_review_snapshot_builder.dart';
 
+import '../fixtures/report_test_bundle.dart';
 import '../fixtures/report_test_intelligence.dart';
+
+DateTime _reportSceneReviewOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 14, hour, minute);
+
+DateTime _reportSceneReviewReviewedAtUtc(
+  int hour,
+  int minute, [
+  int second = 0,
+]) => DateTime.utc(2026, 3, 14, hour, minute, second);
+
+DateTime _reportSceneReviewPreviousMonthOccurredAtUtc() =>
+    DateTime.utc(2026, 2, 28, 23, 59);
+
+DateTime _reportSceneReviewPreviousMonthReviewedAtUtc() =>
+    DateTime.utc(2026, 2, 28, 23, 59, 10);
 
 void main() {
   group('ReportSceneReviewSnapshotBuilder', () {
@@ -15,7 +31,7 @@ void main() {
           buildTestIntelligenceReceived(
             eventId: 'evt-1',
             sequence: 1,
-            occurredAt: DateTime.utc(2026, 3, 14, 21, 14),
+            occurredAt: _reportSceneReviewOccurredAtUtc(21, 14),
             intelligenceId: 'intel-1',
             cameraId: 'channel-1',
             headline: 'Vehicle movement',
@@ -25,7 +41,7 @@ void main() {
           buildTestIntelligenceReceived(
             eventId: 'evt-1b',
             sequence: 4,
-            occurredAt: DateTime.utc(2026, 3, 14, 21, 16),
+            occurredAt: _reportSceneReviewOccurredAtUtc(21, 16),
             intelligenceId: 'intel-1b',
             cameraId: 'channel-3',
             headline: 'Low significance motion',
@@ -35,7 +51,7 @@ void main() {
           buildTestIntelligenceReceived(
             eventId: 'evt-2',
             sequence: 2,
-            occurredAt: DateTime.utc(2026, 3, 14, 21, 18),
+            occurredAt: _reportSceneReviewOccurredAtUtc(21, 18),
             intelligenceId: 'intel-2',
             externalId: 'ext-2',
             cameraId: 'channel-2',
@@ -47,7 +63,7 @@ void main() {
           buildTestIntelligenceReceived(
             eventId: 'evt-3',
             sequence: 3,
-            occurredAt: DateTime.utc(2026, 2, 28, 23, 59),
+            occurredAt: _reportSceneReviewPreviousMonthOccurredAtUtc(),
             intelligenceId: 'intel-old',
             externalId: 'ext-old',
             cameraId: 'channel-9',
@@ -65,7 +81,7 @@ void main() {
             postureLabel: 'monitored movement alert',
             decisionLabel: 'Monitoring Alert',
             summary: 'Vehicle visible in the monitored driveway.',
-            reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 14, 10),
+            reviewedAtUtc: _reportSceneReviewReviewedAtUtc(21, 14, 10),
           ),
           'intel-1b': MonitoringSceneReviewRecord(
             intelligenceId: 'intel-1b',
@@ -73,10 +89,9 @@ void main() {
             sourceLabel: 'openai:gpt-4.1-mini',
             postureLabel: 'reviewed',
             decisionLabel: 'Suppressed Review',
-            decisionSummary:
-                'Vehicle remained below escalation threshold.',
-            summary: 'Low significance vehicle motion remained internal.',
-            reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 16, 5),
+            decisionSummary: reportTestSuppressedDecisionSummary,
+            summary: reportTestSuppressedSummary,
+            reviewedAtUtc: _reportSceneReviewReviewedAtUtc(21, 16, 5),
           ),
           'intel-2': MonitoringSceneReviewRecord(
             intelligenceId: 'intel-2',
@@ -86,8 +101,8 @@ void main() {
             decisionLabel: 'Escalation Candidate',
             decisionSummary:
                 'Escalated for urgent review because person activity was detected near the boundary.',
-            summary: 'Person visible near the boundary after repeat activity.',
-            reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 18, 8),
+            summary: reportTestEscalationSummary,
+            reviewedAtUtc: _reportSceneReviewReviewedAtUtc(21, 18, 8),
           ),
           'intel-old': MonitoringSceneReviewRecord(
             intelligenceId: 'intel-old',
@@ -95,7 +110,7 @@ void main() {
             sourceLabel: 'openai:gpt-4.1-mini',
             postureLabel: 'monitored movement alert',
             summary: 'Should be excluded by month filter.',
-            reviewedAtUtc: DateTime.utc(2026, 2, 28, 23, 59, 10),
+            reviewedAtUtc: _reportSceneReviewPreviousMonthReviewedAtUtc(),
           ),
         },
       );
@@ -109,11 +124,11 @@ void main() {
       expect(snapshot.escalationCandidates, 1);
       expect(
         snapshot.latestActionTaken,
-        '2026-03-14T21:18:00.000Z • Camera 2 • Escalation Candidate • Escalated for urgent review because person activity was detected near the boundary.',
+        reportTestLatestActionTaken,
       );
       expect(
         snapshot.latestSuppressedPattern,
-        '2026-03-14T21:16:00.000Z • Camera 3 • Vehicle remained below escalation threshold.',
+        reportTestLatestSuppressedPattern,
       );
       expect(snapshot.topPosture, 'escalation candidate');
       expect(snapshot.highlights, hasLength(3));
@@ -122,7 +137,7 @@ void main() {
       expect(snapshot.highlights.first.decisionLabel, 'Escalation Candidate');
       expect(
         snapshot.highlights.first.summary,
-        'Person visible near the boundary after repeat activity.',
+        reportTestEscalationSummary,
       );
     });
 
@@ -152,7 +167,7 @@ void main() {
           buildTestIntelligenceReceived(
             eventId: 'evt-fire',
             sequence: 1,
-            occurredAt: DateTime.utc(2026, 3, 14, 22, 14),
+            occurredAt: _reportSceneReviewOccurredAtUtc(22, 14),
             intelligenceId: 'intel-fire',
             cameraId: 'channel-4',
             headline: 'Fire alert',
@@ -167,7 +182,7 @@ void main() {
             sourceLabel: 'openai:gpt-4.1-mini',
             postureLabel: 'fire and smoke emergency',
             summary: 'Smoke plume visible inside the generator room.',
-            reviewedAtUtc: DateTime.utc(2026, 3, 14, 22, 14, 6),
+            reviewedAtUtc: _reportSceneReviewReviewedAtUtc(22, 14, 6),
           ),
         },
       );

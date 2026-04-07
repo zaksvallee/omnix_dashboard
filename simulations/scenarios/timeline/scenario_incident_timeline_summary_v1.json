@@ -1,0 +1,66 @@
+{
+  "scenarioId": "incident_timeline_summary_v1",
+  "title": "Active incident summary should replay a deterministic timeline summary",
+  "description": "A scoped incident summary request should resolve into a stable reports/timeline summary without reopening response lanes.",
+  "category": "incident_timeline",
+  "scenarioSet": "replay",
+  "tags": ["deterministic_read", "incident_timeline", "active_incident"],
+  "author": "zaks",
+  "createdAt": "2026-03-30T12:40:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:12:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_incident_timeline_summary.json"],
+      "projections": ["fixture_projections_incident_timeline_summary.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "active",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "controller",
+        "text": "Summarize the active incident"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "reports_workspace",
+    "expectedIntent": "summarize_incident",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [
+      {
+        "type": "incident_summary",
+        "incidentReference": "INC-8829-QX",
+        "headline": "INC-8829-QX is investigating at Ms Vallee Residence.",
+        "summary": "Perimeter breach with elevated priority. Unauthorized person matched watchlist context."
+      }
+    ],
+    "expectedBlockedActions": [],
+    "expectedUiState": {
+      "surface": "incident_summary",
+      "timelineVisible": true,
+      "activeIncidentVisible": true
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/dvr_scope_config.dart';
 import 'package:omnix_dashboard/application/ops_integration_profile.dart';
 
 void main() {
@@ -95,6 +96,70 @@ void main() {
 
     expect(profile.activeVideo.isDvr, isFalse);
     expect(profile.activeVideo.provider, 'frigate');
+  });
+
+  test('dvr scope configs can supply the active video path when env is blank', () {
+    final profile = OnyxOpsIntegrationProfile.activeVideoFromDvrScopes(
+      <DvrScopeConfig>[
+        DvrScopeConfig(
+          clientId: 'CLIENT-MS-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          provider: 'hikvision_dvr',
+          eventsUri: Uri(
+            scheme: 'https',
+            host: 'dvr.example.com',
+            path: '/ISAPI/Event/notification/alertStream',
+          ),
+          authMode: 'digest',
+          username: 'admin',
+          password: 'secret',
+          bearerToken: '',
+        ),
+      ],
+      preferredClientId: 'CLIENT-MS-VALLEE',
+      preferredSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+    );
+
+    expect(profile.configured, isTrue);
+    expect(profile.isDvr, isTrue);
+    expect(profile.provider, 'hikvision_dvr');
+    expect(profile.supportsMonitoringWatch, isTrue);
+    expect(profile.capabilityLabels, <String>['LIVE AI MONITORING']);
+  });
+
+  test('hik-connect cloud scope can supply the active video path when env is blank', () {
+    final profile = OnyxOpsIntegrationProfile.activeVideoFromDvrScopes(
+      <DvrScopeConfig>[
+        DvrScopeConfig(
+          clientId: 'CLIENT-MS-VALLEE',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          provider: 'hik_connect_openapi',
+          eventsUri: null,
+          apiBaseUri: Uri(
+            scheme: 'https',
+            host: 'api.hik-connect.example.com',
+          ),
+          authMode: '',
+          username: '',
+          password: '',
+          bearerToken: '',
+          appKey: 'app-key',
+          appSecret: 'app-secret',
+          alarmEventTypes: <int>[0, 1, 100657],
+        ),
+      ],
+      preferredClientId: 'CLIENT-MS-VALLEE',
+      preferredSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+    );
+
+    expect(profile.configured, isTrue);
+    expect(profile.isDvr, isTrue);
+    expect(profile.provider, 'hik_connect_openapi');
+    expect(profile.supportsMonitoringWatch, isTrue);
+    expect(profile.capabilityLabels, contains('LIVE AI MONITORING'));
+    expect(profile.capabilityLabels, contains('LPR'));
   });
 
   test('radio all-clear classifier detects safe confirmations', () {

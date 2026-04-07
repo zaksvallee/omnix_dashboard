@@ -32,6 +32,20 @@ class GuardPerformanceSnapshot {
   });
 }
 
+class GuardReportingProfile {
+  final String guardId;
+  final String displayName;
+  final String psiraNumber;
+  final String rank;
+
+  const GuardReportingProfile({
+    required this.guardId,
+    required this.displayName,
+    this.psiraNumber = '',
+    this.rank = '',
+  });
+}
+
 class PatrolPerformanceSnapshot {
   final int scheduledPatrols;
   final int completedPatrols;
@@ -122,16 +136,41 @@ class SupervisorAssessment {
     required this.riskTrend,
     required this.recommendations,
   });
+
+  const SupervisorAssessment.empty()
+    : operationalSummary = '',
+      riskTrend = '',
+      recommendations = '';
 }
 
 class CompanyAchievementsSnapshot {
   final List<String> highlights;
 
   const CompanyAchievementsSnapshot({required this.highlights});
+
+  const CompanyAchievementsSnapshot.empty() : highlights = const <String>[];
 }
 
 class EmergingThreatSnapshot {
   final List<String> patternsObserved;
 
   const EmergingThreatSnapshot({required this.patternsObserved});
+
+  const EmergingThreatSnapshot.empty() : patternsObserved = const <String>[];
+}
+
+class ReportNarrativeRequest {
+  final String clientId;
+  final String reportPeriod;
+  final String incidentSummary;
+  final int escalationCount;
+  final double slaComplianceRate;
+
+  const ReportNarrativeRequest({
+    required this.clientId,
+    required this.reportPeriod,
+    required this.incidentSummary,
+    required this.escalationCount,
+    required this.slaComplianceRate,
+  });
 }

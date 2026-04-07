@@ -39,9 +39,7 @@ class IncidentTimelineBuilder {
             TimelineEntry(
               label: 'Dispatch Linked',
               timestamp: event.timestamp,
-              metadata: {
-                'dispatch_id': event.metadata['dispatch_id'],
-              },
+              metadata: {'dispatch_id': event.metadata['dispatch_id']},
             ),
           );
           break;
@@ -61,9 +59,17 @@ class IncidentTimelineBuilder {
             TimelineEntry(
               label: 'SLA Breached',
               timestamp: event.timestamp,
-              metadata: {
-                'due_at': event.metadata['due_at'],
-              },
+              metadata: {'due_at': event.metadata['due_at']},
+            ),
+          );
+          break;
+
+        case IncidentEventType.incidentSlaClockDriftDetected:
+          timeline.add(
+            TimelineEntry(
+              label: 'SLA Clock Drift Detected',
+              timestamp: event.timestamp,
+              metadata: {'jump_seconds': event.metadata['jump_seconds']},
             ),
           );
           break;

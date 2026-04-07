@@ -19,6 +19,177 @@ abstract class ClientConversationRepository {
   Future<void> savePushSyncState(ClientPushSyncState state);
 }
 
+ClientConversationRepository? buildScopedClientConversationRepository({
+  required DispatchPersistenceService persistence,
+  required String clientId,
+  required String siteId,
+  required bool supabaseReady,
+  SupabaseClient? supabaseClient,
+}) {
+  final normalizedClientId = clientId.trim();
+  final normalizedSiteId = siteId.trim();
+  if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+    return null;
+  }
+  final localRepository = ScopedSharedPrefsClientConversationRepository(
+    persistence: persistence,
+    clientId: normalizedClientId,
+    siteId: normalizedSiteId,
+  );
+  if (!supabaseReady || supabaseClient == null) {
+    return localRepository;
+  }
+  return FallbackClientConversationRepository(
+    primary: SupabaseClientConversationRepository(
+      client: supabaseClient,
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    ),
+    fallback: localRepository,
+  );
+}
+
+List<ClientAppMessage> _mergeConversationMessages({
+  required List<ClientAppMessage> fallbackMessages,
+  required List<ClientAppMessage> primaryMessages,
+}) {
+  final seenKeys = <String>{};
+  final merged = <ClientAppMessage>[];
+  for (final message in <ClientAppMessage>[
+    ...fallbackMessages,
+    ...primaryMessages,
+  ]) {
+    final key = [
+      message.author,
+      message.body,
+      message.roomKey,
+      message.viewerRole,
+      message.incidentStatusLabel,
+      message.messageSource,
+      message.messageProvider,
+      message.occurredAt.toUtc().toIso8601String(),
+    ].join('|');
+    if (seenKeys.add(key)) {
+      merged.add(message);
+    }
+  }
+  merged.sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+  return merged;
+}
+
+List<ClientAppAcknowledgement> _mergeAcknowledgements({
+  required List<ClientAppAcknowledgement> fallbackAcknowledgements,
+  required List<ClientAppAcknowledgement> primaryAcknowledgements,
+}) {
+  final mergedByKey = <String, ClientAppAcknowledgement>{};
+  for (final acknowledgement in fallbackAcknowledgements) {
+    mergedByKey[acknowledgement.messageKey] = acknowledgement;
+  }
+  for (final acknowledgement in primaryAcknowledgements) {
+    mergedByKey.putIfAbsent(acknowledgement.messageKey, () => acknowledgement);
+  }
+  final merged = mergedByKey.values.toList(
+    growable: false,
+  )..sort((left, right) => right.acknowledgedAt.compareTo(left.acknowledgedAt));
+  return merged;
+}
+
+List<ClientAppPushDeliveryItem> _mergePushQueue({
+  required List<ClientAppPushDeliveryItem> fallbackPushQueue,
+  required List<ClientAppPushDeliveryItem> primaryPushQueue,
+}) {
+  final mergedByKey = <String, ClientAppPushDeliveryItem>{};
+  for (final item in fallbackPushQueue) {
+    mergedByKey[item.messageKey] = item;
+  }
+  for (final item in primaryPushQueue) {
+    mergedByKey.putIfAbsent(item.messageKey, () => item);
+  }
+  final merged = mergedByKey.values.toList(growable: false)
+    ..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+  return merged;
+}
+
+bool _hasMeaningfulPushSyncState(ClientPushSyncState state) {
+  return state.statusLabel.trim().toLowerCase() != 'idle' ||
+      state.lastSyncedAtUtc != null ||
+      (state.failureReason ?? '').trim().isNotEmpty ||
+      state.retryCount > 0 ||
+      state.history.isNotEmpty ||
+      state.telegramDeliveredMessageKeys.isNotEmpty ||
+      state.backendProbeStatusLabel.trim().toLowerCase() != 'idle' ||
+      state.backendProbeLastRunAtUtc != null ||
+      (state.backendProbeFailureReason ?? '').trim().isNotEmpty ||
+      state.backendProbeHistory.isNotEmpty;
+}
+
+String _conversationMessageRemoteSyncKey(ClientAppMessage message) {
+  return [
+    message.author,
+    message.body,
+    message.roomKey,
+    message.viewerRole,
+    message.incidentStatusLabel,
+    message.occurredAt.toUtc().toIso8601String(),
+  ].join('|');
+}
+
+List<ClientAppMessage> missingConversationMessagesForRemoteSync({
+  required List<ClientAppMessage> desiredMessages,
+  required List<ClientAppMessage> existingMessages,
+}) {
+  final existingKeys = existingMessages
+      .map(_conversationMessageRemoteSyncKey)
+      .toSet();
+  return desiredMessages
+      .where(
+        (message) =>
+            !existingKeys.contains(_conversationMessageRemoteSyncKey(message)),
+      )
+      .toList(growable: false);
+}
+
+String _conversationAcknowledgementRemoteSyncKey(
+  ClientAppAcknowledgement acknowledgement,
+) {
+  return '${acknowledgement.messageKey}|${acknowledgement.channel.name}';
+}
+
+List<ClientAppAcknowledgement> staleConversationAcknowledgementsForRemoteSync({
+  required List<ClientAppAcknowledgement> desiredAcknowledgements,
+  required List<ClientAppAcknowledgement> existingAcknowledgements,
+}) {
+  final desiredKeys = desiredAcknowledgements
+      .map(_conversationAcknowledgementRemoteSyncKey)
+      .toSet();
+  return existingAcknowledgements
+      .where(
+        (acknowledgement) => !desiredKeys.contains(
+          _conversationAcknowledgementRemoteSyncKey(acknowledgement),
+        ),
+      )
+      .toList(growable: false);
+}
+
+String _conversationPushQueueRemoteSyncKey(ClientAppPushDeliveryItem item) {
+  return item.messageKey;
+}
+
+List<ClientAppPushDeliveryItem> staleConversationPushQueueForRemoteSync({
+  required List<ClientAppPushDeliveryItem> desiredPushQueue,
+  required List<ClientAppPushDeliveryItem> existingPushQueue,
+}) {
+  final desiredKeys = desiredPushQueue
+      .map(_conversationPushQueueRemoteSyncKey)
+      .toSet();
+  return existingPushQueue
+      .where(
+        (item) =>
+            !desiredKeys.contains(_conversationPushQueueRemoteSyncKey(item)),
+      )
+      .toList(growable: false);
+}
+
 class SharedPrefsClientConversationRepository
     implements ClientConversationRepository {
   final DispatchPersistenceService persistence;
@@ -163,16 +334,21 @@ class FallbackClientConversationRepository
 
   @override
   Future<List<ClientAppMessage>> readMessages() async {
+    final fallbackMessages = await fallback.readMessages();
     try {
-      final messages = await primary.readMessages();
-      if (messages.isNotEmpty) {
-        await fallback.saveMessages(messages);
-        return messages;
+      final primaryMessages = await primary.readMessages();
+      if (primaryMessages.isNotEmpty) {
+        final mergedMessages = _mergeConversationMessages(
+          fallbackMessages: fallbackMessages,
+          primaryMessages: primaryMessages,
+        );
+        await fallback.saveMessages(mergedMessages);
+        return mergedMessages;
       }
     } catch (_) {
       // Fall through to the local cache.
     }
-    return fallback.readMessages();
+    return fallbackMessages;
   }
 
   @override
@@ -192,16 +368,21 @@ class FallbackClientConversationRepository
 
   @override
   Future<List<ClientAppAcknowledgement>> readAcknowledgements() async {
+    final fallbackAcknowledgements = await fallback.readAcknowledgements();
     try {
-      final acknowledgements = await primary.readAcknowledgements();
-      if (acknowledgements.isNotEmpty) {
-        await fallback.saveAcknowledgements(acknowledgements);
-        return acknowledgements;
+      final primaryAcknowledgements = await primary.readAcknowledgements();
+      if (primaryAcknowledgements.isNotEmpty) {
+        final mergedAcknowledgements = _mergeAcknowledgements(
+          fallbackAcknowledgements: fallbackAcknowledgements,
+          primaryAcknowledgements: primaryAcknowledgements,
+        );
+        await fallback.saveAcknowledgements(mergedAcknowledgements);
+        return mergedAcknowledgements;
       }
     } catch (_) {
       // Fall through to the local cache.
     }
-    return fallback.readAcknowledgements();
+    return fallbackAcknowledgements;
   }
 
   @override
@@ -222,16 +403,21 @@ class FallbackClientConversationRepository
 
   @override
   Future<List<ClientAppPushDeliveryItem>> readPushQueue() async {
+    final fallbackPushQueue = await fallback.readPushQueue();
     try {
-      final pushQueue = await primary.readPushQueue();
-      if (pushQueue.isNotEmpty) {
-        await fallback.savePushQueue(pushQueue);
-        return pushQueue;
+      final primaryPushQueue = await primary.readPushQueue();
+      if (primaryPushQueue.isNotEmpty) {
+        final mergedPushQueue = _mergePushQueue(
+          fallbackPushQueue: fallbackPushQueue,
+          primaryPushQueue: primaryPushQueue,
+        );
+        await fallback.savePushQueue(mergedPushQueue);
+        return mergedPushQueue;
       }
     } catch (_) {
       // Fall through to the local cache.
     }
-    return fallback.readPushQueue();
+    return fallbackPushQueue;
   }
 
   @override
@@ -250,13 +436,18 @@ class FallbackClientConversationRepository
 
   @override
   Future<ClientPushSyncState> readPushSyncState() async {
+    final fallbackState = await fallback.readPushSyncState();
     try {
-      final state = await primary.readPushSyncState();
-      await fallback.savePushSyncState(state);
-      return state;
+      final primaryState = await primary.readPushSyncState();
+      if (_hasMeaningfulPushSyncState(primaryState) ||
+          !_hasMeaningfulPushSyncState(fallbackState)) {
+        await fallback.savePushSyncState(primaryState);
+        return primaryState;
+      }
     } catch (_) {
-      return fallback.readPushSyncState();
+      // Fall through to the local cache.
     }
+    return fallbackState;
   }
 
   @override
@@ -313,20 +504,25 @@ class SupabaseClientConversationRepository
 
   @override
   Future<void> saveMessages(List<ClientAppMessage> messages) async {
-    await client
-        .from('client_conversation_messages')
-        .delete()
-        .eq('client_id', clientId)
-        .eq('site_id', siteId);
-    if (messages.isEmpty) return;
+    if (messages.isEmpty) {
+      return;
+    }
+    final existingMessages = await readMessages();
+    final missingMessages = missingConversationMessagesForRemoteSync(
+      desiredMessages: messages,
+      existingMessages: existingMessages,
+    );
+    if (missingMessages.isEmpty) {
+      return;
+    }
     try {
       await client
           .from('client_conversation_messages')
-          .insert(_messageRows(messages, includeSourceProvider: true));
+          .insert(_messageRows(missingMessages, includeSourceProvider: true));
     } catch (_) {
       await client
           .from('client_conversation_messages')
-          .insert(_messageRows(messages, includeSourceProvider: false));
+          .insert(_messageRows(missingMessages, includeSourceProvider: false));
     }
   }
 
@@ -414,15 +610,24 @@ class SupabaseClientConversationRepository
   Future<void> saveAcknowledgements(
     List<ClientAppAcknowledgement> acknowledgements,
   ) async {
+    List<ClientAppAcknowledgement> existingAcknowledgements =
+        const <ClientAppAcknowledgement>[];
+    try {
+      existingAcknowledgements = await readAcknowledgements();
+    } catch (_) {
+      existingAcknowledgements = const <ClientAppAcknowledgement>[];
+    }
+    if (acknowledgements.isEmpty) {
+      await client
+          .from('client_conversation_acknowledgements')
+          .delete()
+          .eq('client_id', clientId)
+          .eq('site_id', siteId);
+      return;
+    }
     await client
         .from('client_conversation_acknowledgements')
-        .delete()
-        .eq('client_id', clientId)
-        .eq('site_id', siteId);
-    if (acknowledgements.isEmpty) return;
-    await client
-        .from('client_conversation_acknowledgements')
-        .insert(
+        .upsert(
           acknowledgements
               .map(
                 (acknowledgement) => {
@@ -437,7 +642,22 @@ class SupabaseClientConversationRepository
                 },
               )
               .toList(growable: false),
+          onConflict: 'client_id,site_id,message_key,channel',
         );
+    final staleAcknowledgements =
+        staleConversationAcknowledgementsForRemoteSync(
+          desiredAcknowledgements: acknowledgements,
+          existingAcknowledgements: existingAcknowledgements,
+        );
+    for (final acknowledgement in staleAcknowledgements) {
+      await client
+          .from('client_conversation_acknowledgements')
+          .delete()
+          .eq('client_id', clientId)
+          .eq('site_id', siteId)
+          .eq('message_key', acknowledgement.messageKey)
+          .eq('channel', acknowledgement.channel.name);
+    }
   }
 
   @override
@@ -467,20 +687,47 @@ class SupabaseClientConversationRepository
 
   @override
   Future<void> savePushQueue(List<ClientAppPushDeliveryItem> pushQueue) async {
-    await client
-        .from('client_conversation_push_queue')
-        .delete()
-        .eq('client_id', clientId)
-        .eq('site_id', siteId);
-    if (pushQueue.isEmpty) return;
+    List<ClientAppPushDeliveryItem> existingPushQueue =
+        const <ClientAppPushDeliveryItem>[];
+    try {
+      existingPushQueue = await readPushQueue();
+    } catch (_) {
+      existingPushQueue = const <ClientAppPushDeliveryItem>[];
+    }
+    if (pushQueue.isEmpty) {
+      await client
+          .from('client_conversation_push_queue')
+          .delete()
+          .eq('client_id', clientId)
+          .eq('site_id', siteId);
+      return;
+    }
     try {
       await client
           .from('client_conversation_push_queue')
-          .insert(_pushQueueRows(pushQueue, includeDeliveryProvider: true));
+          .upsert(
+            _pushQueueRows(pushQueue, includeDeliveryProvider: true),
+            onConflict: 'client_id,site_id,message_key',
+          );
     } catch (_) {
       await client
           .from('client_conversation_push_queue')
-          .insert(_pushQueueRows(pushQueue, includeDeliveryProvider: false));
+          .upsert(
+            _pushQueueRows(pushQueue, includeDeliveryProvider: false),
+            onConflict: 'client_id,site_id,message_key',
+          );
+    }
+    final stalePushQueue = staleConversationPushQueueForRemoteSync(
+      desiredPushQueue: pushQueue,
+      existingPushQueue: existingPushQueue,
+    );
+    for (final item in stalePushQueue) {
+      await client
+          .from('client_conversation_push_queue')
+          .delete()
+          .eq('client_id', clientId)
+          .eq('site_id', siteId)
+          .eq('message_key', item.messageKey);
     }
   }
 

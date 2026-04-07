@@ -1,0 +1,87 @@
+lib/main.dart:        path:
+lib/main.dart:        path:
+lib/application/onyx_agent_camera_bridge_health_service.dart:            path: '/health',
+lib/application/onyx_agent_camera_bridge_health_service.dart:    final healthEndpoint = endpoint.replace(path: '/health');
+lib/application/onyx_agent_camera_bridge_health_service.dart:    final healthEndpoint = endpoint.replace(path: '/health');
+lib/application/onyx_agent_local_brain_service.dart:    return endpoint.replace(path: '/api/chat');
+lib/application/onyx_agent_local_brain_service.dart:    return endpoint.replace(path: '${normalizedPath}api/chat');
+lib/application/onyx_agent_local_brain_service.dart:  return endpoint.replace(path: '$normalizedPath/api/chat');
+lib/application/hik_connect_bundle_status_service.dart:        path: '',
+lib/application/hik_connect_bundle_status_service.dart:      path: file.path,
+lib/application/voip_call_service.dart:    return baseUri.replace(path: path);
+lib/domain/guard/guard_ops_event.dart:      path: path,
+lib/domain/guard/guard_ops_event.dart:      path: (json['path'] as String? ?? '').trim(),
+lib/domain/authority/onyx_route.dart:  /// Resolve enum from GoRouter location
+
+--- PAGES ---
+
+lib/ui/onyx_agent_page.dart
+lib/ui/tactical_page.dart
+lib/ui/controller_login_page.dart
+lib/ui/sovereign_ledger_page.dart
+lib/ui/events_page.dart
+lib/ui/dispatch_page.dart
+lib/ui/guards_page.dart
+lib/ui/ai_queue_page.dart
+lib/ui/client_intelligence_reports_page.dart
+lib/ui/governance_page.dart
+lib/ui/ledger_page.dart
+lib/ui/sites_command_page.dart
+lib/ui/sites_page.dart
+lib/ui/live_operations_page.dart
+lib/ui/vip_protection_page.dart
+lib/ui/risk_intelligence_page.dart
+lib/ui/dashboard_page.dart
+lib/ui/guard_mobile_shell_page.dart
+lib/ui/clients_page.dart
+lib/ui/client_app_page.dart
+lib/ui/admin_page.dart
+lib/ui/events_review_page.dart
+lib/presentation/overview_page.dart
+lib/presentation/operations_page.dart
+lib/presentation/incidents_page.dart
+lib/presentation/reports_page.dart
+lib/presentation/incidents/manual_incident_page.dart
+lib/presentation/reports/report_preview_page.dart
+
+--- NAV ---
+
+lib/ui/app_shell.dart:Future<void> _showAppShellQuickJumpDialog({
+lib/ui/app_shell.dart:class AppShell extends StatefulWidget {
+lib/ui/app_shell.dart:  const AppShell({
+lib/ui/app_shell.dart:  State<AppShell> createState() => _AppShellState();
+lib/ui/app_shell.dart:class _AppShellState extends State<AppShell> {
+lib/ui/app_shell.dart:            _showAppShellQuickJumpDialog(
+lib/ui/app_shell.dart:            _showAppShellQuickJumpDialog(
+lib/ui/app_shell.dart:              drawer: Drawer(
+lib/ui/app_shell.dart:                child: _Sidebar(
+lib/ui/app_shell.dart:                            onTap: () => Scaffold.of(innerContext).openDrawer(),
+lib/ui/app_shell.dart:                        ? _Sidebar(
+lib/ui/app_shell.dart:                          onToggleSidebar: () {
+lib/ui/app_shell.dart:  final VoidCallback onToggleSidebar;
+lib/ui/app_shell.dart:    required this.onToggleSidebar,
+lib/ui/app_shell.dart:                onPressed: onToggleSidebar,
+lib/ui/app_shell.dart:    return _showAppShellQuickJumpDialog(
+lib/ui/app_shell.dart:class _Sidebar extends StatelessWidget {
+lib/ui/app_shell.dart:  const _Sidebar({
+lib/ui/events_page.dart:      endDrawer: LayoutBuilder(
+lib/ui/events_page.dart:          return Drawer(
+lib/ui/events_page.dart:            openDrawerOnSelect: !embedSelectedWorkspaceInFlow,
+lib/ui/events_page.dart:                openDrawerOnSelect: false,
+lib/ui/events_page.dart:    required bool openDrawerOnSelect,
+lib/ui/events_page.dart:                openDrawerOnSelect: openDrawerOnSelect,
+lib/ui/events_page.dart:  Widget _eventLaneCard(_ForensicRow row, {required bool openDrawerOnSelect}) {
+lib/ui/events_page.dart:      onTap: () => _selectEvent(event, openDrawer: openDrawerOnSelect),
+lib/ui/events_page.dart:  void _selectEvent(DispatchEvent event, {bool openDrawer = false}) {
+lib/ui/events_page.dart:    if (openDrawer) {
+lib/ui/events_page.dart:      _scaffoldKey.currentState?.openEndDrawer();
+lib/ui/client_intelligence_reports_page.dart:    return CheckboxListTile(
+lib/ui/client_intelligence_reports_page.dart:      controlAffinity: ListTileControlAffinity.leading,
+lib/ui/admin_page.dart:                        child: SwitchListTile.adaptive(
+lib/ui/admin_page.dart:                      CheckboxListTile(
+lib/ui/admin_page.dart:                        controlAffinity: ListTileControlAffinity.leading,
+lib/ui/admin_page.dart:            child: CheckboxListTile(
+lib/ui/admin_page.dart:              controlAffinity: ListTileControlAffinity.leading,
+lib/ui/admin_page.dart:            child: CheckboxListTile(
+lib/ui/admin_page.dart:              controlAffinity: ListTileControlAffinity.leading,
+lib/main.dart:      OnyxAppMode.controller => AppShell(

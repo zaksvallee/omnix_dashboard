@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class ListenerAlarmFeedCycleRecorded extends DispatchEvent {
+  static const String auditTypeKey = 'listener_alarm_feed_cycle_recorded';
   final String sourceLabel;
   final int acceptedCount;
   final int mappedCount;
@@ -60,4 +61,7 @@ class ListenerAlarmFeedCycleRecorded extends DispatchEvent {
       rejectSummary: rejectSummary,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

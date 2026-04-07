@@ -143,7 +143,7 @@ void main() {
       siteLabel: 'MS Vallee Residence',
       reportDate: '2026-03-18',
       quietFallbackLine:
-          '3 guard or response-team activity signals were observed through ONYX field telemetry.',
+          '3 guard or response-team activity signals were logged through ONYX field telemetry.',
       quietFallbackDetail:
           'Latest field signal: A guard checkpoint scan landed at Front Yard.',
     );
@@ -152,7 +152,7 @@ void main() {
     expect(
       message,
       contains(
-        '3 guard or response-team activity signals were observed through ONYX field telemetry.',
+        '3 guard or response-team activity signals were logged through ONYX field telemetry.',
       ),
     );
     expect(

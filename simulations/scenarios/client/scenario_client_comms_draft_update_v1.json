@@ -1,0 +1,66 @@
+{
+  "scenarioId": "client_comms_draft_update_v1",
+  "title": "Client draft request should stage a scoped reply",
+  "description": "A scoped client-update request should route into Client Comms and stage a draft for controller review.",
+  "category": "client_comms",
+  "scenarioSet": "replay",
+  "tags": ["client_status_query", "deterministic_read", "scoped_reply"],
+  "author": "zaks",
+  "createdAt": "2026-03-30T12:25:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:00:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_client_comms_idle.json"],
+      "projections": ["fixture_projections_client_comms_ready.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "active",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "telegram",
+        "text": "Draft a client update for this site"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "client_comms",
+    "expectedIntent": "draft_client_update",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [
+      {
+        "status": "staged",
+        "channel": "telegram",
+        "scopeSiteId": "site_ms_vallee",
+        "deliveryState": "review_required"
+      }
+    ],
+    "expectedBlockedActions": ["send_without_review"],
+    "expectedUiState": {
+      "surface": "client_comms_draft_ready",
+      "draftReadyVisible": true,
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

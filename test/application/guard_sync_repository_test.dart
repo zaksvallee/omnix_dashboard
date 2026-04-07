@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/application/guard_sync_repository.dart';
@@ -231,6 +234,172 @@ void main() {
       expect(fallback.operations.single.operationId, 'panic:PANIC-1');
     });
   });
+
+  group('SupabaseGuardSyncRepository', () {
+    test('saveAssignments does not delete scoped rows when upsert fails', () async {
+      final requests = <String>[];
+      final repository = SupabaseGuardSyncRepository(
+        client: _buildSupabaseClient((request) async {
+          requests.add('${request.method} ${request.url.path}');
+          if (request.method == 'POST' &&
+              request.url.path.endsWith('/guard_assignments')) {
+            return http.Response(
+              '{"message":"write failed"}',
+              500,
+              request: request,
+            );
+          }
+          return http.Response('[]', 200, request: request);
+        }),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        guardId: 'GUARD-001',
+      );
+
+      await expectLater(
+        repository.saveAssignments([
+          GuardAssignment(
+            assignmentId: 'ASSIGN-001',
+            dispatchId: 'DISP-001',
+            clientId: 'CLIENT-001',
+            siteId: 'SITE-SANDTON',
+            guardId: 'GUARD-001',
+            issuedAt: DateTime.utc(2026, 4, 7, 7, 0),
+          ),
+        ]),
+        throwsA(anything),
+      );
+
+      expect(
+        requests.where((entry) => entry.startsWith('DELETE ')),
+        isEmpty,
+      );
+      expect(
+        requests.where((entry) => entry.startsWith('POST ')),
+        hasLength(1),
+      );
+    });
+
+    test('saveAssignments upserts before pruning stale rows', () async {
+      final requests = <String>[];
+      final repository = SupabaseGuardSyncRepository(
+        client: _buildSupabaseClient((request) async {
+          requests.add('${request.method} ${request.url.path}');
+          return http.Response(
+            '[]',
+            request.method == 'POST' ? 201 : 200,
+            request: request,
+          );
+        }),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        guardId: 'GUARD-001',
+      );
+
+      await repository.saveAssignments([
+        GuardAssignment(
+          assignmentId: 'ASSIGN-001',
+          dispatchId: 'DISP-001',
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          guardId: 'GUARD-001',
+          issuedAt: DateTime.utc(2026, 4, 7, 7, 0),
+        ),
+      ]);
+
+      expect(requests, [
+        'POST /rest/v1/guard_assignments',
+        'DELETE /rest/v1/guard_assignments',
+      ]);
+    });
+
+    test(
+      'saveQueuedOperations does not delete scoped queue rows when upsert fails',
+      () async {
+        final requests = <String>[];
+        final repository = SupabaseGuardSyncRepository(
+          client: _buildSupabaseClient((request) async {
+            requests.add('${request.method} ${request.url.path}');
+            if (request.method == 'POST' &&
+                request.url.path.endsWith('/guard_sync_operations')) {
+              return http.Response(
+                '{"message":"write failed"}',
+                500,
+                request: request,
+              );
+            }
+            return http.Response('[]', 200, request: request);
+          }),
+          clientId: 'CLIENT-001',
+          siteId: 'SITE-SANDTON',
+          guardId: 'GUARD-001',
+        );
+
+        await expectLater(
+          repository.saveQueuedOperations([
+            GuardSyncOperation(
+              operationId: 'panic:PANIC-1',
+              type: GuardSyncOperationType.panicSignal,
+              createdAt: DateTime.utc(2026, 4, 7, 7, 5),
+              payload: const {'signal_id': 'PANIC-1'},
+            ),
+          ]),
+          throwsA(anything),
+        );
+
+        expect(
+          requests.where((entry) => entry.startsWith('DELETE ')),
+          isEmpty,
+        );
+        expect(
+          requests.where((entry) => entry.startsWith('POST ')),
+          hasLength(1),
+        );
+      },
+    );
+
+    test('saveQueuedOperations upserts before pruning stale queued rows', () async {
+      final requests = <String>[];
+      final repository = SupabaseGuardSyncRepository(
+        client: _buildSupabaseClient((request) async {
+          requests.add('${request.method} ${request.url.path}');
+          return http.Response(
+            '[]',
+            request.method == 'POST' ? 201 : 200,
+            request: request,
+          );
+        }),
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        guardId: 'GUARD-001',
+      );
+
+      await repository.saveQueuedOperations([
+        GuardSyncOperation(
+          operationId: 'panic:PANIC-1',
+          type: GuardSyncOperationType.panicSignal,
+          createdAt: DateTime.utc(2026, 4, 7, 7, 5),
+          payload: const {'signal_id': 'PANIC-1'},
+        ),
+      ]);
+
+      expect(requests, [
+        'POST /rest/v1/guard_sync_operations',
+        'DELETE /rest/v1/guard_sync_operations',
+      ]);
+    });
+  });
+}
+
+SupabaseClient _buildSupabaseClient(
+  Future<http.Response> Function(http.Request request) handler,
+) {
+  return SupabaseClient(
+    'https://example.supabase.co',
+    'anon-key',
+    accessToken: () async => null,
+    httpClient: MockClient(handler),
+  );
 }
 
 class _FakeGuardSyncRepository implements GuardSyncRepository {

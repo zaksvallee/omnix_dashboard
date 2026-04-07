@@ -1,0 +1,237 @@
+{
+  "scenarioId": "monitoring_review_action_specialist_conflict_v1",
+  "title": "Review action should hold CCTV review under conflicting specialist assessments",
+  "description": "A live operations review action should surface contradictory specialist pressure but keep ONYX composed in CCTV Review until the review gate resolves.",
+  "category": "monitoring_watch",
+  "scenarioSet": "replay",
+  "tags": ["visual_review", "specialist_conflict", "review_gate"],
+  "author": "zaks",
+  "createdAt": "2026-04-02T10:40:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_visual"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:22:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_monitoring_watch_match.json"],
+      "projections": ["fixture_projections_monitoring_watch_review_action.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_sequence",
+      "steps": [
+        {
+          "stepId": "open_review_action",
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist wants live review to stay open until visual verification is complete.",
+              "recommendedTarget": "cctvReview",
+              "confidence": 0.84,
+              "priority": "high",
+              "evidence": [
+                "Review action is already pinned to the watch event.",
+                "Visual verification queue is ready for controller review."
+              ],
+              "missingInfo": [],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            },
+            {
+              "specialist": "track",
+              "sourceLabel": "scenario_replay",
+              "summary": "Track specialist wants Tactical Track open immediately for continuity pressure.",
+              "recommendedTarget": "tacticalTrack",
+              "confidence": 0.61,
+              "priority": "medium",
+              "evidence": [
+                "Perimeter continuity would benefit from immediate track ownership."
+              ],
+              "missingInfo": [
+                "Fresh CCTV confirmation has not landed yet."
+              ],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "monitoring_watch",
+    "expectedIntent": "open_cctv_review_handoff",
+    "expectedEscalationState": "review_opened",
+    "expectedProjectionChanges": [
+      {
+        "step": "specialist_conflict",
+        "sourceStepId": "open_review_action",
+        "target": "cctvReview",
+        "specialists": ["cctv", "track"],
+        "recommendedTargets": ["cctvReview", "tacticalTrack"],
+        "summary": "cctv->cctvReview | track->tacticalTrack"
+      },
+      {
+        "step": "review_opened",
+        "reviewSurface": "cctv_review"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["dismiss_without_review"],
+    "expectedUiState": {
+      "surface": "monitoring_watch_review",
+      "reviewActionVisible": true,
+      "cctvRouteVisible": true,
+      "incidentReference": "INC-DSP-VISUAL",
+      "intelligenceId": "INTEL-DSP-VISUAL",
+      "legacyWorkspaceVisible": false,
+      "specialistConflictVisible": true,
+      "specialistConflictCount": 2,
+      "specialistConflictSpecialists": ["cctv", "track"],
+      "specialistConflictTargets": ["cctvReview", "tacticalTrack"],
+      "specialistConflictSummary": "cctv->cctvReview | track->tacticalTrack"
+    },
+    "commandBrainSnapshot": {
+      "workItemId": "monitoring_review_action_specialist_conflict_v1",
+      "mode": "corroboratedSynthesis",
+      "target": "cctvReview",
+      "nextMoveLabel": "OPEN CCTV REVIEW",
+      "headline": "CCTV Review is the next move",
+      "summary": "One next move is staged in CCTV Review.",
+      "advisory": "Specialists disagreed on the next desk (cctv->cctvReview | track->tacticalTrack), so ONYX kept the move in CCTV Review until the conflict resolves.",
+      "confidence": 0.74,
+      "primaryPressure": "active signal watch",
+      "rationale": "Scenario replay held the deterministic gate in CCTV Review and synthesized the conflicting specialist pressure instead of pivoting early into another desk.",
+      "supportingSpecialists": ["cctv", "track"],
+      "contextHighlights": [
+        "CCTV specialist argued for CCTV Review.",
+        "Track specialist argued for Tactical Track."
+      ],
+      "missingInfo": [
+        "Conflicting specialist recommendations still need reconciliation before the next move is locked.",
+        "Fresh CCTV confirmation has not landed yet."
+      ],
+      "followUpLabel": "RESOLVE SPECIALIST CONFLICT",
+      "followUpPrompt": "Reconcile the conflicting specialist recommendations and confirm whether Tactical Track pressure still overrides the review gate.",
+      "allowRouteExecution": true,
+      "specialistAssessments": [
+        {
+          "specialist": "cctv",
+          "sourceLabel": "scenario_replay",
+          "summary": "CCTV specialist wants live review to stay open until visual verification is complete.",
+          "recommendedTarget": "cctvReview",
+          "confidence": 0.84,
+          "priority": "high",
+          "evidence": [
+            "Review action is already pinned to the watch event.",
+            "Visual verification queue is ready for controller review."
+          ],
+          "missingInfo": [],
+          "allowRouteExecution": true,
+          "isHardConstraint": false
+        },
+        {
+          "specialist": "track",
+          "sourceLabel": "scenario_replay",
+          "summary": "Track specialist wants Tactical Track open immediately for continuity pressure.",
+          "recommendedTarget": "tacticalTrack",
+          "confidence": 0.61,
+          "priority": "medium",
+          "evidence": [
+            "Perimeter continuity would benefit from immediate track ownership."
+          ],
+          "missingInfo": [
+            "Fresh CCTV confirmation has not landed yet."
+          ],
+          "allowRouteExecution": true,
+          "isHardConstraint": false
+        }
+      ]
+    },
+    "commandBrainTimeline": [
+      {
+        "sequence": 1,
+        "stage": "open_review_action",
+        "note": "Review evidence staged for INC-DSP-VISUAL while specialist conflict stayed contained in CCTV Review.",
+        "snapshot": {
+          "workItemId": "monitoring_review_action_specialist_conflict_v1",
+          "mode": "corroboratedSynthesis",
+          "target": "cctvReview",
+          "nextMoveLabel": "OPEN CCTV REVIEW",
+          "headline": "CCTV Review is the next move",
+          "summary": "One next move is staged in CCTV Review.",
+          "advisory": "Specialists disagreed on the next desk (cctv->cctvReview | track->tacticalTrack), so ONYX kept the move in CCTV Review until the conflict resolves.",
+          "confidence": 0.74,
+          "primaryPressure": "active signal watch",
+          "rationale": "Scenario replay held the deterministic gate in CCTV Review and synthesized the conflicting specialist pressure instead of pivoting early into another desk.",
+          "supportingSpecialists": ["cctv", "track"],
+          "contextHighlights": [
+            "CCTV specialist argued for CCTV Review.",
+            "Track specialist argued for Tactical Track."
+          ],
+          "missingInfo": [
+            "Conflicting specialist recommendations still need reconciliation before the next move is locked.",
+            "Fresh CCTV confirmation has not landed yet."
+          ],
+          "followUpLabel": "RESOLVE SPECIALIST CONFLICT",
+          "followUpPrompt": "Reconcile the conflicting specialist recommendations and confirm whether Tactical Track pressure still overrides the review gate.",
+          "allowRouteExecution": true,
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist wants live review to stay open until visual verification is complete.",
+              "recommendedTarget": "cctvReview",
+              "confidence": 0.84,
+              "priority": "high",
+              "evidence": [
+                "Review action is already pinned to the watch event.",
+                "Visual verification queue is ready for controller review."
+              ],
+              "missingInfo": [],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            },
+            {
+              "specialist": "track",
+              "sourceLabel": "scenario_replay",
+              "summary": "Track specialist wants Tactical Track open immediately for continuity pressure.",
+              "recommendedTarget": "tacticalTrack",
+              "confidence": 0.61,
+              "priority": "medium",
+              "evidence": [
+                "Perimeter continuity would benefit from immediate track ownership."
+              ],
+              "missingInfo": [
+                "Fresh CCTV confirmation has not landed yet."
+              ],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

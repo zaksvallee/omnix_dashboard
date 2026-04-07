@@ -1,0 +1,10 @@
+{
+  "clientComms": {
+    "deliveryState": "review_required",
+    "pendingDraftCount": 2,
+    "highPriorityCount": 1,
+    "timingCount": 1,
+    "queueMode": "full",
+    "telegramHealth": "degraded"
+  }
+}

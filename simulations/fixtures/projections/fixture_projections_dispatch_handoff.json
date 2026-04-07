@@ -1,0 +1,12 @@
+{
+  "dispatchBoard": {
+    "lane": "priority_response",
+    "dispatchCount": 1,
+    "dispatchHandoff": {
+      "dispatchId": "DSP-PRIORITY-7",
+      "incidentReference": "INC-9912-ALPHA",
+      "priorityLane": "priority_response",
+      "siteLabel": "Ms Vallee"
+    }
+  }
+}

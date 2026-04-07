@@ -4,6 +4,7 @@ import 'package:http/testing.dart';
 
 import 'package:omnix_dashboard/application/dvr_evidence_probe_service.dart';
 import 'package:omnix_dashboard/application/dvr_http_auth.dart';
+import 'package:omnix_dashboard/application/dvr_scope_config.dart';
 import 'package:omnix_dashboard/application/video_bridge_runtime.dart';
 import 'package:omnix_dashboard/domain/intelligence/intel_ingestion.dart';
 
@@ -139,6 +140,40 @@ void main() {
     },
   );
 
+  test(
+    'dvr evidence probe persists person semantics for face-match records without object labels',
+    () async {
+      final client = MockClient((request) async => http.Response('', 200));
+      final service = HttpDvrEvidenceProbeService(
+        client: client,
+        maxQueueDepth: 2,
+      );
+
+      final result = await service.probeBatch([
+        NormalizedIntelRecord(
+          provider: 'hik_connect_openapi',
+          sourceType: 'dvr',
+          externalId: 'HIK-FR-1',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-SANDTON',
+          cameraId: 'lobby-cam',
+          zone: 'lobby',
+          objectLabel: '',
+          faceMatchId: 'FR:RESIDENT-44',
+          headline: 'HIK CONNECT FR MATCH',
+          summary: 'provider:hik_connect_openapi | face match',
+          riskScore: 76,
+          occurredAtUtc: DateTime.now().toUtc(),
+          snapshotUrl: 'https://stream.example.com/fr/snapshot.jpg',
+        ),
+      ]);
+
+      expect(result.snapshot.cameras, hasLength(1));
+      expect(result.snapshot.cameras.single.lastObjectLabel, 'person');
+    },
+  );
+
   test('dvr-backed video evidence probe adapts dvr probe snapshot', () async {
     final service = DvrBackedVideoEvidenceProbeService(
       delegate: _FakeDvrEvidenceProbeService(),
@@ -149,6 +184,54 @@ void main() {
     expect(result.snapshot.verifiedCount, 3);
     expect(result.snapshot.cameras.single.cameraId, 'DVR-001');
     expect(result.snapshot.cameras.single.status, 'healthy');
+  });
+
+  test('scope-backed dvr evidence probe uses scope bearer auth', () async {
+    final requests = <http.BaseRequest>[];
+    final client = MockClient((request) async {
+      requests.add(request);
+      expect(request.headers['Authorization'], 'Bearer scope-token');
+      return http.Response('', 200);
+    });
+    final service = createDvrEvidenceProbeServiceForScope(
+      DvrScopeConfig(
+        clientId: 'CLIENT-MS-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        provider: 'hik_connect_openapi',
+        eventsUri: null,
+        apiBaseUri: Uri.parse('https://api.hik-connect.example.com'),
+        authMode: 'bearer',
+        username: '',
+        password: '',
+        bearerToken: 'scope-token',
+        appKey: 'app-key',
+        appSecret: 'app-secret',
+      ),
+      client: client,
+      maxQueueDepth: 4,
+    );
+
+    final result = await service.probeBatch([
+      NormalizedIntelRecord(
+        provider: 'hik_connect_openapi',
+        sourceType: 'dvr',
+        externalId: 'HIK-CLOUD-EVT-1',
+        clientId: 'CLIENT-MS-VALLEE',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        cameraId: 'camera-front',
+        headline: 'HIK CONNECT MOTION',
+        summary: 'scope-backed cloud evidence probe',
+        riskScore: 81,
+        occurredAtUtc: DateTime.now().toUtc(),
+        snapshotUrl: 'https://stream.example.com/snapshot.jpg',
+      ),
+    ]);
+
+    expect(result.snapshot.verifiedCount, 1);
+    expect(result.snapshot.failureCount, 0);
+    expect(requests, hasLength(1));
   });
 }
 

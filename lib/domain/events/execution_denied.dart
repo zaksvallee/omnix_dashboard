@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class ExecutionDenied extends DispatchEvent {
+  static const String auditTypeKey = 'execution_denied';
   final String dispatchId;
   final String clientId;
   final String regionId;
@@ -36,4 +37,7 @@ class ExecutionDenied extends DispatchEvent {
       reason: reason,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

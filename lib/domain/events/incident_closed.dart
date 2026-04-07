@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class IncidentClosed extends DispatchEvent {
+  static const String auditTypeKey = 'incident_closed';
   final String dispatchId;
   final String resolutionType;
   final String clientId;
@@ -33,4 +34,7 @@ class IncidentClosed extends DispatchEvent {
       siteId: siteId,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

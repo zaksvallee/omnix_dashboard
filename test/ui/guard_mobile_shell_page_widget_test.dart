@@ -30,6 +30,20 @@ void _mockClipboard(
   );
 }
 
+DateTime _guardMobileShellMarch5AtUtc(int hour, int minute, [int second = 0]) =>
+    DateTime.utc(2026, 3, 5, hour, minute, second);
+
+DateTime _guardMobileShellMarch4AtUtc(int hour, int minute, [int second = 0]) =>
+    DateTime.utc(2026, 3, 4, hour, minute, second);
+
+DateTime _guardMobileShellMarch11AtUtc(
+  int hour,
+  int minute, [
+  int second = 0,
+]) => DateTime.utc(2026, 3, 11, hour, minute, second);
+
+DateTime _guardMobileShellNowUtc() => DateTime.now().toUtc();
+
 void main() {
   testWidgets('guard mobile shell stays stable on phone viewport', (
     tester,
@@ -331,7 +345,7 @@ void main() {
             GuardSyncOperation(
               operationId: 'status:1',
               type: GuardSyncOperationType.statusUpdate,
-              createdAt: DateTime.utc(2026, 3, 5, 10, 0),
+              createdAt: _guardMobileShellMarch5AtUtc(10, 0),
               payload: const {
                 'status': 'enRoute',
                 'onyx_runtime_context': {
@@ -393,7 +407,7 @@ void main() {
                 required minutes,
                 required actorRole,
               }) async {},
-          lastSuccessfulSyncAtUtc: DateTime.utc(2026, 3, 5, 9, 55),
+          lastSuccessfulSyncAtUtc: _guardMobileShellMarch5AtUtc(9, 55),
           lastFailureReason: 'network timeout',
         ),
       ),
@@ -481,6 +495,7 @@ void main() {
     String? lastOutcomeLabel;
     String? lastOutcomeConfidence;
     String? lastOutcomeConfirmedBy;
+    final nowUtc = _guardMobileShellNowUtc();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -502,8 +517,8 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.statusChanged,
               sequence: 1,
-              occurredAt: DateTime.utc(2026, 3, 4, 18, 1),
-              syncedAt: DateTime.utc(2026, 3, 4, 18, 2),
+              occurredAt: _guardMobileShellMarch4AtUtc(18, 1),
+              syncedAt: _guardMobileShellMarch4AtUtc(18, 2),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {'status': 'onSite'},
@@ -515,7 +530,7 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.panicTriggered,
               sequence: 2,
-              occurredAt: DateTime.utc(2026, 3, 4, 18, 3),
+              occurredAt: _guardMobileShellMarch4AtUtc(18, 3),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {'level': 'critical', 'source': 'manual'},
@@ -533,7 +548,7 @@ void main() {
               bucket: 'guard-patrol-images',
               path: 'guards/GUARD-001/patrol/test.jpg',
               localPath: '/tmp/test.jpg',
-              capturedAt: DateTime.utc(2026, 3, 4, 18, 1),
+              capturedAt: _guardMobileShellMarch4AtUtc(18, 1),
               status: GuardMediaUploadStatus.uploaded,
             ),
             GuardOpsMediaUpload(
@@ -545,7 +560,7 @@ void main() {
               bucket: 'guard-incident-media',
               path: 'guards/GUARD-001/incident/evidence.jpg',
               localPath: '/tmp/evidence.jpg',
-              capturedAt: DateTime.utc(2026, 3, 4, 18, 3),
+              capturedAt: _guardMobileShellMarch4AtUtc(18, 3),
               status: GuardMediaUploadStatus.failed,
               retryCount: 3,
               failureReason: 'upload timeout',
@@ -572,18 +587,18 @@ void main() {
               'Failed to initialize vendor connector com.onyx.vendor.MissingConnector.',
           telemetryFacadeSourceActive: true,
           telemetryFacadeCallbackCount: 4,
-          telemetryFacadeLastCallbackAtUtc: DateTime.now().toUtc().subtract(
+          telemetryFacadeLastCallbackAtUtc: nowUtc.subtract(
             const Duration(minutes: 1),
           ),
           telemetryFacadeLastCallbackMessage:
               'Wearable heartbeat bridge payload ingested.',
           telemetryFacadeCallbackErrorCount: 1,
-          telemetryFacadeLastCallbackErrorAtUtc: DateTime.now()
-              .toUtc()
-              .subtract(const Duration(minutes: 5)),
+          telemetryFacadeLastCallbackErrorAtUtc: nowUtc.subtract(
+            const Duration(minutes: 5),
+          ),
           telemetryFacadeLastCallbackErrorMessage:
               'SDK callback rejected: captured_at_utc is invalid ISO-8601',
-          lastSuccessfulSyncAtUtc: DateTime.utc(2026, 3, 4, 18, 0),
+          lastSuccessfulSyncAtUtc: _guardMobileShellMarch4AtUtc(18, 0),
           lastFailureReason: 'network unavailable',
           coachingPrompt: const GuardCoachingPrompt(
             ruleId: 'high_failure_backlog',
@@ -596,7 +611,7 @@ void main() {
             GuardSyncOperation(
               operationId: 'status:1',
               type: GuardSyncOperationType.statusUpdate,
-              createdAt: DateTime.utc(2026, 3, 4, 10, 0),
+              createdAt: _guardMobileShellMarch4AtUtc(10, 0),
               payload: const {
                 'status': 'enRoute',
                 'onyx_runtime_context': {
@@ -1540,7 +1555,7 @@ void main() {
               shiftId: 'SHIFT-PTT',
               eventType: GuardOpsEventType.deviceHealth,
               sequence: 1,
-              occurredAt: DateTime.utc(2026, 3, 11, 17, 41, 12),
+              occurredAt: _guardMobileShellMarch11AtUtc(17, 41, 12),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {
@@ -1628,6 +1643,8 @@ void main() {
   testWidgets('sync screen shows last app-resume sync trigger timestamp', (
     tester,
   ) async {
+    final lastResumeSyncTriggerAtUtc = _guardMobileShellMarch5AtUtc(9, 30);
+
     await tester.binding.setSurfaceSize(const Size(1600, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -1651,7 +1668,7 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.syncStatus,
               sequence: 6,
-              occurredAt: DateTime.utc(2026, 3, 5, 9, 30),
+              occurredAt: lastResumeSyncTriggerAtUtc,
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {
@@ -1733,7 +1750,9 @@ void main() {
     );
 
     expect(
-      find.text('Last Resume Sync Trigger: 2026-03-05T09:30:00.000Z'),
+      find.text(
+        'Last Resume Sync Trigger: ${lastResumeSyncTriggerAtUtc.toIso8601String()}',
+      ),
       findsOneWidget,
     );
     expect(find.text('Resume Sync Triggers: 1'), findsOneWidget);
@@ -1783,8 +1802,8 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.syncStatus,
               sequence: 1,
-              occurredAt: DateTime.utc(2026, 3, 5, 10, 0),
-              syncedAt: DateTime.utc(2026, 3, 5, 10, 0, 2),
+              occurredAt: _guardMobileShellMarch5AtUtc(10, 0),
+              syncedAt: _guardMobileShellMarch5AtUtc(10, 0, 2),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {
@@ -1800,8 +1819,8 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.syncStatus,
               sequence: 2,
-              occurredAt: DateTime.utc(2026, 3, 5, 10, 1),
-              syncedAt: DateTime.utc(2026, 3, 5, 10, 1, 2),
+              occurredAt: _guardMobileShellMarch5AtUtc(10, 1),
+              syncedAt: _guardMobileShellMarch5AtUtc(10, 1, 2),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {
@@ -1816,8 +1835,8 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.syncStatus,
               sequence: 3,
-              occurredAt: DateTime.utc(2026, 3, 5, 10, 2),
-              syncedAt: DateTime.utc(2026, 3, 5, 10, 2, 2),
+              occurredAt: _guardMobileShellMarch5AtUtc(10, 2),
+              syncedAt: _guardMobileShellMarch5AtUtc(10, 2, 2),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {
@@ -1832,8 +1851,8 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.syncStatus,
               sequence: 4,
-              occurredAt: DateTime.utc(2026, 3, 5, 10, 3),
-              syncedAt: DateTime.utc(2026, 3, 5, 10, 3, 2),
+              occurredAt: _guardMobileShellMarch5AtUtc(10, 3),
+              syncedAt: _guardMobileShellMarch5AtUtc(10, 3, 2),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {
@@ -1855,7 +1874,7 @@ void main() {
           telemetryFacadeId: 'fsk_live',
           telemetryFacadeLiveMode: true,
           telemetryFacadeToggleSource: 'build_config',
-          lastSuccessfulSyncAtUtc: DateTime.utc(2026, 3, 5, 10, 2),
+          lastSuccessfulSyncAtUtc: _guardMobileShellMarch5AtUtc(10, 2),
           lastFailureReason: null,
           coachingPrompt: const GuardCoachingPrompt(
             ruleId: 'steady_state',
@@ -1968,7 +1987,7 @@ void main() {
       GuardSyncOperation(
         operationId: 'op-live-1',
         type: GuardSyncOperationType.statusUpdate,
-        createdAt: DateTime.utc(2026, 3, 5, 10, 0),
+        createdAt: _guardMobileShellMarch5AtUtc(10, 0),
         payload: const {
           'status': 'onSite',
           'onyx_runtime_context': {
@@ -1980,7 +1999,7 @@ void main() {
       GuardSyncOperation(
         operationId: 'op-stub-1',
         type: GuardSyncOperationType.panicSignal,
-        createdAt: DateTime.utc(2026, 3, 5, 10, 1),
+        createdAt: _guardMobileShellMarch5AtUtc(10, 1),
         payload: const {
           'level': 'high',
           'onyx_runtime_context': {
@@ -2021,7 +2040,7 @@ void main() {
             telemetryFacadeId: facadeId,
             telemetryFacadeLiveMode: mode == GuardSyncOperationModeFilter.live,
             telemetryFacadeToggleSource: 'build_config',
-            lastSuccessfulSyncAtUtc: DateTime.utc(2026, 3, 5, 10, 2),
+            lastSuccessfulSyncAtUtc: _guardMobileShellMarch5AtUtc(10, 2),
             lastFailureReason: null,
             coachingPrompt: const GuardCoachingPrompt(
               ruleId: 'steady_state',
@@ -2131,7 +2150,7 @@ void main() {
       GuardSyncOperation(
         operationId: 'op-live-1',
         type: GuardSyncOperationType.statusUpdate,
-        createdAt: DateTime.utc(2026, 3, 5, 10, 0),
+        createdAt: _guardMobileShellMarch5AtUtc(10, 0),
         payload: const {
           'status': 'onSite',
           'onyx_runtime_context': {
@@ -2168,7 +2187,7 @@ void main() {
             telemetryFacadeId: 'fsk_live',
             telemetryFacadeLiveMode: true,
             telemetryFacadeToggleSource: 'build_config',
-            lastSuccessfulSyncAtUtc: DateTime.utc(2026, 3, 5, 10, 2),
+            lastSuccessfulSyncAtUtc: _guardMobileShellMarch5AtUtc(10, 2),
             lastFailureReason: null,
             coachingPrompt: const GuardCoachingPrompt(
               ruleId: 'steady_state',
@@ -2281,7 +2300,7 @@ void main() {
             telemetryAdapterStubMode: false,
             telemetryProviderStatusLabel: 'ready',
             telemetryProviderReadiness: 'ready',
-            lastSuccessfulSyncAtUtc: DateTime.utc(2026, 3, 5, 10, 2),
+            lastSuccessfulSyncAtUtc: _guardMobileShellMarch5AtUtc(10, 2),
             lastFailureReason: null,
             coachingPrompt: const GuardCoachingPrompt(
               ruleId: 'steady_state',
@@ -2385,7 +2404,7 @@ void main() {
           telemetryAdapterStubMode: false,
           telemetryProviderStatusLabel: 'ready',
           telemetryProviderReadiness: 'ready',
-          lastSuccessfulSyncAtUtc: DateTime.utc(2026, 3, 5, 10, 2),
+          lastSuccessfulSyncAtUtc: _guardMobileShellMarch5AtUtc(10, 2),
           lastFailureReason: null,
           coachingPrompt: const GuardCoachingPrompt(
             ruleId: 'steady_state',
@@ -2519,7 +2538,7 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.reactionIncidentAccepted,
               sequence: 1,
-              occurredAt: DateTime.utc(2026, 3, 5, 11, 0),
+              occurredAt: _guardMobileShellMarch5AtUtc(11, 0),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {},
@@ -2531,7 +2550,7 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.reactionOfficerArrived,
               sequence: 2,
-              occurredAt: DateTime.utc(2026, 3, 5, 11, 2),
+              occurredAt: _guardMobileShellMarch5AtUtc(11, 2),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {},
@@ -2543,7 +2562,7 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.reactionIncidentCleared,
               sequence: 3,
-              occurredAt: DateTime.utc(2026, 3, 5, 11, 4),
+              occurredAt: _guardMobileShellMarch5AtUtc(11, 4),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {},
@@ -2555,7 +2574,7 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.supervisorStatusOverride,
               sequence: 4,
-              occurredAt: DateTime.utc(2026, 3, 5, 11, 6),
+              occurredAt: _guardMobileShellMarch5AtUtc(11, 6),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {},
@@ -2567,7 +2586,7 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.supervisorCoachingAcknowledged,
               sequence: 5,
-              occurredAt: DateTime.utc(2026, 3, 5, 11, 8),
+              occurredAt: _guardMobileShellMarch5AtUtc(11, 8),
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {},

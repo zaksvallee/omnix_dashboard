@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class ResponseArrived extends DispatchEvent {
+  static const String auditTypeKey = 'response_arrived';
   final String dispatchId;
   final String guardId;
   final String clientId;
@@ -33,4 +34,7 @@ class ResponseArrived extends DispatchEvent {
       siteId: siteId,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

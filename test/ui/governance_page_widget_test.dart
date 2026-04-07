@@ -16,6 +16,314 @@ import 'package:omnix_dashboard/domain/events/vehicle_visit_review_recorded.dart
 import 'package:omnix_dashboard/ui/app_shell.dart';
 import 'package:omnix_dashboard/ui/governance_page.dart';
 
+DateTime _governanceReportGeneratedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 6, 0);
+
+DateTime _governanceNightShiftStartedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 22, 0);
+
+DateTime _governanceMidnightShiftStartedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 0, 0);
+
+DateTime _governanceMarch16NightOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 16, 22, minute);
+
+DateTime _governanceMarch10OccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 10, hour, minute);
+
+DateTime _governanceMarch14OccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 14, hour, minute);
+
+DateTime _governanceMarch15OccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 15, hour, minute);
+
+DateTime _governanceMarch16OccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 16, hour, minute);
+
+DateTime _governanceMarch17OccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 17, hour, minute);
+
+DateTime _governanceMarch9OccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 9, hour, minute);
+
+const String _governanceFilteredPatternSummary =
+    '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.';
+
+const String _governanceLatestActionSummary =
+    '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.';
+
+const String _governanceRecentActionsSummary =
+    '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)';
+
+const String _governanceActionMixSummary =
+    '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review';
+
+const String _governanceShadowHistoryHeadline = 'STABLE • 2d';
+
+const String _governanceShadowHistorySummary =
+    'Current matches 0 • Baseline 0.0 • Shadow-MO match pressure is holding close to the recent baseline.';
+
+const String _governanceReceiptPolicyHeadline =
+    '1 generated reports omitted sections';
+
+const String _governanceReceiptPolicySummaryLine =
+    'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1';
+
+const String _governanceReceiptPolicyBrandingSummaryLine =
+    'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1';
+
+const String _governanceReceiptPolicyLatestReportSummary =
+    'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.';
+
+const String _governanceReceiptPolicyExecutiveSummary =
+    '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy';
+
+const String _governanceReceiptPolicyBrandingExecutiveSummary =
+    '1 receipt used custom branding override';
+
+const String _governanceReceiptPolicyInvestigationExecutiveSummary =
+    '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review';
+
+const String _governanceReceiptPolicyLatestBrandingSummary =
+    'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.';
+
+const String _governanceReceiptPolicyLatestInvestigationSummary =
+    'CLIENT-1/SITE-42 2026-03 remained routine report review.';
+
+const String _governanceSiteActivityExecutiveSummary =
+    '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction';
+
+const String _governanceSiteActivityRecordedHeadline =
+    '7 site-activity signals recorded';
+
+const String _governanceSiteActivitySummaryLine =
+    'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1';
+
+const String _governancePartnerPerformanceHeadline =
+    '1 strong response • 1 critical response';
+
+const String _governancePartnerCompletedResponseReason =
+    'Partner completed response inside targets.';
+
+const String _governancePartnerAllClearReason =
+    'Partner reached ALL CLEAR inside target acceptance and on-site windows.';
+
+const String _governancePartnerCancelledReason =
+    'Dispatch was cancelled before partner completion.';
+
+const String _governancePartnerWorkflowHeadline =
+    '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED';
+
+const String _governancePartnerAllClearWorkflowSummary =
+    'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)';
+
+const String _governancePartnerCancelledWorkflowSummary =
+    'ACCEPT -> CANCELLED (LATEST CANCELLED)';
+
+const String _governancePartnerAlphaScopeLabel =
+    'CLIENT-1/SITE-42 • Partner Alpha';
+
+const String _governancePartnerAlphaScoreboardSummary =
+    'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m';
+
+const String _governancePartnerSlaHeadline =
+    'Avg accept 5.0m • Avg on site 12.0m';
+
+const String _governancePartnerProgressionSummaryLine =
+    'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1';
+
+const String _governancePartnerInProgressWorkflowHeadline =
+    '2 partner dispatches in progress';
+
+const String _governancePartnerInProgressSlaHeadline =
+    'Avg accept 7.0m • Avg on site 15.0m';
+
+const String _governancePartnerClientWideWorkflowHeadline =
+    'Partner Alpha carried both client lanes cleanly.';
+
+const String _governancePartnerClientWidePerformanceHeadline =
+    '1 strong response • 1 on track response';
+
+const String _governancePartnerClientWideSummaryLine =
+    'Dispatches 3 • Declarations 6';
+
+const String _governancePartnerStrongResponseSummary = '1 strong response';
+
+const String _governancePartnerOnTrackResponseSummary = '1 on track response';
+
+const String _governancePartnerWatchResponseSummary = '1 watch response';
+
+const String _governancePartnerOnSiteReason =
+    'Partner is on site and progressing cleanly.';
+
+const String _governancePartnerOnSiteWorkflowSummary =
+    'ACCEPT -> ON SITE (LATEST ON SITE)';
+
+const String _governancePartnerWatchReason = 'Partner is slower than target.';
+
+const String _governancePartnerMarch14CancelledScopeSummary =
+    'Dispatches 1 • Declarations 2 • Latest CANCELLED @ 2026-03-14T02:12:00.000Z';
+
+const String _governancePartnerMarch14AllClearScopeSummary =
+    'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-14T03:10:00.000Z';
+
+const String _governancePartnerMarch15AllClearScopeSummary =
+    'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-15T01:18:00.000Z';
+
+const String _governancePartnerMarch15CancelledScopeSummary =
+    'Dispatches 1 • Declarations 2 • Latest CANCELLED @ 2026-03-15T04:08:00.000Z';
+
+const String _governancePartnerMarch14CriticalScoreboardSummary =
+    'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 0.0m';
+
+const String _governancePartnerMarch14StrongScoreboardSummary =
+    'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 6.0m • Avg on site 14.0m';
+
+const String _governancePartnerMarch15StrongScoreboardSummary =
+    'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 12.0m';
+
+const String _governancePartnerMarch15CriticalScoreboardSummary =
+    'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 10.0m • Avg on site 0.0m';
+
+const String _governanceContractorOfficeHeadline =
+    'Contractors moved floor to floor in office park';
+
+const String _governanceContractorProbeHeadline =
+    'Maintenance contractor probing office doors';
+
+const String _governanceContractorProbeSummary =
+    'Contractor-like person moved floor to floor and tried several restricted office doors.';
+
+const String _governanceSyntheticDecisionSummary =
+    'Likely spoofed service access with abnormal roaming.';
+
+const String _governanceSyntheticReviewSummary =
+    'Likely maintenance impersonation moving across office zones.';
+
+const String _governanceVehicleThroughputWorkflowHeadline =
+    '15 completed visits reached EXIT • 1 incomplete visit stalled at SERVICE';
+
+const String _governanceVehicleSingleVisitWorkflowHeadline =
+    '1 incomplete visit stalled at SERVICE';
+
+const String _governanceVehicleSingleVisitSummaryLine =
+    'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1';
+
+const String _governanceVehicleIncompleteReasonLabel = 'Incomplete visit';
+
+const String _governanceVehicleServiceIncompleteWorkflow =
+    'ENTRY -> SERVICE (INCOMPLETE)';
+
+const String _governanceVehicleServiceCompletedWorkflow =
+    'ENTRY -> SERVICE (COMPLETED)';
+
+const String _governanceVehicleServiceActiveWorkflow =
+    'ENTRY -> SERVICE (ACTIVE)';
+
+String _governanceLatestFilteredPatternLabel() =>
+    'Latest filtered pattern: $_governanceFilteredPatternSummary';
+
+String _governanceFocusedFilteredPatternLabel() =>
+    'Focused filtered pattern • $_governanceFilteredPatternSummary';
+
+String _governanceFilteredPatternDetailLabel() =>
+    'Filtered pattern: $_governanceFilteredPatternSummary';
+
+String _governanceFocusedFilteredPatternHeading() =>
+    'Focused scene action: Filtered pattern';
+
+String _governanceFocusedFilteredPatternDeckTitle() =>
+    'Forensic replay of combat window (22:00-06:00) • Focused Filtered Pattern';
+
+String _governanceFilteredPatternDetailCopiedMessage() =>
+    'Filtered pattern detail copied for command review';
+
+String _governanceFilteredPatternCopyJsonLabel() =>
+    'Copy Morning JSON (Filtered Pattern)';
+
+String _governanceFilteredPatternCopyCsvLabel() =>
+    'Copy Morning CSV (Filtered Pattern)';
+
+String _governanceFilteredPatternDetailCopyLabel() =>
+    'Copy Filtered Pattern Detail';
+
+String _governanceFilteredPatternDownloadJsonLabel() =>
+    'Download Morning JSON (Filtered Pattern)';
+
+String _governanceFilteredPatternDownloadCsvLabel() =>
+    'Download Morning CSV (Filtered Pattern)';
+
+String _governanceFilteredPatternSharePackLabel() =>
+    'Share Morning Pack (Filtered Pattern)';
+
+String _governanceFilteredPatternEmailReportLabel() =>
+    'Email Morning Report (Filtered Pattern)';
+
+String _governanceLatestActionLabel() =>
+    'Latest action taken: $_governanceLatestActionSummary';
+
+String _governanceRecentActionsLabel() =>
+    'Recent actions: $_governanceRecentActionsSummary';
+
+String _governanceFocusedRecentActionsLabel() =>
+    'Focused recent actions • $_governanceRecentActionsSummary';
+
+String _governanceActionMixLabel() =>
+    'Action mix: $_governanceActionMixSummary';
+
+String _governanceFocusedRecentActionsHeading() =>
+    'Focused scene action: Recent actions';
+
+String _governanceFocusedRecentActionsDeckTitle() =>
+    'Forensic replay of combat window (22:00-06:00) • Focused Recent Actions';
+
+String _governanceRecentActionsDetailCopiedMessage() =>
+    'Recent actions detail copied for command review';
+
+String _governanceRecentActionsCopyJsonLabel() =>
+    'Copy Morning JSON (Recent Actions)';
+
+String _governanceRecentActionsCopyCsvLabel() =>
+    'Copy Morning CSV (Recent Actions)';
+
+String _governanceRecentActionsDetailCopyLabel() =>
+    'Copy Recent Actions Detail';
+
+String _governanceRecentActionsDownloadJsonLabel() =>
+    'Download Morning JSON (Recent Actions)';
+
+String _governanceRecentActionsDownloadCsvLabel() =>
+    'Download Morning CSV (Recent Actions)';
+
+String _governanceRecentActionsSharePackLabel() =>
+    'Share Morning Pack (Recent Actions)';
+
+String _governanceRecentActionsEmailReportLabel() =>
+    'Email Morning Report (Recent Actions)';
+
+String _governancePartnerAllClearScorecardLabel() =>
+    'Scorecard: $_governancePartnerAllClearReason';
+
+String _governanceHistoricalShiftLabel() => 'Historical Shift 2026-03-09';
+
+String _governanceHistoricalShiftSharePackLabel() =>
+    'Share Morning Pack (${_governanceHistoricalShiftLabel()})';
+
+String _governanceHistoricalShiftEmailReportLabel() =>
+    'Email Morning Report (${_governanceHistoricalShiftLabel()})';
+
+String _governanceHistoricalShiftDownloadJsonLabel() =>
+    'Download Morning JSON (${_governanceHistoricalShiftLabel()})';
+
+String _governanceHistoricalShiftDownloadCsvLabel() =>
+    'Download Morning CSV (${_governanceHistoricalShiftLabel()})';
+
+String _governanceHistoricalShiftCopyJsonLabel() =>
+    'Copy Morning JSON (${_governanceHistoricalShiftLabel()})';
+
+String _governanceHistoricalShiftCopyCsvLabel() =>
+    'Copy Morning CSV (${_governanceHistoricalShiftLabel()})';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const promotionDecisionStore = MoPromotionDecisionStore();
@@ -69,6 +377,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('governance page renders live operational feeds when available', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const <DispatchEvent>[],
+          operationalFeedsLoader: () async => GovernanceOperationalFeeds(
+            complianceAvailable: true,
+            compliance: <GovernanceComplianceIssueFeed>[
+              GovernanceComplianceIssueFeed(
+                type: 'PSIRA',
+                employeeName: 'Guard Alpha',
+                employeeId: 'GUARD-001',
+                expiryDate: DateTime.utc(2026, 4, 20),
+                daysRemaining: 13,
+                blockingDispatch: true,
+              ),
+            ],
+            vigilance: const GovernanceVigilanceFeed(
+              monitoredScopeCount: 2,
+              availableScopeCount: 1,
+              degradedScopeCount: 1,
+              alertCount: 4,
+              escalationCount: 1,
+              unresolvedActionCount: 2,
+              averageResponseMinutes: 2.5,
+              availabilityDetail: '1 of 2 monitored scopes are live.',
+            ),
+            fleet: const GovernanceFleetStatusFeed(
+              activeOfficerCount: 2,
+              activeAssignmentCount: 2,
+              dispatchQueueDepth: 3,
+              failedOperationCount: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pending live feed'), findsNothing);
+    expect(find.text('Watch Scopes Live'), findsOneWidget);
+    expect(find.text('1/2'), findsOneWidget);
+    expect(find.text('Avg Response'), findsOneWidget);
+    expect(find.text('2.5m'), findsOneWidget);
+    expect(find.text('Queue Depth'), findsOneWidget);
+    expect(find.text('3'), findsWidgets);
+  });
+
   testWidgets('governance desktop workspace rail routes command actions', (
     tester,
   ) async {
@@ -91,9 +449,9 @@ void main() {
 
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -122,11 +480,9 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicySummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -137,14 +493,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
     );
 
@@ -156,7 +508,7 @@ void main() {
               eventId: 'evt-workspace-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              occurredAt: _governanceNightShiftStartedAtUtc(16),
               intelligenceId: 'intel-workspace-1',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -215,7 +567,7 @@ void main() {
       find.byKey(const ValueKey('governance-command-receipt')),
       findsOneWidget,
     );
-    expect(find.text('Governance relay ready'), findsOneWidget);
+    expect(find.text('Board ready'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('governance-view-events-button')),
@@ -226,7 +578,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(openedEventIds, ['evt-workspace-1']);
     expect(openedSelectedEventId, 'evt-workspace-1');
-    expect(find.text('Events review opened'), findsOneWidget);
+    expect(find.text('Events scope opened'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('governance-quick-view-reports-button')),
@@ -238,7 +590,7 @@ void main() {
     expect(openedReportsClientId, 'CLIENT-1');
     expect(openedReportsSiteId, 'SITE-42');
     expect(openedReportsPartnerLabel, 'ONYX');
-    expect(find.text('Report workspace opened'), findsOneWidget);
+    expect(find.text('Reports workspace opened'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('governance-quick-view-ledger-button')),
@@ -246,7 +598,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(openedLedgerClientId, 'CLIENT-1');
     expect(openedLedgerSiteId, 'SITE-42');
-    expect(find.text('Ledger continuity opened'), findsOneWidget);
+    expect(find.text('Sovereign ledger opened'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('governance-generate-report-button')),
@@ -288,9 +640,9 @@ void main() {
 
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 12,
         hashVerified: true,
@@ -345,8 +697,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Recover Event Scope'), findsOneWidget);
-    expect(find.text('Recover Ledger Continuity'), findsOneWidget);
+    expect(find.text('RECOVER EVENTS SCOPE'), findsWidgets);
+    expect(find.text('RECOVER SOVEREIGN LEDGER'), findsWidgets);
     expect(find.text('RECEIPT SUMMARY PENDING'), findsOneWidget);
     expect(find.text('EVENT TRAIL AWAITING NEW SIGNALS'), findsOneWidget);
 
@@ -361,7 +713,7 @@ void main() {
     expect(reportsOpenCount, 1);
     expect(openedReportsClientId, 'CLIENT-1');
     expect(openedReportsSiteId, 'SITE-42');
-    expect(find.text('Report workspace opened'), findsOneWidget);
+    expect(find.text('Reports workspace opened'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('governance-quick-view-ledger-button')),
@@ -420,7 +772,7 @@ void main() {
                 eventId: 'evt-partner-empty-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+                occurredAt: _governanceNightShiftStartedAtUtc(16),
                 intelligenceId: 'intel-partner-empty-1',
                 provider: 'hikvision_dvr_monitor_only',
                 sourceType: 'dvr',
@@ -441,9 +793,9 @@ void main() {
             ],
             morningSovereignReport: SovereignReport(
               date: '2026-03-10',
-              generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+              generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+              shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+              shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 40,
                 hashVerified: true,
@@ -515,7 +867,7 @@ void main() {
 
       expect(openedEventIds, equals(const ['evt-partner-empty-1']));
       expect(openedSelectedEventId, 'evt-partner-empty-1');
-      expect(find.text('Events review opened'), findsOneWidget);
+      expect(find.text('Events scope opened'), findsOneWidget);
 
       await tester.tap(
         find.byKey(const ValueKey('governance-partner-empty-open-reports')),
@@ -524,7 +876,7 @@ void main() {
 
       expect(openedReportsClientId, 'CLIENT-1');
       expect(openedReportsSiteId, 'SITE-42');
-      expect(find.text('Report workspace opened'), findsOneWidget);
+      expect(find.text('Reports workspace opened'), findsOneWidget);
 
       await tester.tap(
         find.byKey(const ValueKey('governance-partner-empty-open-ledger')),
@@ -533,7 +885,7 @@ void main() {
 
       expect(openedLedgerClientId, 'CLIENT-1');
       expect(openedLedgerSiteId, 'SITE-42');
-      expect(find.text('Ledger continuity opened'), findsOneWidget);
+      expect(find.text('Sovereign ledger opened'), findsOneWidget);
     },
   );
 
@@ -551,7 +903,7 @@ void main() {
               eventId: 'evt-scope-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              occurredAt: _governanceNightShiftStartedAtUtc(16),
               intelligenceId: 'intel-scope-1',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -572,7 +924,7 @@ void main() {
               eventId: 'evt-other-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 5),
+              occurredAt: _governanceMarch16NightOccurredAtUtc(5),
               intelligenceId: 'intel-other-1',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -624,7 +976,7 @@ void main() {
               eventId: 'evt-ledger-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              occurredAt: _governanceNightShiftStartedAtUtc(16),
               intelligenceId: 'intel-ledger-1',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -667,7 +1019,32 @@ void main() {
 
   testWidgets('governance readiness blockers resolve in place', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(home: GovernancePage(events: <DispatchEvent>[])),
+      MaterialApp(
+        home: GovernancePage(
+          events: const <DispatchEvent>[],
+          initialOperationalFeeds: GovernanceOperationalFeeds(
+            complianceAvailable: true,
+            compliance: <GovernanceComplianceIssueFeed>[
+              GovernanceComplianceIssueFeed(
+                type: 'PSIRA',
+                employeeName: 'Guard Alpha',
+                employeeId: 'GUARD-001',
+                expiryDate: DateTime.utc(2026, 4, 20),
+                daysRemaining: 13,
+                blockingDispatch: true,
+              ),
+              GovernanceComplianceIssueFeed(
+                type: 'Medical',
+                employeeName: 'Guard Bravo',
+                employeeId: 'GUARD-002',
+                expiryDate: DateTime.utc(2026, 4, 18),
+                daysRemaining: 11,
+                blockingDispatch: true,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -696,7 +1073,7 @@ void main() {
               eventId: 'evt-readiness-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              occurredAt: _governanceNightShiftStartedAtUtc(16),
               intelligenceId: 'intel-readiness-1',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -744,7 +1121,7 @@ void main() {
                 eventId: 'evt-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+                occurredAt: _governanceNightShiftStartedAtUtc(16),
                 intelligenceId: 'intel-1',
                 provider: 'hikvision_dvr_monitor_only',
                 sourceType: 'dvr',
@@ -771,7 +1148,7 @@ void main() {
                 decisionLabel: 'Escalation Candidate',
                 decisionSummary: 'Escalation posture requires response review.',
                 summary: 'Boundary activity at gate.',
-                reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+                reviewedAtUtc: _governanceMarch16NightOccurredAtUtc(1),
               ),
             },
           ),
@@ -848,11 +1225,11 @@ void main() {
 
     final priorReport = buildReport(
       date: '2026-03-16',
-      generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(16),
     );
     final currentReport = buildReport(
       date: '2026-03-17',
-      generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(17),
     );
     promotionDecisionStore.accept(
       moId: 'MO-EXT-INTEL-NEWS',
@@ -867,7 +1244,7 @@ void main() {
               eventId: 'evt-news-prior',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 0, 20),
+              occurredAt: _governanceMarch16OccurredAtUtc(0, 20),
               intelligenceId: 'intel-news-prior',
               provider: 'news_feed_monitor',
               sourceType: 'news',
@@ -878,7 +1255,7 @@ void main() {
               cameraId: 'feed-news-prior',
               objectLabel: 'person',
               objectConfidence: 0.7,
-              headline: 'Contractors moved floor to floor in office park',
+              headline: _governanceContractorOfficeHeadline,
               summary:
                   'Suspects posed as maintenance contractors before moving floor to floor through restricted office zones.',
               riskScore: 73,
@@ -889,7 +1266,7 @@ void main() {
               eventId: 'evt-office-prior',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 1, 0),
+              occurredAt: _governanceMarch16OccurredAtUtc(1, 0),
               intelligenceId: 'intel-office-prior',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -900,9 +1277,8 @@ void main() {
               cameraId: 'office-cam-prior',
               objectLabel: 'person',
               objectConfidence: 0.94,
-              headline: 'Maintenance contractor probing office doors',
-              summary:
-                  'Contractor-like person moved floor to floor and tried several restricted office doors.',
+              headline: _governanceContractorProbeHeadline,
+              summary: _governanceContractorProbeSummary,
               riskScore: 84,
               snapshotUrl: 'https://edge.example.com/office-prior.jpg',
               canonicalHash: 'hash-office-prior',
@@ -911,7 +1287,7 @@ void main() {
               eventId: 'evt-news',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 0, 0),
+              occurredAt: _governanceMarch17OccurredAtUtc(0, 0),
               intelligenceId: 'intel-news',
               provider: 'security_bulletin',
               sourceType: 'news',
@@ -922,7 +1298,7 @@ void main() {
               cameraId: 'feed-news',
               objectLabel: 'person',
               objectConfidence: 0.7,
-              headline: 'Contractors moved floor to floor in office park',
+              headline: _governanceContractorOfficeHeadline,
               summary:
                   'Suspects posed as maintenance contractors, moved floor to floor through a business park, and tried several restricted office doors before stealing devices.',
               riskScore: 75,
@@ -933,7 +1309,7 @@ void main() {
               eventId: 'evt-office',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+              occurredAt: _governanceMarch17OccurredAtUtc(1, 0),
               intelligenceId: 'intel-office',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -944,9 +1320,8 @@ void main() {
               cameraId: 'office-cam',
               objectLabel: 'person',
               objectConfidence: 0.95,
-              headline: 'Maintenance contractor probing office doors',
-              summary:
-                  'Contractor-like person moved floor to floor and tried several restricted office doors.',
+              headline: _governanceContractorProbeHeadline,
+              summary: _governanceContractorProbeSummary,
               riskScore: 86,
               snapshotUrl: 'https://edge.example.com/office.jpg',
               canonicalHash: 'hash-office',
@@ -958,22 +1333,18 @@ void main() {
               sourceLabel: 'openai:gpt-5.4-mini',
               postureLabel: 'service impersonation and roaming concern',
               decisionLabel: 'Escalation Candidate',
-              decisionSummary:
-                  'Likely spoofed service access with abnormal roaming.',
-              summary:
-                  'Likely maintenance impersonation moving across office zones.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 1),
+              decisionSummary: _governanceSyntheticDecisionSummary,
+              summary: _governanceSyntheticReviewSummary,
+              reviewedAtUtc: _governanceMarch16OccurredAtUtc(1, 1),
             ),
             'intel-office': MonitoringSceneReviewRecord(
               intelligenceId: 'intel-office',
               sourceLabel: 'openai:gpt-5.4-mini',
               postureLabel: 'service impersonation and roaming concern',
               decisionLabel: 'Escalation Candidate',
-              decisionSummary:
-                  'Likely spoofed service access with abnormal roaming.',
-              summary:
-                  'Likely maintenance impersonation moving across office zones.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 1),
+              decisionSummary: _governanceSyntheticDecisionSummary,
+              summary: _governanceSyntheticReviewSummary,
+              reviewedAtUtc: _governanceMarch17OccurredAtUtc(1, 1),
             ),
           },
           morningSovereignReport: currentReport,
@@ -988,20 +1359,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
+      find.textContaining('shadow $_governanceContractorOfficeHeadline'),
+      findsWidgets,
+    );
+    expect(
       find.textContaining(
-        'shadow Contractors moved floor to floor in office park',
+        'shadow bias HARDEN ACCESS • SITE-OFFICE • $_governanceContractorOfficeHeadline • x1',
       ),
       findsWidgets,
     );
     expect(
       find.textContaining(
-        'shadow bias HARDEN ACCESS • SITE-OFFICE • Contractors moved floor to floor in office park • x1',
-      ),
-      findsWidgets,
-    );
-    expect(
-      find.textContaining(
-        'tomorrow shadow HARDEN ACCESS • SITE-OFFICE • Contractors moved floor to floor in office park • x1',
+        'tomorrow shadow HARDEN ACCESS • SITE-OFFICE • $_governanceContractorOfficeHeadline • x1',
       ),
       findsWidgets,
     );
@@ -1019,10 +1388,7 @@ void main() {
     );
     expect(find.text('SHADOW MO INTELLIGENCE'), findsOneWidget);
     expect(find.text('COPY SHADOW JSON'), findsOneWidget);
-    expect(
-      find.text('Contractors moved floor to floor in office park'),
-      findsWidgets,
-    );
+    expect(find.text(_governanceContractorOfficeHeadline), findsWidgets);
     expect(find.textContaining('Posture weight weight '), findsOneWidget);
     expect(find.textContaining('Strength '), findsWidgets);
     expect(find.textContaining('VALIDATED'), findsWidgets);
@@ -1059,7 +1425,7 @@ void main() {
               eventId: 'evt-fire',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+              occurredAt: _governanceNightShiftStartedAtUtc(16),
               intelligenceId: 'intel-fire',
               provider: 'hikvision_dvr_monitor_only',
               sourceType: 'dvr',
@@ -1086,7 +1452,7 @@ void main() {
               decisionSummary:
                   'Escalation posture requires fire response review.',
               summary: 'Smoke plume visible inside the generator room.',
-              reviewedAtUtc: DateTime.utc(2026, 3, 16, 22, 1),
+              reviewedAtUtc: _governanceMarch16NightOccurredAtUtc(1),
             ),
           },
         ),
@@ -1135,11 +1501,11 @@ void main() {
 
     final currentReport = buildReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
     );
     final focusedReport = buildReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
     );
 
     await tester.pumpWidget(
@@ -1167,29 +1533,26 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Share Morning Pack (Historical Shift 2026-03-09)'),
+      find.text(_governanceHistoricalShiftSharePackLabel()),
       findsOneWidget,
     );
     expect(
-      find.text('Email Morning Report (Historical Shift 2026-03-09)'),
+      find.text(_governanceHistoricalShiftEmailReportLabel()),
       findsOneWidget,
     );
     expect(
-      find.text('Download Morning JSON (Historical Shift 2026-03-09)'),
+      find.text(_governanceHistoricalShiftDownloadJsonLabel()),
       findsOneWidget,
     );
     expect(
-      find.text('Download Morning CSV (Historical Shift 2026-03-09)'),
+      find.text(_governanceHistoricalShiftDownloadCsvLabel()),
       findsOneWidget,
     );
     expect(
-      find.text('Copy Morning JSON (Historical Shift 2026-03-09)'),
+      find.text(_governanceHistoricalShiftCopyJsonLabel()),
       findsOneWidget,
     );
-    expect(
-      find.text('Copy Morning CSV (Historical Shift 2026-03-09)'),
-      findsOneWidget,
-    );
+    expect(find.text(_governanceHistoricalShiftCopyCsvLabel()), findsOneWidget);
   });
 
   testWidgets('governance page shows global readiness drift and drill-in', (
@@ -1229,11 +1592,11 @@ void main() {
 
     final priorReport = buildReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
     );
     final currentReport = buildReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
     );
 
     final events = <DispatchEvent>[
@@ -1241,7 +1604,7 @@ void main() {
         eventId: 'evt-prior',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 1, 0),
+        occurredAt: _governanceMarch9OccurredAtUtc(1, 0),
         intelligenceId: 'intel-prior',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -1262,7 +1625,7 @@ void main() {
         eventId: 'evt-current-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 1, 0),
+        occurredAt: _governanceMarch10OccurredAtUtc(1, 0),
         intelligenceId: 'intel-current-1',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -1284,7 +1647,7 @@ void main() {
         eventId: 'evt-current-2',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 1, 10),
+        occurredAt: _governanceMarch10OccurredAtUtc(1, 10),
         intelligenceId: 'intel-current-2',
         provider: 'community-feed',
         sourceType: 'community',
@@ -1311,7 +1674,7 @@ void main() {
         decisionLabel: 'Suppressed',
         decisionSummary: 'Routine monitored movement only.',
         summary: 'No escalation needed.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 9, 1, 1),
+        reviewedAtUtc: _governanceMarch9OccurredAtUtc(1, 1),
       ),
       'intel-current-1': MonitoringSceneReviewRecord(
         intelligenceId: 'intel-current-1',
@@ -1320,7 +1683,7 @@ void main() {
         decisionLabel: 'Escalation Candidate',
         decisionSummary: 'Escalation posture requires response review.',
         summary: 'Boundary activity at gate.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 10, 1, 1),
+        reviewedAtUtc: _governanceMarch10OccurredAtUtc(1, 1),
       ),
     };
 
@@ -1425,7 +1788,7 @@ void main() {
 
     final priorReport = buildReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
       siteActivity: const SovereignReportSiteActivity(
         totalSignals: 2,
         personSignals: 1,
@@ -1443,7 +1806,7 @@ void main() {
     );
     final currentReport = buildReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
       siteActivity: const SovereignReportSiteActivity(
         totalSignals: 7,
         personSignals: 4,
@@ -1456,8 +1819,7 @@ void main() {
         executiveSummary:
             'Unknown visitors and flagged identity traffic increased overnight.',
         headline: '7 site activity signals observed',
-        summaryLine:
-            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
+        summaryLine: _governanceSiteActivitySummaryLine,
       ),
     );
 
@@ -1523,9 +1885,9 @@ void main() {
   ) async {
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -1596,6 +1958,86 @@ void main() {
     );
   });
 
+  testWidgets('governance vehicle throughput metric opens BI dashboard', (
+    tester,
+  ) async {
+    final report = SovereignReport(
+      date: '2026-03-10',
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
+      ledgerIntegrity: const SovereignReportLedgerIntegrity(
+        totalEvents: 10,
+        hashVerified: true,
+        integrityScore: 99,
+      ),
+      aiHumanDelta: const SovereignReportAiHumanDelta(
+        aiDecisions: 1,
+        humanOverrides: 0,
+        overrideReasons: <String, int>{},
+      ),
+      normDrift: const SovereignReportNormDrift(
+        sitesMonitored: 1,
+        driftDetected: 0,
+        avgMatchScore: 100,
+      ),
+      complianceBlockage: const SovereignReportComplianceBlockage(
+        psiraExpired: 0,
+        pdpExpired: 0,
+        totalBlocked: 0,
+      ),
+      vehicleThroughput: const SovereignReportVehicleThroughput(
+        totalVisits: 24,
+        entryCount: 24,
+        serviceCount: 18,
+        exitCount: 16,
+        completedVisits: 16,
+        activeVisits: 6,
+        incompleteVisits: 2,
+        uniqueVehicles: 20,
+        repeatVehicles: 5,
+        unknownVehicleEvents: 1,
+        peakHourLabel: '10:00-11:00',
+        peakHourVisitCount: 8,
+        averageCompletedDwellMinutes: 14.5,
+        suspiciousShortVisitCount: 1,
+        loiteringVisitCount: 0,
+        workflowHeadline: '16 completed visits reached EXIT',
+        summaryLine:
+            'Visits 24 • Entry 24 • Completed 16 • Active 6 • Incomplete 2 • Unique 20 • Repeat 5',
+        hourlyBreakdown: <int, int>{8: 4, 9: 7, 10: 8, 11: 5},
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GovernancePage(
+          events: const <DispatchEvent>[],
+          morningSovereignReport: report,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('governance-metric-vehicle-throughput')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('governance-metric-vehicle-throughput')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('governance-vehicle-bi-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('VEHICLE BI DASHBOARD'), findsOneWidget);
+    expect(find.text('Vehicle BI dashboard'), findsOneWidget);
+    expect(find.text('25.0%'), findsOneWidget);
+    expect(find.byKey(const ValueKey('vehicle-bi-hour-bar-10')), findsOneWidget);
+    expect(find.byKey(const ValueKey('vehicle-bi-funnel-service')), findsOneWidget);
+  });
+
   testWidgets('governance page shows synthetic war-room drift and drill-in', (
     tester,
   ) async {
@@ -1633,11 +2075,11 @@ void main() {
 
     final priorReport = buildReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
     );
     final currentReport = buildReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
     );
 
     final events = <DispatchEvent>[
@@ -1645,7 +2087,7 @@ void main() {
         eventId: 'evt-prior',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 1, 0),
+        occurredAt: _governanceMarch9OccurredAtUtc(1, 0),
         intelligenceId: 'intel-prior',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -1666,7 +2108,7 @@ void main() {
         eventId: 'evt-current-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 1, 0),
+        occurredAt: _governanceMarch10OccurredAtUtc(1, 0),
         intelligenceId: 'intel-current-1',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -1688,7 +2130,7 @@ void main() {
         eventId: 'evt-current-2',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 1, 10),
+        occurredAt: _governanceMarch10OccurredAtUtc(1, 10),
         intelligenceId: 'intel-current-2',
         provider: 'community-feed',
         sourceType: 'community',
@@ -1715,7 +2157,7 @@ void main() {
         decisionLabel: 'Suppressed',
         decisionSummary: 'Routine monitored movement only.',
         summary: 'No escalation needed.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 9, 1, 1),
+        reviewedAtUtc: _governanceMarch9OccurredAtUtc(1, 1),
       ),
       'intel-current-1': MonitoringSceneReviewRecord(
         intelligenceId: 'intel-current-1',
@@ -1724,7 +2166,7 @@ void main() {
         decisionLabel: 'Escalation Candidate',
         decisionSummary: 'Escalation posture requires response review.',
         summary: 'Boundary activity at gate.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 10, 1, 1),
+        reviewedAtUtc: _governanceMarch10OccurredAtUtc(1, 1),
       ),
     };
 
@@ -1826,11 +2268,11 @@ void main() {
 
       final priorReport = buildReport(
         date: '2026-03-16',
-        generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(16),
       );
       final currentReport = buildReport(
         date: '2026-03-17',
-        generatedAtUtc: DateTime.utc(2026, 3, 17, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(17),
       );
 
       final events = <DispatchEvent>[
@@ -1838,7 +2280,7 @@ void main() {
           eventId: 'evt-prior-news',
           sequence: 1,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 0, 20),
+          occurredAt: _governanceMarch16OccurredAtUtc(0, 20),
           intelligenceId: 'intel-prior-news',
           provider: 'newsdesk',
           sourceType: 'news',
@@ -1849,7 +2291,7 @@ void main() {
           cameraId: 'news-feed',
           objectLabel: 'person',
           objectConfidence: 0.8,
-          headline: 'Contractors moved floor to floor in office park',
+          headline: _governanceContractorOfficeHeadline,
           summary:
               'Suspects posed as maintenance contractors before moving across restricted office zones.',
           riskScore: 89,
@@ -1860,7 +2302,7 @@ void main() {
           eventId: 'evt-prior-live',
           sequence: 2,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 1, 0),
+          occurredAt: _governanceMarch16OccurredAtUtc(1, 0),
           intelligenceId: 'intel-prior-live',
           provider: 'hikvision_dvr_monitor_only',
           sourceType: 'dvr',
@@ -1871,9 +2313,8 @@ void main() {
           cameraId: 'office-cam-prior',
           objectLabel: 'person',
           objectConfidence: 0.94,
-          headline: 'Maintenance contractor probing office doors',
-          summary:
-              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+          headline: _governanceContractorProbeHeadline,
+          summary: _governanceContractorProbeSummary,
           riskScore: 82,
           snapshotUrl: 'https://edge.example.com/prior-live.jpg',
           canonicalHash: 'hash-prior-live',
@@ -1882,7 +2323,7 @@ void main() {
           eventId: 'evt-current-news',
           sequence: 1,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 17, 0, 20),
+          occurredAt: _governanceMarch17OccurredAtUtc(0, 20),
           intelligenceId: 'intel-current-news',
           provider: 'newsdesk',
           sourceType: 'news',
@@ -1893,7 +2334,7 @@ void main() {
           cameraId: 'news-feed',
           objectLabel: 'person',
           objectConfidence: 0.8,
-          headline: 'Contractors moved floor to floor in office park',
+          headline: _governanceContractorOfficeHeadline,
           summary:
               'Suspects posed as maintenance contractors before moving across restricted office zones.',
           riskScore: 91,
@@ -1904,7 +2345,7 @@ void main() {
           eventId: 'evt-current-live',
           sequence: 2,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 17, 1, 0),
+          occurredAt: _governanceMarch17OccurredAtUtc(1, 0),
           intelligenceId: 'intel-current-live',
           provider: 'hikvision_dvr_monitor_only',
           sourceType: 'dvr',
@@ -1915,9 +2356,8 @@ void main() {
           cameraId: 'office-cam-current',
           objectLabel: 'person',
           objectConfidence: 0.94,
-          headline: 'Maintenance contractor probing office doors',
-          summary:
-              'Contractor-like person moved floor to floor and tried several restricted office doors.',
+          headline: _governanceContractorProbeHeadline,
+          summary: _governanceContractorProbeSummary,
           riskScore: 84,
           snapshotUrl: 'https://edge.example.com/current-live.jpg',
           canonicalHash: 'hash-current-live',
@@ -1930,22 +2370,18 @@ void main() {
           sourceLabel: 'openai:gpt-5.4-mini',
           postureLabel: 'service impersonation and roaming concern',
           decisionLabel: 'Escalation Candidate',
-          decisionSummary:
-              'Likely spoofed service access with abnormal roaming.',
-          summary:
-              'Likely maintenance impersonation moving across office zones.',
-          reviewedAtUtc: DateTime.utc(2026, 3, 16, 1, 2),
+          decisionSummary: _governanceSyntheticDecisionSummary,
+          summary: _governanceSyntheticReviewSummary,
+          reviewedAtUtc: _governanceMarch16OccurredAtUtc(1, 2),
         ),
         'intel-current-live': MonitoringSceneReviewRecord(
           intelligenceId: 'intel-current-live',
           sourceLabel: 'openai:gpt-5.4-mini',
           postureLabel: 'service impersonation and roaming concern',
           decisionLabel: 'Escalation Candidate',
-          decisionSummary:
-              'Likely spoofed service access with abnormal roaming.',
-          summary:
-              'Likely maintenance impersonation moving across office zones.',
-          reviewedAtUtc: DateTime.utc(2026, 3, 17, 1, 2),
+          decisionSummary: _governanceSyntheticDecisionSummary,
+          summary: _governanceSyntheticReviewSummary,
+          reviewedAtUtc: _governanceMarch17OccurredAtUtc(1, 2),
         ),
       };
 
@@ -2010,9 +2446,9 @@ void main() {
   ) async {
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -2046,20 +2482,17 @@ void main() {
         customBrandingOverrideReports: 1,
         governanceHandoffReports: 1,
         routineReviewReports: 1,
-        executiveSummary:
-            '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-        brandingExecutiveSummary: '1 receipt used custom branding override',
+        executiveSummary: _governanceReceiptPolicyExecutiveSummary,
+        brandingExecutiveSummary:
+            _governanceReceiptPolicyBrandingExecutiveSummary,
         investigationExecutiveSummary:
-            '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
-        latestBrandingSummary:
-            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
+            _governanceReceiptPolicyInvestigationExecutiveSummary,
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicyBrandingSummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
+        latestBrandingSummary: _governanceReceiptPolicyLatestBrandingSummary,
         latestInvestigationSummary:
-            'CLIENT-1/SITE-42 2026-03 remained routine report review.',
+            _governanceReceiptPolicyLatestInvestigationSummary,
       ),
       siteActivity: const SovereignReportSiteActivity(
         totalSignals: 7,
@@ -2070,11 +2503,9 @@ void main() {
         unknownSignals: 3,
         longPresenceSignals: 1,
         guardInteractionSignals: 1,
-        executiveSummary:
-            '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction',
-        headline: '7 site-activity signals recorded',
-        summaryLine:
-            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
+        executiveSummary: _governanceSiteActivityExecutiveSummary,
+        headline: _governanceSiteActivityRecordedHeadline,
+        summaryLine: _governanceSiteActivitySummaryLine,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -2085,14 +2516,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
       vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
@@ -2107,8 +2534,7 @@ void main() {
         averageCompletedDwellMinutes: 17.4,
         suspiciousShortVisitCount: 1,
         loiteringVisitCount: 0,
-        workflowHeadline:
-            '15 completed visits reached EXIT • 1 incomplete visit stalled at SERVICE',
+        workflowHeadline: _governanceVehicleThroughputWorkflowHeadline,
         summaryLine:
             'Visits 18 • Entry 18 • Completed 15 • Active 2 • Incomplete 1 • Unique 16 • Repeat 2 • Avg dwell 17.4m • Peak 23:00-00:00 (6) • Short visits 1 • Unknown vehicle events 1',
         scopeBreakdowns: const [
@@ -2141,11 +2567,11 @@ void main() {
             siteId: 'SITE-42',
             vehicleLabel: 'CA123456',
             statusLabel: 'INCOMPLETE',
-            reasonLabel: 'Incomplete visit',
-            workflowSummary: 'ENTRY -> SERVICE (INCOMPLETE)',
+            reasonLabel: _governanceVehicleIncompleteReasonLabel,
+            workflowSummary: _governanceVehicleServiceIncompleteWorkflow,
             primaryEventId: 'EVT-201',
-            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            startedAtUtc: _governanceMarch10OccurredAtUtc(0, 40),
+            lastSeenAtUtc: _governanceMarch10OccurredAtUtc(1, 22),
             dwellMinutes: 42.0,
             eventIds: ['EVT-201', 'EVT-202'],
             zoneLabels: ['Entry Lane', 'Wash Bay'],
@@ -2160,12 +2586,10 @@ void main() {
         onSiteCount: 1,
         allClearCount: 1,
         cancelledCount: 1,
-        workflowHeadline:
-            '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
-        performanceHeadline: '1 strong response • 1 critical response',
-        slaHeadline: 'Avg accept 5.0m • Avg on site 12.0m',
-        summaryLine:
-            'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
+        workflowHeadline: _governancePartnerWorkflowHeadline,
+        performanceHeadline: _governancePartnerPerformanceHeadline,
+        slaHeadline: _governancePartnerSlaHeadline,
+        summaryLine: _governancePartnerProgressionSummaryLine,
         scopeBreakdowns: [
           SovereignReportPartnerScopeBreakdown(
             clientId: 'CLIENT-1',
@@ -2173,7 +2597,7 @@ void main() {
             dispatchCount: 2,
             declarationCount: 5,
             latestStatus: PartnerDispatchStatus.cancelled,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 2, 18),
+            latestOccurredAtUtc: _governanceMarch10OccurredAtUtc(2, 18),
             summaryLine:
                 'Dispatches 2 • Declarations 5 • Latest CANCELLED @ 2026-03-10T02:18:00.000Z',
           ),
@@ -2190,8 +2614,7 @@ void main() {
             criticalCount: 1,
             averageAcceptedDelayMinutes: 5.0,
             averageOnSiteDelayMinutes: 13.0,
-            summaryLine:
-                'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+            summaryLine: _governancePartnerAlphaScoreboardSummary,
           ),
         ],
         dispatchChains: [
@@ -2202,18 +2625,16 @@ void main() {
             partnerLabel: 'Partner Alpha',
             declarationCount: 3,
             latestStatus: PartnerDispatchStatus.allClear,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 1, 55),
-            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 1, 35),
-            acceptedAtUtc: DateTime.utc(2026, 3, 10, 1, 40),
-            onSiteAtUtc: DateTime.utc(2026, 3, 10, 1, 48),
-            allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 55),
+            latestOccurredAtUtc: _governanceMarch10OccurredAtUtc(1, 55),
+            dispatchCreatedAtUtc: _governanceMarch10OccurredAtUtc(1, 35),
+            acceptedAtUtc: _governanceMarch10OccurredAtUtc(1, 40),
+            onSiteAtUtc: _governanceMarch10OccurredAtUtc(1, 48),
+            allClearAtUtc: _governanceMarch10OccurredAtUtc(1, 55),
             acceptedDelayMinutes: 5.0,
             onSiteDelayMinutes: 13.0,
             scoreLabel: 'STRONG',
-            scoreReason:
-                'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
-            workflowSummary:
-                'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+            scoreReason: _governancePartnerAllClearReason,
+            workflowSummary: _governancePartnerAllClearWorkflowSummary,
           ),
           SovereignReportPartnerDispatchChain(
             dispatchId: 'DSP-43',
@@ -2222,15 +2643,15 @@ void main() {
             partnerLabel: 'Partner Alpha',
             declarationCount: 2,
             latestStatus: PartnerDispatchStatus.cancelled,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 2, 18),
-            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 2, 0),
-            acceptedAtUtc: DateTime.utc(2026, 3, 10, 2, 5),
-            cancelledAtUtc: DateTime.utc(2026, 3, 10, 2, 18),
+            latestOccurredAtUtc: _governanceMarch10OccurredAtUtc(2, 18),
+            dispatchCreatedAtUtc: _governanceMarch10OccurredAtUtc(2, 0),
+            acceptedAtUtc: _governanceMarch10OccurredAtUtc(2, 5),
+            cancelledAtUtc: _governanceMarch10OccurredAtUtc(2, 18),
             acceptedDelayMinutes: 5.0,
             scoreLabel: 'CRITICAL',
             scoreReason:
                 'Dispatch was cancelled before the partner completed the response chain.',
-            workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
+            workflowSummary: _governancePartnerCancelledWorkflowSummary,
           ),
         ],
       ),
@@ -2238,9 +2659,9 @@ void main() {
 
     final priorReport = SovereignReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(8),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(9),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 150,
         hashVerified: true,
@@ -2276,7 +2697,7 @@ void main() {
             '1 client-facing receipt omitted sections • 1 client-facing receipt kept full policy',
         brandingExecutiveSummary:
             '1 receipt used default partner branding • 1 receipt used standard ONYX branding',
-        headline: '1 generated reports omitted sections',
+        headline: _governanceReceiptPolicyHeadline,
         summaryLine:
             'Reports 2 • Tracked 2 • Legacy 0 • Full 1 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 0 • Standard branding 1 • Default partner branding 1 • Custom branding 0',
         latestReportSummary:
@@ -2313,13 +2734,11 @@ void main() {
     expect(find.text('Receipt Policy'), findsWidgets);
     expect(find.text('2 reports'), findsWidgets);
     expect(
-      find.textContaining(
-        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-      ),
+      find.textContaining(_governanceReceiptPolicyExecutiveSummary),
       findsWidgets,
     );
     expect(
-      find.textContaining('1 receipt used custom branding override'),
+      find.textContaining(_governanceReceiptPolicyBrandingExecutiveSummary),
       findsWidgets,
     );
     expect(find.text('Receipt branding drift (7 days)'), findsOneWidget);
@@ -2426,16 +2845,14 @@ void main() {
     );
     expect(
       find.textContaining(
-        '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
+        _governanceReceiptPolicyInvestigationExecutiveSummary,
       ),
       findsWidgets,
     );
     await tester.tap(find.byIcon(Icons.close).last);
     await tester.pumpAndSettle();
     expect(
-      find.textContaining(
-        'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
-      ),
+      find.textContaining(_governanceReceiptPolicyLatestReportSummary),
       findsWidgets,
     );
     expect(
@@ -2444,80 +2861,54 @@ void main() {
       ),
       findsWidgets,
     );
+    expect(find.textContaining(_governanceActionMixLabel()), findsWidgets);
+    expect(find.textContaining(_governanceLatestActionLabel()), findsOneWidget);
     expect(
-      find.textContaining(
-        'Action mix: 2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-      ),
-      findsWidgets,
-    );
-    expect(
-      find.textContaining(
-        'Latest action taken: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-      ),
+      find.textContaining(_governanceRecentActionsLabel()),
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'Recent actions: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining(
-        'Latest filtered pattern: 2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
-      ),
+      find.textContaining(_governanceLatestFilteredPatternLabel()),
       findsOneWidget,
     );
     expect(find.text('Vehicle Throughput'), findsOneWidget);
     expect(find.text('Partner Progression'), findsWidgets);
     expect(
-      find.text(
-        '15 completed visits reached EXIT • 1 incomplete visit stalled at SERVICE',
-      ),
+      find.text(_governanceVehicleThroughputWorkflowHeadline),
       findsOneWidget,
     );
-    expect(
-      find.text(
-        '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
-      ),
-      findsWidgets,
-    );
-    expect(
-      find.text('1 strong response • 1 critical response'),
-      findsNWidgets(2),
-    );
-    expect(find.text('Avg accept 5.0m • Avg on site 12.0m'), findsOneWidget);
+    expect(find.text(_governancePartnerWorkflowHeadline), findsWidgets);
+    expect(find.text(_governancePartnerPerformanceHeadline), findsNWidgets(2));
+    expect(find.text(_governancePartnerSlaHeadline), findsOneWidget);
     expect(find.text('Vehicle site ledger'), findsOneWidget);
     expect(find.text('Vehicle exception review'), findsOneWidget);
     expect(find.text('Partner dispatch sites'), findsOneWidget);
     expect(find.text('Partner scoreboard'), findsOneWidget);
     expect(find.text('Partner dispatch progression'), findsOneWidget);
     expect(
-      find.textContaining('CLIENT-1/SITE-42 • Partner Alpha'),
+      find.textContaining(_governancePartnerAlphaScopeLabel),
       findsNWidgets(2),
     );
-    expect(
-      find.text(
-        'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text(_governancePartnerAlphaScoreboardSummary), findsOneWidget);
     expect(find.textContaining('Partner Alpha • DSP-42'), findsWidgets);
     expect(
-      find.text('Workflow: ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
+      find.text('Workflow: $_governancePartnerAllClearWorkflowSummary'),
       findsWidgets,
     );
     expect(find.text('SLA: accepted in 5.0m • on site in 13.0m'), findsWidgets);
     expect(find.text('STRONG'), findsWidgets);
+    expect(find.text(_governancePartnerAllClearScorecardLabel()), findsWidgets);
+    expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);
     expect(
-      find.text(
-        'Scorecard: Partner reached ALL CLEAR inside target acceptance and on-site windows.',
+      find.textContaining(
+        '$_governanceVehicleIncompleteReasonLabel • CA123456',
       ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Workflow: $_governanceVehicleServiceIncompleteWorkflow'),
       findsWidgets,
     );
-    expect(find.textContaining('CLIENT-1/SITE-42'), findsWidgets);
-    expect(find.textContaining('Incomplete visit • CA123456'), findsOneWidget);
-    expect(find.text('Workflow: ENTRY -> SERVICE (INCOMPLETE)'), findsWidgets);
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(find.text('Download Morning CSV'), findsOneWidget);
     expectTextButtonDisabled(tester, 'Download Morning JSON');
@@ -2602,7 +2993,7 @@ void main() {
 
     final priorReport = buildReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
       dispatchCount: 2,
       strongCount: 0,
       onTrackCount: 0,
@@ -2615,7 +3006,7 @@ void main() {
     );
     final currentReport = buildReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
       dispatchCount: 2,
       strongCount: 2,
       onTrackCount: 0,
@@ -2633,17 +3024,16 @@ void main() {
           partnerLabel: 'Partner Alpha',
           declarationCount: 3,
           latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 1, 0),
-          acceptedAtUtc: DateTime.utc(2026, 3, 10, 1, 4),
-          onSiteAtUtc: DateTime.utc(2026, 3, 10, 1, 10),
-          allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+          latestOccurredAtUtc: _governanceMarch10OccurredAtUtc(1, 30),
+          dispatchCreatedAtUtc: _governanceMarch10OccurredAtUtc(1, 0),
+          acceptedAtUtc: _governanceMarch10OccurredAtUtc(1, 4),
+          onSiteAtUtc: _governanceMarch10OccurredAtUtc(1, 10),
+          allClearAtUtc: _governanceMarch10OccurredAtUtc(1, 30),
           acceptedDelayMinutes: 4.0,
           onSiteDelayMinutes: 10.0,
           scoreLabel: 'STRONG',
-          scoreReason:
-              'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
-          workflowSummary: 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+          scoreReason: _governancePartnerAllClearReason,
+          workflowSummary: _governancePartnerAllClearWorkflowSummary,
         ),
       ],
     );
@@ -2692,7 +3082,7 @@ void main() {
     expect(find.text('Current dispatch chains'), findsOneWidget);
     expect(find.textContaining('DSP-200 • STRONG'), findsOneWidget);
     expect(
-      find.text('ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)'),
+      find.text(_governancePartnerAllClearWorkflowSummary),
       findsOneWidget,
     );
   });
@@ -2703,9 +3093,9 @@ void main() {
     String? openedReceiptEventId;
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -2739,20 +3129,17 @@ void main() {
         customBrandingOverrideReports: 1,
         governanceHandoffReports: 1,
         routineReviewReports: 1,
-        executiveSummary:
-            '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-        brandingExecutiveSummary: '1 receipt used custom branding override',
+        executiveSummary: _governanceReceiptPolicyExecutiveSummary,
+        brandingExecutiveSummary:
+            _governanceReceiptPolicyBrandingExecutiveSummary,
         investigationExecutiveSummary:
-            '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
-        latestBrandingSummary:
-            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
+            _governanceReceiptPolicyInvestigationExecutiveSummary,
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicyBrandingSummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
+        latestBrandingSummary: _governanceReceiptPolicyLatestBrandingSummary,
         latestInvestigationSummary:
-            'CLIENT-1/SITE-42 2026-03 remained routine report review.',
+            _governanceReceiptPolicyLatestInvestigationSummary,
       ),
       siteActivity: const SovereignReportSiteActivity(
         totalSignals: 7,
@@ -2763,11 +3150,9 @@ void main() {
         unknownSignals: 3,
         longPresenceSignals: 1,
         guardInteractionSignals: 1,
-        executiveSummary:
-            '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction',
-        headline: '7 site-activity signals recorded',
-        summaryLine:
-            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
+        executiveSummary: _governanceSiteActivityExecutiveSummary,
+        headline: _governanceSiteActivityRecordedHeadline,
+        summaryLine: _governanceSiteActivitySummaryLine,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -2778,14 +3163,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
     );
 
@@ -2797,7 +3178,7 @@ void main() {
               eventId: 'RPT-TRACKED',
               sequence: 40,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 10, 2, 20),
+              occurredAt: _governanceMarch10OccurredAtUtc(2, 20),
               clientId: 'CLIENT-1',
               siteId: 'SITE-42',
               month: '2026-03',
@@ -2820,7 +3201,7 @@ void main() {
               eventId: 'RPT-LEGACY',
               sequence: 41,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 10, 2, 40),
+              occurredAt: _governanceMarch10OccurredAtUtc(2, 40),
               clientId: 'CLIENT-1',
               siteId: 'SITE-7',
               month: '2026-03',
@@ -2836,7 +3217,7 @@ void main() {
               eventId: 'RPT-OLD',
               sequence: 42,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 10, 8, 0),
+              occurredAt: _governanceMarch10OccurredAtUtc(8, 0),
               clientId: 'CLIENT-1',
               siteId: 'SITE-OLD',
               month: '2026-03',
@@ -2872,12 +3253,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('RECEIPT POLICY DRILL-IN'), findsOneWidget);
-    expect(
-      find.text(
-        '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-      ),
-      findsWidgets,
-    );
+    expect(find.text(_governanceReceiptPolicyExecutiveSummary), findsWidgets);
     expect(
       find.byKey(const ValueKey('governance-receipt-policy-entry-RPT-TRACKED')),
       findsOneWidget,
@@ -2913,7 +3289,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Open Events Review'), findsNWidgets(2));
+    expect(find.text('OPEN EVENTS SCOPE'), findsWidgets);
 
     await tester.tap(
       find.byKey(
@@ -2940,9 +3316,9 @@ void main() {
 
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -3012,7 +3388,7 @@ void main() {
       find.byKey(const ValueKey('governance-receipt-policy-empty-recovery')),
       findsOneWidget,
     );
-    expect(find.text('RECEIPT LANE RECOVERY READY'), findsOneWidget);
+    expect(find.text('RECEIPT BOARD RECOVERY READY'), findsOneWidget);
 
     await tester.tap(
       find.byKey(
@@ -3023,7 +3399,7 @@ void main() {
 
     expect(openedReportsClientId, 'CLIENT-1');
     expect(openedReportsSiteId, 'SITE-42');
-    expect(find.text('Report workspace opened'), findsOneWidget);
+    expect(find.text('Reports workspace opened'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('governance-metric-receipt-policy')),
@@ -3040,7 +3416,7 @@ void main() {
 
     expect(openedLedgerClientId, 'CLIENT-1');
     expect(openedLedgerSiteId, 'SITE-42');
-    expect(find.text('Ledger continuity opened'), findsOneWidget);
+    expect(find.text('Sovereign ledger opened'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('governance-metric-receipt-policy')),
@@ -3069,9 +3445,9 @@ void main() {
     var generatedReportCount = 0;
     final report = SovereignReport(
       date: '2026-03-16',
-      generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 0, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(16),
+      shiftWindowStartUtc: _governanceMidnightShiftStartedAtUtc(16),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(16),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 12,
         hashVerified: true,
@@ -3102,7 +3478,7 @@ void main() {
               eventId: 'alarm-cycle-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 2, 0),
+              occurredAt: _governanceMarch16OccurredAtUtc(2, 0),
               sourceLabel: 'listener-http',
               acceptedCount: 5,
               mappedCount: 4,
@@ -3122,7 +3498,7 @@ void main() {
               eventId: 'alarm-advisory-1',
               sequence: 2,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 2, 1),
+              occurredAt: _governanceMarch16OccurredAtUtc(2, 1),
               clientId: 'CLIENT-1',
               regionId: 'REGION-1',
               siteId: 'SITE-1',
@@ -3142,7 +3518,7 @@ void main() {
               eventId: 'alarm-parity-1',
               sequence: 3,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 16, 2, 2),
+              occurredAt: _governanceMarch16OccurredAtUtc(2, 2),
               sourceLabel: 'listener-http',
               legacySourceLabel: 'oryx-http',
               statusLabel: 'ok',
@@ -3216,7 +3592,7 @@ void main() {
 
     expect(openedEventIds, equals(const ['alarm-advisory-1']));
     expect(openedSelectedEventId, 'alarm-advisory-1');
-    expect(find.text('Events review opened'), findsOneWidget);
+    expect(find.text('Events scope opened'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(const ValueKey('governance-metric-listener-alarm')),
@@ -3246,9 +3622,9 @@ void main() {
 
       final report = SovereignReport(
         date: '2026-03-16',
-        generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 16, 0, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(16),
+        shiftWindowStartUtc: _governanceMidnightShiftStartedAtUtc(16),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(16),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 12,
           hashVerified: true,
@@ -3279,7 +3655,7 @@ void main() {
                 eventId: 'alarm-cycle-quiet-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 2, 0),
+                occurredAt: _governanceMarch16OccurredAtUtc(2, 0),
                 sourceLabel: 'listener-http',
                 acceptedCount: 5,
                 mappedCount: 4,
@@ -3299,7 +3675,7 @@ void main() {
                 eventId: 'alarm-advisory-quiet-1',
                 sequence: 2,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 16, 2, 1),
+                occurredAt: _governanceMarch16OccurredAtUtc(2, 1),
                 clientId: 'CLIENT-1',
                 regionId: 'REGION-1',
                 siteId: 'SITE-42',
@@ -3359,7 +3735,7 @@ void main() {
 
       expect(openedEventIds, equals(const ['alarm-advisory-quiet-1']));
       expect(openedSelectedEventId, 'alarm-advisory-quiet-1');
-      expect(find.text('Events review opened'), findsOneWidget);
+      expect(find.text('Events scope opened'), findsOneWidget);
 
       await tester.ensureVisible(
         find.byKey(const ValueKey('governance-metric-listener-alarm')),
@@ -3378,7 +3754,7 @@ void main() {
 
       expect(openedReportsClientId, 'CLIENT-1');
       expect(openedReportsSiteId, 'SITE-42');
-      expect(find.text('Report workspace opened'), findsOneWidget);
+      expect(find.text('Reports workspace opened'), findsOneWidget);
 
       await tester.ensureVisible(
         find.byKey(const ValueKey('governance-metric-listener-alarm')),
@@ -3406,9 +3782,9 @@ void main() {
     Map<String, String>? openedScope;
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -3461,18 +3837,16 @@ void main() {
             partnerLabel: 'Partner Alpha',
             declarationCount: 3,
             latestStatus: PartnerDispatchStatus.allClear,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
-            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 1, 0),
-            acceptedAtUtc: DateTime.utc(2026, 3, 10, 1, 4),
-            onSiteAtUtc: DateTime.utc(2026, 3, 10, 1, 10),
-            allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+            latestOccurredAtUtc: _governanceMarch10OccurredAtUtc(1, 30),
+            dispatchCreatedAtUtc: _governanceMarch10OccurredAtUtc(1, 0),
+            acceptedAtUtc: _governanceMarch10OccurredAtUtc(1, 4),
+            onSiteAtUtc: _governanceMarch10OccurredAtUtc(1, 10),
+            allClearAtUtc: _governanceMarch10OccurredAtUtc(1, 30),
             acceptedDelayMinutes: 4.0,
             onSiteDelayMinutes: 10.0,
             scoreLabel: 'STRONG',
-            scoreReason:
-                'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
-            workflowSummary:
-                'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+            scoreReason: _governancePartnerAllClearReason,
+            workflowSummary: _governancePartnerAllClearWorkflowSummary,
           ),
         ],
       ),
@@ -3516,7 +3890,10 @@ void main() {
       'siteId': 'SITE-42',
       'partnerLabel': 'Partner Alpha',
     });
-    expect(find.textContaining('Opening Reports for SITE-42'), findsOneWidget);
+    expect(
+      find.textContaining('Opening Reports Workspace for SITE-42'),
+      findsOneWidget,
+    );
   });
 
   testWidgets(
@@ -3527,9 +3904,9 @@ void main() {
       var generatedReportCount = 0;
       final report = SovereignReport(
         date: '2026-03-10',
-        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 10,
           hashVerified: true,
@@ -3619,7 +3996,7 @@ void main() {
 
       expect(openedLedgerClientId, 'CLIENT-1');
       expect(openedLedgerSiteId, 'SITE-42');
-      expect(find.text('Ledger continuity opened'), findsOneWidget);
+      expect(find.text('Sovereign ledger opened'), findsOneWidget);
 
       await tester.ensureVisible(scoreboardFinder);
       await tester.tap(scoreboardFinder);
@@ -3638,7 +4015,7 @@ void main() {
   );
 
   testWidgets(
-    'governance workspace reports action falls back to scoped reports lane',
+    'governance workspace reports action falls back to scoped Reports Workspace',
     (tester) async {
       tester.view.physicalSize = const Size(1440, 980);
       tester.view.devicePixelRatio = 1.0;
@@ -3651,9 +4028,9 @@ void main() {
       String? openedSiteId;
       final report = SovereignReport(
         date: '2026-03-10',
-        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 10,
           hashVerified: true,
@@ -3691,18 +4068,16 @@ void main() {
               partnerLabel: 'Partner Alpha',
               declarationCount: 3,
               latestStatus: PartnerDispatchStatus.allClear,
-              latestOccurredAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
-              dispatchCreatedAtUtc: DateTime.utc(2026, 3, 10, 1, 0),
-              acceptedAtUtc: DateTime.utc(2026, 3, 10, 1, 4),
-              onSiteAtUtc: DateTime.utc(2026, 3, 10, 1, 10),
-              allClearAtUtc: DateTime.utc(2026, 3, 10, 1, 30),
+              latestOccurredAtUtc: _governanceMarch10OccurredAtUtc(1, 30),
+              dispatchCreatedAtUtc: _governanceMarch10OccurredAtUtc(1, 0),
+              acceptedAtUtc: _governanceMarch10OccurredAtUtc(1, 4),
+              onSiteAtUtc: _governanceMarch10OccurredAtUtc(1, 10),
+              allClearAtUtc: _governanceMarch10OccurredAtUtc(1, 30),
               acceptedDelayMinutes: 4.0,
               onSiteDelayMinutes: 10.0,
               scoreLabel: 'STRONG',
-              scoreReason:
-                  'Partner reached ALL CLEAR inside target acceptance and on-site windows.',
-              workflowSummary:
-                  'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+              scoreReason: _governancePartnerAllClearReason,
+              workflowSummary: _governancePartnerAllClearWorkflowSummary,
             ),
           ],
         ),
@@ -3734,7 +4109,7 @@ void main() {
 
       expect(openedClientId, 'CLIENT-1');
       expect(openedSiteId, 'SITE-42');
-      expect(find.text('Report workspace opened'), findsOneWidget);
+      expect(find.text('Reports workspace opened'), findsOneWidget);
       expect(
         find.textContaining(
           'keeping Partner Alpha as the active partner context',
@@ -3756,9 +4131,9 @@ void main() {
 
       final report = SovereignReport(
         date: '2026-03-10',
-        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 10,
           hashVerified: true,
@@ -3787,11 +4162,9 @@ void main() {
           reportsWithOmittedSections: 1,
           omittedAiDecisionLogReports: 1,
           omittedGuardMetricsReports: 1,
-          headline: '1 generated reports omitted sections',
-          summaryLine:
-              'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
-          latestReportSummary:
-              'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+          headline: _governanceReceiptPolicyHeadline,
+          summaryLine: _governanceReceiptPolicySummaryLine,
+          latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
         ),
         partnerProgression: SovereignReportPartnerProgression(
           dispatchCount: 1,
@@ -3830,7 +4203,7 @@ void main() {
       );
       expect(find.text('Receipt policy drill-in opened'), findsOneWidget);
       expect(
-        find.textContaining('no scoped reports lane was available'),
+        find.textContaining('no scoped Reports Workspace was available'),
         findsOneWidget,
       );
     },
@@ -3900,21 +4273,21 @@ void main() {
 
       final currentReport = buildReport(
         date: '2026-03-10',
-        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
         standardBrandingReports: 0,
         defaultPartnerBrandingReports: 0,
         customBrandingOverrideReports: 1,
-        brandingExecutiveSummary: '1 receipt used custom branding override',
-        latestBrandingSummary:
-            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
+        brandingExecutiveSummary:
+            _governanceReceiptPolicyBrandingExecutiveSummary,
+        latestBrandingSummary: _governanceReceiptPolicyLatestBrandingSummary,
       );
       final priorReport = buildReport(
         date: '2026-03-09',
-        generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(9),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(8),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(9),
         standardBrandingReports: 1,
         defaultPartnerBrandingReports: 0,
         customBrandingOverrideReports: 0,
@@ -3931,7 +4304,7 @@ void main() {
                 eventId: 'RPT-CURRENT',
                 sequence: 50,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 10, 2, 30),
+                occurredAt: _governanceMarch10OccurredAtUtc(2, 30),
                 clientId: 'CLIENT-1',
                 siteId: 'SITE-42',
                 month: '2026-03',
@@ -3951,7 +4324,7 @@ void main() {
                 eventId: 'RPT-PRIOR',
                 sequence: 40,
                 version: 1,
-                occurredAt: DateTime.utc(2026, 3, 9, 2, 0),
+                occurredAt: _governanceMarch9OccurredAtUtc(2, 0),
                 clientId: 'CLIENT-1',
                 siteId: 'SITE-42',
                 month: '2026-03',
@@ -3998,304 +4371,299 @@ void main() {
         'receiptEventId': 'RPT-CURRENT',
       });
       expect(
-        find.textContaining('Opening Reports for SITE-42'),
+        find.textContaining('Opening Reports Workspace for SITE-42'),
         findsOneWidget,
       );
     },
   );
 
-  testWidgets('governance page scopes partner reporting to a selected site and partner', (
-    tester,
-  ) async {
-    SovereignReport buildReport({
-      required String date,
-      required DateTime generatedAtUtc,
-      required List<SovereignReportPartnerScoreboardRow> scoreboardRows,
-      required List<SovereignReportPartnerDispatchChain> dispatchChains,
-      required List<SovereignReportPartnerScopeBreakdown> scopeBreakdowns,
-    }) {
-      return SovereignReport(
-        date: date,
-        generatedAtUtc: generatedAtUtc,
-        shiftWindowStartUtc: generatedAtUtc.subtract(const Duration(hours: 8)),
-        shiftWindowEndUtc: generatedAtUtc,
-        ledgerIntegrity: const SovereignReportLedgerIntegrity(
-          totalEvents: 10,
-          hashVerified: true,
-          integrityScore: 99,
-        ),
-        aiHumanDelta: const SovereignReportAiHumanDelta(
-          aiDecisions: 1,
-          humanOverrides: 0,
-          overrideReasons: <String, int>{},
-        ),
-        normDrift: const SovereignReportNormDrift(
-          sitesMonitored: 2,
-          driftDetected: 0,
-          avgMatchScore: 100,
-        ),
-        complianceBlockage: const SovereignReportComplianceBlockage(
-          psiraExpired: 0,
-          pdpExpired: 0,
-          totalBlocked: 0,
-        ),
-        partnerProgression: SovereignReportPartnerProgression(
-          dispatchCount: dispatchChains.length,
-          declarationCount: dispatchChains.fold<int>(
-            0,
-            (sum, chain) => sum + chain.declarationCount,
+  testWidgets(
+    'governance page scopes partner reporting to a selected site and partner',
+    (tester) async {
+      SovereignReport buildReport({
+        required String date,
+        required DateTime generatedAtUtc,
+        required List<SovereignReportPartnerScoreboardRow> scoreboardRows,
+        required List<SovereignReportPartnerDispatchChain> dispatchChains,
+        required List<SovereignReportPartnerScopeBreakdown> scopeBreakdowns,
+      }) {
+        return SovereignReport(
+          date: date,
+          generatedAtUtc: generatedAtUtc,
+          shiftWindowStartUtc: generatedAtUtc.subtract(
+            const Duration(hours: 8),
           ),
-          acceptedCount: dispatchChains
-              .where((chain) => chain.acceptedAtUtc != null)
-              .length,
-          onSiteCount: dispatchChains
-              .where((chain) => chain.onSiteAtUtc != null)
-              .length,
-          allClearCount: dispatchChains
-              .where((chain) => chain.allClearAtUtc != null)
-              .length,
-          cancelledCount: dispatchChains
-              .where((chain) => chain.cancelledAtUtc != null)
-              .length,
-          workflowHeadline: '2 partner dispatches in progress',
-          performanceHeadline: '1 strong response • 1 critical response',
-          slaHeadline: 'Avg accept 7.0m • Avg on site 15.0m',
-          summaryLine:
-              'Dispatches ${dispatchChains.length} • Declarations ${dispatchChains.fold<int>(0, (sum, chain) => sum + chain.declarationCount)}',
-          scopeBreakdowns: scopeBreakdowns,
-          scoreboardRows: scoreboardRows,
-          dispatchChains: dispatchChains,
+          shiftWindowEndUtc: generatedAtUtc,
+          ledgerIntegrity: const SovereignReportLedgerIntegrity(
+            totalEvents: 10,
+            hashVerified: true,
+            integrityScore: 99,
+          ),
+          aiHumanDelta: const SovereignReportAiHumanDelta(
+            aiDecisions: 1,
+            humanOverrides: 0,
+            overrideReasons: <String, int>{},
+          ),
+          normDrift: const SovereignReportNormDrift(
+            sitesMonitored: 2,
+            driftDetected: 0,
+            avgMatchScore: 100,
+          ),
+          complianceBlockage: const SovereignReportComplianceBlockage(
+            psiraExpired: 0,
+            pdpExpired: 0,
+            totalBlocked: 0,
+          ),
+          partnerProgression: SovereignReportPartnerProgression(
+            dispatchCount: dispatchChains.length,
+            declarationCount: dispatchChains.fold<int>(
+              0,
+              (sum, chain) => sum + chain.declarationCount,
+            ),
+            acceptedCount: dispatchChains
+                .where((chain) => chain.acceptedAtUtc != null)
+                .length,
+            onSiteCount: dispatchChains
+                .where((chain) => chain.onSiteAtUtc != null)
+                .length,
+            allClearCount: dispatchChains
+                .where((chain) => chain.allClearAtUtc != null)
+                .length,
+            cancelledCount: dispatchChains
+                .where((chain) => chain.cancelledAtUtc != null)
+                .length,
+            workflowHeadline: _governancePartnerInProgressWorkflowHeadline,
+            performanceHeadline: _governancePartnerPerformanceHeadline,
+            slaHeadline: _governancePartnerInProgressSlaHeadline,
+            summaryLine:
+                'Dispatches ${dispatchChains.length} • Declarations ${dispatchChains.fold<int>(0, (sum, chain) => sum + chain.declarationCount)}',
+            scopeBreakdowns: scopeBreakdowns,
+            scoreboardRows: scoreboardRows,
+            dispatchChains: dispatchChains,
+          ),
+        );
+      }
+
+      final priorReport = buildReport(
+        date: '2026-03-14',
+        generatedAtUtc: _governanceReportGeneratedAtUtc(14),
+        scopeBreakdowns: [
+          SovereignReportPartnerScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            dispatchCount: 1,
+            declarationCount: 2,
+            latestStatus: PartnerDispatchStatus.cancelled,
+            latestOccurredAtUtc: _governanceMarch14OccurredAtUtc(2, 12),
+            summaryLine: _governancePartnerMarch14CancelledScopeSummary,
+          ),
+          SovereignReportPartnerScopeBreakdown(
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            dispatchCount: 1,
+            declarationCount: 3,
+            latestStatus: PartnerDispatchStatus.allClear,
+            latestOccurredAtUtc: _governanceMarch14OccurredAtUtc(3, 10),
+            summaryLine: _governancePartnerMarch14AllClearScopeSummary,
+          ),
+        ],
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 12.0,
+            averageOnSiteDelayMinutes: 0,
+            summaryLine: _governancePartnerMarch14CriticalScoreboardSummary,
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            partnerLabel: 'Partner Beta',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 6.0,
+            averageOnSiteDelayMinutes: 14.0,
+            summaryLine: _governancePartnerMarch14StrongScoreboardSummary,
+          ),
+        ],
+        dispatchChains: [
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-100',
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            declarationCount: 2,
+            latestStatus: PartnerDispatchStatus.cancelled,
+            latestOccurredAtUtc: _governanceMarch14OccurredAtUtc(2, 12),
+            dispatchCreatedAtUtc: _governanceMarch14OccurredAtUtc(2, 0),
+            acceptedAtUtc: _governanceMarch14OccurredAtUtc(2, 12),
+            cancelledAtUtc: _governanceMarch14OccurredAtUtc(2, 12),
+            acceptedDelayMinutes: 12.0,
+            scoreLabel: 'CRITICAL',
+            scoreReason: _governancePartnerCancelledReason,
+            workflowSummary: _governancePartnerCancelledWorkflowSummary,
+          ),
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-200',
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            partnerLabel: 'Partner Beta',
+            declarationCount: 3,
+            latestStatus: PartnerDispatchStatus.allClear,
+            latestOccurredAtUtc: _governanceMarch14OccurredAtUtc(3, 10),
+            dispatchCreatedAtUtc: _governanceMarch14OccurredAtUtc(2, 56),
+            acceptedAtUtc: _governanceMarch14OccurredAtUtc(3, 2),
+            onSiteAtUtc: _governanceMarch14OccurredAtUtc(3, 10),
+            allClearAtUtc: _governanceMarch14OccurredAtUtc(3, 12),
+            acceptedDelayMinutes: 6.0,
+            onSiteDelayMinutes: 14.0,
+            scoreLabel: 'STRONG',
+            scoreReason: _governancePartnerCompletedResponseReason,
+            workflowSummary: _governancePartnerAllClearWorkflowSummary,
+          ),
+        ],
+      );
+      final currentReport = buildReport(
+        date: '2026-03-15',
+        generatedAtUtc: _governanceReportGeneratedAtUtc(15),
+        scopeBreakdowns: [
+          SovereignReportPartnerScopeBreakdown(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            dispatchCount: 1,
+            declarationCount: 3,
+            latestStatus: PartnerDispatchStatus.allClear,
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
+            summaryLine: _governancePartnerMarch15AllClearScopeSummary,
+          ),
+          SovereignReportPartnerScopeBreakdown(
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            dispatchCount: 1,
+            declarationCount: 2,
+            latestStatus: PartnerDispatchStatus.cancelled,
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(4, 08),
+            summaryLine: _governancePartnerMarch15CancelledScopeSummary,
+          ),
+        ],
+        scoreboardRows: [
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            dispatchCount: 1,
+            strongCount: 1,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 0,
+            averageAcceptedDelayMinutes: 4.0,
+            averageOnSiteDelayMinutes: 12.0,
+            summaryLine: _governancePartnerMarch15StrongScoreboardSummary,
+          ),
+          SovereignReportPartnerScoreboardRow(
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            partnerLabel: 'Partner Beta',
+            dispatchCount: 1,
+            strongCount: 0,
+            onTrackCount: 0,
+            watchCount: 0,
+            criticalCount: 1,
+            averageAcceptedDelayMinutes: 10.0,
+            averageOnSiteDelayMinutes: 0,
+            summaryLine: _governancePartnerMarch15CriticalScoreboardSummary,
+          ),
+        ],
+        dispatchChains: [
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-101',
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            partnerLabel: 'Partner Alpha',
+            declarationCount: 3,
+            latestStatus: PartnerDispatchStatus.allClear,
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
+            dispatchCreatedAtUtc: _governanceMarch15OccurredAtUtc(1, 0),
+            acceptedAtUtc: _governanceMarch15OccurredAtUtc(1, 4),
+            onSiteAtUtc: _governanceMarch15OccurredAtUtc(1, 12),
+            allClearAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
+            acceptedDelayMinutes: 4.0,
+            onSiteDelayMinutes: 12.0,
+            scoreLabel: 'STRONG',
+            scoreReason: _governancePartnerCompletedResponseReason,
+            workflowSummary: _governancePartnerAllClearWorkflowSummary,
+          ),
+          SovereignReportPartnerDispatchChain(
+            dispatchId: 'DSP-201',
+            clientId: 'CLIENT-2',
+            siteId: 'SITE-77',
+            partnerLabel: 'Partner Beta',
+            declarationCount: 2,
+            latestStatus: PartnerDispatchStatus.cancelled,
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(4, 8),
+            dispatchCreatedAtUtc: _governanceMarch15OccurredAtUtc(4, 0),
+            acceptedAtUtc: _governanceMarch15OccurredAtUtc(4, 5),
+            cancelledAtUtc: _governanceMarch15OccurredAtUtc(4, 8),
+            acceptedDelayMinutes: 10.0,
+            scoreLabel: 'CRITICAL',
+            scoreReason: _governancePartnerCancelledReason,
+            workflowSummary: _governancePartnerCancelledWorkflowSummary,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const [],
+            morningSovereignReport: currentReport,
+            morningSovereignReportHistory: [priorReport],
+            initialPartnerScopeClientId: 'CLIENT-1',
+            initialPartnerScopeSiteId: 'SITE-42',
+            initialPartnerScopePartnerLabel: 'Partner Alpha',
+          ),
         ),
       );
-    }
+      await tester.pumpAndSettle();
 
-    final priorReport = buildReport(
-      date: '2026-03-14',
-      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-      scopeBreakdowns: [
-        SovereignReportPartnerScopeBreakdown(
-          clientId: 'CLIENT-1',
-          siteId: 'SITE-42',
-          dispatchCount: 1,
-          declarationCount: 2,
-          latestStatus: PartnerDispatchStatus.cancelled,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
-          summaryLine:
-              'Dispatches 1 • Declarations 2 • Latest CANCELLED @ 2026-03-14T02:12:00.000Z',
-        ),
-        SovereignReportPartnerScopeBreakdown(
-          clientId: 'CLIENT-2',
-          siteId: 'SITE-77',
-          dispatchCount: 1,
-          declarationCount: 3,
-          latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
-          summaryLine:
-              'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-14T03:10:00.000Z',
-        ),
-      ],
-      scoreboardRows: [
-        SovereignReportPartnerScoreboardRow(
-          clientId: 'CLIENT-1',
-          siteId: 'SITE-42',
-          partnerLabel: 'Partner Alpha',
-          dispatchCount: 1,
-          strongCount: 0,
-          onTrackCount: 0,
-          watchCount: 0,
-          criticalCount: 1,
-          averageAcceptedDelayMinutes: 12.0,
-          averageOnSiteDelayMinutes: 0,
-          summaryLine:
-              'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 0.0m',
-        ),
-        SovereignReportPartnerScoreboardRow(
-          clientId: 'CLIENT-2',
-          siteId: 'SITE-77',
-          partnerLabel: 'Partner Beta',
-          dispatchCount: 1,
-          strongCount: 1,
-          onTrackCount: 0,
-          watchCount: 0,
-          criticalCount: 0,
-          averageAcceptedDelayMinutes: 6.0,
-          averageOnSiteDelayMinutes: 14.0,
-          summaryLine:
-              'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 6.0m • Avg on site 14.0m',
-        ),
-      ],
-      dispatchChains: [
-        SovereignReportPartnerDispatchChain(
-          dispatchId: 'DSP-100',
-          clientId: 'CLIENT-1',
-          siteId: 'SITE-42',
-          partnerLabel: 'Partner Alpha',
-          declarationCount: 2,
-          latestStatus: PartnerDispatchStatus.cancelled,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 14, 2, 0),
-          acceptedAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
-          cancelledAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
-          acceptedDelayMinutes: 12.0,
-          scoreLabel: 'CRITICAL',
-          scoreReason: 'Dispatch was cancelled before partner completion.',
-          workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
-        ),
-        SovereignReportPartnerDispatchChain(
-          dispatchId: 'DSP-200',
-          clientId: 'CLIENT-2',
-          siteId: 'SITE-77',
-          partnerLabel: 'Partner Beta',
-          declarationCount: 3,
-          latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 14, 2, 56),
-          acceptedAtUtc: DateTime.utc(2026, 3, 14, 3, 2),
-          onSiteAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
-          allClearAtUtc: DateTime.utc(2026, 3, 14, 3, 12),
-          acceptedDelayMinutes: 6.0,
-          onSiteDelayMinutes: 14.0,
-          scoreLabel: 'STRONG',
-          scoreReason: 'Partner completed response inside targets.',
-          workflowSummary: 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
-        ),
-      ],
-    );
-    final currentReport = buildReport(
-      date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      scopeBreakdowns: [
-        SovereignReportPartnerScopeBreakdown(
-          clientId: 'CLIENT-1',
-          siteId: 'SITE-42',
-          dispatchCount: 1,
-          declarationCount: 3,
-          latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
-          summaryLine:
-              'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-15T01:18:00.000Z',
-        ),
-        SovereignReportPartnerScopeBreakdown(
-          clientId: 'CLIENT-2',
-          siteId: 'SITE-77',
-          dispatchCount: 1,
-          declarationCount: 2,
-          latestStatus: PartnerDispatchStatus.cancelled,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 08),
-          summaryLine:
-              'Dispatches 1 • Declarations 2 • Latest CANCELLED @ 2026-03-15T04:08:00.000Z',
-        ),
-      ],
-      scoreboardRows: [
-        SovereignReportPartnerScoreboardRow(
-          clientId: 'CLIENT-1',
-          siteId: 'SITE-42',
-          partnerLabel: 'Partner Alpha',
-          dispatchCount: 1,
-          strongCount: 1,
-          onTrackCount: 0,
-          watchCount: 0,
-          criticalCount: 0,
-          averageAcceptedDelayMinutes: 4.0,
-          averageOnSiteDelayMinutes: 12.0,
-          summaryLine:
-              'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 12.0m',
-        ),
-        SovereignReportPartnerScoreboardRow(
-          clientId: 'CLIENT-2',
-          siteId: 'SITE-77',
-          partnerLabel: 'Partner Beta',
-          dispatchCount: 1,
-          strongCount: 0,
-          onTrackCount: 0,
-          watchCount: 0,
-          criticalCount: 1,
-          averageAcceptedDelayMinutes: 10.0,
-          averageOnSiteDelayMinutes: 0,
-          summaryLine:
-              'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 10.0m • Avg on site 0.0m',
-        ),
-      ],
-      dispatchChains: [
-        SovereignReportPartnerDispatchChain(
-          dispatchId: 'DSP-101',
-          clientId: 'CLIENT-1',
-          siteId: 'SITE-42',
-          partnerLabel: 'Partner Alpha',
-          declarationCount: 3,
-          latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 1, 0),
-          acceptedAtUtc: DateTime.utc(2026, 3, 15, 1, 4),
-          onSiteAtUtc: DateTime.utc(2026, 3, 15, 1, 12),
-          allClearAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
-          acceptedDelayMinutes: 4.0,
-          onSiteDelayMinutes: 12.0,
-          scoreLabel: 'STRONG',
-          scoreReason: 'Partner completed response inside targets.',
-          workflowSummary: 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
-        ),
-        SovereignReportPartnerDispatchChain(
-          dispatchId: 'DSP-201',
-          clientId: 'CLIENT-2',
-          siteId: 'SITE-77',
-          partnerLabel: 'Partner Beta',
-          declarationCount: 2,
-          latestStatus: PartnerDispatchStatus.cancelled,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 8),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 4, 0),
-          acceptedAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
-          cancelledAtUtc: DateTime.utc(2026, 3, 15, 4, 8),
-          acceptedDelayMinutes: 10.0,
-          scoreLabel: 'CRITICAL',
-          scoreReason: 'Dispatch was cancelled before partner completion.',
-          workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
-        ),
-      ],
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: GovernancePage(
-          events: const [],
-          morningSovereignReport: currentReport,
-          morningSovereignReportHistory: [priorReport],
-          initialPartnerScopeClientId: 'CLIENT-1',
-          initialPartnerScopeSiteId: 'SITE-42',
-          initialPartnerScopePartnerLabel: 'Partner Alpha',
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('governance-partner-scope-banner')),
-      findsOneWidget,
-    );
-    expect(find.text('Partner scope focus active'), findsOneWidget);
-    expect(
-      find.textContaining('CLIENT-1/SITE-42 • Partner Alpha'),
-      findsWidgets,
-    );
-    expect(
-      find.textContaining('CLIENT-2/SITE-77 • Partner Beta'),
-      findsNothing,
-    );
-    expect(find.text('1 strong response'), findsWidgets);
-    expect(find.text('Avg accept 4.0m • Avg on site 12.0m'), findsOneWidget);
-    expect(find.text('IMPROVING'), findsOneWidget);
-    expect(find.textContaining('Partner Alpha • DSP-101'), findsWidgets);
-    expect(find.textContaining('Partner Beta • DSP-201'), findsNothing);
-  });
+      expect(
+        find.byKey(const ValueKey('governance-partner-scope-banner')),
+        findsOneWidget,
+      );
+      expect(find.text('Partner scope focus active'), findsOneWidget);
+      expect(
+        find.textContaining(_governancePartnerAlphaScopeLabel),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('CLIENT-2/SITE-77 • Partner Beta'),
+        findsNothing,
+      );
+      expect(find.text(_governancePartnerStrongResponseSummary), findsWidgets);
+      expect(find.text('Avg accept 4.0m • Avg on site 12.0m'), findsOneWidget);
+      expect(find.text('IMPROVING'), findsOneWidget);
+      expect(find.textContaining('Partner Alpha • DSP-101'), findsWidgets);
+      expect(find.textContaining('Partner Beta • DSP-201'), findsNothing);
+    },
+  );
 
   testWidgets('governance page supports client-wide scope focus', (
     tester,
   ) async {
     final report = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(15),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 12,
         hashVerified: true,
@@ -4323,10 +4691,10 @@ void main() {
         onSiteCount: 2,
         allClearCount: 1,
         cancelledCount: 0,
-        workflowHeadline: 'Partner Alpha carried both client lanes cleanly.',
-        performanceHeadline: '1 strong response • 1 on track response',
-        slaHeadline: 'Avg accept 5.0m • Avg on site 12.0m',
-        summaryLine: 'Dispatches 3 • Declarations 6',
+        workflowHeadline: _governancePartnerClientWideWorkflowHeadline,
+        performanceHeadline: _governancePartnerClientWidePerformanceHeadline,
+        slaHeadline: _governancePartnerSlaHeadline,
+        summaryLine: _governancePartnerClientWideSummaryLine,
         scopeBreakdowns: [
           SovereignReportPartnerScopeBreakdown(
             clientId: 'CLIENT-1',
@@ -4334,9 +4702,8 @@ void main() {
             dispatchCount: 1,
             declarationCount: 3,
             latestStatus: PartnerDispatchStatus.allClear,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
-            summaryLine:
-                'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-15T01:18:00.000Z',
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
+            summaryLine: _governancePartnerMarch15AllClearScopeSummary,
           ),
           SovereignReportPartnerScopeBreakdown(
             clientId: 'CLIENT-1',
@@ -4344,7 +4711,7 @@ void main() {
             dispatchCount: 1,
             declarationCount: 2,
             latestStatus: PartnerDispatchStatus.onSite,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 2, 12),
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(2, 12),
             summaryLine:
                 'Dispatches 1 • Declarations 2 • Latest ON SITE @ 2026-03-15T02:12:00.000Z',
           ),
@@ -4354,7 +4721,7 @@ void main() {
             dispatchCount: 1,
             declarationCount: 1,
             latestStatus: PartnerDispatchStatus.accepted,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(4, 5),
             summaryLine:
                 'Dispatches 1 • Declarations 1 • Latest ACCEPTED @ 2026-03-15T04:05:00.000Z',
           ),
@@ -4371,7 +4738,7 @@ void main() {
             criticalCount: 0,
             averageAcceptedDelayMinutes: 4.0,
             averageOnSiteDelayMinutes: 12.0,
-            summaryLine: '1 strong response',
+            summaryLine: _governancePartnerStrongResponseSummary,
           ),
           SovereignReportPartnerScoreboardRow(
             clientId: 'CLIENT-1',
@@ -4384,7 +4751,7 @@ void main() {
             criticalCount: 0,
             averageAcceptedDelayMinutes: 6.0,
             averageOnSiteDelayMinutes: 12.0,
-            summaryLine: '1 on track response',
+            summaryLine: _governancePartnerOnTrackResponseSummary,
           ),
           SovereignReportPartnerScoreboardRow(
             clientId: 'CLIENT-2',
@@ -4397,7 +4764,7 @@ void main() {
             criticalCount: 0,
             averageAcceptedDelayMinutes: 5.0,
             averageOnSiteDelayMinutes: 0.0,
-            summaryLine: '1 watch response',
+            summaryLine: _governancePartnerWatchResponseSummary,
           ),
         ],
         dispatchChains: [
@@ -4408,17 +4775,16 @@ void main() {
             partnerLabel: 'Partner Alpha',
             declarationCount: 3,
             latestStatus: PartnerDispatchStatus.allClear,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
-            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 1, 2),
-            acceptedAtUtc: DateTime.utc(2026, 3, 15, 1, 6),
-            onSiteAtUtc: DateTime.utc(2026, 3, 15, 1, 14),
-            allClearAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
+            dispatchCreatedAtUtc: _governanceMarch15OccurredAtUtc(1, 2),
+            acceptedAtUtc: _governanceMarch15OccurredAtUtc(1, 6),
+            onSiteAtUtc: _governanceMarch15OccurredAtUtc(1, 14),
+            allClearAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
             acceptedDelayMinutes: 4.0,
             onSiteDelayMinutes: 12.0,
             scoreLabel: 'STRONG',
-            scoreReason: 'Partner completed response inside targets.',
-            workflowSummary:
-                'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+            scoreReason: _governancePartnerCompletedResponseReason,
+            workflowSummary: _governancePartnerAllClearWorkflowSummary,
           ),
           SovereignReportPartnerDispatchChain(
             dispatchId: 'DSP-102',
@@ -4427,15 +4793,15 @@ void main() {
             partnerLabel: 'Partner Alpha',
             declarationCount: 2,
             latestStatus: PartnerDispatchStatus.onSite,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 2, 12),
-            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 2, 0),
-            acceptedAtUtc: DateTime.utc(2026, 3, 15, 2, 6),
-            onSiteAtUtc: DateTime.utc(2026, 3, 15, 2, 12),
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(2, 12),
+            dispatchCreatedAtUtc: _governanceMarch15OccurredAtUtc(2, 0),
+            acceptedAtUtc: _governanceMarch15OccurredAtUtc(2, 6),
+            onSiteAtUtc: _governanceMarch15OccurredAtUtc(2, 12),
             acceptedDelayMinutes: 6.0,
             onSiteDelayMinutes: 12.0,
             scoreLabel: 'ON TRACK',
-            scoreReason: 'Partner is on site and progressing cleanly.',
-            workflowSummary: 'ACCEPT -> ON SITE (LATEST ON SITE)',
+            scoreReason: _governancePartnerOnSiteReason,
+            workflowSummary: _governancePartnerOnSiteWorkflowSummary,
           ),
           SovereignReportPartnerDispatchChain(
             dispatchId: 'DSP-201',
@@ -4444,12 +4810,12 @@ void main() {
             partnerLabel: 'Partner Beta',
             declarationCount: 1,
             latestStatus: PartnerDispatchStatus.accepted,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
-            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 4, 0),
-            acceptedAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
+            latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(4, 5),
+            dispatchCreatedAtUtc: _governanceMarch15OccurredAtUtc(4, 0),
+            acceptedAtUtc: _governanceMarch15OccurredAtUtc(4, 5),
             acceptedDelayMinutes: 5.0,
             scoreLabel: 'WATCH',
-            scoreReason: 'Partner is slower than target.',
+            scoreReason: _governancePartnerWatchReason,
             workflowSummary: 'ACCEPT (LATEST ACCEPT)',
           ),
         ],
@@ -4535,9 +4901,9 @@ void main() {
           cancelledCount: dispatchChains
               .where((chain) => chain.cancelledAtUtc != null)
               .length,
-          workflowHeadline: '2 partner dispatches in progress',
-          performanceHeadline: '1 strong response • 1 critical response',
-          slaHeadline: 'Avg accept 7.0m • Avg on site 15.0m',
+          workflowHeadline: _governancePartnerInProgressWorkflowHeadline,
+          performanceHeadline: _governancePartnerPerformanceHeadline,
+          slaHeadline: _governancePartnerInProgressSlaHeadline,
           summaryLine:
               'Dispatches ${dispatchChains.length} • Declarations ${dispatchChains.fold<int>(0, (sum, chain) => sum + chain.declarationCount)}',
           scopeBreakdowns: scopeBreakdowns,
@@ -4549,7 +4915,7 @@ void main() {
 
     final priorReport = buildReport(
       date: '2026-03-14',
-      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(14),
       scopeBreakdowns: [
         SovereignReportPartnerScopeBreakdown(
           clientId: 'CLIENT-1',
@@ -4557,9 +4923,8 @@ void main() {
           dispatchCount: 1,
           declarationCount: 2,
           latestStatus: PartnerDispatchStatus.cancelled,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
-          summaryLine:
-              'Dispatches 1 • Declarations 2 • Latest CANCELLED @ 2026-03-14T02:12:00.000Z',
+          latestOccurredAtUtc: _governanceMarch14OccurredAtUtc(2, 12),
+          summaryLine: _governancePartnerMarch14CancelledScopeSummary,
         ),
         SovereignReportPartnerScopeBreakdown(
           clientId: 'CLIENT-2',
@@ -4567,9 +4932,8 @@ void main() {
           dispatchCount: 1,
           declarationCount: 3,
           latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
-          summaryLine:
-              'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-14T03:10:00.000Z',
+          latestOccurredAtUtc: _governanceMarch14OccurredAtUtc(3, 10),
+          summaryLine: _governancePartnerMarch14AllClearScopeSummary,
         ),
       ],
       scoreboardRows: [
@@ -4584,8 +4948,7 @@ void main() {
           criticalCount: 1,
           averageAcceptedDelayMinutes: 12.0,
           averageOnSiteDelayMinutes: 0,
-          summaryLine:
-              'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 12.0m • Avg on site 0.0m',
+          summaryLine: _governancePartnerMarch14CriticalScoreboardSummary,
         ),
         SovereignReportPartnerScoreboardRow(
           clientId: 'CLIENT-2',
@@ -4598,8 +4961,7 @@ void main() {
           criticalCount: 0,
           averageAcceptedDelayMinutes: 6.0,
           averageOnSiteDelayMinutes: 14.0,
-          summaryLine:
-              'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 6.0m • Avg on site 14.0m',
+          summaryLine: _governancePartnerMarch14StrongScoreboardSummary,
         ),
       ],
       dispatchChains: [
@@ -4610,14 +4972,14 @@ void main() {
           partnerLabel: 'Partner Alpha',
           declarationCount: 2,
           latestStatus: PartnerDispatchStatus.cancelled,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 14, 2, 0),
-          acceptedAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
-          cancelledAtUtc: DateTime.utc(2026, 3, 14, 2, 12),
+          latestOccurredAtUtc: _governanceMarch14OccurredAtUtc(2, 12),
+          dispatchCreatedAtUtc: _governanceMarch14OccurredAtUtc(2, 0),
+          acceptedAtUtc: _governanceMarch14OccurredAtUtc(2, 12),
+          cancelledAtUtc: _governanceMarch14OccurredAtUtc(2, 12),
           acceptedDelayMinutes: 12.0,
           scoreLabel: 'CRITICAL',
-          scoreReason: 'Dispatch was cancelled before partner completion.',
-          workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
+          scoreReason: _governancePartnerCancelledReason,
+          workflowSummary: _governancePartnerCancelledWorkflowSummary,
         ),
         SovereignReportPartnerDispatchChain(
           dispatchId: 'DSP-200',
@@ -4626,22 +4988,22 @@ void main() {
           partnerLabel: 'Partner Beta',
           declarationCount: 3,
           latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 14, 2, 56),
-          acceptedAtUtc: DateTime.utc(2026, 3, 14, 3, 2),
-          onSiteAtUtc: DateTime.utc(2026, 3, 14, 3, 10),
-          allClearAtUtc: DateTime.utc(2026, 3, 14, 3, 12),
+          latestOccurredAtUtc: _governanceMarch14OccurredAtUtc(3, 10),
+          dispatchCreatedAtUtc: _governanceMarch14OccurredAtUtc(2, 56),
+          acceptedAtUtc: _governanceMarch14OccurredAtUtc(3, 2),
+          onSiteAtUtc: _governanceMarch14OccurredAtUtc(3, 10),
+          allClearAtUtc: _governanceMarch14OccurredAtUtc(3, 12),
           acceptedDelayMinutes: 6.0,
           onSiteDelayMinutes: 14.0,
           scoreLabel: 'STRONG',
-          scoreReason: 'Partner completed response inside targets.',
-          workflowSummary: 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+          scoreReason: _governancePartnerCompletedResponseReason,
+          workflowSummary: _governancePartnerAllClearWorkflowSummary,
         ),
       ],
     );
     final currentReport = buildReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(15),
       scopeBreakdowns: [
         SovereignReportPartnerScopeBreakdown(
           clientId: 'CLIENT-1',
@@ -4649,9 +5011,8 @@ void main() {
           dispatchCount: 1,
           declarationCount: 3,
           latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
-          summaryLine:
-              'Dispatches 1 • Declarations 3 • Latest ALL CLEAR @ 2026-03-15T01:18:00.000Z',
+          latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
+          summaryLine: _governancePartnerMarch15AllClearScopeSummary,
         ),
         SovereignReportPartnerScopeBreakdown(
           clientId: 'CLIENT-2',
@@ -4659,9 +5020,8 @@ void main() {
           dispatchCount: 1,
           declarationCount: 2,
           latestStatus: PartnerDispatchStatus.cancelled,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 08),
-          summaryLine:
-              'Dispatches 1 • Declarations 2 • Latest CANCELLED @ 2026-03-15T04:08:00.000Z',
+          latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(4, 08),
+          summaryLine: _governancePartnerMarch15CancelledScopeSummary,
         ),
       ],
       scoreboardRows: [
@@ -4676,8 +5036,7 @@ void main() {
           criticalCount: 0,
           averageAcceptedDelayMinutes: 4.0,
           averageOnSiteDelayMinutes: 12.0,
-          summaryLine:
-              'Dispatches 1 • Strong 1 • On track 0 • Watch 0 • Critical 0 • Avg accept 4.0m • Avg on site 12.0m',
+          summaryLine: _governancePartnerMarch15StrongScoreboardSummary,
         ),
         SovereignReportPartnerScoreboardRow(
           clientId: 'CLIENT-2',
@@ -4690,8 +5049,7 @@ void main() {
           criticalCount: 1,
           averageAcceptedDelayMinutes: 10.0,
           averageOnSiteDelayMinutes: 0,
-          summaryLine:
-              'Dispatches 1 • Strong 0 • On track 0 • Watch 0 • Critical 1 • Avg accept 10.0m • Avg on site 0.0m',
+          summaryLine: _governancePartnerMarch15CriticalScoreboardSummary,
         ),
       ],
       dispatchChains: [
@@ -4702,16 +5060,16 @@ void main() {
           partnerLabel: 'Partner Alpha',
           declarationCount: 3,
           latestStatus: PartnerDispatchStatus.allClear,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 1, 0),
-          acceptedAtUtc: DateTime.utc(2026, 3, 15, 1, 4),
-          onSiteAtUtc: DateTime.utc(2026, 3, 15, 1, 12),
-          allClearAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+          latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
+          dispatchCreatedAtUtc: _governanceMarch15OccurredAtUtc(1, 0),
+          acceptedAtUtc: _governanceMarch15OccurredAtUtc(1, 4),
+          onSiteAtUtc: _governanceMarch15OccurredAtUtc(1, 12),
+          allClearAtUtc: _governanceMarch15OccurredAtUtc(1, 18),
           acceptedDelayMinutes: 4.0,
           onSiteDelayMinutes: 12.0,
           scoreLabel: 'STRONG',
-          scoreReason: 'Partner completed response inside targets.',
-          workflowSummary: 'ACCEPT -> ON SITE -> ALL CLEAR (LATEST ALL CLEAR)',
+          scoreReason: _governancePartnerCompletedResponseReason,
+          workflowSummary: _governancePartnerAllClearWorkflowSummary,
         ),
         SovereignReportPartnerDispatchChain(
           dispatchId: 'DSP-201',
@@ -4720,14 +5078,14 @@ void main() {
           partnerLabel: 'Partner Beta',
           declarationCount: 2,
           latestStatus: PartnerDispatchStatus.cancelled,
-          latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 4, 8),
-          dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 4, 0),
-          acceptedAtUtc: DateTime.utc(2026, 3, 15, 4, 5),
-          cancelledAtUtc: DateTime.utc(2026, 3, 15, 4, 8),
+          latestOccurredAtUtc: _governanceMarch15OccurredAtUtc(4, 8),
+          dispatchCreatedAtUtc: _governanceMarch15OccurredAtUtc(4, 0),
+          acceptedAtUtc: _governanceMarch15OccurredAtUtc(4, 5),
+          cancelledAtUtc: _governanceMarch15OccurredAtUtc(4, 8),
           acceptedDelayMinutes: 10.0,
           scoreLabel: 'CRITICAL',
-          scoreReason: 'Dispatch was cancelled before partner completion.',
-          workflowSummary: 'ACCEPT -> CANCELLED (LATEST CANCELLED)',
+          scoreReason: _governancePartnerCancelledReason,
+          workflowSummary: _governancePartnerCancelledWorkflowSummary,
         ),
       ],
     );
@@ -4755,7 +5113,7 @@ void main() {
       find.textContaining('CLIENT-2/SITE-77 • Partner Beta'),
       findsNothing,
     );
-    expect(find.text('1 strong response'), findsWidgets);
+    expect(find.text(_governancePartnerStrongResponseSummary), findsWidgets);
     expect(find.text('Avg accept 4.0m • Avg on site 12.0m'), findsOneWidget);
     expect(find.text('IMPROVING'), findsOneWidget);
     expect(find.textContaining('Partner Alpha • DSP-101'), findsWidgets);
@@ -4767,9 +5125,9 @@ void main() {
   ) async {
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -4803,20 +5161,17 @@ void main() {
         customBrandingOverrideReports: 1,
         governanceHandoffReports: 1,
         routineReviewReports: 1,
-        executiveSummary:
-            '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-        brandingExecutiveSummary: '1 receipt used custom branding override',
+        executiveSummary: _governanceReceiptPolicyExecutiveSummary,
+        brandingExecutiveSummary:
+            _governanceReceiptPolicyBrandingExecutiveSummary,
         investigationExecutiveSummary:
-            '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
-        latestBrandingSummary:
-            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
+            _governanceReceiptPolicyInvestigationExecutiveSummary,
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicyBrandingSummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
+        latestBrandingSummary: _governanceReceiptPolicyLatestBrandingSummary,
         latestInvestigationSummary:
-            'CLIENT-1/SITE-42 2026-03 remained routine report review.',
+            _governanceReceiptPolicyLatestInvestigationSummary,
       ),
       siteActivity: const SovereignReportSiteActivity(
         totalSignals: 7,
@@ -4827,11 +5182,9 @@ void main() {
         unknownSignals: 3,
         longPresenceSignals: 1,
         guardInteractionSignals: 1,
-        executiveSummary:
-            '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction',
-        headline: '7 site-activity signals recorded',
-        summaryLine:
-            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
+        executiveSummary: _governanceSiteActivityExecutiveSummary,
+        headline: _governanceSiteActivityRecordedHeadline,
+        summaryLine: _governanceSiteActivitySummaryLine,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -4842,14 +5195,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
       vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
@@ -4885,10 +5234,10 @@ void main() {
             siteId: 'SITE-42',
             vehicleLabel: 'CA123456',
             statusLabel: 'INCOMPLETE',
-            reasonLabel: 'Incomplete visit',
+            reasonLabel: _governanceVehicleIncompleteReasonLabel,
             primaryEventId: 'EVT-201',
-            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            startedAtUtc: _governanceMarch10OccurredAtUtc(0, 40),
+            lastSeenAtUtc: _governanceMarch10OccurredAtUtc(1, 22),
             dwellMinutes: 42.0,
             eventIds: ['EVT-201', 'EVT-202'],
             zoneLabels: ['Entry Lane', 'Wash Bay'],
@@ -4903,12 +5252,10 @@ void main() {
         onSiteCount: 1,
         allClearCount: 1,
         cancelledCount: 1,
-        workflowHeadline:
-            '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
-        performanceHeadline: '1 strong response • 1 critical response',
-        slaHeadline: 'Avg accept 5.0m • Avg on site 12.0m',
-        summaryLine:
-            'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
+        workflowHeadline: _governancePartnerWorkflowHeadline,
+        performanceHeadline: _governancePartnerPerformanceHeadline,
+        slaHeadline: _governancePartnerSlaHeadline,
+        summaryLine: _governancePartnerProgressionSummaryLine,
         scoreboardRows: [
           SovereignReportPartnerScoreboardRow(
             clientId: 'CLIENT-1',
@@ -4921,8 +5268,7 @@ void main() {
             criticalCount: 1,
             averageAcceptedDelayMinutes: 5.0,
             averageOnSiteDelayMinutes: 13.0,
-            summaryLine:
-                'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+            summaryLine: _governancePartnerAlphaScoreboardSummary,
           ),
         ],
       ),
@@ -4930,9 +5276,9 @@ void main() {
 
     final priorReport = SovereignReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(8),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(9),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 160,
         hashVerified: true,
@@ -5000,51 +5346,46 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
+    expect(find.text(_governanceFocusedRecentActionsHeading()), findsOneWidget);
+    expect(find.text(_governanceRecentActionsSummary), findsWidgets);
     expect(
-      find.text(
-        '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-      ),
-      findsWidgets,
-    );
-    expect(
-      find.text(
-        'Forensic replay of combat window (22:00-06:00) • Focused Recent Actions',
-      ),
+      find.text(_governanceFocusedRecentActionsDeckTitle()),
       findsOneWidget,
     );
-    expect(find.text('Copy Recent Actions Detail'), findsOneWidget);
-    expect(find.text('Copy Morning JSON (Recent Actions)'), findsOneWidget);
-    expect(find.text('Copy Morning CSV (Recent Actions)'), findsOneWidget);
-    expect(find.text('Download Morning JSON (Recent Actions)'), findsOneWidget);
-    expect(find.text('Download Morning CSV (Recent Actions)'), findsOneWidget);
-    expect(find.text('Share Morning Pack (Recent Actions)'), findsOneWidget);
-    expect(find.text('Email Morning Report (Recent Actions)'), findsOneWidget);
+    expect(
+      find.text(_governanceRecentActionsDetailCopyLabel()),
+      findsOneWidget,
+    );
+    expect(find.text(_governanceRecentActionsCopyJsonLabel()), findsOneWidget);
+    expect(find.text(_governanceRecentActionsCopyCsvLabel()), findsOneWidget);
+    expect(
+      find.text(_governanceRecentActionsDownloadJsonLabel()),
+      findsOneWidget,
+    );
+    expect(
+      find.text(_governanceRecentActionsDownloadCsvLabel()),
+      findsOneWidget,
+    );
+    expect(find.text(_governanceRecentActionsSharePackLabel()), findsOneWidget);
+    expect(
+      find.text(_governanceRecentActionsEmailReportLabel()),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('governance-scene-detail-recentActions')),
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'Focused recent actions • 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-      ),
+      find.textContaining(_governanceFocusedRecentActionsLabel()),
       findsOneWidget,
     );
     expect(
       tester
-          .getTopLeft(
-            find.textContaining(
-              'Recent actions: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-            ),
-          )
+          .getTopLeft(find.textContaining(_governanceRecentActionsLabel()))
           .dy,
       lessThan(
         tester
-            .getTopLeft(
-              find.textContaining(
-                'Latest action taken: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-              ),
-            )
+            .getTopLeft(find.textContaining(_governanceLatestActionLabel()))
             .dy,
       ),
     );
@@ -5068,33 +5409,38 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Filtered pattern'), findsOneWidget);
     expect(
-      find.text(
-        '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
-      ),
-      findsWidgets,
-    );
-    expect(
-      find.text(
-        'Forensic replay of combat window (22:00-06:00) • Focused Filtered Pattern',
-      ),
+      find.text(_governanceFocusedFilteredPatternHeading()),
       findsOneWidget,
     );
-    expect(find.text('Copy Filtered Pattern Detail'), findsOneWidget);
-    expect(find.text('Copy Morning JSON (Filtered Pattern)'), findsOneWidget);
-    expect(find.text('Copy Morning CSV (Filtered Pattern)'), findsOneWidget);
+    expect(find.text(_governanceFilteredPatternSummary), findsWidgets);
     expect(
-      find.text('Download Morning JSON (Filtered Pattern)'),
+      find.text(_governanceFocusedFilteredPatternDeckTitle()),
       findsOneWidget,
     );
     expect(
-      find.text('Download Morning CSV (Filtered Pattern)'),
+      find.text(_governanceFilteredPatternDetailCopyLabel()),
       findsOneWidget,
     );
-    expect(find.text('Share Morning Pack (Filtered Pattern)'), findsOneWidget);
     expect(
-      find.text('Email Morning Report (Filtered Pattern)'),
+      find.text(_governanceFilteredPatternCopyJsonLabel()),
+      findsOneWidget,
+    );
+    expect(find.text(_governanceFilteredPatternCopyCsvLabel()), findsOneWidget);
+    expect(
+      find.text(_governanceFilteredPatternDownloadJsonLabel()),
+      findsOneWidget,
+    );
+    expect(
+      find.text(_governanceFilteredPatternDownloadCsvLabel()),
+      findsOneWidget,
+    );
+    expect(
+      find.text(_governanceFilteredPatternSharePackLabel()),
+      findsOneWidget,
+    );
+    expect(
+      find.text(_governanceFilteredPatternEmailReportLabel()),
       findsOneWidget,
     );
     expect(
@@ -5102,26 +5448,18 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining(
-        'Focused filtered pattern • 2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
-      ),
+      find.textContaining(_governanceFocusedFilteredPatternLabel()),
       findsOneWidget,
     );
     expect(
       tester
           .getTopLeft(
-            find.textContaining(
-              'Latest filtered pattern: 2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
-            ),
+            find.textContaining(_governanceLatestFilteredPatternLabel()),
           )
           .dy,
       lessThan(
         tester
-            .getTopLeft(
-              find.textContaining(
-                'Recent actions: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-              ),
-            )
+            .getTopLeft(find.textContaining(_governanceRecentActionsLabel()))
             .dy,
       ),
     );
@@ -5151,9 +5489,9 @@ void main() {
   ) async {
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -5182,11 +5520,9 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicySummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -5197,14 +5533,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
       vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
@@ -5240,10 +5572,10 @@ void main() {
             siteId: 'SITE-42',
             vehicleLabel: 'CA123456',
             statusLabel: 'INCOMPLETE',
-            reasonLabel: 'Incomplete visit',
+            reasonLabel: _governanceVehicleIncompleteReasonLabel,
             primaryEventId: 'EVT-201',
-            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            startedAtUtc: _governanceMarch10OccurredAtUtc(0, 40),
+            lastSeenAtUtc: _governanceMarch10OccurredAtUtc(1, 22),
             dwellMinutes: 42.0,
             eventIds: ['EVT-201', 'EVT-202'],
             zoneLabels: ['Entry Lane', 'Wash Bay'],
@@ -5258,12 +5590,10 @@ void main() {
         onSiteCount: 1,
         allClearCount: 1,
         cancelledCount: 1,
-        workflowHeadline:
-            '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
-        performanceHeadline: '1 strong response • 1 critical response',
+        workflowHeadline: _governancePartnerWorkflowHeadline,
+        performanceHeadline: _governancePartnerPerformanceHeadline,
         slaHeadline: 'Avg accept 5.0m • Avg on site 13.0m',
-        summaryLine:
-            'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
+        summaryLine: _governancePartnerProgressionSummaryLine,
         scoreboardRows: [
           SovereignReportPartnerScoreboardRow(
             clientId: 'CLIENT-1',
@@ -5276,8 +5606,7 @@ void main() {
             criticalCount: 1,
             averageAcceptedDelayMinutes: 5.0,
             averageOnSiteDelayMinutes: 13.0,
-            summaryLine:
-                'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+            summaryLine: _governancePartnerAlphaScoreboardSummary,
           ),
         ],
       ),
@@ -5285,9 +5614,9 @@ void main() {
 
     final priorReport = SovereignReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(8),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(9),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 150,
         hashVerified: true,
@@ -5357,12 +5686,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
+    expect(find.text(_governanceFocusedRecentActionsHeading()), findsOneWidget);
     expect(
       find.byKey(const ValueKey('governance-scene-detail-recentActions')),
       findsOneWidget,
     );
-    expect(find.text('Copy Morning JSON (Recent Actions)'), findsOneWidget);
+    expect(find.text(_governanceRecentActionsCopyJsonLabel()), findsOneWidget);
     expect(find.text('Tap to clear'), findsOneWidget);
 
     await tester.ensureVisible(
@@ -5373,7 +5702,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Recent actions'), findsNothing);
+    expect(find.text(_governanceFocusedRecentActionsHeading()), findsNothing);
     expect(
       find.byKey(const ValueKey('governance-scene-detail-recentActions')),
       findsNothing,
@@ -5387,9 +5716,9 @@ void main() {
   ) async {
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -5418,11 +5747,9 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicySummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -5433,14 +5760,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
       vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
@@ -5476,10 +5799,10 @@ void main() {
             siteId: 'SITE-42',
             vehicleLabel: 'CA123456',
             statusLabel: 'INCOMPLETE',
-            reasonLabel: 'Incomplete visit',
+            reasonLabel: _governanceVehicleIncompleteReasonLabel,
             primaryEventId: 'EVT-201',
-            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            startedAtUtc: _governanceMarch10OccurredAtUtc(0, 40),
+            lastSeenAtUtc: _governanceMarch10OccurredAtUtc(1, 22),
             dwellMinutes: 42.0,
             eventIds: ['EVT-201', 'EVT-202'],
             zoneLabels: ['Entry Lane', 'Wash Bay'],
@@ -5535,11 +5858,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(persistedFocus, GovernanceSceneActionFocus.recentActions);
-    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
+    expect(find.text(_governanceFocusedRecentActionsHeading()), findsOneWidget);
     expect(
-      find.text(
-        'Forensic replay of combat window (22:00-06:00) • Focused Recent Actions',
-      ),
+      find.text(_governanceFocusedRecentActionsDeckTitle()),
       findsOneWidget,
     );
 
@@ -5548,14 +5869,12 @@ void main() {
     await tester.tap(find.text('Show Governance'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
+    expect(find.text(_governanceFocusedRecentActionsHeading()), findsOneWidget);
     expect(
-      find.text(
-        'Forensic replay of combat window (22:00-06:00) • Focused Recent Actions',
-      ),
+      find.text(_governanceFocusedRecentActionsDeckTitle()),
       findsOneWidget,
     );
-    expect(find.text('Copy Morning JSON (Recent Actions)'), findsOneWidget);
+    expect(find.text(_governanceRecentActionsCopyJsonLabel()), findsOneWidget);
     expect(
       find.byKey(const ValueKey('governance-scene-detail-recentActions')),
       findsOneWidget,
@@ -5574,9 +5893,9 @@ void main() {
 
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -5605,11 +5924,9 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicySummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -5620,14 +5937,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
     );
     GovernanceSceneActionFocus? persistedFocus;
@@ -5671,17 +5984,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(persistedFocus, GovernanceSceneActionFocus.recentActions);
-    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
+    expect(find.text(_governanceFocusedRecentActionsHeading()), findsOneWidget);
 
-    await tester.tap(find.text('Live Operations').first);
+    await tester.tap(find.text('Command').first);
     await tester.pumpAndSettle();
     expect(find.text('Live Operations Stub'), findsOneWidget);
 
     await tester.tap(find.text('Governance').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
-    expect(find.text('Copy Morning JSON (Recent Actions)'), findsOneWidget);
+    expect(find.text(_governanceFocusedRecentActionsHeading()), findsOneWidget);
+    expect(find.text(_governanceRecentActionsCopyJsonLabel()), findsOneWidget);
     expect(
       find.byKey(const ValueKey('governance-scene-detail-recentActions')),
       findsOneWidget,
@@ -5693,9 +6006,9 @@ void main() {
   ) async {
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -5724,11 +6037,9 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicySummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -5739,14 +6050,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
     );
     final focusChanges = <GovernanceSceneActionFocus?>[];
@@ -5785,9 +6092,9 @@ void main() {
   ) async {
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -5816,11 +6123,9 @@ void main() {
         reportsWithOmittedSections: 1,
         omittedAiDecisionLogReports: 1,
         omittedGuardMetricsReports: 1,
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicySummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -5831,14 +6136,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
     );
     GovernanceSceneActionFocus? parentFocus;
@@ -5881,20 +6182,24 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Filtered pattern'), findsNothing);
+    expect(find.text(_governanceFocusedFilteredPatternHeading()), findsNothing);
     expect(find.text('Copy Morning JSON'), findsOneWidget);
 
     await tester.tap(find.text('Parent Focus Filtered'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Filtered pattern'), findsOneWidget);
     expect(
-      find.text(
-        'Forensic replay of combat window (22:00-06:00) • Focused Filtered Pattern',
-      ),
+      find.text(_governanceFocusedFilteredPatternHeading()),
       findsOneWidget,
     );
-    expect(find.text('Copy Morning JSON (Filtered Pattern)'), findsOneWidget);
+    expect(
+      find.text(_governanceFocusedFilteredPatternDeckTitle()),
+      findsOneWidget,
+    );
+    expect(
+      find.text(_governanceFilteredPatternCopyJsonLabel()),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('governance-scene-detail-filteredPattern')),
       findsOneWidget,
@@ -5903,11 +6208,9 @@ void main() {
     await tester.tap(find.text('Parent Clear Focus'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Filtered pattern'), findsNothing);
+    expect(find.text(_governanceFocusedFilteredPatternHeading()), findsNothing);
     expect(
-      find.text(
-        'Forensic replay of combat window (22:00-06:00) • Focused Filtered Pattern',
-      ),
+      find.text(_governanceFocusedFilteredPatternDeckTitle()),
       findsNothing,
     );
     expect(find.text('Copy Morning JSON'), findsOneWidget);
@@ -5918,9 +6221,9 @@ void main() {
   ) async {
     final report = SovereignReport(
       date: '2026-03-11',
-      generatedAtUtc: DateTime.utc(2026, 3, 11, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 10, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 11, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(11),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(10),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(11),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 122,
         hashVerified: true,
@@ -5970,8 +6273,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Focused scene action: Recent actions'), findsNothing);
-    expect(find.text('Copy Morning JSON (Recent Actions)'), findsNothing);
+    expect(find.text(_governanceFocusedRecentActionsHeading()), findsNothing);
+    expect(find.text(_governanceRecentActionsCopyJsonLabel()), findsNothing);
     expect(find.text('Copy Morning JSON'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
@@ -5988,9 +6291,9 @@ void main() {
     (tester) async {
       final reportWithoutRecentActions = SovereignReport(
         date: '2026-03-11',
-        generatedAtUtc: DateTime.utc(2026, 3, 11, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 10, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 11, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(11),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(10),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(11),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 122,
           hashVerified: true,
@@ -6029,9 +6332,9 @@ void main() {
       );
       final reportWithRecentActions = SovereignReport(
         date: '2026-03-12',
-        generatedAtUtc: DateTime.utc(2026, 3, 12, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 11, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 12, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(12),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(11),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(12),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 160,
           hashVerified: true,
@@ -6104,21 +6407,25 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Focused scene action: Recent actions'), findsNothing);
+      expect(find.text(_governanceFocusedRecentActionsHeading()), findsNothing);
       expect(focusChanges, isEmpty);
 
       await tester.tap(find.text('Swap Report'));
       await tester.pump();
       await tester.pumpAndSettle();
 
-      expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
       expect(
-        find.text(
-          'Forensic replay of combat window (22:00-06:00) • Focused Recent Actions',
-        ),
+        find.text(_governanceFocusedRecentActionsHeading()),
         findsOneWidget,
       );
-      expect(find.text('Copy Morning JSON (Recent Actions)'), findsOneWidget);
+      expect(
+        find.text(_governanceFocusedRecentActionsDeckTitle()),
+        findsOneWidget,
+      );
+      expect(
+        find.text(_governanceRecentActionsCopyJsonLabel()),
+        findsOneWidget,
+      );
       expect(
         find.byKey(const ValueKey('governance-scene-detail-recentActions')),
         findsOneWidget,
@@ -6127,158 +6434,157 @@ void main() {
     },
   );
 
-  testWidgets('governance page clears stale focused scene action when report changes', (
-    tester,
-  ) async {
-    final reportWithRecentActions = SovereignReport(
-      date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 184,
-        hashVerified: true,
-        integrityScore: 98,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 24,
-        humanOverrides: 3,
-        overrideReasons: {'PSIRA expired': 2},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 14,
-        driftDetected: 2,
-        avgMatchScore: 84,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 2,
-        pdpExpired: 1,
-        totalBlocked: 3,
-      ),
-      sceneReview: const SovereignReportSceneReview(
-        totalReviews: 7,
-        modelReviews: 5,
-        metadataFallbackReviews: 2,
-        suppressedActions: 1,
-        incidentAlerts: 2,
-        repeatUpdates: 2,
-        escalationCandidates: 2,
-        topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
-      ),
-    );
-    final reportWithoutRecentActions = SovereignReport(
-      date: '2026-03-11',
-      generatedAtUtc: DateTime.utc(2026, 3, 11, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 10, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 11, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 122,
-        hashVerified: true,
-        integrityScore: 99,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 18,
-        humanOverrides: 1,
-        overrideReasons: {'Manual override': 1},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 9,
-        driftDetected: 1,
-        avgMatchScore: 88,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 1,
-        pdpExpired: 0,
-        totalBlocked: 1,
-      ),
-      sceneReview: const SovereignReportSceneReview(
-        totalReviews: 3,
-        modelReviews: 3,
-        metadataFallbackReviews: 0,
-        suppressedActions: 0,
-        incidentAlerts: 1,
-        repeatUpdates: 0,
-        escalationCandidates: 1,
-        topPosture: 'escalation candidate',
-        actionMixSummary: '1 alert • 1 escalation',
-        latestActionTaken:
-            '2026-03-11T01:00:00.000Z • Camera 3 • Escalation Candidate • Person remained in restricted zone.',
-        recentActionsSummary: '',
-        latestSuppressedPattern: '',
-      ),
-    );
-    GovernanceSceneActionFocus? persistedFocus =
-        GovernanceSceneActionFocus.recentActions;
-    var activeReport = reportWithRecentActions;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: StatefulBuilder(
-          builder: (context, setState) {
-            return Column(
-              children: [
-                TextButton(
-                  onPressed: () => setState(() {
-                    activeReport = reportWithoutRecentActions;
-                  }),
-                  child: const Text('Swap Report'),
-                ),
-                Expanded(
-                  child: GovernancePage(
-                    events: const [],
-                    morningSovereignReport: activeReport,
-                    morningSovereignReportAutoRunKey: activeReport.date,
-                    initialSceneActionFocus: persistedFocus,
-                    onSceneActionFocusChanged: (value) {
-                      persistedFocus = value;
-                    },
-                  ),
-                ),
-              ],
-            );
-          },
+  testWidgets(
+    'governance page clears stale focused scene action when report changes',
+    (tester) async {
+      final reportWithRecentActions = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 184,
+          hashVerified: true,
+          integrityScore: 98,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 24,
+          humanOverrides: 3,
+          overrideReasons: {'PSIRA expired': 2},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 14,
+          driftDetected: 2,
+          avgMatchScore: 84,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 2,
+          pdpExpired: 1,
+          totalBlocked: 3,
+        ),
+        sceneReview: const SovereignReportSceneReview(
+          totalReviews: 7,
+          modelReviews: 5,
+          metadataFallbackReviews: 2,
+          suppressedActions: 1,
+          incidentAlerts: 2,
+          repeatUpdates: 2,
+          escalationCandidates: 2,
+          topPosture: 'escalation candidate',
+          actionMixSummary: _governanceActionMixSummary,
+          latestActionTaken: _governanceLatestActionSummary,
+          recentActionsSummary: _governanceRecentActionsSummary,
+          latestSuppressedPattern: _governanceFilteredPatternSummary,
+        ),
+      );
+      final reportWithoutRecentActions = SovereignReport(
+        date: '2026-03-11',
+        generatedAtUtc: _governanceReportGeneratedAtUtc(11),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(10),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(11),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 122,
+          hashVerified: true,
+          integrityScore: 99,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 18,
+          humanOverrides: 1,
+          overrideReasons: {'Manual override': 1},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 9,
+          driftDetected: 1,
+          avgMatchScore: 88,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 1,
+          pdpExpired: 0,
+          totalBlocked: 1,
+        ),
+        sceneReview: const SovereignReportSceneReview(
+          totalReviews: 3,
+          modelReviews: 3,
+          metadataFallbackReviews: 0,
+          suppressedActions: 0,
+          incidentAlerts: 1,
+          repeatUpdates: 0,
+          escalationCandidates: 1,
+          topPosture: 'escalation candidate',
+          actionMixSummary: '1 alert • 1 escalation',
+          latestActionTaken:
+              '2026-03-11T01:00:00.000Z • Camera 3 • Escalation Candidate • Person remained in restricted zone.',
+          recentActionsSummary: '',
+          latestSuppressedPattern: '',
+        ),
+      );
+      GovernanceSceneActionFocus? persistedFocus =
+          GovernanceSceneActionFocus.recentActions;
+      var activeReport = reportWithRecentActions;
 
-    expect(find.text('Focused scene action: Recent actions'), findsOneWidget);
-    expect(
-      find.text(
-        'Forensic replay of combat window (22:00-06:00) • Focused Recent Actions',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Copy Morning JSON (Recent Actions)'), findsOneWidget);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              return Column(
+                children: [
+                  TextButton(
+                    onPressed: () => setState(() {
+                      activeReport = reportWithoutRecentActions;
+                    }),
+                    child: const Text('Swap Report'),
+                  ),
+                  Expanded(
+                    child: GovernancePage(
+                      events: const [],
+                      morningSovereignReport: activeReport,
+                      morningSovereignReportAutoRunKey: activeReport.date,
+                      initialSceneActionFocus: persistedFocus,
+                      onSceneActionFocusChanged: (value) {
+                        persistedFocus = value;
+                      },
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Swap Report'));
-    await tester.pump();
-    await tester.pump();
-    await tester.pumpAndSettle();
+      expect(
+        find.text(_governanceFocusedRecentActionsHeading()),
+        findsOneWidget,
+      );
+      expect(
+        find.text(_governanceFocusedRecentActionsDeckTitle()),
+        findsOneWidget,
+      );
+      expect(
+        find.text(_governanceRecentActionsCopyJsonLabel()),
+        findsOneWidget,
+      );
 
-    expect(persistedFocus, isNull);
-    expect(find.text('Focused scene action: Recent actions'), findsNothing);
-    expect(
-      find.text(
-        'Forensic replay of combat window (22:00-06:00) • Focused Recent Actions',
-      ),
-      findsNothing,
-    );
-    expect(find.text('Copy Morning JSON (Recent Actions)'), findsNothing);
-    expect(find.text('Copy Morning JSON'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
-      findsNothing,
-    );
-  });
+      await tester.tap(find.text('Swap Report'));
+      await tester.pump();
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(persistedFocus, isNull);
+      expect(find.text(_governanceFocusedRecentActionsHeading()), findsNothing);
+      expect(
+        find.text(_governanceFocusedRecentActionsDeckTitle()),
+        findsNothing,
+      );
+      expect(find.text(_governanceRecentActionsCopyJsonLabel()), findsNothing);
+      expect(find.text('Copy Morning JSON'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('governance page exports active scene action focus in json and csv', (
     tester,
@@ -6303,9 +6609,9 @@ void main() {
 
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -6339,20 +6645,17 @@ void main() {
         customBrandingOverrideReports: 1,
         governanceHandoffReports: 1,
         routineReviewReports: 1,
-        executiveSummary:
-            '1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy',
-        brandingExecutiveSummary: '1 receipt used custom branding override',
+        executiveSummary: _governanceReceiptPolicyExecutiveSummary,
+        brandingExecutiveSummary:
+            _governanceReceiptPolicyBrandingExecutiveSummary,
         investigationExecutiveSummary:
-            '1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review',
-        headline: '1 generated reports omitted sections',
-        summaryLine:
-            'Reports 2 • Tracked 1 • Legacy 1 • Full 0 • Omitted 1 • AI log omitted 1 • Guard metrics omitted 1 • Standard branding 1 • Default partner branding 0 • Custom branding 1',
-        latestReportSummary:
-            'CLIENT-1/SITE-42 2026-03 omitted AI Decision Log, Guard Metrics.',
-        latestBrandingSummary:
-            'CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha.',
+            _governanceReceiptPolicyInvestigationExecutiveSummary,
+        headline: _governanceReceiptPolicyHeadline,
+        summaryLine: _governanceReceiptPolicyBrandingSummaryLine,
+        latestReportSummary: _governanceReceiptPolicyLatestReportSummary,
+        latestBrandingSummary: _governanceReceiptPolicyLatestBrandingSummary,
         latestInvestigationSummary:
-            'CLIENT-1/SITE-42 2026-03 remained routine report review.',
+            _governanceReceiptPolicyLatestInvestigationSummary,
       ),
       siteActivity: const SovereignReportSiteActivity(
         totalSignals: 7,
@@ -6363,11 +6666,9 @@ void main() {
         unknownSignals: 3,
         longPresenceSignals: 1,
         guardInteractionSignals: 1,
-        executiveSummary:
-            '3 vehicle signals • 4 person signals • 2 known identity hits • 1 flagged identity signal • 1 long-presence pattern • 1 guard interaction',
-        headline: '7 site-activity signals recorded',
-        summaryLine:
-            'Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1',
+        executiveSummary: _governanceSiteActivityExecutiveSummary,
+        headline: _governanceSiteActivityRecordedHeadline,
+        summaryLine: _governanceSiteActivitySummaryLine,
       ),
       sceneReview: const SovereignReportSceneReview(
         totalReviews: 7,
@@ -6378,14 +6679,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
       vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 18,
@@ -6421,10 +6718,10 @@ void main() {
             siteId: 'SITE-42',
             vehicleLabel: 'CA123456',
             statusLabel: 'INCOMPLETE',
-            reasonLabel: 'Incomplete visit',
+            reasonLabel: _governanceVehicleIncompleteReasonLabel,
             primaryEventId: 'EVT-201',
-            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+            startedAtUtc: _governanceMarch10OccurredAtUtc(0, 40),
+            lastSeenAtUtc: _governanceMarch10OccurredAtUtc(1, 22),
             dwellMinutes: 42.0,
             eventIds: ['EVT-201', 'EVT-202'],
             zoneLabels: ['Entry Lane', 'Wash Bay'],
@@ -6439,12 +6736,10 @@ void main() {
         onSiteCount: 1,
         allClearCount: 1,
         cancelledCount: 1,
-        workflowHeadline:
-            '1 partner dispatch reached ALL CLEAR • 1 partner dispatch was CANCELLED',
-        performanceHeadline: '1 strong response • 1 critical response',
+        workflowHeadline: _governancePartnerWorkflowHeadline,
+        performanceHeadline: _governancePartnerPerformanceHeadline,
         slaHeadline: 'Avg accept 5.0m • Avg on site 13.0m',
-        summaryLine:
-            'Dispatches 2 • Declarations 5 • Accept 2 • On site 1 • All clear 1 • Cancelled 1',
+        summaryLine: _governancePartnerProgressionSummaryLine,
         scoreboardRows: [
           SovereignReportPartnerScoreboardRow(
             clientId: 'CLIENT-1',
@@ -6457,8 +6752,7 @@ void main() {
             criticalCount: 1,
             averageAcceptedDelayMinutes: 5.0,
             averageOnSiteDelayMinutes: 13.0,
-            summaryLine:
-                'Dispatches 2 • Strong 1 • On track 0 • Watch 0 • Critical 1 • Avg accept 5.0m • Avg on site 13.0m',
+            summaryLine: _governancePartnerAlphaScoreboardSummary,
           ),
         ],
       ),
@@ -6466,9 +6760,9 @@ void main() {
 
     final priorReport = SovereignReport(
       date: '2026-03-09',
-      generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(9),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(8),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(9),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 150,
         hashVerified: true,
@@ -6536,8 +6830,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Copy Morning JSON (Recent Actions)'));
-    await tester.tap(find.text('Copy Morning JSON (Recent Actions)'));
+    await tester.ensureVisible(
+      find.text(_governanceRecentActionsCopyJsonLabel()),
+    );
+    await tester.tap(find.text(_governanceRecentActionsCopyJsonLabel()));
     await tester.pump();
 
     expect(copiedPayload, isNotNull);
@@ -6566,13 +6862,13 @@ void main() {
     expect(
       copiedPayload,
       contains(
-        '"executiveSummary": "1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy"',
+        '"executiveSummary": "$_governanceReceiptPolicyExecutiveSummary"',
       ),
     );
     expect(
       copiedPayload,
       contains(
-        '"brandingExecutiveSummary": "1 receipt used custom branding override"',
+        '"brandingExecutiveSummary": "$_governanceReceiptPolicyBrandingExecutiveSummary"',
       ),
     );
     expect(copiedPayload, contains('"governanceHandoffReports": 1'));
@@ -6580,23 +6876,23 @@ void main() {
     expect(
       copiedPayload,
       contains(
-        '"investigationExecutiveSummary": "1 receipt investigation came from Governance branding drift • 1 receipt investigation remained routine review"',
+        '"investigationExecutiveSummary": "$_governanceReceiptPolicyInvestigationExecutiveSummary"',
       ),
     );
     expect(
       copiedPayload,
-      contains('"headline": "1 generated reports omitted sections"'),
+      contains('"headline": "$_governanceReceiptPolicyHeadline"'),
     );
     expect(
       copiedPayload,
       contains(
-        '"latestBrandingSummary": "CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha."',
+        '"latestBrandingSummary": "$_governanceReceiptPolicyLatestBrandingSummary"',
       ),
     );
     expect(
       copiedPayload,
       contains(
-        '"latestInvestigationSummary": "CLIENT-1/SITE-42 2026-03 remained routine report review."',
+        '"latestInvestigationSummary": "$_governanceReceiptPolicyLatestInvestigationSummary"',
       ),
     );
     expect(copiedPayload, contains('"investigationTrend"'));
@@ -6632,12 +6928,13 @@ void main() {
       copiedPayload,
       contains('"currentShiftCaseFileCommand": "/shadowcase json 2026-03-10"'),
     );
-    expect(copiedPayload, contains('"historyHeadline": "STABLE • 2d"'));
     expect(
       copiedPayload,
-      contains(
-        '"historySummary": "Current matches 0 • Baseline 0.0 • Shadow-MO match pressure is holding close to the recent baseline."',
-      ),
+      contains('"historyHeadline": "$_governanceShadowHistoryHeadline"'),
+    );
+    expect(
+      copiedPayload,
+      contains('"historySummary": "$_governanceShadowHistorySummary"'),
     );
     expect(copiedPayload, contains('"postureStrengthSummary": ""'));
     expect(copiedPayload, contains('"validationSummary": ""'));
@@ -6717,9 +7014,7 @@ void main() {
     expect(copiedPayload, contains('"history"'));
     expect(
       copiedPayload,
-      contains(
-        '"summaryLine": "Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1"',
-      ),
+      contains('"summaryLine": "$_governanceSiteActivitySummaryLine"'),
     );
     expect(
       copiedPayload,
@@ -6743,16 +7038,19 @@ void main() {
     expect(copiedPayload, contains('"reportDate": "2026-03-10"'));
     expect(copiedPayload, contains('"reportDate": "2026-03-09"'));
     expect(copiedPayload, contains('"siteId": "SITE-42"'));
-    expect(copiedPayload, contains('"reasonLabel": "Incomplete visit"'));
     expect(
       copiedPayload,
-      contains(
-        '"detail": "2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)"',
-      ),
+      contains('"reasonLabel": "$_governanceVehicleIncompleteReasonLabel"'),
+    );
+    expect(
+      copiedPayload,
+      contains('"detail": "$_governanceRecentActionsSummary"'),
     );
 
-    await tester.ensureVisible(find.text('Copy Morning CSV (Recent Actions)'));
-    await tester.tap(find.text('Copy Morning CSV (Recent Actions)'));
+    await tester.ensureVisible(
+      find.text(_governanceRecentActionsCopyCsvLabel()),
+    );
+    await tester.tap(find.text(_governanceRecentActionsCopyCsvLabel()));
     await tester.pump();
 
     expect(copiedPayload, contains('site_activity_total_signals,7'));
@@ -6822,12 +7120,14 @@ void main() {
     );
     expect(
       copiedPayload,
-      contains('global_readiness_shadow_history_headline,"STABLE • 2d"'),
+      contains(
+        'global_readiness_shadow_history_headline,"$_governanceShadowHistoryHeadline"',
+      ),
     );
     expect(
       copiedPayload,
       contains(
-        'global_readiness_shadow_history_summary,"Current matches 0 • Baseline 0.0 • Shadow-MO match pressure is holding close to the recent baseline."',
+        'global_readiness_shadow_history_summary,"$_governanceShadowHistorySummary"',
       ),
     );
     expect(
@@ -6985,9 +7285,7 @@ void main() {
     );
     expect(
       copiedPayload,
-      contains(
-        'site_activity_summary,"Signals 7 • Vehicles 3 • People 4 • Known IDs 2 • Unknown 3 • Long presence 1 • Guard interactions 1 • Flagged IDs 1"',
-      ),
+      contains('site_activity_summary,"$_governanceSiteActivitySummaryLine"'),
     );
 
     expect(copiedPayload, isNotNull);
@@ -6996,23 +7294,23 @@ void main() {
     expect(
       copiedPayload,
       contains(
-        'receipt_executive_summary,"1 client-facing receipt omitted sections • 1 legacy receipt lacked tracked policy"',
+        'receipt_executive_summary,"$_governanceReceiptPolicyExecutiveSummary"',
       ),
     );
     expect(
       copiedPayload,
       contains(
-        'receipt_branding_executive_summary,"1 receipt used custom branding override"',
+        'receipt_branding_executive_summary,"$_governanceReceiptPolicyBrandingExecutiveSummary"',
       ),
     );
     expect(
       copiedPayload,
-      contains('receipt_headline,"1 generated reports omitted sections"'),
+      contains('receipt_headline,"$_governanceReceiptPolicyHeadline"'),
     );
     expect(
       copiedPayload,
       contains(
-        'receipt_latest_branding_summary,"CLIENT-1/SITE-42 2026-03 used custom branding override from Partner Alpha."',
+        'receipt_latest_branding_summary,"$_governanceReceiptPolicyLatestBrandingSummary"',
       ),
     );
     expect(copiedPayload, contains('receipt_investigation_trend_label,NEW'));
@@ -7058,18 +7356,20 @@ void main() {
     );
     expect(
       copiedPayload,
-      contains('vehicle_exception_1,"Incomplete visit • INCOMPLETE • CA123456'),
-    );
-    expect(
-      copiedPayload,
       contains(
-        'partner_scoreboard_history_1,"2026-03-10 • CURRENT • CLIENT-1/SITE-42 • Partner Alpha',
+        'vehicle_exception_1,"$_governanceVehicleIncompleteReasonLabel • INCOMPLETE • CA123456',
       ),
     );
     expect(
       copiedPayload,
       contains(
-        'partner_scoreboard_history_2,"2026-03-09 • HISTORY • CLIENT-1/SITE-42 • Partner Alpha',
+        'partner_scoreboard_history_1,"2026-03-10 • CURRENT • $_governancePartnerAlphaScopeLabel',
+      ),
+    );
+    expect(
+      copiedPayload,
+      contains(
+        'partner_scoreboard_history_2,"2026-03-09 • HISTORY • $_governancePartnerAlphaScopeLabel',
       ),
     );
     expect(
@@ -7078,9 +7378,7 @@ void main() {
     );
     expect(
       copiedPayload,
-      contains(
-        'scene_focused_lens_detail,"2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)"',
-      ),
+      contains('scene_focused_lens_detail,"$_governanceRecentActionsSummary"'),
     );
   });
 
@@ -7107,9 +7405,9 @@ void main() {
 
     final report = SovereignReport(
       date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+      generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+      shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+      shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 184,
         hashVerified: true,
@@ -7139,14 +7437,10 @@ void main() {
         repeatUpdates: 2,
         escalationCandidates: 2,
         topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
+        actionMixSummary: _governanceActionMixSummary,
+        latestActionTaken: _governanceLatestActionSummary,
+        recentActionsSummary: _governanceRecentActionsSummary,
+        latestSuppressedPattern: _governanceFilteredPatternSummary,
       ),
     );
 
@@ -7172,122 +7466,116 @@ void main() {
     final focusedCopyAction = find.byKey(
       const ValueKey('governance-copy-focused-detail-action'),
     );
-    expect(find.text('Copy Filtered Pattern Detail'), findsOneWidget);
+    expect(
+      find.text(_governanceFilteredPatternDetailCopyLabel()),
+      findsOneWidget,
+    );
     await tester.ensureVisible(focusedCopyAction);
     await tester.tap(focusedCopyAction);
     await tester.pumpAndSettle();
 
+    expect(copiedPayload, _governanceFilteredPatternDetailLabel());
     expect(
-      copiedPayload,
-      'Filtered pattern: 2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
-    );
-    expect(
-      find.text('Filtered pattern detail copied for command review'),
+      find.text(_governanceFilteredPatternDetailCopiedMessage()),
       findsOneWidget,
     );
   });
 
-  testWidgets('governance page copies focused scene action detail from banner', (
-    tester,
-  ) async {
-    String? copiedPayload;
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      SystemChannels.platform,
-      (call) async {
-        if (call.method == 'Clipboard.setData') {
-          final args = call.arguments as Map<dynamic, dynamic>;
-          copiedPayload = args['text'] as String?;
-        }
-        return null;
-      },
-    );
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+  testWidgets(
+    'governance page copies focused scene action detail from banner',
+    (tester) async {
+      String? copiedPayload;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
-        null,
-      ),
-    );
-
-    final report = SovereignReport(
-      date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 184,
-        hashVerified: true,
-        integrityScore: 98,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 24,
-        humanOverrides: 3,
-        overrideReasons: {'PSIRA expired': 2},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 14,
-        driftDetected: 2,
-        avgMatchScore: 84,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 2,
-        pdpExpired: 1,
-        totalBlocked: 3,
-      ),
-      sceneReview: const SovereignReportSceneReview(
-        totalReviews: 7,
-        modelReviews: 5,
-        metadataFallbackReviews: 2,
-        suppressedActions: 1,
-        incidentAlerts: 2,
-        repeatUpdates: 2,
-        escalationCandidates: 2,
-        topPosture: 'escalation candidate',
-        actionMixSummary:
-            '2 alerts • 2 repeat updates • 2 escalations • 1 suppressed review',
-        latestActionTaken:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line.',
-        recentActionsSummary:
-            '2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-        latestSuppressedPattern:
-            '2026-03-10T01:10:00.000Z • Camera 2 • Vehicle remained below escalation threshold.',
-      ),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: GovernancePage(
-          events: const [],
-          morningSovereignReport: report,
-          morningSovereignReportAutoRunKey: '2026-03-10',
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
 
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
-    );
-    await tester.pumpAndSettle();
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 184,
+          hashVerified: true,
+          integrityScore: 98,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 24,
+          humanOverrides: 3,
+          overrideReasons: {'PSIRA expired': 2},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 14,
+          driftDetected: 2,
+          avgMatchScore: 84,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 2,
+          pdpExpired: 1,
+          totalBlocked: 3,
+        ),
+        sceneReview: const SovereignReportSceneReview(
+          totalReviews: 7,
+          modelReviews: 5,
+          metadataFallbackReviews: 2,
+          suppressedActions: 1,
+          incidentAlerts: 2,
+          repeatUpdates: 2,
+          escalationCandidates: 2,
+          topPosture: 'escalation candidate',
+          actionMixSummary: _governanceActionMixSummary,
+          latestActionTaken: _governanceLatestActionSummary,
+          recentActionsSummary: _governanceRecentActionsSummary,
+          latestSuppressedPattern: _governanceFilteredPatternSummary,
+        ),
+      );
 
-    final bannerCopyTarget = find.byKey(
-      const ValueKey('governance-focused-scene-detail-copy'),
-    );
-    await tester.ensureVisible(bannerCopyTarget);
-    await tester.tap(bannerCopyTarget);
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const [],
+            morningSovereignReport: report,
+            morningSovereignReportAutoRunKey: '2026-03-10',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(
-      copiedPayload,
-      'Recent actions: 2026-03-10T00:30:00.000Z • Camera 1 • Escalation Candidate • Person visible near the boundary line. (+1 more)',
-    );
-    expect(
-      find.text('Recent actions detail copied for command review'),
-      findsOneWidget,
-    );
-  });
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('governance-scene-focus-recent-actions')),
+      );
+      await tester.pumpAndSettle();
+
+      final bannerCopyTarget = find.byKey(
+        const ValueKey('governance-focused-scene-detail-copy'),
+      );
+      await tester.ensureVisible(bannerCopyTarget);
+      await tester.tap(bannerCopyTarget);
+      await tester.pumpAndSettle();
+
+      expect(copiedPayload, _governanceRecentActionsLabel());
+      expect(
+        find.text(_governanceRecentActionsDetailCopiedMessage()),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets(
     'governance page expands vehicle exception detail and opens events review',
@@ -7295,9 +7583,9 @@ void main() {
       String? openedEventId;
       final report = SovereignReport(
         date: '2026-03-10',
-        generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 184,
           hashVerified: true,
@@ -7331,8 +7619,7 @@ void main() {
           averageCompletedDwellMinutes: 0,
           suspiciousShortVisitCount: 0,
           loiteringVisitCount: 0,
-          summaryLine:
-              'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
+          summaryLine: _governanceVehicleSingleVisitSummaryLine,
           scopeBreakdowns: const [
             SovereignReportVehicleScopeBreakdown(
               clientId: 'CLIENT-1',
@@ -7342,8 +7629,7 @@ void main() {
               activeVisits: 0,
               incompleteVisits: 1,
               unknownVehicleEvents: 0,
-              summaryLine:
-                  'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
+              summaryLine: _governanceVehicleSingleVisitSummaryLine,
             ),
           ],
           exceptionVisits: [
@@ -7352,11 +7638,11 @@ void main() {
               siteId: 'SITE-42',
               vehicleLabel: 'CA123456',
               statusLabel: 'INCOMPLETE',
-              reasonLabel: 'Incomplete visit',
-              workflowSummary: 'ENTRY -> SERVICE (INCOMPLETE)',
+              reasonLabel: _governanceVehicleIncompleteReasonLabel,
+              workflowSummary: _governanceVehicleServiceIncompleteWorkflow,
               primaryEventId: 'EVT-201',
-              startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-              lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
+              startedAtUtc: _governanceMarch10OccurredAtUtc(0, 40),
+              lastSeenAtUtc: _governanceMarch10OccurredAtUtc(1, 22),
               dwellMinutes: 42.0,
               eventIds: ['EVT-201'],
               zoneLabels: ['Entry Lane', 'Wash Bay'],
@@ -7391,7 +7677,9 @@ void main() {
       expect(find.text('Visit timeline'), findsOneWidget);
       expect(find.textContaining('Linked events: EVT-201'), findsOneWidget);
       expect(
-        find.textContaining('Workflow: ENTRY -> SERVICE (INCOMPLETE)'),
+        find.textContaining(
+          'Workflow: $_governanceVehicleServiceIncompleteWorkflow',
+        ),
         findsWidgets,
       );
       await tester.tap(
@@ -7400,353 +7688,359 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(openedEventId, 'EVT-201');
-      expect(find.text('Open Events Review'), findsOneWidget);
+      expect(find.text('OPEN EVENTS SCOPE'), findsWidgets);
     },
   );
 
-  testWidgets('governance page shows vehicle review audit history from ledger events', (
-    tester,
-  ) async {
-    final report = SovereignReport(
-      date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 184,
-        hashVerified: true,
-        integrityScore: 98,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 24,
-        humanOverrides: 3,
-        overrideReasons: {'PSIRA expired': 2},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 14,
-        driftDetected: 2,
-        avgMatchScore: 84,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 2,
-        pdpExpired: 1,
-        totalBlocked: 3,
-      ),
-      vehicleThroughput: SovereignReportVehicleThroughput(
-        totalVisits: 1,
-        completedVisits: 0,
-        activeVisits: 0,
-        incompleteVisits: 1,
-        uniqueVehicles: 1,
-        repeatVehicles: 0,
-        unknownVehicleEvents: 0,
-        peakHourLabel: '00:00-01:00',
-        peakHourVisitCount: 1,
-        averageCompletedDwellMinutes: 0,
-        suspiciousShortVisitCount: 0,
-        loiteringVisitCount: 0,
-        workflowHeadline: '1 incomplete visit stalled at SERVICE',
-        summaryLine:
-            'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
-        scopeBreakdowns: const [
-          SovereignReportVehicleScopeBreakdown(
-            clientId: 'CLIENT-1',
-            siteId: 'SITE-42',
-            totalVisits: 1,
-            completedVisits: 0,
-            activeVisits: 0,
-            incompleteVisits: 1,
-            unknownVehicleEvents: 0,
-            summaryLine:
-                'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
-          ),
-        ],
-        exceptionVisits: [
-          SovereignReportVehicleVisitException(
-            clientId: 'CLIENT-1',
-            siteId: 'SITE-42',
-            vehicleLabel: 'CA123456',
-            statusLabel: 'COMPLETED',
-            reasonLabel: 'Incomplete visit',
-            workflowSummary: 'ENTRY -> SERVICE (COMPLETED)',
-            operatorReviewed: true,
-            operatorReviewedAtUtc: DateTime.utc(2026, 3, 10, 8, 15),
-            operatorStatusOverride: 'COMPLETED',
-            primaryEventId: 'EVT-201',
-            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
-            dwellMinutes: 42.0,
-            eventIds: ['EVT-201'],
-            zoneLabels: ['Entry Lane', 'Wash Bay'],
-            intelligenceIds: ['INT-201', 'INT-202'],
-          ),
-        ],
-      ),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: GovernancePage(
-          events: [
-            VehicleVisitReviewRecorded(
-              eventId: 'VR-100',
-              sequence: 30,
-              version: 1,
-              occurredAt: DateTime.utc(2026, 3, 10, 7, 55),
-              vehicleVisitKey: 'EVT-201',
-              primaryEventId: 'EVT-201',
+  testWidgets(
+    'governance page shows vehicle review audit history from ledger events',
+    (tester) async {
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 184,
+          hashVerified: true,
+          integrityScore: 98,
+        ),
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 24,
+          humanOverrides: 3,
+          overrideReasons: {'PSIRA expired': 2},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 14,
+          driftDetected: 2,
+          avgMatchScore: 84,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 2,
+          pdpExpired: 1,
+          totalBlocked: 3,
+        ),
+        vehicleThroughput: SovereignReportVehicleThroughput(
+          totalVisits: 1,
+          completedVisits: 0,
+          activeVisits: 0,
+          incompleteVisits: 1,
+          uniqueVehicles: 1,
+          repeatVehicles: 0,
+          unknownVehicleEvents: 0,
+          peakHourLabel: '00:00-01:00',
+          peakHourVisitCount: 1,
+          averageCompletedDwellMinutes: 0,
+          suspiciousShortVisitCount: 0,
+          loiteringVisitCount: 0,
+          workflowHeadline: _governanceVehicleSingleVisitWorkflowHeadline,
+          summaryLine: _governanceVehicleSingleVisitSummaryLine,
+          scopeBreakdowns: const [
+            SovereignReportVehicleScopeBreakdown(
               clientId: 'CLIENT-1',
-              regionId: 'REGION-1',
               siteId: 'SITE-42',
-              vehicleLabel: 'CA123456',
-              actorLabel: 'GOVERNANCE_OPERATOR',
-              reviewed: true,
-              statusOverride: 'ACTIVE',
-              effectiveStatusLabel: 'ACTIVE',
-              reasonLabel: 'Incomplete visit',
-              workflowSummary: 'ENTRY -> SERVICE (ACTIVE)',
-              sourceSurface: 'governance',
-            ),
-            VehicleVisitReviewRecorded(
-              eventId: 'VR-101',
-              sequence: 31,
-              version: 1,
-              occurredAt: DateTime.utc(2026, 3, 10, 8, 15),
-              vehicleVisitKey: 'EVT-201',
-              primaryEventId: 'EVT-201',
-              clientId: 'CLIENT-1',
-              regionId: 'REGION-1',
-              siteId: 'SITE-42',
-              vehicleLabel: 'CA123456',
-              actorLabel: 'GOVERNANCE_OPERATOR',
-              reviewed: true,
-              statusOverride: 'COMPLETED',
-              effectiveStatusLabel: 'COMPLETED',
-              reasonLabel: 'Incomplete visit',
-              workflowSummary: 'ENTRY -> SERVICE (COMPLETED)',
-              sourceSurface: 'governance',
+              totalVisits: 1,
+              completedVisits: 0,
+              activeVisits: 0,
+              incompleteVisits: 1,
+              unknownVehicleEvents: 0,
+              summaryLine: _governanceVehicleSingleVisitSummaryLine,
             ),
           ],
-          morningSovereignReport: report,
-          morningSovereignReportAutoRunKey: '2026-03-10',
+          exceptionVisits: [
+            SovereignReportVehicleVisitException(
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              vehicleLabel: 'CA123456',
+              statusLabel: 'COMPLETED',
+              reasonLabel: _governanceVehicleIncompleteReasonLabel,
+              workflowSummary: _governanceVehicleServiceCompletedWorkflow,
+              operatorReviewed: true,
+              operatorReviewedAtUtc: _governanceMarch10OccurredAtUtc(8, 15),
+              operatorStatusOverride: 'COMPLETED',
+              primaryEventId: 'EVT-201',
+              startedAtUtc: _governanceMarch10OccurredAtUtc(0, 40),
+              lastSeenAtUtc: _governanceMarch10OccurredAtUtc(1, 22),
+              dwellMinutes: 42.0,
+              eventIds: ['EVT-201'],
+              zoneLabels: ['Entry Lane', 'Wash Bay'],
+              intelligenceIds: ['INT-201', 'INT-202'],
+            ),
+          ],
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
 
-    final exceptionRow = find.byKey(
-      const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
-    );
-    await tester.ensureVisible(exceptionRow);
-    expect(
-      find.textContaining(
-        'Review audit: 2 actions • latest 2026-03-10 08:15 UTC • GOVERNANCE_OPERATOR set COMPLETED',
-      ),
-      findsOneWidget,
-    );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: [
+              VehicleVisitReviewRecorded(
+                eventId: 'VR-100',
+                sequence: 30,
+                version: 1,
+                occurredAt: _governanceMarch10OccurredAtUtc(7, 55),
+                vehicleVisitKey: 'EVT-201',
+                primaryEventId: 'EVT-201',
+                clientId: 'CLIENT-1',
+                regionId: 'REGION-1',
+                siteId: 'SITE-42',
+                vehicleLabel: 'CA123456',
+                actorLabel: 'GOVERNANCE_OPERATOR',
+                reviewed: true,
+                statusOverride: 'ACTIVE',
+                effectiveStatusLabel: 'ACTIVE',
+                reasonLabel: _governanceVehicleIncompleteReasonLabel,
+                workflowSummary: _governanceVehicleServiceActiveWorkflow,
+                sourceSurface: 'governance',
+              ),
+              VehicleVisitReviewRecorded(
+                eventId: 'VR-101',
+                sequence: 31,
+                version: 1,
+                occurredAt: _governanceMarch10OccurredAtUtc(8, 15),
+                vehicleVisitKey: 'EVT-201',
+                primaryEventId: 'EVT-201',
+                clientId: 'CLIENT-1',
+                regionId: 'REGION-1',
+                siteId: 'SITE-42',
+                vehicleLabel: 'CA123456',
+                actorLabel: 'GOVERNANCE_OPERATOR',
+                reviewed: true,
+                statusOverride: 'COMPLETED',
+                effectiveStatusLabel: 'COMPLETED',
+                reasonLabel: _governanceVehicleIncompleteReasonLabel,
+                workflowSummary: _governanceVehicleServiceCompletedWorkflow,
+                sourceSurface: 'governance',
+              ),
+            ],
+            morningSovereignReport: report,
+            morningSovereignReportAutoRunKey: '2026-03-10',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(exceptionRow);
-    await tester.pumpAndSettle();
+      final exceptionRow = find.byKey(
+        const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
+      );
+      await tester.ensureVisible(exceptionRow);
+      expect(
+        find.textContaining(
+          'Review audit: 2 actions • latest 2026-03-10 08:15 UTC • GOVERNANCE_OPERATOR set COMPLETED',
+        ),
+        findsOneWidget,
+      );
 
-    expect(
-      find.byKey(const ValueKey('governance-vehicle-review-audit-EVT-201')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(
-        const ValueKey('governance-vehicle-review-audit-entry-VR-101'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(
-        const ValueKey('governance-vehicle-review-audit-entry-VR-100'),
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('GOVERNANCE_OPERATOR set COMPLETED'), findsOneWidget);
-    expect(
-      find.text(
-        '2026-03-10 08:15 UTC • Incomplete visit • ENTRY -> SERVICE (COMPLETED)',
-      ),
-      findsOneWidget,
-    );
-  });
+      await tester.tap(exceptionRow);
+      await tester.pumpAndSettle();
 
-  testWidgets('governance page lets operators review and override vehicle visits', (
-    tester,
-  ) async {
-    String? copiedPayload;
-    SovereignReport? updatedReport;
-    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
-      SystemChannels.platform,
-      (call) async {
-        if (call.method == 'Clipboard.setData') {
-          final args = call.arguments as Map<dynamic, dynamic>;
-          copiedPayload = args['text'] as String?;
-        }
-        return null;
-      },
-    );
-    addTearDown(
-      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      expect(
+        find.byKey(const ValueKey('governance-vehicle-review-audit-EVT-201')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('governance-vehicle-review-audit-entry-VR-101'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('governance-vehicle-review-audit-entry-VR-100'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('GOVERNANCE_OPERATOR set COMPLETED'), findsOneWidget);
+      expect(
+        find.text(
+          '2026-03-10 08:15 UTC • $_governanceVehicleIncompleteReasonLabel • $_governanceVehicleServiceCompletedWorkflow',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'governance page lets operators review and override vehicle visits',
+    (tester) async {
+      String? copiedPayload;
+      SovereignReport? updatedReport;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
-        null,
-      ),
-    );
-
-    final report = SovereignReport(
-      date: '2026-03-10',
-      generatedAtUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 9, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 10, 6, 0),
-      ledgerIntegrity: const SovereignReportLedgerIntegrity(
-        totalEvents: 184,
-        hashVerified: true,
-        integrityScore: 98,
-      ),
-      aiHumanDelta: const SovereignReportAiHumanDelta(
-        aiDecisions: 24,
-        humanOverrides: 3,
-        overrideReasons: {'PSIRA expired': 2},
-      ),
-      normDrift: const SovereignReportNormDrift(
-        sitesMonitored: 14,
-        driftDetected: 2,
-        avgMatchScore: 84,
-      ),
-      complianceBlockage: const SovereignReportComplianceBlockage(
-        psiraExpired: 2,
-        pdpExpired: 1,
-        totalBlocked: 3,
-      ),
-      vehicleThroughput: SovereignReportVehicleThroughput(
-        totalVisits: 1,
-        completedVisits: 0,
-        activeVisits: 0,
-        incompleteVisits: 1,
-        uniqueVehicles: 1,
-        repeatVehicles: 0,
-        unknownVehicleEvents: 0,
-        peakHourLabel: '00:00-01:00',
-        peakHourVisitCount: 1,
-        averageCompletedDwellMinutes: 0,
-        suspiciousShortVisitCount: 0,
-        loiteringVisitCount: 0,
-        workflowHeadline: '1 incomplete visit stalled at SERVICE',
-        summaryLine:
-            'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
-        scopeBreakdowns: const [
-          SovereignReportVehicleScopeBreakdown(
-            clientId: 'CLIENT-1',
-            siteId: 'SITE-42',
-            totalVisits: 1,
-            completedVisits: 0,
-            activeVisits: 0,
-            incompleteVisits: 1,
-            unknownVehicleEvents: 0,
-            summaryLine:
-                'Visits 1 • Entry 1 • Completed 0 • Active 0 • Incomplete 1 • Unique 1',
-          ),
-        ],
-        exceptionVisits: [
-          SovereignReportVehicleVisitException(
-            clientId: 'CLIENT-1',
-            siteId: 'SITE-42',
-            vehicleLabel: 'CA123456',
-            statusLabel: 'INCOMPLETE',
-            reasonLabel: 'Incomplete visit',
-            workflowSummary: 'ENTRY -> SERVICE (INCOMPLETE)',
-            primaryEventId: 'EVT-201',
-            startedAtUtc: DateTime.utc(2026, 3, 10, 0, 40),
-            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 1, 22),
-            dwellMinutes: 42.0,
-            eventIds: ['EVT-201'],
-            zoneLabels: ['Entry Lane', 'Wash Bay'],
-            intelligenceIds: ['INT-201', 'INT-202'],
-          ),
-        ],
-      ),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: GovernancePage(
-          events: const [],
-          morningSovereignReport: report,
-          morningSovereignReportAutoRunKey: '2026-03-10',
-          onMorningSovereignReportChanged: (value) {
-            updatedReport = value;
-          },
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            final args = call.arguments as Map<dynamic, dynamic>;
+            copiedPayload = args['text'] as String?;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
 
-    final exceptionRow = find.byKey(
-      const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
-    );
-    await tester.ensureVisible(exceptionRow);
-    await tester.tap(exceptionRow);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Visit timeline'), findsOneWidget);
-
-    final setCompletedAction = find.byKey(
-      const ValueKey('governance-vehicle-review-completed-EVT-201'),
-    );
-    await tester.ensureVisible(setCompletedAction);
-    await tester.tap(setCompletedAction);
-    await tester.pumpAndSettle();
-    expect(find.text('Workflow: ENTRY -> SERVICE (COMPLETED)'), findsWidgets);
-
-    final markReviewedAction = find.byKey(
-      const ValueKey('governance-vehicle-review-mark-EVT-201'),
-    );
-    await tester.ensureVisible(markReviewedAction);
-    await tester.tap(markReviewedAction);
-    await tester.pumpAndSettle();
-    expect(find.text('REVIEWED'), findsOneWidget);
-    expect(updatedReport, isNotNull);
-    final persistedException =
-        updatedReport!.vehicleThroughput.exceptionVisits.single;
-    expect(persistedException.operatorReviewed, isTrue);
-    expect(persistedException.operatorStatusOverride, 'COMPLETED');
-    expect(persistedException.statusLabel, 'INCOMPLETE');
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: GovernancePage(
-          events: const [],
-          morningSovereignReport: updatedReport,
-          morningSovereignReportAutoRunKey: '2026-03-10',
+      final report = SovereignReport(
+        date: '2026-03-10',
+        generatedAtUtc: _governanceReportGeneratedAtUtc(10),
+        shiftWindowStartUtc: _governanceNightShiftStartedAtUtc(9),
+        shiftWindowEndUtc: _governanceReportGeneratedAtUtc(10),
+        ledgerIntegrity: const SovereignReportLedgerIntegrity(
+          totalEvents: 184,
+          hashVerified: true,
+          integrityScore: 98,
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+        aiHumanDelta: const SovereignReportAiHumanDelta(
+          aiDecisions: 24,
+          humanOverrides: 3,
+          overrideReasons: {'PSIRA expired': 2},
+        ),
+        normDrift: const SovereignReportNormDrift(
+          sitesMonitored: 14,
+          driftDetected: 2,
+          avgMatchScore: 84,
+        ),
+        complianceBlockage: const SovereignReportComplianceBlockage(
+          psiraExpired: 2,
+          pdpExpired: 1,
+          totalBlocked: 3,
+        ),
+        vehicleThroughput: SovereignReportVehicleThroughput(
+          totalVisits: 1,
+          completedVisits: 0,
+          activeVisits: 0,
+          incompleteVisits: 1,
+          uniqueVehicles: 1,
+          repeatVehicles: 0,
+          unknownVehicleEvents: 0,
+          peakHourLabel: '00:00-01:00',
+          peakHourVisitCount: 1,
+          averageCompletedDwellMinutes: 0,
+          suspiciousShortVisitCount: 0,
+          loiteringVisitCount: 0,
+          workflowHeadline: _governanceVehicleSingleVisitWorkflowHeadline,
+          summaryLine: _governanceVehicleSingleVisitSummaryLine,
+          scopeBreakdowns: const [
+            SovereignReportVehicleScopeBreakdown(
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              totalVisits: 1,
+              completedVisits: 0,
+              activeVisits: 0,
+              incompleteVisits: 1,
+              unknownVehicleEvents: 0,
+              summaryLine: _governanceVehicleSingleVisitSummaryLine,
+            ),
+          ],
+          exceptionVisits: [
+            SovereignReportVehicleVisitException(
+              clientId: 'CLIENT-1',
+              siteId: 'SITE-42',
+              vehicleLabel: 'CA123456',
+              statusLabel: 'INCOMPLETE',
+              reasonLabel: _governanceVehicleIncompleteReasonLabel,
+              workflowSummary: _governanceVehicleServiceIncompleteWorkflow,
+              primaryEventId: 'EVT-201',
+              startedAtUtc: _governanceMarch10OccurredAtUtc(0, 40),
+              lastSeenAtUtc: _governanceMarch10OccurredAtUtc(1, 22),
+              dwellMinutes: 42.0,
+              eventIds: ['EVT-201'],
+              zoneLabels: ['Entry Lane', 'Wash Bay'],
+              intelligenceIds: ['INT-201', 'INT-202'],
+            ),
+          ],
+        ),
+      );
 
-    final restoredExceptionRow = find.byKey(
-      const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
-    );
-    await tester.ensureVisible(restoredExceptionRow);
-    await tester.tap(restoredExceptionRow);
-    await tester.pumpAndSettle();
-    expect(find.text('Workflow: ENTRY -> SERVICE (COMPLETED)'), findsWidgets);
-    expect(find.text('REVIEWED'), findsOneWidget);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const [],
+            morningSovereignReport: report,
+            morningSovereignReportAutoRunKey: '2026-03-10',
+            onMorningSovereignReportChanged: (value) {
+              updatedReport = value;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Copy Morning JSON'));
-    await tester.tap(find.text('Copy Morning JSON'));
-    await tester.pump();
+      final exceptionRow = find.byKey(
+        const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
+      );
+      await tester.ensureVisible(exceptionRow);
+      await tester.tap(exceptionRow);
+      await tester.pumpAndSettle();
 
-    expect(copiedPayload, isNotNull);
-    expect(copiedPayload, contains('"operatorReviewed": true'));
-    expect(copiedPayload, contains('"operatorStatusOverride": "COMPLETED"'));
-    expect(copiedPayload, contains('"statusLabel": "COMPLETED"'));
-    expect(
-      copiedPayload,
-      contains('"workflowSummary": "ENTRY -> SERVICE (COMPLETED)"'),
-    );
-  });
+      expect(find.text('Visit timeline'), findsOneWidget);
+
+      final setCompletedAction = find.byKey(
+        const ValueKey('governance-vehicle-review-completed-EVT-201'),
+      );
+      await tester.ensureVisible(setCompletedAction);
+      await tester.tap(setCompletedAction);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Workflow: $_governanceVehicleServiceCompletedWorkflow'),
+        findsWidgets,
+      );
+
+      final markReviewedAction = find.byKey(
+        const ValueKey('governance-vehicle-review-mark-EVT-201'),
+      );
+      await tester.ensureVisible(markReviewedAction);
+      await tester.tap(markReviewedAction);
+      await tester.pumpAndSettle();
+      expect(find.text('REVIEWED'), findsOneWidget);
+      expect(updatedReport, isNotNull);
+      final persistedException =
+          updatedReport!.vehicleThroughput.exceptionVisits.single;
+      expect(persistedException.operatorReviewed, isTrue);
+      expect(persistedException.operatorStatusOverride, 'COMPLETED');
+      expect(persistedException.statusLabel, 'INCOMPLETE');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: GovernancePage(
+            events: const [],
+            morningSovereignReport: updatedReport,
+            morningSovereignReportAutoRunKey: '2026-03-10',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final restoredExceptionRow = find.byKey(
+        const ValueKey('governance-vehicle-exception-CA123456-SITE-42'),
+      );
+      await tester.ensureVisible(restoredExceptionRow);
+      await tester.tap(restoredExceptionRow);
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Workflow: $_governanceVehicleServiceCompletedWorkflow'),
+        findsWidgets,
+      );
+      expect(find.text('REVIEWED'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Copy Morning JSON'));
+      await tester.tap(find.text('Copy Morning JSON'));
+      await tester.pump();
+
+      expect(copiedPayload, isNotNull);
+      expect(copiedPayload, contains('"operatorReviewed": true'));
+      expect(copiedPayload, contains('"operatorStatusOverride": "COMPLETED"'));
+      expect(copiedPayload, contains('"statusLabel": "COMPLETED"'));
+      expect(
+        copiedPayload,
+        contains(
+          '"workflowSummary": "$_governanceVehicleServiceCompletedWorkflow"',
+        ),
+      );
+    },
+  );
 }
 
 bool _comesBefore(Offset left, Offset right) {

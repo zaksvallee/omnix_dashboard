@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(/Users/zaks/omnix_dashboard/claude_review/**)"
+    ]
+  },
+  "sandbox": {
+    "filesystem": {
+      "allowWrite": [
+        "/Users/zaks/omnix_dashboard/claude_review/**"
+      ]
+    }
+  }
+}

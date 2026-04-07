@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class GuardCheckedIn extends DispatchEvent {
+  static const String auditTypeKey = 'guard_checked_in';
   final String guardId;
   final String clientId;
   final String regionId;
@@ -30,4 +31,7 @@ class GuardCheckedIn extends DispatchEvent {
       siteId: siteId,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

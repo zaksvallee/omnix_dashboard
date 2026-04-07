@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../domain/events/intelligence_received.dart';
 import 'dvr_http_auth.dart';
 import 'hazard_response_directive_service.dart';
+import 'intelligence_event_object_semantics.dart';
 
 enum MonitoringWatchVisionConfidence { low, medium, high }
 
@@ -122,7 +123,8 @@ class OpenAiMonitoringWatchVisionReviewService
               (candidate.snapshotUrl ?? '').trim().isNotEmpty,
         ),
       ].take(3).toList(growable: false);
-      final sequenceFrames = <({IntelligenceReceived event, String imageUrl})>[];
+      final sequenceFrames =
+          <({IntelligenceReceived event, String imageUrl})>[];
       for (final sequenceEvent in sequenceEvents) {
         final imageUrl = await _fetchSnapshotDataUrl(
           (sequenceEvent.snapshotUrl ?? '').trim(),
@@ -153,10 +155,7 @@ class OpenAiMonitoringWatchVisionReviewService
                 {
                   'role': 'system',
                   'content': [
-                    {
-                      'type': 'input_text',
-                      'text': _systemPrompt(),
-                    },
+                    {'type': 'input_text', 'text': _systemPrompt()},
                   ],
                 },
                 {
@@ -183,10 +182,7 @@ class OpenAiMonitoringWatchVisionReviewService
       if (decoded is! Map) {
         return buildMetadataOnlyMonitoringWatchVisionReview(event);
       }
-      return _parseModelReview(
-        decoded.cast<Object?, Object?>(),
-        event: event,
-      );
+      return _parseModelReview(decoded.cast<Object?, Object?>(), event: event);
     } catch (_) {
       return buildMetadataOnlyMonitoringWatchVisionReview(event);
     }
@@ -201,11 +197,7 @@ class OpenAiMonitoringWatchVisionReviewService
       return null;
     }
     final response = await authConfig
-        .get(
-          client,
-          uri,
-          headers: const {'Accept': 'image/*'},
-        )
+        .get(client, uri, headers: const {'Accept': 'image/*'})
         .timeout(snapshotTimeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       return null;
@@ -214,12 +206,11 @@ class OpenAiMonitoringWatchVisionReviewService
     if (bytes.isEmpty) {
       return null;
     }
-    final contentType =
-        (response.headers['content-type'] ?? 'image/jpeg')
-            .split(';')
-            .first
-            .trim()
-            .toLowerCase();
+    final contentType = (response.headers['content-type'] ?? 'image/jpeg')
+        .split(';')
+        .first
+        .trim()
+        .toLowerCase();
     if (!contentType.startsWith('image/')) {
       return null;
     }
@@ -234,17 +225,17 @@ class OpenAiMonitoringWatchVisionReviewService
     bool tagPresent(String tag, List<String> tags) =>
         tags.any((entry) => entry == tag);
 
-    final tags =
-        (payload['tags'] is List)
-            ? (payload['tags'] as List)
-                .map((entry) => entry.toString().trim().toLowerCase())
-                .where((entry) => entry.isNotEmpty)
-                .toList(growable: false)
-            : const <String>[];
+    final tags = (payload['tags'] is List)
+        ? (payload['tags'] as List)
+              .map((entry) => entry.toString().trim().toLowerCase())
+              .where((entry) => entry.isNotEmpty)
+              .toList(growable: false)
+        : const <String>[];
     final posture = readString('posture').toLowerCase();
+    final metadataObjectLabel = _semanticObjectLabelForEvent(event);
     final primaryObject = _normalizeObjectLabel(
       readString('primary_object'),
-      fallback: (event.objectLabel ?? '').trim(),
+      fallback: metadataObjectLabel,
     );
     final riskDelta = _clampRiskDelta(payload['risk_delta']);
     final hazardSignal = _hazardSignalFromVisionReview(
@@ -263,12 +254,10 @@ class OpenAiMonitoringWatchVisionReviewService
         readString('confidence'),
         fallback: _confidenceFromMetadata(event.objectConfidence),
       ),
-      indicatesPerson:
-          primaryObject == 'person' || tagPresent('person', tags),
+      indicatesPerson: primaryObject == 'person' || tagPresent('person', tags),
       indicatesVehicle:
           primaryObject == 'vehicle' || tagPresent('vehicle', tags),
-      indicatesAnimal:
-          primaryObject == 'animal' || tagPresent('animal', tags),
+      indicatesAnimal: primaryObject == 'animal' || tagPresent('animal', tags),
       indicatesFireSmoke: indicatesFireSmoke,
       indicatesWaterLeak: indicatesWaterLeak,
       indicatesEnvironmentHazard: indicatesEnvironmentHazard,
@@ -308,9 +297,10 @@ class OpenAiMonitoringWatchVisionReviewService
     required IntelligenceReceived event,
     required int priorReviewedEvents,
     required int groupedEventCount,
-    required List<({IntelligenceReceived event, String imageUrl})> sequenceFrames,
+    required List<({IntelligenceReceived event, String imageUrl})>
+    sequenceFrames,
   }) {
-    final metadataLabel = (event.objectLabel ?? '').trim();
+    final metadataLabel = _semanticObjectLabelForEvent(event);
     final metadataConfidence = event.objectConfidence == null
         ? 'unset'
         : event.objectConfidence!.toStringAsFixed(2);
@@ -320,7 +310,7 @@ class OpenAiMonitoringWatchVisionReviewService
         .map((entry) {
           final frame = entry.value.event;
           final cameraId = (frame.cameraId ?? '').trim();
-          final objectLabel = (frame.objectLabel ?? '').trim();
+          final objectLabel = _semanticObjectLabelForEvent(frame);
           return '- frame_${entry.key + 1}: camera=${cameraId.isEmpty ? 'unknown' : cameraId}, object=${objectLabel.isEmpty ? 'unset' : objectLabel}, occurred_at=${frame.occurredAt.toUtc().toIso8601String()}, headline=${frame.headline.trim()}';
         })
         .join('\n');
@@ -354,10 +344,7 @@ class OpenAiMonitoringWatchVisionReviewService
 MonitoringWatchVisionReviewResult buildMetadataOnlyMonitoringWatchVisionReview(
   IntelligenceReceived event,
 ) {
-  final objectLabel = _normalizeObjectLabel(
-    (event.objectLabel ?? '').trim(),
-    fallback: 'movement',
-  );
+  final objectLabel = _semanticObjectLabelForEvent(event, fallback: 'movement');
   final signalText = '${event.headline} ${event.summary}'.toLowerCase();
   final hazardSignal = _hazardSignalFromMetadata(
     signalText: signalText,
@@ -384,6 +371,21 @@ MonitoringWatchVisionReviewResult buildMetadataOnlyMonitoringWatchVisionReview(
     summary: 'Metadata-only review.',
     tags: const <String>['metadata'],
   );
+}
+
+String _semanticObjectLabelForEvent(
+  IntelligenceReceived event, {
+  String fallback = '',
+}) {
+  final directObjectLabel = _normalizeObjectLabel(
+    (event.objectLabel ?? '').trim(),
+    fallback: '',
+  );
+  final resolvedObjectLabel = resolveIdentityBackedObjectLabel(
+    event: event,
+    directObjectLabel: directObjectLabel,
+  );
+  return resolvedObjectLabel.isEmpty ? fallback : resolvedObjectLabel;
 }
 
 MonitoringWatchVisionConfidence _confidenceFromMetadata(double? raw) {

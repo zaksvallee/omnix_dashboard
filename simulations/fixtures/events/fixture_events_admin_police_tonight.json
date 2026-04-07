@@ -1,0 +1,11 @@
+{
+  "events": [
+    {
+      "eventId": "evt_police_ms_vallee_001",
+      "kind": "police_activity",
+      "siteId": "site_ms_vallee",
+      "status": "resolved",
+      "occurredAt": "2026-03-30T19:15:00+02:00"
+    }
+  ]
+}

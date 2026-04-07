@@ -1,0 +1,350 @@
+{
+  "scenarioId": "monitoring_review_action_cctv_delay_v1",
+  "runId": "2026-04-01T22:10:41.120380Z",
+  "passed": false,
+  "actualOutcome": {
+    "actualRoute": "monitoring_watch",
+    "actualIntent": "open_cctv_review_handoff",
+    "actualEscalationState": "review_opened",
+    "actualProjectionChanges": [
+      {
+        "step": "specialist_status",
+        "sourceStepId": "open_review_action",
+        "specialist": "cctv",
+        "status": "delayed",
+        "delayMs": 45000,
+        "detail": "Live verification queue exceeded the CCTV review SLA."
+      },
+      {
+        "step": "review_opened",
+        "reviewSurface": "cctv_review"
+      }
+    ],
+    "actualDrafts": [],
+    "actualBlockedActions": [
+      "dismiss_without_review"
+    ],
+    "actualUiState": {
+      "legacyWorkspaceVisible": false,
+      "specialistStatuses": {
+        "cctv": {
+          "status": "delayed",
+          "delayMs": 45000,
+          "detail": "Live verification queue exceeded the CCTV review SLA."
+        }
+      },
+      "specialistDegradationVisible": true,
+      "reviewActionVisible": true,
+      "cctvRouteVisible": true,
+      "incidentReference": "INC-DSP-VISUAL",
+      "intelligenceId": "INTEL-DSP-VISUAL",
+      "surface": "monitoring_watch_review"
+    },
+    "appendedEvents": [
+      {
+        "type": "review",
+        "incidentReference": "INC-DSP-VISUAL"
+      }
+    ],
+    "notes": "Executed monitoring sequence: cctv was delayed by 45000 ms at open_review_action -> opened cctv_review for INC-DSP-VISUAL.",
+    "commandBrainSnapshot": {
+      "workItemId": "monitoring_review_action_cctv_delay_v1",
+      "mode": "deterministic",
+      "target": "cctvReview",
+      "nextMoveLabel": "OPEN CCTV REVIEW",
+      "headline": "CCTV Review is the next move",
+      "summary": "One next move is staged in CCTV Review.",
+      "advisory": "CCTV specialist is delayed by 45000 ms, so ONYX kept the next move in CCTV Review while fresh verification is pending.",
+      "confidence": 0.68,
+      "primaryPressure": "active signal watch",
+      "rationale": "Scenario replay preserved the current gate and staged CCTV Review instead of hanging while cctv specialist delay remained active.",
+      "supportingSpecialists": [
+        "cctv"
+      ],
+      "contextHighlights": [
+        "CCTV specialist delay stayed active at the review gate.",
+        "Sequence replay still opened CCTV Review instead of stalling."
+      ],
+      "missingInfo": [
+        "Fresh CCTV specialist verification is still pending."
+      ],
+      "followUpLabel": "RECHECK CCTV SPECIALIST",
+      "followUpPrompt": "Confirm whether the CCTV specialist has returned and refresh the live verification feed.",
+      "allowRouteExecution": true,
+      "specialistAssessments": [
+        {
+          "specialist": "cctv",
+          "sourceLabel": "scenario_replay",
+          "summary": "CCTV specialist is delayed by 45000 ms, so ONYX is holding the move in CCTV Review until fresh verification lands.",
+          "recommendedTarget": "cctvReview",
+          "confidence": 0.68,
+          "priority": "high",
+          "evidence": [
+            "Deterministic specialist degradation injected at replay step.",
+            "Delay budget: 45000 ms.",
+            "Live verification queue exceeded the CCTV review SLA."
+          ],
+          "missingInfo": [
+            "Fresh cctv specialist verification is still pending."
+          ],
+          "allowRouteExecution": true,
+          "isHardConstraint": false
+        }
+      ]
+    },
+    "commandBrainTimeline": [
+      {
+        "sequence": 1,
+        "stage": "open_review_action",
+        "note": "Review evidence staged for INC-DSP-VISUAL while cctv specialist was delayed by 45000 ms.",
+        "snapshot": {
+          "workItemId": "monitoring_review_action_cctv_delay_v1",
+          "mode": "deterministic",
+          "target": "cctvReview",
+          "nextMoveLabel": "OPEN CCTV REVIEW",
+          "headline": "CCTV Review is the next move",
+          "summary": "One next move is staged in CCTV Review.",
+          "advisory": "CCTV specialist is delayed by 45000 ms, so ONYX kept the next move in CCTV Review while fresh verification is pending.",
+          "confidence": 0.68,
+          "primaryPressure": "active signal watch",
+          "rationale": "Scenario replay preserved the current gate and staged CCTV Review instead of hanging while cctv specialist delay remained active.",
+          "supportingSpecialists": [
+            "cctv"
+          ],
+          "contextHighlights": [
+            "CCTV specialist delay stayed active at the review gate.",
+            "Sequence replay still opened CCTV Review instead of stalling."
+          ],
+          "missingInfo": [
+            "Fresh CCTV specialist verification is still pending."
+          ],
+          "followUpLabel": "RECHECK CCTV SPECIALIST",
+          "followUpPrompt": "Confirm whether the CCTV specialist has returned and refresh the live verification feed.",
+          "allowRouteExecution": true,
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist is delayed by 45000 ms, so ONYX is holding the move in CCTV Review until fresh verification lands.",
+              "recommendedTarget": "cctvReview",
+              "confidence": 0.68,
+              "priority": "high",
+              "evidence": [
+                "Deterministic specialist degradation injected at replay step.",
+                "Delay budget: 45000 ms.",
+                "Live verification queue exceeded the CCTV review SLA."
+              ],
+              "missingInfo": [
+                "Fresh cctv specialist verification is still pending."
+              ],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "mismatches": [
+    {
+      "field": "commandBrainSnapshot",
+      "expected": {
+        "workItemId": "monitoring_review_action_cctv_delay_v1",
+        "mode": "deterministic",
+        "target": "cctvReview",
+        "nextMoveLabel": "OPEN CCTV REVIEW",
+        "headline": "CCTV Review is the next move",
+        "summary": "One next move is staged in CCTV Review.",
+        "advisory": "CCTV specialist is delayed by 45000 ms, so ONYX kept the next move in CCTV Review while fresh verification is pending.",
+        "confidence": 0.68,
+        "primaryPressure": "active signal watch",
+        "rationale": "Scenario replay preserved the current gate and staged CCTV Review instead of hanging while cctv specialist delay remained active.",
+        "supportingSpecialists": [
+          "cctv"
+        ],
+        "contextHighlights": [
+          "CCTV specialist delay stayed active at the review gate.",
+          "Sequence replay still opened CCTV Review instead of stalling."
+        ],
+        "missingInfo": [
+          "Fresh CCTV specialist verification is still pending."
+        ],
+        "followUpLabel": "RECHECK CCTV SPECIALIST",
+        "followUpPrompt": "Confirm whether the CCTV specialist has returned and refresh the live verification feed.",
+        "allowRouteExecution": true,
+        "specialistAssessments": [
+          {
+            "specialist": "cctv",
+            "sourceLabel": "scenario_replay",
+            "summary": "CCTV specialist is delayed by 45000 ms, so ONYX is holding the move in CCTV Review until fresh verification lands.",
+            "recommendedTarget": "cctvReview",
+            "confidence": 0.68,
+            "priority": "high",
+            "evidence": [
+              "Deterministic specialist degradation injected at replay step.",
+              "Delay budget: 45000 ms.",
+              "Live verification queue exceeded the CCTV review SLA."
+            ],
+            "missingInfo": [
+              "Fresh CCTV specialist verification is still pending."
+            ],
+            "allowRouteExecution": true,
+            "isHardConstraint": false
+          }
+        ]
+      },
+      "actual": {
+        "workItemId": "monitoring_review_action_cctv_delay_v1",
+        "mode": "deterministic",
+        "target": "cctvReview",
+        "nextMoveLabel": "OPEN CCTV REVIEW",
+        "headline": "CCTV Review is the next move",
+        "summary": "One next move is staged in CCTV Review.",
+        "advisory": "CCTV specialist is delayed by 45000 ms, so ONYX kept the next move in CCTV Review while fresh verification is pending.",
+        "confidence": 0.68,
+        "primaryPressure": "active signal watch",
+        "rationale": "Scenario replay preserved the current gate and staged CCTV Review instead of hanging while cctv specialist delay remained active.",
+        "supportingSpecialists": [
+          "cctv"
+        ],
+        "contextHighlights": [
+          "CCTV specialist delay stayed active at the review gate.",
+          "Sequence replay still opened CCTV Review instead of stalling."
+        ],
+        "missingInfo": [
+          "Fresh CCTV specialist verification is still pending."
+        ],
+        "followUpLabel": "RECHECK CCTV SPECIALIST",
+        "followUpPrompt": "Confirm whether the CCTV specialist has returned and refresh the live verification feed.",
+        "allowRouteExecution": true,
+        "specialistAssessments": [
+          {
+            "specialist": "cctv",
+            "sourceLabel": "scenario_replay",
+            "summary": "CCTV specialist is delayed by 45000 ms, so ONYX is holding the move in CCTV Review until fresh verification lands.",
+            "recommendedTarget": "cctvReview",
+            "confidence": 0.68,
+            "priority": "high",
+            "evidence": [
+              "Deterministic specialist degradation injected at replay step.",
+              "Delay budget: 45000 ms.",
+              "Live verification queue exceeded the CCTV review SLA."
+            ],
+            "missingInfo": [
+              "Fresh cctv specialist verification is still pending."
+            ],
+            "allowRouteExecution": true,
+            "isHardConstraint": false
+          }
+        ]
+      }
+    },
+    {
+      "field": "commandBrainTimeline",
+      "expected": [
+        {
+          "sequence": 1,
+          "stage": "open_review_action",
+          "note": "Review evidence staged for INC-DSP-VISUAL while cctv specialist was delayed by 45000 ms.",
+          "snapshot": {
+            "workItemId": "monitoring_review_action_cctv_delay_v1",
+            "mode": "deterministic",
+            "target": "cctvReview",
+            "nextMoveLabel": "OPEN CCTV REVIEW",
+            "headline": "CCTV Review is the next move",
+            "summary": "One next move is staged in CCTV Review.",
+            "advisory": "CCTV specialist is delayed by 45000 ms, so ONYX kept the next move in CCTV Review while fresh verification is pending.",
+            "confidence": 0.68,
+            "primaryPressure": "active signal watch",
+            "rationale": "Scenario replay preserved the current gate and staged CCTV Review instead of hanging while cctv specialist delay remained active.",
+            "supportingSpecialists": [
+              "cctv"
+            ],
+            "contextHighlights": [
+              "CCTV specialist delay stayed active at the review gate.",
+              "Sequence replay still opened CCTV Review instead of stalling."
+            ],
+            "missingInfo": [
+              "Fresh CCTV specialist verification is still pending."
+            ],
+            "followUpLabel": "RECHECK CCTV SPECIALIST",
+            "followUpPrompt": "Confirm whether the CCTV specialist has returned and refresh the live verification feed.",
+            "allowRouteExecution": true,
+            "specialistAssessments": [
+              {
+                "specialist": "cctv",
+                "sourceLabel": "scenario_replay",
+                "summary": "CCTV specialist is delayed by 45000 ms, so ONYX is holding the move in CCTV Review until fresh verification lands.",
+                "recommendedTarget": "cctvReview",
+                "confidence": 0.68,
+                "priority": "high",
+                "evidence": [
+                  "Deterministic specialist degradation injected at replay step.",
+                  "Delay budget: 45000 ms.",
+                  "Live verification queue exceeded the CCTV review SLA."
+                ],
+                "missingInfo": [
+                  "Fresh CCTV specialist verification is still pending."
+                ],
+                "allowRouteExecution": true,
+                "isHardConstraint": false
+              }
+            ]
+          }
+        }
+      ],
+      "actual": [
+        {
+          "sequence": 1,
+          "stage": "open_review_action",
+          "note": "Review evidence staged for INC-DSP-VISUAL while cctv specialist was delayed by 45000 ms.",
+          "snapshot": {
+            "workItemId": "monitoring_review_action_cctv_delay_v1",
+            "mode": "deterministic",
+            "target": "cctvReview",
+            "nextMoveLabel": "OPEN CCTV REVIEW",
+            "headline": "CCTV Review is the next move",
+            "summary": "One next move is staged in CCTV Review.",
+            "advisory": "CCTV specialist is delayed by 45000 ms, so ONYX kept the next move in CCTV Review while fresh verification is pending.",
+            "confidence": 0.68,
+            "primaryPressure": "active signal watch",
+            "rationale": "Scenario replay preserved the current gate and staged CCTV Review instead of hanging while cctv specialist delay remained active.",
+            "supportingSpecialists": [
+              "cctv"
+            ],
+            "contextHighlights": [
+              "CCTV specialist delay stayed active at the review gate.",
+              "Sequence replay still opened CCTV Review instead of stalling."
+            ],
+            "missingInfo": [
+              "Fresh CCTV specialist verification is still pending."
+            ],
+            "followUpLabel": "RECHECK CCTV SPECIALIST",
+            "followUpPrompt": "Confirm whether the CCTV specialist has returned and refresh the live verification feed.",
+            "allowRouteExecution": true,
+            "specialistAssessments": [
+              {
+                "specialist": "cctv",
+                "sourceLabel": "scenario_replay",
+                "summary": "CCTV specialist is delayed by 45000 ms, so ONYX is holding the move in CCTV Review until fresh verification lands.",
+                "recommendedTarget": "cctvReview",
+                "confidence": 0.68,
+                "priority": "high",
+                "evidence": [
+                  "Deterministic specialist degradation injected at replay step.",
+                  "Delay budget: 45000 ms.",
+                  "Live verification queue exceeded the CCTV review SLA."
+                ],
+                "missingInfo": [
+                  "Fresh cctv specialist verification is still pending."
+                ],
+                "allowRouteExecution": true,
+                "isHardConstraint": false
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

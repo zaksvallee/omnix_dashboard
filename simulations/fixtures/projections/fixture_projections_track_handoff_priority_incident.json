@@ -1,0 +1,12 @@
+{
+  "trackOverview": {
+    "sitesVisible": 1,
+    "guardsVisible": 4,
+    "liveTrackingEnabled": true,
+    "trackHandoff": {
+      "siteId": "site_ms_vallee",
+      "incidentReference": "INC-7721-TRACK",
+      "trackLabel": "Ms Vallee priority track"
+    }
+  }
+}

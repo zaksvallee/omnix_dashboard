@@ -1,11 +1,23 @@
 import '../domain/events/intelligence_received.dart';
 import 'hazard_response_directive_service.dart';
+import 'intelligence_event_object_semantics.dart';
 import 'mo_runtime_matching_service.dart';
 import 'monitoring_identity_policy_service.dart';
 import 'monitoring_temporary_identity_approval_service.dart';
+import 'monitoring_watch_runtime_store.dart';
 import 'monitoring_watch_vision_review_service.dart';
 
 enum MonitoringWatchSceneConfidence { low, medium, high }
+
+enum MonitoringWatchTrackedPostureStage { none, innocent, suspicious, critical }
+
+enum MonitoringWatchZoneSensitivity {
+  none,
+  publicApproach,
+  managedApproach,
+  restrictedZone,
+  sensitiveZone,
+}
 
 class MonitoringWatchSceneAssessment {
   final String objectLabel;
@@ -20,6 +32,13 @@ class MonitoringWatchSceneAssessment {
   final bool fireSignal;
   final bool waterLeakSignal;
   final bool environmentHazardSignal;
+  final String? trackId;
+  final int trackedEventCount;
+  final Duration trackedPresenceWindow;
+  final MonitoringWatchTrackedPostureStage trackedPostureStage;
+  final String trackedPostureLabel;
+  final MonitoringWatchZoneSensitivity zoneSensitivity;
+  final String zoneLabel;
   final String? faceMatchId;
   final double? faceConfidence;
   final String? plateNumber;
@@ -46,6 +65,13 @@ class MonitoringWatchSceneAssessment {
     this.fireSignal = false,
     this.waterLeakSignal = false,
     this.environmentHazardSignal = false,
+    this.trackId,
+    this.trackedEventCount = 1,
+    this.trackedPresenceWindow = Duration.zero,
+    this.trackedPostureStage = MonitoringWatchTrackedPostureStage.none,
+    this.trackedPostureLabel = '',
+    this.zoneSensitivity = MonitoringWatchZoneSensitivity.none,
+    this.zoneLabel = '',
     this.faceMatchId,
     this.faceConfidence,
     this.plateNumber,
@@ -81,9 +107,23 @@ class MonitoringWatchSceneAssessmentService {
     required MonitoringWatchVisionReviewResult review,
     required int priorReviewedEvents,
     int groupedEventCount = 1,
+    List<IntelligenceReceived> relatedEvents = const <IntelligenceReceived>[],
+    MonitoringWatchTrackedSubjectState? persistedTrackedSubject,
   }) {
     final objectLabel = _resolvedObjectLabel(event, review);
-    final repeatActivity = priorReviewedEvents > 0;
+    final zoneContext = _zoneContextFor(event);
+    final trackedSubjectActivity = _trackedSubjectActivityFor(
+      event: event,
+      objectLabel: objectLabel,
+      zoneSensitivity: zoneContext.sensitivity,
+      relatedEvents: relatedEvents,
+      persistedTrackedSubject: persistedTrackedSubject,
+    );
+    final repeatActivity =
+        priorReviewedEvents > 0 ||
+        (trackedSubjectActivity.repeatDetected &&
+            trackedSubjectActivity.postureStage !=
+                MonitoringWatchTrackedPostureStage.innocent);
     var score = event.riskScore.clamp(1, 99);
     final rationale = <String>[
       'base:${event.riskScore.clamp(1, 99)}',
@@ -116,6 +156,24 @@ class MonitoringWatchSceneAssessmentService {
       rationale.add('confidence:low');
     }
 
+    switch (zoneContext.sensitivity) {
+      case MonitoringWatchZoneSensitivity.none:
+        break;
+      case MonitoringWatchZoneSensitivity.publicApproach:
+        rationale.add('zone:public_approach');
+        break;
+      case MonitoringWatchZoneSensitivity.managedApproach:
+        rationale.add('zone:managed_approach');
+        break;
+      case MonitoringWatchZoneSensitivity.restrictedZone:
+        rationale.add('zone:restricted');
+        break;
+      case MonitoringWatchZoneSensitivity.sensitiveZone:
+        rationale.add('zone:sensitive');
+        break;
+    }
+
+    var weaponSignal = false;
     if (objectLabel == 'person' ||
         objectLabel == 'human' ||
         objectLabel == 'intruder') {
@@ -132,6 +190,17 @@ class MonitoringWatchSceneAssessmentService {
         objectLabel == 'bird') {
       score -= 18;
       rationale.add('object:animal');
+    } else if (objectLabel == 'backpack' || objectLabel == 'bag') {
+      score += 10;
+      rationale.add('object:$objectLabel');
+    } else if (objectLabel == 'knife') {
+      weaponSignal = true;
+      score += 30;
+      rationale.add('object:knife');
+    } else if (objectLabel == 'weapon' || objectLabel == 'firearm') {
+      weaponSignal = true;
+      score += 36;
+      rationale.add('object:$objectLabel');
     } else if (objectLabel == 'fire' || objectLabel == 'smoke') {
       score += 28;
       rationale.add('object:fire');
@@ -245,7 +314,9 @@ class MonitoringWatchSceneAssessmentService {
       rationale.add('signal:boundary');
     }
     final loiteringConcern =
-        review.indicatesLoitering || signalText.contains('loiter');
+        review.indicatesLoitering ||
+        signalText.contains('loiter') ||
+        trackedSubjectActivity.loiteringConcern;
     if (loiteringConcern) {
       score += 10;
       rationale.add('signal:loiter');
@@ -275,6 +346,35 @@ class MonitoringWatchSceneAssessmentService {
       rationale.add('signal:review_escalation');
     }
 
+    if (trackedSubjectActivity.repeatDetected) {
+      final trackRepeatBoost = trackedSubjectActivity.eventCount >= 4 ? 8 : 6;
+      score += trackRepeatBoost;
+      rationale.add('track_repeat:${trackedSubjectActivity.eventCount}');
+      if (trackedSubjectActivity.presenceWindow > Duration.zero) {
+        rationale.add(
+          'track_span:${trackedSubjectActivity.presenceWindow.inSeconds}s',
+        );
+      }
+    }
+    if (trackedSubjectActivity.loiteringConcern) {
+      score += 4;
+      rationale.add('track_loiter');
+    }
+    switch (trackedSubjectActivity.postureStage) {
+      case MonitoringWatchTrackedPostureStage.none:
+        break;
+      case MonitoringWatchTrackedPostureStage.innocent:
+        rationale.add('track_posture:passing_by');
+        break;
+      case MonitoringWatchTrackedPostureStage.suspicious:
+        score += 8;
+        rationale.add('track_posture:dwell_alert');
+        break;
+      case MonitoringWatchTrackedPostureStage.critical:
+        score += 16;
+        rationale.add('track_posture:loitering_staging');
+        break;
+    }
     if (repeatActivity) {
       score += 6;
       rationale.add('repeat');
@@ -296,6 +396,10 @@ class MonitoringWatchSceneAssessmentService {
     final shouldEscalate =
         fireSignal ||
         waterLeakSignal ||
+        weaponSignal ||
+        (trackedSubjectActivity.postureStage ==
+                MonitoringWatchTrackedPostureStage.critical &&
+            !identityAllowedSignal) ||
         (environmentHazardSignal && effectiveRiskScore >= 84) ||
         effectiveRiskScore >= 96 ||
         (repeatActivity && objectLabel == 'person' && effectiveRiskScore >= 90);
@@ -305,12 +409,16 @@ class MonitoringWatchSceneAssessmentService {
         waterLeakSignal ||
         environmentHazardSignal ||
         repeatActivity ||
+        (trackedSubjectActivity.postureStage ==
+                MonitoringWatchTrackedPostureStage.suspicious &&
+            !identityAllowedSignal) ||
         effectiveRiskScore >= 74;
     final postureLabel = _postureLabel(
       shouldEscalate: shouldEscalate,
       repeatActivity: repeatActivity,
       boundaryConcern: boundaryConcern,
       loiteringConcern: loiteringConcern,
+      trackedPostureStage: trackedSubjectActivity.postureStage,
       fireSignal: fireSignal,
       waterLeakSignal: waterLeakSignal,
       environmentHazardSignal: environmentHazardSignal,
@@ -332,6 +440,13 @@ class MonitoringWatchSceneAssessmentService {
       fireSignal: fireSignal,
       waterLeakSignal: waterLeakSignal,
       environmentHazardSignal: environmentHazardSignal,
+      trackId: trackedSubjectActivity.trackId,
+      trackedEventCount: trackedSubjectActivity.eventCount,
+      trackedPresenceWindow: trackedSubjectActivity.presenceWindow,
+      trackedPostureStage: trackedSubjectActivity.postureStage,
+      trackedPostureLabel: trackedSubjectActivity.postureLabel,
+      zoneSensitivity: zoneContext.sensitivity,
+      zoneLabel: zoneContext.label,
       faceMatchId: faceMatchId.isEmpty ? null : faceMatchId,
       faceConfidence: event.faceConfidence,
       plateNumber: plateNumber.isEmpty ? null : plateNumber,
@@ -354,6 +469,11 @@ class MonitoringWatchSceneAssessmentService {
     required String signalText,
     required String objectLabel,
   }) {
+    if (objectLabel == 'firearm' ||
+        objectLabel == 'weapon' ||
+        objectLabel == 'knife') {
+      return '';
+    }
     if (review.indicatesFireSmoke) {
       return 'fire';
     }
@@ -409,7 +529,7 @@ class MonitoringWatchSceneAssessmentService {
     IntelligenceReceived event,
     MonitoringWatchVisionReviewResult review,
   ) {
-    final metadata = _normalizedObjectLabel(event.objectLabel);
+    final metadata = _semanticObjectLabelForEvent(event);
     final reviewed = _normalizedObjectLabel(review.primaryObjectLabel);
     if (reviewed == metadata) {
       return metadata;
@@ -425,6 +545,14 @@ class MonitoringWatchSceneAssessmentService {
       return reviewed;
     }
     return metadata;
+  }
+
+  String _semanticObjectLabelForEvent(IntelligenceReceived event) {
+    final directLabel = _normalizedObjectLabel(event.objectLabel);
+    return resolveIdentityBackedObjectLabel(
+      event: event,
+      directObjectLabel: directLabel,
+    );
   }
 
   String _normalizedObjectLabel(String? raw) {
@@ -446,6 +574,7 @@ class MonitoringWatchSceneAssessmentService {
     required bool repeatActivity,
     required bool boundaryConcern,
     required bool loiteringConcern,
+    required MonitoringWatchTrackedPostureStage trackedPostureStage,
     required bool fireSignal,
     required bool waterLeakSignal,
     required bool environmentHazardSignal,
@@ -462,17 +591,34 @@ class MonitoringWatchSceneAssessmentService {
     if (environmentHazardSignal) {
       return 'environmental hazard alert';
     }
+    if (trackedPostureStage == MonitoringWatchTrackedPostureStage.critical &&
+        boundaryConcern) {
+      return 'critical boundary loitering/staging';
+    }
+    if (trackedPostureStage == MonitoringWatchTrackedPostureStage.critical) {
+      return 'critical loitering/staging';
+    }
     if (shouldEscalate) {
       return 'escalation candidate';
-    }
-    if (repeatActivity) {
-      return 'repeat monitored activity';
     }
     if (boundaryConcern && loiteringConcern) {
       return 'boundary loitering concern';
     }
+    if (trackedPostureStage == MonitoringWatchTrackedPostureStage.suspicious &&
+        boundaryConcern) {
+      return 'boundary dwell alert';
+    }
+    if (trackedPostureStage == MonitoringWatchTrackedPostureStage.suspicious) {
+      return 'dwell alert';
+    }
+    if (trackedPostureStage == MonitoringWatchTrackedPostureStage.innocent) {
+      return 'passing by';
+    }
     if (loiteringConcern) {
       return 'loitering concern';
+    }
+    if (repeatActivity) {
+      return 'repeat monitored activity';
     }
     if (boundaryConcern) {
       return 'boundary movement concern';
@@ -488,4 +634,265 @@ class MonitoringWatchSceneAssessmentService {
     }
     return 'monitored movement alert';
   }
+}
+
+class _TrackedSubjectActivity {
+  final String? trackId;
+  final int eventCount;
+  final Duration presenceWindow;
+  final bool repeatDetected;
+  final bool loiteringConcern;
+  final MonitoringWatchTrackedPostureStage postureStage;
+  final String postureLabel;
+
+  const _TrackedSubjectActivity({
+    this.trackId,
+    this.eventCount = 1,
+    this.presenceWindow = Duration.zero,
+    this.repeatDetected = false,
+    this.loiteringConcern = false,
+    this.postureStage = MonitoringWatchTrackedPostureStage.none,
+    this.postureLabel = '',
+  });
+}
+
+extension on MonitoringWatchSceneAssessmentService {
+  _ZoneContext _zoneContextFor(IntelligenceReceived event) {
+    final zoneLabel = (event.zone ?? '').trim();
+    final searchable = [
+      zoneLabel,
+      event.cameraId ?? '',
+      event.headline,
+      event.summary,
+    ].join(' ').toLowerCase();
+    if (searchable.trim().isEmpty) {
+      return const _ZoneContext(
+        sensitivity: MonitoringWatchZoneSensitivity.none,
+      );
+    }
+    if (_containsAny(searchable, const [
+      'generator room',
+      'server room',
+      'control room',
+      'stock room',
+      'cash office',
+      'vault',
+      'armory',
+      'loading bay',
+    ])) {
+      return _ZoneContext(
+        sensitivity: MonitoringWatchZoneSensitivity.sensitiveZone,
+        label: zoneLabel,
+      );
+    }
+    if (_containsAny(searchable, const [
+      'front gate',
+      'main gate',
+      'back gate',
+      'rear gate',
+      'side gate',
+      'pedestrian gate',
+      'driveway gate',
+      'perimeter',
+      'boundary',
+      'entrance',
+      'fence line',
+      'fence',
+      'gate',
+    ])) {
+      return _ZoneContext(
+        sensitivity: MonitoringWatchZoneSensitivity.restrictedZone,
+        label: zoneLabel,
+      );
+    }
+    if (_containsAny(searchable, const [
+      'driveway lane',
+      'public driveway',
+      'public lane',
+      'roadside',
+      'street',
+      'road',
+      'curb',
+      'sidewalk',
+      'verge',
+    ])) {
+      return _ZoneContext(
+        sensitivity: MonitoringWatchZoneSensitivity.publicApproach,
+        label: zoneLabel,
+      );
+    }
+    if (_containsAny(searchable, const [
+      'driveway',
+      'parking',
+      'car park',
+      'approach',
+      'forecourt',
+      'yard',
+    ])) {
+      return _ZoneContext(
+        sensitivity: MonitoringWatchZoneSensitivity.managedApproach,
+        label: zoneLabel,
+      );
+    }
+    return _ZoneContext(
+      sensitivity: MonitoringWatchZoneSensitivity.managedApproach,
+      label: zoneLabel,
+    );
+  }
+
+  _TrackedSubjectActivity _trackedSubjectActivityFor({
+    required IntelligenceReceived event,
+    required String objectLabel,
+    required MonitoringWatchZoneSensitivity zoneSensitivity,
+    required List<IntelligenceReceived> relatedEvents,
+    MonitoringWatchTrackedSubjectState? persistedTrackedSubject,
+  }) {
+    final trackId = (event.trackId ?? '').trim();
+    if (trackId.isEmpty) {
+      return const _TrackedSubjectActivity();
+    }
+    final matched = <String, IntelligenceReceived>{};
+    for (final candidate in <IntelligenceReceived>[event, ...relatedEvents]) {
+      final candidateTrackId = (candidate.trackId ?? '').trim();
+      if (candidateTrackId != trackId) {
+        continue;
+      }
+      final dedupeKey = candidate.intelligenceId.trim().isNotEmpty
+          ? candidate.intelligenceId.trim()
+          : [
+              candidate.externalId,
+              candidate.occurredAt.toUtc().toIso8601String(),
+            ].join('|');
+      matched[dedupeKey] = candidate;
+    }
+    final events = matched.values.toList(growable: false)
+      ..sort((left, right) => left.occurredAt.compareTo(right.occurredAt));
+    final persistedMatchesTrack =
+        persistedTrackedSubject != null &&
+        persistedTrackedSubject.trackId.trim() == trackId;
+    if (events.isEmpty && !persistedMatchesTrack) {
+      return _TrackedSubjectActivity(trackId: trackId);
+    }
+    var eventCount = events.length;
+    DateTime? earliest = events.isEmpty
+        ? null
+        : events.first.occurredAt.toUtc();
+    DateTime? latest = events.isEmpty ? null : events.last.occurredAt.toUtc();
+    if (persistedMatchesTrack) {
+      eventCount += persistedTrackedSubject.eventCount;
+      earliest = earliest == null
+          ? persistedTrackedSubject.firstSeenAtUtc
+          : (earliest.isBefore(persistedTrackedSubject.firstSeenAtUtc)
+                ? earliest
+                : persistedTrackedSubject.firstSeenAtUtc);
+      latest = latest == null
+          ? persistedTrackedSubject.lastSeenAtUtc
+          : (latest.isAfter(persistedTrackedSubject.lastSeenAtUtc)
+                ? latest
+                : persistedTrackedSubject.lastSeenAtUtc);
+    }
+    final presenceWindow = latest != null && earliest != null
+        ? latest.difference(earliest)
+        : Duration.zero;
+    final normalizedObject = _normalizedObjectLabel(objectLabel);
+    final postureStage = _trackedPostureStageFor(
+      normalizedObject: normalizedObject,
+      zoneSensitivity: zoneSensitivity,
+      presenceWindow: presenceWindow,
+      eventCount: eventCount,
+    );
+    final loiteringConcern = switch (normalizedObject) {
+      'person' =>
+        postureStage == MonitoringWatchTrackedPostureStage.critical ||
+            (eventCount >= 2 && presenceWindow >= const Duration(minutes: 8)),
+      'vehicle' =>
+        postureStage == MonitoringWatchTrackedPostureStage.critical ||
+            (eventCount >= 2 && presenceWindow >= const Duration(minutes: 10)),
+      _ => false,
+    };
+    return _TrackedSubjectActivity(
+      trackId: trackId,
+      eventCount: eventCount,
+      presenceWindow: presenceWindow,
+      repeatDetected: eventCount > 1,
+      loiteringConcern: loiteringConcern,
+      postureStage: postureStage,
+      postureLabel: switch (postureStage) {
+        MonitoringWatchTrackedPostureStage.none => '',
+        MonitoringWatchTrackedPostureStage.innocent => 'passing by',
+        MonitoringWatchTrackedPostureStage.suspicious => 'dwell alert',
+        MonitoringWatchTrackedPostureStage.critical => 'loitering/staging',
+      },
+    );
+  }
+
+  MonitoringWatchTrackedPostureStage _trackedPostureStageFor({
+    required String normalizedObject,
+    required MonitoringWatchZoneSensitivity zoneSensitivity,
+    required Duration presenceWindow,
+    required int eventCount,
+  }) {
+    if (normalizedObject != 'person' &&
+        normalizedObject != 'vehicle' &&
+        normalizedObject != 'unknown' &&
+        normalizedObject != 'movement' &&
+        normalizedObject != 'motion') {
+      return MonitoringWatchTrackedPostureStage.none;
+    }
+    if (eventCount <= 1 && presenceWindow <= Duration.zero) {
+      return MonitoringWatchTrackedPostureStage.none;
+    }
+    final suspiciousThreshold = switch (zoneSensitivity) {
+      MonitoringWatchZoneSensitivity.sensitiveZone => const Duration(
+        seconds: 45,
+      ),
+      MonitoringWatchZoneSensitivity.restrictedZone => const Duration(
+        minutes: 1,
+      ),
+      MonitoringWatchZoneSensitivity.publicApproach => const Duration(
+        minutes: 3,
+      ),
+      MonitoringWatchZoneSensitivity.managedApproach ||
+      MonitoringWatchZoneSensitivity.none => const Duration(
+        minutes: 1,
+        seconds: 30,
+      ),
+    };
+    final criticalThreshold = switch (zoneSensitivity) {
+      MonitoringWatchZoneSensitivity.sensitiveZone => const Duration(
+        minutes: 2,
+      ),
+      MonitoringWatchZoneSensitivity.restrictedZone => const Duration(
+        minutes: 3,
+      ),
+      MonitoringWatchZoneSensitivity.publicApproach => const Duration(
+        minutes: 7,
+      ),
+      MonitoringWatchZoneSensitivity.managedApproach ||
+      MonitoringWatchZoneSensitivity.none => const Duration(minutes: 4),
+    };
+    if (presenceWindow >= criticalThreshold) {
+      return MonitoringWatchTrackedPostureStage.critical;
+    }
+    if (presenceWindow >= suspiciousThreshold) {
+      return MonitoringWatchTrackedPostureStage.suspicious;
+    }
+    return MonitoringWatchTrackedPostureStage.innocent;
+  }
+
+  bool _containsAny(String text, List<String> needles) {
+    for (final needle in needles) {
+      if (text.contains(needle)) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+class _ZoneContext {
+  final MonitoringWatchZoneSensitivity sensitivity;
+  final String label;
+
+  const _ZoneContext({required this.sensitivity, this.label = ''});
 }

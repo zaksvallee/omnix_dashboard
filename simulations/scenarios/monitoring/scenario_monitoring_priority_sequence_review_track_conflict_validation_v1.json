@@ -1,0 +1,335 @@
+{
+  "scenarioId": "monitoring_priority_sequence_review_track_conflict_validation_v1",
+  "title": "Validation: live operations priority sequence should chain review and Track under stacked replay pressure",
+  "description": "Validation replay for a live operations priority sequence that falls back from dispatch into Track while conflicting specialist pressure stays attached to the same decision point.",
+  "category": "monitoring_watch",
+  "scenarioSet": "validation",
+  "tags": ["priority_handoff", "route_persistence", "specialist_conflict", "replay_bias_stack"],
+  "author": "zaks",
+  "createdAt": "2026-04-02T21:05:00Z",
+  "version": 1,
+  "status": "locked_validation",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:48:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": [
+        "fixture_events_monitoring_watch_match.json",
+        "fixture_events_dispatch_handoff.json"
+      ],
+      "projections": [
+        "fixture_projections_live_ops_priority_sequence_track_fallback.json"
+      ],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "elevated",
+    "dispatchState": "active",
+    "clientConversationState": "none",
+    "siteStatusState": "elevated"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_sequence",
+      "steps": [
+        {"stepId": "open_review_action"},
+        {
+          "stepId": "open_dispatch_handoff",
+          "condition": {
+            "field": "dispatchBoard.dispatchAvailable",
+            "equals": true,
+            "otherwiseStepId": "open_track_handoff"
+          },
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist wants the fallback desk held in CCTV Review until visual verification is complete.",
+              "recommendedTarget": "cctvReview",
+              "confidence": 0.84,
+              "priority": "high",
+              "evidence": [
+                "Review evidence is already staged for the live watch incident.",
+                "Dispatch availability already failed at the handoff gate."
+              ],
+              "missingInfo": [],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            },
+            {
+              "specialist": "track",
+              "sourceLabel": "scenario_replay",
+              "summary": "Track specialist still wants Tactical Track open immediately for continuity pressure.",
+              "recommendedTarget": "tacticalTrack",
+              "confidence": 0.61,
+              "priority": "medium",
+              "evidence": [
+                "Track continuity can absorb the next move without waiting for dispatch."
+              ],
+              "missingInfo": [
+                "Fresh CCTV confirmation has not landed yet."
+              ],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_detailed_workspace",
+    "expectedIntent": "open_live_ops_priority_sequence",
+    "expectedEscalationState": "track_opened",
+    "expectedProjectionChanges": [
+      {
+        "step": "review_opened",
+        "reviewSurface": "cctv_review"
+      },
+      {
+        "step": "specialist_conflict",
+        "sourceStepId": "open_dispatch_handoff",
+        "target": "tacticalTrack",
+        "specialists": ["cctv", "track"],
+        "recommendedTargets": ["cctvReview", "tacticalTrack"],
+        "summary": "cctv->cctvReview | track->tacticalTrack"
+      },
+      {
+        "step": "track_opened",
+        "focusSiteId": "site_ms_vallee"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": [
+      "dismiss_without_review",
+      "dismiss_without_track"
+    ],
+    "expectedUiState": {
+      "surface": "live_ops_priority_sequence",
+      "reviewActionVisible": true,
+      "cctvRouteVisible": true,
+      "trackHandoffVisible": true,
+      "readyToTrackVisible": true,
+      "detailedWorkspaceVisible": true,
+      "incidentReference": "INC-LIVEOPS-CHAIN",
+      "intelligenceId": "INTEL-LIVEOPS-CHAIN",
+      "siteId": "site_ms_vallee",
+      "trackLabel": "Ms Vallee chain track",
+      "finalRoute": "track_detailed_workspace",
+      "legacyWorkspaceVisible": false,
+      "specialistConflictVisible": true,
+      "specialistConflictCount": 2,
+      "specialistConflictSpecialists": ["cctv", "track"],
+      "specialistConflictTargets": ["cctvReview", "tacticalTrack"],
+      "specialistConflictSummary": "cctv->cctvReview | track->tacticalTrack"
+    },
+    "commandBrainSnapshot": {
+      "workItemId": "monitoring_priority_sequence_review_track_conflict_validation_v1",
+      "mode": "corroboratedSynthesis",
+      "target": "tacticalTrack",
+      "nextMoveLabel": "OPEN TACTICAL TRACK",
+      "headline": "Tactical Track is the next move",
+      "summary": "One next move is staged in Tactical Track.",
+      "advisory": "Dispatch was unavailable, and specialists still disagreed on the fallback desk (cctv->cctvReview | track->tacticalTrack), so ONYX kept the live-ops sequence moving in Tactical Track while the conflict stayed visible.",
+      "confidence": 0.74,
+      "primaryPressure": "active signal watch",
+      "rationale": "Scenario replay preserved the live-ops sequence contract, applied the Track fallback when dispatch availability failed, and kept the specialist conflict attached to the fallback desk.",
+      "supportingSpecialists": ["cctv", "track"],
+      "contextHighlights": [
+        "CCTV specialist argued for CCTV Review.",
+        "Track specialist argued for Tactical Track.",
+        "Track fallback still held the next move after dispatch availability failed."
+      ],
+      "decisionBias": {
+        "source": "replayPolicy",
+        "scope": "sequenceFallback",
+        "preferredTarget": "tacticalTrack",
+        "summary": "Dispatch was unavailable, so ONYX kept the live-ops sequence moving in Tactical Track.",
+        "policySourceLabel": "scenario sequence policy"
+      },
+      "replayBiasStack": [
+        {
+          "source": "replayPolicy",
+          "scope": "sequenceFallback",
+          "preferredTarget": "tacticalTrack",
+          "summary": "Dispatch was unavailable, so ONYX kept the live-ops sequence moving in Tactical Track.",
+          "policySourceLabel": "scenario sequence policy"
+        },
+        {
+          "source": "replayPolicy",
+          "scope": "specialistConflict",
+          "preferredTarget": "cctvReview",
+          "summary": "Specialist conflict (cctv->cctvReview | track->tacticalTrack) still leaned back to CCTV Review while Tactical Track stayed in front.",
+          "policySourceLabel": "scenario replay specialist pressure"
+        }
+      ],
+      "missingInfo": [
+        "Conflicting specialist recommendations still need reconciliation before the next move is locked.",
+        "Fresh CCTV confirmation has not landed yet."
+      ],
+      "followUpLabel": "RESOLVE SPECIALIST CONFLICT",
+      "followUpPrompt": "Reconcile the conflicting specialist recommendations and confirm whether Tactical Track remains the correct next desk.",
+      "allowRouteExecution": true,
+      "specialistAssessments": [
+        {
+          "specialist": "cctv",
+          "sourceLabel": "scenario_replay",
+          "summary": "CCTV specialist wants the fallback desk held in CCTV Review until visual verification is complete.",
+          "recommendedTarget": "cctvReview",
+          "confidence": 0.84,
+          "priority": "high",
+          "evidence": [
+            "Review evidence is already staged for the live watch incident.",
+            "Dispatch availability already failed at the handoff gate."
+          ],
+          "missingInfo": [],
+          "allowRouteExecution": true,
+          "isHardConstraint": false
+        },
+        {
+          "specialist": "track",
+          "sourceLabel": "scenario_replay",
+          "summary": "Track specialist still wants Tactical Track open immediately for continuity pressure.",
+          "recommendedTarget": "tacticalTrack",
+          "confidence": 0.61,
+          "priority": "medium",
+          "evidence": [
+            "Track continuity can absorb the next move without waiting for dispatch."
+          ],
+          "missingInfo": [
+            "Fresh CCTV confirmation has not landed yet."
+          ],
+          "allowRouteExecution": true,
+          "isHardConstraint": false
+        }
+      ]
+    },
+    "commandBrainTimeline": [
+      {
+        "sequence": 1,
+        "stage": "open_review_action",
+        "note": "Review evidence staged for INC-LIVEOPS-CHAIN.",
+        "snapshot": {
+          "workItemId": "monitoring_priority_sequence_review_track_conflict_validation_v1",
+          "mode": "deterministic",
+          "target": "cctvReview",
+          "nextMoveLabel": "OPEN CCTV REVIEW",
+          "headline": "CCTV Review is the next move",
+          "summary": "One next move is staged in CCTV Review.",
+          "advisory": "Review evidence is staged before the next desk opens.",
+          "confidence": 0.81,
+          "primaryPressure": "active signal watch",
+          "rationale": "Scenario replay opened CCTV Review first to keep the next move attached to verified watch evidence.",
+          "supportingSpecialists": ["cctv"],
+          "contextHighlights": [
+            "Sequence replay executed CCTV review before the next desk."
+          ],
+          "missingInfo": [],
+          "followUpLabel": "",
+          "followUpPrompt": "",
+          "allowRouteExecution": true,
+          "specialistAssessments": []
+        }
+      },
+      {
+        "sequence": 2,
+        "stage": "open_track_handoff",
+        "note": "Track fallback staged after dispatch availability failed. Primary replay pressure: Replay policy bias: Dispatch was unavailable, so ONYX kept the live-ops sequence moving in Tactical Track. Secondary replay pressure: Replay policy bias: Specialist conflict (cctv->cctvReview | track->tacticalTrack) still leaned back to CCTV Review while Tactical Track stayed in front.",
+        "snapshot": {
+          "workItemId": "monitoring_priority_sequence_review_track_conflict_validation_v1",
+          "mode": "corroboratedSynthesis",
+          "target": "tacticalTrack",
+          "nextMoveLabel": "OPEN TACTICAL TRACK",
+          "headline": "Tactical Track is the next move",
+          "summary": "One next move is staged in Tactical Track.",
+          "advisory": "Dispatch was unavailable, and specialists still disagreed on the fallback desk (cctv->cctvReview | track->tacticalTrack), so ONYX kept the live-ops sequence moving in Tactical Track while the conflict stayed visible.",
+          "confidence": 0.74,
+          "primaryPressure": "active signal watch",
+          "rationale": "Scenario replay preserved the live-ops sequence contract, applied the Track fallback when dispatch availability failed, and kept the specialist conflict attached to the fallback desk.",
+          "supportingSpecialists": ["cctv", "track"],
+          "contextHighlights": [
+            "CCTV specialist argued for CCTV Review.",
+            "Track specialist argued for Tactical Track.",
+            "Track fallback still held the next move after dispatch availability failed."
+          ],
+          "decisionBias": {
+            "source": "replayPolicy",
+            "scope": "sequenceFallback",
+            "preferredTarget": "tacticalTrack",
+            "summary": "Dispatch was unavailable, so ONYX kept the live-ops sequence moving in Tactical Track.",
+            "policySourceLabel": "scenario sequence policy"
+          },
+          "replayBiasStack": [
+            {
+              "source": "replayPolicy",
+              "scope": "sequenceFallback",
+              "preferredTarget": "tacticalTrack",
+              "summary": "Dispatch was unavailable, so ONYX kept the live-ops sequence moving in Tactical Track.",
+              "policySourceLabel": "scenario sequence policy"
+            },
+            {
+              "source": "replayPolicy",
+              "scope": "specialistConflict",
+              "preferredTarget": "cctvReview",
+              "summary": "Specialist conflict (cctv->cctvReview | track->tacticalTrack) still leaned back to CCTV Review while Tactical Track stayed in front.",
+              "policySourceLabel": "scenario replay specialist pressure"
+            }
+          ],
+          "missingInfo": [
+            "Conflicting specialist recommendations still need reconciliation before the next move is locked.",
+            "Fresh CCTV confirmation has not landed yet."
+          ],
+          "followUpLabel": "RESOLVE SPECIALIST CONFLICT",
+          "followUpPrompt": "Reconcile the conflicting specialist recommendations and confirm whether Tactical Track remains the correct next desk.",
+          "allowRouteExecution": true,
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist wants the fallback desk held in CCTV Review until visual verification is complete.",
+              "recommendedTarget": "cctvReview",
+              "confidence": 0.84,
+              "priority": "high",
+              "evidence": [
+                "Review evidence is already staged for the live watch incident.",
+                "Dispatch availability already failed at the handoff gate."
+              ],
+              "missingInfo": [],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            },
+            {
+              "specialist": "track",
+              "sourceLabel": "scenario_replay",
+              "summary": "Track specialist still wants Tactical Track open immediately for continuity pressure.",
+              "recommendedTarget": "tacticalTrack",
+              "confidence": 0.61,
+              "priority": "medium",
+              "evidence": [
+                "Track continuity can absorb the next move without waiting for dispatch."
+              ],
+              "missingInfo": [
+                "Fresh CCTV confirmation has not landed yet."
+              ],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

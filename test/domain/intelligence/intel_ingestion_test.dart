@@ -20,6 +20,7 @@ void main() {
           clientId: 'CLIENT-001',
           regionId: 'REGION-GAUTENG',
           siteId: 'SITE-SANDTON',
+          trackId: 'CLIENT-001|SITE-SANDTON|CAM-11|track:7',
           faceMatchId: 'PERSON-44',
           faceConfidence: 91.2,
           plateNumber: 'CA123456',
@@ -42,6 +43,7 @@ void main() {
           .allEvents()
           .whereType<IntelligenceReceived>()
           .single;
+      expect(ingested.trackId, 'CLIENT-001|SITE-SANDTON|CAM-11|track:7');
       expect(ingested.faceMatchId, 'PERSON-44');
       expect(ingested.faceConfidence, 91.2);
       expect(ingested.plateNumber, 'CA123456');

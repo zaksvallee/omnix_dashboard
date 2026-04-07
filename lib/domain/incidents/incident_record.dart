@@ -1,10 +1,16 @@
 import 'incident_enums.dart';
 
 class IncidentRecord {
+  static const String slaStatusBreached = 'breached';
+  static const String slaStatusUnverifiableClockEvent =
+      'unverifiable_clock_event';
+
   final String incidentId;
   final IncidentType type;
   final IncidentSeverity severity;
   final IncidentStatus status;
+  final bool slaBreached;
+  final String? slaEvaluationState;
 
   final String detectedAt;
   final String classifiedAt;
@@ -21,6 +27,8 @@ class IncidentRecord {
     required this.type,
     required this.severity,
     required this.status,
+    this.slaBreached = false,
+    this.slaEvaluationState,
     required this.detectedAt,
     required this.classifiedAt,
     required this.geoScopeRef,
@@ -31,7 +39,9 @@ class IncidentRecord {
   });
 
   IncidentRecord transition({
-    required IncidentStatus newStatus,
+    IncidentStatus? newStatus,
+    bool? slaBreached,
+    String? slaEvaluationState,
     String? linkedDispatchId,
     String? resolvedAt,
     String? closedAt,
@@ -40,7 +50,9 @@ class IncidentRecord {
       incidentId: incidentId,
       type: type,
       severity: severity,
-      status: newStatus,
+      status: newStatus ?? status,
+      slaBreached: slaBreached ?? this.slaBreached,
+      slaEvaluationState: slaEvaluationState ?? this.slaEvaluationState,
       detectedAt: detectedAt,
       classifiedAt: classifiedAt,
       geoScopeRef: geoScopeRef,

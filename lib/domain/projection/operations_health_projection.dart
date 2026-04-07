@@ -156,12 +156,12 @@ class OperationsHealthProjection {
 
       if (event is ExecutionCompleted) {
         dispatchStatus[event.dispatchId] = event.success
-            ? 'EXECUTED'
+            ? 'CONFIRMED'
             : 'FAILED';
         if (event.success) {
           totalExecuted += 1;
           dispatchFeed.add(
-            'Dispatch ${event.dispatchId} EXECUTED • ${event.clientId}/${event.siteId}',
+            'Dispatch ${event.dispatchId} CONFIRMED • ${event.clientId}/${event.siteId}',
           );
         } else {
           totalFailed += 1;
@@ -223,7 +223,7 @@ class OperationsHealthProjection {
 
           for (final dispatchId in siteDispatches) {
             switch (dispatchStatus[dispatchId]) {
-              case 'EXECUTED':
+              case 'CONFIRMED':
                 executed += 1;
                 break;
               case 'DENIED':

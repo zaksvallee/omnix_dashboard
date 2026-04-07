@@ -1,0 +1,64 @@
+{
+  "scenarioId": "dispatch_attention_queue_handoff_v1",
+  "title": "Live operations dispatch handoff should open dispatch board",
+  "description": "A live operations dispatch handoff should open the dispatch board on the active priority lane without falling back to a legacy workspace.",
+  "category": "dispatch_flow",
+  "scenarioSet": "replay",
+  "tags": ["dispatch_board", "route_persistence", "priority_handoff"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T11:10:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:20:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_dispatch_handoff.json"],
+      "projections": ["fixture_projections_dispatch_handoff.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "active",
+    "clientConversationState": "none",
+    "siteStatusState": "elevated"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_dispatch_handoff"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "dispatch_board",
+    "expectedIntent": "open_dispatch_handoff",
+    "expectedEscalationState": "dispatch_ready",
+    "expectedProjectionChanges": [
+      {
+        "dispatchSelection": "DSP-PRIORITY-7"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["dismiss_without_dispatch"],
+    "expectedUiState": {
+      "surface": "live_ops_dispatch_handoff",
+      "dispatchBoardVisible": true,
+      "dispatchHandoffVisible": true,
+      "dispatchId": "DSP-PRIORITY-7",
+      "incidentReference": "INC-9912-ALPHA",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

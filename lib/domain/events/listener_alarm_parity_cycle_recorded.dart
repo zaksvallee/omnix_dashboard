@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class ListenerAlarmParityCycleRecorded extends DispatchEvent {
+  static const String auditTypeKey = 'listener_alarm_parity_cycle_recorded';
   final String sourceLabel;
   final String legacySourceLabel;
   final String statusLabel;
@@ -57,4 +58,7 @@ class ListenerAlarmParityCycleRecorded extends DispatchEvent {
       driftReasonCounts: driftReasonCounts,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

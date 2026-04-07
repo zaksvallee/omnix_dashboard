@@ -48,6 +48,14 @@ class ClientAggregate {
               clientId: event.aggregateId,
               name: event.payload['name'] as String,
               geoReference: event.payload['geo_reference'] as String,
+              latitude: _siteCoordinate(
+                event.payload['latitude'],
+                fallback: Site.defaultLatitude,
+              ),
+              longitude: _siteCoordinate(
+                event.payload['longitude'],
+                fallback: Site.defaultLongitude,
+              ),
               createdAt: event.timestamp,
             ),
           );
@@ -99,4 +107,11 @@ class ClientAggregate {
       contacts: contacts,
     );
   }
+}
+
+double _siteCoordinate(dynamic value, {required double fallback}) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return double.tryParse(value?.toString() ?? '') ?? fallback;
 }

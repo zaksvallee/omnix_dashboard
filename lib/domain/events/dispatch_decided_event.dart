@@ -2,6 +2,7 @@ import 'dispatch_event.dart';
 import '../models/dispatch_action.dart';
 
 class DispatchDecidedEvent extends DispatchEvent {
+  static const String auditTypeKey = 'dispatch_decided_event';
   final DispatchAction action;
 
   const DispatchDecidedEvent({
@@ -22,4 +23,7 @@ class DispatchDecidedEvent extends DispatchEvent {
       action: action,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

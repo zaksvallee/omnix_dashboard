@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 
 import '../domain/intelligence/intel_ingestion.dart';
 import 'dvr_http_auth.dart';
+import 'intelligence_event_object_semantics.dart';
+import 'dvr_scope_config.dart';
 
 class DvrCameraHealth {
   final String cameraId;
@@ -166,7 +168,11 @@ class HttpDvrEvidenceProbeService {
           record.occurredAtUtc.isAfter(aggregate.lastSeenAtUtc!)) {
         aggregate.lastSeenAtUtc = record.occurredAtUtc;
         aggregate.lastZone = (record.zone ?? '').trim();
-        aggregate.lastObjectLabel = (record.objectLabel ?? '').trim();
+        aggregate.lastObjectLabel = resolveIdentityBackedObjectLabelFromSignals(
+          directObjectLabel: (record.objectLabel ?? '').trim(),
+          faceMatchId: record.faceMatchId,
+          plateNumber: record.plateNumber,
+        );
       }
     }
 
@@ -307,6 +313,43 @@ class HttpDvrEvidenceProbeService {
     bearerToken: bearerToken,
     username: username,
     password: password,
+  );
+}
+
+HttpDvrEvidenceProbeService createDvrEvidenceProbeService({
+  required http.Client client,
+  String authMode = '',
+  String bearerToken = '',
+  String username = '',
+  String password = '',
+  int maxQueueDepth = 12,
+  Duration staleFrameThreshold = const Duration(minutes: 30),
+}) {
+  return HttpDvrEvidenceProbeService(
+    client: client,
+    authMode: parseDvrHttpAuthMode(authMode),
+    bearerToken: bearerToken.trim().isEmpty ? null : bearerToken.trim(),
+    username: username.trim().isEmpty ? null : username.trim(),
+    password: password.isEmpty ? null : password,
+    maxQueueDepth: maxQueueDepth,
+    staleFrameThreshold: staleFrameThreshold,
+  );
+}
+
+HttpDvrEvidenceProbeService createDvrEvidenceProbeServiceForScope(
+  DvrScopeConfig scope, {
+  required http.Client client,
+  int maxQueueDepth = 12,
+  Duration staleFrameThreshold = const Duration(minutes: 30),
+}) {
+  return createDvrEvidenceProbeService(
+    client: client,
+    authMode: scope.authMode,
+    bearerToken: scope.bearerToken,
+    username: scope.username,
+    password: scope.password,
+    maxQueueDepth: maxQueueDepth,
+    staleFrameThreshold: staleFrameThreshold,
   );
 }
 

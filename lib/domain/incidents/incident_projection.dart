@@ -18,6 +18,8 @@ class IncidentProjection {
             type: event.metadata['type'] as IncidentType,
             severity: event.metadata['severity'] as IncidentSeverity,
             status: IncidentStatus.detected,
+            slaBreached: false,
+            slaEvaluationState: null,
             detectedAt: event.timestamp,
             classifiedAt: event.timestamp,
             geoScopeRef: event.metadata['geo_scope'] as String,
@@ -26,9 +28,7 @@ class IncidentProjection {
           break;
 
         case IncidentEventType.incidentClassified:
-          record = record.transition(
-            newStatus: IncidentStatus.classified,
-          );
+          record = record.transition(newStatus: IncidentStatus.classified);
           break;
 
         case IncidentEventType.incidentLinkedToDispatch:
@@ -39,9 +39,7 @@ class IncidentProjection {
           break;
 
         case IncidentEventType.incidentEscalated:
-          record = record.transition(
-            newStatus: IncidentStatus.escalated,
-          );
+          record = record.transition(newStatus: IncidentStatus.escalated);
           break;
 
         case IncidentEventType.incidentResolved:
@@ -60,7 +58,15 @@ class IncidentProjection {
 
         case IncidentEventType.incidentSlaBreached:
           record = record.transition(
-            newStatus: IncidentStatus.escalated,
+            slaBreached: true,
+            slaEvaluationState: IncidentRecord.slaStatusBreached,
+          );
+          break;
+
+        case IncidentEventType.incidentSlaClockDriftDetected:
+          record = record.transition(
+            slaBreached: false,
+            slaEvaluationState: IncidentRecord.slaStatusUnverifiableClockEvent,
           );
           break;
 

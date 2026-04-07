@@ -12,8 +12,7 @@ class EscalationTrendProjection {
       return incidentEvents
           .where((e) =>
               e.timestamp.startsWith(month) &&
-              (e.type == IncidentEventType.incidentEscalated ||
-               e.type == IncidentEventType.incidentSlaBreached))
+              e.type == IncidentEventType.incidentEscalated)
           .length;
     }
 

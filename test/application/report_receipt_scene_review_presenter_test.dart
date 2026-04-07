@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/report_generation_service.dart';
 import 'package:omnix_dashboard/application/report_receipt_scene_review_presenter.dart';
 
+import '../fixtures/report_test_bundle.dart';
+
 void main() {
   test('scene review presenter returns escalation accent for escalation receipts', () {
     const summary = ReportReceiptSceneReviewSummary(
@@ -64,10 +66,8 @@ void main() {
       incidentAlerts: 1,
       escalationCandidates: 0,
       topPosture: 'reviewed',
-      latestActionTaken:
-          '2026-03-14T21:14:00.000Z • Camera 1 • Monitoring Alert • Vehicle remained visible in the monitored driveway.',
-      latestSuppressedPattern:
-          '2026-03-14T21:16:00.000Z • Camera 3 • Vehicle remained below escalation threshold.',
+      latestActionTaken: reportTestMonitoringAlertActionTaken,
+      latestSuppressedPattern: reportTestLatestSuppressedPattern,
     );
 
     final color = ReportReceiptSceneReviewPresenter.accent(
@@ -80,7 +80,7 @@ void main() {
     expect(color, const Color(0xFF222222));
     expect(
       ReportReceiptSceneReviewPresenter.narrative(summary),
-      'Scene review stayed below escalation threshold across 3 reviewed CCTV events with 1 alert and 2 suppressed reviews. Latest action taken: 2026-03-14T21:14:00.000Z • Camera 1 • Monitoring Alert • Vehicle remained visible in the monitored driveway.',
+      'Scene review stayed below escalation threshold across 3 reviewed CCTV events with 1 alert and 2 suppressed reviews. Latest action taken: $reportTestMonitoringAlertActionTaken',
     );
   });
 

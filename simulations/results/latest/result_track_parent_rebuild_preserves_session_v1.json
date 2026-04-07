@@ -1,0 +1,24 @@
+{
+  "scenarioId": "track_parent_rebuild_preserves_session_v1",
+  "runId": "2026-04-01T13:29:48.554095Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "track_detailed_workspace",
+    "actualIntent": "preserve_track_workspace",
+    "actualEscalationState": "none",
+    "actualProjectionChanges": [],
+    "actualDrafts": [],
+    "actualBlockedActions": [
+      "reset_to_track_overview"
+    ],
+    "actualUiState": {
+      "surface": "track_detailed_workspace",
+      "legacyWorkspaceVisible": false,
+      "modernOverviewVisible": false,
+      "detailedWorkspaceVisible": true
+    },
+    "appendedEvents": [],
+    "notes": "Evaluated Track entry via desktop_standard viewport in parent_rebuild mode. Projection seeded 1 visible site(s) and liveTrackingEnabled=true."
+  },
+  "mismatches": []
+}

@@ -1,0 +1,11 @@
+{
+  "events": [
+    {
+      "kind": "dispatch_recommended",
+      "occurredAt": "2026-03-30T20:18:00+02:00",
+      "dispatchId": "DSP-PRIORITY-7",
+      "incidentReference": "INC-9912-ALPHA",
+      "siteId": "site_ms_vallee"
+    }
+  ]
+}

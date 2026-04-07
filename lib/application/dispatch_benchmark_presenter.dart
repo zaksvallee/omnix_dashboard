@@ -1,4 +1,4 @@
-import '../ui/dispatch_models.dart';
+import 'dispatch_models.dart';
 
 enum DispatchBenchmarkTone { neutral, positive, negative }
 

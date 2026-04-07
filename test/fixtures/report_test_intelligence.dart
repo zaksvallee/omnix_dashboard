@@ -1,5 +1,8 @@
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 
+DateTime _defaultReportIntelligenceOccurredAtUtc() =>
+    DateTime.utc(2026, 3, 14, 21, 14);
+
 IntelligenceReceived buildTestIntelligenceReceived({
   String eventId = 'evt-1',
   int sequence = 1,
@@ -29,7 +32,7 @@ IntelligenceReceived buildTestIntelligenceReceived({
     eventId: eventId,
     sequence: sequence,
     version: version,
-    occurredAt: occurredAt ?? DateTime.utc(2026, 3, 14, 21, 14),
+    occurredAt: occurredAt ?? _defaultReportIntelligenceOccurredAtUtc(),
     intelligenceId: intelligenceId,
     provider: provider,
     sourceType: sourceType,

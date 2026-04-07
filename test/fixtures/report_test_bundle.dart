@@ -7,6 +7,26 @@ import 'package:omnix_dashboard/domain/crm/reporting/report_section_configuratio
 import 'package:omnix_dashboard/domain/crm/reporting/report_sections.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/site_performance.dart';
 
+const String reportTestHighlightDetectedAt = '2026-03-14T21:18:00.000Z';
+
+const String reportTestMonitoringAlertActionTaken =
+    '2026-03-14T21:14:00.000Z • Camera 1 • Monitoring Alert • Vehicle remained visible in the monitored driveway.';
+
+const String reportTestEscalationSummary =
+    'Person visible near the boundary after repeat activity.';
+
+const String reportTestSuppressedDecisionSummary =
+    'Vehicle remained below escalation threshold.';
+
+const String reportTestSuppressedSummary =
+    'Low significance vehicle motion remained internal.';
+
+const String reportTestLatestActionTaken =
+    '2026-03-14T21:18:00.000Z • Camera 2 • Escalation Candidate • Escalated for urgent review because person activity was detected near the boundary.';
+
+const String reportTestLatestSuppressedPattern =
+    '2026-03-14T21:16:00.000Z • Camera 3 • Vehicle remained below escalation threshold.';
+
 ReportBundle buildTestReportBundle({
   MonthlyReport monthlyReport = const MonthlyReport(
     clientId: 'CLIENT-MS-VALLEE',
@@ -74,14 +94,14 @@ ReportBundle buildTestReportBundle({
     highlights: [
       SceneReviewHighlightSnapshot(
         intelligenceId: 'intel-2',
-        detectedAt: '2026-03-14T21:18:00.000Z',
+        detectedAt: reportTestHighlightDetectedAt,
         cameraLabel: 'Camera 2',
         sourceLabel: 'metadata:fallback',
         postureLabel: 'escalation candidate',
         decisionLabel: 'Escalation Candidate',
         decisionSummary:
             'Escalated for urgent review because person activity was detected near the boundary.',
-        summary: 'Person visible near the boundary after repeat activity.',
+        summary: reportTestEscalationSummary,
       ),
     ],
   ),

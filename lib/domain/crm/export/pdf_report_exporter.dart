@@ -34,8 +34,7 @@ class PDFReportExporter {
         boldItalic: font,
       ),
     );
-    final logoBytes = await rootBundle.load('assets/images/onyx_logo.png');
-    final logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
+    final logoImage = await _loadLogoImage();
 
     pdf.addPage(
       pw.MultiPage(
@@ -122,7 +121,22 @@ class PDFReportExporter {
     );
   }
 
-  static pw.Widget _buildCoverHeader(ReportBundle bundle, pw.MemoryImage logo) {
+  static Future<pw.MemoryImage?> _loadLogoImage() async {
+    try {
+      final logoBytes = await rootBundle.load('assets/images/onyx_logo.png');
+      if (logoBytes.lengthInBytes == 0) {
+        return null;
+      }
+      return pw.MemoryImage(logoBytes.buffer.asUint8List());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static pw.Widget _buildCoverHeader(
+    ReportBundle bundle,
+    pw.MemoryImage? logo,
+  ) {
     final branding = bundle.brandingConfiguration;
     final hasPrimaryBrand = branding.primaryLabel.trim().isNotEmpty;
     final hasEndorsement = branding.endorsementLine.trim().isNotEmpty;
@@ -143,7 +157,18 @@ class PDFReportExporter {
               borderRadius: pw.BorderRadius.circular(8),
             ),
             padding: const pw.EdgeInsets.all(10),
-            child: pw.Image(logo),
+            child: logo == null
+                ? pw.Center(
+                    child: pw.Text(
+                      'ONYX',
+                      style: pw.TextStyle(
+                        color: PdfColors.white,
+                        fontSize: 18,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  )
+                : pw.Image(logo),
           ),
           pw.SizedBox(width: 16),
           pw.Expanded(

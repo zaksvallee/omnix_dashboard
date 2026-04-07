@@ -1,12 +1,238 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:omnix_dashboard/application/client_camera_health_fact_packet_service.dart';
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
+import 'package:omnix_dashboard/application/onyx_agent_client_draft_service.dart';
+import 'package:omnix_dashboard/application/simulation/scenario_replay_history_signal_service.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
+import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
+import 'package:omnix_dashboard/domain/events/patrol_completed.dart';
 import 'package:omnix_dashboard/ui/live_operations_page.dart';
+
+Future<void> _openDetailedWorkspace(WidgetTester tester) async {
+  final toggle = find.byKey(
+    const ValueKey('live-operations-toggle-detailed-workspace'),
+  );
+  if (toggle.evaluate().isEmpty) {
+    return;
+  }
+  final button = tester.widget<OutlinedButton>(toggle);
+  button.onPressed?.call();
+  await tester.pumpAndSettle();
+}
+
+DateTime _liveOperationsControlInboxDraftCreatedAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 18, hour, minute);
+
+DateTime _liveOperationsRecentActivityBaseUtc() =>
+    _liveOperationsNowUtc().subtract(const Duration(hours: 3));
+
+DateTime _liveOperationsRecentActivityOccurredAtUtc(int hour, int minute) =>
+    _liveOperationsRecentActivityBaseUtc().add(
+      Duration(hours: hour - 10, minutes: minute),
+    );
+
+DateTime _liveOperationsHeroScenarioNowUtc() => _liveOperationsNowUtc();
+
+DateTime _liveOperationsNowUtc() => DateTime.now().toUtc();
+
+DateTime _liveOperationsMorningReportGeneratedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 6, 0);
+
+DateTime _liveOperationsNightShiftStartedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 22, 0);
+
+class _FakeClientDraftService implements OnyxAgentClientDraftService {
+  const _FakeClientDraftService();
+
+  @override
+  bool get isConfigured => true;
+
+  @override
+  Future<OnyxAgentClientDraftResult> draft({
+    required String prompt,
+    required String clientId,
+    required String siteId,
+    required String incidentReference,
+  }) async {
+    return OnyxAgentClientDraftResult(
+      telegramDraft:
+          'Telegram draft for $clientId / $siteId about $incidentReference',
+      smsDraft: 'SMS draft based on: $prompt',
+      providerLabel: 'local:test-client-draft',
+    );
+  }
+}
+
+const _promotedReplayConflictSignal = ScenarioReplayHistorySignal(
+  scenarioId: 'parser_monitoring_review_action_specialist_conflict_v1',
+  scope: ScenarioReplayHistorySignalScope.specialistConflict,
+  trend: 'stabilizing',
+  message: 'Specialist conflict remains unresolved.',
+  count: 2,
+  baseSeverity: 'low',
+  effectiveSeverity: 'medium',
+  policyMatchType: 'scope_severity_override',
+  policyMatchValue: 'specialist_conflict:medium',
+  policyMatchSource: 'scenario_set_category',
+  latestSummary: 'CCTV holds review while Track pushes tactical track.',
+  latestSpecialists: <String>['cctv', 'track'],
+  latestTargets: <String>['cctvReview', 'tacticalTrack'],
+);
+
+const _sequenceFallbackReplaySignal = ScenarioReplayHistorySignal(
+  scenarioId: 'parser_monitoring_priority_sequence_review_track_v1',
+  scope: ScenarioReplayHistorySignalScope.sequenceFallback,
+  trend: 'stabilizing',
+  message: 'Replay sequence fallback remains active.',
+  count: 2,
+  baseSeverity: 'low',
+  effectiveSeverity: 'low',
+  latestSummary:
+      'Dispatch was unavailable, so ONYX kept the live-ops sequence moving in Tactical Track.',
+  latestTarget: 'tacticalTrack',
+  latestBiasSource: 'replayPolicy',
+  latestBiasScope: 'sequenceFallback',
+  latestBiasSignature: 'replayPolicy:sequenceFallback',
+  latestBiasPolicySourceLabel: 'scenario sequence policy',
+  latestBranch: 'active',
+);
+
+const _promotedSequenceFallbackReplaySignal = ScenarioReplayHistorySignal(
+  scenarioId: 'monitoring_priority_sequence_review_track_validation_v1',
+  scope: ScenarioReplayHistorySignalScope.sequenceFallback,
+  trend: 'worsening',
+  message: 'Replay sequence fallback remains active under policy escalation.',
+  count: 3,
+  baseSeverity: 'high',
+  effectiveSeverity: 'critical',
+  policyMatchType: 'scope_severity_override',
+  policyMatchValue: 'sequence_fallback:critical',
+  policyMatchSource: 'scenario_set_scenario_id',
+  latestSummary:
+      'Dispatch was unavailable, so ONYX kept the live-ops sequence moving in Tactical Track.',
+  latestTarget: 'tacticalTrack',
+  latestBiasSource: 'replayPolicy',
+  latestBiasScope: 'sequenceFallback',
+  latestBiasSignature: 'replayPolicy:sequenceFallback',
+  latestBiasPolicySourceLabel: 'scenario set/scenario policy',
+  latestBranch: 'active',
+);
+
+const _stackedSequenceFallbackReplaySignal = ScenarioReplayHistorySignal(
+  scenarioId: 'monitoring_priority_sequence_review_track_validation_v1',
+  scope: ScenarioReplayHistorySignalScope.sequenceFallback,
+  trend: 'stabilizing',
+  message: 'Replay sequence fallback remains active.',
+  count: 2,
+  baseSeverity: 'low',
+  effectiveSeverity: 'low',
+  latestSummary:
+      'Dispatch was unavailable, so ONYX kept the live-ops sequence moving in Tactical Track.',
+  latestTarget: 'tacticalTrack',
+  latestBiasSource: 'replayPolicy',
+  latestBiasScope: 'sequenceFallback',
+  latestBiasSignature: 'replayPolicy:sequenceFallback',
+  latestBiasPolicySourceLabel: 'scenario sequence policy',
+  latestBranch: 'active',
+  latestReplayBiasStackSignature:
+      'replayPolicy:sequenceFallback:tacticalTrack -> replayPolicy:specialistConflict:cctvReview',
+  latestReplayBiasStackPosition: 0,
+);
+
+const _stackedReplayConflictSignal = ScenarioReplayHistorySignal(
+  scenarioId: 'monitoring_priority_sequence_review_track_validation_v1',
+  scope: ScenarioReplayHistorySignalScope.specialistConflict,
+  trend: 'worsening',
+  message: 'Specialist conflict opened for review.',
+  count: 1,
+  baseSeverity: 'low',
+  effectiveSeverity: 'medium',
+  latestSummary:
+      'Replay history: specialist conflict still leans back to CCTV Review.',
+  latestTarget: 'cctvReview',
+  latestBiasSource: 'replayPolicy',
+  latestBiasScope: 'specialistConflict',
+  latestBiasSignature: 'replayPolicy:specialistConflict',
+  latestReplayBiasStackSignature:
+      'replayPolicy:sequenceFallback:tacticalTrack -> replayPolicy:specialistConflict:cctvReview',
+  latestReplayBiasStackPosition: 1,
+);
+
+const _replayBiasStackDriftSignal = ScenarioReplayHistorySignal(
+  scenarioId: 'monitoring_priority_sequence_review_track_validation_v1',
+  scope: ScenarioReplayHistorySignalScope.replayBiasStackDrift,
+  trend: 'worsening',
+  message: 'Replay bias stack reordered after a cleaner run.',
+  count: 1,
+  baseSeverity: 'critical',
+  effectiveSeverity: 'critical',
+  latestSummary:
+      'Replay bias stack changed. Previous pressure: Primary replay pressure: sequence fallback -> Tactical Track. Latest pressure: Primary replay pressure: sequence fallback -> Tactical Track. Secondary replay pressure: specialist conflict -> CCTV Review.',
+  latestReplayBiasStackSignature:
+      'replayPolicy:sequenceFallback:tacticalTrack -> replayPolicy:specialistConflict:cctvReview',
+  previousReplayBiasStackSignature:
+      'replayPolicy:sequenceFallback:tacticalTrack',
+);
+
+const _sequenceFallbackRecoverySignal = ScenarioReplayHistorySignal(
+  scenarioId: 'parser_monitoring_priority_sequence_review_track_v1',
+  scope: ScenarioReplayHistorySignalScope.sequenceFallback,
+  trend: 'clean_again',
+  message:
+      'Dispatch Board is back in front after replay fallback cleared from Tactical Track.',
+  count: 2,
+  baseSeverity: 'info',
+  effectiveSeverity: 'info',
+  latestSummary:
+      'Dispatch Board is back in front after replay fallback cleared from Tactical Track.',
+  latestTarget: 'dispatchBoard',
+  latestBiasSource: 'replayPolicy',
+  latestBiasScope: 'sequenceFallback',
+  latestBiasSignature: 'replayPolicy:sequenceFallback',
+  latestBiasPolicySourceLabel: 'scenario sequence policy',
+  latestBranch: 'clean',
+  latestRestoredTarget: 'dispatchBoard',
+);
+
+class _FakeReplayHistorySignalService
+    extends ScenarioReplayHistorySignalService {
+  const _FakeReplayHistorySignalService(
+    this.signal, {
+    this.signalStack = const <ScenarioReplayHistorySignal>[],
+  });
+
+  final ScenarioReplayHistorySignal? signal;
+  final List<ScenarioReplayHistorySignal> signalStack;
+
+  @override
+  Future<List<ScenarioReplayHistorySignal>> loadSignalStack({
+    int limit = 3,
+  }) async {
+    final stack = signalStack.isNotEmpty
+        ? signalStack
+        : <ScenarioReplayHistorySignal>[?signal];
+    return stack.take(limit).toList(growable: false);
+  }
+}
+
+class _ThrowingReplayHistorySignalService
+    extends ScenarioReplayHistorySignalService {
+  const _ThrowingReplayHistorySignalService();
+
+  @override
+  Future<List<ScenarioReplayHistorySignal>> loadSignalStack({
+    int limit = 3,
+  }) async {
+    throw StateError('replay history unavailable');
+  }
+}
 
 void main() {
   testWidgets('live operations stays stable on phone viewport', (tester) async {
@@ -23,7 +249,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
-    expect(find.text('SOVEREIGN LEDGER'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('live-operations-command-memory')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -43,7 +272,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
-    expect(find.text('SOVEREIGN LEDGER'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('live-operations-command-memory')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -57,25 +289,54 @@ void main() {
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
     expect(find.text('ACTION LADDER'), findsOneWidget);
     expect(find.text('INCIDENT CONTEXT'), findsOneWidget);
-    expect(find.text('SOVEREIGN LEDGER'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('live-operations-command-memory')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('incident-card-INC-8829-QX')), findsOneWidget);
     expect(find.byKey(const Key('incident-card-INC-8830-RZ')), findsOneWidget);
   });
 
   testWidgets('live operations renders command overview cards', (tester) async {
+    tester.view.physicalSize = const Size(2240, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     await tester.pumpWidget(
       const MaterialApp(home: LiveOperationsPage(events: [])),
     );
     await tester.pumpAndSettle();
+    await _openDetailedWorkspace(tester);
 
     expect(
-      find.byKey(const ValueKey('live-operations-command-overview')),
+      find.byKey(const ValueKey('live-operations-command-overview-rail')),
       findsOneWidget,
     );
-    expect(find.text('ACTIVE INCIDENTS'), findsOneWidget);
-    expect(find.text('PENDING ACTIONS'), findsOneWidget);
-    expect(find.text('ACTIVE LANES'), findsOneWidget);
-    expect(find.text('SITES UNDER WATCH'), findsOneWidget);
+    expect(
+      find.byKey(
+        const ValueKey('live-operations-command-card-active-incidents'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('live-operations-command-card-pending-actions'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-operations-command-card-active-lanes')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('live-operations-command-card-sites-under-watch'),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('live operations renders command center hero', (tester) async {
@@ -88,11 +349,1354 @@ void main() {
       find.byKey(const ValueKey('live-operations-command-center-hero')),
       findsOneWidget,
     );
-    expect(find.text('CommandCenter'), findsOneWidget);
-    expect(find.text('ALARMS'), findsOneWidget);
-    expect(find.text('GUARDS'), findsOneWidget);
-    expect(find.text('RECENT ACTIVITY'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('live-operations-command-queue')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-operations-command-current-focus')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-operations-command-quick-open')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-operations-command-memory')),
+      findsOneWidget,
+    );
   });
+
+  testWidgets(
+    'live operations routes a plain-language command into client comms',
+    (tester) async {
+      String? openedClientId;
+      String? openedSiteId;
+      String? stagedClientId;
+      String? stagedSiteId;
+      String? stagedDraftText;
+      String? stagedIncidentReference;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const [],
+            initialScopeClientId: 'CLIENT-MS-VALLEE',
+            initialScopeSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+            clientDraftService: const _FakeClientDraftService(),
+            clientCommsSnapshot: LiveClientCommsSnapshot(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              clientVoiceProfileLabel: 'Calm',
+              learnedApprovalStyleCount: 0,
+              learnedApprovalStyleExample: '',
+              pendingLearnedStyleDraftCount: 0,
+              totalMessages: 2,
+              clientInboundCount: 1,
+              pendingApprovalCount: 0,
+              queuedPushCount: 0,
+              telegramHealthLabel: 'ok',
+              telegramHealthDetail: 'Telegram is healthy.',
+              pushSyncStatusLabel: 'live',
+              smsFallbackLabel: 'SMS standby',
+              smsFallbackReady: true,
+              voiceReadinessLabel: 'VoIP staged',
+              deliveryReadinessDetail:
+                  'Primary delivery stays inside Client Comms.',
+              latestClientMessage: 'Any update from the site?',
+              latestPendingDraft:
+                  'Control is checking now and will share the next confirmed move.',
+            ),
+            onOpenClientViewForScope: (clientId, siteId) {
+              openedClientId = clientId;
+              openedSiteId = siteId;
+            },
+            onStageClientDraftForScope:
+                ({
+                  required clientId,
+                  required siteId,
+                  required draftText,
+                  required originalDraftText,
+                  room = 'Residents',
+                  incidentReference = '',
+                }) {
+                  stagedClientId = clientId;
+                  stagedSiteId = siteId;
+                  stagedDraftText = draftText;
+                  stagedIncidentReference = incidentReference;
+                },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('live-operations-command-input')),
+        'Draft a client update for this site',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-command-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(openedClientId, 'CLIENT-MS-VALLEE');
+      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(
+        find.byKey(const ValueKey('live-operations-command-intent-preview')),
+        findsOneWidget,
+      );
+      expect(stagedClientId, 'CLIENT-MS-VALLEE');
+      expect(stagedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(
+        stagedDraftText,
+        contains(
+          'Telegram draft for CLIENT-MS-VALLEE / SITE-MS-VALLEE-RESIDENCE',
+        ),
+      );
+      expect(stagedIncidentReference, isEmpty);
+      expect(find.text('CLIENT DRAFT READY'), findsOneWidget);
+      expect(
+        find.text('Scoped client update is waiting in Client Comms.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Last command:'), findsOneWidget);
+    },
+  );
+
+  testWidgets('live operations answers a guard status command in place', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: LiveOperationsPage(events: [])),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('live-operations-command-input')),
+      'Check status of Echo-3',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-command-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-command-intent-preview')),
+      findsOneWidget,
+    );
+    final commandPreview = find.byKey(
+      const ValueKey('live-operations-command-intent-preview'),
+    );
+    expect(
+      find.descendant(of: commandPreview, matching: find.text('GUARD STATUS')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.text('Last check-in 22:12. Vigilance decay 67%.'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Echo-3 is still active in Command.'), findsWidgets);
+    expect(find.textContaining('Last command:'), findsOneWidget);
+  });
+
+  testWidgets('live operations answers a patrol report command in place', (
+    tester,
+  ) async {
+    final now = DateTime.now().toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          initialScopeClientId: 'CLIENT-MS-VALLEE',
+          initialScopeSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+          events: [
+            PatrolCompleted(
+              eventId: 'patrol-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 18)),
+              guardId: 'Guard001',
+              routeId: 'NORTH-PERIMETER',
+              clientId: 'CLIENT-MS-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              durationSeconds: 17 * 60,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('live-operations-command-input')),
+      'Show last patrol report for Guard001',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-command-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    final commandPreview = find.byKey(
+      const ValueKey('live-operations-command-intent-preview'),
+    );
+    expect(commandPreview, findsOneWidget);
+    expect(
+      find.descendant(of: commandPreview, matching: find.text('PATROL REPORT')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.textContaining('North Perimeter'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.textContaining('Duration 17 min.'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Guard001 completed the last patrol at'),
+      findsWidgets,
+    );
+  });
+
+  testWidgets('live operations answers when no active incident is pinned', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: LiveOperationsPage(
+          events: [],
+          initialScopeClientId: 'CLIENT-EMPTY',
+          initialScopeSiteId: 'SITE-EMPTY',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('live-operations-command-input')),
+      'Summarize the active incident',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-command-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-command-intent-preview')),
+      findsOneWidget,
+    );
+    final commandPreview = find.byKey(
+      const ValueKey('live-operations-command-intent-preview'),
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.text('INCIDENT SUMMARY'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.text(
+          'Select or seed one incident first so ONYX can summarize the current signal cleanly.',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('No active incident is pinned yet'), findsWidgets);
+  });
+
+  testWidgets('live operations lists unresolved incidents in place', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: LiveOperationsPage(events: [])),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('live-operations-command-input')),
+      'Show unresolved incidents',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-command-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    final commandPreview = find.byKey(
+      const ValueKey('live-operations-command-intent-preview'),
+    );
+    expect(commandPreview, findsOneWidget);
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.text('UNRESOLVED INCIDENTS'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.text(
+          'INC-8829-QX • INVESTIGATING • North Residential Cluster  |  INC-8830-RZ • DISPATCHED • Central Access Gate  |  INC-8827-PX • TRIAGING • East Patrol Sector',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('4 unresolved incidents are live in Command.'),
+      findsWidgets,
+    );
+  });
+
+  testWidgets(
+    'live operations ranks sites by alert volume this week in place',
+    (tester) async {
+      final localNow = DateTime.now().toLocal();
+      final weekStart = DateTime(
+        localNow.year,
+        localNow.month,
+        localNow.day,
+      ).subtract(Duration(days: localNow.weekday - DateTime.monday));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            initialScopeClientId: 'CLIENT-001',
+            initialScopeSiteId: 'SITE-SANDTON',
+            events: [
+              IntelligenceReceived(
+                eventId: 'intel-this-week-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: weekStart.add(const Duration(hours: 1)).toUtc(),
+                intelligenceId: 'INT-1',
+                provider: 'hikvision-dvr',
+                sourceType: 'dvr',
+                externalId: 'evt-1',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+                headline: 'North perimeter alert',
+                summary: 'Vehicle paused near the perimeter.',
+                riskScore: 61,
+                canonicalHash: 'hash-1',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-this-week-2',
+                sequence: 2,
+                version: 1,
+                occurredAt: weekStart
+                    .add(const Duration(days: 1, hours: 3))
+                    .toUtc(),
+                intelligenceId: 'INT-2',
+                provider: 'hikvision-dvr',
+                sourceType: 'dvr',
+                externalId: 'evt-2',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+                headline: 'Boundary motion alert',
+                summary: 'Motion detected on the east boundary.',
+                riskScore: 58,
+                canonicalHash: 'hash-2',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-this-week-3',
+                sequence: 3,
+                version: 1,
+                occurredAt: weekStart
+                    .add(const Duration(days: 2, hours: 2))
+                    .toUtc(),
+                intelligenceId: 'INT-3',
+                provider: 'hikvision-dvr',
+                sourceType: 'dvr',
+                externalId: 'evt-3',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+                headline: 'Gate alert',
+                summary: 'Unexpected person detected at the gate.',
+                riskScore: 72,
+                canonicalHash: 'hash-3',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-old',
+                sequence: 4,
+                version: 1,
+                occurredAt: weekStart
+                    .subtract(const Duration(hours: 4))
+                    .toUtc(),
+                intelligenceId: 'INT-OLD',
+                provider: 'hikvision-dvr',
+                sourceType: 'dvr',
+                externalId: 'evt-old',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-OLD',
+                headline: 'Old alert',
+                summary: 'Older alert outside the weekly window.',
+                riskScore: 40,
+                canonicalHash: 'hash-old',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('live-operations-command-input')),
+        'Which site has most alerts this week',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-command-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      final commandPreview = find.byKey(
+        const ValueKey('live-operations-command-intent-preview'),
+      );
+      expect(commandPreview, findsOneWidget);
+      expect(
+        find.descendant(
+          of: commandPreview,
+          matching: find.text('THIS WEEK\'S ALERT LEADER'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Sandton leads this week with 2 alerts.'), findsWidgets);
+      expect(
+        find.descendant(
+          of: commandPreview,
+          matching: find.textContaining('Sandton • 2 alerts'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: commandPreview,
+          matching: find.textContaining('Vallee • 1 alert'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: commandPreview,
+          matching: find.textContaining('Old'),
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('live operations lists today dispatches in place', (
+    tester,
+  ) async {
+    final localNow = DateTime.now().toLocal();
+    final now = DateTime(
+      localNow.year,
+      localNow.month,
+      localNow.day,
+      12,
+    ).toUtc();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-today-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 12)),
+              dispatchId: 'DSP-TODAY-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            DecisionCreated(
+              eventId: 'decision-yesterday',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(days: 1, hours: 2)),
+              dispatchId: 'DSP-YESTERDAY',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-OLD',
+            ),
+            DecisionCreated(
+              eventId: 'decision-today-2',
+              sequence: 3,
+              version: 1,
+              occurredAt: now.subtract(const Duration(hours: 2)),
+              dispatchId: 'DSP-TODAY-2',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('live-operations-command-input')),
+      'Show dispatches today',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-command-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    final commandPreview = find.byKey(
+      const ValueKey('live-operations-command-intent-preview'),
+    );
+    expect(commandPreview, findsOneWidget);
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.text('TODAY\'S DISPATCHES'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('2 dispatches were created today.'), findsWidgets);
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.textContaining('DSP-TODAY-1'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.textContaining('DSP-TODAY-2'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.textContaining('DSP-YESTERDAY'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('live operations lists incidents from last night in place', (
+    tester,
+  ) async {
+    final localNow = DateTime.now().toLocal();
+    final overnightEnd = DateTime(
+      localNow.year,
+      localNow.month,
+      localNow.day,
+      6,
+    );
+    final overnightStart = DateTime(
+      overnightEnd.year,
+      overnightEnd.month,
+      overnightEnd.day,
+    ).subtract(const Duration(days: 1)).add(const Duration(hours: 18));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [
+            DecisionCreated(
+              eventId: 'decision-last-night-1',
+              sequence: 1,
+              version: 1,
+              occurredAt: overnightStart.add(const Duration(hours: 1)).toUtc(),
+              dispatchId: 'DSP-NIGHT-1',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-SANDTON',
+            ),
+            DecisionCreated(
+              eventId: 'decision-too-early',
+              sequence: 2,
+              version: 1,
+              occurredAt: overnightStart
+                  .subtract(const Duration(hours: 2))
+                  .toUtc(),
+              dispatchId: 'DSP-OLD',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-OLD',
+            ),
+            DecisionCreated(
+              eventId: 'decision-last-night-2',
+              sequence: 3,
+              version: 1,
+              occurredAt: overnightStart
+                  .add(const Duration(hours: 5, minutes: 30))
+                  .toUtc(),
+              dispatchId: 'DSP-NIGHT-2',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('live-operations-command-input')),
+      'Show incidents last night',
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-command-submit')),
+    );
+    await tester.pumpAndSettle();
+
+    final commandPreview = find.byKey(
+      const ValueKey('live-operations-command-intent-preview'),
+    );
+    expect(commandPreview, findsOneWidget);
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.text('LAST NIGHT\'S INCIDENTS'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('2 incidents landed last night.'), findsWidgets);
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.textContaining('INC-DSP-NIGHT-1'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.textContaining('INC-DSP-NIGHT-2'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: commandPreview,
+        matching: find.textContaining('INC-DSP-OLD'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('live operations shows guard roster signal in the war room', (
+    tester,
+  ) async {
+    var plannerOpened = false;
+    var auditOpened = false;
+    String? recordedAuditAction;
+    String? recordedAuditDetail;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: [],
+          onOpenRosterPlanner: () {
+            plannerOpened = true;
+          },
+          onOpenRosterAudit: () {
+            auditOpened = true;
+          },
+          onAutoAuditAction: (action, detail) {
+            recordedAuditAction = action;
+            recordedAuditDetail = detail;
+          },
+          guardRosterSignalLabel: 'ROSTER WATCH',
+          guardRosterSignalHeadline:
+              'Fill two open posts before night handoff.',
+          guardRosterSignalDetail:
+              'Month planner has gaps at Sandton and Midrand.',
+          guardRosterSignalAccent: Color(0xFFF59E0B),
+          guardRosterSignalNeedsAttention: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-roster-signal-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-operations-command-item-roster-signal')),
+      findsOneWidget,
+    );
+    expect(find.text('ROSTER WATCH'), findsOneWidget);
+    expect(find.text('ACT NOW'), findsOneWidget);
+    expect(
+      find.text('Fill two open posts before night handoff.'),
+      findsAtLeastNWidgets(2),
+    );
+    expect(find.text('OPEN MONTH PLANNER'), findsOneWidget);
+    final openPlannerAction = find.byKey(
+      const ValueKey('live-operations-command-action-roster-open-planner'),
+    );
+    await tester.ensureVisible(openPlannerAction);
+    await tester.tap(openPlannerAction);
+    await tester.pumpAndSettle();
+    expect(plannerOpened, isTrue);
+    expect(recordedAuditAction, 'roster_planner_opened');
+    expect(
+      recordedAuditDetail,
+      'Opened the month planner from the live operations war room to close a live coverage gap.',
+    );
+    expect(find.text('Month planner warmed from war room.'), findsOneWidget);
+    expect(find.text('OPEN SIGNED AUDIT'), findsWidgets);
+    await tester.tap(
+      find.byKey(
+        const ValueKey('live-operations-command-action-roster-view-audit'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(auditOpened, isTrue);
+    expect(
+      find.text('Signed roster audit opened from war room.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'live operations command hero can hand off the active incident to agent',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsHeroScenarioNowUtc();
+      String? openedIncidentReference;
+      String? recordedAuditAction;
+      String? recordedAuditDetail;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            focusIncidentReference: 'INC-DSP-HERO',
+            onOpenAgentForIncident: (incidentReference) {
+              openedIncidentReference = incidentReference;
+            },
+            onAutoAuditAction: (action, detail) {
+              recordedAuditAction = action;
+              recordedAuditDetail = detail;
+            },
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-hero',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-HERO',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-hero',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-HERO',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-dsp-hero',
+                riskScore: 74,
+                headline: 'Perimeter breach',
+                summary: 'Live motion alert pushed into the command hero.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-hero',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('DO THIS FIRST'), findsOneWidget);
+
+      final askAgentButton = find.byKey(
+        const ValueKey('live-operations-command-open-agent'),
+      );
+      await tester.ensureVisible(askAgentButton);
+      await tester.tap(askAgentButton);
+      await tester.pumpAndSettle();
+
+      expect(openedIncidentReference, 'INC-DSP-HERO');
+      expect(recordedAuditAction, 'agent_handoff_opened');
+      expect(
+        recordedAuditDetail,
+        'Opened AI Copilot from the live operations war room for INC-DSP-HERO.',
+      );
+    },
+  );
+
+  testWidgets('live operations ingests agent returns into the focused board', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final now = _liveOperationsHeroScenarioNowUtc();
+    String? consumedIncidentReference;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          focusIncidentReference: 'INC-DSP-HERO',
+          agentReturnIncidentReference: 'INC-DSP-HERO',
+          onConsumeAgentReturnIncidentReference: (incidentReference) {
+            consumedIncidentReference = incidentReference;
+          },
+          events: [
+            DecisionCreated(
+              eventId: 'decision-dsp-hero',
+              sequence: 1,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 2)),
+              dispatchId: 'DSP-HERO',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-HERO',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-dsp-hero',
+              sequence: 2,
+              version: 1,
+              occurredAt: now.subtract(const Duration(minutes: 1)),
+              intelligenceId: 'INTEL-DSP-HERO',
+              sourceType: 'hardware',
+              provider: 'dahua',
+              externalId: 'evt-dsp-hero',
+              riskScore: 74,
+              headline: 'Perimeter breach',
+              summary: 'Live motion alert pushed into the command hero.',
+              clientId: 'CLIENT-001',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-HERO',
+              canonicalHash: 'canon-dsp-hero',
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _openDetailedWorkspace(tester);
+
+    expect(
+      find.byKey(const ValueKey('live-operations-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('AGENT RETURN'), findsOneWidget);
+    expect(find.text('Returned from Agent for INC-DSP-HERO.'), findsOneWidget);
+    expect(consumedIncidentReference, 'INC-DSP-HERO');
+  });
+
+  testWidgets('live operations surfaces latest auto-audit receipt', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2240, 1280);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+    var openedLatestAudit = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LiveOperationsPage(
+          events: const [],
+          onOpenLatestAudit: () {
+            openedLatestAudit = true;
+          },
+          latestAutoAuditReceipt: const LiveOpsAutoAuditReceipt(
+            auditId: 'ops-audit-1',
+            label: 'AUTO-AUDIT',
+            headline: 'War-room action signed automatically.',
+            detail:
+                'Opened the month planner from the live operations war room • hash 2d7f4c91ab',
+            accent: Color(0xFF63E6A1),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _openDetailedWorkspace(tester);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('live-operations-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('AUTO-AUDIT'), findsOneWidget);
+    expect(find.text('War-room action signed automatically.'), findsOneWidget);
+    expect(find.textContaining('hash 2d7f4c91ab'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('live-operations-command-view-latest-audit')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('live-operations-command-view-latest-audit')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('live-operations-command-view-latest-audit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedLatestAudit, isTrue);
+  });
+
+  testWidgets(
+    'live operations attention queue incident opens alarms route before legacy recovery',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? openedIncidentId;
+      String? recordedAuditAction;
+      String? recordedAuditDetail;
+      final now = _liveOperationsRecentActivityOccurredAtUtc(10, 10);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            focusIncidentReference: 'INC-DSP-4',
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-4',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 4)),
+                dispatchId: 'DSP-4',
+                clientId: 'CLIENT-MS-VALLEE',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-4',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 3)),
+                intelligenceId: 'INTEL-DSP-4',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-dsp-4',
+                riskScore: 78,
+                headline: 'Perimeter motion',
+                summary: 'Moderate perimeter motion detected.',
+                clientId: 'CLIENT-MS-VALLEE',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                canonicalHash: 'canon-dsp-4',
+              ),
+            ],
+            onOpenAlarmsForIncident: (incidentReference) {
+              openedIncidentId = incidentReference;
+            },
+            onAutoAuditAction: (action, detail) {
+              recordedAuditAction = action;
+              recordedAuditDetail = detail;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final incidentActivity = find.byKey(
+        const ValueKey('live-operations-command-item-incident-INC-DSP-4'),
+      );
+      await tester.ensureVisible(incidentActivity);
+      await tester.tap(incidentActivity);
+      await tester.pumpAndSettle();
+
+      expect(openedIncidentId, 'INC-DSP-4');
+      expect(recordedAuditAction, 'dispatch_handoff_opened');
+      expect(
+        recordedAuditDetail,
+        'Opened dispatch board from the live operations war room for INC-DSP-4.',
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations attention queue opens scoped client comms route before legacy recovery',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? openedClientId;
+      String? openedSiteId;
+      String? recordedAuditAction;
+      String? recordedAuditDetail;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const [],
+            clientCommsSnapshot: const LiveClientCommsSnapshot(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            ),
+            controlInboxSnapshot: LiveControlInboxSnapshot(
+              selectedClientId: 'CLIENT-MS-VALLEE',
+              selectedSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+              liveClientAsks: [
+                LiveControlInboxClientAsk(
+                  clientId: 'CLIENT-MS-VALLEE',
+                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  author: 'Client',
+                  body: 'Any update from the gate?',
+                  messageProvider: 'telegram',
+                  occurredAtUtc: _liveOperationsRecentActivityOccurredAtUtc(
+                    12,
+                    0,
+                  ),
+                ),
+              ],
+            ),
+            onOpenClientViewForScope: (clientId, siteId) {
+              openedClientId = clientId;
+              openedSiteId = siteId;
+            },
+            onAutoAuditAction: (action, detail) {
+              recordedAuditAction = action;
+              recordedAuditDetail = detail;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final activityRow = find.byKey(
+        const ValueKey(
+          'live-operations-command-item-comms-SITE-MS-VALLEE-RESIDENCE',
+        ),
+      );
+      await tester.ensureVisible(activityRow);
+      await tester.tap(activityRow);
+      await tester.pumpAndSettle();
+
+      expect(openedClientId, 'CLIENT-MS-VALLEE');
+      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(recordedAuditAction, 'client_handoff_opened');
+      expect(
+        recordedAuditDetail,
+        'Opened Client Comms from the live operations war room for Ms Vallee Residence.',
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations review action emits CCTV auto-audit and opens scoped CCTV route',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? openedIncidentId;
+      String? recordedAuditAction;
+      String? recordedAuditDetail;
+      final now = _liveOperationsHeroScenarioNowUtc();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            focusIncidentReference: 'INC-DSP-VISUAL',
+            onOpenCctvForIncident: (incidentReference) {
+              openedIncidentId = incidentReference;
+            },
+            onAutoAuditAction: (action, detail) {
+              recordedAuditAction = action;
+              recordedAuditDetail = detail;
+            },
+            sceneReviewByIntelligenceId: {
+              'INTEL-DSP-VISUAL': MonitoringSceneReviewRecord(
+                intelligenceId: 'INTEL-DSP-VISUAL',
+                evidenceRecordHash: 'evidence-visual-1',
+                sourceLabel: 'openai:gpt-5.4-mini',
+                postureLabel: 'visual review',
+                decisionLabel: 'Visual Review',
+                decisionSummary:
+                    'Camera review should be opened before the incident is dismissed.',
+                summary: 'Shadow movement is visible near the perimeter line.',
+                reviewedAtUtc: now.subtract(const Duration(seconds: 30)),
+              ),
+            },
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-visual',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-VISUAL',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VISUAL',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-visual',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-VISUAL',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-dsp-visual',
+                riskScore: 76,
+                headline: 'Visual anomaly',
+                summary: 'Thermal and CCTV review recommended.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VISUAL',
+                canonicalHash: 'canon-dsp-visual',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final reviewButton = find.byKey(
+        const ValueKey('live-operations-command-action-review-INC-DSP-VISUAL'),
+      );
+      await tester.ensureVisible(reviewButton);
+      await tester.tap(reviewButton);
+      await tester.pumpAndSettle();
+
+      expect(openedIncidentId, 'INC-DSP-VISUAL');
+      expect(recordedAuditAction, 'cctv_handoff_opened');
+      expect(
+        recordedAuditDetail,
+        'Opened CCTV review from the live operations war room for INC-DSP-VISUAL.',
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations track action emits tactical auto-audit and opens scoped track route',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? openedIncidentId;
+      String? recordedAuditAction;
+      String? recordedAuditDetail;
+      final now = _liveOperationsHeroScenarioNowUtc();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            focusIncidentReference: 'INC-DSP-TRACK',
+            onOpenTrackForIncident: (incidentReference) {
+              openedIncidentId = incidentReference;
+            },
+            onAutoAuditAction: (action, detail) {
+              recordedAuditAction = action;
+              recordedAuditDetail = detail;
+            },
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-track',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-TRACK',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-TRACK',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-track',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-TRACK',
+                sourceType: 'hardware',
+                provider: 'dahua',
+                externalId: 'evt-dsp-track',
+                riskScore: 94,
+                headline: 'Responder moving',
+                summary: 'Track the field movement through Tactical.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-TRACK',
+                canonicalHash: 'canon-dsp-track',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final trackButton = find.byKey(
+        const ValueKey('live-operations-command-action-track-INC-DSP-TRACK'),
+      );
+      await tester.ensureVisible(trackButton);
+      await tester.tap(trackButton);
+      await tester.pumpAndSettle();
+
+      expect(openedIncidentId, 'INC-DSP-TRACK');
+      expect(recordedAuditAction, 'track_handoff_opened');
+      expect(
+        recordedAuditDetail,
+        'Opened tactical track from the live operations war room for INC-DSP-TRACK.',
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations attention queue opens scoped client comms from pending draft approval',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? openedClientId;
+      String? openedSiteId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const [],
+            controlInboxSnapshot: LiveControlInboxSnapshot(
+              selectedClientId: 'CLIENT-MS-VALLEE',
+              selectedSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+              pendingDrafts: [
+                LiveControlInboxDraft(
+                  updateId: 501,
+                  clientId: 'CLIENT-MS-VALLEE',
+                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  sourceText:
+                      'Please confirm if the response team has already arrived.',
+                  draftText:
+                      'Command is confirming arrival now and will share the verified position as soon as it is locked.',
+                  providerLabel: 'OpenAI',
+                  createdAtUtc: _liveOperationsRecentActivityOccurredAtUtc(
+                    12,
+                    4,
+                  ),
+                ),
+              ],
+            ),
+            onOpenClientViewForScope: (clientId, siteId) {
+              openedClientId = clientId;
+              openedSiteId = siteId;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final activityRow = find.byKey(
+        const ValueKey(
+          'live-operations-command-item-comms-SITE-MS-VALLEE-RESIDENCE',
+        ),
+      );
+      await tester.ensureVisible(activityRow);
+      await tester.tap(activityRow);
+      await tester.pumpAndSettle();
+
+      expect(openedClientId, 'CLIENT-MS-VALLEE');
+      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+    },
+  );
+
+  testWidgets(
+    'live operations attention queue opens scoped client comms from latest lane activity fallback',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      String? openedClientId;
+      String? openedSiteId;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const [],
+            clientCommsSnapshot: LiveClientCommsSnapshot(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              latestClientMessage: 'Any update from the gate?',
+              latestClientMessageAtUtc:
+                  _liveOperationsRecentActivityOccurredAtUtc(12, 6),
+            ),
+            onOpenClientViewForScope: (clientId, siteId) {
+              openedClientId = clientId;
+              openedSiteId = siteId;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final activityRow = find.byKey(
+        const ValueKey(
+          'live-operations-command-item-comms-SITE-MS-VALLEE-RESIDENCE',
+        ),
+      );
+      await tester.ensureVisible(activityRow);
+      await tester.tap(activityRow);
+      await tester.pumpAndSettle();
+
+      expect(openedClientId, 'CLIENT-MS-VALLEE');
+      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+    },
+  );
+
+  testWidgets(
+    'live operations command client comms card opens simple client route before legacy recovery',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var openedClientView = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const [],
+            onOpenClientView: () {
+              openedClientView = true;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final clientCommsCard = find.byKey(
+        const ValueKey('live-operations-quick-open-client-comms'),
+      );
+      await tester.ensureVisible(clientCommsCard);
+      await tester.tap(clientCommsCard);
+      await tester.pumpAndSettle();
+
+      expect(openedClientView, isTrue);
+    },
+  );
 
   testWidgets(
     'live operations keeps the detailed workspace hidden on standard desktop',
@@ -135,7 +1739,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     String? openedClientId;
     String? openedSiteId;
     await tester.pumpWidget(
@@ -214,6 +1818,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _openDetailedWorkspace(tester);
 
     expect(find.text('Active Incident: INC-DSP-LOW'), findsOneWidget);
 
@@ -243,7 +1848,7 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -314,8 +1919,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openDetailedWorkspace(tester);
 
-      expect(find.text('Control inbox sync offline'), findsOneWidget);
+      expect(find.text('Inbox offline'), findsOneWidget);
       expect(find.text('Active Incident: INC-DSP-LOW'), findsOneWidget);
 
       await tester.tap(
@@ -343,10 +1949,1173 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('Client lane fallback opened in place.'),
+        find.text('Client Comms fallback opened in place.'),
         findsOneWidget,
       );
       expect(find.byType(SnackBar), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus uses typed triage for distress incidents',
+    (tester) async {
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+      String? openedTrackIncident;
+      String? recordedAuditAction;
+      String? recordedAuditDetail;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-duress',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-DURESS',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-duress',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-DURESS',
+                sourceType: 'wearable',
+                provider: 'onyx',
+                externalId: 'evt-dsp-duress',
+                riskScore: 89,
+                headline: 'Guard distress telemetry',
+                summary:
+                    'Heart rate spike plus no movement detected for Guard001.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-duress',
+              ),
+            ],
+            onOpenTrackForIncident: (incidentReference) {
+              openedTrackIncident = incidentReference;
+            },
+            onAutoAuditAction: (action, detail) {
+              recordedAuditAction = action;
+              recordedAuditDetail = detail;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('OPEN TACTICAL TRACK'), findsOneWidget);
+      expect(
+        find.textContaining('Command brain: deterministic hold'),
+        findsOneWidget,
+      );
+
+      final openBoardButton = find.byKey(
+        const ValueKey('live-operations-command-open-board'),
+      );
+      await tester.ensureVisible(openBoardButton);
+      await tester.tap(openBoardButton);
+      await tester.pumpAndSettle();
+
+      expect(openedTrackIncident, 'INC-DSP-DURESS');
+      expect(recordedAuditAction, 'track_handoff_opened');
+      expect(
+        recordedAuditDetail,
+        'Opened tactical track from the live operations war room for INC-DSP-DURESS.',
+      );
+      expect(find.text('Tactical Track handoff sealed.'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus surfaces replay specialist risk',
+    (tester) async {
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-replay',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-REPLAY',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-replay',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-REPLAY',
+                sourceType: 'wearable',
+                provider: 'onyx',
+                externalId: 'evt-dsp-replay',
+                riskScore: 89,
+                headline: 'Guard distress telemetry',
+                summary:
+                    'Heart rate spike plus no movement detected for Guard001.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-replay',
+              ),
+            ],
+            scenarioReplayHistorySignalService:
+                const _FakeReplayHistorySignalService(
+                  _promotedReplayConflictSignal,
+                ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('live-operations-command-replay-history')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Replay history: specialist conflict promoted low -> medium via scenario set/category policy.',
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining(
+          'Replay policy bias: Replay history: specialist conflict promoted low -> medium',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'CCTV holds review while Track pushes tactical track.',
+        ),
+        findsWidgets,
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus lets replay conflict bias the recovery desk',
+    (tester) async {
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+      String? openedTrackIncident;
+      String? openedCctvIncident;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-replay-bias',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-REPLAY-BIAS',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-replay-bias',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-REPLAY-BIAS',
+                sourceType: 'wearable',
+                provider: 'onyx',
+                externalId: 'evt-dsp-replay-bias',
+                riskScore: 89,
+                headline: 'Guard distress telemetry',
+                summary:
+                    'Heart rate spike plus no movement detected for Guard001.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-replay-bias',
+              ),
+            ],
+            scenarioReplayHistorySignalService:
+                const _FakeReplayHistorySignalService(
+                  _promotedReplayConflictSignal,
+                ),
+            onOpenTrackForIncident: (incidentReference) {
+              openedTrackIncident = incidentReference;
+            },
+            onOpenCctvForIncident: (incidentReference) {
+              openedCctvIncident = incidentReference;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('OPEN CCTV REVIEW'), findsOneWidget);
+      expect(
+        find.textContaining('Replay priority keeps CCTV Review in front'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Replay policy bias: Replay history: specialist conflict promoted low -> medium',
+        ),
+        findsOneWidget,
+      );
+
+      final openBoardButton = find.byKey(
+        const ValueKey('live-operations-command-open-board'),
+      );
+      await tester.ensureVisible(openBoardButton);
+      await tester.tap(openBoardButton);
+      await tester.pumpAndSettle();
+
+      expect(openedCctvIncident, 'INC-DSP-REPLAY-BIAS');
+      expect(openedTrackIncident, isNull);
+      expect(find.text('CCTV Review handoff sealed.'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus lets sequence fallback bias tactical track directly',
+    (tester) async {
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+      String? openedTrackIncident;
+      String? openedCctvIncident;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-sequence-fallback',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-SEQUENCE-FALLBACK',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-sequence-fallback',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-SEQUENCE-FALLBACK',
+                sourceType: 'wearable',
+                provider: 'onyx',
+                externalId: 'evt-dsp-sequence-fallback',
+                riskScore: 89,
+                headline: 'Guard distress telemetry',
+                summary:
+                    'Heart rate spike plus no movement detected for Guard001.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-sequence-fallback',
+              ),
+            ],
+            scenarioReplayHistorySignalService:
+                const _FakeReplayHistorySignalService(
+                  _sequenceFallbackReplaySignal,
+                ),
+            onOpenTrackForIncident: (incidentReference) {
+              openedTrackIncident = incidentReference;
+            },
+            onOpenCctvForIncident: (incidentReference) {
+              openedCctvIncident = incidentReference;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('OPEN TACTICAL TRACK'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Replay priority keeps Tactical Track in front while sequence fallback stays active.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Replay policy bias: Replay history: sequence fallback low.',
+        ),
+        findsOneWidget,
+      );
+
+      final openBoardButton = find.byKey(
+        const ValueKey('live-operations-command-open-board'),
+      );
+      await tester.ensureVisible(openBoardButton);
+      await tester.tap(openBoardButton);
+      await tester.pumpAndSettle();
+
+      expect(openedTrackIncident, 'INC-DSP-SEQUENCE-FALLBACK');
+      expect(openedCctvIncident, isNull);
+      expect(find.text('Tactical Track handoff sealed.'), findsOneWidget);
+      expect(
+        find.byKey(
+          const ValueKey('live-operations-command-memory-command-brain-replay'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey(
+              'live-operations-command-memory-command-brain-replay',
+            ),
+          ),
+          matching: find.textContaining(
+            'Replay policy bias: Replay history: sequence fallback low.',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      await _openDetailedWorkspace(tester);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          const ValueKey(
+            'live-operations-command-receipt-command-brain-replay',
+          ),
+        ),
+        findsOneWidget,
+      );
+      final receiptReplayContext = tester.widget<Text>(
+        find.byKey(
+          const ValueKey(
+            'live-operations-command-receipt-command-brain-replay',
+          ),
+        ),
+      );
+      expect(
+        receiptReplayContext.data,
+        contains('Replay policy bias: Replay history: sequence fallback low.'),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('live-operations-command-receipt')),
+          matching: find.byKey(
+            const ValueKey('live-operations-command-receipt-command-outcome'),
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                const ValueKey(
+                  'live-operations-command-receipt-command-outcome',
+                ),
+              ),
+            )
+            .data,
+        'Replay priority keeps Tactical Track in front while sequence fallback stays active.',
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus frames promoted sequence fallback as policy escalation',
+    (tester) async {
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-sequence-fallback-critical',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-SEQUENCE-FALLBACK-CRITICAL',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-sequence-fallback-critical',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-SEQUENCE-FALLBACK-CRITICAL',
+                sourceType: 'wearable',
+                provider: 'onyx',
+                externalId: 'evt-dsp-sequence-fallback-critical',
+                riskScore: 89,
+                headline: 'Guard distress telemetry',
+                summary:
+                    'Heart rate spike plus no movement detected for Guard001.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-sequence-fallback-critical',
+              ),
+            ],
+            scenarioReplayHistorySignalService:
+                const _FakeReplayHistorySignalService(
+                  _promotedSequenceFallbackReplaySignal,
+                ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('OPEN TACTICAL TRACK'), findsOneWidget);
+      expect(find.text('Policy escalation'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Replay policy escalation keeps Tactical Track in front while sequence fallback stays active.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Replay policy escalation: Replay history: sequence fallback promoted high -> critical via scenario set/scenario policy.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus shows ordered replay pressure stack',
+    (tester) async {
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-sequence-stack',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-SEQUENCE-STACK',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-sequence-stack',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-SEQUENCE-STACK',
+                sourceType: 'wearable',
+                provider: 'onyx',
+                externalId: 'evt-dsp-sequence-stack',
+                riskScore: 89,
+                headline: 'Guard distress telemetry',
+                summary:
+                    'Heart rate spike plus no movement detected for Guard001.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-sequence-stack',
+              ),
+            ],
+            scenarioReplayHistorySignalService:
+                const _FakeReplayHistorySignalService(
+                  _promotedSequenceFallbackReplaySignal,
+                  signalStack: <ScenarioReplayHistorySignal>[
+                    _promotedSequenceFallbackReplaySignal,
+                    _promotedReplayConflictSignal,
+                  ],
+                ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+          'Secondary replay pressure: Replay history: specialist conflict',
+        ),
+        findsWidgets,
+      );
+      final replayHistoryText = tester.widget<Text>(
+        find.byKey(const ValueKey('live-operations-command-replay-history')),
+      );
+      expect(
+        replayHistoryText.data,
+        contains(
+          'Primary replay pressure: Replay history: sequence fallback promoted high -> critical',
+        ),
+      );
+      expect(
+        find.textContaining(
+          'Primary replay pressure: Replay policy escalation: Replay history: sequence fallback promoted high -> critical',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus shows cleared sequence fallback without rebiasing dispatch',
+    (tester) async {
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-sequence-recovery',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-SEQUENCE-RECOVERY',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-sequence-recovery',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-SEQUENCE-RECOVERY',
+                sourceType: 'wearable',
+                provider: 'onyx',
+                externalId: 'evt-dsp-sequence-recovery',
+                riskScore: 89,
+                headline: 'Guard distress telemetry',
+                summary:
+                    'Heart rate spike plus no movement detected for Guard001.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-sequence-recovery',
+              ),
+            ],
+            scenarioReplayHistorySignalService:
+                const _FakeReplayHistorySignalService(
+                  _sequenceFallbackRecoverySignal,
+                ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('OPEN TACTICAL TRACK'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('live-operations-command-replay-history')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Replay history: sequence fallback cleared.'),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining(
+          'Dispatch Board is back in front after replay fallback cleared from Tactical Track.',
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey('live-operations-command-current-focus'),
+          ),
+          matching: find.textContaining('Replay policy bias:'),
+        ),
+        findsNothing,
+      );
+      expect(find.text('Clear replay risk first.'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus surfaces replay bias stack drift without inventing a tertiary stack slot',
+    (tester) async {
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: [
+              DecisionCreated(
+                eventId: 'decision-dsp-sequence-stack-drift',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'DSP-SEQUENCE-STACK-DRIFT',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+              ),
+              IntelligenceReceived(
+                eventId: 'intel-dsp-sequence-stack-drift',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                intelligenceId: 'INTEL-DSP-SEQUENCE-STACK-DRIFT',
+                sourceType: 'wearable',
+                provider: 'onyx',
+                externalId: 'evt-dsp-sequence-stack-drift',
+                riskScore: 89,
+                headline: 'Guard distress telemetry',
+                summary:
+                    'Heart rate spike plus no movement detected for Guard001.',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-HERO',
+                canonicalHash: 'canon-dsp-sequence-stack-drift',
+              ),
+            ],
+            scenarioReplayHistorySignalService:
+                const _FakeReplayHistorySignalService(
+                  _stackedSequenceFallbackReplaySignal,
+                  signalStack: <ScenarioReplayHistorySignal>[
+                    _stackedSequenceFallbackReplaySignal,
+                    _stackedReplayConflictSignal,
+                    _replayBiasStackDriftSignal,
+                  ],
+                ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final replayHistoryText = tester.widget<Text>(
+        find.byKey(const ValueKey('live-operations-command-replay-history')),
+      );
+      expect(
+        replayHistoryText.data,
+        contains(
+          'Primary replay pressure: Replay history: sequence fallback low.',
+        ),
+      );
+      expect(
+        replayHistoryText.data,
+        contains(
+          'Secondary replay pressure: Replay history: specialist conflict promoted low -> medium.',
+        ),
+      );
+      expect(
+        replayHistoryText.data,
+        contains('Replay history: replay bias stack drift critical.'),
+      );
+      expect(
+        replayHistoryText.data,
+        contains(
+          'Previous pressure: Primary replay pressure: sequence fallback -> Tactical Track.',
+        ),
+      );
+      expect(
+        replayHistoryText.data,
+        contains(
+          'Latest pressure: Primary replay pressure: sequence fallback -> Tactical Track. Secondary replay pressure: specialist conflict -> CCTV Review.',
+        ),
+      );
+      expect(
+        replayHistoryText.data,
+        isNot(contains('Tertiary replay pressure')),
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations command current focus restores replay bias stack drift from session memory when replay history reload fails',
+    (tester) async {
+      LiveOperationsPage.debugResetReplayHistoryMemorySession();
+      addTearDown(LiveOperationsPage.debugResetReplayHistoryMemorySession);
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+
+      final List<DispatchEvent> continuityEvents = [
+        DecisionCreated(
+          eventId: 'decision-dsp-sequence-stack-drift-memory',
+          sequence: 1,
+          version: 1,
+          occurredAt: now.subtract(const Duration(minutes: 2)),
+          dispatchId: 'DSP-SEQUENCE-STACK-DRIFT-MEMORY',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-HERO',
+        ),
+        IntelligenceReceived(
+          eventId: 'intel-dsp-sequence-stack-drift-memory',
+          sequence: 2,
+          version: 1,
+          occurredAt: now.subtract(const Duration(minutes: 1)),
+          intelligenceId: 'INTEL-DSP-SEQUENCE-STACK-DRIFT-MEMORY',
+          sourceType: 'wearable',
+          provider: 'onyx',
+          externalId: 'evt-dsp-sequence-stack-drift-memory',
+          riskScore: 89,
+          headline: 'Guard distress telemetry',
+          summary: 'Heart rate spike plus no movement detected for Guard001.',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-HERO',
+          canonicalHash: 'canon-dsp-sequence-stack-drift-memory',
+        ),
+      ];
+
+      Future<void> pumpLiveOps(
+        ScenarioReplayHistorySignalService replayHistorySignalService, {
+        List<DispatchEvent>? events,
+      }) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LiveOperationsPage(
+              events: events ?? continuityEvents,
+              scenarioReplayHistorySignalService: replayHistorySignalService,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpLiveOps(
+        const _FakeReplayHistorySignalService(_replayBiasStackDriftSignal),
+      );
+
+      expect(
+        find.textContaining(
+          'Replay bias stack changed. Previous pressure: Primary replay pressure: sequence fallback -> Tactical Track.',
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining(
+          'Latest pressure: Primary replay pressure: sequence fallback -> Tactical Track. Secondary replay pressure: specialist conflict -> CCTV Review.',
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('live-operations-command-memory-replay-history'),
+        ),
+        findsOneWidget,
+      );
+
+      await pumpLiveOps(
+        const _ThrowingReplayHistorySignalService(),
+        events: continuityEvents,
+      );
+
+      expect(
+        find.textContaining(
+          'Remembered replay continuity: Replay history: replay bias stack drift critical.',
+        ),
+        findsOneWidget,
+      );
+
+      await pumpLiveOps(
+        const _ThrowingReplayHistorySignalService(),
+        events: const <DispatchEvent>[],
+      );
+
+      expect(
+        find.textContaining(
+          'Replay bias stack changed. Previous pressure: Primary replay pressure: sequence fallback -> Tactical Track.',
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining(
+          'Latest pressure: Primary replay pressure: sequence fallback -> Tactical Track. Secondary replay pressure: specialist conflict -> CCTV Review.',
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('live-operations-command-memory-replay-history'),
+        ),
+        findsOneWidget,
+      );
+      await _openDetailedWorkspace(tester);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(
+          const ValueKey('live-operations-command-receipt-replay-history'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations restores replay-backed command receipt from session memory when replay history reload fails',
+    (tester) async {
+      LiveOperationsPage.debugResetReplayHistoryMemorySession();
+      addTearDown(LiveOperationsPage.debugResetReplayHistoryMemorySession);
+      tester.view.physicalSize = const Size(2240, 1280);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final now = _liveOperationsNowUtc();
+      final continuityEvents = <DispatchEvent>[
+        DecisionCreated(
+          eventId: 'decision-dsp-sequence-receipt-memory',
+          sequence: 1,
+          version: 1,
+          occurredAt: now.subtract(const Duration(minutes: 2)),
+          dispatchId: 'DSP-SEQUENCE-RECEIPT-MEMORY',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-HERO',
+        ),
+        IntelligenceReceived(
+          eventId: 'intel-dsp-sequence-receipt-memory',
+          sequence: 2,
+          version: 1,
+          occurredAt: now.subtract(const Duration(minutes: 1)),
+          intelligenceId: 'INTEL-DSP-SEQUENCE-RECEIPT-MEMORY',
+          sourceType: 'wearable',
+          provider: 'onyx',
+          externalId: 'evt-dsp-sequence-receipt-memory',
+          riskScore: 89,
+          headline: 'Guard distress telemetry',
+          summary: 'Heart rate spike plus no movement detected for Guard001.',
+          clientId: 'CLIENT-001',
+          regionId: 'REGION-GAUTENG',
+          siteId: 'SITE-HERO',
+          canonicalHash: 'canon-dsp-sequence-receipt-memory',
+        ),
+      ];
+
+      Future<void> pumpLiveOps(
+        ScenarioReplayHistorySignalService replayHistorySignalService,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LiveOperationsPage(
+              events: continuityEvents,
+              scenarioReplayHistorySignalService: replayHistorySignalService,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpLiveOps(
+        const _FakeReplayHistorySignalService(_sequenceFallbackReplaySignal),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-command-open-board')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Tactical Track handoff sealed.'), findsOneWidget);
+
+      await pumpLiveOps(const _ThrowingReplayHistorySignalService());
+
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey(
+              'live-operations-command-memory-command-brain-replay',
+            ),
+          ),
+          matching: find.textContaining(
+            'Replay policy bias: Replay history: sequence fallback low.',
+          ),
+        ),
+        findsOneWidget,
+      );
+
+      await _openDetailedWorkspace(tester);
+
+      final receiptReplayContext = tester.widget<Text>(
+        find.byKey(
+          const ValueKey(
+            'live-operations-command-receipt-command-brain-replay',
+          ),
+        ),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('live-operations-command-receipt')),
+          matching: find.text('Tactical Track handoff sealed.'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        receiptReplayContext.data,
+        contains('Replay policy bias: Replay history: sequence fallback low.'),
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations restores command preview from session memory without restoring raw command text',
+    (tester) async {
+      LiveOperationsPage.debugResetReplayHistoryMemorySession();
+      addTearDown(LiveOperationsPage.debugResetReplayHistoryMemorySession);
+
+      Future<void> pumpLiveOps(
+        ScenarioReplayHistorySignalService replayHistorySignalService,
+      ) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LiveOperationsPage(
+              events: const <DispatchEvent>[],
+              scenarioReplayHistorySignalService: replayHistorySignalService,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpLiveOps(
+        const _FakeReplayHistorySignalService(_sequenceFallbackReplaySignal),
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey('live-operations-command-input')),
+        'Check status of Echo-3',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-command-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('live-operations-command-intent-preview')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Last command:'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+
+      await pumpLiveOps(const _ThrowingReplayHistorySignalService());
+
+      final restoredPreview = find.byKey(
+        const ValueKey('live-operations-command-intent-preview'),
+      );
+      expect(restoredPreview, findsOneWidget);
+      expect(
+        find.descendant(
+          of: restoredPreview,
+          matching: find.text('GUARD STATUS'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: restoredPreview,
+          matching: find.text('Last check-in 22:12. Vigilance decay 67%.'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Last command preview restored from command memory.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Last command:'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'live operations does not restore replay continuity across scoped workspace changes',
+    (tester) async {
+      LiveOperationsPage.debugResetReplayHistoryMemorySession();
+      addTearDown(LiveOperationsPage.debugResetReplayHistoryMemorySession);
+
+      Future<void> pumpLiveOps({
+        required String clientId,
+        required String siteId,
+        required ScenarioReplayHistorySignalService replayHistorySignalService,
+      }) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LiveOperationsPage(
+              events: const <DispatchEvent>[],
+              initialScopeClientId: clientId,
+              initialScopeSiteId: siteId,
+              scenarioReplayHistorySignalService: replayHistorySignalService,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpLiveOps(
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-HERO',
+        replayHistorySignalService: const _FakeReplayHistorySignalService(
+          _sequenceFallbackReplaySignal,
+        ),
+      );
+
+      expect(
+        find.byKey(
+          const ValueKey('live-operations-command-memory-replay-history'),
+        ),
+        findsOneWidget,
+      );
+
+      await pumpLiveOps(
+        clientId: 'CLIENT-002',
+        siteId: 'SITE-OTHER',
+        replayHistorySignalService: const _ThrowingReplayHistorySignalService(),
+      );
+
+      expect(
+        find.textContaining('Remembered replay continuity:'),
+        findsNothing,
+      );
+      expect(
+        find.byKey(
+          const ValueKey('live-operations-command-memory-replay-history'),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.textContaining('Replay history: sequence fallback low.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations does not restore command preview across scoped workspace changes',
+    (tester) async {
+      LiveOperationsPage.debugResetReplayHistoryMemorySession();
+      addTearDown(LiveOperationsPage.debugResetReplayHistoryMemorySession);
+
+      Future<void> pumpLiveOps({
+        required String clientId,
+        required String siteId,
+        required ScenarioReplayHistorySignalService replayHistorySignalService,
+      }) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: LiveOperationsPage(
+              events: const <DispatchEvent>[],
+              initialScopeClientId: clientId,
+              initialScopeSiteId: siteId,
+              scenarioReplayHistorySignalService: replayHistorySignalService,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await pumpLiveOps(
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-HERO',
+        replayHistorySignalService: const _FakeReplayHistorySignalService(
+          _sequenceFallbackReplaySignal,
+        ),
+      );
+
+      await tester.enterText(
+        find.byKey(const ValueKey('live-operations-command-input')),
+        'Check status of Echo-3',
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-command-submit')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('live-operations-command-intent-preview')),
+        findsOneWidget,
+      );
+
+      await pumpLiveOps(
+        clientId: 'CLIENT-002',
+        siteId: 'SITE-OTHER',
+        replayHistorySignalService: const _ThrowingReplayHistorySignalService(),
+      );
+
+      expect(
+        find.byKey(const ValueKey('live-operations-command-intent-preview')),
+        findsNothing,
+      );
+      expect(
+        find.text('Last command preview restored from command memory.'),
+        findsNothing,
+      );
     },
   );
 
@@ -360,7 +3129,7 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -427,6 +3196,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openDetailedWorkspace(tester);
 
       expect(
         find.byKey(const ValueKey('live-operations-workspace-status-banner')),
@@ -460,6 +3230,27 @@ void main() {
         find.byKey(const ValueKey('live-operations-context-focus-card')),
         findsOneWidget,
       );
+      final incidentFocusCard = tester.widget<Container>(
+        find.byKey(const ValueKey('live-operations-incident-focus-card')),
+      );
+      final incidentFocusDecoration =
+          incidentFocusCard.decoration! as BoxDecoration;
+      final incidentFocusGradient =
+          incidentFocusDecoration.gradient! as LinearGradient;
+      expect(incidentFocusGradient.colors, const [
+        Color(0xFFF3F9FD),
+        Color(0xFFFFFFFF),
+      ]);
+      final boardFocusCard = tester.widget<Container>(
+        find.byKey(const ValueKey('live-operations-board-focus-card')),
+      );
+      final boardFocusDecoration = boardFocusCard.decoration! as BoxDecoration;
+      final boardFocusGradient =
+          boardFocusDecoration.gradient! as LinearGradient;
+      expect(boardFocusGradient.colors, const [
+        Color(0xFFFFFFFF),
+        Color(0xFFF4F8FC),
+      ]);
       expect(find.text('Active Incident: INC-DSP-LOW'), findsOneWidget);
 
       await tester.scrollUntilVisible(
@@ -517,7 +3308,7 @@ void main() {
 
       expect(find.text('Active Incident: INC-DSP-CRIT'), findsOneWidget);
       expect(
-        find.text('Critical lane focused for INC-DSP-CRIT.'),
+        find.text('Critical incident focused for INC-DSP-CRIT.'),
         findsOneWidget,
       );
       expect(find.byType(SnackBar), findsNothing);
@@ -602,7 +3393,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
@@ -646,6 +3437,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _openDetailedWorkspace(tester);
 
     await tester.tap(
       find.byKey(const ValueKey('live-operations-workspace-tab-voip')),
@@ -656,7 +3448,7 @@ void main() {
       find.byKey(const ValueKey('live-operations-voip-recovery')),
       findsOneWidget,
     );
-    expect(find.text('No live call transcript is pinned yet.'), findsOneWidget);
+    expect(find.text('No live call is pinned yet.'), findsOneWidget);
 
     await tester.ensureVisible(
       find.byKey(
@@ -670,7 +3462,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Client lane fallback opened in place.'), findsOneWidget);
+    expect(find.text('Client Comms fallback opened in place.'), findsOneWidget);
     expect(find.byType(SnackBar), findsNothing);
 
     await tester.tap(
@@ -706,7 +3498,7 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -760,6 +3552,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openDetailedWorkspace(tester);
 
       final ledgerPanel = find.byKey(
         const ValueKey('live-operations-ledger-preview'),
@@ -788,7 +3581,7 @@ void main() {
   testWidgets('live operations narrows incidents to the scoped lane', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
@@ -831,10 +3624,86 @@ void main() {
     expect(find.byKey(const Key('incident-card-INC-D-1001')), findsNothing);
   });
 
+  testWidgets(
+    'live operations reprojects scoped incidents when same-length event inputs are replaced',
+    (tester) async {
+      final now = _liveOperationsNowUtc();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            initialScopeClientId: 'CLIENT-001',
+            initialScopeSiteId: 'SITE-VALLEE',
+            events: [
+              DecisionCreated(
+                eventId: 'decision-sandton-initial',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 4)),
+                dispatchId: 'D-1001',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+              ),
+              DecisionCreated(
+                eventId: 'decision-vallee-initial',
+                sequence: 2,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 2)),
+                dispatchId: 'D-2001',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('incident-card-INC-D-2001')), findsOneWidget);
+      expect(find.byKey(const Key('incident-card-INC-D-2002')), findsNothing);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            initialScopeClientId: 'CLIENT-001',
+            initialScopeSiteId: 'SITE-VALLEE',
+            events: [
+              DecisionCreated(
+                eventId: 'decision-sandton-replaced',
+                sequence: 1,
+                version: 1,
+                occurredAt: now.subtract(const Duration(minutes: 4)),
+                dispatchId: 'D-1001',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-SANDTON',
+              ),
+              DecisionCreated(
+                eventId: 'decision-vallee-replaced',
+                sequence: 2,
+                version: 2,
+                occurredAt: now.subtract(const Duration(minutes: 1)),
+                dispatchId: 'D-2002',
+                clientId: 'CLIENT-001',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('incident-card-INC-D-2002')), findsOneWidget);
+      expect(find.byKey(const Key('incident-card-INC-D-2001')), findsNothing);
+    },
+  );
+
   testWidgets('live operations supports client-wide scope focus', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
@@ -890,7 +3759,7 @@ void main() {
   testWidgets(
     'live operations links intelligence focus to live dispatch lane',
     (tester) async {
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -939,7 +3808,7 @@ void main() {
   testWidgets(
     'live operations critical alert banner focuses the critical incident',
     (tester) async {
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -1065,6 +3934,7 @@ void main() {
       const MaterialApp(home: LiveOperationsPage(events: [])),
     );
     await tester.pumpAndSettle();
+    await _openDetailedWorkspace(tester);
 
     final pauseButton = find.byKey(
       const ValueKey('live-operations-board-focus-pause'),
@@ -1087,16 +3957,16 @@ void main() {
   testWidgets('live operations enriches incident context with CCTV evidence', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-14',
-              generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+              generatedAtUtc: _liveOperationsMorningReportGeneratedAtUtc(14),
+              shiftWindowStartUtc: _liveOperationsNightShiftStartedAtUtc(13),
+              shiftWindowEndUtc: _liveOperationsMorningReportGeneratedAtUtc(14),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -1145,9 +4015,9 @@ void main() {
             ),
             SovereignReport(
               date: '2026-03-15',
-              generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+              generatedAtUtc: _liveOperationsMorningReportGeneratedAtUtc(15),
+              shiftWindowStartUtc: _liveOperationsNightShiftStartedAtUtc(14),
+              shiftWindowEndUtc: _liveOperationsMorningReportGeneratedAtUtc(15),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -1235,7 +4105,7 @@ void main() {
     expect(find.text('Latest CCTV Intel'), findsOneWidget);
     expect(find.text('FRIGATE INTRUSION'), findsOneWidget);
     expect(find.text('Evidence Ready'), findsOneWidget);
-    expect(find.text('snapshot + clip'), findsOneWidget);
+    expect(find.text('snapshot + clip'), findsWidgets);
     expect(find.textContaining('snapshot.jpg'), findsOneWidget);
     expect(find.textContaining('clip.mp4'), findsOneWidget);
   });
@@ -1243,7 +4113,7 @@ void main() {
   testWidgets('live operations classifies fire scenes as emergency incidents', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
@@ -1325,7 +4195,7 @@ void main() {
   testWidgets(
     'live operations shows shadow readiness bias for repeated MO pressure',
     (tester) async {
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -1425,7 +4295,7 @@ void main() {
   testWidgets(
     'live operations explains posture-heated promotion pressure in next-shift card',
     (tester) async {
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -1615,7 +4485,7 @@ void main() {
   testWidgets(
     'live operations switches latest intel and ladder labels for DVR',
     (tester) async {
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       await tester.pumpWidget(
         MaterialApp(
           home: LiveOperationsPage(
@@ -1662,7 +4532,7 @@ void main() {
   testWidgets('live operations shows scene review alongside latest intel', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
@@ -1732,7 +4602,7 @@ void main() {
   testWidgets(
     'live operations shows shadow MO intelligence for matched incident context',
     (tester) async {
-      final now = DateTime.now().toUtc();
+      final now = _liveOperationsNowUtc();
       List<String>? openedEventIds;
       String? openedSelectedEventId;
       await tester.pumpWidget(
@@ -1840,6 +4710,10 @@ void main() {
         find.byKey(const ValueKey('live-mo-shadow-dialog-INC-D-3001')),
         findsOneWidget,
       );
+      expect(
+        tester.widget<Dialog>(find.byType(Dialog).last).backgroundColor,
+        const Color(0xFFFFFFFF),
+      );
       expect(find.text('SHADOW MO DOSSIER'), findsOneWidget);
       expect(
         find.textContaining('Actions RAISE READINESS • PREPOSITION RESPONSE'),
@@ -1858,16 +4732,16 @@ void main() {
   testWidgets('live operations shows partner progression in incident context', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-14',
-              generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+              generatedAtUtc: _liveOperationsMorningReportGeneratedAtUtc(14),
+              shiftWindowStartUtc: _liveOperationsNightShiftStartedAtUtc(13),
+              shiftWindowEndUtc: _liveOperationsMorningReportGeneratedAtUtc(14),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -1916,9 +4790,9 @@ void main() {
             ),
             SovereignReport(
               date: '2026-03-15',
-              generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+              generatedAtUtc: _liveOperationsMorningReportGeneratedAtUtc(15),
+              shiftWindowStartUtc: _liveOperationsNightShiftStartedAtUtc(14),
+              shiftWindowEndUtc: _liveOperationsMorningReportGeneratedAtUtc(15),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 10,
                 hashVerified: true,
@@ -2070,7 +4944,7 @@ void main() {
   testWidgets('live operations shows suppressed scene review queue for active site', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
@@ -2180,7 +5054,7 @@ void main() {
       tester.view.resetDevicePixelRatio();
     });
 
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     List<String>? openedEventIds;
     String? openedSelectedEventId;
 
@@ -2246,6 +5120,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _openDetailedWorkspace(tester);
 
     final activityTruthCard = find.byKey(
       const ValueKey('live-activity-truth-card-INC-D-2001'),
@@ -2285,7 +5160,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Opening Events Review for activity truth.'),
+      find.text('Events scope warmed for activity truth.'),
       findsOneWidget,
     );
     expect(find.byType(SnackBar), findsNothing);
@@ -2294,7 +5169,7 @@ void main() {
   testWidgets('live operations shows client comms pulse for active incident', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _liveOperationsNowUtc();
     String? openedClientId;
     String? openedSiteId;
     String? clearedClientId;
@@ -2331,7 +5206,7 @@ void main() {
               siteId: 'SITE-SANDTON',
               headline: 'Boundary concern raised',
               summary:
-                  'Client lane has become active after suspicious movement.',
+                  'Client Comms has become active after suspicious movement.',
               riskScore: 77,
               canonicalHash: 'hash-comms-1',
             ),
@@ -2400,10 +5275,10 @@ void main() {
       find.byKey(const ValueKey('client-lane-watch-panel')),
       findsOneWidget,
     );
-    expect(find.text('CLIENT LANE WATCH'), findsOneWidget);
-    expect(find.text('Open Client Lane'), findsOneWidget);
+    expect(find.text('CLIENT COMMS WATCH'), findsOneWidget);
+    expect(find.text('OPEN CLIENT COMMS'), findsWidgets);
     expect(find.text('Client Comms Pulse'), findsOneWidget);
-    expect(find.text('Open Lane'), findsOneWidget);
+    expect(find.text('OPEN CLIENT COMMS'), findsWidgets);
     expect(find.text('Latest Client Message'), findsOneWidget);
     expect(find.text('Pending ONYX Draft'), findsOneWidget);
     expect(find.text('Latest SMS fallback'), findsWidgets);
@@ -2424,7 +5299,7 @@ void main() {
     expect(find.text('Telegram OK'), findsWidgets);
     expect(find.text('SMS standby'), findsWidgets);
     expect(find.text('VoIP staged'), findsWidgets);
-    expect(find.text('Lane voice Reassuring'), findsOneWidget);
+    expect(find.text('Client voice Reassuring'), findsOneWidget);
     expect(find.text('Cue Reassurance'), findsWidgets);
     expect(find.text('Learned style 2'), findsWidgets);
     expect(find.text('ONYX using learned style'), findsWidgets);
@@ -2479,7 +5354,10 @@ void main() {
     expect(clearedClientId, 'CLIENT-001');
     expect(clearedSiteId, 'SITE-SANDTON');
 
-    final openLaneButton = find.text('Open Lane');
+    final openLaneButton = find.descendant(
+      of: find.byKey(const ValueKey('client-lane-watch-panel')),
+      matching: find.widgetWithText(OutlinedButton, 'OPEN CLIENT COMMS'),
+    );
     await tester.ensureVisible(openLaneButton);
     await tester.tap(openLaneButton);
     await tester.pumpAndSettle();
@@ -2523,7 +5401,10 @@ void main() {
                     'We are checking the latest patrol position now and will send the next verified update shortly.',
                 providerLabel: 'OpenAI',
                 usesLearnedApprovalStyle: true,
-                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  6,
+                  0,
+                ),
                 clientVoiceProfileLabel: 'Validation-heavy',
                 matchesSelectedScope: true,
               ),
@@ -2536,7 +5417,10 @@ void main() {
                 draftText:
                     'Command is confirming arrival now and will share the verified position as soon as it is locked.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  5,
+                  56,
+                ),
                 clientVoiceProfileLabel: 'Concise',
               ),
             ],
@@ -2578,9 +5462,9 @@ void main() {
     expect(find.text('Queue Full'), findsWidgets);
     expect(find.text('High priority 1'), findsOneWidget);
     expect(find.textContaining('2 client replies waiting'), findsOneWidget);
-    expect(find.text('Selected lane'), findsOneWidget);
+    expect(find.text('Selected scope'), findsOneWidget);
     expect(find.text('Other scope'), findsOneWidget);
-    expect(find.text('Lane voice Validation-heavy'), findsOneWidget);
+    expect(find.text('Client voice Validation-heavy'), findsOneWidget);
     expect(find.text('Voice Validation-heavy'), findsOneWidget);
     expect(find.text('Voice Concise'), findsOneWidget);
     expect(find.text('Cue Validation'), findsOneWidget);
@@ -2602,7 +5486,7 @@ void main() {
     );
     expect(
       find.text(
-        'This draft is already leaning on learned approval wording from this lane.',
+        'This draft is already leaning on learned approval wording from this Client Comms flow.',
       ),
       findsOneWidget,
     );
@@ -2752,7 +5636,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: otherDraft,
-        matching: find.widgetWithText(OutlinedButton, 'Open Client Lane'),
+        matching: find.widgetWithText(OutlinedButton, 'OPEN CLIENT COMMS'),
       ),
     );
     await tester.pumpAndSettle();
@@ -2760,6 +5644,598 @@ void main() {
     expect(openedClientId, 'CLIENT-VALLEE');
     expect(openedSiteId, 'SITE-RESIDENCE');
   });
+
+  testWidgets(
+    'live operations ignores async control inbox approval completions after the page is removed',
+    (tester) async {
+      final approvalCompleter = Completer<String>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const [],
+            controlInboxSnapshot: LiveControlInboxSnapshot(
+              selectedClientId: 'CLIENT-001',
+              selectedSiteId: 'SITE-SANDTON',
+              pendingApprovalCount: 1,
+              selectedScopePendingCount: 1,
+              pendingDrafts: [
+                LiveControlInboxDraft(
+                  updateId: 501,
+                  clientId: 'CLIENT-001',
+                  siteId: 'SITE-SANDTON',
+                  sourceText: 'Please confirm what is happening on site.',
+                  draftText: 'Command is confirming the latest position now.',
+                  providerLabel: 'OpenAI',
+                  createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                    6,
+                    0,
+                  ),
+                  matchesSelectedScope: true,
+                ),
+              ],
+            ),
+            onApproveClientReplyDraft: (updateId, {approvedText}) {
+              return approvalCompleter.future;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final draftCard = find.byKey(const ValueKey('control-inbox-draft-501'));
+      await tester.ensureVisible(draftCard);
+      await tester.tap(
+        find.descendant(
+          of: draftCard,
+          matching: find.widgetWithText(FilledButton, 'Approve + Send'),
+        ),
+      );
+      await tester.pump();
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      await tester.pump();
+
+      approvalCompleter.complete('approved=501');
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'live operations shows the scoped camera preview panel for client comms watch',
+    (tester) async {
+      var cameraLoadCount = 0;
+      Uri? openedExternalUri;
+      final now = DateTime.utc(2026, 4, 3, 20, 40);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const <DispatchEvent>[],
+            clientCommsSnapshot: LiveClientCommsSnapshot(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              clientVoiceProfileLabel: 'Concise',
+              clientInboundCount: 1,
+              latestClientMessage: 'Can you see what is happening now?',
+              latestClientMessageAtUtc: now.subtract(
+                const Duration(minutes: 2),
+              ),
+              latestOnyxReply:
+                  'ONYX is checking the latest confirmed camera position now.',
+              latestOnyxReplyAtUtc: now.subtract(const Duration(minutes: 1)),
+              telegramHealthLabel: 'ok',
+              smsFallbackLabel: 'SMS standby',
+              voiceReadinessLabel: 'VoIP staged',
+              pushSyncStatusLabel: 'ready',
+            ),
+            onOpenExternalUri: (uri) async {
+              openedExternalUri = uri;
+              return true;
+            },
+            onLoadCameraHealthFactPacketForScope: (clientId, siteId) async {
+              cameraLoadCount += 1;
+              return ClientCameraHealthFactPacket(
+                clientId: clientId,
+                siteId: siteId,
+                siteReference: 'MS Vallee Residence',
+                status: ClientCameraHealthStatus.live,
+                reason: ClientCameraHealthReason.legacyProxyActive,
+                path: ClientCameraHealthPath.legacyLocalProxy,
+                lastSuccessfulVisualAtUtc: now.subtract(
+                  const Duration(seconds: 20),
+                ),
+                lastSuccessfulUpstreamProbeAtUtc: now.subtract(
+                  const Duration(seconds: 10),
+                ),
+                localProxyEndpoint: Uri.parse('http://127.0.0.1:11635'),
+                localProxyUpstreamAlertStreamUri: Uri.parse(
+                  'http://192.168.0.117/ISAPI/Event/notification/alertStream',
+                ),
+                localProxyReachable: true,
+                localProxyRunning: true,
+                localProxyUpstreamStreamConnected: true,
+                localProxyBufferedAlertCount: 3,
+                localProxyLastAlertAtUtc: now.subtract(
+                  const Duration(seconds: 6),
+                ),
+                localProxyLastSuccessAtUtc: now.subtract(
+                  const Duration(seconds: 5),
+                ),
+                currentVisualSnapshotUri: Uri.parse(
+                  'http://127.0.0.1:11635/ISAPI/Streaming/channels/101/picture',
+                ),
+                currentVisualRelayStreamUri: Uri.parse(
+                  'http://127.0.0.1:11635/onyx/live/channels/101.mjpg',
+                ),
+                currentVisualRelayPlayerUri: Uri.parse(
+                  'http://127.0.0.1:11635/onyx/live/channels/101/player',
+                ),
+                currentVisualCameraId: 'channel-1',
+                currentVisualVerifiedAtUtc: now.subtract(
+                  const Duration(seconds: 20),
+                ),
+                currentVisualRelayCheckedAtUtc: now.subtract(
+                  const Duration(seconds: 3),
+                ),
+                currentVisualRelayStatus: ClientCameraRelayStatus.active,
+                currentVisualRelayLastFrameAtUtc: now.subtract(
+                  const Duration(seconds: 2),
+                ),
+                currentVisualRelayActiveClientCount: 1,
+                continuousVisualWatchStatus: 'active',
+                continuousVisualWatchSummary:
+                    'Continuous visual watch still sees a sustained high-priority perimeter pressure near Front Gate across 2 cameras.',
+                continuousVisualWatchLastSweepAtUtc: now.subtract(
+                  const Duration(seconds: 4),
+                ),
+                continuousVisualWatchLastCandidateAtUtc: now.subtract(
+                  const Duration(minutes: 6),
+                ),
+                continuousVisualWatchReachableCameraCount: 3,
+                continuousVisualWatchBaselineReadyCameraCount: 2,
+                continuousVisualWatchHotCameraId: 'channel-11',
+                continuousVisualWatchHotCameraLabel: 'Perimeter Camera 11',
+                continuousVisualWatchHotZoneLabel: 'Perimeter',
+                continuousVisualWatchHotAreaLabel: 'Front Gate',
+                continuousVisualWatchHotWatchRuleKey: 'perimeter_watch',
+                continuousVisualWatchHotWatchPriorityLabel: 'High',
+                continuousVisualWatchHotCameraChangeStreakCount: 1,
+                continuousVisualWatchHotCameraChangeStage: 'watching',
+                continuousVisualWatchHotCameraChangeActiveSinceUtc: now
+                    .subtract(const Duration(seconds: 18)),
+                continuousVisualWatchHotCameraSceneDeltaScore: 0.417,
+                continuousVisualWatchCorrelatedContextLabel: 'Front Gate',
+                continuousVisualWatchCorrelatedAreaLabel: 'Front Gate',
+                continuousVisualWatchCorrelatedZoneLabel: 'Perimeter',
+                continuousVisualWatchCorrelatedWatchRuleKey: 'perimeter_watch',
+                continuousVisualWatchCorrelatedWatchPriorityLabel: 'High',
+                continuousVisualWatchCorrelatedChangeStage: 'sustained',
+                continuousVisualWatchCorrelatedActiveSinceUtc: now.subtract(
+                  const Duration(seconds: 14),
+                ),
+                continuousVisualWatchCorrelatedCameraCount: 2,
+                continuousVisualWatchCorrelatedCameraLabels: const <String>[
+                  'Front Gate Entry',
+                  'Front Gate Perimeter',
+                ],
+                continuousVisualWatchPostureKey: 'perimeter_pressure',
+                continuousVisualWatchPostureLabel: 'Perimeter pressure',
+                continuousVisualWatchAttentionLabel: 'high',
+                continuousVisualWatchSourceLabel: 'cross_camera',
+                nextAction:
+                    'Keep the legacy local Hikvision proxy on 127.0.0.1:11635 in place until the Hik-Connect credentials arrive, then switch this site to the Hik-Connect API path.',
+                safeClientExplanation:
+                    'We currently have visual confirmation at MS Vallee Residence through a temporary local recorder bridge while the newer API credentials are still pending.',
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(cameraLoadCount, 1);
+      expect(
+        find.byKey(const ValueKey('client-lane-camera-preview-panel')),
+        findsOneWidget,
+      );
+      expect(find.text('CURRENT CAMERA CHECK'), findsOneWidget);
+      expect(find.text('REFRESH FRAME'), findsOneWidget);
+      expect(find.text('COPY FRAME URL'), findsOneWidget);
+      expect(find.text('COPY PLAYER URL'), findsOneWidget);
+      expect(find.text('OPEN LIVE VIEW'), findsOneWidget);
+      expect(find.text('OPEN STREAM PLAYER'), findsOneWidget);
+      expect(find.text('PAUSE PREVIEW'), findsOneWidget);
+      expect(find.textContaining('Refreshing stills every 5s'), findsOneWidget);
+      expect(
+        find.textContaining('visual confirmation at MS Vallee Residence'),
+        findsOneWidget,
+      );
+      expect(find.text('Proxy CONNECTED'), findsOneWidget);
+      expect(find.text('Upstream CONNECTED'), findsOneWidget);
+      expect(find.text('Buffered alerts 3'), findsOneWidget);
+      expect(
+        find.textContaining('Current visual confirmation'),
+        findsOneWidget,
+      );
+      expect(find.text('Relay ACTIVE'), findsWidgets);
+      expect(find.text('Watch ACTIVE'), findsOneWidget);
+      expect(find.text('Posture PERIMETER PRESSURE'), findsOneWidget);
+      expect(find.text('Attention HIGH'), findsOneWidget);
+      expect(find.text('Source CROSS-CAMERA'), findsOneWidget);
+      expect(find.text('Hot Perimeter Camera 11 • Perimeter'), findsOneWidget);
+      expect(find.text('Area FRONT GATE'), findsOneWidget);
+      expect(find.text('Rule HIGH PRIORITY'), findsOneWidget);
+      expect(find.text('Streak x1'), findsOneWidget);
+      expect(find.text('Deviation WATCHING'), findsOneWidget);
+      expect(find.text('Correlation FRONT GATE x2'), findsOneWidget);
+      expect(find.text('Cross-camera HIGH'), findsOneWidget);
+      expect(find.text('Stage SUSTAINED'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Scoped local proxy is connected. The upstream alert stream is connected right now. 3 alerts buffered for this scope.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'actively serving frames on the temporary local bridge',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'sustained high-priority perimeter pressure near Front Gate across 2 cameras',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Watch posture: Perimeter pressure • high attention • cross-camera',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Focus camera: Perimeter Camera 11 • Front Gate • delta 42%',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Change since'), findsOneWidget);
+      expect(
+        find.textContaining('Cross-camera focus: Front Gate • 2 cameras'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Linked cameras: Front Gate Entry, Front Gate Perimeter.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('browser-safe player URL is ready'),
+        findsOneWidget,
+      );
+
+      final toggleButton = find.byKey(
+        const ValueKey(
+          'client-lane-camera-toggle-CLIENT-MS-VALLEE-SITE-MS-VALLEE-RESIDENCE',
+        ),
+      );
+      await tester.ensureVisible(toggleButton);
+      await tester.tap(toggleButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('RESUME PREVIEW'), findsOneWidget);
+
+      await tester.tap(toggleButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('PAUSE PREVIEW'), findsOneWidget);
+
+      final openLiveViewButton = find.byKey(
+        const ValueKey(
+          'client-lane-camera-open-live-CLIENT-MS-VALLEE-SITE-MS-VALLEE-RESIDENCE',
+        ),
+      );
+      await tester.ensureVisible(openLiveViewButton);
+      await tester.tap(openLiveViewButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('LIVE VIEW (REFRESHING STILLS)'), findsOneWidget);
+      expect(find.text('PAUSE LIVE VIEW'), findsOneWidget);
+
+      final dialogToggleButton = find.byKey(
+        const ValueKey('client-lane-live-view-toggle'),
+      );
+      await tester.ensureVisible(dialogToggleButton);
+      await tester.tap(dialogToggleButton);
+      await tester.pumpAndSettle();
+      expect(find.text('RESUME LIVE VIEW'), findsOneWidget);
+      expect(find.text('OPEN STREAM PLAYER'), findsNWidgets(2));
+
+      final dialogCloseButton = find.byKey(
+        const ValueKey('client-lane-live-view-close'),
+      );
+      await tester.ensureVisible(dialogCloseButton);
+      await tester.tap(dialogCloseButton);
+      await tester.pumpAndSettle();
+      expect(find.text('LIVE VIEW (REFRESHING STILLS)'), findsNothing);
+
+      final openStreamButton = find.byKey(
+        const ValueKey(
+          'client-lane-camera-open-stream-CLIENT-MS-VALLEE-SITE-MS-VALLEE-RESIDENCE',
+        ),
+      );
+      await tester.ensureVisible(openStreamButton);
+      await tester.tap(openStreamButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('STREAM RELAY PLAYER'), findsOneWidget);
+      expect(find.text('OPEN IN BROWSER'), findsOneWidget);
+      expect(find.text('COPY PLAYER URL'), findsNWidgets(2));
+      expect(find.text('Relay ACTIVE'), findsWidgets);
+      expect(
+        find.textContaining(
+          'actively serving frames on the temporary local bridge',
+        ),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('Inline stream embedding is only available'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Player URL: http://127.0.0.1:11635/onyx/live/channels/101/player',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Relay URL: http://127.0.0.1:11635/onyx/live/channels/101.mjpg',
+        ),
+        findsOneWidget,
+      );
+
+      final openInBrowserButton = find.byKey(
+        const ValueKey('client-lane-stream-relay-open-browser'),
+      );
+      await tester.ensureVisible(openInBrowserButton);
+      await tester.tap(openInBrowserButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        openedExternalUri?.toString(),
+        'http://127.0.0.1:11635/onyx/live/channels/101/player',
+      );
+
+      final closeStreamRelayButton = find.byKey(
+        const ValueKey('client-lane-stream-relay-close'),
+      );
+      await tester.ensureVisible(closeStreamRelayButton);
+      await tester.tap(closeStreamRelayButton);
+      await tester.pumpAndSettle();
+      expect(find.text('STREAM RELAY PLAYER'), findsNothing);
+
+      final refreshButton = find.byKey(
+        const ValueKey(
+          'client-lane-camera-refresh-CLIENT-MS-VALLEE-SITE-MS-VALLEE-RESIDENCE',
+        ),
+      );
+      await tester.ensureVisible(refreshButton);
+      await tester.tap(refreshButton);
+      await tester.pumpAndSettle();
+
+      expect(cameraLoadCount, greaterThanOrEqualTo(2));
+    },
+  );
+
+  testWidgets(
+    'live operations shows reconnecting local proxy status in the camera preview panel',
+    (tester) async {
+      final now = DateTime.utc(2026, 4, 3, 20, 40);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const <DispatchEvent>[],
+            clientCommsSnapshot: LiveClientCommsSnapshot(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              clientVoiceProfileLabel: 'Concise',
+              clientInboundCount: 1,
+              latestClientMessage: 'Can you see what is happening now?',
+              latestClientMessageAtUtc: now.subtract(
+                const Duration(minutes: 2),
+              ),
+              latestOnyxReply:
+                  'ONYX is checking the latest confirmed camera position now.',
+              latestOnyxReplyAtUtc: now.subtract(const Duration(minutes: 1)),
+              telegramHealthLabel: 'ok',
+              smsFallbackLabel: 'SMS standby',
+              voiceReadinessLabel: 'VoIP staged',
+              pushSyncStatusLabel: 'ready',
+            ),
+            onLoadCameraHealthFactPacketForScope: (clientId, siteId) async {
+              return ClientCameraHealthFactPacket(
+                clientId: clientId,
+                siteId: siteId,
+                siteReference: 'MS Vallee Residence',
+                status: ClientCameraHealthStatus.live,
+                reason: ClientCameraHealthReason.legacyProxyActive,
+                path: ClientCameraHealthPath.legacyLocalProxy,
+                lastSuccessfulVisualAtUtc: now.subtract(
+                  const Duration(seconds: 20),
+                ),
+                lastSuccessfulUpstreamProbeAtUtc: now.subtract(
+                  const Duration(seconds: 10),
+                ),
+                localProxyEndpoint: Uri.parse('http://127.0.0.1:11635'),
+                localProxyUpstreamAlertStreamUri: Uri.parse(
+                  'http://192.168.0.117/ISAPI/Event/notification/alertStream',
+                ),
+                localProxyReachable: true,
+                localProxyRunning: true,
+                localProxyUpstreamStreamStatus: 'reconnecting',
+                localProxyUpstreamStreamConnected: false,
+                localProxyBufferedAlertCount: 2,
+                localProxyLastAlertAtUtc: now.subtract(
+                  const Duration(seconds: 16),
+                ),
+                localProxyLastSuccessAtUtc: now.subtract(
+                  const Duration(seconds: 15),
+                ),
+                currentVisualSnapshotUri: Uri.parse(
+                  'http://127.0.0.1:11635/ISAPI/Streaming/channels/101/picture',
+                ),
+                currentVisualVerifiedAtUtc: now.subtract(
+                  const Duration(seconds: 20),
+                ),
+                nextAction:
+                    'Keep the legacy local Hikvision proxy online while ONYX retries the upstream alert stream attachment.',
+                safeClientExplanation:
+                    'We currently have visual confirmation at MS Vallee Residence through a temporary local recorder bridge while the newer API credentials are still pending.',
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('client-lane-camera-preview-panel')),
+        findsOneWidget,
+      );
+      expect(find.text('Proxy RECONNECTING...'), findsOneWidget);
+      expect(find.text('Upstream RECONNECTING...'), findsOneWidget);
+      expect(find.text('Upstream CONNECTED'), findsNothing);
+      expect(
+        find.textContaining(
+          'Scoped local proxy is reconnecting. The upstream alert stream is reconnecting right now. 2 alerts buffered for this scope.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations distinguishes camera health load failure from empty state',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const <DispatchEvent>[],
+            clientCommsSnapshot: LiveClientCommsSnapshot(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              clientVoiceProfileLabel: 'Concise',
+              clientInboundCount: 1,
+              latestClientMessage: 'Can you see what is happening now?',
+              latestClientMessageAtUtc: DateTime.utc(2026, 4, 3, 20, 38),
+            ),
+            onLoadCameraHealthFactPacketForScope: (_, _) async {
+              throw StateError('camera bridge unavailable');
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('client-lane-camera-preview-panel')),
+        findsOneWidget,
+      );
+      expect(find.text('Load failed'), findsOneWidget);
+      expect(
+        find.textContaining('The scoped camera health check failed.'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'live operations shows relay diagnostics when a current frame exists but the stream relay is unavailable',
+    (tester) async {
+      final now = DateTime.utc(2026, 4, 3, 20, 40);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LiveOperationsPage(
+            events: const <DispatchEvent>[],
+            clientCommsSnapshot: LiveClientCommsSnapshot(
+              clientId: 'CLIENT-MS-VALLEE',
+              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              clientVoiceProfileLabel: 'Concise',
+              clientInboundCount: 1,
+              latestClientMessage: 'Can you see what is happening now?',
+              latestClientMessageAtUtc: now.subtract(
+                const Duration(minutes: 2),
+              ),
+              latestOnyxReply:
+                  'ONYX is checking the latest confirmed camera position now.',
+              latestOnyxReplyAtUtc: now.subtract(const Duration(minutes: 1)),
+              telegramHealthLabel: 'ok',
+              smsFallbackLabel: 'SMS standby',
+              voiceReadinessLabel: 'VoIP staged',
+              pushSyncStatusLabel: 'ready',
+            ),
+            onLoadCameraHealthFactPacketForScope: (clientId, siteId) async {
+              return ClientCameraHealthFactPacket(
+                clientId: clientId,
+                siteId: siteId,
+                siteReference: 'MS Vallee Residence',
+                status: ClientCameraHealthStatus.live,
+                reason: ClientCameraHealthReason.legacyProxyActive,
+                path: ClientCameraHealthPath.legacyLocalProxy,
+                lastSuccessfulVisualAtUtc: now.subtract(
+                  const Duration(seconds: 20),
+                ),
+                lastSuccessfulUpstreamProbeAtUtc: now.subtract(
+                  const Duration(seconds: 10),
+                ),
+                currentVisualSnapshotUri: Uri.parse(
+                  'http://127.0.0.1:11635/ISAPI/Streaming/channels/101/picture',
+                ),
+                currentVisualCameraId: 'channel-1',
+                currentVisualVerifiedAtUtc: now.subtract(
+                  const Duration(seconds: 20),
+                ),
+                currentVisualRelayCheckedAtUtc: now.subtract(
+                  const Duration(seconds: 5),
+                ),
+                currentVisualRelayLastError: 'Relay player HTTP 404',
+                nextAction:
+                    'Keep the legacy local Hikvision proxy on 127.0.0.1:11635 in place until the Hik-Connect credentials arrive, then switch this site to the Hik-Connect API path.',
+                safeClientExplanation:
+                    'We currently have visual confirmation at MS Vallee Residence through a temporary local recorder bridge while the newer API credentials are still pending.',
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Stream relay unavailable'), findsOneWidget);
+      expect(
+        find.textContaining(
+          'A current frame is verified, but the operator stream relay is not ready yet.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'The browser player endpoint returned HTTP 404 on the latest check.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('COPY PLAYER URL'), findsNothing);
+      expect(find.text('OPEN STREAM PLAYER'), findsOneWidget);
+      expect(find.text('COPY FRAME URL'), findsOneWidget);
+    },
+  );
 
   testWidgets('live operations humanizes telegram bridge detail in comms view', (
     tester,
@@ -2798,6 +6274,7 @@ void main() {
   ) async {
     String? openedClientId;
     String? openedSiteId;
+    final nowUtc = _liveOperationsNowUtc();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -2816,9 +6293,7 @@ void main() {
                 body:
                     'Hi ONYX, can you please tell me if the patrol has arrived yet?',
                 messageProvider: 'telegram',
-                occurredAtUtc: DateTime.now().toUtc().subtract(
-                  const Duration(minutes: 2),
-                ),
+                occurredAtUtc: nowUtc.subtract(const Duration(minutes: 2)),
                 matchesSelectedScope: true,
               ),
             ],
@@ -2843,7 +6318,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Selected lane'), findsOneWidget);
+    expect(find.text('Selected scope'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Shape Reply'), findsOneWidget);
 
     final selectedShapeReplyButton = find.widgetWithText(
@@ -2863,6 +6338,7 @@ void main() {
   ) async {
     String? openedClientId;
     String? openedSiteId;
+    final nowUtc = _liveOperationsNowUtc();
 
     await tester.pumpWidget(
       MaterialApp(
@@ -2881,9 +6357,7 @@ void main() {
                 body:
                     'Please confirm whether the Waterfall response team has already arrived.',
                 messageProvider: 'telegram',
-                occurredAtUtc: DateTime.now().toUtc().subtract(
-                  const Duration(minutes: 1),
-                ),
+                occurredAtUtc: nowUtc.subtract(const Duration(minutes: 1)),
                 matchesSelectedScope: false,
               ),
             ],
@@ -2947,7 +6421,10 @@ void main() {
                     draftText: draftText,
                     providerLabel: 'OpenAI',
                     usesLearnedApprovalStyle: true,
-                    createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                    createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                      6,
+                      0,
+                    ),
                     clientVoiceProfileLabel: 'Reassuring',
                     matchesSelectedScope: true,
                   ),
@@ -2975,6 +6452,10 @@ void main() {
     await tester.tap(editDraftButton);
     await tester.pumpAndSettle();
 
+    expect(
+      tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
+      const Color(0xFFFFFFFF),
+    );
     expect(
       find.descendant(
         of: find.byType(AlertDialog),
@@ -3061,7 +6542,10 @@ void main() {
                 draftText:
                     'Command is confirming arrival now and will share the verified position as soon as it is locked.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  5,
+                  56,
+                ),
                 clientVoiceProfileLabel: 'Concise',
               ),
               LiveControlInboxDraft(
@@ -3073,7 +6557,10 @@ void main() {
                 draftText:
                     'We are checking the latest patrol position now and will send the next verified update shortly.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  6,
+                  0,
+                ),
                 clientVoiceProfileLabel: 'Validation-heavy',
                 matchesSelectedScope: true,
               ),
@@ -3163,7 +6650,10 @@ void main() {
                 draftText:
                     'Command is confirming arrival now and will share the verified position as soon as it is locked.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  5,
+                  56,
+                ),
                 clientVoiceProfileLabel: 'Concise',
               ),
               LiveControlInboxDraft(
@@ -3175,7 +6665,10 @@ void main() {
                 draftText:
                     'We are checking the latest patrol position now and will send the next verified update shortly.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  6,
+                  0,
+                ),
                 clientVoiceProfileLabel: 'Validation-heavy',
                 usesLearnedApprovalStyle: true,
                 matchesSelectedScope: true,
@@ -3323,7 +6816,10 @@ void main() {
                 draftText:
                     'Command is confirming arrival now and will share the verified position as soon as it is locked.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  5,
+                  56,
+                ),
                 clientVoiceProfileLabel: 'Concise',
               ),
               LiveControlInboxDraft(
@@ -3335,7 +6831,10 @@ void main() {
                 draftText:
                     'We are checking the latest patrol position now and will send the next verified update shortly.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  6,
+                  0,
+                ),
                 clientVoiceProfileLabel: 'Validation-heavy',
                 matchesSelectedScope: true,
               ),
@@ -3400,7 +6899,10 @@ void main() {
                 draftText:
                     'Command is confirming arrival now and will share the verified position as soon as it is locked.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  5,
+                  56,
+                ),
                 clientVoiceProfileLabel: 'Concise',
               ),
               LiveControlInboxDraft(
@@ -3412,7 +6914,10 @@ void main() {
                 draftText:
                     'We are checking the latest patrol position now and will send the next verified update shortly.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  6,
+                  0,
+                ),
                 clientVoiceProfileLabel: 'Validation-heavy',
                 matchesSelectedScope: true,
               ),
@@ -3468,7 +6973,10 @@ void main() {
                 draftText:
                     'Command is confirming arrival now and will share the verified position as soon as it is locked.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  5,
+                  56,
+                ),
                 clientVoiceProfileLabel: 'Concise',
               ),
               LiveControlInboxDraft(
@@ -3480,7 +6988,10 @@ void main() {
                 draftText:
                     'We are checking the latest patrol position now and will send the next verified update shortly.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  6,
+                  0,
+                ),
                 clientVoiceProfileLabel: 'Validation-heavy',
                 matchesSelectedScope: true,
               ),
@@ -3560,7 +7071,10 @@ void main() {
                 draftText:
                     'Command is confirming arrival now and will share the verified position as soon as it is locked.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  5,
+                  56,
+                ),
                 clientVoiceProfileLabel: 'Concise',
               ),
               LiveControlInboxDraft(
@@ -3572,7 +7086,10 @@ void main() {
                 draftText:
                     'We are checking the latest patrol position now and will send the next verified update shortly.',
                 providerLabel: 'OpenAI',
-                createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                  6,
+                  0,
+                ),
                 clientVoiceProfileLabel: 'Validation-heavy',
                 matchesSelectedScope: true,
               ),
@@ -3653,7 +7170,10 @@ void main() {
                   draftText:
                       'Command is confirming arrival now and will share the verified position as soon as it is locked.',
                   providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 5, 56),
+                  createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                    5,
+                    56,
+                  ),
                   clientVoiceProfileLabel: 'Concise',
                 ),
                 LiveControlInboxDraft(
@@ -3665,7 +7185,10 @@ void main() {
                   draftText:
                       'We are checking the latest patrol position now and will send the next verified update shortly.',
                   providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 6, 0),
+                  createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                    6,
+                    0,
+                  ),
                   clientVoiceProfileLabel: 'Validation-heavy',
                   matchesSelectedScope: true,
                 ),
@@ -3774,7 +7297,10 @@ void main() {
                   draftText:
                       'We are treating this as active and checking the fire response now.',
                   providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 6, 5),
+                  createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                    6,
+                    5,
+                  ),
                   clientVoiceProfileLabel: 'Reassuring',
                   matchesSelectedScope: true,
                 ),
@@ -3820,7 +7346,10 @@ void main() {
                   draftText:
                       'We are treating this as active and checking the fire response now.',
                   providerLabel: 'OpenAI',
-                  createdAtUtc: DateTime.utc(2026, 3, 18, 6, 5),
+                  createdAtUtc: _liveOperationsControlInboxDraftCreatedAtUtc(
+                    6,
+                    5,
+                  ),
                   clientVoiceProfileLabel: 'Reassuring',
                   matchesSelectedScope: true,
                 ),

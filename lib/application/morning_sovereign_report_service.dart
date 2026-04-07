@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 
+import '../infrastructure/bi/vehicle_visit_repository.dart';
 import 'hazard_response_directive_service.dart';
 import 'monitoring_scene_review_store.dart';
 import 'site_activity_intelligence_service.dart';
@@ -1096,6 +1099,9 @@ class SovereignReportPartnerDispatchChain {
 
 class SovereignReportVehicleThroughput {
   final int totalVisits;
+  final int entryCount;
+  final int serviceCount;
+  final int exitCount;
   final int completedVisits;
   final int activeVisits;
   final int incompleteVisits;
@@ -1109,11 +1115,15 @@ class SovereignReportVehicleThroughput {
   final int loiteringVisitCount;
   final String workflowHeadline;
   final String summaryLine;
+  final Map<int, int> hourlyBreakdown;
   final List<SovereignReportVehicleScopeBreakdown> scopeBreakdowns;
   final List<SovereignReportVehicleVisitException> exceptionVisits;
 
   const SovereignReportVehicleThroughput({
     required this.totalVisits,
+    this.entryCount = 0,
+    this.serviceCount = 0,
+    this.exitCount = 0,
     required this.completedVisits,
     required this.activeVisits,
     required this.incompleteVisits,
@@ -1127,12 +1137,16 @@ class SovereignReportVehicleThroughput {
     required this.loiteringVisitCount,
     this.workflowHeadline = '',
     required this.summaryLine,
+    this.hourlyBreakdown = const <int, int>{},
     this.scopeBreakdowns = const <SovereignReportVehicleScopeBreakdown>[],
     this.exceptionVisits = const <SovereignReportVehicleVisitException>[],
   });
 
   SovereignReportVehicleThroughput copyWith({
     int? totalVisits,
+    int? entryCount,
+    int? serviceCount,
+    int? exitCount,
     int? completedVisits,
     int? activeVisits,
     int? incompleteVisits,
@@ -1146,11 +1160,15 @@ class SovereignReportVehicleThroughput {
     int? loiteringVisitCount,
     String? workflowHeadline,
     String? summaryLine,
+    Map<int, int>? hourlyBreakdown,
     List<SovereignReportVehicleScopeBreakdown>? scopeBreakdowns,
     List<SovereignReportVehicleVisitException>? exceptionVisits,
   }) {
     return SovereignReportVehicleThroughput(
       totalVisits: totalVisits ?? this.totalVisits,
+      entryCount: entryCount ?? this.entryCount,
+      serviceCount: serviceCount ?? this.serviceCount,
+      exitCount: exitCount ?? this.exitCount,
       completedVisits: completedVisits ?? this.completedVisits,
       activeVisits: activeVisits ?? this.activeVisits,
       incompleteVisits: incompleteVisits ?? this.incompleteVisits,
@@ -1166,6 +1184,7 @@ class SovereignReportVehicleThroughput {
       loiteringVisitCount: loiteringVisitCount ?? this.loiteringVisitCount,
       workflowHeadline: workflowHeadline ?? this.workflowHeadline,
       summaryLine: summaryLine ?? this.summaryLine,
+      hourlyBreakdown: hourlyBreakdown ?? this.hourlyBreakdown,
       scopeBreakdowns: scopeBreakdowns ?? this.scopeBreakdowns,
       exceptionVisits: exceptionVisits ?? this.exceptionVisits,
     );
@@ -1174,6 +1193,9 @@ class SovereignReportVehicleThroughput {
   Map<String, Object?> toJson() {
     return {
       'totalVisits': totalVisits,
+      'entryCount': entryCount,
+      'serviceCount': serviceCount,
+      'exitCount': exitCount,
       'completedVisits': completedVisits,
       'activeVisits': activeVisits,
       'incompleteVisits': incompleteVisits,
@@ -1187,6 +1209,10 @@ class SovereignReportVehicleThroughput {
       'loiteringVisitCount': loiteringVisitCount,
       'workflowHeadline': workflowHeadline,
       'summaryLine': summaryLine,
+      'hourlyBreakdown': {
+        for (final entry in hourlyBreakdown.entries)
+          entry.key.toString(): entry.value,
+      },
       'scopeBreakdowns': scopeBreakdowns
           .map((scope) => scope.toJson())
           .toList(growable: false),
@@ -1197,6 +1223,17 @@ class SovereignReportVehicleThroughput {
   }
 
   factory SovereignReportVehicleThroughput.fromJson(Map<String, Object?> json) {
+    final hourlyBreakdown = <int, int>{};
+    final hourlyBreakdownRaw = json['hourlyBreakdown'];
+    if (hourlyBreakdownRaw is Map) {
+      for (final entry in hourlyBreakdownRaw.entries) {
+        final hour = int.tryParse(entry.key.toString());
+        if (hour == null) {
+          continue;
+        }
+        hourlyBreakdown[hour] = (entry.value as num?)?.toInt() ?? 0;
+      }
+    }
     final scopeBreakdowns = <SovereignReportVehicleScopeBreakdown>[];
     final scopeBreakdownsRaw = json['scopeBreakdowns'];
     if (scopeBreakdownsRaw is List) {
@@ -1223,6 +1260,9 @@ class SovereignReportVehicleThroughput {
     }
     return SovereignReportVehicleThroughput(
       totalVisits: (json['totalVisits'] as num?)?.toInt() ?? 0,
+      entryCount: (json['entryCount'] as num?)?.toInt() ?? 0,
+      serviceCount: (json['serviceCount'] as num?)?.toInt() ?? 0,
+      exitCount: (json['exitCount'] as num?)?.toInt() ?? 0,
       completedVisits: (json['completedVisits'] as num?)?.toInt() ?? 0,
       activeVisits: (json['activeVisits'] as num?)?.toInt() ?? 0,
       incompleteVisits: (json['incompleteVisits'] as num?)?.toInt() ?? 0,
@@ -1239,6 +1279,7 @@ class SovereignReportVehicleThroughput {
       loiteringVisitCount: (json['loiteringVisitCount'] as num?)?.toInt() ?? 0,
       workflowHeadline: (json['workflowHeadline'] as String? ?? '').trim(),
       summaryLine: (json['summaryLine'] as String? ?? '').trim(),
+      hourlyBreakdown: hourlyBreakdown,
       scopeBreakdowns: scopeBreakdowns,
       exceptionVisits: exceptionVisits,
     );
@@ -1463,7 +1504,17 @@ class MorningSovereignReportService {
   static const _siteActivityService = SiteActivityIntelligenceService();
   static const _hazardDirectiveService = HazardResponseDirectiveService();
 
-  const MorningSovereignReportService();
+  final VehicleVisitRepository? vehicleVisitRepository;
+  final void Function(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  })? logger;
+
+  const MorningSovereignReportService({
+    this.vehicleVisitRepository,
+    this.logger,
+  });
 
   static DateTime latestCompletedNightShiftEndLocal(DateTime nowLocal) {
     final today0600 = DateTime(nowLocal.year, nowLocal.month, nowLocal.day, 6);
@@ -1598,13 +1649,21 @@ class MorningSovereignReportService {
       events: nightEvents.whereType<ReportGenerated>().toList(growable: false),
     );
     final siteActivity = _buildSiteActivity(events: nightIntel);
+    final vehicleSnapshots = const VehicleVisitLedgerProjector().projectByScope(
+      events: nightIntel,
+      nowUtc: nowUtc,
+    );
     final vehicleThroughput = _buildVehicleThroughput(
       nowUtc: nowUtc,
-      events: nightIntel,
+      snapshots: vehicleSnapshots,
       reviewEvents: events
           .whereType<VehicleVisitReviewRecorded>()
           .where((event) => !event.occurredAt.toUtc().isAfter(nowUtc))
           .toList(growable: false),
+    );
+    _scheduleVehicleBiPersistence(
+      snapshots: vehicleSnapshots,
+      nowUtc: nowUtc,
     );
     final partnerProgression = _buildPartnerProgression(
       events: nightEvents.whereType<PartnerDispatchStatusDeclared>().toList(
@@ -2134,16 +2193,15 @@ class MorningSovereignReportService {
 
   SovereignReportVehicleThroughput _buildVehicleThroughput({
     required DateTime nowUtc,
-    required List<IntelligenceReceived> events,
+    required Map<String, VehicleVisitLedgerSnapshot> snapshots,
     List<VehicleVisitReviewRecorded> reviewEvents = const [],
   }) {
-    final snapshots = const VehicleVisitLedgerProjector().projectByScope(
-      events: events,
-      nowUtc: nowUtc,
-    );
     if (snapshots.isEmpty) {
       return const SovereignReportVehicleThroughput(
         totalVisits: 0,
+        entryCount: 0,
+        serviceCount: 0,
+        exitCount: 0,
         completedVisits: 0,
         activeVisits: 0,
         incompleteVisits: 0,
@@ -2273,6 +2331,9 @@ class MorningSovereignReportService {
     );
     return SovereignReportVehicleThroughput(
       totalVisits: summary.totalVisits,
+      entryCount: summary.entryCount,
+      serviceCount: visits.where((visit) => visit.sawService).length,
+      exitCount: summary.exitCount,
       completedVisits: summary.completedCount,
       activeVisits: summary.activeCount,
       incompleteVisits: summary.incompleteCount,
@@ -2286,9 +2347,105 @@ class MorningSovereignReportService {
       loiteringVisitCount: summary.loiteringVisitCount,
       workflowHeadline: _vehicleWorkflowHeadline(visits, nowUtc),
       summaryLine: const VehicleThroughputSummaryFormatter().format(summary),
+      hourlyBreakdown: Map<int, int>.unmodifiable(visitsByHour),
       scopeBreakdowns: scopeBreakdowns,
       exceptionVisits: reviewedExceptions,
     );
+  }
+
+  void _scheduleVehicleBiPersistence({
+    required Map<String, VehicleVisitLedgerSnapshot> snapshots,
+    required DateTime nowUtc,
+  }) {
+    final repository = vehicleVisitRepository;
+    if (repository == null || snapshots.isEmpty) {
+      return;
+    }
+    unawaited(
+      _persistVehicleBiSnapshots(
+        repository: repository,
+        snapshots: snapshots,
+        nowUtc: nowUtc,
+      ),
+    );
+  }
+
+  Future<void> _persistVehicleBiSnapshots({
+    required VehicleVisitRepository repository,
+    required Map<String, VehicleVisitLedgerSnapshot> snapshots,
+    required DateTime nowUtc,
+  }) async {
+    for (final snapshot in snapshots.values) {
+      if (snapshot.visits.isEmpty) {
+        continue;
+      }
+      final clientId = snapshot.visits.first.clientId.trim();
+      final siteId = snapshot.visits.first.siteId.trim();
+      for (final visit in snapshot.visits) {
+        try {
+          await repository.upsertVisit(visit, nowUtc: nowUtc);
+        } catch (error, stackTrace) {
+          _logVehicleBiFailure(
+            'Failed to persist BI vehicle visit for $clientId/$siteId/${visit.vehicleKey}.',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      }
+      final visitsByUtcDate = <String, List<VehicleVisitRecord>>{};
+      for (final visit in snapshot.visits) {
+        final dateKey = _utcDateKey(visit.startedAtUtc);
+        visitsByUtcDate
+            .putIfAbsent(dateKey, () => <VehicleVisitRecord>[])
+            .add(visit);
+      }
+      for (final entry in visitsByUtcDate.entries) {
+        final visitDate = DateTime.parse('${entry.key}T00:00:00Z');
+        final hourlyData = <int, int>{};
+        for (final visit in entry.value) {
+          final hour = visit.startedAtUtc.toUtc().hour;
+          hourlyData[hour] = (hourlyData[hour] ?? 0) + 1;
+        }
+        try {
+          await repository.upsertHourlyThroughput(
+            hourlyData,
+            clientId,
+            siteId,
+            visitDate,
+            visits: entry.value,
+            nowUtc: nowUtc,
+          );
+        } catch (error, stackTrace) {
+          _logVehicleBiFailure(
+            'Failed to persist BI hourly throughput for $clientId/$siteId/${entry.key}.',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      }
+    }
+  }
+
+  void _logVehicleBiFailure(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) {
+    final sink = logger;
+    if (sink != null) {
+      sink(message, error: error, stackTrace: stackTrace);
+      return;
+    }
+    developer.log(
+      message,
+      name: 'MorningSovereignReportService',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+
+  static String _utcDateKey(DateTime value) {
+    return value.toUtc().toIso8601String().split('T').first;
   }
 
   List<SovereignReportVehicleVisitException> _applyVehicleVisitReviewEvents({
@@ -2969,6 +3126,9 @@ class MorningSovereignReportService {
     required double? acceptedDelayMinutes,
     required double? onSiteDelayMinutes,
   }) {
+    if (latestStatus == PartnerDispatchStatus.unknown) {
+      return 'WATCH';
+    }
     if (latestStatus == PartnerDispatchStatus.cancelled) {
       return 'CRITICAL';
     }
@@ -2994,6 +3154,9 @@ class MorningSovereignReportService {
     required double? acceptedDelayMinutes,
     required double? onSiteDelayMinutes,
   }) {
+    if (latestStatus == PartnerDispatchStatus.unknown) {
+      return 'Partner status could not be mapped from the stored declaration and needs manual review.';
+    }
     if (latestStatus == PartnerDispatchStatus.cancelled) {
       return 'Dispatch was cancelled before the partner completed the response chain.';
     }
@@ -3097,6 +3260,7 @@ String _partnerScopeKey(String clientId, String siteId) {
 
 PartnerDispatchStatus _partnerDispatchStatusFromName(String raw) {
   return switch (raw.trim().toLowerCase()) {
+    'unknown' => PartnerDispatchStatus.unknown,
     'accepted' => PartnerDispatchStatus.accepted,
     'onsite' => PartnerDispatchStatus.onSite,
     'on_site' => PartnerDispatchStatus.onSite,
@@ -3104,12 +3268,13 @@ PartnerDispatchStatus _partnerDispatchStatusFromName(String raw) {
     'all_clear' => PartnerDispatchStatus.allClear,
     'cancelled' => PartnerDispatchStatus.cancelled,
     'canceled' => PartnerDispatchStatus.cancelled,
-    _ => PartnerDispatchStatus.accepted,
+    _ => PartnerDispatchStatus.unknown,
   };
 }
 
 String _partnerDispatchStatusLabel(PartnerDispatchStatus status) {
   return switch (status) {
+    PartnerDispatchStatus.unknown => 'UNKNOWN',
     PartnerDispatchStatus.accepted => 'ACCEPT',
     PartnerDispatchStatus.onSite => 'ON SITE',
     PartnerDispatchStatus.allClear => 'ALL CLEAR',

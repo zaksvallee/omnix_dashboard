@@ -4,6 +4,7 @@ import '../../crm/sla_profile.dart';
 import '../../crm/client.dart';
 import '../../crm/client_aggregate.dart';
 import '../../crm/sla_tier.dart';
+import '../../crm/sla_tier_factory.dart';
 import '../../events/dispatch_event.dart';
 
 import 'monthly_report_projection.dart';
@@ -25,6 +26,7 @@ class ReportBundleAssembler {
     required List<CRMEvent> crmEvents,
     required List<DispatchEvent> dispatchEvents,
     required SceneReviewSnapshot sceneReview,
+    Map<String, GuardReportingProfile> guardProfilesById = const {},
     ReportBrandingConfiguration brandingConfiguration =
         const ReportBrandingConfiguration(),
     ReportSectionConfiguration sectionConfiguration =
@@ -56,10 +58,16 @@ class ReportBundleAssembler {
       aggregate = ClientAggregate.rebuild(crmEvents);
     }
 
+    final effectiveSlaProfile = aggregate.slaProfile ??
+        SLATierFactory.create(
+          clientId: clientId,
+          tier: aggregate.slaTier ?? SLATier.protect,
+        );
+
     final monthlyReport = MonthlyReportProjection.build(
       clientId: clientId,
       month: currentMonth,
-      slaProfile: aggregate.slaProfile!,
+      slaProfile: effectiveSlaProfile,
       incidentEvents: incidentEvents,
       crmEvents: crmEvents,
       slaTierName: aggregate.slaTier?.name.toUpperCase() ?? "PROTECT",
@@ -98,6 +106,7 @@ class ReportBundleAssembler {
           clientId: clientId,
           month: currentMonth,
           events: dispatchEvents,
+          guardProfilesById: guardProfilesById,
         );
 
     final patrolPerformance =
@@ -118,29 +127,12 @@ class ReportBundleAssembler {
       );
     }).toList();
 
-    final supervisorAssessment = SupervisorAssessment(
-      operationalSummary:
-          "Operational stability maintained under structured event review.",
-      riskTrend: monthlyReport.totalSlaBreaches == 0
-          ? "No negative SLA trend detected."
-          : "Elevated SLA pressure observed.",
-      recommendations:
-          "Continue structured patrol execution and escalation discipline.",
-    );
-
-    final companyAchievements = CompanyAchievementsSnapshot(
-      highlights: const [
-        "Maintained deterministic event-sourced reporting integrity.",
-        "SLA adherence monitoring enhanced.",
-        "Operational transparency improved through structured projections.",
-      ],
-    );
-
-    final emergingThreats = EmergingThreatSnapshot(
-      patternsObserved: const [
-        "Monitor escalation timing drift.",
-        "Observe repeat low-level incident clustering.",
-      ],
+    final narrativeRequest = ReportNarrativeRequest(
+      clientId: clientId,
+      reportPeriod: currentMonth,
+      incidentSummary: executiveSummary.performanceSummary,
+      escalationCount: monthlyReport.totalEscalations,
+      slaComplianceRate: monthlyReport.slaComplianceRate,
     );
 
     return ReportBundle(
@@ -155,9 +147,10 @@ class ReportBundleAssembler {
       sceneReview: sceneReview,
       brandingConfiguration: brandingConfiguration,
       sectionConfiguration: sectionConfiguration,
-      supervisorAssessment: supervisorAssessment,
-      companyAchievements: companyAchievements,
-      emergingThreats: emergingThreats,
+      supervisorAssessment: const SupervisorAssessment.empty(),
+      companyAchievements: const CompanyAchievementsSnapshot.empty(),
+      emergingThreats: const EmergingThreatSnapshot.empty(),
+      narrativeRequest: narrativeRequest,
     );
   }
 }

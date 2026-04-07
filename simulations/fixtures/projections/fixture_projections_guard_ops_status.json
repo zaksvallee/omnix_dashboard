@@ -1,0 +1,16 @@
+{
+  "guardOps": {
+    "guards": [
+      {
+        "callsign": "Echo-3",
+        "lastCheckIn": "22:12",
+        "decayLevel": 67
+      },
+      {
+        "callsign": "Bravo-2",
+        "lastCheckIn": "21:48",
+        "decayLevel": 31
+      }
+    ]
+  }
+}

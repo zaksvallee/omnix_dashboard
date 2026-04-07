@@ -27,8 +27,7 @@ class MonthlyReportProjection {
 
     final totalEscalations = incidentsInMonth
         .where((e) =>
-            e.type == IncidentEventType.incidentEscalated ||
-            e.type == IncidentEventType.incidentSlaBreached)
+            e.type == IncidentEventType.incidentEscalated)
         .length;
 
     final totalSlaBreaches = incidentsInMonth

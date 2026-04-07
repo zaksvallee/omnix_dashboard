@@ -14,6 +14,8 @@ import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
+import 'track_overview_board.dart';
 import 'video_fleet_scope_health_card.dart';
 import 'video_fleet_scope_health_panel.dart';
 import 'video_fleet_scope_health_sections.dart';
@@ -30,6 +32,18 @@ enum _FocusLinkState { none, exact, scopeBacked, seeded }
 enum _TacticalMapFilter { all, responding, incidents }
 
 enum _VerificationQueueTab { anomalies, matches, assets }
+
+const _tacticalSurfaceColor = OnyxDesignTokens.cardSurface;
+const _tacticalAltSurfaceColor = OnyxDesignTokens.backgroundSecondary;
+const _tacticalBorderColor = OnyxDesignTokens.borderSubtle;
+const _tacticalStrongBorderColor = OnyxDesignTokens.borderStrong;
+const _tacticalTitleColor = OnyxDesignTokens.textPrimary;
+const _tacticalBodyColor = OnyxDesignTokens.textSecondary;
+const _tacticalMutedColor = OnyxDesignTokens.textMuted;
+const _tacticalAccentSky = OnyxDesignTokens.accentSky;
+const _tacticalDesktopOverviewMinWidth = 820.0;
+const _tacticalDetailedWorkspaceMinWidth = 1080.0;
+const _tacticalDetailedWorkspaceMinHeight = 760.0;
 
 class _MapMarker {
   final String id;
@@ -139,9 +153,116 @@ class _TacticalCommandReceipt {
   });
 }
 
+class TacticalEvidenceReturnReceipt {
+  final String auditId;
+  final String label;
+  final String headline;
+  final String detail;
+  final Color accent;
+
+  const TacticalEvidenceReturnReceipt({
+    required this.auditId,
+    required this.label,
+    required this.headline,
+    required this.detail,
+    required this.accent,
+  });
+}
+
+class _TacticalDetailedWorkspaceHost extends StatefulWidget {
+  final Widget Function(
+    BuildContext context,
+    bool showDetailedWorkspace,
+    ValueChanged<bool> setDetailedWorkspace,
+    void Function(
+      String incidentReference,
+      ValueChanged<String>? onConsume,
+    )
+    consumeAgentReturnIncidentReferenceOnce,
+    void Function(
+      TacticalEvidenceReturnReceipt receipt,
+      ValueChanged<String>? onConsume,
+    )
+    consumeEvidenceReturnReceiptOnce,
+  )
+  builder;
+
+  const _TacticalDetailedWorkspaceHost({required this.builder});
+
+  @override
+  State<_TacticalDetailedWorkspaceHost> createState() =>
+      _TacticalDetailedWorkspaceHostState();
+}
+
+class _TacticalDetailedWorkspaceHostState
+    extends State<_TacticalDetailedWorkspaceHost> {
+  bool _showDetailedWorkspace = false;
+  String? _lastConsumedAgentReturnIncidentReference;
+  String? _lastConsumedEvidenceReturnAuditId;
+
+  void _setDetailedWorkspace(bool value) {
+    if (_showDetailedWorkspace == value) {
+      return;
+    }
+    setState(() {
+      _showDetailedWorkspace = value;
+    });
+  }
+
+  void _consumeAgentReturnIncidentReferenceOnce(
+    String incidentReference,
+    ValueChanged<String>? onConsume,
+  ) {
+    final normalizedReference = incidentReference.trim();
+    if (normalizedReference.isEmpty ||
+        normalizedReference == _lastConsumedAgentReturnIncidentReference) {
+      return;
+    }
+    _lastConsumedAgentReturnIncidentReference = normalizedReference;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      onConsume?.call(normalizedReference);
+    });
+  }
+
+  void _consumeEvidenceReturnReceiptOnce(
+    TacticalEvidenceReturnReceipt receipt,
+    ValueChanged<String>? onConsume,
+  ) {
+    final auditId = receipt.auditId.trim();
+    if (auditId.isEmpty || auditId == _lastConsumedEvidenceReturnAuditId) {
+      return;
+    }
+    _lastConsumedEvidenceReturnAuditId = auditId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      onConsume?.call(auditId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.builder(
+      context,
+      _showDetailedWorkspace,
+      _setDetailedWorkspace,
+      _consumeAgentReturnIncidentReferenceOnce,
+      _consumeEvidenceReturnReceiptOnce,
+    );
+  }
+}
+
 class TacticalPage extends StatelessWidget {
   final List<DispatchEvent> events;
   final String focusIncidentReference;
+  final String? agentReturnIncidentReference;
+  final ValueChanged<String>? onConsumeAgentReturnIncidentReference;
+  final TacticalEvidenceReturnReceipt? evidenceReturnReceipt;
+  final ValueChanged<String>? onConsumeEvidenceReturnReceipt;
   final String? initialScopeClientId;
   final String? initialScopeSiteId;
   final String videoOpsLabel;
@@ -164,6 +285,7 @@ class TacticalPage extends StatelessWidget {
     String? incidentReference,
   )?
   onOpenFleetDispatchScope;
+  final ValueChanged<String>? onOpenAgentForIncident;
   final void Function(String clientId, String siteId)? onRecoverFleetWatchScope;
   final Future<String> Function(VideoFleetScopeHealthView scope)?
   onExtendTemporaryIdentityApproval;
@@ -177,6 +299,10 @@ class TacticalPage extends StatelessWidget {
     super.key,
     required this.events,
     this.focusIncidentReference = '',
+    this.agentReturnIncidentReference,
+    this.onConsumeAgentReturnIncidentReference,
+    this.evidenceReturnReceipt,
+    this.onConsumeEvidenceReturnReceipt,
     this.initialScopeClientId,
     this.initialScopeSiteId,
     this.videoOpsLabel = 'CCTV',
@@ -192,6 +318,7 @@ class TacticalPage extends StatelessWidget {
         const <String, MonitoringSceneReviewRecord>{},
     this.onOpenFleetTacticalScope,
     this.onOpenFleetDispatchScope,
+    this.onOpenAgentForIncident,
     this.onRecoverFleetWatchScope,
     this.onExtendTemporaryIdentityApproval,
     this.onExpireTemporaryIdentityApproval,
@@ -302,392 +429,369 @@ class TacticalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var commandReceipt = const _TacticalCommandReceipt(
-      label: 'VERIFICATION RAIL',
-      headline: 'Tactical workspace ready',
-      detail:
-          'Fleet-watch actions, lens review, and temporary identity updates stay visible in the verification rail.',
-      accent: Color(0xFF8FD1FF),
-    );
-    VideoFleetWatchActionDrilldown? activeWatchActionDrilldown =
-        initialWatchActionDrilldown;
-    var mapZoom = 1.0;
-    var mapFilter = _TacticalMapFilter.all;
-    String? selectedMarkerId = focusIncidentReference.trim().isEmpty
-        ? null
-        : focusIncidentReference.trim();
-    var verificationQueueTab = _VerificationQueueTab.anomalies;
-    return StatefulBuilder(
-      builder: (context, setState) {
-        final fleetPanelKey = GlobalKey();
-        final suppressedPanelKey = GlobalKey();
-        final wide = allowEmbeddedPanelScroll(context);
-        final contentPadding = const EdgeInsets.fromLTRB(6, 6, 6, 8);
-        void showTacticalFeedback(
-          String message, {
-          String label = 'VERIFICATION RAIL',
-          String? detail,
-          Color accent = const Color(0xFF8FD1FF),
-        }) {
-          if (wide) {
-            setState(() {
-              commandReceipt = _TacticalCommandReceipt(
-                label: label,
-                headline: message,
-                detail:
-                    detail ??
-                    'The latest tactical workflow update stays pinned in the verification rail while the active map board remains in focus.',
-                accent: accent,
+    return _TacticalDetailedWorkspaceHost(
+      builder: (
+        context,
+        showDetailedWorkspace,
+        setDetailedWorkspace,
+        consumeAgentReturnIncidentReferenceOnce,
+        consumeEvidenceReturnReceiptOnce,
+      ) {
+        final normalizedAgentReturnReference =
+            (agentReturnIncidentReference ?? '').trim();
+        var commandReceipt = _initialCommandReceipt(
+          normalizedAgentReturnReference,
+          evidenceReturnReceipt,
+        );
+        VideoFleetWatchActionDrilldown? activeWatchActionDrilldown =
+            initialWatchActionDrilldown;
+        var mapZoom = 1.0;
+        var mapFilter = _TacticalMapFilter.all;
+        String? selectedMarkerId = focusIncidentReference.trim().isEmpty
+            ? null
+            : focusIncidentReference.trim();
+        var verificationQueueTab = _VerificationQueueTab.anomalies;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            if (normalizedAgentReturnReference.isNotEmpty) {
+              consumeAgentReturnIncidentReferenceOnce(
+                normalizedAgentReturnReference,
+                onConsumeAgentReturnIncidentReference,
               );
-            });
-            return;
-          }
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message)));
-        }
+            }
+            final evidenceReceipt = evidenceReturnReceipt;
+            if (evidenceReceipt != null) {
+              consumeEvidenceReturnReceiptOnce(
+                evidenceReceipt,
+                onConsumeEvidenceReturnReceipt,
+              );
+            }
+            final fleetPanelKey = GlobalKey();
+            final suppressedPanelKey = GlobalKey();
+            var wide = false;
+            final contentPadding = const EdgeInsets.fromLTRB(6, 6, 6, 8);
+            void showTacticalFeedback(
+              String message, {
+              String label = 'VERIFICATION RAIL',
+              String? detail,
+              Color accent = _tacticalAccentSky,
+            }) {
+              if (wide) {
+                setState(() {
+                  commandReceipt = _TacticalCommandReceipt(
+                    label: label,
+                    headline: message,
+                    detail:
+                        detail ??
+                        'The latest tactical workflow update stays pinned in the verification rail while the active map board remains in focus.',
+                    accent: accent,
+                  );
+                });
+                return;
+              }
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(message)));
+            }
 
-        final now = DateTime.now();
-        final isCombatWindow = now.hour >= 22 || now.hour < 6;
-        final normMode = isCombatWindow ? 'night' : 'day';
-        final focusReference = focusIncidentReference.trim();
-        final scopeClientId = (initialScopeClientId ?? '').trim();
-        final scopeSiteId = (initialScopeSiteId ?? '').trim();
-        final hasScopeFocus = scopeClientId.isNotEmpty;
-        final visibleFleetScopeHealth = hasScopeFocus
-            ? fleetScopeHealth
-                  .where((scope) {
-                    if (scope.clientId.trim() != scopeClientId) {
-                      return false;
-                    }
-                    if (scopeSiteId.isEmpty) {
-                      return true;
-                    }
-                    return scope.siteId.trim() == scopeSiteId;
-                  })
-                  .toList(growable: false)
-            : fleetScopeHealth;
-        final focusState = _resolveFocusLinkState(
-          focusReference: focusReference,
-          visibleFleetScopeHealth: visibleFleetScopeHealth,
-          events: events,
-        );
-        final markers = _resolvedMarkers(
-          focusReference: focusReference,
-          focusState: focusState,
-        );
-        final visibleMarkers = _filteredMarkers(markers, mapFilter);
-        if (selectedMarkerId == null ||
-            !visibleMarkers.any((marker) => marker.id == selectedMarkerId)) {
-          selectedMarkerId = _preferredMarker(
-            visibleMarkers,
-            focusReference: focusReference,
-          )?.id;
-        }
-        final activeMarker = _activeMarkerFor(
-          markers: visibleMarkers,
-          selectedMarkerId: selectedMarkerId,
-          focusReference: focusReference,
-        );
-        final geofenceAlerts = _geofences
-            .where(
-              (fence) =>
-                  fence.status == _FenceStatus.breach ||
-                  (fence.status == _FenceStatus.stationary &&
-                      (fence.stationaryTime ?? 0) > 120),
-            )
-            .length;
-        final sosAlerts = _markers
-            .where(
-              (marker) =>
-                  marker.status == _MarkerStatus.sos &&
-                  marker.type == _MarkerType.guard,
-            )
-            .length;
-        final lensTelemetry = _buildCctvLensTelemetry();
-        final suppressedEntries = _suppressedFleetReviewEntries(
-          visibleFleetScopeHealth,
-        );
-        final headerDispatchAction = _headerDispatchAction(
-          visibleFleetScopeHealth: visibleFleetScopeHealth,
-          focusReference: focusReference,
-          scopeClientId: scopeClientId,
-          scopeSiteId: scopeSiteId,
-        );
-        final showSuppressedPrimary =
-            activeWatchActionDrilldown ==
-                VideoFleetWatchActionDrilldown.filtered &&
-            suppressedEntries.isNotEmpty;
-        void setActiveWatchActionDrilldown(
-          VideoFleetWatchActionDrilldown? value,
-        ) {
-          if (activeWatchActionDrilldown == value) {
-            return;
-          }
-          setState(() {
-            activeWatchActionDrilldown = value;
-          });
-          onWatchActionDrilldownChanged?.call(value);
-        }
+            final now = DateTime.now();
+            final isCombatWindow = now.hour >= 22 || now.hour < 6;
+            final normMode = isCombatWindow ? 'night' : 'day';
+            final focusReference = focusIncidentReference.trim();
+            final scopeClientId = (initialScopeClientId ?? '').trim();
+            final scopeSiteId = (initialScopeSiteId ?? '').trim();
+            final hasScopeFocus = scopeClientId.isNotEmpty;
+            final visibleFleetScopeHealth = hasScopeFocus
+                ? fleetScopeHealth
+                      .where((scope) {
+                        if (scope.clientId.trim() != scopeClientId) {
+                          return false;
+                        }
+                        if (scopeSiteId.isEmpty) {
+                          return true;
+                        }
+                        return scope.siteId.trim() == scopeSiteId;
+                      })
+                      .toList(growable: false)
+                : fleetScopeHealth;
+            final focusState = _resolveFocusLinkState(
+              focusReference: focusReference,
+              visibleFleetScopeHealth: visibleFleetScopeHealth,
+              events: events,
+            );
+            final markers = _resolvedMarkers(
+              focusReference: focusReference,
+              focusState: focusState,
+            );
+            final visibleMarkers = _filteredMarkers(markers, mapFilter);
+            if (selectedMarkerId == null ||
+                !visibleMarkers.any(
+                  (marker) => marker.id == selectedMarkerId,
+                )) {
+              selectedMarkerId = _preferredMarker(
+                visibleMarkers,
+                focusReference: focusReference,
+              )?.id;
+            }
+            final activeMarker = _activeMarkerFor(
+              markers: visibleMarkers,
+              selectedMarkerId: selectedMarkerId,
+              focusReference: focusReference,
+            );
+            final geofenceAlerts = _geofences
+                .where(
+                  (fence) =>
+                      fence.status == _FenceStatus.breach ||
+                      (fence.status == _FenceStatus.stationary &&
+                          (fence.stationaryTime ?? 0) > 120),
+                )
+                .length;
+            final sosAlerts = _markers
+                .where(
+                  (marker) =>
+                      marker.status == _MarkerStatus.sos &&
+                      marker.type == _MarkerType.guard,
+                )
+                .length;
+            final lensTelemetry = _buildCctvLensTelemetry();
+            final suppressedEntries = _suppressedFleetReviewEntries(
+              visibleFleetScopeHealth,
+            );
+            final headerDispatchAction = _headerDispatchAction(
+              visibleFleetScopeHealth: visibleFleetScopeHealth,
+              focusReference: focusReference,
+              scopeClientId: scopeClientId,
+              scopeSiteId: scopeSiteId,
+            );
+            final headerAgentAction = _headerAgentAction(
+              visibleFleetScopeHealth: visibleFleetScopeHealth,
+              focusReference: focusReference,
+            );
+            final showSuppressedPrimary =
+                activeWatchActionDrilldown ==
+                    VideoFleetWatchActionDrilldown.filtered &&
+                suppressedEntries.isNotEmpty;
+            void setActiveWatchActionDrilldown(
+              VideoFleetWatchActionDrilldown? value,
+            ) {
+              if (activeWatchActionDrilldown == value) {
+                return;
+              }
+              setState(() {
+                activeWatchActionDrilldown = value;
+              });
+              onWatchActionDrilldownChanged?.call(value);
+            }
 
-        void openWatchActionDrilldown(
-          VideoFleetWatchActionDrilldown drilldown,
-        ) {
-          if (activeWatchActionDrilldown == drilldown) {
-            setActiveWatchActionDrilldown(null);
-            return;
-          }
-          setActiveWatchActionDrilldown(drilldown);
-          final targetContext =
-              drilldown == VideoFleetWatchActionDrilldown.filtered &&
-                  suppressedEntries.isNotEmpty
-              ? suppressedPanelKey.currentContext
-              : fleetPanelKey.currentContext;
-          if (targetContext == null) {
-            return;
-          }
-          Scrollable.ensureVisible(
-            targetContext,
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-          );
-        }
-
-        void openLatestWatchActionDetail(VideoFleetScopeHealthView scope) {
-          if (activeWatchActionDrilldown ==
-                  VideoFleetWatchActionDrilldown.filtered &&
-              suppressedEntries.isNotEmpty) {
-            final targetContext = suppressedPanelKey.currentContext;
-            if (targetContext != null) {
+            void openWatchActionDrilldown(
+              VideoFleetWatchActionDrilldown drilldown,
+            ) {
+              if (activeWatchActionDrilldown == drilldown) {
+                setActiveWatchActionDrilldown(null);
+                return;
+              }
+              setActiveWatchActionDrilldown(drilldown);
+              final targetContext =
+                  drilldown == VideoFleetWatchActionDrilldown.filtered &&
+                      suppressedEntries.isNotEmpty
+                  ? suppressedPanelKey.currentContext
+                  : fleetPanelKey.currentContext;
+              if (targetContext == null) {
+                return;
+              }
               Scrollable.ensureVisible(
                 targetContext,
                 duration: const Duration(milliseconds: 220),
                 curve: Curves.easeOutCubic,
               );
             }
-            return;
-          }
-          final primaryOpenFleetScope = scope.hasIncidentContext
-              ? (onOpenFleetTacticalScope ?? onOpenFleetDispatchScope)
-              : null;
-          if (primaryOpenFleetScope == null) {
-            return;
-          }
-          primaryOpenFleetScope.call(
-            scope.clientId,
-            scope.siteId,
-            scope.latestIncidentReference,
-          );
-        }
 
-        void focusFilteredSuppressedReviews() {
-          if (activeWatchActionDrilldown !=
-              VideoFleetWatchActionDrilldown.filtered) {
-            setActiveWatchActionDrilldown(
-              VideoFleetWatchActionDrilldown.filtered,
-            );
-          }
-          final targetContext = suppressedPanelKey.currentContext;
-          if (targetContext == null) {
-            return;
-          }
-          Scrollable.ensureVisible(
-            targetContext,
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-          );
-        }
-
-        Widget buildWideWorkspace({required bool embedScroll}) {
-          final workspaceBanner = _tacticalWorkspaceStatusBanner(
-            activeMarker: activeMarker,
-            activeFilter: mapFilter,
-            focusReference: focusReference,
-            focusState: focusState,
-            verificationQueueTab: verificationQueueTab,
-            headerDispatchAction: headerDispatchAction,
-            onCycleFilter: () {
-              setState(() {
-                mapFilter = switch (mapFilter) {
-                  _TacticalMapFilter.all => _TacticalMapFilter.responding,
-                  _TacticalMapFilter.responding => _TacticalMapFilter.incidents,
-                  _TacticalMapFilter.incidents => _TacticalMapFilter.all,
-                };
-              });
-            },
-            onCenterActive: () {
-              final targetMarker = _preferredMarker(
-                visibleMarkers,
-                focusReference: focusReference,
-              );
-              if (targetMarker == null) {
+            void openLatestWatchActionDetail(VideoFleetScopeHealthView scope) {
+              if (activeWatchActionDrilldown ==
+                      VideoFleetWatchActionDrilldown.filtered &&
+                  suppressedEntries.isNotEmpty) {
+                final targetContext = suppressedPanelKey.currentContext;
+                if (targetContext != null) {
+                  Scrollable.ensureVisible(
+                    targetContext,
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                  );
+                }
                 return;
               }
-              setState(() {
-                selectedMarkerId = targetMarker.id;
-              });
-            },
-            onSetQueueTab: (_VerificationQueueTab value) {
-              setState(() {
-                verificationQueueTab = value;
-              });
-            },
-            onOpenFleetStatus: visibleFleetScopeHealth.isEmpty
-                ? null
-                : () {
-                    final targetContext = fleetPanelKey.currentContext;
-                    if (targetContext == null) {
-                      return;
-                    }
-                    Scrollable.ensureVisible(
-                      targetContext,
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                    );
-                  },
-            summaryOnly: true,
-            shellless: true,
-          );
-
-          Widget railChild() {
-            final content = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _heroHeader(
-                  dispatchAction: headerDispatchAction,
-                  visibleFleetScopeHealth: visibleFleetScopeHealth,
-                  workspaceBanner: workspaceBanner,
-                ),
-                const SizedBox(height: 5),
-                if (sosAlerts > 0) ...[
-                  _tacticalAlertBanner(
-                    key: const ValueKey('tactical-sos-banner'),
-                    icon: Icons.warning_amber_rounded,
-                    accent: const Color(0xFFEF4444),
-                    label: 'ACTIVE SOS TRIGGER',
-                    message:
-                        '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
-                    actionLabel: 'OPEN DISPATCHES',
-                    onPressed: headerDispatchAction,
-                  ),
-                  const SizedBox(height: 5),
-                ] else if (geofenceAlerts > 0) ...[
-                  _tacticalAlertBanner(
-                    key: const ValueKey('tactical-geofence-banner'),
-                    icon: Icons.report_gmailerrorred_rounded,
-                    accent: const Color(0xFFF59E0B),
-                    label: 'GEOFENCE BREACH DETECTED',
-                    message:
-                        '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
-                    actionLabel: 'INVESTIGATE',
-                    onPressed: headerDispatchAction,
-                  ),
-                  const SizedBox(height: 5),
-                ],
-                _topBar(
-                  geofenceAlerts: geofenceAlerts,
-                  sosAlerts: sosAlerts,
-                  mode: isCombatWindow ? 'Combat Window' : 'Day Window',
-                  focusReference: focusReference,
-                  focusState: focusState,
-                  scopeClientId: scopeClientId,
-                  scopeSiteId: scopeSiteId,
-                  cctvReadiness: cctvOpsReadiness,
-                  cctvCapabilitySummary: cctvCapabilitySummary,
-                  cctvRecentSignalSummary: cctvRecentSignalSummary,
-                  compactDetails: true,
-                ),
-                if (hasScopeFocus) ...[
-                  const SizedBox(height: 5),
-                  _scopeFocusBanner(
-                    clientId: scopeClientId,
-                    siteId: scopeSiteId,
-                    hasFleetScope: visibleFleetScopeHealth.isNotEmpty,
-                  ),
-                ],
-              ],
-            );
-            if (!embedScroll) {
-              return content;
+              final primaryOpenFleetScope = scope.hasIncidentContext
+                  ? (onOpenFleetTacticalScope ?? onOpenFleetDispatchScope)
+                  : null;
+              if (primaryOpenFleetScope == null) {
+                return;
+              }
+              primaryOpenFleetScope.call(
+                scope.clientId,
+                scope.siteId,
+                scope.latestIncidentReference,
+              );
             }
-            return SingleChildScrollView(primary: false, child: content);
-          }
 
-          Widget mapBoardChild() {
-            final content = _mapPanel(
-              buildContext: context,
-              markers: visibleMarkers,
-              activeMarker: activeMarker,
-              zoom: mapZoom,
-              activeFilter: mapFilter,
-              activeQueueTab: verificationQueueTab,
-              onSelectMarker: (markerId) {
-                setState(() {
-                  selectedMarkerId = markerId;
-                });
-              },
-              onZoomIn: () {
-                setState(() {
-                  mapZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
-                });
-              },
-              onZoomOut: () {
-                setState(() {
-                  mapZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
-                });
-              },
-              onCenterActive: () {
-                final targetMarker = _preferredMarker(
-                  visibleMarkers,
-                  focusReference: focusReference,
+            void focusFilteredSuppressedReviews() {
+              if (activeWatchActionDrilldown !=
+                  VideoFleetWatchActionDrilldown.filtered) {
+                setActiveWatchActionDrilldown(
+                  VideoFleetWatchActionDrilldown.filtered,
                 );
-                if (targetMarker == null) {
-                  return;
-                }
-                setState(() {
-                  selectedMarkerId = targetMarker.id;
-                });
-              },
-              onCycleFilter: () {
-                setState(() {
-                  mapFilter = switch (mapFilter) {
-                    _TacticalMapFilter.all => _TacticalMapFilter.responding,
-                    _TacticalMapFilter.responding =>
-                      _TacticalMapFilter.incidents,
-                    _TacticalMapFilter.incidents => _TacticalMapFilter.all,
-                  };
-                });
-              },
-              onSetQueueTab: (value) {
-                setState(() {
-                  verificationQueueTab = value;
-                });
-              },
-              onOpenDispatches: headerDispatchAction,
-              focusReference: focusReference,
-              focusState: focusState,
-              geofenceAlerts: geofenceAlerts,
-              sosAlerts: sosAlerts,
-            );
-            if (!embedScroll) {
-              return content;
+              }
+              final targetContext = suppressedPanelKey.currentContext;
+              if (targetContext == null) {
+                return;
+              }
+              Scrollable.ensureVisible(
+                targetContext,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+              );
             }
-            return SingleChildScrollView(primary: false, child: content);
-          }
 
-          Widget contextRailChild() {
-            final content = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _tacticalWorkspaceCommandReceipt(commandReceipt),
-                const SizedBox(height: 8),
-                _verificationPanel(
-                  normMode: normMode,
-                  timestamp: _clockLabel(now),
-                  telemetry: lensTelemetry,
+            Widget buildWideWorkspace({required bool embedScroll}) {
+              final workspaceBanner = _tacticalWorkspaceStatusBanner(
+                activeMarker: activeMarker,
+                activeFilter: mapFilter,
+                focusReference: focusReference,
+                focusState: focusState,
+                verificationQueueTab: verificationQueueTab,
+                headerDispatchAction: headerDispatchAction,
+                headerAgentAction: headerAgentAction,
+                onCycleFilter: () {
+                  setState(() {
+                    mapFilter = switch (mapFilter) {
+                      _TacticalMapFilter.all => _TacticalMapFilter.responding,
+                      _TacticalMapFilter.responding =>
+                        _TacticalMapFilter.incidents,
+                      _TacticalMapFilter.incidents => _TacticalMapFilter.all,
+                    };
+                  });
+                },
+                onCenterActive: () {
+                  final targetMarker = _preferredMarker(
+                    visibleMarkers,
+                    focusReference: focusReference,
+                  );
+                  if (targetMarker == null) {
+                    return;
+                  }
+                  setState(() {
+                    selectedMarkerId = targetMarker.id;
+                  });
+                },
+                onSetQueueTab: (_VerificationQueueTab value) {
+                  setState(() {
+                    verificationQueueTab = value;
+                  });
+                },
+                onOpenFleetStatus: visibleFleetScopeHealth.isEmpty
+                    ? null
+                    : () {
+                        final targetContext = fleetPanelKey.currentContext;
+                        if (targetContext == null) {
+                          return;
+                        }
+                        Scrollable.ensureVisible(
+                          targetContext,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                        );
+                      },
+                summaryOnly: true,
+                shellless: true,
+              );
+
+              Widget railChild() {
+                final content = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _heroHeader(
+                      dispatchAction: headerDispatchAction,
+                      agentAction: headerAgentAction,
+                      visibleFleetScopeHealth: visibleFleetScopeHealth,
+                      workspaceBanner: workspaceBanner,
+                    ),
+                    const SizedBox(height: 5),
+                    if (sosAlerts > 0) ...[
+                      _tacticalAlertBanner(
+                        key: const ValueKey('tactical-sos-banner'),
+                        icon: Icons.warning_amber_rounded,
+                        accent: const Color(0xFFEF4444),
+                        label: 'ACTIVE SOS TRIGGER',
+                        message:
+                            '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
+                        actionLabel: 'OPEN DISPATCHES',
+                        onPressed: headerDispatchAction,
+                      ),
+                      const SizedBox(height: 5),
+                    ] else if (geofenceAlerts > 0) ...[
+                      _tacticalAlertBanner(
+                        key: const ValueKey('tactical-geofence-banner'),
+                        icon: Icons.report_gmailerrorred_rounded,
+                        accent: const Color(0xFFF59E0B),
+                        label: 'GEOFENCE BREACH DETECTED',
+                        message:
+                            '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
+                        actionLabel: 'INVESTIGATE',
+                        onPressed: headerDispatchAction,
+                      ),
+                      const SizedBox(height: 5),
+                    ],
+                    _topBar(
+                      geofenceAlerts: geofenceAlerts,
+                      sosAlerts: sosAlerts,
+                      mode: isCombatWindow ? 'Combat Window' : 'Day Window',
+                      focusReference: focusReference,
+                      focusState: focusState,
+                      scopeClientId: scopeClientId,
+                      scopeSiteId: scopeSiteId,
+                      cctvReadiness: cctvOpsReadiness,
+                      cctvCapabilitySummary: cctvCapabilitySummary,
+                      cctvRecentSignalSummary: cctvRecentSignalSummary,
+                      compactDetails: true,
+                    ),
+                    if (hasScopeFocus) ...[
+                      const SizedBox(height: 5),
+                      _scopeFocusBanner(
+                        clientId: scopeClientId,
+                        siteId: scopeSiteId,
+                        hasFleetScope: visibleFleetScopeHealth.isNotEmpty,
+                      ),
+                    ],
+                  ],
+                );
+                if (!embedScroll) {
+                  return content;
+                }
+                return SingleChildScrollView(primary: false, child: content);
+              }
+
+              Widget mapBoardChild() {
+                final content = _mapPanel(
+                  buildContext: context,
+                  markers: visibleMarkers,
                   activeMarker: activeMarker,
+                  zoom: mapZoom,
                   activeFilter: mapFilter,
                   activeQueueTab: verificationQueueTab,
+                  onSelectMarker: (markerId) {
+                    setState(() {
+                      selectedMarkerId = markerId;
+                    });
+                  },
+                  onZoomIn: () {
+                    setState(() {
+                      mapZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
+                    });
+                  },
+                  onZoomOut: () {
+                    setState(() {
+                      mapZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
+                    });
+                  },
                   onCenterActive: () {
                     final targetMarker = _preferredMarker(
                       visibleMarkers,
@@ -700,331 +804,456 @@ class TacticalPage extends StatelessWidget {
                       selectedMarkerId = targetMarker.id;
                     });
                   },
-                  onQueueTabChanged: (value) {
+                  onCycleFilter: () {
+                    setState(() {
+                      mapFilter = switch (mapFilter) {
+                        _TacticalMapFilter.all => _TacticalMapFilter.responding,
+                        _TacticalMapFilter.responding =>
+                          _TacticalMapFilter.incidents,
+                        _TacticalMapFilter.incidents => _TacticalMapFilter.all,
+                      };
+                    });
+                  },
+                  onSetQueueTab: (value) {
                     setState(() {
                       verificationQueueTab = value;
                     });
                   },
-                  onShowFeedback: showTacticalFeedback,
                   onOpenDispatches: headerDispatchAction,
-                ),
-                if (showSuppressedPrimary && suppressedEntries.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  KeyedSubtree(
-                    key: suppressedPanelKey,
-                    child: _suppressedReviewPanel(
-                      entries: suppressedEntries,
+                  focusReference: focusReference,
+                  focusState: focusState,
+                  geofenceAlerts: geofenceAlerts,
+                  sosAlerts: sosAlerts,
+                );
+                if (!embedScroll) {
+                  return content;
+                }
+                return SingleChildScrollView(primary: false, child: content);
+              }
+
+              Widget contextRailChild() {
+                final content = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _tacticalWorkspaceCommandReceipt(commandReceipt),
+                    const SizedBox(height: 8),
+                    _verificationPanel(
+                      normMode: normMode,
+                      timestamp: _clockLabel(now),
+                      telemetry: lensTelemetry,
+                      activeMarker: activeMarker,
+                      activeFilter: mapFilter,
+                      activeQueueTab: verificationQueueTab,
+                      onCenterActive: () {
+                        final targetMarker = _preferredMarker(
+                          visibleMarkers,
+                          focusReference: focusReference,
+                        );
+                        if (targetMarker == null) {
+                          return;
+                        }
+                        setState(() {
+                          selectedMarkerId = targetMarker.id;
+                        });
+                      },
+                      onQueueTabChanged: (value) {
+                        setState(() {
+                          verificationQueueTab = value;
+                        });
+                      },
                       onShowFeedback: showTacticalFeedback,
-                      onFocusFilteredReviews: focusFilteredSuppressedReviews,
-                      onOpenLatestWatchActionDetail:
-                          openLatestWatchActionDetail,
+                      onOpenDispatches: headerDispatchAction,
+                    ),
+                    if (showSuppressedPrimary &&
+                        suppressedEntries.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      KeyedSubtree(
+                        key: suppressedPanelKey,
+                        child: _suppressedReviewPanel(
+                          entries: suppressedEntries,
+                          onShowFeedback: showTacticalFeedback,
+                          onFocusFilteredReviews:
+                              focusFilteredSuppressedReviews,
+                          onOpenLatestWatchActionDetail:
+                              openLatestWatchActionDetail,
+                        ),
+                      ),
+                    ],
+                    if (visibleFleetScopeHealth.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      KeyedSubtree(
+                        key: fleetPanelKey,
+                        child: _fleetScopePanel(
+                          context: context,
+                          fleetScopeHealth: visibleFleetScopeHealth,
+                          activeWatchActionDrilldown:
+                              activeWatchActionDrilldown,
+                          onShowFeedback: showTacticalFeedback,
+                          onOpenWatchActionDrilldown: openWatchActionDrilldown,
+                          onOpenLatestWatchActionDetail:
+                              openLatestWatchActionDetail,
+                          onClearWatchActionDrilldown: () {
+                            setActiveWatchActionDrilldown(null);
+                          },
+                        ),
+                      ),
+                    ],
+                    if (!showSuppressedPrimary &&
+                        suppressedEntries.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      KeyedSubtree(
+                        key: suppressedPanelKey,
+                        child: _suppressedReviewPanel(
+                          entries: suppressedEntries,
+                          onShowFeedback: showTacticalFeedback,
+                          onFocusFilteredReviews:
+                              focusFilteredSuppressedReviews,
+                          onOpenLatestWatchActionDetail:
+                              openLatestWatchActionDetail,
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+                if (!embedScroll) {
+                  return content;
+                }
+                return SingleChildScrollView(primary: false, child: content);
+              }
+
+              final workspaceRow = Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _tacticalWorkspacePanel(
+                      key: const ValueKey('tactical-workspace-panel-rail'),
+                      title: 'Tactical Rail',
+                      subtitle:
+                          'Scope posture, alerts, and monitoring context stay pinned on the left.',
+                      shellless: true,
+                      child: railChild(),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    flex: 10,
+                    child: _tacticalWorkspacePanel(
+                      key: const ValueKey('tactical-workspace-panel-map'),
+                      title: 'Map Board',
+                      subtitle:
+                          'Live tracks, geofences, and filter-driven tactical routing stay centered.',
+                      shellless: true,
+                      child: mapBoardChild(),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    flex: 2,
+                    child: _tacticalWorkspacePanel(
+                      key: const ValueKey('tactical-workspace-panel-context'),
+                      title: 'Verification Rail',
+                      subtitle:
+                          'Lens review, fleet health, and suppressed decisions stay visible.',
+                      shellless: true,
+                      child: contextRailChild(),
                     ),
                   ),
                 ],
-                if (visibleFleetScopeHealth.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  KeyedSubtree(
-                    key: fleetPanelKey,
-                    child: _fleetScopePanel(
-                      context: context,
-                      fleetScopeHealth: visibleFleetScopeHealth,
-                      activeWatchActionDrilldown: activeWatchActionDrilldown,
-                      onShowFeedback: showTacticalFeedback,
-                      onOpenWatchActionDrilldown: openWatchActionDrilldown,
-                      onOpenLatestWatchActionDetail:
-                          openLatestWatchActionDetail,
-                      onClearWatchActionDrilldown: () {
-                        setActiveWatchActionDrilldown(null);
+              );
+
+              if (embedScroll) {
+                return Expanded(child: workspaceRow);
+              }
+              return workspaceRow;
+            }
+
+            Widget buildSurfaceBody({
+              required bool embedScroll,
+              required bool showDesktopOverview,
+            }) {
+              if (showDesktopOverview && !showDetailedWorkspace) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: TrackOverviewBoard(
+                        onOpenDetailedWorkspace: () {
+                          setDetailedWorkspace(true);
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _trackWorkspaceToggle(
+                      showDetailedWorkspace: showDetailedWorkspace,
+                      canCollapse: showDesktopOverview,
+                      onPressed: () {
+                        setDetailedWorkspace(
+                          !(showDetailedWorkspace && showDesktopOverview),
+                        );
                       },
                     ),
+                  ],
+                );
+              }
+              if (wide) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    buildWideWorkspace(embedScroll: embedScroll),
+                    if (showDesktopOverview) ...[
+                      const SizedBox(height: 8),
+                      _trackWorkspaceToggle(
+                        showDetailedWorkspace: showDetailedWorkspace,
+                        canCollapse: showDesktopOverview,
+                        onPressed: () {
+                          setDetailedWorkspace(
+                            !(showDetailedWorkspace && showDesktopOverview),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _heroHeader(
+                    dispatchAction: headerDispatchAction,
+                    agentAction: headerAgentAction,
+                    visibleFleetScopeHealth: visibleFleetScopeHealth,
                   ),
-                ],
-                if (!showSuppressedPrimary && suppressedEntries.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  KeyedSubtree(
-                    key: suppressedPanelKey,
-                    child: _suppressedReviewPanel(
-                      entries: suppressedEntries,
-                      onShowFeedback: showTacticalFeedback,
-                      onFocusFilteredReviews: focusFilteredSuppressedReviews,
-                      onOpenLatestWatchActionDetail:
-                          openLatestWatchActionDetail,
+                  const SizedBox(height: 6),
+                  if (sosAlerts > 0) ...[
+                    _tacticalAlertBanner(
+                      key: const ValueKey('tactical-sos-banner'),
+                      icon: Icons.warning_amber_rounded,
+                      accent: const Color(0xFFEF4444),
+                      label: 'ACTIVE SOS TRIGGER',
+                      message:
+                          '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
+                      actionLabel: 'OPEN DISPATCHES',
+                      onPressed: headerDispatchAction,
                     ),
+                    const SizedBox(height: 6),
+                  ] else if (geofenceAlerts > 0) ...[
+                    _tacticalAlertBanner(
+                      key: const ValueKey('tactical-geofence-banner'),
+                      icon: Icons.report_gmailerrorred_rounded,
+                      accent: const Color(0xFFF59E0B),
+                      label: 'GEOFENCE BREACH DETECTED',
+                      message:
+                          '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
+                      actionLabel: 'INVESTIGATE',
+                      onPressed: headerDispatchAction,
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                  _topBar(
+                    geofenceAlerts: geofenceAlerts,
+                    sosAlerts: sosAlerts,
+                    mode: isCombatWindow ? 'Combat Window' : 'Day Window',
+                    focusReference: focusReference,
+                    focusState: focusState,
+                    scopeClientId: scopeClientId,
+                    scopeSiteId: scopeSiteId,
+                    cctvReadiness: cctvOpsReadiness,
+                    cctvCapabilitySummary: cctvCapabilitySummary,
+                    cctvRecentSignalSummary: cctvRecentSignalSummary,
                   ),
-                ],
-              ],
-            );
-            if (!embedScroll) {
-              return content;
-            }
-            return SingleChildScrollView(primary: false, child: content);
-          }
-
-          final workspaceRow = Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: _tacticalWorkspacePanel(
-                  key: const ValueKey('tactical-workspace-panel-rail'),
-                  title: 'Tactical Rail',
-                  subtitle:
-                      'Scope posture, alerts, and monitoring context stay pinned on the left.',
-                  shellless: true,
-                  child: railChild(),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                flex: 10,
-                child: _tacticalWorkspacePanel(
-                  key: const ValueKey('tactical-workspace-panel-map'),
-                  title: 'Map Board',
-                  subtitle:
-                      'Live tracks, geofences, and filter-driven tactical routing stay centered.',
-                  shellless: true,
-                  child: mapBoardChild(),
-                ),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                flex: 2,
-                child: _tacticalWorkspacePanel(
-                  key: const ValueKey('tactical-workspace-panel-context'),
-                  title: 'Verification Rail',
-                  subtitle:
-                      'Lens review, fleet health, and suppressed decisions stay visible.',
-                  shellless: true,
-                  child: contextRailChild(),
-                ),
-              ),
-            ],
-          );
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (!embedScroll) workspaceRow else Expanded(child: workspaceRow),
-            ],
-          );
-        }
-
-        Widget buildSurfaceBody({required bool embedScroll}) {
-          if (wide) {
-            return buildWideWorkspace(embedScroll: embedScroll);
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _heroHeader(
-                dispatchAction: headerDispatchAction,
-                visibleFleetScopeHealth: visibleFleetScopeHealth,
-              ),
-              const SizedBox(height: 6),
-              if (sosAlerts > 0) ...[
-                _tacticalAlertBanner(
-                  key: const ValueKey('tactical-sos-banner'),
-                  icon: Icons.warning_amber_rounded,
-                  accent: const Color(0xFFEF4444),
-                  label: 'ACTIVE SOS TRIGGER',
-                  message:
-                      '$sosAlerts guard ping${sosAlerts == 1 ? '' : 's'} need immediate tactical attention',
-                  actionLabel: 'OPEN DISPATCHES',
-                  onPressed: headerDispatchAction,
-                ),
-                const SizedBox(height: 6),
-              ] else if (geofenceAlerts > 0) ...[
-                _tacticalAlertBanner(
-                  key: const ValueKey('tactical-geofence-banner'),
-                  icon: Icons.report_gmailerrorred_rounded,
-                  accent: const Color(0xFFF59E0B),
-                  label: 'GEOFENCE BREACH DETECTED',
-                  message:
-                      '$geofenceAlerts perimeter alert${geofenceAlerts == 1 ? '' : 's'} need investigation',
-                  actionLabel: 'INVESTIGATE',
-                  onPressed: headerDispatchAction,
-                ),
-                const SizedBox(height: 6),
-              ],
-              _topBar(
-                geofenceAlerts: geofenceAlerts,
-                sosAlerts: sosAlerts,
-                mode: isCombatWindow ? 'Combat Window' : 'Day Window',
-                focusReference: focusReference,
-                focusState: focusState,
-                scopeClientId: scopeClientId,
-                scopeSiteId: scopeSiteId,
-                cctvReadiness: cctvOpsReadiness,
-                cctvCapabilitySummary: cctvCapabilitySummary,
-                cctvRecentSignalSummary: cctvRecentSignalSummary,
-              ),
-              if (hasScopeFocus) ...[
-                const SizedBox(height: 6),
-                _scopeFocusBanner(
-                  clientId: scopeClientId,
-                  siteId: scopeSiteId,
-                  hasFleetScope: visibleFleetScopeHealth.isNotEmpty,
-                ),
-              ],
-              if (showSuppressedPrimary) ...[
-                const SizedBox(height: 6),
-                KeyedSubtree(
-                  key: suppressedPanelKey,
-                  child: _suppressedReviewPanel(
-                    entries: suppressedEntries,
-                    onShowFeedback: showTacticalFeedback,
-                    onFocusFilteredReviews: focusFilteredSuppressedReviews,
-                    onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
+                  if (hasScopeFocus) ...[
+                    const SizedBox(height: 6),
+                    _scopeFocusBanner(
+                      clientId: scopeClientId,
+                      siteId: scopeSiteId,
+                      hasFleetScope: visibleFleetScopeHealth.isNotEmpty,
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  _tacticalWorkspaceCommandReceipt(commandReceipt),
+                  if (showSuppressedPrimary) ...[
+                    const SizedBox(height: 6),
+                    KeyedSubtree(
+                      key: suppressedPanelKey,
+                      child: _suppressedReviewPanel(
+                        entries: suppressedEntries,
+                        onShowFeedback: showTacticalFeedback,
+                        onFocusFilteredReviews: focusFilteredSuppressedReviews,
+                        onOpenLatestWatchActionDetail:
+                            openLatestWatchActionDetail,
+                      ),
+                    ),
+                  ],
+                  if (visibleFleetScopeHealth.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    KeyedSubtree(
+                      key: fleetPanelKey,
+                      child: _fleetScopePanel(
+                        context: context,
+                        fleetScopeHealth: visibleFleetScopeHealth,
+                        activeWatchActionDrilldown: activeWatchActionDrilldown,
+                        onOpenWatchActionDrilldown: openWatchActionDrilldown,
+                        onOpenLatestWatchActionDetail:
+                            openLatestWatchActionDetail,
+                        onClearWatchActionDrilldown: () {
+                          setActiveWatchActionDrilldown(null);
+                        },
+                        onShowFeedback: showTacticalFeedback,
+                      ),
+                    ),
+                  ],
+                  if (!showSuppressedPrimary &&
+                      suppressedEntries.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    KeyedSubtree(
+                      key: suppressedPanelKey,
+                      child: _suppressedReviewPanel(
+                        entries: suppressedEntries,
+                        onShowFeedback: showTacticalFeedback,
+                        onFocusFilteredReviews: focusFilteredSuppressedReviews,
+                        onOpenLatestWatchActionDetail:
+                            openLatestWatchActionDetail,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  _mapPanel(
+                    buildContext: context,
+                    markers: visibleMarkers,
+                    activeMarker: activeMarker,
+                    zoom: mapZoom,
+                    activeFilter: mapFilter,
+                    activeQueueTab: verificationQueueTab,
+                    onSelectMarker: (markerId) {
+                      setState(() {
+                        selectedMarkerId = markerId;
+                      });
+                    },
+                    onZoomIn: () {
+                      setState(() {
+                        mapZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
+                      });
+                    },
+                    onZoomOut: () {
+                      setState(() {
+                        mapZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
+                      });
+                    },
+                    onCenterActive: () {
+                      final targetMarker = _preferredMarker(
+                        visibleMarkers,
+                        focusReference: focusReference,
+                      );
+                      if (targetMarker == null) {
+                        return;
+                      }
+                      setState(() {
+                        selectedMarkerId = targetMarker.id;
+                      });
+                    },
+                    onCycleFilter: () {
+                      setState(() {
+                        mapFilter = switch (mapFilter) {
+                          _TacticalMapFilter.all =>
+                            _TacticalMapFilter.responding,
+                          _TacticalMapFilter.responding =>
+                            _TacticalMapFilter.incidents,
+                          _TacticalMapFilter.incidents =>
+                            _TacticalMapFilter.all,
+                        };
+                      });
+                    },
+                    onSetQueueTab: (value) {
+                      setState(() {
+                        verificationQueueTab = value;
+                      });
+                    },
+                    onOpenDispatches: headerDispatchAction,
+                    focusReference: focusReference,
+                    focusState: focusState,
+                    geofenceAlerts: geofenceAlerts,
+                    sosAlerts: sosAlerts,
                   ),
-                ),
-              ],
-              if (visibleFleetScopeHealth.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                KeyedSubtree(
-                  key: fleetPanelKey,
-                  child: _fleetScopePanel(
-                    context: context,
-                    fleetScopeHealth: visibleFleetScopeHealth,
-                    activeWatchActionDrilldown: activeWatchActionDrilldown,
-                    onOpenWatchActionDrilldown: openWatchActionDrilldown,
-                    onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
-                    onClearWatchActionDrilldown: () {
-                      setActiveWatchActionDrilldown(null);
+                  const SizedBox(height: 8),
+                  _verificationPanel(
+                    normMode: normMode,
+                    timestamp: _clockLabel(now),
+                    telemetry: lensTelemetry,
+                    activeMarker: activeMarker,
+                    activeFilter: mapFilter,
+                    activeQueueTab: verificationQueueTab,
+                    onCenterActive: () {
+                      final targetMarker = _preferredMarker(
+                        visibleMarkers,
+                        focusReference: focusReference,
+                      );
+                      if (targetMarker == null) {
+                        return;
+                      }
+                      setState(() {
+                        selectedMarkerId = targetMarker.id;
+                      });
+                    },
+                    onQueueTabChanged: (value) {
+                      setState(() {
+                        verificationQueueTab = value;
+                      });
                     },
                     onShowFeedback: showTacticalFeedback,
+                    onOpenDispatches: headerDispatchAction,
                   ),
-                ),
-              ],
-              if (!showSuppressedPrimary && suppressedEntries.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                KeyedSubtree(
-                  key: suppressedPanelKey,
-                  child: _suppressedReviewPanel(
-                    entries: suppressedEntries,
-                    onShowFeedback: showTacticalFeedback,
-                    onFocusFilteredReviews: focusFilteredSuppressedReviews,
-                    onOpenLatestWatchActionDetail: openLatestWatchActionDetail,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 6),
-              _mapPanel(
-                buildContext: context,
-                markers: visibleMarkers,
-                activeMarker: activeMarker,
-                zoom: mapZoom,
-                activeFilter: mapFilter,
-                activeQueueTab: verificationQueueTab,
-                onSelectMarker: (markerId) {
-                  setState(() {
-                    selectedMarkerId = markerId;
-                  });
-                },
-                onZoomIn: () {
-                  setState(() {
-                    mapZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
-                  });
-                },
-                onZoomOut: () {
-                  setState(() {
-                    mapZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
-                  });
-                },
-                onCenterActive: () {
-                  final targetMarker = _preferredMarker(
-                    visibleMarkers,
-                    focusReference: focusReference,
-                  );
-                  if (targetMarker == null) {
-                    return;
-                  }
-                  setState(() {
-                    selectedMarkerId = targetMarker.id;
-                  });
-                },
-                onCycleFilter: () {
-                  setState(() {
-                    mapFilter = switch (mapFilter) {
-                      _TacticalMapFilter.all => _TacticalMapFilter.responding,
-                      _TacticalMapFilter.responding =>
-                        _TacticalMapFilter.incidents,
-                      _TacticalMapFilter.incidents => _TacticalMapFilter.all,
-                    };
-                  });
-                },
-                onSetQueueTab: (value) {
-                  setState(() {
-                    verificationQueueTab = value;
-                  });
-                },
-                onOpenDispatches: headerDispatchAction,
-                focusReference: focusReference,
-                focusState: focusState,
-                geofenceAlerts: geofenceAlerts,
-                sosAlerts: sosAlerts,
-              ),
-              const SizedBox(height: 8),
-              _verificationPanel(
-                normMode: normMode,
-                timestamp: _clockLabel(now),
-                telemetry: lensTelemetry,
-                activeMarker: activeMarker,
-                activeFilter: mapFilter,
-                activeQueueTab: verificationQueueTab,
-                onCenterActive: () {
-                  final targetMarker = _preferredMarker(
-                    visibleMarkers,
-                    focusReference: focusReference,
-                  );
-                  if (targetMarker == null) {
-                    return;
-                  }
-                  setState(() {
-                    selectedMarkerId = targetMarker.id;
-                  });
-                },
-                onQueueTabChanged: (value) {
-                  setState(() {
-                    verificationQueueTab = value;
-                  });
-                },
-                onShowFeedback: showTacticalFeedback,
-                onOpenDispatches: headerDispatchAction,
-              ),
-            ],
-          );
-        }
+                ],
+              );
+            }
 
-        return OnyxPageScaffold(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final boundedDesktopSurface =
-                  wide &&
-                  constraints.hasBoundedHeight &&
-                  constraints.maxHeight.isFinite;
-              final ultrawideSurface = isUltrawideLayout(
-                context,
-                viewportWidth: constraints.maxWidth,
-              );
-              final widescreenSurface = isWidescreenLayout(
-                context,
-                viewportWidth: constraints.maxWidth,
-              );
-              final surfaceMaxWidth = ultrawideSurface
-                  ? constraints.maxWidth
-                  : widescreenSurface
-                  ? constraints.maxWidth * 0.94
-                  : 1500.0;
-              return OnyxViewportWorkspaceLayout(
-                padding: contentPadding,
-                maxWidth: surfaceMaxWidth,
-                lockToViewport: boundedDesktopSurface,
-                spacing: 6,
-                header: const SizedBox.shrink(),
-                body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
-              );
-            },
-          ),
+            return OnyxPageScaffold(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final compactTacticalLane =
+                      constraints.maxWidth < _tacticalDesktopOverviewMinWidth ||
+                      math.min(constraints.maxWidth, constraints.maxHeight) <
+                          700;
+                  wide =
+                      !compactTacticalLane &&
+                      constraints.maxWidth >=
+                          _tacticalDetailedWorkspaceMinWidth &&
+                      constraints.maxHeight >=
+                          _tacticalDetailedWorkspaceMinHeight;
+                  final boundedDesktopSurface =
+                      wide &&
+                      constraints.hasBoundedHeight &&
+                      constraints.maxHeight.isFinite;
+                  final ultrawideSurface = isUltrawideLayout(
+                    context,
+                    viewportWidth: constraints.maxWidth,
+                  );
+                  final widescreenSurface = isWidescreenLayout(
+                    context,
+                    viewportWidth: constraints.maxWidth,
+                  );
+                  final showDesktopOverview =
+                      !compactTacticalLane && constraints.maxHeight >= 540;
+                  final surfaceMaxWidth = ultrawideSurface
+                      ? constraints.maxWidth
+                      : widescreenSurface
+                      ? constraints.maxWidth * 0.94
+                      : 1500.0;
+                  return OnyxViewportWorkspaceLayout(
+                    padding: contentPadding,
+                    maxWidth: surfaceMaxWidth,
+                    lockToViewport: boundedDesktopSurface,
+                    spacing: 6,
+                    header: const SizedBox.shrink(),
+                    body: buildSurfaceBody(
+                      embedScroll: boundedDesktopSurface,
+                      showDesktopOverview: showDesktopOverview,
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         );
       },
     );
@@ -1081,8 +1310,44 @@ class TacticalPage extends StatelessWidget {
         openDispatchScope(targetClientId, targetSiteId, targetReference);
   }
 
+  String? _agentIncidentReference({
+    required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
+    required String focusReference,
+  }) {
+    final normalizedFocusReference = focusReference.trim();
+    if (normalizedFocusReference.isNotEmpty) {
+      return normalizedFocusReference;
+    }
+    for (final scope in visibleFleetScopeHealth) {
+      final candidate = (scope.latestIncidentReference ?? '').trim();
+      if (candidate.isNotEmpty) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  VoidCallback? _headerAgentAction({
+    required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
+    required String focusReference,
+  }) {
+    final callback = onOpenAgentForIncident;
+    if (callback == null) {
+      return null;
+    }
+    final incidentReference = _agentIncidentReference(
+      visibleFleetScopeHealth: visibleFleetScopeHealth,
+      focusReference: focusReference,
+    );
+    if (incidentReference == null || incidentReference.isEmpty) {
+      return null;
+    }
+    return () => callback(incidentReference);
+  }
+
   Widget _heroHeader({
     required VoidCallback? dispatchAction,
+    required VoidCallback? agentAction,
     required List<VideoFleetScopeHealthView> visibleFleetScopeHealth,
     Widget? workspaceBanner,
   }) {
@@ -1095,15 +1360,16 @@ class TacticalPage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 980;
-        final actionButton = OutlinedButton.icon(
+        final dispatchButton = OutlinedButton.icon(
           key: const ValueKey('tactical-open-dispatches-button'),
           onPressed: dispatchAction,
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFEAF4FF),
+            foregroundColor: OnyxDesignTokens.accentBlue,
+            backgroundColor: _tacticalSurfaceColor,
             side: BorderSide(
               color: dispatchAction == null
-                  ? const Color(0xFF35506F)
-                  : const Color(0xFF4B6B8F),
+                  ? _tacticalStrongBorderColor
+                  : const Color(0xFF9DB9D9),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
             shape: RoundedRectangleBorder(
@@ -1118,6 +1384,37 @@ class TacticalPage extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
+        );
+        final agentButton = OutlinedButton.icon(
+          key: const ValueKey('tactical-open-agent-button'),
+          onPressed: agentAction,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFF6C4BD2),
+            side: BorderSide(
+              color: agentAction == null
+                  ? _tacticalStrongBorderColor
+                  : const Color(0xFFB7A5EE),
+            ),
+            backgroundColor: const Color(0xFFF6F1FF),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(7),
+            ),
+          ),
+          icon: const Icon(Icons.psychology_alt_rounded, size: 13),
+          label: Text(
+            'Ask Agent',
+            style: GoogleFonts.inter(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        );
+        final actionButtons = Wrap(
+          spacing: 4,
+          runSpacing: 4,
+          alignment: WrapAlignment.end,
+          children: [dispatchButton, if (agentAction != null) agentButton],
         );
         final titleBlock = Expanded(
           child: Row(
@@ -1144,7 +1441,7 @@ class TacticalPage extends StatelessWidget {
                 child: const Icon(
                   Icons.map_rounded,
                   size: 14,
-                  color: Colors.white,
+                  color: OnyxDesignTokens.textPrimary,
                 ),
               ),
               const SizedBox(width: 6),
@@ -1154,17 +1451,17 @@ class TacticalPage extends StatelessWidget {
                   children: [
                     Text(
                       'Tactical Command',
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFEAF4FF),
+                      style: GoogleFonts.inter(
+                        color: _tacticalTitleColor,
                         fontSize: compact ? 16 : 18,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'Fleet watch monitoring, responder tracking, and geofence verification',
+                      'One map, one live track, one next move.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF93A9C6),
+                        color: _tacticalBodyColor,
                         fontSize: 8.5,
                         fontWeight: FontWeight.w600,
                         height: 1.35,
@@ -1220,12 +1517,19 @@ class TacticalPage extends StatelessWidget {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF111722), Color(0xFF0D1117)],
+              colors: [Color(0xFFF8FBFF), Color(0xFFEDF4FB)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF223244)),
+            border: Border.all(color: _tacticalBorderColor),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
           ),
           child: compact
               ? Column(
@@ -1233,7 +1537,7 @@ class TacticalPage extends StatelessWidget {
                   children: [
                     Row(children: [titleBlock]),
                     const SizedBox(height: 3),
-                    actionButton,
+                    actionButtons,
                     if (workspaceBanner != null) ...[
                       const SizedBox(height: 4),
                       workspaceBanner,
@@ -1248,7 +1552,13 @@ class TacticalPage extends StatelessWidget {
                       children: [
                         titleBlock,
                         const SizedBox(width: 4),
-                        actionButton,
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 190),
+                          child: Align(
+                            alignment: Alignment.topRight,
+                            child: actionButtons,
+                          ),
+                        ),
                       ],
                     ),
                     if (workspaceBanner != null) ...[
@@ -1259,6 +1569,44 @@ class TacticalPage extends StatelessWidget {
                 ),
         );
       },
+    );
+  }
+
+  Widget _trackWorkspaceToggle({
+    required bool showDetailedWorkspace,
+    required bool canCollapse,
+    required VoidCallback onPressed,
+  }) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: OutlinedButton.icon(
+        key: const ValueKey('tactical-toggle-detailed-workspace'),
+        onPressed: onPressed,
+        icon: Icon(
+          showDetailedWorkspace && canCollapse
+              ? Icons.visibility_off_rounded
+              : Icons.open_in_new_rounded,
+          size: 15,
+        ),
+        label: Text(
+          showDetailedWorkspace && canCollapse
+              ? 'Hide Workspace'
+              : 'Open Workspace',
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: OnyxDesignTokens.accentBlue,
+          side: const BorderSide(color: Color(0xFFBFD2E8)),
+          backgroundColor: _tacticalSurfaceColor,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          textStyle: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1286,6 +1634,36 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
+  _TacticalCommandReceipt _initialCommandReceipt(
+    String agentReturnReference,
+    TacticalEvidenceReturnReceipt? evidenceReturnReceipt,
+  ) {
+    if (evidenceReturnReceipt != null) {
+      return _TacticalCommandReceipt(
+        label: evidenceReturnReceipt.label,
+        headline: evidenceReturnReceipt.headline,
+        detail: evidenceReturnReceipt.detail,
+        accent: evidenceReturnReceipt.accent,
+      );
+    }
+    if (agentReturnReference.isEmpty) {
+      return const _TacticalCommandReceipt(
+        label: 'TRACK READY',
+        headline: 'Map is live. Watch the next move.',
+        detail:
+            'Fleet-watch actions, lens review, and temporary identity updates stay visible while the live track stays pinned.',
+        accent: _tacticalAccentSky,
+      );
+    }
+    return _TacticalCommandReceipt(
+      label: 'AGENT RETURN',
+      headline: 'Returned from Agent for $agentReturnReference.',
+      detail:
+          'The scoped track board stayed pinned so controllers can continue from the same tactical focus without reopening the legacy workspace.',
+      accent: const Color(0xFF8B5CF6),
+    );
+  }
+
   Widget _tacticalWorkspaceStatusBanner({
     required _MapMarker? activeMarker,
     required _TacticalMapFilter activeFilter,
@@ -1293,6 +1671,7 @@ class TacticalPage extends StatelessWidget {
     required _FocusLinkState focusState,
     required _VerificationQueueTab verificationQueueTab,
     required VoidCallback? headerDispatchAction,
+    required VoidCallback? headerAgentAction,
     required VoidCallback onCycleFilter,
     required VoidCallback onCenterActive,
     required ValueChanged<_VerificationQueueTab> onSetQueueTab,
@@ -1332,9 +1711,9 @@ class TacticalPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'TACTICAL WORKSPACE',
+                    'YOU ARE HERE',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF8FAFD4),
+                      color: _tacticalMutedColor,
                       fontSize: 7.5,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.0,
@@ -1342,9 +1721,9 @@ class TacticalPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$selectedTrackLabel. ${_verificationQueueWorkspaceLabel(verificationQueueTab)} queue is active.',
+                    '$selectedTrackLabel. ${_verificationQueueWorkspaceLabel(verificationQueueTab)} queue is live.',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF4FF),
+                      color: _tacticalTitleColor,
                       fontSize: 8.5,
                       fontWeight: FontWeight.w700,
                       height: 1.3,
@@ -1356,7 +1735,7 @@ class TacticalPage extends StatelessWidget {
                   Text(
                     focusLabel,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFB4C8E1),
+                      color: _tacticalBodyColor,
                       fontSize: 7.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1372,10 +1751,10 @@ class TacticalPage extends StatelessWidget {
         if (summaryOnly)
           Text(
             onOpenFleetStatus != null
-                ? 'Map filter and centering stay pinned in the map board, while queue tabs, dispatch routing, and fleet status stay anchored to the verification and support rails.'
-                : 'Map filter and centering stay pinned in the map board, while queue tabs and dispatch routing stay anchored to the verification and support rails.',
+                ? 'Keep the map centered, keep the active queue live, and route dispatch or fleet actions from here.'
+                : 'Keep the map centered and keep the active queue live from here.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFB4C8E1),
+              color: _tacticalBodyColor,
               fontSize: 7.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -1396,6 +1775,15 @@ class TacticalPage extends StatelessWidget {
                   background: const Color(0x147C3AED),
                   border: const Color(0x667C3AED),
                   onTap: headerDispatchAction,
+                ),
+              if (headerAgentAction != null)
+                _tacticalWorkspaceActionChip(
+                  key: const ValueKey('tactical-workspace-open-agent'),
+                  label: 'Ask Agent',
+                  foreground: const Color(0xFFE9D5FF),
+                  background: const Color(0x147C3AED),
+                  border: const Color(0x667C3AED),
+                  onTap: headerAgentAction,
                 ),
               _tacticalWorkspaceActionChip(
                 key: const ValueKey('tactical-workspace-cycle-filter'),
@@ -1461,13 +1849,9 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF101D30), Color(0xFF162740)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: _tacticalAltSurfaceColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF26405C)),
+        border: Border.all(color: _tacticalBorderColor),
       ),
       child: bannerContent,
     );
@@ -1493,8 +1877,15 @@ class TacticalPage extends StatelessWidget {
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            color: const Color(0xFF0B1523),
-            border: Border.all(color: const Color(0xFF203448)),
+            color: _tacticalSurfaceColor,
+            border: Border.all(color: _tacticalBorderColor),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x120F172A),
+                blurRadius: 16,
+                offset: Offset(0, 8),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1502,7 +1893,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 title.toUpperCase(),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF6C87AD),
+                  color: _tacticalMutedColor,
                   fontSize: 8,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.0,
@@ -1512,7 +1903,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF96AECD),
+                  color: _tacticalBodyColor,
                   fontSize: 8,
                   fontWeight: FontWeight.w600,
                   height: 1.3,
@@ -1544,16 +1935,19 @@ class TacticalPage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
         decoration: BoxDecoration(
-          color: background,
+          color: Color.alphaBlend(
+            OnyxDesignTokens.glassSurface,
+            background,
+          ),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: border),
+          border: Border.all(color: border.withValues(alpha: 0.44)),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: foreground,
+            color: Color.lerp(_tacticalTitleColor, foreground, 0.72),
             fontSize: 8,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -1566,17 +1960,24 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C1117),
+        color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: receipt.accent.withValues(alpha: 0.42)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'LATEST COMMAND',
+            'LAST MOVE',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _tacticalMutedColor,
               fontSize: 8,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -1602,8 +2003,8 @@ class TacticalPage extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             receipt.headline,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF4FF),
+            style: GoogleFonts.inter(
+              color: _tacticalTitleColor,
               fontSize: 14,
               fontWeight: FontWeight.w700,
               height: 1,
@@ -1615,7 +2016,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             receipt.detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: _tacticalBodyColor,
               fontSize: 8.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -1661,7 +2062,7 @@ class TacticalPage extends StatelessWidget {
             onPressed: onPressed,
             style: FilledButton.styleFrom(
               backgroundColor: accent,
-              foregroundColor: Colors.white,
+              foregroundColor: OnyxDesignTokens.textPrimary,
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -1795,9 +2196,9 @@ class TacticalPage extends StatelessWidget {
     final canRecoverLead =
         leadScope.hasWatchActivationGap && onRecoverFleetWatchScope != null;
     final primaryActionLabel = hasTacticalLead
-        ? 'Open tactical lane'
+        ? 'OPEN TACTICAL TRACK'
         : hasDispatchLead
-        ? 'Open dispatch lane'
+        ? 'OPEN DISPATCH BOARD'
         : canRecoverLead
         ? 'Resync coverage'
         : 'Open latest detail';
@@ -1925,9 +2326,16 @@ class TacticalPage extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF111826),
+            color: _tacticalSurfaceColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: focusAccent.withValues(alpha: 0.42)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F0F172A),
+                blurRadius: 24,
+                offset: Offset(0, 10),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1952,7 +2360,7 @@ class TacticalPage extends StatelessWidget {
                         Text(
                           focusDrilldown?.focusLabel ?? 'Fleet coverage ready',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF4FF),
+                            color: _tacticalTitleColor,
                             fontSize: 11.5,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1961,7 +2369,7 @@ class TacticalPage extends StatelessWidget {
                         Text(
                           focusDetail,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFCAD7E8),
+                            color: _tacticalBodyColor,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             height: 1.35,
@@ -1972,7 +2380,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             focusLatest,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF9AB1CF),
+                              color: _tacticalMutedColor,
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
@@ -2082,7 +2490,7 @@ class TacticalPage extends StatelessWidget {
                   if (hasTacticalLead)
                     _tacticalWorkspaceActionChip(
                       key: const ValueKey('tactical-fleet-focus-open-tactical'),
-                      label: 'Open tactical',
+                      label: 'OPEN TACTICAL TRACK',
                       foreground: const Color(0xFF8FD1FF),
                       background: const Color(0x148FD1FF),
                       border: const Color(0x668FD1FF),
@@ -2091,7 +2499,7 @@ class TacticalPage extends StatelessWidget {
                   if (hasDispatchLead)
                     _tacticalWorkspaceActionChip(
                       key: const ValueKey('tactical-fleet-focus-open-dispatch'),
-                      label: 'Open dispatch',
+                      label: 'OPEN DISPATCH BOARD',
                       foreground: const Color(0xFFFDE68A),
                       background: const Color(0x14FDE68A),
                       border: const Color(0x66FDE68A),
@@ -2132,13 +2540,13 @@ class TacticalPage extends StatelessWidget {
         VideoFleetScopeHealthPanel(
           title: 'DVR FLEET HEALTH',
           titleStyle: GoogleFonts.inter(
-            color: const Color(0x66FFFFFF),
+            color: _tacticalMutedColor,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 1.1,
           ),
           sectionLabelStyle: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
+            color: _tacticalMutedColor,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.9,
@@ -2180,9 +2588,9 @@ class TacticalPage extends StatelessWidget {
               .toList(growable: false),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF0E1A2B),
+            color: _tacticalAltSurfaceColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF223244)),
+            border: Border.all(color: _tacticalBorderColor),
           ),
           cardSpacing: 10,
           runSpacing: 10,
@@ -2223,9 +2631,16 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF111826),
+        color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.36)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F0F172A),
+            blurRadius: 20,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -2246,7 +2661,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 primaryDrilldown?.focusLabel ?? 'All fleet scopes visible',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF4FF),
+                  color: _tacticalTitleColor,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -2255,7 +2670,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 detail,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFCAD7E8),
+                  color: _tacticalBodyColor,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
                   height: 1.35,
@@ -2288,7 +2703,7 @@ class TacticalPage extends StatelessWidget {
                 Text(
                   headline,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
+                    color: _tacticalTitleColor,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2439,9 +2854,9 @@ class TacticalPage extends StatelessWidget {
     final hasDispatchLane =
         focusScope.hasIncidentContext && onOpenFleetDispatchScope != null;
     final primaryActionLabel = hasTacticalLane
-        ? 'Open tactical lane'
+        ? 'OPEN TACTICAL TRACK'
         : hasDispatchLane
-        ? 'Open dispatch lane'
+        ? 'OPEN DISPATCH BOARD'
         : 'Open latest detail';
     final primaryActionColor = hasTacticalLane
         ? const Color(0xFF8FD1FF)
@@ -2519,9 +2934,9 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2534,7 +2949,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 'SUPPRESSED ${videoOpsLabel.toUpperCase()} REVIEWS',
                 style: GoogleFonts.inter(
-                  color: const Color(0x66FFFFFF),
+                  color: const Color(0xFF7A8FA4),
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.1,
@@ -2551,7 +2966,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'Recent ${videoOpsLabel.toUpperCase()} reviews ONYX held below the client-notification threshold across the active fleet.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: const Color(0xFF556B80),
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
@@ -2562,9 +2977,9 @@ class TacticalPage extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF111826),
+              color: const Color(0xFFF7FAFD),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF33465F)),
+              border: Border.all(color: const Color(0xFFD6E1EC)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2579,7 +2994,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             'SUPPRESSED REVIEW FOCUS',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFBFD7F2),
+                              color: const Color(0xFF7A8FA4),
                               fontSize: 9,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
@@ -2589,7 +3004,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             focusScope.siteName,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: const Color(0xFF172638),
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -2600,7 +3015,7 @@ class TacticalPage extends StatelessWidget {
                                 ? 'Suppressed because the activity remained below the client threshold.'
                                 : focusReview.decisionSummary.trim(),
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFCAD7E8),
+                              color: const Color(0xFF556B80),
                               fontSize: 9.5,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
@@ -2640,7 +3055,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             primaryActionLabel,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: const Color(0xFF172638),
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
@@ -2715,7 +3130,7 @@ class TacticalPage extends StatelessWidget {
                         key: const ValueKey(
                           'tactical-suppressed-focus-open-tactical',
                         ),
-                        label: 'Open tactical',
+                        label: 'OPEN TACTICAL TRACK',
                         foreground: const Color(0xFF8FD1FF),
                         background: const Color(0x148FD1FF),
                         border: const Color(0x668FD1FF),
@@ -2726,7 +3141,7 @@ class TacticalPage extends StatelessWidget {
                         key: const ValueKey(
                           'tactical-suppressed-focus-open-dispatch',
                         ),
-                        label: 'Open dispatch',
+                        label: 'OPEN DISPATCH BOARD',
                         foreground: const Color(0xFFFDE68A),
                         background: const Color(0x14FDE68A),
                         border: const Color(0x66FDE68A),
@@ -2802,7 +3217,7 @@ class TacticalPage extends StatelessWidget {
                 child: Text(
                   scope.siteName,
                   style: GoogleFonts.inter(
-                    color: Colors.white,
+                    color: OnyxDesignTokens.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2948,9 +3363,9 @@ class TacticalPage extends StatelessWidget {
     final primaryActionLabel = canRecoverCoverage
         ? 'Resync coverage'
         : hasTacticalLane
-        ? 'Open tactical'
+        ? 'OPEN TACTICAL TRACK'
         : hasDispatchLane
-        ? 'Open dispatch'
+        ? 'OPEN DISPATCH BOARD'
         : 'Latest detail';
     final primaryActionColor = canRecoverCoverage
         ? const Color(0xFFFCA5A5)
@@ -3031,9 +3446,9 @@ class TacticalPage extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF111826),
+          color: const Color(0xFFFBFDFF),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: commandAccent.withValues(alpha: 0.38)),
+          border: Border.all(color: commandAccent.withValues(alpha: 0.26)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3074,37 +3489,49 @@ class TacticalPage extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: primaryActionColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(
-                  color: primaryActionColor.withValues(alpha: 0.42),
+            Flexible(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: primaryActionColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(
+                      color: primaryActionColor.withValues(alpha: 0.42),
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'NEXT MOVE',
+                        style: GoogleFonts.inter(
+                          color: primaryActionColor,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        primaryActionLabel,
+                        textAlign: TextAlign.end,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFFEAF4FF),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'NEXT MOVE',
-                    style: GoogleFonts.inter(
-                      color: primaryActionColor,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    primaryActionLabel,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF4FF),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
               ),
             ),
           ],
@@ -3171,7 +3598,7 @@ class TacticalPage extends StatelessWidget {
       endpointLabel: scope.endpointLabel,
       lastSeenLabel: ': ${scope.lastSeenLabel}',
       titleStyle: GoogleFonts.inter(
-        color: Colors.white,
+        color: OnyxDesignTokens.textPrimary,
         fontSize: 13,
         fontWeight: FontWeight.w700,
       ),
@@ -3644,7 +4071,7 @@ class TacticalPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive
             ? accent.withValues(alpha: 0.16)
-            : const Color(0xFF111826),
+            : _tacticalAltSurfaceColor,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isActive
@@ -3662,7 +4089,7 @@ class TacticalPage extends StatelessWidget {
                 child: Text(
                   title,
                   style: GoogleFonts.inter(
-                    color: isActive ? accent : const Color(0xFFEAF4FF),
+                    color: isActive ? accent : _tacticalTitleColor,
                     fontSize: 9,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.2,
@@ -3696,7 +4123,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: _tacticalBodyColor,
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -3796,9 +4223,9 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: EdgeInsets.all(compactDetails ? 5 : 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _tacticalBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3811,7 +4238,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 'TACTICAL OVERVIEW',
                 style: GoogleFonts.inter(
-                  color: const Color(0x66FFFFFF),
+                  color: _tacticalMutedColor,
                   fontSize: compactDetails ? 8 : 8.5,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.2,
@@ -3974,9 +4401,16 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _tacticalBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3984,7 +4418,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'TACTICAL MAP',
             style: GoogleFonts.inter(
-              color: const Color(0x66FFFFFF),
+              color: _tacticalMutedColor,
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
@@ -3994,7 +4428,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'Guard pings, vehicle routes, incident markers, and 50m safety geofences.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: _tacticalBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -4139,16 +4573,16 @@ class TacticalPage extends StatelessWidget {
                               vertical: 10,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xCC0A0D14),
+                              color: const Color(0xF6FFFFFF),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: const Color(0xFF23344C),
+                                color: _tacticalStrongBorderColor,
                               ),
                             ),
                             child: Text(
                               'No markers match the ${_mapFilterLabel(activeFilter).toLowerCase()} filter.',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFB9D2F1),
+                                color: _tacticalBodyColor,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -4221,7 +4655,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'ACTIVE TRACKS',
             style: GoogleFonts.inter(
-              color: const Color(0x66FFFFFF),
+              color: _tacticalMutedColor,
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.0,
@@ -4233,14 +4667,14 @@ class TacticalPage extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF111826),
+                color: _tacticalAltSurfaceColor,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF23344C)),
+                border: Border.all(color: _tacticalBorderColor),
               ),
               child: Text(
                 'Cycle the map filter or center on the active incident to restore tactical tracks.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB1CF),
+                  color: _tacticalBodyColor,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -4368,7 +4802,10 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
+        color: Color.alphaBlend(
+          accent.withValues(alpha: 0.08),
+          _tacticalSurfaceColor,
+        ),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.48)),
       ),
@@ -4416,7 +4853,7 @@ class TacticalPage extends StatelessWidget {
                       marker.label,
                       key: const ValueKey('tactical-active-track-label'),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: _tacticalTitleColor,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4425,7 +4862,7 @@ class TacticalPage extends StatelessWidget {
                     Text(
                       '${_markerStatusLabel(marker)} • $detail',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9AB1CF),
+                        color: _tacticalBodyColor,
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -4439,7 +4876,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'The selected track stays pinned while map routing, verification queues, and dispatch handoff remain one tap away.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFD3E5FF),
+              color: _tacticalBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -4511,7 +4948,7 @@ class TacticalPage extends StatelessWidget {
               if (onOpenDispatches != null)
                 _tacticalWorkspaceActionChip(
                   key: const ValueKey('tactical-map-focus-open-dispatches'),
-                  label: 'Open dispatches',
+                  label: 'OPEN DISPATCH BOARD',
                   foreground: const Color(0xFFDCD4FF),
                   background: const Color(0x147C3AED),
                   border: const Color(0x667C3AED),
@@ -4540,13 +4977,16 @@ class TacticalPage extends StatelessWidget {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: selected
-              ? accent.withValues(alpha: 0.16)
-              : const Color(0xFF111826),
+              ? Color.alphaBlend(
+                  accent.withValues(alpha: 0.1),
+                  _tacticalSurfaceColor,
+                )
+              : _tacticalSurfaceColor,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.72)
-                : const Color(0xFF23344C),
+                : _tacticalBorderColor,
           ),
         ),
         child: Column(
@@ -4557,7 +4997,7 @@ class TacticalPage extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF4FF),
+                color: _tacticalTitleColor,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -4654,8 +5094,14 @@ class TacticalPage extends StatelessWidget {
       final intelligenceId = event is IntelligenceReceived
           ? event.intelligenceId.trim()
           : '';
+      final incidentDispatchReference = dispatchId.startsWith('INC-')
+          ? dispatchId
+          : dispatchId.isEmpty
+          ? ''
+          : 'INC-$dispatchId';
       if (event.eventId.trim() != normalizedReference &&
           dispatchId != normalizedReference &&
+          incidentDispatchReference != normalizedReference &&
           intelligenceId != normalizedReference) {
         continue;
       }
@@ -4863,7 +5309,7 @@ class TacticalPage extends StatelessWidget {
       _VerificationQueueTab.anomalies =>
         activeMarker == null ? 'Open matches' : 'Center track',
       _VerificationQueueTab.matches =>
-        onOpenDispatches == null ? 'Open anomalies' : 'Open dispatches',
+        onOpenDispatches == null ? 'Open anomalies' : 'OPEN DISPATCH BOARD',
       _VerificationQueueTab.assets =>
         activeMarker == null ? 'Open matches' : 'Center track',
     };
@@ -4942,9 +5388,16 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _tacticalSurfaceColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _tacticalBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x120F172A),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4952,7 +5405,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'VERIFICATION LENS',
             style: GoogleFonts.inter(
-              color: const Color(0x66FFFFFF),
+              color: _tacticalMutedColor,
               fontSize: 9,
               fontWeight: FontWeight.w700,
               letterSpacing: 1.1,
@@ -4962,7 +5415,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             'Baseline vs live capture with anomaly detection overlays.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: _tacticalBodyColor,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
@@ -4971,7 +5424,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             '$videoOpsLabel Ops • $cctvOpsReadiness • $cctvOpsDetail',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _tacticalMutedColor,
               fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
@@ -5039,7 +5492,7 @@ class TacticalPage extends StatelessWidget {
                               'tactical-verification-focus-label',
                             ),
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: _tacticalTitleColor,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -5048,7 +5501,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             activeDetail,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF9AB1CF),
+                              color: _tacticalBodyColor,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w600,
                             ),
@@ -5064,7 +5517,7 @@ class TacticalPage extends StatelessWidget {
                 Text(
                   focusSupport,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFD3E5FF),
+                    color: _tacticalBodyColor,
                     fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -5158,7 +5611,7 @@ class TacticalPage extends StatelessWidget {
                         key: const ValueKey(
                           'tactical-verification-focus-open-dispatches',
                         ),
-                        label: 'Open dispatches',
+                        label: 'OPEN DISPATCH BOARD',
                         foreground: const Color(0xFFDCD4FF),
                         background: const Color(0x147C3AED),
                         border: const Color(0x667C3AED),
@@ -5175,9 +5628,9 @@ class TacticalPage extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF111826),
+              color: _tacticalSurfaceColor,
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF26384F)),
+              border: Border.all(color: _tacticalBorderColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -5202,7 +5655,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             comparisonSummary,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: _tacticalTitleColor,
                               fontSize: 10.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -5211,7 +5664,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             comparisonSupport,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF9AB1CF),
+                              color: _tacticalBodyColor,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
@@ -5251,7 +5704,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             comparisonPrimaryLabel,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: _tacticalTitleColor,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
                             ),
@@ -5373,7 +5826,7 @@ class TacticalPage extends StatelessWidget {
                         key: const ValueKey(
                           'tactical-lens-comparison-open-dispatches',
                         ),
-                        label: 'Open dispatches',
+                        label: 'OPEN DISPATCH BOARD',
                         foreground: const Color(0xFFDCD4FF),
                         background: const Color(0x147C3AED),
                         border: const Color(0x667C3AED),
@@ -5388,7 +5841,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             '$videoOpsLabel Signal Counters (6h)',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _tacticalMutedColor,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -5442,7 +5895,7 @@ class TacticalPage extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF111826),
+              color: _tacticalSurfaceColor,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: queueAccent.withValues(alpha: 0.42)),
             ),
@@ -5469,7 +5922,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             queueHeadline,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFEAF4FF),
+                              color: _tacticalTitleColor,
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                             ),
@@ -5478,7 +5931,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             queueSupport,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF9AB1CF),
+                              color: _tacticalBodyColor,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w600,
                               height: 1.35,
@@ -5509,7 +5962,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             'MATCH SCORE',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF8EA4C2),
+                              color: _tacticalMutedColor,
                               fontSize: 8.5,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 0.8,
@@ -5518,7 +5971,7 @@ class TacticalPage extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             '$matchScore%',
-                            style: GoogleFonts.rajdhani(
+                            style: GoogleFonts.inter(
                               color: scoreColor,
                               fontSize: 28,
                               height: 0.9,
@@ -5529,7 +5982,7 @@ class TacticalPage extends StatelessWidget {
                           Text(
                             '$queueCount ready',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFCAD7E8),
+                              color: _tacticalBodyColor,
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
                             ),
@@ -5593,7 +6046,7 @@ class TacticalPage extends StatelessWidget {
                             Text(
                               primaryActionLabel,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFEAF4FF),
+                                color: _tacticalTitleColor,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -5602,7 +6055,7 @@ class TacticalPage extends StatelessWidget {
                             Text(
                               primaryActionDetail,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFCAD7E8),
+                                color: _tacticalBodyColor,
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w600,
                                 height: 1.35,
@@ -5678,7 +6131,7 @@ class TacticalPage extends StatelessWidget {
                         key: const ValueKey(
                           'tactical-verification-queue-open-dispatches',
                         ),
-                        label: 'Open dispatches',
+                        label: 'OPEN DISPATCH BOARD',
                         foreground: const Color(0xFFDCD4FF),
                         background: const Color(0x147C3AED),
                         border: const Color(0x667C3AED),
@@ -6153,19 +6606,22 @@ class TacticalPage extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
           color: active
-              ? accent.withValues(alpha: 0.16)
-              : const Color(0xFF111826),
+              ? Color.alphaBlend(
+                  OnyxDesignTokens.glassSurface,
+                  accent.withValues(alpha: 0.1),
+                )
+              : _tacticalAltSurfaceColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: active
-                ? accent.withValues(alpha: 0.82)
-                : accent.withValues(alpha: 0.38),
+                ? accent.withValues(alpha: 0.48)
+                : accent.withValues(alpha: 0.24),
           ),
         ),
         child: Text(
           '$label • $count',
           style: GoogleFonts.inter(
-            color: accent,
+            color: Color.lerp(_tacticalTitleColor, accent, 0.72),
             fontSize: 10.5,
             fontWeight: FontWeight.w800,
           ),
@@ -6183,7 +6639,7 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF111826),
+        color: _tacticalAltSurfaceColor,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.42)),
       ),
@@ -6202,7 +6658,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFFCAD7E8),
+              color: _tacticalBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -6224,11 +6680,11 @@ class TacticalPage extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: isActive
-            ? color.withValues(alpha: 0.16)
-            : const Color(0xFF0E1A2B),
+            ? color.withValues(alpha: 0.09)
+            : _tacticalAltSurfaceColor,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: color.withValues(alpha: isActive ? 0.95 : 0.55),
+          color: color.withValues(alpha: isActive ? 0.62 : 0.34),
         ),
       ),
       child: Text(
@@ -6267,6 +6723,13 @@ class TacticalPage extends StatelessWidget {
     onShowFeedback,
     required VoidCallback onClear,
   }) {
+    final bannerBackground = Color.alphaBlend(
+      OnyxDesignTokens.glassSurface,
+      active.focusBannerBackgroundColor,
+    );
+    final bannerActionColor =
+        Color.lerp(_tacticalTitleColor, active.focusBannerActionColor, 0.68) ??
+        active.focusBannerActionColor;
     final canMutateTemporaryApproval =
         active == VideoFleetWatchActionDrilldown.temporaryIdentity &&
         focusedScope != null;
@@ -6274,9 +6737,11 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: active.focusBannerBackgroundColor,
+        color: bannerBackground,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: active.focusBannerBorderColor),
+        border: Border.all(
+          color: active.focusBannerBorderColor.withValues(alpha: 0.38),
+        ),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -6308,7 +6773,7 @@ class TacticalPage extends StatelessWidget {
                   child: Text(
                     'Extend 2h',
                     style: GoogleFonts.inter(
-                      color: active.focusBannerActionColor,
+                      color: bannerActionColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -6343,7 +6808,7 @@ class TacticalPage extends StatelessWidget {
                   child: Text(
                     'Expire now',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFCA5A5),
+                      color: const Color(0xFFB95D5D),
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -6354,7 +6819,7 @@ class TacticalPage extends StatelessWidget {
                 child: Text(
                   'Clear',
                   style: GoogleFonts.inter(
-                    color: active.focusBannerActionColor,
+                    color: bannerActionColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -6368,7 +6833,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 active.focusBannerTitle,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF4FF),
+                  color: _tacticalTitleColor,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
@@ -6377,7 +6842,7 @@ class TacticalPage extends StatelessWidget {
               Text(
                 focusDetailForWatchAction(fleetScopeHealth, active),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB1CF),
+                  color: _tacticalBodyColor,
                   fontSize: 10,
                   fontWeight: FontWeight.w600,
                 ),
@@ -6414,15 +6879,15 @@ class TacticalPage extends StatelessWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF161B22),
+          backgroundColor: _tacticalSurfaceColor,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: Color(0xFF30363D)),
+            side: const BorderSide(color: _tacticalBorderColor),
           ),
           title: Text(
             'Expire Temporary Approval?',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: _tacticalTitleColor,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
@@ -6430,7 +6895,7 @@ class TacticalPage extends StatelessWidget {
           content: Text(
             'This immediately removes the temporary identity approval for ${scope.siteName}. Future matches will no longer be treated as approved.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1CF),
+              color: _tacticalBodyColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -6441,7 +6906,7 @@ class TacticalPage extends StatelessWidget {
               child: Text(
                 'Cancel',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9AB1CF),
+                  color: _tacticalBodyColor,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -6449,8 +6914,12 @@ class TacticalPage extends StatelessWidget {
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFB91C1C),
-                foregroundColor: const Color(0xFFEAF4FF),
+                backgroundColor: const Color(0xFFFFF1F1),
+                foregroundColor: const Color(0xFFB42318),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: const BorderSide(color: Color(0xFFE8B6B6)),
+                ),
               ),
               child: Text(
                 'Expire now',
@@ -6468,9 +6937,12 @@ class TacticalPage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xCC0A0D14),
+        color: Color.alphaBlend(
+          OnyxDesignTokens.glassSurface,
+          color.withValues(alpha: 0.08),
+        ),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.55)),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -6484,7 +6956,7 @@ class TacticalPage extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD8E7FA),
+              color: const Color(0xFF425D78),
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -6532,16 +7004,16 @@ class _MapControlChip extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? const Color(0x1A22D3EE) : const Color(0xFF0E1A2B),
+          color: active ? const Color(0x1A22D3EE) : _tacticalAltSurfaceColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: active ? const Color(0x8822D3EE) : const Color(0xFF35506F),
+            color: active ? const Color(0x8822D3EE) : _tacticalBorderColor,
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: active ? const Color(0xFFDCFAFF) : const Color(0xFFB9D2F1),
+            color: active ? const Color(0xFF0F6782) : _tacticalBodyColor,
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),

@@ -1,0 +1,204 @@
+{
+  "scenarioId": "monitoring_review_action_hard_constraint_conflict_v1",
+  "runId": "2026-04-01T22:53:08.555964Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "monitoring_watch",
+    "actualIntent": "open_cctv_review_handoff",
+    "actualEscalationState": "review_opened",
+    "actualProjectionChanges": [
+      {
+        "step": "specialist_conflict",
+        "sourceStepId": "open_review_action",
+        "target": "cctvReview",
+        "specialists": [
+          "cctv",
+          "guardOps"
+        ],
+        "recommendedTargets": [
+          "cctvReview",
+          "dispatchBoard"
+        ],
+        "summary": "cctv->cctvReview | guardOps->dispatchBoard"
+      },
+      {
+        "step": "specialist_constraint",
+        "sourceStepId": "open_review_action",
+        "specialist": "guardOps",
+        "constrainedTarget": "dispatchBoard",
+        "allowRouteExecution": false,
+        "summary": "cctv->cctvReview | guardOps->dispatchBoard => constraint:dispatchBoard"
+      },
+      {
+        "step": "review_opened",
+        "reviewSurface": "cctv_review"
+      }
+    ],
+    "actualDrafts": [],
+    "actualBlockedActions": [
+      "dismiss_without_review",
+      "advance_without_constraint_resolution"
+    ],
+    "actualUiState": {
+      "legacyWorkspaceVisible": false,
+      "specialistConflictVisible": true,
+      "specialistConflictCount": 2,
+      "specialistConflictSpecialists": [
+        "cctv",
+        "guardOps"
+      ],
+      "specialistConflictTargets": [
+        "cctvReview",
+        "dispatchBoard"
+      ],
+      "specialistConflictSummary": "cctv->cctvReview | guardOps->dispatchBoard",
+      "specialistConstraintVisible": true,
+      "routeExecutionBlockedVisible": true,
+      "allowRouteExecution": false,
+      "constrainedTarget": "dispatchBoard",
+      "specialistConstraintSummary": "cctv->cctvReview | guardOps->dispatchBoard => constraint:dispatchBoard",
+      "reviewActionVisible": true,
+      "cctvRouteVisible": true,
+      "incidentReference": "INC-DSP-VISUAL",
+      "intelligenceId": "INTEL-DSP-VISUAL",
+      "surface": "monitoring_watch_review"
+    },
+    "appendedEvents": [
+      {
+        "type": "review",
+        "incidentReference": "INC-DSP-VISUAL"
+      }
+    ],
+    "notes": "Executed monitoring sequence: specialist conflict at open_review_action: cctv->cctvReview | guardOps->dispatchBoard -> hard specialist constraint at open_review_action: cctv->cctvReview | guardOps->dispatchBoard => constraint:dispatchBoard -> opened cctv_review for INC-DSP-VISUAL.",
+    "commandBrainSnapshot": {
+      "workItemId": "monitoring_review_action_hard_constraint_conflict_v1",
+      "mode": "specialistConstraint",
+      "target": "dispatchBoard",
+      "nextMoveLabel": "OPEN DISPATCH BOARD",
+      "headline": "Dispatch Board is the next move",
+      "summary": "One next move is staged in Dispatch Board.",
+      "advisory": "Guard Ops specialist raised a hard constraint toward Dispatch Board, so ONYX blocked route execution until the contradiction is cleared.",
+      "confidence": 0.93,
+      "primaryPressure": "active signal watch",
+      "rationale": "Scenario replay held the deterministic gate in CCTV Review but staged a constrained move in Dispatch Board because guard ops specialist blocked route execution.",
+      "supportingSpecialists": [
+        "cctv",
+        "guardOps"
+      ],
+      "contextHighlights": [
+        "Guard Ops specialist blocked route execution toward Dispatch Board.",
+        "CCTV specialist still argued for CCTV Review."
+      ],
+      "missingInfo": [
+        "Hard specialist constraint still blocks route execution until the contradiction is resolved.",
+        "Fresh guard voice confirmation is still missing.",
+        "Guard Ops specialist constraint still needs operator clearance."
+      ],
+      "followUpLabel": "CLEAR HARD CONSTRAINT",
+      "followUpPrompt": "Resolve the hard specialist constraint and confirm whether Dispatch Board can be reopened safely.",
+      "allowRouteExecution": false,
+      "specialistAssessments": [
+        {
+          "specialist": "cctv",
+          "sourceLabel": "scenario_replay",
+          "summary": "CCTV specialist wants live review to stay open until visual verification is complete.",
+          "recommendedTarget": "cctvReview",
+          "confidence": 0.84,
+          "priority": "high",
+          "evidence": [
+            "Review action is already pinned to the watch event.",
+            "Visual verification queue is ready for controller review."
+          ],
+          "missingInfo": [],
+          "allowRouteExecution": true,
+          "isHardConstraint": false
+        },
+        {
+          "specialist": "guardOps",
+          "sourceLabel": "scenario_replay",
+          "summary": "Guard Ops specialist requires a controller-held welfare dispatch before route execution continues.",
+          "recommendedTarget": "dispatchBoard",
+          "confidence": 0.93,
+          "priority": "critical",
+          "evidence": [
+            "Wearable telemetry still resembles a distress-shaped welfare pattern."
+          ],
+          "missingInfo": [
+            "Fresh guard voice confirmation is still missing."
+          ],
+          "allowRouteExecution": false,
+          "isHardConstraint": true
+        }
+      ]
+    },
+    "commandBrainTimeline": [
+      {
+        "sequence": 1,
+        "stage": "open_review_action",
+        "note": "Review evidence staged for INC-DSP-VISUAL while hard specialist constraint blocked execution toward Dispatch Board.",
+        "snapshot": {
+          "workItemId": "monitoring_review_action_hard_constraint_conflict_v1",
+          "mode": "specialistConstraint",
+          "target": "dispatchBoard",
+          "nextMoveLabel": "OPEN DISPATCH BOARD",
+          "headline": "Dispatch Board is the next move",
+          "summary": "One next move is staged in Dispatch Board.",
+          "advisory": "Guard Ops specialist raised a hard constraint toward Dispatch Board, so ONYX blocked route execution until the contradiction is cleared.",
+          "confidence": 0.93,
+          "primaryPressure": "active signal watch",
+          "rationale": "Scenario replay held the deterministic gate in CCTV Review but staged a constrained move in Dispatch Board because guard ops specialist blocked route execution.",
+          "supportingSpecialists": [
+            "cctv",
+            "guardOps"
+          ],
+          "contextHighlights": [
+            "Guard Ops specialist blocked route execution toward Dispatch Board.",
+            "CCTV specialist still argued for CCTV Review."
+          ],
+          "missingInfo": [
+            "Hard specialist constraint still blocks route execution until the contradiction is resolved.",
+            "Fresh guard voice confirmation is still missing.",
+            "Guard Ops specialist constraint still needs operator clearance."
+          ],
+          "followUpLabel": "CLEAR HARD CONSTRAINT",
+          "followUpPrompt": "Resolve the hard specialist constraint and confirm whether Dispatch Board can be reopened safely.",
+          "allowRouteExecution": false,
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist wants live review to stay open until visual verification is complete.",
+              "recommendedTarget": "cctvReview",
+              "confidence": 0.84,
+              "priority": "high",
+              "evidence": [
+                "Review action is already pinned to the watch event.",
+                "Visual verification queue is ready for controller review."
+              ],
+              "missingInfo": [],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            },
+            {
+              "specialist": "guardOps",
+              "sourceLabel": "scenario_replay",
+              "summary": "Guard Ops specialist requires a controller-held welfare dispatch before route execution continues.",
+              "recommendedTarget": "dispatchBoard",
+              "confidence": 0.93,
+              "priority": "critical",
+              "evidence": [
+                "Wearable telemetry still resembles a distress-shaped welfare pattern."
+              ],
+              "missingInfo": [
+                "Fresh guard voice confirmation is still missing."
+              ],
+              "allowRouteExecution": false,
+              "isHardConstraint": true
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "mismatches": []
+}

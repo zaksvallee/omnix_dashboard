@@ -1,0 +1,89 @@
+{
+  "scenarioId": "monitoring_priority_sequence_review_track_v1",
+  "title": "Live operations priority sequence should chain review and Track",
+  "description": "An alternate live operations priority sequence should move from CCTV review into Track when dispatch is unavailable.",
+  "category": "monitoring_watch",
+  "scenarioSet": "replay",
+  "tags": ["priority_handoff", "route_persistence", "multi_surface"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T12:25:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:30:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": [
+        "fixture_events_monitoring_watch_match.json",
+        "fixture_events_dispatch_handoff.json"
+      ],
+      "projections": [
+        "fixture_projections_live_ops_priority_sequence_track_fallback.json"
+      ],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "elevated",
+    "dispatchState": "active",
+    "clientConversationState": "none",
+    "siteStatusState": "elevated"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_sequence",
+      "steps": [
+        {"stepId": "open_review_action"},
+        {
+          "stepId": "open_dispatch_handoff",
+          "condition": {
+            "field": "dispatchBoard.dispatchAvailable",
+            "equals": true,
+            "otherwiseStepId": "open_track_handoff"
+          }
+        }
+      ]
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_detailed_workspace",
+    "expectedIntent": "open_live_ops_priority_sequence",
+    "expectedEscalationState": "track_opened",
+    "expectedProjectionChanges": [
+      {
+        "step": "review_opened",
+        "reviewSurface": "cctv_review"
+      },
+      {
+        "step": "track_opened",
+        "focusSiteId": "site_ms_vallee"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": [
+      "dismiss_without_review",
+      "dismiss_without_track"
+    ],
+    "expectedUiState": {
+      "surface": "live_ops_priority_sequence",
+      "reviewActionVisible": true,
+      "trackHandoffVisible": true,
+      "incidentReference": "INC-LIVEOPS-CHAIN",
+      "siteId": "site_ms_vallee",
+      "finalRoute": "track_detailed_workspace",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

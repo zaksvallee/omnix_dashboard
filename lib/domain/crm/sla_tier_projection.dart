@@ -14,8 +14,12 @@ class SLATierProjection {
       if (event.type == CRMEventType.slaTierAssigned) {
         final tierName = event.payload['tier'] as String?;
         if (tierName != null) {
-          tier = SLATier.values
-              .firstWhere((t) => t.name == tierName);
+          for (final candidate in SLATier.values) {
+            if (candidate.name == tierName) {
+              tier = candidate;
+              break;
+            }
+          }
         }
       }
     }

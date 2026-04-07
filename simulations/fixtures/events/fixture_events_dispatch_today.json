@@ -1,0 +1,25 @@
+{
+  "events": [
+    {
+      "eventId": "decision-today-1",
+      "kind": "decision_created",
+      "dispatchId": "DSP-TODAY-1",
+      "siteId": "site_ms_vallee",
+      "occurredAt": "2026-03-30T19:58:00+02:00"
+    },
+    {
+      "eventId": "decision-yesterday",
+      "kind": "decision_created",
+      "dispatchId": "DSP-YESTERDAY",
+      "siteId": "site_ms_vallee",
+      "occurredAt": "2026-03-29T18:10:00+02:00"
+    },
+    {
+      "eventId": "decision-today-2",
+      "kind": "decision_created",
+      "dispatchId": "DSP-TODAY-2",
+      "siteId": "site_ms_vallee",
+      "occurredAt": "2026-03-30T18:10:00+02:00"
+    }
+  ]
+}

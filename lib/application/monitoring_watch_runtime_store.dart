@@ -1,3 +1,24 @@
+import '../domain/events/intelligence_received.dart';
+import 'intelligence_event_object_semantics.dart';
+
+class MonitoringWatchTrackedSubjectState {
+  final String trackId;
+  final String cameraId;
+  final String objectLabel;
+  final DateTime firstSeenAtUtc;
+  final DateTime lastSeenAtUtc;
+  final int eventCount;
+
+  const MonitoringWatchTrackedSubjectState({
+    required this.trackId,
+    this.cameraId = '',
+    this.objectLabel = '',
+    required this.firstSeenAtUtc,
+    required this.lastSeenAtUtc,
+    this.eventCount = 1,
+  });
+}
+
 class MonitoringWatchRuntimeState {
   final DateTime startedAtUtc;
   final int reviewedEvents;
@@ -24,6 +45,7 @@ class MonitoringWatchRuntimeState {
   final DateTime? latestClientNotificationAtUtc;
   final List<String> actionHistory;
   final List<String> suppressedHistory;
+  final Map<String, MonitoringWatchTrackedSubjectState> trackedSubjects;
 
   const MonitoringWatchRuntimeState({
     required this.startedAtUtc,
@@ -51,6 +73,7 @@ class MonitoringWatchRuntimeState {
     this.latestClientNotificationAtUtc,
     this.actionHistory = const <String>[],
     this.suppressedHistory = const <String>[],
+    this.trackedSubjects = const <String, MonitoringWatchTrackedSubjectState>{},
   });
 
   MonitoringWatchRuntimeState copyWith({
@@ -79,6 +102,7 @@ class MonitoringWatchRuntimeState {
     DateTime? latestClientNotificationAtUtc,
     List<String>? actionHistory,
     List<String>? suppressedHistory,
+    Map<String, MonitoringWatchTrackedSubjectState>? trackedSubjects,
   }) {
     return MonitoringWatchRuntimeState(
       startedAtUtc: startedAtUtc ?? this.startedAtUtc,
@@ -122,6 +146,7 @@ class MonitoringWatchRuntimeState {
           latestClientNotificationAtUtc ?? this.latestClientNotificationAtUtc,
       actionHistory: actionHistory ?? this.actionHistory,
       suppressedHistory: suppressedHistory ?? this.suppressedHistory,
+      trackedSubjects: trackedSubjects ?? this.trackedSubjects,
     );
   }
 }
@@ -139,6 +164,8 @@ class MonitoringWatchRuntimePersistenceState {
 class MonitoringWatchRuntimeStore {
   static const int maxActionHistoryEntries = 3;
   static const int maxSuppressedHistoryEntries = 3;
+  static const int maxTrackedSubjectEntries = 48;
+  static const Duration trackedSubjectRetention = Duration(minutes: 15);
 
   const MonitoringWatchRuntimeStore();
 
@@ -215,6 +242,7 @@ class MonitoringWatchRuntimeStore {
             .where((entry) => entry.isNotEmpty)
             .take(maxSuppressedHistoryEntries)
             .toList(growable: false),
+        trackedSubjects: _parseTrackedSubjects(map['tracked_subjects']),
       );
     }
     return restored;
@@ -343,6 +371,74 @@ class MonitoringWatchRuntimeStore {
     );
   }
 
+  MonitoringWatchTrackedSubjectState? trackedSubjectFor({
+    required MonitoringWatchRuntimeState runtime,
+    required String trackId,
+  }) {
+    final normalizedTrackId = trackId.trim();
+    if (normalizedTrackId.isEmpty) {
+      return null;
+    }
+    return runtime.trackedSubjects[normalizedTrackId];
+  }
+
+  MonitoringWatchRuntimeState applyTrackedActivity({
+    required MonitoringWatchRuntimeState runtime,
+    required Iterable<IntelligenceReceived> events,
+    required DateTime observedAtUtc,
+  }) {
+    final nextTracked = Map<String, MonitoringWatchTrackedSubjectState>.from(
+      runtime.trackedSubjects,
+    );
+    for (final event in events) {
+      final trackId = (event.trackId ?? '').trim();
+      if (trackId.isEmpty) {
+        continue;
+      }
+      final occurredAtUtc = event.occurredAt.toUtc();
+      final existing = nextTracked[trackId];
+      final objectLabel = _semanticTrackedObjectLabelForEvent(event);
+      nextTracked[trackId] = MonitoringWatchTrackedSubjectState(
+        trackId: trackId,
+        cameraId: (event.cameraId ?? '').trim().isNotEmpty
+            ? (event.cameraId ?? '').trim()
+            : (existing?.cameraId ?? ''),
+        objectLabel: objectLabel.isNotEmpty
+            ? objectLabel
+            : (existing?.objectLabel ?? ''),
+        firstSeenAtUtc: existing == null
+            ? occurredAtUtc
+            : _earlierOf(existing.firstSeenAtUtc, occurredAtUtc),
+        lastSeenAtUtc: existing == null
+            ? occurredAtUtc
+            : _laterOf(existing.lastSeenAtUtc, occurredAtUtc),
+        eventCount: (existing?.eventCount ?? 0) + 1,
+      );
+    }
+    final pruneBeforeUtc = observedAtUtc.toUtc().subtract(
+      trackedSubjectRetention,
+    );
+    nextTracked.removeWhere(
+      (_, subject) => subject.lastSeenAtUtc.isBefore(pruneBeforeUtc),
+    );
+    final cappedSubjects = nextTracked.values.toList(
+      growable: false,
+    )..sort((left, right) => right.lastSeenAtUtc.compareTo(left.lastSeenAtUtc));
+    return runtime.copyWith(
+      trackedSubjects: {
+        for (final subject in cappedSubjects.take(maxTrackedSubjectEntries))
+          subject.trackId: subject,
+      },
+    );
+  }
+
+  String _semanticTrackedObjectLabelForEvent(IntelligenceReceived event) {
+    return resolveIdentityBackedObjectLabel(
+      event: event,
+      directObjectLabel: (event.objectLabel ?? '').trim(),
+    );
+  }
+
   Map<String, Object?> serializeState(
     Map<String, MonitoringWatchRuntimeState> stateByScope,
   ) {
@@ -384,9 +480,55 @@ class MonitoringWatchRuntimeStore {
             ?.toIso8601String(),
         'action_history': runtime.actionHistory,
         'suppressed_history': runtime.suppressedHistory,
+        'tracked_subjects': runtime.trackedSubjects.values
+            .map(
+              (subject) => <String, Object?>{
+                'track_id': subject.trackId,
+                'camera_id': subject.cameraId,
+                'object_label': subject.objectLabel,
+                'first_seen_at_utc': subject.firstSeenAtUtc.toIso8601String(),
+                'last_seen_at_utc': subject.lastSeenAtUtc.toIso8601String(),
+                'event_count': subject.eventCount,
+              },
+            )
+            .toList(growable: false),
       };
     }
     return output;
+  }
+
+  Map<String, MonitoringWatchTrackedSubjectState> _parseTrackedSubjects(
+    Object? raw,
+  ) {
+    final subjects = <String, MonitoringWatchTrackedSubjectState>{};
+    final items = raw is List ? raw : const [];
+    for (final entry in items) {
+      if (entry is! Map) {
+        continue;
+      }
+      final map = entry.map(
+        (key, item) => MapEntry(key.toString(), item as Object?),
+      );
+      final trackId = (map['track_id'] ?? '').toString().trim();
+      final firstSeenAtUtc = DateTime.tryParse(
+        (map['first_seen_at_utc'] ?? '').toString().trim(),
+      )?.toUtc();
+      final lastSeenAtUtc = DateTime.tryParse(
+        (map['last_seen_at_utc'] ?? '').toString().trim(),
+      )?.toUtc();
+      if (trackId.isEmpty || firstSeenAtUtc == null || lastSeenAtUtc == null) {
+        continue;
+      }
+      subjects[trackId] = MonitoringWatchTrackedSubjectState(
+        trackId: trackId,
+        cameraId: (map['camera_id'] ?? '').toString().trim(),
+        objectLabel: (map['object_label'] ?? '').toString().trim(),
+        firstSeenAtUtc: firstSeenAtUtc,
+        lastSeenAtUtc: lastSeenAtUtc,
+        eventCount: _readInt(map['event_count']).clamp(1, 9999),
+      );
+    }
+    return subjects;
   }
 
   String _buildSuppressedHistoryEntry({
@@ -504,5 +646,13 @@ class MonitoringWatchRuntimeStore {
       String value => int.tryParse(value.trim()) ?? 0,
       _ => 0,
     };
+  }
+
+  DateTime _earlierOf(DateTime left, DateTime right) {
+    return left.isBefore(right) ? left : right;
+  }
+
+  DateTime _laterOf(DateTime left, DateTime right) {
+    return left.isAfter(right) ? left : right;
   }
 }

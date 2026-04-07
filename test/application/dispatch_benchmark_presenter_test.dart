@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/dispatch_benchmark_presenter.dart';
-import 'package:omnix_dashboard/ui/dispatch_models.dart';
+import 'package:omnix_dashboard/application/dispatch_models.dart';
 
 void main() {
   IntakeRunSummary buildRun({

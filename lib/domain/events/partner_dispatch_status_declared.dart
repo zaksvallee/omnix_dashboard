@@ -1,8 +1,9 @@
 import 'dispatch_event.dart';
 
-enum PartnerDispatchStatus { accepted, onSite, allClear, cancelled }
+enum PartnerDispatchStatus { unknown, accepted, onSite, allClear, cancelled }
 
 class PartnerDispatchStatusDeclared extends DispatchEvent {
+  static const String auditTypeKey = 'partner_dispatch_status_declared';
   final String dispatchId;
   final String clientId;
   final String regionId;
@@ -47,4 +48,7 @@ class PartnerDispatchStatusDeclared extends DispatchEvent {
       sourceMessageKey: sourceMessageKey,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

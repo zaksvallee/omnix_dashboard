@@ -1,0 +1,183 @@
+{
+  "scenarioId": "monitoring_review_action_cctv_signal_loss_track_v1",
+  "title": "Review action should fall back to Track when CCTV specialist loses signal",
+  "description": "A live operations review action should keep ONYX moving in Tactical Track when the CCTV specialist signal drops before review can open.",
+  "category": "monitoring_watch",
+  "scenarioSet": "replay",
+  "tags": ["visual_review", "specialist_signal_loss", "track_fallback"],
+  "author": "zaks",
+  "createdAt": "2026-04-02T07:10:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:35:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": [
+        "fixture_events_monitoring_watch_match.json",
+        "fixture_events_dispatch_handoff.json"
+      ],
+      "projections": [
+        "fixture_projections_live_ops_priority_sequence_track_fallback.json"
+      ],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "elevated",
+    "dispatchState": "active",
+    "clientConversationState": "none",
+    "siteStatusState": "elevated"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_sequence",
+      "steps": [
+        {
+          "stepId": "open_review_action",
+          "specialist": {
+            "name": "cctv",
+            "status": "signal_lost",
+            "detail": "Primary CCTV uplink dropped during live review handoff.",
+            "fallbackStepId": "open_track_handoff"
+          }
+        }
+      ]
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_detailed_workspace",
+    "expectedIntent": "open_track_handoff",
+    "expectedEscalationState": "track_opened",
+    "expectedProjectionChanges": [
+      {
+        "step": "specialist_status",
+        "sourceStepId": "open_review_action",
+        "specialist": "cctv",
+        "status": "signal_lost",
+        "detail": "Primary CCTV uplink dropped during live review handoff."
+      },
+      {
+        "step": "track_opened",
+        "focusSiteId": "site_ms_vallee"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["dismiss_without_track"],
+    "expectedUiState": {
+      "surface": "live_ops_track_handoff",
+      "trackHandoffVisible": true,
+      "readyToTrackVisible": true,
+      "detailedWorkspaceVisible": true,
+      "trackWorkspaceVisible": true,
+      "tacticalTrackVisible": true,
+      "handoffVisible": true,
+      "siteId": "site_ms_vallee",
+      "trackLabel": "Ms Vallee chain track",
+      "incidentReference": "INC-LIVEOPS-CHAIN",
+      "legacyWorkspaceVisible": false,
+      "specialistDegradationVisible": true,
+      "specialistStatuses": {
+        "cctv": {
+          "status": "signal_lost",
+          "detail": "Primary CCTV uplink dropped during live review handoff."
+        }
+      }
+    },
+    "commandBrainSnapshot": {
+      "workItemId": "monitoring_review_action_cctv_signal_loss_track_v1",
+      "mode": "deterministic",
+      "target": "tacticalTrack",
+      "nextMoveLabel": "OPEN TACTICAL TRACK",
+      "headline": "Tactical Track is the next move",
+      "summary": "One next move is staged in Tactical Track.",
+      "advisory": "CCTV specialist lost signal, so ONYX shifted the next move into Tactical Track while verification recovered.",
+      "confidence": 0.63,
+      "primaryPressure": "active signal watch",
+      "rationale": "Scenario replay preserved a live command target and rerouted into Tactical Track once cctv specialist signal loss removed the original desk from immediate use.",
+      "supportingSpecialists": ["cctv", "track"],
+      "contextHighlights": [
+        "Track continuity absorbed the next move after CCTV signal loss.",
+        "Sequence replay still produced a live-ops target instead of hanging."
+      ],
+      "missingInfo": ["CCTV specialist signal recovery is still pending."],
+      "followUpLabel": "RESTORE CCTV SIGNAL",
+      "followUpPrompt": "Restore the cctv specialist signal and confirm the next verified update before reopening the blocked desk.",
+      "allowRouteExecution": true,
+      "specialistAssessments": [
+        {
+          "specialist": "cctv",
+          "sourceLabel": "scenario_replay",
+          "summary": "CCTV specialist lost signal, so ONYX redirected the move into Tactical Track while verification recovered.",
+          "recommendedTarget": "tacticalTrack",
+          "confidence": 0.63,
+          "priority": "critical",
+          "evidence": [
+            "Deterministic specialist degradation injected at replay step.",
+            "Primary CCTV uplink dropped during live review handoff."
+          ],
+          "missingInfo": ["CCTV specialist signal recovery is still pending."],
+          "allowRouteExecution": true,
+          "isHardConstraint": false
+        }
+      ]
+    },
+    "commandBrainTimeline": [
+      {
+        "sequence": 1,
+        "stage": "open_track_handoff",
+        "note": "Track fallback staged after cctv specialist lost signal.",
+        "snapshot": {
+          "workItemId": "monitoring_review_action_cctv_signal_loss_track_v1",
+          "mode": "deterministic",
+          "target": "tacticalTrack",
+          "nextMoveLabel": "OPEN TACTICAL TRACK",
+          "headline": "Tactical Track is the next move",
+          "summary": "One next move is staged in Tactical Track.",
+          "advisory": "CCTV specialist lost signal, so ONYX shifted the next move into Tactical Track while verification recovered.",
+          "confidence": 0.63,
+          "primaryPressure": "active signal watch",
+          "rationale": "Scenario replay preserved a live command target and rerouted into Tactical Track once cctv specialist signal loss removed the original desk from immediate use.",
+          "supportingSpecialists": ["cctv", "track"],
+          "contextHighlights": [
+            "Track continuity absorbed the next move after CCTV signal loss.",
+            "Sequence replay still produced a live-ops target instead of hanging."
+          ],
+          "missingInfo": ["CCTV specialist signal recovery is still pending."],
+          "followUpLabel": "RESTORE CCTV SIGNAL",
+          "followUpPrompt": "Restore the cctv specialist signal and confirm the next verified update before reopening the blocked desk.",
+          "allowRouteExecution": true,
+          "specialistAssessments": [
+            {
+              "specialist": "cctv",
+              "sourceLabel": "scenario_replay",
+              "summary": "CCTV specialist lost signal, so ONYX redirected the move into Tactical Track while verification recovered.",
+              "recommendedTarget": "tacticalTrack",
+              "confidence": 0.63,
+              "priority": "critical",
+              "evidence": [
+                "Deterministic specialist degradation injected at replay step.",
+                "Primary CCTV uplink dropped during live review handoff."
+              ],
+              "missingInfo": ["CCTV specialist signal recovery is still pending."],
+              "allowRouteExecution": true,
+              "isHardConstraint": false
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

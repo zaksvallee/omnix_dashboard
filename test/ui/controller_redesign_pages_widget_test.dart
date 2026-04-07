@@ -9,8 +9,13 @@ import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/client_intelligence_reports_page.dart';
 import 'package:omnix_dashboard/ui/clients_page.dart';
 import 'package:omnix_dashboard/ui/events_review_page.dart';
+import 'package:omnix_dashboard/ui/risk_intelligence_page.dart';
 import 'package:omnix_dashboard/ui/sites_command_page.dart';
 import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
+import 'package:omnix_dashboard/ui/vip_protection_page.dart';
+
+DateTime _controllerRedesignOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 10, hour, minute, 24);
 
 void main() {
   final sampleEvents = <DispatchEvent>[
@@ -18,7 +23,7 @@ void main() {
       eventId: 'DEC-1',
       sequence: 1,
       version: 1,
-      occurredAt: DateTime.utc(2026, 3, 10, 14, 53, 24),
+      occurredAt: _controllerRedesignOccurredAtUtc(14, 53),
       dispatchId: 'DSP-4',
       clientId: 'CLIENT-001',
       regionId: 'REGION-GAUTENG',
@@ -28,7 +33,7 @@ void main() {
       eventId: 'ARR-1',
       sequence: 2,
       version: 1,
-      occurredAt: DateTime.utc(2026, 3, 10, 15, 1, 24),
+      occurredAt: _controllerRedesignOccurredAtUtc(15, 1),
       dispatchId: 'DSP-4',
       guardId: 'GUARD-1',
       clientId: 'CLIENT-001',
@@ -39,7 +44,7 @@ void main() {
       eventId: 'INT-1',
       sequence: 3,
       version: 1,
-      occurredAt: DateTime.utc(2026, 3, 10, 15, 30, 24),
+      occurredAt: _controllerRedesignOccurredAtUtc(15, 30),
       intelligenceId: 'INTEL-1',
       provider: 'newsapi.org',
       sourceType: 'news',
@@ -69,7 +74,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Client Communications'), findsOneWidget);
-    expect(find.text('MESSAGE HISTORY'), findsOneWidget);
+    expect(find.text('3 PENDING MESSAGES'), findsOneWidget);
   });
 
   testWidgets('sites controller page renders grid workspace', (tester) async {
@@ -82,7 +87,182 @@ void main() {
     expect(find.textContaining('SITE OPERATIONS WORKSPACE'), findsOneWidget);
   });
 
-  testWidgets('events controller page renders timeline and selected detail', (
+  testWidgets('vip protection page renders empty state and schedule', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: VipProtectionPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('VIP Protection'), findsOneWidget);
+    expect(find.text('WAR ROOM'), findsOneWidget);
+    expect(find.text('No Live VIP Run'), findsOneWidget);
+    expect(find.text('NEXT MOVES'), findsOneWidget);
+    expect(find.text('CEO Airport Escort'), findsOneWidget);
+  });
+
+  testWidgets('vip protection page opens create-detail dialog by default', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: VipProtectionPage()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('vip-create-detail-button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('vip-create-detail-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Package Desk'), findsOneWidget);
+  });
+
+  testWidgets('vip protection page delegates create-detail callback', (
+    tester,
+  ) async {
+    var tapped = false;
+
+    await tester.pumpWidget(
+      MaterialApp(home: VipProtectionPage(onCreateDetail: () => tapped = true)),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('vip-create-detail-button')));
+    await tester.pumpAndSettle();
+
+    expect(tapped, isTrue);
+    expect(
+      find.byKey(const ValueKey('vip-create-detail-dialog')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('risk intelligence page renders area lanes and feed', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: RiskIntelligencePage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Risk Intelligence'), findsOneWidget);
+    expect(find.text('WAR ROOM'), findsOneWidget);
+    expect(find.text('WATCH HOTSPOTS'), findsOneWidget);
+    expect(find.text('AI OPINION FEED'), findsOneWidget);
+    expect(find.text('Sandton'), findsOneWidget);
+  });
+
+  testWidgets('risk intelligence page opens manual-intel dialog by default', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: RiskIntelligencePage()));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.byKey(const ValueKey('intel-add-manual-button')));
+    await tester.tap(find.byKey(const ValueKey('intel-add-manual-button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('intel-add-manual-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Intel Intake'), findsOneWidget);
+  });
+
+  testWidgets(
+    'risk intelligence page opens area and detail dialogs by default',
+    (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: RiskIntelligencePage()));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('intel-area-waterfall-button')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('intel-area-waterfall-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('intel-area-waterfall-dialog')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Close').last);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('intel-detail-news24-button')),
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('intel-detail-news24-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('intel-detail-news24-dialog')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'risk intelligence page delegates manual, area, and detail callbacks',
+    (tester) async {
+      var manualTapped = false;
+      RiskIntelAreaSummary? selectedArea;
+      RiskIntelFeedItem? selectedItem;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RiskIntelligencePage(
+            onAddManualIntel: () => manualTapped = true,
+            onViewAreaIntel: (area) => selectedArea = area,
+            onViewRecentIntel: (item) => selectedItem = item,
+            areas: const [
+              RiskIntelAreaSummary(
+                title: 'Sandton',
+                level: 'MEDIUM',
+                accent: Color(0xFFFFC533),
+                border: Color(0xFF70511F),
+                signalCount: 1,
+                eventIds: ['evt-1'],
+                selectedEventId: 'evt-1',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const ValueKey('intel-add-manual-button')));
+      await tester.tap(find.byKey(const ValueKey('intel-add-manual-button')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const ValueKey('intel-area-sandton-button')));
+      await tester.tap(find.byKey(const ValueKey('intel-area-sandton-button')));
+      await tester.pumpAndSettle();
+      final detailButton = tester.widget<OutlinedButton>(
+        find.byKey(const ValueKey('intel-detail-twitter-button')),
+      );
+      detailButton.onPressed!.call();
+      await tester.pumpAndSettle();
+
+      expect(manualTapped, isTrue);
+      expect(selectedArea?.title, 'Sandton');
+      expect(selectedItem?.sourceLabel, 'TWITTER');
+      expect(
+        find.byKey(const ValueKey('intel-add-manual-dialog')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('intel-area-sandton-dialog')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('intel-detail-twitter-dialog')),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('events controller page renders war-room timeline and selected detail', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1200));
@@ -93,7 +273,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
+    expect(find.text('Events War Room'), findsOneWidget);
     expect(find.text('Selected Event'), findsOneWidget);
   });
 
@@ -132,7 +312,7 @@ void main() {
           eventId: 'INT-2',
           sequence: 4,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 10, 15, 32, 24),
+          occurredAt: _controllerRedesignOccurredAtUtc(15, 32),
           intelligenceId: 'INTEL-2',
           provider: 'community-feed',
           sourceType: 'news',
@@ -186,7 +366,7 @@ void main() {
     expect(selectedIdText.data, 'DEC-1');
   });
 
-  testWidgets('sovereign ledger page renders occurrence book workspace', (
+  testWidgets('sovereign ledger page renders sovereign ledger workspace', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -196,9 +376,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Occurrence Book'), findsOneWidget);
-    expect(find.text('OB Entries'), findsOneWidget);
-    expect(find.text('Selected Record'), findsOneWidget);
+    expect(find.text('Sovereign Ledger'), findsOneWidget);
+    expect(find.text('TRACE RAIL'), findsWidgets);
+    expect(find.text('YOU ARE HERE'), findsOneWidget);
   });
 
   testWidgets('client intelligence reports page renders generation lanes', (
@@ -217,6 +397,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Reports & Documentation'), findsOneWidget);
-    expect(find.textContaining('shift story ONYX assembles'), findsOneWidget);
+    expect(
+      find.text('Pick the right receipt, preview it, and move it out cleanly.'),
+      findsOneWidget,
+    );
   });
 }

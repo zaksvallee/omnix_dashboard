@@ -23,10 +23,10 @@ class SLADashboardProjection {
       if (e.type == IncidentEventType.incidentDetected) {
         final severityName = e.metadata['severity'] as String?;
         if (severityName != null) {
-          incidents[e.incidentId] =
-              IncidentSeverity.values.firstWhere(
-                (s) => s.name == severityName,
-              );
+          final severity = _parseSeverity(severityName);
+          if (severity != null) {
+            incidents[e.incidentId] = severity;
+          }
         }
       }
 
@@ -55,8 +55,7 @@ class SLADashboardProjection {
       incidentsBySeverity[severityName] =
           (incidentsBySeverity[severityName] ?? 0) + 1;
 
-      if (breaches.contains(entry.key) &&
-          !overrides.contains(entry.key)) {
+      if (breaches.contains(entry.key) && !overrides.contains(entry.key)) {
         breachWeight += weight;
 
         breachesBySeverity[severityName] =
@@ -65,12 +64,14 @@ class SLADashboardProjection {
     }
 
     final total = incidents.length;
-    final breached = breaches.length;
+    final breached = breachesBySeverity.values.fold<int>(
+      0,
+      (sum, value) => sum + value,
+    );
 
-    final compliance =
-        totalWeight == 0
-            ? 100.0
-            : ((totalWeight - breachWeight) / totalWeight) * 100.0;
+    final compliance = totalWeight == 0
+        ? 100.0
+        : ((totalWeight - breachWeight) / totalWeight) * 100.0;
 
     return SLADashboardSummary(
       clientId: clientId,
@@ -78,10 +79,19 @@ class SLADashboardProjection {
       toUtc: toUtc.toUtc().toIso8601String(),
       totalIncidents: total,
       breachedIncidents: breached,
-      compliancePercentage:
-          double.parse(compliance.toStringAsFixed(2)),
+      compliancePercentage: double.parse(compliance.toStringAsFixed(2)),
       incidentsBySeverity: incidentsBySeverity,
       breachesBySeverity: breachesBySeverity,
     );
+  }
+
+  static IncidentSeverity? _parseSeverity(String raw) {
+    final normalized = raw.trim();
+    for (final severity in IncidentSeverity.values) {
+      if (severity.name == normalized) {
+        return severity;
+      }
+    }
+    return null;
   }
 }

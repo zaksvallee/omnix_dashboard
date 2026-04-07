@@ -1,8 +1,21 @@
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 
+import 'report_test_bundle.dart';
 import 'report_test_intelligence.dart';
 import 'report_test_receipt.dart';
+
+DateTime _reviewedWorkspaceOccurredAtUtc(int day, int hour, int minute) =>
+    DateTime.utc(2026, 3, day, hour, minute);
+
+DateTime _reviewedWorkspaceReviewedAtUtc(int minute) =>
+    _reviewedWorkspaceOccurredAtUtc(14, 21, minute);
+
+DateTime _reviewedWorkspaceReviewedReceiptOccurredAtUtc() =>
+    _reviewedWorkspaceOccurredAtUtc(15, 0, 45);
+
+DateTime _reviewedWorkspacePendingReceiptOccurredAtUtc() =>
+    _reviewedWorkspaceOccurredAtUtc(15, 0, 30);
 
 class ReportReviewedWorkspaceFixture {
   final InMemoryEventStore store;
@@ -43,7 +56,7 @@ ReportReviewedWorkspaceFixture buildReviewedReportWorkspaceFixture({
     buildTestIntelligenceReceived(
       eventId: intelligenceEventId,
       sequence: 5,
-      occurredAt: DateTime.utc(2026, 3, 14, 21, 14),
+      occurredAt: _reviewedWorkspaceOccurredAtUtc(14, 21, 14),
       intelligenceId: intelligenceId,
       clientId: clientId,
       siteId: siteId,
@@ -54,7 +67,7 @@ ReportReviewedWorkspaceFixture buildReviewedReportWorkspaceFixture({
     buildTestReportGenerated(
       eventId: reviewedReceiptEventId,
       sequence: 11,
-      occurredAt: DateTime.utc(2026, 3, 15, 0, 45),
+      occurredAt: _reviewedWorkspaceReviewedReceiptOccurredAtUtc(),
       clientId: clientId,
       siteId: siteId,
       reportSchemaVersion: 2,
@@ -68,7 +81,7 @@ ReportReviewedWorkspaceFixture buildReviewedReportWorkspaceFixture({
     buildTestReportGenerated(
       eventId: pendingReceiptEventId,
       sequence: 10,
-      occurredAt: DateTime.utc(2026, 3, 15, 0, 30),
+      occurredAt: _reviewedWorkspacePendingReceiptOccurredAtUtc(),
       clientId: clientId,
       siteId: siteId,
       reportSchemaVersion: 1,
@@ -88,8 +101,8 @@ ReportReviewedWorkspaceFixture buildReviewedReportWorkspaceFixture({
         decisionLabel: 'Monitoring Alert',
         decisionSummary:
             'Client alert sent because vehicle activity was detected and confidence remained medium.',
-        summary: 'Vehicle remained below escalation threshold.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 15),
+        summary: reportTestSuppressedDecisionSummary,
+        reviewedAtUtc: _reviewedWorkspaceReviewedAtUtc(15),
       ),
     },
     reviewedReceiptEventId: reviewedReceiptEventId,
@@ -110,7 +123,7 @@ ReportReviewedWorkspaceFixture buildSuppressedReportWorkspaceFixture({
     buildTestIntelligenceReceived(
       eventId: intelligenceEventId,
       sequence: 5,
-      occurredAt: DateTime.utc(2026, 3, 14, 21, 16),
+      occurredAt: _reviewedWorkspaceOccurredAtUtc(14, 21, 16),
       intelligenceId: intelligenceId,
       clientId: clientId,
       siteId: siteId,
@@ -122,7 +135,7 @@ ReportReviewedWorkspaceFixture buildSuppressedReportWorkspaceFixture({
     buildTestReportGenerated(
       eventId: suppressedReceiptEventId,
       sequence: 11,
-      occurredAt: DateTime.utc(2026, 3, 15, 0, 45),
+      occurredAt: _reviewedWorkspaceReviewedReceiptOccurredAtUtc(),
       clientId: clientId,
       siteId: siteId,
       reportSchemaVersion: 2,
@@ -136,7 +149,7 @@ ReportReviewedWorkspaceFixture buildSuppressedReportWorkspaceFixture({
     buildTestReportGenerated(
       eventId: pendingReceiptEventId,
       sequence: 10,
-      occurredAt: DateTime.utc(2026, 3, 15, 0, 30),
+      occurredAt: _reviewedWorkspacePendingReceiptOccurredAtUtc(),
       clientId: clientId,
       siteId: siteId,
       reportSchemaVersion: 1,
@@ -154,9 +167,9 @@ ReportReviewedWorkspaceFixture buildSuppressedReportWorkspaceFixture({
         sourceLabel: 'metadata:fallback',
         postureLabel: 'reviewed',
         decisionLabel: 'Suppressed Review',
-        decisionSummary: 'Vehicle remained below escalation threshold.',
-        summary: 'Low significance vehicle motion remained internal.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 17),
+        decisionSummary: reportTestSuppressedDecisionSummary,
+        summary: reportTestSuppressedSummary,
+        reviewedAtUtc: _reviewedWorkspaceReviewedAtUtc(17),
       ),
     },
     reviewedReceiptEventId: suppressedReceiptEventId,
@@ -177,7 +190,7 @@ ReportReviewedWorkspaceFixture buildRepeatReportWorkspaceFixture({
     buildTestIntelligenceReceived(
       eventId: intelligenceEventId,
       sequence: 5,
-      occurredAt: DateTime.utc(2026, 3, 14, 21, 18),
+      occurredAt: _reviewedWorkspaceOccurredAtUtc(14, 21, 18),
       intelligenceId: intelligenceId,
       clientId: clientId,
       siteId: siteId,
@@ -189,7 +202,7 @@ ReportReviewedWorkspaceFixture buildRepeatReportWorkspaceFixture({
     buildTestReportGenerated(
       eventId: repeatReceiptEventId,
       sequence: 11,
-      occurredAt: DateTime.utc(2026, 3, 15, 0, 45),
+      occurredAt: _reviewedWorkspaceReviewedReceiptOccurredAtUtc(),
       clientId: clientId,
       siteId: siteId,
       reportSchemaVersion: 2,
@@ -203,7 +216,7 @@ ReportReviewedWorkspaceFixture buildRepeatReportWorkspaceFixture({
     buildTestReportGenerated(
       eventId: pendingReceiptEventId,
       sequence: 10,
-      occurredAt: DateTime.utc(2026, 3, 15, 0, 30),
+      occurredAt: _reviewedWorkspacePendingReceiptOccurredAtUtc(),
       clientId: clientId,
       siteId: siteId,
       reportSchemaVersion: 1,
@@ -224,7 +237,7 @@ ReportReviewedWorkspaceFixture buildRepeatReportWorkspaceFixture({
         decisionSummary:
             'Repeat monitoring update sent after recurring vehicle movement.',
         summary: 'Vehicle returned to the same camera zone within minutes.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 19),
+        reviewedAtUtc: _reviewedWorkspaceReviewedAtUtc(19),
       ),
     },
     reviewedReceiptEventId: repeatReceiptEventId,
@@ -243,7 +256,7 @@ ReportReviewedGenerationFixture buildReviewedReportGenerationFixture({
     buildTestIntelligenceReceived(
       eventId: intelligenceEventId,
       sequence: 5,
-      occurredAt: DateTime.utc(2026, 3, 14, 21, 14),
+      occurredAt: _reviewedWorkspaceOccurredAtUtc(14, 21, 14),
       intelligenceId: intelligenceId,
       clientId: clientId,
       siteId: siteId,
@@ -261,8 +274,8 @@ ReportReviewedGenerationFixture buildReviewedReportGenerationFixture({
         decisionLabel: 'Monitoring Alert',
         decisionSummary:
             'Client alert sent because vehicle activity was detected and confidence remained medium.',
-        summary: 'Vehicle remained below escalation threshold.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 14, 21, 15),
+        summary: reportTestSuppressedDecisionSummary,
+        reviewedAtUtc: _reviewedWorkspaceReviewedAtUtc(15),
       ),
     },
     intelligenceId: intelligenceId,

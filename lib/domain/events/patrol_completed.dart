@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class PatrolCompleted extends DispatchEvent {
+  static const String auditTypeKey = 'patrol_completed';
   final String guardId;
   final String routeId;
   final String clientId;
@@ -36,4 +37,7 @@ class PatrolCompleted extends DispatchEvent {
       durationSeconds: durationSeconds,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

@@ -1,5 +1,8 @@
 import 'package:omnix_dashboard/domain/events/report_generated.dart';
 
+DateTime _defaultReportReceiptOccurredAtUtc() =>
+    DateTime.utc(2026, 3, 14, 22, 0);
+
 ReportGenerated buildTestReportGenerated({
   String eventId = 'RPT-TEST-1',
   int sequence = 0,
@@ -30,7 +33,7 @@ ReportGenerated buildTestReportGenerated({
     eventId: eventId,
     sequence: sequence,
     version: version,
-    occurredAt: occurredAt ?? DateTime.utc(2026, 3, 14, 22, 0),
+    occurredAt: occurredAt ?? _defaultReportReceiptOccurredAtUtc(),
     clientId: clientId,
     siteId: siteId,
     month: month,

@@ -1,0 +1,28 @@
+{
+  "scenarioId": "incident_timeline_summary_v1",
+  "runId": "2026-04-01T13:29:48.551416Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "reports_workspace",
+    "actualIntent": "summarize_incident",
+    "actualEscalationState": "none",
+    "actualProjectionChanges": [],
+    "actualDrafts": [
+      {
+        "type": "incident_summary",
+        "incidentReference": "INC-8829-QX",
+        "headline": "INC-8829-QX is investigating at Ms Vallee Residence.",
+        "summary": "Perimeter breach with elevated priority. Unauthorized person matched watchlist context."
+      }
+    ],
+    "actualBlockedActions": [],
+    "actualUiState": {
+      "surface": "incident_summary",
+      "timelineVisible": true,
+      "activeIncidentVisible": true
+    },
+    "appendedEvents": [],
+    "notes": "Built a scoped incident summary for INC-8829-QX from 2 seeded timeline event(s)."
+  },
+  "mismatches": []
+}

@@ -357,6 +357,7 @@ class HttpCctvBridgeService implements CctvBridgeService {
       'intrusion' => 88,
       'breach' => 90,
       'line_crossing' => 84,
+      'video_loss' => 18,
       'tamper' => 78,
       'fr_match' => 80,
       'lpr_alert' => 80,
@@ -574,9 +575,17 @@ class HttpCctvBridgeService implements CctvBridgeService {
       'intrusion' ||
       'regionentrance' ||
       'regionexit' => 'intrusion',
+      'videoloss' ||
+      'videolossalarm' ||
+      'signalloss' ||
+      'videosignalloss' => 'video_loss',
       'tamperdetection' || 'tamper' => 'tamper',
       'facesnap' || 'facematch' || 'facedetection' => 'fr_match',
-      'plate' || 'licenseplate' || 'vehicledetection' => 'lpr_alert',
+      'plate' ||
+      'licenseplate' ||
+      'licenseplatematch' ||
+      'anpr' ||
+      'vehicledetection' => 'lpr_alert',
       'motion' || 'videomotion' => 'motion',
       _ => raw.ifEmpty('intrusion').toLowerCase(),
     };
@@ -587,9 +596,13 @@ class HttpCctvBridgeService implements CctvBridgeService {
     return switch (normalized) {
       'crossline' || 'tripwire' || 'linecrossing' => 'line_crossing',
       'regionalintrusion' || 'intrusion' || 'alarmlocal' => 'intrusion',
+      'videoloss' || 'videosignalabnormal' => 'video_loss',
       'videomotion' || 'motiondetect' || 'motion' => 'motion',
       'facedetection' || 'facerecognition' || 'facecompare' => 'fr_match',
-      'trafficjunction' || 'trafficcrosslane' || 'trafficplate' => 'lpr_alert',
+      'trafficjunction' ||
+      'trafficcrosslane' ||
+      'trafficplate' ||
+      'anpr' => 'lpr_alert',
       'tamper' || 'videoblind' => 'tamper',
       _ => raw.ifEmpty('intrusion').toLowerCase(),
     };
@@ -603,6 +616,9 @@ class HttpCctvBridgeService implements CctvBridgeService {
     }
     if (normalized.contains('motion') || normalized.contains('vmd')) {
       return 'motion';
+    }
+    if (normalized.contains('videoloss') || normalized.contains('signalloss')) {
+      return 'video_loss';
     }
     if (normalized.contains('fenceguard') || normalized.contains('intrusion')) {
       return 'intrusion';

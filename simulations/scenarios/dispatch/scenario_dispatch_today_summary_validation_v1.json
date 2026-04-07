@@ -1,0 +1,65 @@
+{
+  "scenarioId": "dispatch_today_summary_validation_v1",
+  "title": "Validation: today's dispatches summarize current flow",
+  "description": "Validation replay for a controller dispatch query keeping the board in place and summarizing only today's dispatch creation events.",
+  "category": "dispatch_flow",
+  "scenarioSet": "validation",
+  "tags": ["deterministic_read", "day_shift", "dispatch_board"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T09:20:00Z",
+  "version": 1,
+  "status": "validation_candidate",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:10:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_dispatch_today.json"],
+      "projections": ["fixture_projections_dispatch_today.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "active",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "controller",
+        "text": "Show dispatches today"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "dispatch_board",
+    "expectedIntent": "dispatch_today_lookup",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [
+      {
+        "type": "dispatch_summary",
+        "dispatchCount": 2,
+        "dispatchIds": ["DSP-TODAY-1", "DSP-TODAY-2"]
+      }
+    ],
+    "expectedBlockedActions": [],
+    "expectedUiState": {
+      "surface": "dispatch_today_summary",
+      "dispatchListVisible": true,
+      "dispatchCount": 2
+    }
+  }
+}

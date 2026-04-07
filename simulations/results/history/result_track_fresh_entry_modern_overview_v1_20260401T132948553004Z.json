@@ -1,0 +1,24 @@
+{
+  "scenarioId": "track_fresh_entry_modern_overview_v1",
+  "runId": "2026-04-01T13:29:48.553004Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "track_overview",
+    "actualIntent": "open_track_workspace",
+    "actualEscalationState": "none",
+    "actualProjectionChanges": [],
+    "actualDrafts": [],
+    "actualBlockedActions": [
+      "reopen_legacy_tactical_workspace"
+    ],
+    "actualUiState": {
+      "surface": "track_modern_overview",
+      "legacyWorkspaceVisible": false,
+      "modernOverviewVisible": true,
+      "detailedWorkspaceVisible": false
+    },
+    "appendedEvents": [],
+    "notes": "Evaluated Track entry via desktop_standard viewport in fresh_entry mode. Projection seeded 1 visible site(s) and liveTrackingEnabled=true."
+  },
+  "mismatches": []
+}

@@ -1,0 +1,63 @@
+{
+  "scenarioId": "guard_status_echo_3_validation_v1",
+  "title": "Validation: guard status command answers with focused vigilance detail",
+  "description": "Validation replay for a scoped guard status query staying in live operations with explicit focused-guard and vigilance markers.",
+  "category": "guard_ops_read",
+  "scenarioSet": "validation",
+  "tags": ["deterministic_read", "guard_offline", "night_shift"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T09:20:00Z",
+  "version": 1,
+  "status": "locked_validation",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T22:13:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_track_baseline.json"],
+      "projections": ["fixture_projections_guard_ops_status.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "console",
+        "text": "Check status of Echo-3"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "live_operations_center",
+    "expectedIntent": "guard_status_lookup",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": [],
+    "expectedUiState": {
+      "surface": "guard_status_answer",
+      "liveOpsCommandPreviewVisible": true,
+      "guardStatusVisible": true,
+      "focusedGuardCallsign": "Echo-3",
+      "lastCheckIn": "22:12",
+      "vigilanceDecay": 67,
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

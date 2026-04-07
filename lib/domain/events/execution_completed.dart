@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'dispatch_event.dart';
 
 class ExecutionCompleted extends DispatchEvent {
+  static const String auditTypeKey = 'execution_completed';
   final String dispatchId;
   final String clientId;
   final String regionId;
@@ -33,4 +36,25 @@ class ExecutionCompleted extends DispatchEvent {
       success: success,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
+
+  Map<String, Object?> toJson() {
+    return {
+      'type': auditTypeKey,
+      'eventId': eventId,
+      'sequence': sequence,
+      'version': version,
+      'occurredAtUtc': occurredAt.toUtc().toIso8601String(),
+      'dispatchId': dispatchId,
+      'clientId': clientId,
+      'regionId': regionId,
+      'siteId': siteId,
+      'success': success,
+    };
+  }
+
+  @override
+  String toString() => jsonEncode(toJson());
 }

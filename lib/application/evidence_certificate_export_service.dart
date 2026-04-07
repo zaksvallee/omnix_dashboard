@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:crypto/crypto.dart';
+
 import '../domain/evidence/client_ledger_repository.dart';
 import '../domain/evidence/client_ledger_service.dart';
 import '../domain/evidence/evidence_provenance.dart';
@@ -9,20 +11,31 @@ class EvidenceCertificateExport {
   final Map<String, Object?> json;
   final String markdown;
 
-  const EvidenceCertificateExport({
-    required this.json,
-    required this.markdown,
-  });
+  const EvidenceCertificateExport({required this.json, required this.markdown});
 }
 
 class EvidenceCertificateExportService {
   final ClientLedgerRepository repository;
+  final ClientLedgerService? ledgerService;
 
-  const EvidenceCertificateExportService({required this.repository});
+  const EvidenceCertificateExportService({
+    required this.repository,
+    this.ledgerService,
+  });
+
+  static String chainedPayloadHash({
+    required Map<String, Object?> payload,
+    required String previousHash,
+  }) {
+    return sha256
+        .convert(utf8.encode('${jsonEncode(payload)}|$previousHash'))
+        .toString();
+  }
 
   Future<EvidenceCertificateExport> exportForIntelligence(
     IntelligenceReceived event,
   ) async {
+    await ledgerService?.flushPendingEvidence();
     final certificate = EvidenceProvenanceCertificate.fromIntelligence(event);
     final ledgerRow = await repository.fetchLedgerRow(
       clientId: event.clientId,
@@ -30,6 +43,18 @@ class EvidenceCertificateExportService {
         event.intelligenceId,
       ),
     );
+    final hashVerified = ledgerRow == null
+        ? false
+        : ClientLedgerService.ledgerHashFor(
+                canonicalJson: ledgerRow.canonicalJson,
+                previousHash: ledgerRow.previousHash,
+              ) ==
+              ledgerRow.hash;
+    if (ledgerRow != null && !hashVerified) {
+      throw StateError(
+        'Ledger tamper detected for intelligence ${event.intelligenceId}: stored hash does not match canonical payload.',
+      );
+    }
 
     final payload = <String, Object?>{
       'certificate_type': 'onyx_evidence_integrity_certificate',
@@ -39,6 +64,7 @@ class EvidenceCertificateExportService {
         'hash': ledgerRow?.hash ?? '',
         'previousHash': ledgerRow?.previousHash ?? '',
         'sealed': ledgerRow != null,
+        'hashVerified': hashVerified,
       },
     };
 

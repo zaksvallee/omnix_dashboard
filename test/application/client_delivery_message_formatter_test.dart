@@ -54,7 +54,7 @@ void main() {
 
       expect(
         summary,
-        'Telegram delivery degraded for this lane, but SMS fallback could not start because no active contact numbers are on file.',
+        'Telegram delivery degraded for this client thread, but SMS fallback could not start because no active contact numbers are on file.',
       );
     });
 
@@ -65,7 +65,7 @@ void main() {
 
       expect(
         summary,
-        'Telegram delivery degraded for this lane, but SMS fallback could not start because no active contact numbers are on file.',
+        'Telegram delivery degraded for this client thread, but SMS fallback could not start because no active contact numbers are on file.',
       );
     });
 
@@ -126,6 +126,18 @@ void main() {
         summary,
         'Telegram could not deliver 1/1 client update. Bridge reported: BLOCKED_BY_TEST_STUB.',
       );
+    });
+
+    test('truncates long telegram updates on a clean boundary', () {
+      final body = ClientDeliveryMessageFormatter.telegramBody(
+        title: 'Monitoring alert',
+        body:
+            'This is a deliberately long resident-facing update that should stop on a clean word boundary instead of slicing a technical sentence in half midword when the telegram formatter compacts it for delivery.',
+        siteLabel: 'MS Vallee Residence',
+        priority: true,
+      );
+
+      expect(body, isNot(contains('midwor…')));
     });
   });
 }

@@ -5,12 +5,14 @@ import '../../events/response_arrived.dart';
 import 'report_sections.dart';
 
 class DispatchPerformanceProjection {
+  // TODO(zaks): Per-contract value — move to client configuration when contract data model is ready.
   static const int _expectedPatrolsPerCheckIn = 8;
 
   static List<GuardPerformanceSnapshot> buildGuardPerformance({
     required String clientId,
     required String month,
     required List<DispatchEvent> events,
+    Map<String, GuardReportingProfile> guardProfilesById = const {},
   }) {
     final checkInsByGuard = <String, int>{};
     final patrolsByGuard = <String, int>{};
@@ -28,7 +30,11 @@ class DispatchPerformanceProjection {
       }
 
       if (event is ResponseArrived && event.clientId == clientId) {
-        escalationsByGuard.update(event.guardId, (v) => v + 1, ifAbsent: () => 1);
+        escalationsByGuard.update(
+          event.guardId,
+          (v) => v + 1,
+          ifAbsent: () => 1,
+        );
       }
     }
 
@@ -36,25 +42,31 @@ class DispatchPerformanceProjection {
       ...checkInsByGuard.keys,
       ...patrolsByGuard.keys,
       ...escalationsByGuard.keys,
-    }.toList()
-      ..sort();
+    }.toList()..sort();
 
-    return guardIds.map((guardId) {
-      final checkIns = checkInsByGuard[guardId] ?? 0;
-      final patrols = patrolsByGuard[guardId] ?? 0;
-      final expectedPatrols = checkIns * _expectedPatrolsPerCheckIn;
-      final baseline = expectedPatrols > patrols ? expectedPatrols : patrols;
-      final compliance = baseline == 0 ? 0.0 : (patrols / baseline) * 100.0;
+    return guardIds
+        .map((guardId) {
+          final checkIns = checkInsByGuard[guardId] ?? 0;
+          final patrols = patrolsByGuard[guardId] ?? 0;
+          final profile = guardProfilesById[guardId];
+          final expectedPatrols = checkIns * _expectedPatrolsPerCheckIn;
+          final baseline = expectedPatrols > patrols
+              ? expectedPatrols
+              : patrols;
+          final compliance = baseline == 0 ? 0.0 : (patrols / baseline) * 100.0;
 
-      return GuardPerformanceSnapshot(
-        guardName: 'Guard $guardId',
-        idNumber: guardId,
-        psiraNumber: 'PSIRA-$guardId',
-        rank: 'Officer',
-        compliancePercentage: compliance,
-        escalationsHandled: escalationsByGuard[guardId] ?? 0,
-      );
-    }).toList(growable: false);
+          return GuardPerformanceSnapshot(
+            guardName: profile?.displayName.trim().isNotEmpty == true
+                ? profile!.displayName.trim()
+                : guardId,
+            idNumber: guardId,
+            psiraNumber: profile?.psiraNumber.trim() ?? '',
+            rank: profile?.rank.trim() ?? '',
+            compliancePercentage: compliance,
+            escalationsHandled: escalationsByGuard[guardId] ?? 0,
+          );
+        })
+        .toList(growable: false);
   }
 
   static PatrolPerformanceSnapshot buildPatrolPerformance({

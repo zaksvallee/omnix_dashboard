@@ -153,6 +153,14 @@ class ReportBundleCanonicalizer {
       'emergingThreats': <String, Object?>{
         'patternsObserved': bundle.emergingThreats.patternsObserved,
       },
+      if (bundle.narrativeRequest != null)
+        'narrativeRequest': <String, Object?>{
+          'clientId': bundle.narrativeRequest!.clientId,
+          'reportPeriod': bundle.narrativeRequest!.reportPeriod,
+          'incidentSummary': bundle.narrativeRequest!.incidentSummary,
+          'escalationCount': bundle.narrativeRequest!.escalationCount,
+          'slaComplianceRate': bundle.narrativeRequest!.slaComplianceRate,
+        },
     };
 
     return jsonEncode(payload);

@@ -5,6 +5,7 @@ import 'package:omnix_dashboard/application/mo_runtime_matching_service.dart';
 import 'package:omnix_dashboard/application/monitoring_identity_policy_service.dart';
 import 'package:omnix_dashboard/application/monitoring_temporary_identity_approval_service.dart';
 import 'package:omnix_dashboard/application/monitoring_watch_scene_assessment_service.dart';
+import 'package:omnix_dashboard/application/monitoring_watch_runtime_store.dart';
 import 'package:omnix_dashboard/application/monitoring_watch_vision_review_service.dart';
 import 'package:omnix_dashboard/domain/intelligence/onyx_mo_record.dart';
 import 'package:omnix_dashboard/application/site_identity_registry_repository.dart';
@@ -238,6 +239,84 @@ void main() {
       },
     );
 
+    test(
+      'infers person object truth from face matches even when review stays generic',
+      () {
+        final event = _intel(
+          objectLabel: '',
+          objectConfidence: 0.43,
+          riskScore: 72,
+          headline: 'HIK_CONNECT_OPENAPI FR_MATCH',
+          summary: 'Face match arrived from Hik-Connect.',
+          snapshotUrl: null,
+          faceMatchId: 'RESIDENT-44',
+          faceConfidence: 91.2,
+        );
+        const review = MonitoringWatchVisionReviewResult(
+          sourceLabel: 'openai:gpt-4.1-mini',
+          usedFallback: false,
+          primaryObjectLabel: 'movement',
+          confidence: MonitoringWatchVisionConfidence.medium,
+          indicatesPerson: false,
+          indicatesVehicle: false,
+          indicatesAnimal: false,
+          indicatesLoitering: false,
+          indicatesBoundaryConcern: false,
+          indicatesEscalationCandidate: false,
+          riskDelta: 0,
+          summary: 'Subject visible near the lobby.',
+        );
+
+        final assessment = service.assess(
+          event: event,
+          review: review,
+          priorReviewedEvents: 0,
+        );
+
+        expect(assessment.objectLabel, 'person');
+        expect(assessment.rationale, contains('object:person'));
+      },
+    );
+
+    test(
+      'infers vehicle object truth from plate hits even when review stays generic',
+      () {
+        final event = _intel(
+          objectLabel: '',
+          objectConfidence: 0.52,
+          riskScore: 68,
+          headline: 'HIK_CONNECT_OPENAPI ANPR',
+          summary: 'Plate hit arrived from Hik-Connect.',
+          snapshotUrl: null,
+          plateNumber: 'CA123456',
+          plateConfidence: 96.4,
+        );
+        const review = MonitoringWatchVisionReviewResult(
+          sourceLabel: 'metadata-only',
+          usedFallback: true,
+          primaryObjectLabel: 'unknown',
+          confidence: MonitoringWatchVisionConfidence.medium,
+          indicatesPerson: false,
+          indicatesVehicle: false,
+          indicatesAnimal: false,
+          indicatesLoitering: false,
+          indicatesBoundaryConcern: false,
+          indicatesEscalationCandidate: false,
+          riskDelta: 0,
+          summary: 'Vehicle metadata only.',
+        );
+
+        final assessment = service.assess(
+          event: event,
+          review: review,
+          priorReviewedEvents: 0,
+        );
+
+        expect(assessment.objectLabel, 'vehicle');
+        expect(assessment.rationale, contains('object:vehicle'));
+      },
+    );
+
     test('surfaces MO shadow match for service impersonation scene', () {
       final moAwareService = MonitoringWatchSceneAssessmentService(
         moRuntimeMatchingService: MoRuntimeMatchingService(
@@ -369,8 +448,14 @@ void main() {
 
       expect(assessment.moShadowMatchTitles, isNotEmpty);
       expect(assessment.rationale, contains('mo_shadow:MO-EXT-OFFICE'));
-      expect(repository.readAll().first.validationStatus, OnyxMoValidationStatus.validated);
-      expect(repository.readAll().first.metadata['promotion_decision_status'], 'accepted');
+      expect(
+        repository.readAll().first.validationStatus,
+        OnyxMoValidationStatus.validated,
+      );
+      expect(
+        repository.readAll().first.metadata['promotion_decision_status'],
+        'accepted',
+      );
     });
 
     test('labels same-pass loitering scenes explicitly', () {
@@ -447,6 +532,381 @@ void main() {
       expect(assessment.postureLabel, 'boundary loitering concern');
     });
 
+    test('classifies short tracked dwell as passing by', () {
+      final latest = _intel(
+        id: 'track-passing',
+        occurredAt: DateTime.utc(2026, 3, 14, 21, 0, 40),
+        objectLabel: 'person',
+        objectConfidence: 0.74,
+        riskScore: 36,
+        headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+        summary: 'Person moved through the gate lane.',
+        snapshotUrl: 'https://edge.example.com/passing.jpg',
+        trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:11',
+      );
+
+      final assessment = service.assess(
+        event: latest,
+        review: buildMetadataOnlyMonitoringWatchVisionReview(latest),
+        priorReviewedEvents: 0,
+        groupedEventCount: 1,
+        relatedEvents: const <IntelligenceReceived>[],
+        persistedTrackedSubject: MonitoringWatchTrackedSubjectState(
+          trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:11',
+          cameraId: 'CHANNEL-1',
+          objectLabel: 'person',
+          firstSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 0, 5),
+          lastSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 0, 20),
+          eventCount: 1,
+        ),
+      );
+
+      expect(
+        assessment.trackedPostureStage,
+        MonitoringWatchTrackedPostureStage.innocent,
+      );
+      expect(assessment.trackedPostureLabel, 'passing by');
+      expect(assessment.trackedPresenceWindow, const Duration(seconds: 35));
+      expect(assessment.repeatActivity, isFalse);
+      expect(assessment.shouldNotifyClient, isFalse);
+      expect(assessment.shouldEscalate, isFalse);
+      expect(assessment.postureLabel, 'passing by');
+    });
+
+    test('classifies medium tracked dwell as suspicious dwell alert', () {
+      final latest = _intel(
+        id: 'track-dwell',
+        occurredAt: DateTime.utc(2026, 3, 14, 21, 2, 5),
+        objectLabel: 'person',
+        objectConfidence: 0.79,
+        riskScore: 38,
+        headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+        summary: 'Person remained near the front gate.',
+        snapshotUrl: 'https://edge.example.com/dwell.jpg',
+        trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:12',
+      );
+
+      final assessment = service.assess(
+        event: latest,
+        review: buildMetadataOnlyMonitoringWatchVisionReview(latest),
+        priorReviewedEvents: 0,
+        groupedEventCount: 1,
+        relatedEvents: const <IntelligenceReceived>[],
+        persistedTrackedSubject: MonitoringWatchTrackedSubjectState(
+          trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:12',
+          cameraId: 'CHANNEL-1',
+          objectLabel: 'person',
+          firstSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 0, 15),
+          lastSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 1, 10),
+          eventCount: 2,
+        ),
+      );
+
+      expect(
+        assessment.trackedPostureStage,
+        MonitoringWatchTrackedPostureStage.suspicious,
+      );
+      expect(assessment.trackedPostureLabel, 'dwell alert');
+      expect(
+        assessment.trackedPresenceWindow,
+        const Duration(minutes: 1, seconds: 50),
+      );
+      expect(assessment.shouldNotifyClient, isTrue);
+      expect(assessment.shouldEscalate, isFalse);
+      expect(assessment.postureLabel, 'dwell alert');
+      expect(assessment.rationale, contains('track_posture:dwell_alert'));
+    });
+
+    test('treats three minutes at a restricted gate as critical staging', () {
+      final latest = _intel(
+        id: 'track-gate-critical',
+        occurredAt: DateTime.utc(2026, 3, 14, 21, 3, 0),
+        objectLabel: 'person',
+        objectConfidence: 0.8,
+        riskScore: 40,
+        zone: 'Front Gate',
+        headline: 'Front gate movement',
+        summary: 'Person remained near the front gate.',
+        snapshotUrl: 'https://edge.example.com/front-gate.jpg',
+        trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:13',
+      );
+
+      final assessment = service.assess(
+        event: latest,
+        review: buildMetadataOnlyMonitoringWatchVisionReview(latest),
+        priorReviewedEvents: 0,
+        groupedEventCount: 1,
+        relatedEvents: const <IntelligenceReceived>[],
+        persistedTrackedSubject: MonitoringWatchTrackedSubjectState(
+          trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:13',
+          cameraId: 'CHANNEL-1',
+          objectLabel: 'person',
+          firstSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 0, 0),
+          lastSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 1, 30),
+          eventCount: 2,
+        ),
+      );
+
+      expect(
+        assessment.zoneSensitivity,
+        MonitoringWatchZoneSensitivity.restrictedZone,
+      );
+      expect(assessment.zoneLabel, 'Front Gate');
+      expect(
+        assessment.trackedPostureStage,
+        MonitoringWatchTrackedPostureStage.critical,
+      );
+      expect(assessment.trackedPostureLabel, 'loitering/staging');
+      expect(assessment.shouldEscalate, isTrue);
+      expect(assessment.postureLabel, 'critical loitering/staging');
+      expect(assessment.rationale, contains('zone:restricted'));
+    });
+
+    test(
+      'treats three minutes in a public driveway lane as suspicious, not critical',
+      () {
+        final latest = _intel(
+          id: 'track-driveway-public',
+          occurredAt: DateTime.utc(2026, 3, 14, 21, 3, 0),
+          objectLabel: 'person',
+          objectConfidence: 0.8,
+          riskScore: 40,
+          zone: 'Public Driveway Lane',
+          headline: 'Driveway lane movement',
+          summary: 'Person remained in the public driveway lane.',
+          snapshotUrl: 'https://edge.example.com/public-driveway.jpg',
+          trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:14',
+        );
+
+        final assessment = service.assess(
+          event: latest,
+          review: buildMetadataOnlyMonitoringWatchVisionReview(latest),
+          priorReviewedEvents: 0,
+          groupedEventCount: 1,
+          relatedEvents: const <IntelligenceReceived>[],
+          persistedTrackedSubject: MonitoringWatchTrackedSubjectState(
+            trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:14',
+            cameraId: 'CHANNEL-1',
+            objectLabel: 'person',
+            firstSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 0, 0),
+            lastSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 1, 30),
+            eventCount: 2,
+          ),
+        );
+
+        expect(
+          assessment.zoneSensitivity,
+          MonitoringWatchZoneSensitivity.publicApproach,
+        );
+        expect(assessment.zoneLabel, 'Public Driveway Lane');
+        expect(
+          assessment.trackedPostureStage,
+          MonitoringWatchTrackedPostureStage.suspicious,
+        );
+        expect(assessment.trackedPostureLabel, 'dwell alert');
+        expect(assessment.shouldNotifyClient, isTrue);
+        expect(assessment.shouldEscalate, isFalse);
+        expect(assessment.postureLabel, 'dwell alert');
+        expect(assessment.rationale, contains('zone:public_approach'));
+      },
+    );
+
+    test(
+      'elevates sustained tracked person activity into loitering concern',
+      () {
+        final latest = _intel(
+          id: 'track-latest',
+          occurredAt: DateTime.utc(2026, 3, 14, 21, 20),
+          objectLabel: 'person',
+          objectConfidence: 0.82,
+          riskScore: 38,
+          headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+          summary: 'Person remained around the front gate.',
+          snapshotUrl: 'https://edge.example.com/tracked-person.jpg',
+          trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:7',
+        );
+        final relatedEvents = <IntelligenceReceived>[
+          _intel(
+            id: 'track-earlier-1',
+            occurredAt: DateTime.utc(2026, 3, 14, 21, 14),
+            objectLabel: 'person',
+            objectConfidence: 0.80,
+            riskScore: 36,
+            headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+            summary: 'Person stayed near the front gate.',
+            snapshotUrl: 'https://edge.example.com/tracked-person-1.jpg',
+            trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:7',
+          ),
+          _intel(
+            id: 'track-earlier-2',
+            occurredAt: DateTime.utc(2026, 3, 14, 21, 17),
+            objectLabel: 'person',
+            objectConfidence: 0.81,
+            riskScore: 37,
+            headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+            summary: 'Same person remained in the gate lane.',
+            snapshotUrl: 'https://edge.example.com/tracked-person-2.jpg',
+            trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:7',
+          ),
+          latest,
+        ];
+
+        final assessment = service.assess(
+          event: latest,
+          review: buildMetadataOnlyMonitoringWatchVisionReview(latest),
+          priorReviewedEvents: 0,
+          groupedEventCount: relatedEvents.length,
+          relatedEvents: relatedEvents,
+        );
+
+        expect(
+          assessment.trackId,
+          'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:7',
+        );
+        expect(assessment.trackedEventCount, 3);
+        expect(assessment.trackedPresenceWindow, const Duration(minutes: 6));
+        expect(
+          assessment.trackedPostureStage,
+          MonitoringWatchTrackedPostureStage.critical,
+        );
+        expect(assessment.trackedPostureLabel, 'loitering/staging');
+        expect(assessment.repeatActivity, isTrue);
+        expect(assessment.loiteringConcern, isTrue);
+        expect(assessment.shouldNotifyClient, isTrue);
+        expect(assessment.shouldEscalate, isTrue);
+        expect(assessment.postureLabel, 'critical loitering/staging');
+        expect(assessment.rationale, contains('track_repeat:3'));
+        expect(assessment.rationale, contains('track_loiter'));
+        expect(
+          assessment.rationale,
+          contains('track_posture:loitering_staging'),
+        );
+      },
+    );
+
+    test(
+      'uses persisted tracked subject history across separate watch sweeps',
+      () {
+        final latest = _intel(
+          id: 'track-latest-runtime',
+          occurredAt: DateTime.utc(2026, 3, 14, 21, 20),
+          objectLabel: 'person',
+          objectConfidence: 0.82,
+          riskScore: 38,
+          headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+          summary: 'Person remained around the front gate.',
+          snapshotUrl: 'https://edge.example.com/tracked-person.jpg',
+          trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:7',
+        );
+
+        final assessment = service.assess(
+          event: latest,
+          review: buildMetadataOnlyMonitoringWatchVisionReview(latest),
+          priorReviewedEvents: 0,
+          groupedEventCount: 1,
+          relatedEvents: const <IntelligenceReceived>[],
+          persistedTrackedSubject: MonitoringWatchTrackedSubjectState(
+            trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:7',
+            cameraId: 'CHANNEL-1',
+            objectLabel: 'person',
+            firstSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 14),
+            lastSeenAtUtc: DateTime.utc(2026, 3, 14, 21, 17),
+            eventCount: 2,
+          ),
+        );
+
+        expect(
+          assessment.trackId,
+          'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:7',
+        );
+        expect(assessment.trackedEventCount, 3);
+        expect(assessment.trackedPresenceWindow, const Duration(minutes: 6));
+        expect(
+          assessment.trackedPostureStage,
+          MonitoringWatchTrackedPostureStage.critical,
+        );
+        expect(assessment.trackedPostureLabel, 'loitering/staging');
+        expect(assessment.repeatActivity, isTrue);
+        expect(assessment.loiteringConcern, isTrue);
+        expect(assessment.shouldEscalate, isTrue);
+        expect(assessment.postureLabel, 'critical loitering/staging');
+        expect(assessment.rationale, contains('track_repeat:3'));
+        expect(assessment.rationale, contains('track_loiter'));
+        expect(
+          assessment.rationale,
+          contains('track_posture:loitering_staging'),
+        );
+      },
+    );
+
+    test(
+      'does not infer loitering when grouped events belong to different tracked subjects',
+      () {
+        final latest = _intel(
+          id: 'track-current',
+          occurredAt: DateTime.utc(2026, 3, 14, 21, 20),
+          objectLabel: 'person',
+          objectConfidence: 0.82,
+          riskScore: 38,
+          headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+          summary: 'Person moved past the front gate.',
+          snapshotUrl: 'https://edge.example.com/tracked-current.jpg',
+          trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:9',
+        );
+        final relatedEvents = <IntelligenceReceived>[
+          _intel(
+            id: 'track-other-1',
+            occurredAt: DateTime.utc(2026, 3, 14, 21, 14),
+            objectLabel: 'person',
+            objectConfidence: 0.80,
+            riskScore: 36,
+            headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+            summary: 'Another person crossed near the front gate.',
+            snapshotUrl: 'https://edge.example.com/tracked-other-1.jpg',
+            trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:4',
+          ),
+          _intel(
+            id: 'track-other-2',
+            occurredAt: DateTime.utc(2026, 3, 14, 21, 17),
+            objectLabel: 'person',
+            objectConfidence: 0.81,
+            riskScore: 37,
+            headline: 'HIKVISION_DVR_MONITOR_ONLY MOTION',
+            summary: 'Different person moved near the gate lane.',
+            snapshotUrl: 'https://edge.example.com/tracked-other-2.jpg',
+            trackId: 'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:5',
+          ),
+          latest,
+        ];
+
+        final assessment = service.assess(
+          event: latest,
+          review: buildMetadataOnlyMonitoringWatchVisionReview(latest),
+          priorReviewedEvents: 0,
+          groupedEventCount: relatedEvents.length,
+          relatedEvents: relatedEvents,
+        );
+
+        expect(
+          assessment.trackId,
+          'SITE-MS-VALLEE-RESIDENCE|CHANNEL-1|track:9',
+        );
+        expect(assessment.trackedEventCount, 1);
+        expect(assessment.trackedPresenceWindow, Duration.zero);
+        expect(
+          assessment.trackedPostureStage,
+          MonitoringWatchTrackedPostureStage.none,
+        );
+        expect(assessment.repeatActivity, isFalse);
+        expect(assessment.loiteringConcern, isFalse);
+        expect(assessment.postureLabel, 'monitored movement alert');
+        expect(
+          assessment.rationale.where((entry) => entry.startsWith('track_')),
+          isEmpty,
+        );
+      },
+    );
+
     test(
       'escalates risky LPR/FR metadata when watchlist context is present',
       () {
@@ -488,6 +948,35 @@ void main() {
         expect(assessment.postureLabel, 'escalation candidate');
       },
     );
+
+    test('escalates firearm-class detections immediately', () {
+      final assessment = service.assess(
+        event: _intel(
+          objectLabel: 'firearm',
+          objectConfidence: 0.92,
+          riskScore: 72,
+          headline: 'YOLO detected a firearm near the front gate',
+          summary: 'Weapon-shaped object detected at the boundary.',
+          snapshotUrl: 'https://edge.example.com/firearm.jpg',
+        ),
+        review: buildMetadataOnlyMonitoringWatchVisionReview(
+          _intel(
+            objectLabel: 'firearm',
+            objectConfidence: 0.92,
+            riskScore: 72,
+            headline: 'YOLO detected a firearm near the front gate',
+            summary: 'Weapon-shaped object detected at the boundary.',
+            snapshotUrl: 'https://edge.example.com/firearm.jpg',
+          ),
+        ),
+        priorReviewedEvents: 0,
+      );
+
+      expect(assessment.shouldNotifyClient, isTrue);
+      expect(assessment.shouldEscalate, isTrue);
+      expect(assessment.postureLabel, 'escalation candidate');
+      expect(assessment.effectiveRiskScore, greaterThanOrEqualTo(96));
+    });
 
     test(
       'suppresses known allowed identity matches when activity stays low',
@@ -578,32 +1067,38 @@ void main() {
 }
 
 IntelligenceReceived _intel({
+  String id = '1',
+  DateTime? occurredAt,
   required String objectLabel,
   required double objectConfidence,
   required int riskScore,
   required String headline,
   required String summary,
   required String? snapshotUrl,
+  String? zone,
+  String? trackId,
   String? faceMatchId,
   double? faceConfidence,
   String? plateNumber,
   double? plateConfidence,
 }) {
   return IntelligenceReceived(
-    eventId: 'evt-1',
+    eventId: 'evt-$id',
     sequence: 1,
     version: 1,
-    occurredAt: DateTime.utc(2026, 3, 14, 21, 14),
-    intelligenceId: 'intel-1',
+    occurredAt: occurredAt ?? DateTime.utc(2026, 3, 14, 21, 14),
+    intelligenceId: 'intel-$id',
     provider: 'hikvision_dvr_monitor_only',
     sourceType: 'dvr',
-    externalId: 'ext-1',
+    externalId: 'ext-$id',
     clientId: 'CLIENT-MS-VALLEE',
     regionId: 'REGION-GAUTENG',
     siteId: 'SITE-MS-VALLEE-RESIDENCE',
     cameraId: 'channel-1',
+    zone: zone,
     objectLabel: objectLabel,
     objectConfidence: objectConfidence,
+    trackId: trackId,
     faceMatchId: faceMatchId,
     faceConfidence: faceConfidence,
     plateNumber: plateNumber,
@@ -612,6 +1107,6 @@ IntelligenceReceived _intel({
     summary: summary,
     riskScore: riskScore,
     snapshotUrl: snapshotUrl,
-    canonicalHash: 'hash-1',
+    canonicalHash: 'hash-$id',
   );
 }

@@ -2,6 +2,15 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'client_camera_health_fact_packet_service.dart';
+import 'onyx_agent_cloud_boost_service.dart';
+import 'onyx_agent_local_brain_service.dart';
+import 'telegram_client_prompt_signals.dart';
+
+part 'telegram_ai_assistant_camera_health.dart';
+part 'telegram_ai_assistant_clarifiers.dart';
+part 'telegram_ai_assistant_site_view.dart';
+
 enum TelegramAiAudience { admin, client }
 
 enum TelegramAiDeliveryMode { telegramLive, approvalDraft, smsFallback }
@@ -36,6 +45,28 @@ class TelegramAiDraftReply {
   });
 }
 
+class _TelegramAiClientPromptContext {
+  final String clientName;
+  final String siteName;
+  final String watchStatus;
+  final String cameraStatus;
+  final String activeIncidents;
+  final String lastActivity;
+  final String guardOnSite;
+  final String lastGuardCheckin;
+
+  const _TelegramAiClientPromptContext({
+    required this.clientName,
+    required this.siteName,
+    required this.watchStatus,
+    required this.cameraStatus,
+    required this.activeIncidents,
+    required this.lastActivity,
+    required this.guardOnSite,
+    required this.lastGuardCheckin,
+  });
+}
+
 abstract class TelegramAiAssistantService {
   bool get isConfigured;
 
@@ -51,6 +82,7 @@ abstract class TelegramAiAssistantService {
     List<String> learnedReplyExamples = const <String>[],
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
+    ClientCameraHealthFactPacket? cameraHealthFactPacket,
   });
 }
 
@@ -74,6 +106,7 @@ class UnconfiguredTelegramAiAssistantService
     List<String> learnedReplyExamples = const <String>[],
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
+    ClientCameraHealthFactPacket? cameraHealthFactPacket,
   }) async {
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
     return TelegramAiDraftReply(
@@ -87,6 +120,7 @@ class UnconfiguredTelegramAiAssistantService
         preferredReplyStyleTags: preferredReplyStyleTags,
         learnedReplyStyleTags: learnedReplyStyleTags,
         recentConversationTurns: recentConversationTurns,
+        cameraHealthFactPacket: cameraHealthFactPacket,
       ),
       usedFallback: true,
       providerLabel: 'fallback',
@@ -126,6 +160,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     List<String> learnedReplyExamples = const <String>[],
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
+    ClientCameraHealthFactPacket? cameraHealthFactPacket,
   }) async {
     final cleaned = messageText.trim();
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
@@ -147,6 +182,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
           preferredReplyStyleTags: preferredReplyStyleTags,
           learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
+          cameraHealthFactPacket: cameraHealthFactPacket,
         ),
         usedFallback: true,
         usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -164,14 +200,14 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             body: jsonEncode({
               'model': model.trim(),
               'temperature': 0.2,
-              'max_output_tokens': 220,
+              'max_output_tokens': 500,
               'input': [
                 {
                   'role': 'system',
                   'content': [
                     {
                       'type': 'input_text',
-                      'text': _systemPrompt(
+                      'text': _telegramAssistantSystemPrompt(
                         audience: audience,
                         scope: scope,
                         messageText: cleaned,
@@ -182,6 +218,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
                         learnedReplyExamples: learnedReplyExamples,
                         learnedReplyStyleTags: learnedReplyStyleTags,
                         recentConversationTurns: recentConversationTurns,
+                        cameraHealthFactPacket: cameraHealthFactPacket,
                       ),
                     },
                   ],
@@ -208,6 +245,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             preferredReplyStyleTags: preferredReplyStyleTags,
             learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
+            cameraHealthFactPacket: cameraHealthFactPacket,
           ),
           usedFallback: true,
           usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -227,6 +265,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             preferredReplyStyleTags: preferredReplyStyleTags,
             learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
+            cameraHealthFactPacket: cameraHealthFactPacket,
           ),
           usedFallback: true,
           usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -244,6 +283,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
         learnedReplyExamples: learnedReplyExamples,
         learnedReplyStyleTags: learnedReplyStyleTags,
         recentConversationTurns: recentConversationTurns,
+        cameraHealthFactPacket: cameraHealthFactPacket,
       );
       if (polished.trim().isEmpty) {
         return TelegramAiDraftReply(
@@ -257,6 +297,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             preferredReplyStyleTags: preferredReplyStyleTags,
             learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
+            cameraHealthFactPacket: cameraHealthFactPacket,
           ),
           usedFallback: true,
           usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -279,107 +320,651 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
           preferredReplyStyleTags: preferredReplyStyleTags,
           learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
+          cameraHealthFactPacket: cameraHealthFactPacket,
         ),
         usedFallback: true,
         usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
       );
     }
   }
+}
 
-  String _systemPrompt({
+class OnyxFirstTelegramAiAssistantService
+    implements TelegramAiAssistantService {
+  final OnyxAgentCloudBoostService onyxCloudBoost;
+  final OnyxAgentLocalBrainService onyxLocalBrain;
+  final TelegramAiAssistantService directProvider;
+
+  const OnyxFirstTelegramAiAssistantService({
+    required this.onyxCloudBoost,
+    required this.onyxLocalBrain,
+    required this.directProvider,
+  });
+
+  @override
+  bool get isConfigured =>
+      onyxCloudBoost.isConfigured ||
+      onyxLocalBrain.isConfigured ||
+      directProvider.isConfigured;
+
+  @override
+  Future<TelegramAiDraftReply> draftReply({
     required TelegramAiAudience audience,
-    required _TelegramAiScopeProfile scope,
     required String messageText,
-    required TelegramAiDeliveryMode deliveryMode,
+    String? clientId,
+    String? siteId,
+    TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
     List<String> clientProfileSignals = const <String>[],
     List<String> preferredReplyExamples = const <String>[],
     List<String> preferredReplyStyleTags = const <String>[],
     List<String> learnedReplyExamples = const <String>[],
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
-  }) {
-    final normalizedMessage = messageText.trim().toLowerCase();
-    final recentContext = _recentConversationContextSnippet(
+    ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  }) async {
+    final cleaned = messageText.trim();
+    final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
+    if (cleaned.isEmpty) {
+      return TelegramAiDraftReply(
+        text: _emptyPromptReply(audience: audience, scope: scope),
+        usedFallback: true,
+        providerLabel: 'fallback',
+        usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
+      );
+    }
+
+    final onyxScope = OnyxAgentCloudScope(
+      clientId: scope.clientId,
+      siteId: scope.siteId,
+      sourceRouteLabel: audience == TelegramAiAudience.admin
+          ? 'Telegram Admin Reply'
+          : 'Telegram Client Reply',
+    );
+    final prompt = _telegramAssistantOnyxPrompt(
+      audience: audience,
+      scope: scope,
+      messageText: cleaned,
+      deliveryMode: deliveryMode,
+      clientProfileSignals: clientProfileSignals,
+      preferredReplyExamples: preferredReplyExamples,
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyExamples: learnedReplyExamples,
+      learnedReplyStyleTags: learnedReplyStyleTags,
+      recentConversationTurns: recentConversationTurns,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+    );
+    final contextSummary = _telegramAssistantOnyxContextSummary(
+      audience: audience,
+      messageText: cleaned,
+      deliveryMode: deliveryMode,
+      recentConversationTurns: recentConversationTurns,
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyStyleTags: learnedReplyStyleTags,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+    );
+
+    if (onyxCloudBoost.isConfigured) {
+      final cloudResponse = await onyxCloudBoost.boost(
+        prompt: prompt,
+        scope: onyxScope,
+        intent: _onyxIntentForTelegramAudience(audience),
+        contextSummary: contextSummary,
+      );
+      final cloudDraft = _telegramDraftReplyFromOnyxResponse(
+        response: cloudResponse,
+        providerPrefix: 'onyx-cloud',
+        audience: audience,
+        messageText: cleaned,
+        scope: scope,
+        deliveryMode: deliveryMode,
+        clientProfileSignals: clientProfileSignals,
+        preferredReplyExamples: preferredReplyExamples,
+        preferredReplyStyleTags: preferredReplyStyleTags,
+        learnedReplyExamples: learnedReplyExamples,
+        learnedReplyStyleTags: learnedReplyStyleTags,
+        recentConversationTurns: recentConversationTurns,
+        cameraHealthFactPacket: cameraHealthFactPacket,
+      );
+      if (cloudDraft != null) {
+        return cloudDraft;
+      }
+    }
+
+    if (directProvider.isConfigured) {
+      return directProvider.draftReply(
+        audience: audience,
+        messageText: cleaned,
+        clientId: clientId,
+        siteId: siteId,
+        deliveryMode: deliveryMode,
+        clientProfileSignals: clientProfileSignals,
+        preferredReplyExamples: preferredReplyExamples,
+        preferredReplyStyleTags: preferredReplyStyleTags,
+        learnedReplyExamples: learnedReplyExamples,
+        learnedReplyStyleTags: learnedReplyStyleTags,
+        recentConversationTurns: recentConversationTurns,
+        cameraHealthFactPacket: cameraHealthFactPacket,
+      );
+    }
+
+    if (onyxLocalBrain.isConfigured) {
+      final localResponse = await onyxLocalBrain.synthesize(
+        prompt: prompt,
+        scope: onyxScope,
+        intent: _onyxIntentForTelegramAudience(audience),
+        contextSummary: contextSummary,
+      );
+      final localDraft = _telegramDraftReplyFromOnyxResponse(
+        response: localResponse,
+        providerPrefix: 'onyx-local',
+        audience: audience,
+        messageText: cleaned,
+        scope: scope,
+        deliveryMode: deliveryMode,
+        clientProfileSignals: clientProfileSignals,
+        preferredReplyExamples: preferredReplyExamples,
+        preferredReplyStyleTags: preferredReplyStyleTags,
+        learnedReplyExamples: learnedReplyExamples,
+        learnedReplyStyleTags: learnedReplyStyleTags,
+        recentConversationTurns: recentConversationTurns,
+        cameraHealthFactPacket: cameraHealthFactPacket,
+      );
+      if (localDraft != null) {
+        return localDraft;
+      }
+    }
+
+    return const UnconfiguredTelegramAiAssistantService().draftReply(
+      audience: audience,
+      messageText: cleaned,
+      clientId: clientId,
+      siteId: siteId,
+      deliveryMode: deliveryMode,
+      clientProfileSignals: clientProfileSignals,
+      preferredReplyExamples: preferredReplyExamples,
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyExamples: learnedReplyExamples,
+      learnedReplyStyleTags: learnedReplyStyleTags,
+      recentConversationTurns: recentConversationTurns,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+    );
+  }
+}
+
+String _telegramAssistantSystemPrompt({
+  required TelegramAiAudience audience,
+  required _TelegramAiScopeProfile scope,
+  required String messageText,
+  required TelegramAiDeliveryMode deliveryMode,
+  List<String> clientProfileSignals = const <String>[],
+  List<String> preferredReplyExamples = const <String>[],
+  List<String> preferredReplyStyleTags = const <String>[],
+  List<String> learnedReplyExamples = const <String>[],
+  List<String> learnedReplyStyleTags = const <String>[],
+  List<String> recentConversationTurns = const <String>[],
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final recentContext = _recentConversationContextSnippet(
+    recentConversationTurns,
+  );
+  final preferredExamplesSnippet = _preferredReplyExamplesSnippet(
+    preferredReplyExamples,
+  );
+  final preferredStyleTagsSnippet = _replyStyleTagsSnippet(
+    preferredReplyStyleTags,
+  );
+  final learnedExamplesSnippet = _learnedReplyExamplesSnippet(
+    learnedReplyExamples,
+  );
+  final learnedStyleTagsSnippet = _replyStyleTagsSnippet(learnedReplyStyleTags);
+  final cameraHealthSnippet = _cameraHealthPromptSnippet(
+    cameraHealthFactPacket,
+  );
+  final clientPromptContext = _telegramAiClientPromptContext(
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  switch (audience) {
+    case TelegramAiAudience.admin:
+      return 'You are ONYX operations admin assistant.\n'
+          'Target scope: ${scope.clientId}/${scope.siteId}.\n'
+          'Client label: ${scope.clientLabel}.\n'
+          'Site label: ${scope.siteLabel}.\n'
+          'Rules:\n'
+          '1) Sound calm, direct, and operationally sharp.\n'
+          '2) Prefer short executive answers with concrete next actions.\n'
+          '3) Do not claim actions, dispatches, ETAs, or outcomes unless the user message explicitly confirms them.\n'
+          '4) If context is missing, ask for one clarifying detail only.\n'
+          '5) Plain text only. No markdown tables, bullets, or internal secrets.\n'
+          '$cameraHealthSnippet'
+          'Recent lane context:\n'
+          '$recentContext';
+    case TelegramAiAudience.client:
+      final additionalContextBlocks = <String>[
+        'RECENT THREAD CONTEXT:\n$recentContext',
+        if (preferredStyleTagsSnippet != null)
+          'PREFERRED STYLE CUES:\n$preferredStyleTagsSnippet',
+        if (preferredExamplesSnippet != null)
+          'APPROVED REPLY EXAMPLES:\n$preferredExamplesSnippet',
+        if (learnedStyleTagsSnippet != null)
+          'LEARNED STYLE CUES:\n$learnedStyleTagsSnippet',
+        if (learnedExamplesSnippet != null)
+          'LEARNED REPLY EXAMPLES:\n$learnedExamplesSnippet',
+        if (cameraHealthSnippet.isNotEmpty)
+          'INTERNAL STATUS FACTS (do not quote raw labels or internal jargon verbatim):\n$cameraHealthSnippet',
+      ];
+      final additionalContext = additionalContextBlocks.join('\n\n');
+      return 'You are ONYX, an AI-powered security intelligence system. You communicate directly with property owners and clients on behalf of their security monitoring service.\n\n'
+          'IDENTITY:\n'
+          '- You are ONYX Security Intelligence\n'
+          '- You are calm, professional, and reassuring\n'
+          '- You never panic, never speculate wildly\n'
+          '- You speak like a competent security professional not like a chatbot\n\n'
+          'CURRENT CONTEXT (injected per message):\n'
+          '- Client: ${clientPromptContext.clientName}\n'
+          '- Site: ${clientPromptContext.siteName}\n'
+          '- Watch status: ${clientPromptContext.watchStatus}\n'
+          '- Camera status: ${clientPromptContext.cameraStatus}\n'
+          '- Active incidents: ${clientPromptContext.activeIncidents}\n'
+          '- Last verified activity: ${clientPromptContext.lastActivity}\n'
+          '- Guard on site: ${clientPromptContext.guardOnSite}\n'
+          '- Last guard check-in: ${clientPromptContext.lastGuardCheckin}\n\n'
+          'COMMUNICATION RULES:\n'
+          '1. Never say "I cannot" - say what you CAN do\n'
+          '2. Never say "camera visibility unavailable" - say "remote monitoring is limited right now"\n'
+          '3. Never promise dispatch without confirmation\n'
+          '4. Never claim certainty you do not have\n'
+          '5. Always end with a clear next step\n'
+          '6. If asked about cameras and they are offline:\n'
+          '   "I don\'t have live visual right now but I\'m monitoring all signals. What would you like me to check?"\n'
+          '7. If asked if everything is fine and you do not have full visibility:\n'
+          '   "Based on what I can see, there are no active alerts. My visual monitoring is limited right now - want me to flag your guard for a check?"\n'
+          '8. Keep responses under 3 sentences unless the situation requires more detail\n'
+          '9. Never use technical jargon (no "DVR", "RTSP", "API" etc.)\n'
+          '10. Match the client\'s energy - if they are worried, be more detailed. If casual, be brief.\n\n'
+          'TONE EXAMPLES:\n\n'
+          'Bad: "Camera visibility unavailable at [CLIENT_NAME] right now."\n\n'
+          'Good: "I don\'t have full visual right now but I\'m watching all alarm signals. Everything looks quiet. Anything specific you\'d like me to check?"\n\n'
+          'Bad: "I do not see a confirmed issue at [CLIENT_NAME] right now."\n\n'
+          'Good: "Nothing flagged right now. Last activity was [X] - looked routine. What\'s on your mind?"\n\n'
+          'Bad: "Remote monitoring is unavailable."\n\n'
+          'Good: "My camera link is temporarily limited but alarm monitoring is fully active. Want me to ask your guard to do a visual sweep?"\n\n'
+          'INCIDENT RESPONSE TONE:\n'
+          '- Confirmed threat: Direct, clear, action-focused\n'
+          '  "There\'s activity at your North Gate. Guard has been alerted. I\'m watching it now."\n'
+          '- Possible threat: Honest, measured\n'
+          '  "Something triggered at your perimeter. Could be nothing - I\'m checking it now."\n'
+          '- False alarm: Reassuring, brief\n'
+          '  "All clear. That was [cause]. Everything looks good."\n\n'
+          'WHAT YOU KNOW:\n'
+          '- Current incident status\n'
+          '- Guard location and last check-in\n'
+          '- Camera and alarm status\n'
+          '- Recent event history\n'
+          '- Site layout and zone names\n\n'
+          'WHAT YOU DON\'T CLAIM TO KNOW:\n'
+          '- Anything outside your data feeds\n'
+          '- Certainty about ambiguous situations\n'
+          '- Outcomes before they are confirmed\n'
+          '${additionalContext.isEmpty ? '' : '\n\nADDITIONAL INTERNAL CONTEXT (do not quote raw labels or internal codes verbatim):\n$additionalContext'}';
+  }
+}
+
+String _cameraHealthPromptSnippet(
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
+) {
+  if (cameraHealthFactPacket == null) {
+    return '';
+  }
+  return 'Structured camera health facts. Treat these as source-of-truth for camera-access claims, restoration claims, and next-step wording. Do not contradict them.\n'
+      '${cameraHealthFactPacket.toPromptBlock()}\n';
+}
+
+_TelegramAiClientPromptContext _telegramAiClientPromptContext({
+  required _TelegramAiScopeProfile scope,
+  required List<String> recentConversationTurns,
+  required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final joinedContext = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  return _TelegramAiClientPromptContext(
+    clientName: _promptValueOrUnknown(scope.clientLabel),
+    siteName: _promptValueOrUnknown(scope.siteReference),
+    watchStatus: _telegramAiWatchStatusPromptValue(cameraHealthFactPacket),
+    cameraStatus: _telegramAiCameraStatusPromptValue(cameraHealthFactPacket),
+    activeIncidents: _telegramAiActiveIncidentsPromptValue(
+      recentConversationTurns: recentConversationTurns,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+    ),
+    lastActivity: _telegramAiLastActivityPromptValue(
+      recentConversationTurns: recentConversationTurns,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+    ),
+    guardOnSite: _telegramAiGuardOnSitePromptValue(joinedContext),
+    lastGuardCheckin: _telegramAiLastGuardCheckinPromptValue(
       recentConversationTurns,
-    );
-    final laneStage = _resolveClientLaneStage(
-      normalizedMessage: normalizedMessage,
-      recentConversationTurns: recentConversationTurns,
-    );
-    final tonePack = _clientTonePackFor(scope);
-    final intent = _resolveClientReplyIntent(
-      normalizedMessage,
-      recentConversationTurns,
-    );
-    final escalatedLane = _isEscalatedLaneContext(
-      normalizedMessage: normalizedMessage,
-      recentConversationTurns: recentConversationTurns,
-    );
-    final pressuredLane = _isPressuredLaneContext(
-      normalizedMessage: normalizedMessage,
-      recentConversationTurns: recentConversationTurns,
-    );
-    final preferredExamplesSnippet = _preferredReplyExamplesSnippet(
-      preferredReplyExamples,
-    );
-    final preferredStyleTagsSnippet = _replyStyleTagsSnippet(
-      preferredReplyStyleTags,
-    );
-    final learnedExamplesSnippet = _learnedReplyExamplesSnippet(
-      learnedReplyExamples,
-    );
-    final learnedStyleTagsSnippet = _replyStyleTagsSnippet(
-      learnedReplyStyleTags,
-    );
-    switch (audience) {
-      case TelegramAiAudience.admin:
-        return 'You are ONYX operations admin assistant.\n'
-            'Target scope: ${scope.clientId}/${scope.siteId}.\n'
-            'Client label: ${scope.clientLabel}.\n'
-            'Site label: ${scope.siteLabel}.\n'
-            'Rules:\n'
-            '1) Sound calm, direct, and operationally sharp.\n'
-            '2) Prefer short executive answers with concrete next actions.\n'
-            '3) Do not claim actions, dispatches, ETAs, or outcomes unless the user message explicitly confirms them.\n'
-            '4) If context is missing, ask for one clarifying detail only.\n'
-            '5) Plain text only. No markdown tables, bullets, or internal secrets.\n'
-            'Recent lane context:\n'
-            '$recentContext';
-      case TelegramAiAudience.client:
-        return 'You are ONYX client communications assistant for ${scope.siteReference}.\n'
-            'Internal scope: ${scope.clientId}/${scope.siteId}.\n'
-            'Client label: ${scope.clientLabel}.\n'
-            'Site label: ${scope.siteLabel}.\n'
-            'Voice and style:\n'
-            '1) Sound like a calm, capable control-room operator, not a bot.\n'
-            '2) Start by answering the client\'s actual concern in plain language.\n'
-            '3) Use simple words a client can understand on first read.\n'
-            '4) Then give the next confirmed step or update path.\n'
-            '5) Keep most replies to 2 short sentences; use a third only if it truly helps.\n'
-            '6) Prefer direct words like "checking", "access", "camera", "security on site", "ETA", and "next step" over control-room jargon.\n'
-            '7) When possible, mirror the shared Telegram wording: "checking", "camera check", "security is on site", and "next step". Avoid phrases like "latest position", "operational position", or "response movement" unless the client used them first.\n'
-            '8) Every reply must be complete and send-ready. No fragments, clipped endings, placeholders, or half-sentences.\n'
-            '9) Do not mention internal IDs, scope strings, system tokens, pipelines, or model limitations.\n'
-            '10) Never say "ONYX received your message", "we have your message", "command is reviewing", "verified update shortly", or similar canned system language.\n'
-            '11) Never invent ETAs, dispatches, calls, arrivals, restored service, or completed actions.\n'
-            '12) If the client sounds worried, answer with calm reassurance. If details are missing, ask one simple follow-up after giving the current position.\n'
-            '13) Avoid repeating the same reassurance line or closing sentence if recent lane context already used it.\n'
-            '14) Plain text only.\n'
-            '${escalatedLane ? '15) Recent lane context shows this thread is already escalated/high-priority. Keep the tone calm but tighter, more urgent, and centered on the next confirmed step.\n' : ''}'
-            '${pressuredLane ? '16) Recent lane context shows repeated anxious follow-ups. Keep replies extra steady, brief, and avoid adding filler.\n' : ''}'
-            '${_laneStagePromptNote(laneStage)}'
-            '${_deliveryModePromptNote(deliveryMode)}'
-            '${_clientTonePackPromptNote(tonePack)}'
-            '${_clientProfilePromptNote(clientProfileSignals)}'
-            '${_messageTypePromptNote(intent: intent, laneStage: laneStage, tonePack: tonePack)}'
-            '${preferredStyleTagsSnippet == null ? '' : '17) Preferred style cues for this lane right now: $preferredStyleTagsSnippet. Use them as light tone guidance when they fit the situation.\n'}'
-            '${preferredExamplesSnippet == null ? '' : '18) Follow the wording pattern of the approved examples below when it fits the situation, especially for the closing line.\nPreferred approved reply examples:\n$preferredExamplesSnippet\n'}'
-            '${learnedStyleTagsSnippet == null ? '' : '19) Learned lane style tags: $learnedStyleTagsSnippet. Let these tags nudge the tone even when you are not reusing a specific learned reply.\n'}'
-            '${learnedExamplesSnippet == null ? '' : '20) These approved replies have worked well in this lane before. Reuse their cadence and closing style when it fits.\nLearned strong reply examples:\n$learnedExamplesSnippet\n'}'
-            'Recent lane context:\n'
-            '$recentContext';
+    ),
+  );
+}
+
+String _promptValueOrUnknown(String? value) {
+  final normalized = value?.trim() ?? '';
+  return normalized.isEmpty ? 'unknown' : normalized;
+}
+
+String _telegramAiWatchStatusPromptValue(
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
+) {
+  final packet = cameraHealthFactPacket;
+  if (packet == null) {
+    return 'unknown';
+  }
+  final watchStatus = (packet.continuousVisualWatchStatus ?? '').trim();
+  final watchSummary = (packet.continuousVisualWatchSummary ?? '').trim();
+  if (packet.hasContinuousVisualCoverage ||
+      packet.hasActiveContinuousVisualChange ||
+      packet.hasOngoingContinuousVisualChange) {
+    return 'available';
+  }
+  if (watchStatus.isNotEmpty ||
+      watchSummary.isNotEmpty ||
+      packet.hasCurrentVisualConfirmation ||
+      packet.hasRecentMovementSignals ||
+      packet.hasRecentSiteIssueSignals ||
+      packet.hasLiveVisualAccess) {
+    return 'limited';
+  }
+  if (packet.status == ClientCameraHealthStatus.offline) {
+    return 'offline';
+  }
+  return 'unknown';
+}
+
+String _telegramAiCameraStatusPromptValue(
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
+) {
+  final packet = cameraHealthFactPacket;
+  if (packet == null) {
+    return 'unknown';
+  }
+  return switch (packet.status) {
+    ClientCameraHealthStatus.live => 'available',
+    ClientCameraHealthStatus.limited => 'limited',
+    ClientCameraHealthStatus.offline => 'offline',
+  };
+}
+
+String _telegramAiActiveIncidentsPromptValue({
+  required List<String> recentConversationTurns,
+  required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final threadCount = _telegramAiOpenIncidentCount(recentConversationTurns);
+  final packet = cameraHealthFactPacket;
+  if (packet != null) {
+    final issueLabel =
+        packet.operatorIssueSignalLabel() ??
+        packet.recentMovementSignalLabel?.trim() ??
+        packet.recentMovementHotspotLabel?.trim();
+    if (packet.hasActiveSiteIssueSignals) {
+      final activeCount = threadCount ?? 1;
+      return '$activeCount active - ${_promptValueOrUnknown(issueLabel)}';
+    }
+    if (packet.hasRecentSiteIssueSignals) {
+      final activeCount = threadCount ?? 0;
+      return '$activeCount active - recent activity: ${_promptValueOrUnknown(issueLabel)}';
+    }
+    if (packet.hasNoConfirmedSiteIssue ||
+        packet.hasNoConfirmedMovement ||
+        threadCount == 0) {
+      return '0 active - no active alerts from current signals';
     }
   }
+  if (threadCount != null) {
+    if (threadCount <= 0) {
+      return '0 active - no active alerts from recent thread context';
+    }
+    return '$threadCount active - recent thread context requires review';
+  }
+  return 'unknown';
+}
+
+String _telegramAiLastActivityPromptValue({
+  required List<String> recentConversationTurns,
+  required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final packet = cameraHealthFactPacket;
+  if (packet != null) {
+    final activityLabel =
+        packet.recentMovementSignalLabel?.trim().isNotEmpty == true
+        ? packet.recentMovementSignalLabel!.trim()
+        : packet.recentIssueSignalLabel?.trim().isNotEmpty == true
+        ? packet.recentIssueSignalLabel!.trim()
+        : packet.recentMovementHotspotLabel?.trim().isNotEmpty == true
+        ? packet.recentMovementHotspotLabel!.trim()
+        : null;
+    if (activityLabel != null || packet.lastMovementSignalAtUtc != null) {
+      return '${_promptTimestampValue(packet.lastMovementSignalAtUtc)} - ${_promptValueOrUnknown(activityLabel)}';
+    }
+  }
+  for (final turn in recentConversationTurns) {
+    final normalized = turn.trim();
+    if (normalized.isEmpty) {
+      continue;
+    }
+    final lower = normalized.toLowerCase();
+    if (lower.contains('latest field signal:')) {
+      final label = normalized.split(':').last.trim();
+      return '${_promptTimestampValue(_extractTimestampFromPromptContext(normalized))} - ${_promptValueOrUnknown(label)}';
+    }
+    if (lower.contains('activity') || lower.contains('incident')) {
+      return '${_promptTimestampValue(_extractTimestampFromPromptContext(normalized))} - ${_promptValueOrUnknown(normalized)}';
+    }
+  }
+  return 'unknown';
+}
+
+String _telegramAiGuardOnSitePromptValue(String joinedContext) {
+  if (joinedContext.trim().isEmpty) {
+    return 'unknown';
+  }
+  if (_hasExplicitCurrentOnSitePresence(joinedContext)) {
+    return 'true';
+  }
+  if (_containsAny(joinedContext, const [
+    'no guard is confirmed on site',
+    'guard is not on site',
+    'security is not on site',
+    'security not on site',
+    'security is not there',
+    'security isnt there',
+  ])) {
+    return 'false';
+  }
+  return 'unknown';
+}
+
+String _telegramAiLastGuardCheckinPromptValue(
+  List<String> recentConversationTurns,
+) {
+  for (final turn in recentConversationTurns) {
+    final normalized = turn.trim();
+    if (normalized.isEmpty) {
+      continue;
+    }
+    final lower = normalized.toLowerCase();
+    if (lower.contains('guard check-in')) {
+      return _promptTimestampValue(_extractTimestampFromPromptContext(turn));
+    }
+  }
+  return 'unknown';
+}
+
+int? _telegramAiOpenIncidentCount(List<String> recentConversationTurns) {
+  final patterns = <RegExp>[
+    RegExp(r'open incidents:\s*(\d+)', caseSensitive: false),
+    RegExp(r'open follow-ups:\s*(\d+)', caseSensitive: false),
+    RegExp(r'\bincidents:\s*(\d+)', caseSensitive: false),
+    RegExp(r'\binc=(\d+)', caseSensitive: false),
+  ];
+  for (final turn in recentConversationTurns) {
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(turn);
+      final count = int.tryParse(match?.group(1) ?? '');
+      if (count != null) {
+        return count;
+      }
+    }
+  }
+  return null;
+}
+
+DateTime? _extractTimestampFromPromptContext(String text) {
+  final isoMatch = RegExp(
+    r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)',
+  ).firstMatch(text);
+  if (isoMatch != null) {
+    return DateTime.tryParse(isoMatch.group(1)!);
+  }
+  return null;
+}
+
+String _promptTimestampValue(DateTime? value) {
+  return value?.toUtc().toIso8601String() ?? 'unknown';
+}
+
+OnyxAgentCloudIntent _onyxIntentForTelegramAudience(
+  TelegramAiAudience audience,
+) {
+  switch (audience) {
+    case TelegramAiAudience.admin:
+      return OnyxAgentCloudIntent.admin;
+    case TelegramAiAudience.client:
+      return OnyxAgentCloudIntent.client;
+  }
+}
+
+String _telegramAssistantOnyxPrompt({
+  required TelegramAiAudience audience,
+  required _TelegramAiScopeProfile scope,
+  required String messageText,
+  required TelegramAiDeliveryMode deliveryMode,
+  List<String> clientProfileSignals = const <String>[],
+  List<String> preferredReplyExamples = const <String>[],
+  List<String> preferredReplyStyleTags = const <String>[],
+  List<String> learnedReplyExamples = const <String>[],
+  List<String> learnedReplyStyleTags = const <String>[],
+  List<String> recentConversationTurns = const <String>[],
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final sharedPrompt = _telegramAssistantSystemPrompt(
+    audience: audience,
+    scope: scope,
+    messageText: messageText,
+    deliveryMode: deliveryMode,
+    clientProfileSignals: clientProfileSignals,
+    preferredReplyExamples: preferredReplyExamples,
+    preferredReplyStyleTags: preferredReplyStyleTags,
+    learnedReplyExamples: learnedReplyExamples,
+    learnedReplyStyleTags: learnedReplyStyleTags,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  final audienceLabel = audience == TelegramAiAudience.admin
+      ? 'admin'
+      : 'client';
+  return 'Draft a send-ready $audienceLabel Telegram reply.\n'
+      'Use these Telegram reply rules exactly:\n'
+      '$sharedPrompt\n\n'
+      'User message:\n$messageText\n\n'
+      'Return only the final reply text. Plain text only. No JSON, bullets, role labels, or markdown.';
+}
+
+String _telegramAssistantOnyxContextSummary({
+  required TelegramAiAudience audience,
+  required String messageText,
+  required TelegramAiDeliveryMode deliveryMode,
+  required List<String> recentConversationTurns,
+  required List<String> preferredReplyStyleTags,
+  required List<String> learnedReplyStyleTags,
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final normalizedMessage = _normalizeReplyHeuristicText(messageText);
+  final laneStage = _resolveClientLaneStage(
+    normalizedMessage: normalizedMessage,
+    recentConversationTurns: recentConversationTurns,
+  );
+  final intent = _resolveClientReplyIntent(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final highlights = <String>[
+    'telegram audience=${audience.name}',
+    'delivery_mode=${deliveryMode.name}',
+    'lane_stage=${laneStage.name}',
+    'intent=${intent.name}',
+    if (preferredReplyStyleTags.isNotEmpty)
+      'preferred_style_tags=${preferredReplyStyleTags.join(', ')}',
+    if (learnedReplyStyleTags.isNotEmpty)
+      'learned_style_tags=${learnedReplyStyleTags.join(', ')}',
+    if (cameraHealthFactPacket != null)
+      'camera_health=${cameraHealthFactPacket.operatorSummary}',
+    if (recentConversationTurns.isNotEmpty)
+      'recent_turns=${recentConversationTurns.take(4).join(' | ')}',
+  ];
+  return highlights.join(' • ');
+}
+
+TelegramAiDraftReply? _telegramDraftReplyFromOnyxResponse({
+  required OnyxAgentCloudBoostResponse? response,
+  required String providerPrefix,
+  required TelegramAiAudience audience,
+  required String messageText,
+  required _TelegramAiScopeProfile scope,
+  required TelegramAiDeliveryMode deliveryMode,
+  List<String> clientProfileSignals = const <String>[],
+  List<String> preferredReplyExamples = const <String>[],
+  List<String> preferredReplyStyleTags = const <String>[],
+  List<String> learnedReplyExamples = const <String>[],
+  List<String> learnedReplyStyleTags = const <String>[],
+  List<String> recentConversationTurns = const <String>[],
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  if (response?.isError == true) {
+    return null;
+  }
+  final rawText = response?.text.trim() ?? '';
+  if (rawText.isEmpty) {
+    return null;
+  }
+  if (audience == TelegramAiAudience.client &&
+      _looksMechanicalClientReply(rawText)) {
+    return null;
+  }
+  final polished = _polishReply(
+    audience: audience,
+    text: rawText,
+    messageText: messageText,
+    scope: scope,
+    deliveryMode: deliveryMode,
+    clientProfileSignals: clientProfileSignals,
+    preferredReplyExamples: preferredReplyExamples,
+    preferredReplyStyleTags: preferredReplyStyleTags,
+    learnedReplyExamples: learnedReplyExamples,
+    learnedReplyStyleTags: learnedReplyStyleTags,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  ).trim();
+  if (polished.isEmpty) {
+    return null;
+  }
+  return TelegramAiDraftReply(
+    text: polished,
+    providerLabel: '$providerPrefix:${response!.providerLabel}',
+    usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
+  );
 }
 
 String _fallbackReply({
@@ -392,8 +977,18 @@ String _fallbackReply({
   List<String> preferredReplyStyleTags = const <String>[],
   List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
 }) {
-  final normalized = messageText.trim().toLowerCase();
+  final approvalContext = _approvalDraftPromptContext(
+    messageText,
+    deliveryMode: deliveryMode,
+  );
+  final normalized = _normalizeReplyHeuristicText(
+    _fallbackPrimaryMessageText(
+      messageText: messageText,
+      deliveryMode: deliveryMode,
+    ),
+  );
   final tonePack = _clientTonePackFor(scope);
   final clientProfile = _clientProfileFromSignalsAndTags(
     clientProfileSignals: clientProfileSignals,
@@ -426,6 +1021,112 @@ String _fallbackReply({
     escalated: escalatedLane,
     compressed: pressuredLane,
   );
+  final cameraHealthReply = _cameraHealthFactPacketReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    deliveryMode: deliveryMode,
+    recentConversationTurns: recentConversationTurns,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (cameraHealthReply != null) {
+    return cameraHealthReply;
+  }
+  final semanticMovementIdentificationReply =
+      _semanticMovementIdentificationReply(
+        normalizedMessage: normalized,
+        scope: scope,
+        cameraHealthFactPacket: cameraHealthFactPacket,
+      );
+  if (semanticMovementIdentificationReply != null) {
+    return semanticMovementIdentificationReply;
+  }
+  final currentFrameMovementClarifier = _currentFrameMovementClarifierReply(
+    normalizedMessage: normalized,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (currentFrameMovementClarifier != null) {
+    return currentFrameMovementClarifier;
+  }
+  final continuousVisualWatchMovementReply =
+      _continuousVisualWatchMovementReply(
+        normalizedMessage: normalized,
+        scope: scope,
+        recentConversationTurns: recentConversationTurns,
+        cameraHealthFactPacket: cameraHealthFactPacket,
+      );
+  if (continuousVisualWatchMovementReply != null) {
+    return continuousVisualWatchMovementReply;
+  }
+  final siteMovementStatusClarifier = _siteMovementStatusClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (siteMovementStatusClarifier != null) {
+    return siteMovementStatusClarifier;
+  }
+  final cameraCoverageCorrection = _cameraCoverageCorrectionReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (cameraCoverageCorrection != null) {
+    return cameraCoverageCorrection;
+  }
+  final currentSiteViewClarifier = _currentSiteViewClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (currentSiteViewClarifier != null) {
+    return currentSiteViewClarifier;
+  }
+  final siteIssueStatusClarifier = _siteIssueStatusClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (siteIssueStatusClarifier != null) {
+    return siteIssueStatusClarifier;
+  }
+  final eventVisualImageClarifier = _eventVisualImageClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (eventVisualImageClarifier != null) {
+    return eventVisualImageClarifier;
+  }
+  final escalationCapabilityReply = _hypotheticalEscalationCapabilityReply(
+    normalizedMessage: normalized,
+    scope: scope,
+  );
+  if (escalationCapabilityReply != null) {
+    return escalationCapabilityReply;
+  }
+  final presenceVerificationReply = _presenceVerificationReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    deliveryMode: deliveryMode,
+    recentConversationTurns: recentConversationTurns,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+  );
+  if (presenceVerificationReply != null) {
+    return presenceVerificationReply;
+  }
   if (audience == TelegramAiAudience.admin) {
     return 'ONYX admin assistant: quick prompts work best.\n'
         'Try "brief", "status full", "critical risks", or "what should I do next?".';
@@ -442,6 +1143,156 @@ String _fallbackReply({
       escalatedLane: escalatedLane,
       pressuredLane: pressuredLane,
     );
+  }
+  final fieldTelemetryClarifier = _fieldTelemetryCountClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    deliveryMode: deliveryMode,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+  );
+  if (fieldTelemetryClarifier != null) {
+    return fieldTelemetryClarifier;
+  }
+  final telemetryDispatchClarifier = _telemetryDispatchClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    deliveryMode: deliveryMode,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+  );
+  if (telemetryDispatchClarifier != null) {
+    return telemetryDispatchClarifier;
+  }
+  final cameraHealthStatusUpdate = _cameraHealthStatusUpdateReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    deliveryMode: deliveryMode,
+    recentConversationTurns: recentConversationTurns,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (cameraHealthStatusUpdate != null) {
+    return cameraHealthStatusUpdate;
+  }
+  final cameraHealthReassurance = _cameraHealthReassuranceReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    deliveryMode: deliveryMode,
+    recentConversationTurns: recentConversationTurns,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (cameraHealthReassurance != null) {
+    return cameraHealthReassurance;
+  }
+  final cameraOfflineSignalClarifier = _cameraOfflineSignalClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (cameraOfflineSignalClarifier != null) {
+    return cameraOfflineSignalClarifier;
+  }
+  final historicalAlarmReviewReply = _historicalAlarmReviewReply(
+    normalizedMessage: normalized,
+    recentConversationTurns: recentConversationTurns,
+  );
+  if (historicalAlarmReviewReply != null) {
+    return historicalAlarmReviewReply;
+  }
+  final correctionReply = _clientCorrectionClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    deliveryMode: deliveryMode,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+  );
+  if (correctionReply != null) {
+    return correctionReply;
+  }
+  final operationalPictureReply = _operationalPictureClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+  );
+  if (operationalPictureReply != null) {
+    return operationalPictureReply;
+  }
+  final alertWatchReply = _alertWatchAcknowledgementReply(
+    normalizedMessage: normalized,
+    scope: scope,
+  );
+  if (alertWatchReply != null) {
+    return alertWatchReply;
+  }
+  final cameraConnectionReply = _cameraConnectionClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+  );
+  if (cameraConnectionReply != null) {
+    return cameraConnectionReply;
+  }
+  final approvalDraftFallback = _approvalDraftFallbackReply(
+    approvalContext: approvalContext,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    deliveryMode: deliveryMode,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+  );
+  if (approvalDraftFallback != null) {
+    return approvalDraftFallback;
+  }
+  final cameraStatusClarifier = _cameraStatusClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+  );
+  if (cameraStatusClarifier != null) {
+    return cameraStatusClarifier;
+  }
+  final remoteMonitoringRestorationReply = _remoteMonitoringRestorationReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+  );
+  if (remoteMonitoringRestorationReply != null) {
+    return remoteMonitoringRestorationReply;
+  }
+  final reassuranceClarifier = _reassuranceClarifierReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    laneStage: laneStage,
+    tonePack: tonePack,
+    preferredReplyStyle: preferredReplyStyle,
+    clientProfile: clientProfile,
+    deliveryMode: deliveryMode,
+    escalatedLane: escalatedLane,
+    pressuredLane: pressuredLane,
+  );
+  if (reassuranceClarifier != null) {
+    return reassuranceClarifier;
   }
   if (laneStage == _ClientLaneStage.closure) {
     if (_containsAny(normalized, const [
@@ -511,15 +1362,6 @@ String _fallbackReply({
     return '${_statusLeadForTonePack(scope: scope, tonePack: tonePack, clientProfile: clientProfile)} $closing';
   }
   if (_containsAny(normalized, const [
-    'safe',
-    'okay',
-    'ok',
-    'all right',
-    'alright',
-  ])) {
-    return 'We are treating this seriously and checking ${scope.siteReference} now. If anything urgent changes, we will alert you immediately.';
-  }
-  if (_containsAny(normalized, const [
     'thank you',
     'thanks',
     'appreciate it',
@@ -547,6 +1389,16 @@ String _fallbackReply({
   return 'We are checking ${scope.siteReference} now. $closing';
 }
 
+String? _telegramCameraFactTimeLabel(DateTime? value) {
+  if (value == null) {
+    return null;
+  }
+  final utc = value.toUtc();
+  final hh = utc.hour.toString().padLeft(2, '0');
+  final mm = utc.minute.toString().padLeft(2, '0');
+  return '$hh:$mm UTC';
+}
+
 String _emptyPromptReply({
   required TelegramAiAudience audience,
   required _TelegramAiScopeProfile scope,
@@ -569,6 +1421,7 @@ String _polishReply({
   List<String> learnedReplyExamples = const <String>[],
   List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
 }) {
   final normalized = text
       .replaceAll(RegExp(r'\r\n?'), '\n')
@@ -588,6 +1441,25 @@ String _polishReply({
   );
   cleaned = cleaned.replaceAll(RegExp(r'\(\s*/?\s*\)'), '');
   cleaned = cleaned.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
+  if (audience == TelegramAiAudience.client &&
+      deliveryMode == TelegramAiDeliveryMode.telegramLive &&
+      _shouldForceTruthGroundedClientFallback(
+        messageText: messageText,
+        recentConversationTurns: recentConversationTurns,
+      )) {
+    return _fallbackReply(
+      audience: audience,
+      messageText: messageText,
+      scope: scope,
+      deliveryMode: deliveryMode,
+      clientProfileSignals: clientProfileSignals,
+      preferredReplyExamples: preferredReplyExamples,
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyStyleTags: learnedReplyStyleTags,
+      recentConversationTurns: recentConversationTurns,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+    );
+  }
   if (_looksMechanicalClientReply(cleaned)) {
     return _fallbackReply(
       audience: audience,
@@ -599,13 +1471,35 @@ String _polishReply({
       preferredReplyStyleTags: preferredReplyStyleTags,
       learnedReplyStyleTags: learnedReplyStyleTags,
       recentConversationTurns: recentConversationTurns,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+    );
+  }
+  cleaned = _dedupeClientReplySentences(cleaned);
+  if (_shouldPreferFallbackForClientReply(
+    messageText: messageText,
+    replyText: cleaned,
+    recentConversationTurns: recentConversationTurns,
+    deliveryMode: deliveryMode,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  )) {
+    return _fallbackReply(
+      audience: audience,
+      messageText: messageText,
+      scope: scope,
+      deliveryMode: deliveryMode,
+      clientProfileSignals: clientProfileSignals,
+      preferredReplyExamples: preferredReplyExamples,
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyStyleTags: learnedReplyStyleTags,
+      recentConversationTurns: recentConversationTurns,
+      cameraHealthFactPacket: cameraHealthFactPacket,
     );
   }
   final normalizedDrift = _normalizeClientReplyDrift(
     text: _simplifyClientReplyLanguage(cleaned),
     deliveryMode: deliveryMode,
     laneStage: _resolveClientLaneStage(
-      normalizedMessage: messageText.trim().toLowerCase(),
+      normalizedMessage: _normalizeReplyHeuristicText(messageText),
       recentConversationTurns: recentConversationTurns,
     ),
     preferredReplyStyle: _preferredReplyStyleFromExamplesAndTags(
@@ -622,7 +1516,160 @@ String _polishReply({
       learnedReplyStyleTags: learnedReplyStyleTags,
     ),
   );
-  return _ensureClientReplyCompleteness(normalizedDrift);
+  return _ensureClientReplyCompleteness(
+    _dedupeClientReplySentences(normalizedDrift),
+  );
+}
+
+bool _shouldForceTruthGroundedClientFallback({
+  required String messageText,
+  required List<String> recentConversationTurns,
+}) {
+  final normalizedMessage = _normalizeReplyHeuristicText(messageText);
+  if (normalizedMessage.isEmpty) {
+    return false;
+  }
+  final joinedContext = recentConversationTurns
+      .map(_normalizeReplyHeuristicText)
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  final simpleThanks =
+      _containsAny(normalizedMessage, const [
+        'thank you',
+        'thanks',
+        'appreciate it',
+      ]) &&
+      !_containsAny(normalizedMessage, const [
+        'keep me posted',
+        'keep me updated',
+        'serious alerts',
+        'serious alert',
+        'anything serious',
+      ]);
+  if (simpleThanks) {
+    return true;
+  }
+  if (_challengesTelemetryPresenceSummary(normalizedMessage)) {
+    return true;
+  }
+  if (_asksHypotheticalEscalationCapability(normalizedMessage)) {
+    return true;
+  }
+  final clientCorrection = _containsAny(normalizedMessage, const [
+    'my cameras are down',
+    'cameras are down',
+    'camera is down',
+    'camera down',
+    'cctv is down',
+    'cctv down',
+    'cameras are not offline',
+    'camera is not offline',
+    'cameras are not down',
+    'camera is not down',
+    'bridge is not offline',
+    'camera bridge is not offline',
+    'security is not on site',
+    'security not on site',
+    'security isnt on site',
+    'security is not there',
+    'security isnt there',
+  ]);
+  if (clientCorrection) {
+    return true;
+  }
+  final operationalPictureClarifier =
+      _containsAny(normalizedMessage, const [
+        'what current operational picture',
+        'what operational picture',
+        'what do you mean operational picture',
+        'what picture',
+      ]) &&
+      _containsAny(joinedContext, const [
+        'current operational picture',
+        'community reports',
+        'live camera check',
+      ]);
+  if (operationalPictureClarifier) {
+    return true;
+  }
+  if (_asksForCurrentSiteView(normalizedMessage) ||
+      _asksForCurrentFrameMovementCheck(normalizedMessage) ||
+      _asksForSemanticMovementIdentification(normalizedMessage) ||
+      _asksForCurrentFramePersonConfirmation(normalizedMessage)) {
+    return true;
+  }
+  final cameraConnectionAsk =
+      _containsAny(normalizedMessage, const [
+        'why cant you see my cameras',
+        'why can you not see my cameras',
+        'why cant you see the cameras',
+        'why can you not see the cameras',
+        'rewire cameras',
+        'rewire camera',
+        'fix the cameras',
+        'fix the camera',
+        'check asap',
+        'check as soon as possible',
+        'repair the cameras',
+        'repair the camera',
+        'is the connection fixed',
+        'is the camera connection fixed',
+        'is the connection back',
+        'are the cameras back',
+        'is it back up',
+      ]) &&
+      _containsAny(joinedContext, const [
+        'temporarily without remote monitoring',
+        'remote watch is temporarily unavailable',
+        'remote monitoring is offline',
+        'monitoring connection is offline',
+        'offline for this site',
+        'monitoring path is offline',
+        'do not have live camera confirmation',
+        'do not have live visual confirmation',
+        'camera connection issue',
+        'connection issue',
+      ]);
+  if (cameraConnectionAsk) {
+    return true;
+  }
+  if (_isGenericStatusFollowUp(normalizedMessage) &&
+      _hasRecentPresenceVerificationContext(joinedContext)) {
+    return true;
+  }
+  final issueClarifierAsk = _asksForCurrentSiteIssueCheck(normalizedMessage);
+  if (issueClarifierAsk &&
+      (_hasRecentPresenceVerificationContext(joinedContext) ||
+          _hasTelemetrySummaryContext(joinedContext))) {
+    return true;
+  }
+  if ((_asksForCurrentFrameMovementCheck(normalizedMessage) ||
+          _isGenericStatusFollowUp(normalizedMessage)) &&
+      _hasRecentContinuousVisualActivityContext(joinedContext)) {
+    return true;
+  }
+  final reassuranceAsk =
+      asksForTelegramClientBroadStatusCheck(normalizedMessage) ||
+      _containsAny(normalizedMessage, const [
+        'safe',
+        'you sure',
+        'are you sure',
+      ]);
+  if (!reassuranceAsk) {
+    return false;
+  }
+  return _containsAny(joinedContext, const [
+    'site activity summary',
+    'field telemetry',
+    'latest field signal',
+    'community reports',
+    'suspicious vehicle scouting',
+    'not sitting as an open incident',
+    'remote monitoring is offline',
+    'temporarily without remote monitoring',
+    'do not have live visual confirmation',
+    'current operational picture',
+  ]);
 }
 
 bool _looksMechanicalClientReply(String text) {
@@ -646,6 +1693,1583 @@ bool _looksMechanicalClientReply(String text) {
     return true;
   }
   return RegExp(r'\b(?:client|site|region)-[a-z0-9-]+\b').hasMatch(normalized);
+}
+
+bool _replyConflictsWithCameraHealthFactPacket({
+  required String normalizedMessage,
+  required String normalizedReply,
+  required List<String> recentConversationTurns,
+  required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final packet = cameraHealthFactPacket;
+  if (packet == null) {
+    return false;
+  }
+  final asksWhyNoCameras = _asksWhyNoLiveCameraAccess(normalizedMessage);
+  final asksForUrgentCameraRepair = _containsAny(normalizedMessage, const [
+    'rewire cameras',
+    'rewire camera',
+    'fix the cameras',
+    'fix the camera',
+    'repair the cameras',
+    'repair the camera',
+    'reconnect cameras',
+    'reconnect camera',
+  ]);
+  final asksIfConnectionIsFixed = _asksIfConnectionOrBridgeIsFixed(
+    normalizedMessage,
+  );
+  final assertsLiveVisualAccess = _assertsLiveVisualAccessState(
+    normalizedMessage,
+  );
+  final asksCameraCheck = _containsAny(normalizedMessage, const [
+    'did you check cameras',
+    'did you check the cameras',
+    'did you check camera',
+    'camera check',
+    'check cameras',
+  ]);
+  final genericStatusFollowUp = _isGenericStatusFollowUp(normalizedMessage);
+  final camerasDown = _containsAny(normalizedMessage, const [
+    'my cameras are down',
+    'cameras are down',
+    'camera is down',
+    'camera down',
+    'cctv is down',
+    'cctv down',
+  ]);
+  if (!asksWhyNoCameras &&
+      !asksForUrgentCameraRepair &&
+      !asksIfConnectionIsFixed &&
+      !assertsLiveVisualAccess &&
+      !genericStatusFollowUp &&
+      !asksCameraCheck &&
+      !camerasDown) {
+    return false;
+  }
+  final joinedContext = recentConversationTurns
+      .map(_normalizeReplyHeuristicText)
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  final hasRecentCameraContext = _hasRecentCameraStatusContext(joinedContext);
+  final mentionsRestoredLiveAccess = _containsAny(normalizedReply, const [
+    'yes we currently have live camera access',
+    'we currently have live camera access',
+    'live camera access is up',
+    'connection is restored',
+    'connection restored',
+    'back online',
+    'back up',
+  ]);
+  final mentionsUnavailableAccess = _containsAny(normalizedReply, const [
+    'not confirmed yet',
+    'cannot say',
+    'currently unavailable',
+    'currently limited',
+    'do not have live camera',
+    'do not have live visual',
+    'no live stream access',
+  ]);
+  final mentionsLiveVisualConfirmation = _containsAny(normalizedReply, const [
+    'visual confirmation',
+    'last successful visual confirmation',
+    'live camera access',
+    'live visual access',
+  ]);
+  final mentionsUnsafeRepairPromise = _containsAny(normalizedReply, const [
+    'rewire',
+    're-wire',
+    'send a technician',
+    'technician will',
+  ]);
+  if (asksIfConnectionIsFixed) {
+    if (packet.status == ClientCameraHealthStatus.live) {
+      return !mentionsRestoredLiveAccess;
+    }
+    return mentionsRestoredLiveAccess || !mentionsUnavailableAccess;
+  }
+  if ((asksWhyNoCameras || asksCameraCheck || camerasDown) &&
+      packet.status != ClientCameraHealthStatus.live) {
+    return mentionsRestoredLiveAccess || !mentionsUnavailableAccess;
+  }
+  if (assertsLiveVisualAccess) {
+    if (packet.status == ClientCameraHealthStatus.live) {
+      return mentionsUnavailableAccess || !mentionsLiveVisualConfirmation;
+    }
+    return mentionsRestoredLiveAccess || !mentionsUnavailableAccess;
+  }
+  if (genericStatusFollowUp && hasRecentCameraContext) {
+    if (packet.status == ClientCameraHealthStatus.live) {
+      return mentionsUnavailableAccess || !mentionsLiveVisualConfirmation;
+    }
+    return mentionsRestoredLiveAccess || !mentionsUnavailableAccess;
+  }
+  if (asksWhyNoCameras &&
+      packet.status == ClientCameraHealthStatus.live &&
+      !mentionsLiveVisualConfirmation) {
+    return true;
+  }
+  if (asksForUrgentCameraRepair &&
+      packet.reason == ClientCameraHealthReason.credentialsMissing &&
+      mentionsUnsafeRepairPromise) {
+    return true;
+  }
+  return false;
+}
+
+bool _shouldPreferFallbackForClientReply({
+  required String messageText,
+  required String replyText,
+  required List<String> recentConversationTurns,
+  TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
+  ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final approvalContext = _approvalDraftPromptContext(
+    messageText,
+    deliveryMode: deliveryMode,
+  );
+  final normalizedMessage = _normalizeReplyHeuristicText(
+    _fallbackPrimaryMessageText(
+      messageText: messageText,
+      deliveryMode: deliveryMode,
+    ),
+  );
+  final normalizedReply = _normalizeReplyHeuristicText(replyText);
+  final normalizedOperatorDraft = _normalizeReplyHeuristicText(
+    approvalContext.operatorDraft ?? '',
+  );
+  final normalizedClientAsk = _normalizeReplyHeuristicText(
+    approvalContext.clientAsk ?? '',
+  );
+  final joinedContext = recentConversationTurns
+      .map(_normalizeReplyHeuristicText)
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (normalizedMessage.isEmpty || normalizedReply.isEmpty) {
+    return false;
+  }
+  final remoteMonitoringOffline = _containsAny(joinedContext, const [
+    'temporarily without remote monitoring',
+    'remote watch is temporarily unavailable',
+    'remote monitoring is offline',
+    'monitoring connection is offline',
+    'offline for this site',
+    'monitoring path is offline',
+  ]);
+  final reassuranceClarifierAsk =
+      asksForTelegramClientBroadStatusCheck(normalizedMessage) ||
+      _containsAny(normalizedMessage, const [
+        'does that mean',
+        'what does that mean',
+        'safe',
+        'secure',
+        'you sure',
+        'are you sure',
+      ]);
+  final restorationAsk = _containsAny(normalizedMessage, const [
+    'when will remote monitoring be back',
+    'when will remote monitoring be back up',
+    'when will remote monitoring be back online',
+    'when will monitoring be back',
+    'when will monitoring be back up',
+    'when will monitoring be back online',
+    'when will remote watch be back',
+    'how long until remote monitoring',
+    'how long until monitoring',
+    'when is remote monitoring back',
+  ]);
+  final telemetrySummaryVisible = _containsAny(joinedContext, const [
+    'site activity summary',
+    'field telemetry',
+    'latest field signal:',
+    'guard or response team activity signals were logged through onyx field telemetry',
+    'guard or response team activity signal was logged through onyx field telemetry',
+  ]);
+  final noOpenIncident = _containsAny(joinedContext, const [
+    'not sitting as an open incident',
+    'open follow ups 0',
+    'open follow-ups: 0',
+    'no client facing action has been required',
+  ]);
+  final telemetryPresenceChallenge = _challengesTelemetryPresenceSummary(
+    '$normalizedMessage\n$normalizedClientAsk',
+  );
+  final fieldTelemetryCountChallenge =
+      telemetryPresenceChallenge &&
+      _containsAny(joinedContext, const [
+        'guard or response team activity signals were observed through onyx field telemetry',
+        'guard or response team activity signal was observed through onyx field telemetry',
+        'site activity summary',
+      ]);
+  final telemetryDispatchClarifierAsk =
+      telemetryPresenceChallenge ||
+      _containsAny('$normalizedMessage\n$normalizedClientAsk', const [
+        'there is no unit on site',
+        'there isnt a unit on site',
+        'there is no team on site',
+        'there is no one on site',
+        'no unit on site',
+        'why are they coming',
+        'why are you coming',
+        'why is someone coming',
+        'why coming here',
+        'who is coming',
+        'who is moving',
+        'is there an issue',
+        'is there a problem',
+        'is something wrong',
+        'issue at my site',
+        'problem at my site',
+      ]) ||
+      normalizedMessage == 'why' ||
+      normalizedMessage == 'why?';
+  final issueClarifierAsk = _asksForCurrentSiteIssueCheck(
+    '$normalizedMessage\n$normalizedClientAsk',
+  );
+  final gratitudeAlertWatch =
+      _containsAny(normalizedMessage, const [
+        'thank you',
+        'thanks',
+        'appreciate it',
+        'thank you for assisting',
+      ]) &&
+      _containsAny(normalizedMessage, const [
+        'keep me posted',
+        'keep me updated',
+        'serious alerts',
+        'serious alert',
+        'anything serious',
+        'let me know if anything changes',
+      ]);
+  final cameraReassuranceAsk =
+      _containsAny(normalizedMessage, const [
+        'did you check cameras',
+        'did you check the cameras',
+        'did you check camera',
+        'camera check',
+      ]) &&
+      _containsAny(normalizedMessage, const [
+        'all good',
+        'everything good',
+        'everything okay',
+        'safe',
+        'okay',
+        'ok',
+      ]);
+  final explicitOnSitePresence = _hasExplicitCurrentOnSitePresence(
+    joinedContext,
+  );
+  final explicitMovementConfirmation = _hasExplicitCurrentMovementConfirmation(
+    joinedContext,
+  );
+  final explicitLiveCameraAccess =
+      !remoteMonitoringOffline &&
+      _containsAny(joinedContext, const [
+        'latest camera picture',
+        'camera check',
+        'camera update',
+        'live visual confirmation',
+        'camera confirms',
+        'reviewed items',
+      ]);
+  final genericPromiseReply =
+      _containsAny(normalizedReply, const ['we are checking']) &&
+      _containsAny(normalizedReply, const ['i will update you here']);
+  final presenceVerificationFollowUp =
+      _isGenericStatusFollowUp(normalizedMessage) &&
+      _hasRecentPresenceVerificationContext(joinedContext);
+  final continuousVisualWatchFollowUp =
+      cameraHealthFactPacket?.hasOngoingContinuousVisualChange == true &&
+      ((_asksForCurrentFrameMovementCheck(normalizedMessage) ||
+              _asksForCurrentFramePersonConfirmation(normalizedMessage)) ||
+          (_isGenericStatusFollowUp(normalizedMessage) &&
+              _hasRecentContinuousVisualActivityContext(joinedContext))) &&
+      !_hasCurrentFrameConversationContext(
+        joinedContext,
+        cameraHealthFactPacket: cameraHealthFactPacket,
+      ) &&
+      !_hasRecentMotionTelemetryContext(joinedContext);
+  final camerasDownCorrection = _containsAny(normalizedMessage, const [
+    'my cameras are down',
+    'cameras are down',
+    'camera is down',
+    'camera down',
+    'cctv is down',
+    'cctv down',
+  ]);
+  final securityNotOnSiteCorrection =
+      telemetryPresenceChallenge ||
+      _containsAny(normalizedMessage, const [
+        'security is not on site',
+        'security not on site',
+        'security isnt on site',
+        'security is not there',
+        'security isnt there',
+        'there are no guards',
+        'there is no guard',
+        'no guards at',
+        'no guards on',
+        'not on site',
+      ]);
+  final operationalPictureClarifierAsk = _containsAny(normalizedMessage, const [
+    'what current operational picture',
+    'what operational picture',
+    'what do you mean operational picture',
+    'what picture',
+  ]);
+  final cameraConnectionAsk =
+      _containsAny(normalizedMessage, const [
+        'rewire cameras',
+        'rewire camera',
+        'fix the cameras',
+        'fix the camera',
+        'check asap',
+        'check as soon as possible',
+        'repair the cameras',
+        'repair the camera',
+      ]) ||
+      _asksWhyNoLiveCameraAccess(normalizedMessage) ||
+      _asksIfConnectionOrBridgeIsFixed(normalizedMessage);
+  if (_replyConflictsWithCameraHealthFactPacket(
+    normalizedMessage: normalizedMessage,
+    normalizedReply: normalizedReply,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  )) {
+    return true;
+  }
+  if (_asksHypotheticalEscalationCapability(normalizedMessage) &&
+      _containsAny(normalizedReply, const [
+        'has been escalated to the control room now',
+        'this has been escalated to the control room now',
+        'move to safety if you can',
+        'call saps or 112 now',
+      ])) {
+    return true;
+  }
+  if (presenceVerificationFollowUp) {
+    final answersPresenceState = _containsAny(normalizedReply, const [
+      'no guard is confirmed on site',
+      'confirmed guard on site',
+      'response movement is confirmed toward',
+      'recorded onyx telemetry activity',
+      'verified position update',
+      'current response position',
+    ]);
+    final driftsBackToCamera = _containsAny(normalizedReply, const [
+      'local camera bridge',
+      'camera bridge',
+      'live camera access',
+      'visual confirmation',
+      'monitoring path',
+    ]);
+    if (!answersPresenceState || genericPromiseReply || driftsBackToCamera) {
+      return true;
+    }
+  }
+  if (issueClarifierAsk && cameraHealthFactPacket != null) {
+    switch (_effectiveLiveSiteIssueStatus(cameraHealthFactPacket)) {
+      case ClientLiveSiteIssueStatus.activeSignals:
+        final answersActiveIssueSignals = _containsAny(normalizedReply, const [
+          'i am seeing live activity around',
+          'something active is happening there',
+          'cannot confirm from this signal alone',
+          'breach person or vehicle',
+        ]);
+        final driftsOrContradicts = _containsAny(normalizedReply, const [
+          'no confirmed active issue',
+          'nothing in the current watch signals confirms an issue',
+          'camera bridge is offline',
+          'local camera bridge is offline',
+          'cameras are currently offline',
+        ]);
+        if (!answersActiveIssueSignals || driftsOrContradicts) {
+          return true;
+        }
+        break;
+      case ClientLiveSiteIssueStatus.recentSignals:
+        final answersRecentIssueSignals = _containsAny(normalizedReply, const [
+          'recent movement signals',
+          'recent activity was picked up on site',
+          'i am seeing',
+          'do not yet have a confirmed active issue',
+        ]);
+        final driftsOrContradicts = _containsAny(normalizedReply, const [
+          'no confirmed active issue',
+          'camera bridge is offline',
+          'local camera bridge is offline',
+          'cameras are currently offline',
+          'nothing in the current watch signals confirms an issue',
+        ]);
+        if (!answersRecentIssueSignals || driftsOrContradicts) {
+          return true;
+        }
+        break;
+      case ClientLiveSiteIssueStatus.noConfirmedIssue:
+      case ClientLiveSiteIssueStatus.unknown:
+        final answersIssueState = _containsAny(normalizedReply, const [
+          'no confirmed active issue',
+          'nothing in the current signals confirms an active issue',
+          'nothing in the current signals confirms an issue',
+          'current signals i can see right now',
+        ]);
+        final driftsToPresence = _containsAny(normalizedReply, const [
+          'guard presence on site',
+          'confirmed guard presence on site',
+          'no confirmed guard presence on site',
+        ]);
+        if (!answersIssueState || genericPromiseReply || driftsToPresence) {
+          return true;
+        }
+        break;
+    }
+  }
+  if (issueClarifierAsk &&
+      (_hasRecentPresenceVerificationContext(joinedContext) ||
+          telemetrySummaryVisible)) {
+    final answersIssueState = _containsAny(normalizedReply, const [
+      'no confirmed active issue',
+      'do not have a confirmed active issue',
+      'recorded onyx field telemetry',
+      'not a confirmed active dispatch',
+      'current position',
+    ]);
+    final driftsToPresenceOrCamera = _containsAny(normalizedReply, const [
+      'guard presence on site',
+      'confirmed guard presence on site',
+      'no confirmed guard presence on site',
+      'local bridge issue',
+      'camera bridge',
+      'live visual confirmation isnt available',
+      'live visual confirmation is not available',
+      'cameras are currently offline',
+      'the cameras are currently offline',
+    ]);
+    if (!answersIssueState || genericPromiseReply || driftsToPresenceOrCamera) {
+      return true;
+    }
+  }
+  if (continuousVisualWatchFollowUp) {
+    final answersVisualWatch = _containsAny(normalizedReply, const [
+      'i am seeing live activity around',
+      'something active is happening there',
+      'cannot confirm from this signal alone',
+      'person vehicle or breach',
+    ]);
+    final overstatesOrContradicts = _containsAny(normalizedReply, const [
+      'no movement is currently detected',
+      'nothing was detected',
+      'camera bridge is offline',
+      'local camera bridge is offline',
+      'cannot confirm movement visually right now',
+    ]);
+    if (!answersVisualWatch || overstatesOrContradicts) {
+      return true;
+    }
+  }
+  if (gratitudeAlertWatch) {
+    final answersGratitudeWatch = _containsAny(normalizedReply, const [
+      'you are welcome',
+      'keep you posted',
+      'update you here',
+      'if anything serious comes through',
+      'if anything serious happens',
+      'if anything changes',
+    ]);
+    if (!answersGratitudeWatch ||
+        _containsAny(normalizedReply, const [
+          'no unresolved incidents',
+          'no active critical alerts',
+        ])) {
+      return true;
+    }
+  }
+  final simpleThanks =
+      _containsAny(normalizedMessage, const [
+        'thank you',
+        'thanks',
+        'appreciate it',
+      ]) &&
+      !gratitudeAlertWatch;
+  if (simpleThanks) {
+    final thanksReplyLooksRight = _containsAny(normalizedReply, const [
+      'you are welcome',
+      'keep you posted',
+      'update you',
+      'if anything changes',
+    ]);
+    if (!thanksReplyLooksRight ||
+        _containsAny(normalizedReply, const [
+          'everything is stable',
+          'stable at the moment',
+          'we are monitoring the situation',
+        ])) {
+      return true;
+    }
+  }
+  if (remoteMonitoringOffline && reassuranceClarifierAsk) {
+    final answersClearly = _containsAny(normalizedReply, const [
+      'not confirmed yet',
+      'not confirmed',
+      'remote monitoring is offline',
+      'do not want to overstate',
+      'dont want to overstate',
+      'before i confirm',
+      'before confirming',
+      'routine on site activity',
+      'rather than a confirmed problem',
+      'security is already on site',
+    ]);
+    if (!answersClearly || genericPromiseReply) {
+      return true;
+    }
+  }
+  if (remoteMonitoringOffline && restorationAsk) {
+    final answersRestoration = _containsAny(normalizedReply, const [
+      'do not have a confirmed time',
+      'dont have a confirmed time',
+      'no confirmed time',
+      'remote monitoring is offline',
+      'monitoring path is restored',
+      'remote monitoring is restored',
+      'back online',
+      'restoration time',
+    ]);
+    if (!answersRestoration || genericPromiseReply) {
+      return true;
+    }
+  }
+  final recentCommunityReportVisible = _containsAny(joinedContext, const [
+    'community reports',
+    'suspicious vehicle scouting',
+    'latest confirmed activity was',
+    'latest confirmed report was',
+  ]);
+  final noLiveVisualConfirmation = _containsAny(joinedContext, const [
+    'do not have live visual confirmation',
+    'grounding this on the current operational picture rather than a live camera check',
+  ]);
+  if (reassuranceClarifierAsk &&
+      recentCommunityReportVisible &&
+      (noOpenIncident || noLiveVisualConfirmation)) {
+    final answersCommunityClarifier = _containsAny(normalizedReply, const [
+      'not confirmed visually',
+      'not confirmed yet',
+      'latest logged report',
+      'not sitting as an open incident',
+      'do not have live visual confirmation',
+      'manual follow up',
+      'manual follow-up',
+    ]);
+    if (!answersCommunityClarifier ||
+        genericPromiseReply ||
+        _containsAny(normalizedReply, const [
+          'security on site',
+          'secure right now',
+          'camera check',
+          'reviewing recent community reports',
+        ])) {
+      return true;
+    }
+  }
+  if (operationalPictureClarifierAsk) {
+    final explainsOperationalPicture = _containsAny(normalizedReply, const [
+      'latest logged report',
+      'incident status',
+      'rather than a live camera view',
+      'suspicious vehicle report',
+      'do not have live visual confirmation',
+    ]);
+    if (!explainsOperationalPicture ||
+        _containsAny(normalizedReply, const [
+          'reviewing recent community reports',
+          'we are checking',
+        ])) {
+      return true;
+    }
+  }
+  if (cameraConnectionAsk && remoteMonitoringOffline) {
+    final answersCameraConnection = _containsAny(normalizedReply, const [
+      'monitoring connection is offline',
+      'live camera confirmation',
+      'live visual confirmation',
+      'connection is restored',
+      'cannot say the connection is restored',
+      'not confirmed yet',
+      'on site fix',
+      'camera connection',
+    ]);
+    if (!answersCameraConnection ||
+        _containsAny(normalizedReply, const [
+          'community reports',
+          'latest verified activity near camera',
+          'current operational picture',
+          'not sitting as an open incident',
+        ])) {
+      return true;
+    }
+  }
+  final genericStatusFollowUp = _isGenericStatusFollowUp(normalizedMessage);
+  final cameraStatusFollowUp =
+      genericStatusFollowUp &&
+      cameraHealthFactPacket != null &&
+      _hasRecentCameraStatusContext(joinedContext);
+  final currentSiteViewAsk = asksForTelegramClientBroadStatusOrCurrentSiteView(
+    normalizedMessage,
+  );
+  final semanticMovementIdentificationAsk =
+      _asksForSemanticMovementIdentification(
+        '$normalizedMessage\n$normalizedClientAsk',
+      );
+  final imageSendWhyAsk = _asksWhyImageCannotBeSent(normalizedMessage);
+  final recentUnusableCurrentImage = _recentThreadShowsUnusableCurrentImage(
+    recentConversationTurns,
+  );
+  final recentDownCameraLabel = _recentThreadDownCameraLabel(
+    recentConversationTurns,
+  );
+  final recentRecordedEventVisuals =
+      _recentThreadMentionsRecordedEventVisuals(recentConversationTurns) ||
+      (normalizedMessage.contains('hikconnect') &&
+          normalizedMessage.contains('visual'));
+  if (cameraStatusFollowUp) {
+    final answersPacketStatus =
+        cameraHealthFactPacket.status == ClientCameraHealthStatus.live
+        ? _containsAny(normalizedReply, const [
+            'visual confirmation',
+            'live camera access',
+            'live visual access',
+            'last successful visual confirmation',
+          ])
+        : _containsAny(normalizedReply, const [
+            'currently unavailable',
+            'currently limited',
+            'local camera bridge',
+            'live camera access',
+            'not confirmed yet',
+          ]);
+    final addsUnverifiedRestorationWork = _containsAny(normalizedReply, const [
+      'we are working on restoring',
+      'we are working to restore',
+      'working to restore the connection',
+      'working to restore the bridge',
+      'working on restoring the connection',
+      'working on restoring the bridge',
+      'monitoring the situation',
+      'as soon as the bridge is restored',
+      'as soon as the connection is restored',
+    ]);
+    final wronglyClaimsBridgeOffline =
+        cameraHealthFactPacket.status == ClientCameraHealthStatus.live &&
+        _containsAny(normalizedReply, const [
+          'bridge is offline',
+          'local camera bridge is offline',
+          'currently unavailable because the local camera bridge is offline',
+        ]);
+    if (!answersPacketStatus ||
+        addsUnverifiedRestorationWork ||
+        wronglyClaimsBridgeOffline) {
+      return true;
+    }
+  }
+  final cameraHealthReassuranceAsk =
+      reassuranceClarifierAsk &&
+      cameraHealthFactPacket != null &&
+      cameraHealthFactPacket.status != ClientCameraHealthStatus.live;
+  if (cameraHealthReassuranceAsk) {
+    final answersCameraConstrainedReassurance =
+        _containsAny(normalizedReply, const [
+          'not confirmed yet',
+          'do not have live visual confirmation',
+          'live camera access',
+          'currently unavailable',
+          'currently limited',
+        ]);
+    final addsUnverifiedRestorationWork = _containsAny(normalizedReply, const [
+      'we are working on restoring',
+      'we are working to restore',
+      'working to restore the connection',
+      'working to restore the bridge',
+      'working on restoring the connection',
+      'working on restoring the bridge',
+      'monitoring the situation',
+    ]);
+    if (!answersCameraConstrainedReassurance || addsUnverifiedRestorationWork) {
+      return true;
+    }
+  }
+  final comfortMonitoringAsk = _asksComfortOrMonitoringSupport(
+    normalizedMessage,
+  );
+  final overnightAlertAsk = _asksOvernightAlertingSupport(normalizedMessage);
+  final baselineSweepAsk = _asksForBaselineSweep(normalizedMessage);
+  final baselineSweepStatusAsk = _asksAboutBaselineSweepStatus(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final baselineSweepEtaAsk = _asksAboutBaselineSweepEta(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final wholeSiteBreachReviewAsk = _asksForWholeSiteBreachReview(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final wholeSiteBreachReviewStatusAsk = _asksAboutWholeSiteBreachReviewStatus(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final wholeSiteBreachReviewEtaAsk = _asksAboutWholeSiteBreachReviewEta(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final historicalAlarmReviewAsk = _asksForHistoricalAlarmReview(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final historicalAlarmReviewStatusAsk = _asksAboutHistoricalAlarmReviewStatus(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final historicalAlarmReviewEscalationAsk =
+      _asksToEscalateHistoricalAlarmReview(
+        normalizedMessage,
+        recentConversationTurns,
+      );
+  final liveCameraReassuranceAsk =
+      cameraHealthFactPacket != null &&
+      cameraHealthFactPacket.status == ClientCameraHealthStatus.live &&
+      (reassuranceClarifierAsk || comfortMonitoringAsk);
+  if (overnightAlertAsk) {
+    final answersGroundedAlerting = _containsAny(normalizedReply, const [
+      'confirmed alert',
+      'message you here',
+      'alert you here',
+      'notify you here',
+    ]);
+    final overpromisesAlerting = _containsAny(normalizedReply, const [
+      'if something happens while youre asleep',
+      'if something happens while you are asleep',
+      'we will alert you right away',
+      'next confirmed camera check',
+    ]);
+    if (!answersGroundedAlerting || overpromisesAlerting) {
+      return true;
+    }
+  }
+  if (baselineSweepAsk) {
+    final answersBaselineSweep = _containsAny(normalizedReply, const [
+      'quick camera check',
+      'confirmed result',
+      'baseline normal',
+    ]);
+    final inventsSweepProgress = _containsAny(normalizedReply, const [
+      'im checking the baseline now',
+      'i am checking the baseline now',
+      'checking the baseline now',
+      'using the local recorder bridge',
+      'i am checking now',
+      'im checking now',
+    ]);
+    if (!answersBaselineSweep || inventsSweepProgress) {
+      return true;
+    }
+  }
+  if (baselineSweepStatusAsk) {
+    final answersBaselineStatus = _containsAny(normalizedReply, const [
+      'not yet confirmed',
+      'do not have a baseline result',
+      'dont have a baseline result',
+    ]);
+    final inventsSweepProgress = _containsAny(normalizedReply, const [
+      'im checking the baseline now',
+      'i am checking the baseline now',
+      'checking the baseline now',
+      'using the local recorder bridge',
+      'i am checking now',
+      'im checking now',
+    ]);
+    if (!answersBaselineStatus || inventsSweepProgress) {
+      return true;
+    }
+  }
+  if (baselineSweepEtaAsk) {
+    final answersBaselineEta = _containsAny(normalizedReply, const [
+      'few minutes',
+      'confirmed timing',
+      'send the result here once it is confirmed',
+      'send the result here once its confirmed',
+    ]);
+    final inventsSweepProgress = _containsAny(normalizedReply, const [
+      'im checking the baseline now',
+      'i am checking the baseline now',
+      'checking the baseline now',
+      'using the local recorder bridge',
+      'i am checking now',
+      'im checking now',
+    ]);
+    if (!answersBaselineEta || inventsSweepProgress) {
+      return true;
+    }
+  }
+  if (wholeSiteBreachReviewAsk) {
+    final answersWholeSiteReview = _containsAny(normalizedReply, const [
+      'review the site signals',
+      'confirmed result here',
+      'full site',
+      'full-site',
+    ]);
+    final inventsWholeSiteProgress = _containsAny(normalizedReply, const [
+      'we are reviewing all areas now',
+      'reviewing all areas now',
+      'checking every area now',
+      'checking all areas now',
+      'signs of breach',
+      'following the alarm at',
+      'i am checking now',
+      'im checking now',
+    ]);
+    if (!answersWholeSiteReview || inventsWholeSiteProgress) {
+      return true;
+    }
+  }
+  if (wholeSiteBreachReviewStatusAsk) {
+    final answersWholeSiteStatus = _containsAny(normalizedReply, const [
+      'not yet confirmed',
+      'full-site breach result',
+      'full site breach result',
+    ]);
+    final inventsWholeSiteProgress = _containsAny(normalizedReply, const [
+      'we are reviewing all areas now',
+      'reviewing all areas now',
+      'checking every area now',
+      'checking all areas now',
+      'signs of breach',
+      'following the alarm at',
+      'i am checking now',
+      'im checking now',
+    ]);
+    if (!answersWholeSiteStatus || inventsWholeSiteProgress) {
+      return true;
+    }
+  }
+  if (wholeSiteBreachReviewEtaAsk) {
+    final answersWholeSiteEta = _containsAny(normalizedReply, const [
+      'confirmed timing',
+      'send the result here once it is confirmed',
+      'send the result here once its confirmed',
+    ]);
+    final inventsWholeSiteProgress = _containsAny(normalizedReply, const [
+      'we are reviewing all areas now',
+      'reviewing all areas now',
+      'checking every area now',
+      'checking all areas now',
+      'signs of breach',
+      'following the alarm at',
+      'i am checking now',
+      'im checking now',
+    ]);
+    if (!answersWholeSiteEta || inventsWholeSiteProgress) {
+      return true;
+    }
+  }
+  if (historicalAlarmReviewAsk) {
+    final answersHistoricalReview = _containsAny(normalizedReply, const [
+      'asking about the 4am window',
+      'historical review result',
+      'not the current site status',
+    ]);
+    final inventsHistoricalProgress = _containsAny(normalizedReply, const [
+      'reviewing all outdoor cameras',
+      'reviewing the perimeter now',
+      'continue checking',
+      'current visual confirmation through the local recorder bridge',
+      'no live stream access to review the 4am alarm directly',
+      'latest confirmed activity near the perimeter',
+      'latest verified activity near perimeter',
+    ]);
+    if (!answersHistoricalReview || inventsHistoricalProgress) {
+      return true;
+    }
+  }
+  if (historicalAlarmReviewStatusAsk) {
+    final answersHistoricalStatus = _containsAny(normalizedReply, const [
+      'not yet confirmed',
+      'historical review result',
+    ]);
+    final inventsHistoricalProgress = _containsAny(normalizedReply, const [
+      'reviewing all outdoor cameras',
+      'reviewing the perimeter now',
+      'continue checking',
+      'latest confirmed activity near the perimeter',
+      'latest verified activity near perimeter',
+    ]);
+    if (!answersHistoricalStatus || inventsHistoricalProgress) {
+      return true;
+    }
+  }
+  if (historicalAlarmReviewEscalationAsk) {
+    final answersHistoricalEscalation = _containsAny(normalizedReply, const [
+      'manual control review',
+      'historical review result',
+      '4am alarm window',
+    ]);
+    final inventsHistoricalProgress = _containsAny(normalizedReply, const [
+      'continue checking',
+      'current visual confirmation through the local recorder bridge',
+      'no live stream access to review the 4am alarm directly',
+      'latest confirmed activity near the perimeter',
+      'latest verified activity near perimeter',
+    ]);
+    if (!answersHistoricalEscalation || inventsHistoricalProgress) {
+      return true;
+    }
+  }
+  if (liveCameraReassuranceAsk) {
+    final answersLiveCameraReassurance =
+        _containsAny(normalizedReply, const [
+          'visual confirmation',
+          'live camera access',
+          'some visual coverage',
+          'some visual confirmation',
+        ]) &&
+        _containsAny(normalizedReply, const [
+          'not confirmed yet',
+          'do not want to overstate',
+          'dont want to overstate',
+          'do not want to overpromise',
+          'dont want to overpromise',
+          'will keep monitoring',
+          'update you here',
+        ]);
+    final overclaimsSafety = _containsAny(normalizedReply, const [
+      'everything is stable',
+      'stable at the moment',
+      'stable right now',
+      'safe right now',
+      'you can rest easy',
+      'rest easy',
+      'sleep peacefully',
+      'sleep easy',
+      'monitoring closely',
+      'closely monitoring',
+      'staying close on this',
+      'covering other cameras',
+      'continuous visual watch is active on',
+    ]);
+    final inventsCoverageCount = _containsCameraCoverageCountClaim(
+      normalizedReply,
+    );
+    final ignoresKnownCameraDown =
+        recentDownCameraLabel != null &&
+        !_containsAny(normalizedReply, const [
+          'partial camera coverage',
+          'partial coverage',
+          'some visual confirmation',
+          'do not want to overstate',
+          'camera 11 is down',
+        ]);
+    if (!answersLiveCameraReassurance ||
+        overclaimsSafety ||
+        inventsCoverageCount ||
+        ignoresKnownCameraDown) {
+      return true;
+    }
+  }
+  if (currentSiteViewAsk && cameraHealthFactPacket != null) {
+    final effectiveIssueStatus = _effectiveLiveSiteIssueStatus(
+      cameraHealthFactPacket,
+    );
+    final answersCurrentSiteViewBoundary = _containsAny(normalizedReply, const [
+      'i am not seeing active movement on site',
+      'i do not have confirmed live activity on site',
+      'recent activity was picked up on site',
+      'nothing in the current signals confirms an issue on site',
+      'nothing here confirms an issue on site',
+      'cannot verify the whole site visually at this moment',
+      'do not have full remote visibility',
+      'current signals i can see right now',
+    ]);
+    final driftsToCameraOnlyReassurance =
+        _containsAny(normalizedReply, const [
+          'live camera visibility at',
+          'live camera access at',
+          'do not have live visual confirmation right now',
+          'latest confirmed camera check',
+        ]) &&
+        !answersCurrentSiteViewBoundary;
+    final wronglyClaimsBridgeOffline =
+        cameraHealthFactPacket.status == ClientCameraHealthStatus.live &&
+        _containsAny(normalizedReply, const [
+          'bridge is offline',
+          'local camera bridge is offline',
+          'currently unavailable because the local camera bridge is offline',
+        ]);
+    if (wronglyClaimsBridgeOffline) {
+      return true;
+    }
+    if (effectiveIssueStatus == ClientLiveSiteIssueStatus.activeSignals ||
+        effectiveIssueStatus == ClientLiveSiteIssueStatus.recentSignals) {
+      final answersLiveSiteState = _containsAny(normalizedReply, const [
+        'i am seeing live activity around',
+        'i am seeing recent activity',
+        'recent activity was picked up on site',
+        'nothing in the current signals confirms a threat right now',
+        'site is not clear from current signals alone',
+      ]);
+      final overstatesStability = _containsAny(normalizedReply, const [
+        'everything on site is stable',
+        'everything is stable',
+        'site is stable',
+        'stable right now',
+        'stable at the moment',
+        'all clear',
+        'site is clear',
+      ]);
+      if (!answersLiveSiteState || overstatesStability) {
+        return true;
+      }
+    }
+    if (effectiveIssueStatus != ClientLiveSiteIssueStatus.activeSignals &&
+        effectiveIssueStatus != ClientLiveSiteIssueStatus.recentSignals &&
+        !recentUnusableCurrentImage &&
+        recentDownCameraLabel == null &&
+        (!answersCurrentSiteViewBoundary || driftsToCameraOnlyReassurance)) {
+      return true;
+    }
+    if (recentUnusableCurrentImage) {
+      final answersUnusableCurrentView = _containsAny(normalizedReply, const [
+        'usable current image',
+        'do not have a usable current image',
+        'do not want to overstate what is visible',
+      ]);
+      if (!answersUnusableCurrentView) {
+        return true;
+      }
+    }
+    if (recentDownCameraLabel != null) {
+      final answersPartialCoverage = _containsAny(normalizedReply, const [
+        'camera 11 is down',
+        'partial camera coverage',
+        'partial coverage',
+        'some visual coverage',
+        'some visual confirmation',
+        'do not want to overstate the full picture',
+      ]);
+      if (!answersPartialCoverage ||
+          _containsCameraCoverageCountClaim(normalizedReply)) {
+        return true;
+      }
+    }
+  }
+  if (semanticMovementIdentificationAsk && cameraHealthFactPacket != null) {
+    final answersSemanticMovement = _containsAny(normalizedReply, const [
+      'confirmed person or vehicle activity',
+      'do not have confirmed person or vehicle activity',
+      'do not yet have a confirmed person or vehicle identification',
+      'recent person activity',
+      'recent vehicle activity',
+      'live activity around',
+    ]);
+    final driftsToSingleFrameOrOutage = _containsAny(normalizedReply, const [
+      'current frame alone',
+      'single image',
+      'camera bridge is offline',
+      'local camera bridge is offline',
+      'cannot confirm movement visually right now',
+    ]);
+    if (!answersSemanticMovement || driftsToSingleFrameOrOutage) {
+      return true;
+    }
+  }
+  if (imageSendWhyAsk && recentRecordedEventVisuals) {
+    final answersImageLimit = _containsAny(normalizedReply, const [
+      'recorded event visuals were logged',
+      'usable exported image',
+      'usable event image',
+      'send here every time',
+      'send here',
+    ]);
+    final wronglyClaimsBridgeOffline =
+        cameraHealthFactPacket?.status == ClientCameraHealthStatus.live &&
+        _containsAny(normalizedReply, const [
+          'bridge is offline',
+          'local camera bridge is offline',
+        ]);
+    if (!answersImageLimit || wronglyClaimsBridgeOffline) {
+      return true;
+    }
+  }
+  final currentFrameMovementAsk =
+      _asksForCurrentFrameMovementCheck(normalizedMessage) ||
+      _asksForCurrentFramePersonConfirmation(normalizedMessage);
+  final missedMovementDetectionChallenge = _challengesMissedMovementDetection(
+    normalizedMessage,
+    recentConversationTurns,
+  );
+  final currentFrameContext =
+      (currentFrameMovementAsk || missedMovementDetectionChallenge) &&
+      (_hasCurrentFrameConversationContext(
+            joinedContext,
+            cameraHealthFactPacket: cameraHealthFactPacket,
+          ) ||
+          _hasRecentMotionTelemetryContext(joinedContext));
+  if (currentFrameContext) {
+    final hasMotionTelemetry = _hasRecentMotionTelemetryContext(joinedContext);
+    final answersCurrentFrameConservatively = hasMotionTelemetry
+        ? _containsAny(normalizedReply, const [
+            'recent motion alerts',
+            'recent motion alerts on camera',
+            'it would be wrong to say nothing was picked up',
+            'current frame alone',
+            'single image',
+            'who or what triggered those alerts',
+            'whether that was a person',
+          ])
+        : _containsAny(normalizedReply, const [
+            'not confirmed from the current frame alone',
+            'cannot confirm movement from a single image',
+            'cannot confirm movement from a single frame',
+            'cannot confirm a person',
+            'single image',
+            'single frame',
+          ]);
+    final makesCategoricalMovementClaim = _containsAny(normalizedReply, const [
+      'no movement is currently detected',
+      'movement is currently detected',
+      'no movement currently detected',
+      'movement currently detected',
+      'no movement in the backyard',
+      'movement in the backyard',
+      'next movement update',
+      'movement update',
+      'no confirmed movement was detected',
+      'nothing was picked up',
+    ]);
+    if (!answersCurrentFrameConservatively || makesCategoricalMovementClaim) {
+      return true;
+    }
+  }
+  if (genericStatusFollowUp && !fieldTelemetryCountChallenge) {
+    final repeatsTelemetryCountClarifier = _containsAny(normalizedReply, const [
+      'the count you see reflects telemetry signals',
+      'telemetry signals dont always match',
+      'telemetry signals do not always match',
+      'not 19 people physically on site',
+      'people physically on site',
+    ]);
+    if (repeatsTelemetryCountClarifier) {
+      return true;
+    }
+  }
+  if (reassuranceClarifierAsk && telemetrySummaryVisible && noOpenIncident) {
+    final answersTelemetryClarifier = _containsAny(normalizedReply, const [
+      'not confirmed yet',
+      'latest onyx telemetry shows',
+      'nothing is currently sitting as an open incident',
+      'do not have live visual confirmation',
+      'manual follow up',
+      'manual follow-up',
+    ]);
+    if (!answersTelemetryClarifier ||
+        genericPromiseReply ||
+        (!explicitOnSitePresence &&
+            _containsAny(normalizedReply, const [
+              'security on site',
+              'security is on site',
+              'already on site',
+            ])) ||
+        (!explicitLiveCameraAccess &&
+            _containsAny(normalizedReply, const [
+              'checking the cameras regularly',
+              'checking cameras regularly',
+              'camera checks regularly',
+              'regular camera checks',
+            ]))) {
+      return true;
+    }
+  }
+  if (reassuranceClarifierAsk && telemetrySummaryVisible) {
+    final answersTelemetryClarifier = _containsAny(normalizedReply, const [
+      'not confirmed yet',
+      'latest onyx telemetry shows',
+      'do not have live visual confirmation',
+      'manual follow up',
+      'manual follow-up',
+    ]);
+    if (!answersTelemetryClarifier ||
+        genericPromiseReply ||
+        _containsAny(normalizedReply, const [
+          'security on site',
+          'security is on site',
+          'secure right now',
+          'camera check',
+          'checking the cameras regularly',
+        ])) {
+      return true;
+    }
+  }
+  if (cameraReassuranceAsk) {
+    final answersCameraClarifier = _containsAny(normalizedReply, const [
+      'do not have live camera confirmation',
+      'do not have a live camera check',
+      'cannot call it all clear',
+      'cant call it all clear',
+      'manual follow-up',
+      'manual follow up',
+      'does not show an open incident',
+    ]);
+    if (!answersCameraClarifier ||
+        _containsAny(normalizedReply, const [
+          'latest verified activity near camera',
+          'camera was community',
+          'checking the cameras regularly',
+          'security is on site',
+        ])) {
+      return true;
+    }
+  }
+  if (camerasDownCorrection) {
+    final acknowledgesCameraOutage = _containsAny(normalizedReply, const [
+      'your cameras are down',
+      'cameras are down',
+      'do not have live visual confirmation',
+      'do not have live camera confirmation',
+      'verify the current position manually',
+      'manual',
+    ]);
+    if (!acknowledgesCameraOutage ||
+        _containsAny(normalizedReply, const [
+          'camera check',
+          'thorough camera check',
+          'checking the cameras regularly',
+          'live camera',
+        ])) {
+      return true;
+    }
+  }
+  if (securityNotOnSiteCorrection) {
+    final acknowledgesPositionCorrection = _containsAny(normalizedReply, const [
+      'will not call them on site',
+      'security is not on site from your side',
+      'verify the current response position',
+      'current response position',
+      'not call them on site',
+    ]);
+    if (!acknowledgesPositionCorrection ||
+        _containsAny(normalizedReply, const [
+          'security is on site',
+          'security is now on site',
+          'already on site',
+        ])) {
+      return true;
+    }
+  }
+  if (fieldTelemetryCountChallenge) {
+    final explainsSignalsVsPresence = _containsAny(normalizedReply, const [
+      'telemetry signals',
+      'recorded guard or response activity signals',
+      'not 19 people physically on site',
+      'not 19 people on site',
+      'not 19 guards on site',
+      'current position',
+      'next confirmed step',
+    ]);
+    if (!explainsSignalsVsPresence || genericPromiseReply) {
+      return true;
+    }
+  }
+  if (telemetryDispatchClarifierAsk &&
+      telemetrySummaryVisible &&
+      !explicitOnSitePresence &&
+      !explicitMovementConfirmation) {
+    final explainsDispatchGrounding = _containsAny(normalizedReply, const [
+      'do not have a confirmed unit moving',
+      'do not have a confirmed unit on site',
+      'no confirmed active issue',
+      'recorded onyx field telemetry',
+      'not a confirmed active dispatch',
+      'not a confirmed current unit on site',
+      'current position',
+    ]);
+    if (!explainsDispatchGrounding ||
+        genericPromiseReply ||
+        _containsAny(normalizedReply, const [
+          'on their way',
+          'moving toward the site',
+          'moving to the site',
+          'next on-site step',
+          'security is on site',
+          'already on site',
+        ])) {
+      return true;
+    }
+  }
+  if (deliveryMode == TelegramAiDeliveryMode.approvalDraft &&
+      normalizedOperatorDraft.isNotEmpty) {
+    if (_approvalDraftReplyDriftsFromOperatorDraft(
+      normalizedReply: normalizedReply,
+      normalizedOperatorDraft: normalizedOperatorDraft,
+      normalizedClientAsk: normalizedClientAsk,
+    )) {
+      return true;
+    }
+  }
+  return false;
+}
+
+String _normalizeReplyHeuristicText(String value) {
+  return normalizeTelegramClientPromptSignalText(
+    value,
+  ).replaceAll('_', ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+}
+
+({String? clientAsk, String? operatorDraft}) _approvalDraftPromptContext(
+  String messageText, {
+  required TelegramAiDeliveryMode deliveryMode,
+}) {
+  if (deliveryMode != TelegramAiDeliveryMode.approvalDraft) {
+    return (clientAsk: null, operatorDraft: null);
+  }
+  final clientAskMatch = RegExp(
+    r'Client asked:\s*(.+?)\nCurrent operator draft:',
+    dotAll: true,
+  ).firstMatch(messageText);
+  final operatorDraftMatch = RegExp(
+    r'Current operator draft:\s*(.+?)(?:\nRefine the operator draft|\nPlease refine this operator draft|\Z)',
+    dotAll: true,
+  ).firstMatch(messageText);
+  final inlineDraftMatch = RegExp(
+    r'Please refine this operator draft into .*?:\s*(.+)$',
+    dotAll: true,
+  ).firstMatch(messageText);
+  final clientAsk = clientAskMatch?.group(1)?.trim();
+  final operatorDraft =
+      operatorDraftMatch?.group(1)?.trim() ??
+      inlineDraftMatch?.group(1)?.trim();
+  return (
+    clientAsk: clientAsk == null || clientAsk.isEmpty ? null : clientAsk,
+    operatorDraft: operatorDraft == null || operatorDraft.isEmpty
+        ? null
+        : operatorDraft,
+  );
+}
+
+String _fallbackPrimaryMessageText({
+  required String messageText,
+  required TelegramAiDeliveryMode deliveryMode,
+}) {
+  final approvalContext = _approvalDraftPromptContext(
+    messageText,
+    deliveryMode: deliveryMode,
+  );
+  return approvalContext.clientAsk ??
+      approvalContext.operatorDraft ??
+      messageText;
+}
+
+bool _approvalDraftReplyDriftsFromOperatorDraft({
+  required String normalizedReply,
+  required String normalizedOperatorDraft,
+  required String normalizedClientAsk,
+}) {
+  final operatorMentionsRemote = _containsAny(normalizedOperatorDraft, const [
+    'remote monitoring',
+    'remote watch',
+    'live monitoring',
+  ]);
+  final replyMentionsMonitoring = _containsAny(normalizedReply, const [
+    'remote monitoring',
+    'remote watch',
+    'live monitoring',
+  ]);
+  final operatorMentionsUnit = _containsAny(normalizedOperatorDraft, const [
+    'send a unit',
+    'unit over',
+    'send a unit over',
+  ]);
+  final operatorMentionsSignalClarifier = _containsAny(
+    '$normalizedOperatorDraft\n$normalizedClientAsk',
+    const [
+      '19 guards',
+      '19 guard',
+      '19 response teams',
+      'signals',
+      'people on site',
+    ],
+  );
+  final replyMentionsCamera = _containsAny(normalizedReply, const [
+    'camera',
+    'cameras',
+  ]);
+  if (!_containsAny('$normalizedOperatorDraft\n$normalizedClientAsk', const [
+        'camera',
+        'cameras',
+      ]) &&
+      replyMentionsCamera) {
+    return true;
+  }
+  if (!operatorMentionsRemote &&
+      !_containsAny(normalizedClientAsk, const [
+        'remote monitoring',
+        'remote watch',
+        'live monitoring',
+      ]) &&
+      replyMentionsMonitoring) {
+    return true;
+  }
+  if (operatorMentionsUnit &&
+      !_containsAny(normalizedReply, const [
+        'send a unit',
+        'unit over',
+        'unit',
+      ])) {
+    return true;
+  }
+  if (operatorMentionsRemote &&
+      !_containsAny(normalizedReply, const [
+        'remote monitoring',
+        'remote watch',
+        'visual',
+      ])) {
+    return true;
+  }
+  if (operatorMentionsSignalClarifier &&
+      !_containsAny(normalizedReply, const [
+        'telemetry',
+        'signal',
+        'signals',
+        'people physically on site',
+        'people on site',
+        'security presence',
+      ])) {
+    return true;
+  }
+  return false;
+}
+
+String? _approvalDraftFallbackReply({
+  required ({String? clientAsk, String? operatorDraft}) approvalContext,
+  required _TelegramAiScopeProfile scope,
+  required List<String> recentConversationTurns,
+  required TelegramAiDeliveryMode deliveryMode,
+  required _PreferredReplyStyle preferredReplyStyle,
+  required _ClientProfile clientProfile,
+  required bool escalatedLane,
+  required bool pressuredLane,
+}) {
+  final operatorDraft = approvalContext.operatorDraft?.trim();
+  if (operatorDraft == null || operatorDraft.isEmpty) {
+    return null;
+  }
+  final normalizedOperatorDraft = _normalizeReplyHeuristicText(operatorDraft);
+  final normalizedClientAsk = _normalizeReplyHeuristicText(
+    approvalContext.clientAsk ?? '',
+  );
+  final joinedContext = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  final hasTelemetrySummary = _containsAny(joinedContext, const [
+    'site activity summary',
+    'field telemetry',
+    'latest field signal:',
+    'guard or response-team activity signals were logged through onyx field telemetry',
+    'guard or response-team activity signal was logged through onyx field telemetry',
+  ]);
+  final noOpenIncident = _containsAny(joinedContext, const [
+    'not sitting as an open incident',
+    'open follow-ups: 0',
+    'no client-facing action has been required',
+  ]);
+  final latestResponseArrival = _containsAny(joinedContext, const [
+    'field response unit arrived on site',
+    'latest field signal: a field response unit arrived on site',
+    'response arrival signal',
+    'latest field signal: a response-arrival signal was logged through onyx field telemetry',
+    'latest field signal: response arrival',
+    'response arrival',
+  ]);
+  if (_containsAny('$normalizedOperatorDraft\n$normalizedClientAsk', const [
+    '19 guards',
+    '19 guard',
+    '19 response teams',
+    'people on site',
+  ])) {
+    return 'That summary refers to recorded guard or response activity signals in ONYX telemetry, not 19 people physically on site. I can ask control to confirm the current position at ${scope.siteReference}, and ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
+  }
+  if (_containsAny(normalizedOperatorDraft, const [
+    'remote monitoring',
+    'remote watch',
+    'live monitoring',
+  ])) {
+    final wantsUnitOffer = _containsAny(normalizedOperatorDraft, const [
+      'send a unit',
+      'unit over',
+      'send a unit over',
+    ]);
+    if (wantsUnitOffer) {
+      return 'We do not have access to remote monitoring right now, so I cannot confirm visually from here. If everything looks fine on your side, please let us know, or tell us if you would like us to send a unit over.';
+    }
+  }
+  if (_containsAny('$normalizedOperatorDraft\n$normalizedClientAsk', const [
+        'everything appears good',
+        'everything is good',
+        'everything good',
+        'good for now',
+      ]) &&
+      hasTelemetrySummary) {
+    final telemetryLead = latestResponseArrival
+        ? 'The latest ONYX telemetry includes a response-arrival signal for ${scope.siteReference}'
+        : 'The latest ONYX telemetry shows recent field activity at ${scope.siteReference}';
+    final unitOffer = _containsAny(
+      '$normalizedOperatorDraft\n$normalizedClientAsk',
+      const ['send a unit', 'unit over', 'assistance'],
+    );
+    final followUpSentence = unitOffer
+        ? 'If you want, I can ask control to send a unit for a manual check.'
+        : 'If you want a manual follow-up, message here and I will update you with the next confirmed step.';
+    final noOpenIncidentSentence = noOpenIncident
+        ? ' and nothing is currently sitting as an open incident'
+        : '';
+    return '$telemetryLead$noOpenIncidentSentence, but I do not have live visual confirmation right now. $followUpSentence';
+  }
+  return _ensureClientReplyCompleteness(
+    _dedupeClientReplySentences(operatorDraft),
+  );
+}
+
+String? _fieldTelemetryCountClarifierReply({
+  required String normalizedMessage,
+  required _TelegramAiScopeProfile scope,
+  required List<String> recentConversationTurns,
+  required TelegramAiDeliveryMode deliveryMode,
+  required _PreferredReplyStyle preferredReplyStyle,
+  required _ClientProfile clientProfile,
+  required bool escalatedLane,
+  required bool pressuredLane,
+}) {
+  final challengesPresenceCount = _challengesTelemetryPresenceSummary(
+    normalizedMessage,
+  );
+  if (!challengesPresenceCount) {
+    return null;
+  }
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  final hasTelemetrySummary = _containsAny(joined, const [
+    'guard or response-team activity signals were observed through onyx field telemetry',
+    'guard or response team activity signals were observed through onyx field telemetry',
+    'guard or response-team activity signals were logged through onyx field telemetry',
+    'guard or response team activity signals were logged through onyx field telemetry',
+    'site activity summary',
+  ]);
+  if (!hasTelemetrySummary) {
+    return null;
+  }
+  return 'That count refers to recorded guard or response activity signals in ONYX telemetry, not 19 people physically on site. I can ask control to confirm the current position at ${scope.siteReference}, and ${_clientFollowUpClosing(recentConversationTurns, mode: _FollowUpMode.step, deliveryMode: deliveryMode, preferredReplyStyle: preferredReplyStyle, clientProfile: clientProfile, escalated: escalatedLane, compressed: pressuredLane)}';
 }
 
 _TelegramAiScopeProfile _scopeProfileFor({String? clientId, String? siteId}) {
@@ -738,81 +3362,6 @@ enum _ClientProfile {
   formalOperations,
   reassuranceForward,
   validationHeavy,
-}
-
-String _laneStagePromptNote(_ClientLaneStage stage) {
-  switch (stage) {
-    case _ClientLaneStage.reassurance:
-      return '';
-    case _ClientLaneStage.escalated:
-      return '';
-    case _ClientLaneStage.responderOnSite:
-      return '12) Recent lane stage shows security is already on site. Use calm on-site control language and focus on the next confirmed step on site, not ETA.\n';
-    case _ClientLaneStage.closure:
-      return '12) Recent lane stage shows the situation is already contained/resolved. Use calm closure language, confirm the site is secure, and invite the client to message immediately if anything changes.\n';
-  }
-}
-
-String _deliveryModePromptNote(TelegramAiDeliveryMode deliveryMode) {
-  switch (deliveryMode) {
-    case TelegramAiDeliveryMode.telegramLive:
-      return '12) This reply is for a live Telegram conversation. Keep it conversational, calm, and direct.\n';
-    case TelegramAiDeliveryMode.approvalDraft:
-      return '12) This reply is being drafted for operator approval before sending. Keep it send-ready, polished, and slightly fuller when that helps clarity.\n';
-    case TelegramAiDeliveryMode.smsFallback:
-      return '12) This reply may be sent as SMS fallback. Keep it very short, plain, and clear when read out of context.\n';
-  }
-}
-
-String _clientTonePackPromptNote(_ClientTonePack tonePack) {
-  switch (tonePack) {
-    case _ClientTonePack.standard:
-      return '';
-    case _ClientTonePack.residential:
-      return '12) This scope reads like a residential/private-community lane. Sound protective, calm, and human, while staying precise.\n';
-    case _ClientTonePack.enterprise:
-      return '12) This scope reads like a corporate/enterprise site. Sound composed, formal, and operations-grade.\n';
-  }
-}
-
-String _clientProfilePromptNote(List<String> clientProfileSignals) {
-  switch (_clientProfileFromSignals(clientProfileSignals)) {
-    case _ClientProfile.standard:
-      return '';
-    case _ClientProfile.conciseUpdates:
-      return '13) Recent lane memory shows this client prefers short operational updates. Keep replies tighter than usual.\n';
-    case _ClientProfile.formalOperations:
-      return '13) Recent lane memory shows this client prefers more formal operations wording. Keep replies composed and enterprise-grade.\n';
-    case _ClientProfile.reassuranceForward:
-      return '13) Recent lane memory shows this client responds better to calm reassurance before the next step. Keep that shape.\n';
-    case _ClientProfile.validationHeavy:
-      return '13) Recent lane memory shows this client prefers high-detail validation, especially around camera/daylight checks. Include the exact kind of check being confirmed.\n';
-  }
-}
-
-String _messageTypePromptNote({
-  required _ClientReplyIntent intent,
-  required _ClientLaneStage laneStage,
-  required _ClientTonePack tonePack,
-}) {
-  if (laneStage == _ClientLaneStage.closure) {
-    return '13) This reply is a closure/secure-state update. Confirm the site is secure and make the reopen path simple.\n';
-  }
-  if (laneStage == _ClientLaneStage.responderOnSite) {
-    return '13) This reply is in the on-site stage. Focus on the latest position on site and the next confirmed on-site step.\n';
-  }
-  switch (intent) {
-    case _ClientReplyIntent.access:
-      return tonePack == _ClientTonePack.enterprise
-          ? '13) This message is about access control. Use precise access-control language and operational next steps.\n'
-          : '13) This message is about access. Keep the wording practical and easy to act on.\n';
-    case _ClientReplyIntent.visual:
-      return tonePack == _ClientTonePack.residential
-          ? '13) This message is about camera/daylight validation. Use calm visual-check language that feels protective and clear.\n'
-          : '13) This message is about camera/daylight validation. Keep the visual update precise and grounded.\n';
-    default:
-      return '';
-  }
 }
 
 String _clientFollowUpClosing(
@@ -1126,18 +3675,18 @@ String _thanksReplyForTonePack({
 }) {
   if (clientProfile == _ClientProfile.formalOperations &&
       tonePack == _ClientTonePack.enterprise) {
-    return 'You are welcome. We remain on watch at ${scope.siteReference} and will update this lane if anything changes.';
+    return 'You are welcome. I will keep you posted here if anything changes at ${scope.siteReference}.';
   }
   if (clientProfile == _ClientProfile.reassuranceForward) {
-    return 'You are welcome. We are still tracking ${scope.siteReference} and will keep this lane close if anything changes.';
+    return 'You are welcome. I will keep you posted here if anything changes at ${scope.siteReference}.';
   }
   switch (tonePack) {
     case _ClientTonePack.residential:
-      return 'You are welcome. We are staying close on ${scope.siteReference} and will update you if anything changes.';
+      return 'You are welcome. I will keep you posted here if anything changes at ${scope.siteReference}.';
     case _ClientTonePack.enterprise:
-      return 'You are welcome. We are still monitoring ${scope.siteReference} and will update you if anything changes.';
+      return 'You are welcome. I will keep you posted here if anything changes at ${scope.siteReference}.';
     case _ClientTonePack.standard:
-      return 'You are welcome. We are still tracking ${scope.siteReference} and will update you if anything changes.';
+      return 'You are welcome. I will keep you posted here if anything changes at ${scope.siteReference}.';
   }
 }
 
@@ -1590,6 +4139,31 @@ String _replaceClosingSentence(String text, String replacement) {
   return replacement;
 }
 
+String _dedupeClientReplySentences(String text) {
+  final sentenceMatches = RegExp(
+    r'[^.!?]+(?:[.!?]+|$)',
+    multiLine: true,
+  ).allMatches(text);
+  final deduped = <String>[];
+  String? previousNormalized;
+  for (final match in sentenceMatches) {
+    final sentence = match.group(0)?.trim() ?? '';
+    if (sentence.isEmpty) {
+      continue;
+    }
+    final normalized = _normalizeReplyHeuristicText(sentence);
+    if (normalized.isEmpty || normalized == previousNormalized) {
+      continue;
+    }
+    deduped.add(sentence);
+    previousNormalized = normalized;
+  }
+  if (deduped.isEmpty) {
+    return text.trim();
+  }
+  return deduped.join(' ').trim();
+}
+
 String _ensureClientReplyCompleteness(String text) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) {
@@ -1773,7 +4347,7 @@ _ClientLaneStage _resolveClientLaneStage({
   required List<String> recentConversationTurns,
 }) {
   final joined = recentConversationTurns
-      .map((value) => value.trim().toLowerCase())
+      .map(_normalizeReplyHeuristicText)
       .where((value) => value.isNotEmpty)
       .join('\n');
   if (_containsAny(joined, const [
@@ -1791,8 +4365,11 @@ _ClientLaneStage _resolveClientLaneStage({
     'security response activated',
     'partner dispatch sent',
     'response activated',
-    'on site',
-    'on-site',
+    'security is already on site',
+    'security already on site',
+    'response unit is on site',
+    'guard is on site',
+    'officer is on site',
   ])) {
     return _ClientLaneStage.responderOnSite;
   }
@@ -1829,6 +4406,9 @@ _ClientReplyIntent _resolveClientReplyIntent(
     'panicking',
     'nervous',
     'unsafe',
+    'can i sleep',
+    'sleep peacefully',
+    'rest easy',
     'help me',
     'please help',
   ])) {
@@ -1903,12 +4483,17 @@ bool _looksLikeShortFollowUp(String normalizedMessage) {
     'still waiting',
     'anything yet',
     'any update',
+    'update',
+    'check now',
+    'check again',
+    'check again now',
+    'check it now',
+    'can you check now',
     'and now',
     'what now',
+    'latest',
     'still',
     'yet',
-    'now?',
-    'update?',
     'still no',
   ]);
 }
@@ -1945,6 +4530,806 @@ _ClientReplyIntent _intentFromRecentConversation(
     return _ClientReplyIntent.worried;
   }
   return _ClientReplyIntent.status;
+}
+
+bool _hasTelemetrySummaryContext(String joinedContext) {
+  return _containsAny(joinedContext, const [
+    'site activity summary',
+    'field telemetry',
+    'latest field signal:',
+    'guard or response-team activity signals were logged through onyx field telemetry',
+    'guard or response-team activity signal was logged through onyx field telemetry',
+    'guard or response team activity signals were logged through onyx field telemetry',
+    'guard or response team activity signal was logged through onyx field telemetry',
+  ]);
+}
+
+bool _hasTelemetryResponseArrivalSignal(String joinedContext) {
+  return _containsAny(joinedContext, const [
+    'field response unit arrived on site',
+    'latest field signal: a field response unit arrived on site',
+    'response arrival signal',
+    'latest field signal: a response-arrival signal was logged through onyx field telemetry',
+    'latest field signal: response arrival',
+  ]);
+}
+
+bool _hasExplicitCurrentOnSitePresence(String joinedContext) {
+  return _containsAny(joinedContext, const [
+    'responder on site',
+    'security is already on site',
+    'security already on site',
+    'response unit is on site',
+    'guard is on site',
+    'officer is on site',
+  ]);
+}
+
+bool _hasExplicitCurrentMovementConfirmation(String joinedContext) {
+  return _containsAny(joinedContext, const [
+    'partner dispatch sent',
+    'security response activated',
+    'response activated',
+    'dispatch en route',
+    'unit en route',
+    'on the way',
+    'eta confirmed',
+  ]);
+}
+
+bool _asksWhyNoLiveCameraAccess(String normalizedMessage) {
+  return _containsAny(normalizedMessage, const [
+    'why cant you see my cameras',
+    'why can you not see my cameras',
+    'why cant you see the cameras',
+    'why can you not see the cameras',
+    'why cant you see cameras',
+    'why can you not see cameras',
+    'why cant you see my camera',
+    'why can you not see my camera',
+    'why cant we view live',
+    'why can we not view live',
+    'why cant we see live',
+    'why can we not see live',
+    'why cant we view live cameras',
+    'why can we not view live cameras',
+    'why cant we see live cameras',
+    'why can we not see live cameras',
+    'why cant we view the cameras live',
+    'why can we not view the cameras live',
+  ]);
+}
+
+bool _asksIfConnectionOrBridgeIsFixed(String normalizedMessage) {
+  return _containsAny(normalizedMessage, const [
+    'is the connection fixed',
+    'is the camera connection fixed',
+    'is the connection back',
+    'are the cameras back',
+    'is it fixed',
+    'is it back up',
+    'is monitoring back up',
+    'is the bridge restored',
+    'is the bridge back',
+    'is the bridge fixed',
+    'is the bridge online',
+    'is the local camera bridge restored',
+    'is the local camera bridge back',
+  ]);
+}
+
+bool _assertsLiveVisualAccessState(String normalizedMessage) {
+  return _containsAny(normalizedMessage, const [
+    'live visual are active',
+    'live visual is active',
+    'live visuals are active',
+    'live visuals is active',
+    'live visual active',
+    'live visuals active',
+    'visual confirmation is active',
+    'visual confirmation active',
+    'live camera is active',
+    'live cameras are active',
+    'live camera active',
+    'live cameras active',
+    'cameras are online',
+    'camera is online',
+    'cameras online',
+    'camera online',
+    'cameras are not offline',
+    'camera is not offline',
+    'cameras arent offline',
+    'camera isnt offline',
+    'cameras are not down',
+    'camera is not down',
+    'cameras arent down',
+    'camera isnt down',
+    'cctv is online',
+    'cctv online',
+    'bridge is online',
+    'bridge online',
+    'bridge is not offline',
+    'bridge isnt offline',
+    'camera bridge is online',
+    'local camera bridge is online',
+    'camera bridge is not offline',
+    'local camera bridge is not offline',
+    'cameras are back',
+    'camera is back',
+  ]);
+}
+
+bool _asksHypotheticalEscalationCapability(String normalizedMessage) {
+  final asksEscalationCapability = _containsAny(normalizedMessage, const [
+    'can you escalate',
+    'could you escalate',
+    'would you escalate',
+    'will you escalate',
+    'can onyx escalate',
+  ]);
+  final conditionalHelpAsk = _containsAny(normalizedMessage, const [
+    'if i need help',
+    'if i need urgent help',
+    'if i need assistance',
+    'if something happens',
+    'if there is a problem',
+    'if theres a problem',
+  ]);
+  return asksEscalationCapability && conditionalHelpAsk;
+}
+
+bool _asksForCurrentSiteIssueCheck(String normalizedMessage) {
+  return asksForTelegramClientCurrentSiteIssueCheck(normalizedMessage);
+}
+
+bool _asksForCurrentFrameMovementCheck(String normalizedMessage) {
+  return asksForTelegramClientMovementCheck(normalizedMessage);
+}
+
+bool _asksForSemanticMovementIdentification(String normalizedMessage) {
+  final asksMovement = _containsAny(normalizedMessage, const [
+    'any movement',
+    'movement',
+    'identify',
+    'identifying',
+    'detected',
+    'detection',
+    'see',
+  ]);
+  final asksSemanticObject = _containsAny(normalizedMessage, const [
+    'vehicle or human',
+    'vehicles or humans',
+    'vehicle or person',
+    'person or vehicle',
+    'persons or vehicles',
+    'human or vehicle',
+    'humans or vehicles',
+    'vehicle or people',
+    'people or vehicle',
+    'vehicles or people',
+    'person or human',
+    'human or person',
+    'human',
+    'humans',
+    'person',
+    'persons',
+    'people',
+    'vehicle',
+    'vehicles',
+  ]);
+  if (!asksSemanticObject) {
+    return false;
+  }
+  return asksMovement ||
+      _containsAny(normalizedMessage, const [
+        'what is moving',
+        'who is moving',
+        'what do you see',
+        'what are you seeing',
+      ]);
+}
+
+bool _asksForCurrentFramePersonConfirmation(String normalizedMessage) {
+  final explicitSighting = _containsAny(normalizedMessage, const [
+    'i see someone',
+    'i can see someone',
+    'someone there',
+    'person there',
+  ]);
+  final explicitConfirmation = _containsAny(normalizedMessage, const [
+    'can you confirm',
+    'please confirm',
+    'confirm that',
+    'confirm this',
+  ]);
+  final referencesPerson = _containsAny(normalizedMessage, const [
+    'someone',
+    'person',
+  ]);
+  final referencesArea = _containsAny(normalizedMessage, const [
+    'backyard',
+    'back yard',
+    'front yard',
+    'frontyard',
+    'driveway',
+    'gate',
+  ]);
+  return ((explicitSighting || explicitConfirmation) &&
+          referencesPerson &&
+          (referencesArea || explicitSighting)) ||
+      _containsAny(normalizedMessage, const [
+        'someone in backyard',
+        'someone in the backyard',
+        'person in backyard',
+        'person in the backyard',
+      ]);
+}
+
+bool _hasCurrentFrameConversationContext(
+  String joinedContext, {
+  required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  if (cameraHealthFactPacket?.hasCurrentVisualConfirmation == true) {
+    return true;
+  }
+  return _containsAny(joinedContext, const [
+    'current verified frame from',
+    '[image] current verified frame from',
+    'latest verified frame',
+    'latest camera picture',
+    'visual confirmation at',
+  ]);
+}
+
+bool _hasRecentMotionTelemetryContext(String joinedContext) {
+  return _containsAny(joinedContext, const [
+    'motion detection alarm',
+    'motion alarm',
+    'recent motion alerts',
+    'recent movement alerts',
+    'detected movement on camera',
+    'identified repeat movement activity on',
+    'movement activity on camera',
+  ]);
+}
+
+String _recentMotionTelemetryLeadLabel(String joinedContext) {
+  final cameraMatch = RegExp(
+    r'camera\s+(\d+)',
+    caseSensitive: false,
+  ).firstMatch(joinedContext);
+  final cameraDigits = cameraMatch?.group(1) ?? '';
+  if (cameraDigits.isNotEmpty) {
+    return 'recent motion alerts on Camera $cameraDigits';
+  }
+  return 'recent motion alerts';
+}
+
+bool _challengesTelemetryPresenceSummary(String normalizedMessage) {
+  final challengesExplicitCount = _containsAny(normalizedMessage, const [
+    'there isnt 19 guard',
+    'there is not 19 guard',
+    'there arent 19 guard',
+    'there are not 19 guard',
+    'not 19 guards',
+    'not 19 response teams',
+    '19 guards or response teams on site',
+    '19 guard or response teams on site',
+    'people on site',
+  ]);
+  final mentionsPresenceTarget =
+      normalizedMessage.contains('guard') ||
+      normalizedMessage.contains('response team') ||
+      normalizedMessage.contains('people');
+  final mentionsSiteOrPremises =
+      normalizedMessage.contains('site') ||
+      normalizedMessage.contains('there') ||
+      normalizedMessage.contains('premis');
+  final deniesPresence = _containsAny(normalizedMessage, const [
+    'there are no',
+    'there is no',
+    'there arent',
+    'there are not',
+    'there isnt',
+    'no guards',
+    'no guard',
+    'no one',
+    'nobody',
+    'not on site',
+    'not there',
+  ]);
+  return challengesExplicitCount ||
+      (mentionsPresenceTarget && mentionsSiteOrPremises && deniesPresence);
+}
+
+bool _hasRecentPresenceVerificationContext(String joinedContext) {
+  return _containsAny(joinedContext, const [
+    'site activity summary',
+    'field telemetry',
+    'latest field signal',
+    'response-arrival signal',
+    'recorded onyx telemetry activity',
+    'recorded onyx field telemetry',
+    'recorded guard or response activity signals',
+    'not confirmed guards physically on site',
+    'not 19 people physically on site',
+    'no guard is confirmed on site',
+    'current response position',
+    'verified position update',
+    'there are no guards',
+    'there is no guard',
+    'no guards at',
+    'no guards on',
+    'security is not on site',
+    'security not on site',
+  ]);
+}
+
+bool _hasRecentContinuousVisualActivityContext(String joinedContext) {
+  return _containsAny(joinedContext, const [
+    'live visual change',
+    'continuous visual watch',
+    'active scene change',
+    'scene change is being tracked',
+    'i am seeing live activity around',
+    'i am seeing activity around',
+    'something active is happening there',
+  ]);
+}
+
+bool _challengesMissedMovementDetection(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  final directChallenge = _containsAny(normalizedMessage, const [
+    'picked up nothing',
+    'you picked up nothing',
+    'detected nothing',
+    'you detected nothing',
+    'saw nothing',
+    'you saw nothing',
+    'nothing was picked up',
+  ]);
+  final walkedPastCameras =
+      _containsAny(normalizedMessage, const [
+        'i just walked past',
+        'i walked past',
+        'walked past',
+      ]) &&
+      normalizedMessage.contains('camera');
+  final cameraCountCorrection = RegExp(
+    r'^(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+cameras?$',
+  ).hasMatch(normalizedMessage);
+  if (directChallenge || walkedPastCameras) {
+    return true;
+  }
+  if (!cameraCountCorrection) {
+    return false;
+  }
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  return _containsAny(joined, const [
+    'picked up nothing',
+    'you picked up nothing',
+    'walked past',
+  ]);
+}
+
+String? _currentFrameConfirmationAreaLabel(String normalizedMessage) {
+  if (_containsAny(normalizedMessage, const ['backyard', 'back yard'])) {
+    return 'backyard';
+  }
+  if (_containsAny(normalizedMessage, const ['front yard', 'frontyard'])) {
+    return 'front yard';
+  }
+  if (normalizedMessage.contains('driveway')) {
+    return 'driveway';
+  }
+  if (normalizedMessage.contains('gate')) {
+    return 'gate area';
+  }
+  return null;
+}
+
+bool _isGenericStatusFollowUp(String normalizedMessage) {
+  return asksForTelegramClientGenericStatusFollowUp(normalizedMessage) ||
+      (normalizedMessage.split(RegExp(r'\s+')).length <= 4 &&
+          _containsAny(normalizedMessage, const ['status', 'anything new']));
+}
+
+bool _hasRecentCameraStatusContext(String joinedContext) {
+  return _containsAny(joinedContext, const [
+    'live camera access',
+    'live visual access',
+    'live camera confirmation',
+    'live visual confirmation',
+    'visual confirmation at',
+    'live camera visibility',
+    'camera bridge',
+    'local camera bridge',
+    'temporary local recorder bridge',
+    'remote monitoring',
+    'remote watch',
+    'monitoring connection',
+    'monitoring path',
+    'camera connection',
+    'camera access',
+    'cameras back',
+    'bridge is offline',
+    'bridge is not responding',
+    'bridge offline',
+  ]);
+}
+
+bool _recentThreadShowsUnusableCurrentImage(
+  List<String> recentConversationTurns,
+) {
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (joined.isEmpty) {
+    return false;
+  }
+  return _containsAny(joined, const [
+    'do not have a usable current verified image',
+    'do not have a usable current image',
+    'could not attach the current frame',
+    'do not have a current verified image to send right now',
+  ]);
+}
+
+String? _recentThreadDownCameraLabel(List<String> recentConversationTurns) {
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (joined.isEmpty) {
+    return null;
+  }
+  final match = RegExp(
+    r'camera\s+(\d+)\s+(?:(?:is|was)\s+)?(?:currently\s+)?(?:down|offline)',
+  ).firstMatch(joined);
+  final digits = match?.group(1) ?? '';
+  if (digits.isEmpty) {
+    return null;
+  }
+  return 'Camera $digits';
+}
+
+bool _recentThreadMentionsRecordedEventVisuals(
+  List<String> recentConversationTurns,
+) {
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (joined.isEmpty) {
+    return false;
+  }
+  return _containsAny(joined, const [
+    'latest event image',
+    'event image from camera',
+    'motion detection alarm',
+    'verification image has been retrieved',
+    'recent event image',
+    'with visuals',
+    'hikconnect',
+  ]);
+}
+
+bool _isBroadReassuranceAsk(String normalizedMessage) {
+  return asksForTelegramClientBroadReassuranceCheck(normalizedMessage);
+}
+
+bool _asksComfortOrMonitoringSupport(String normalizedMessage) {
+  return _containsAny(normalizedMessage, const [
+    'can i sleep peacefully',
+    'can i sleep',
+    'can i rest easy',
+    'can i rest',
+    'will you monitor',
+    'will you keep monitoring',
+    'will you keep watch',
+    'will you watch',
+    'watch the site',
+    'monitor the site',
+    'keep monitoring',
+    'keep watch',
+  ]);
+}
+
+bool _asksForCurrentSiteView(String normalizedMessage) {
+  return asksForTelegramClientCurrentSiteView(normalizedMessage);
+}
+
+bool _asksWhyImageCannotBeSent(String normalizedMessage) {
+  return _containsAny(normalizedMessage, const [
+    'why cant you send me one',
+    'why cant you send one',
+    'why cant you send me an image',
+    'why cant you send me a picture',
+    'why cant you send me a photo',
+    'why cant you send it',
+    'why cant you send one then',
+    'why can t you send me one',
+    'why can t you send one',
+    'why cant we view live',
+  ]);
+}
+
+bool _containsCameraCoverageCountClaim(String text) {
+  return RegExp(r'\b\d+\s+(?:other\s+)?cameras?\b').hasMatch(text);
+}
+
+bool _asksOvernightAlertingSupport(String normalizedMessage) {
+  return _containsAny(normalizedMessage, const [
+    'if im asleep and something happens',
+    'if i am asleep and something happens',
+    'if something happens while im asleep',
+    'if something happens while i am asleep',
+    'will you alert me right',
+    'will you alert me',
+    'alert me right',
+    'alert me if something happens',
+    'wake me if something happens',
+  ]);
+}
+
+bool _asksForBaselineSweep(String normalizedMessage) {
+  return _containsAny(normalizedMessage, const [
+    'quick sweep',
+    'do a quick sweep',
+    'can you do a quick sweep',
+    'baseline is normal',
+    'baseline normal',
+    'check the baseline',
+    'see that the site is normal',
+    'see that the sites baseline is normal',
+    'quick baseline check',
+  ]);
+}
+
+bool _asksAboutBaselineSweepStatus(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  if (!_hasRecentBaselineSweepContext(recentConversationTurns)) {
+    return false;
+  }
+  return _containsAny(normalizedMessage, const [
+    'did you check',
+    'have you checked',
+    'have you checked yet',
+    'did you sweep',
+    'did you do the sweep',
+    'did you do a sweep',
+    'did you do the check',
+    'did you check yet',
+  ]);
+}
+
+bool _asksAboutBaselineSweepEta(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  if (!_hasRecentBaselineSweepContext(recentConversationTurns)) {
+    return false;
+  }
+  return _containsAny(normalizedMessage, const [
+    'how long will you take',
+    'how long will this take',
+    'how long will it take',
+    'how long',
+    'when will you finish',
+  ]);
+}
+
+bool _hasRecentBaselineSweepContext(List<String> recentConversationTurns) {
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (joined.isEmpty) {
+    return false;
+  }
+  return _containsAny(joined, const [
+    'quick camera check',
+    'quick sweep',
+    'baseline result',
+    'baseline normal',
+    'checking the baseline',
+  ]);
+}
+
+bool _asksForWholeSiteBreachReview(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  final asksToCheck = _containsAny(normalizedMessage, const [
+    'check every area',
+    'check all areas',
+    'review every area',
+    'review all areas',
+    'verify every area',
+    'verify all areas',
+    'check the whole site',
+    'check the whole property',
+    'check the entire site',
+    'check the entire property',
+  ]);
+  if (!asksToCheck) {
+    return false;
+  }
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  return _containsAny('$normalizedMessage\n$joined', const [
+    'alarm',
+    'breach',
+    'what happened',
+    '4am',
+    '04 00',
+    '04:00',
+  ]);
+}
+
+bool _asksAboutWholeSiteBreachReviewStatus(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  if (!_hasRecentWholeSiteBreachReviewContext(recentConversationTurns)) {
+    return false;
+  }
+  return _containsAny(normalizedMessage, const [
+    'did you check',
+    'did you check yet',
+    'have you checked',
+    'have you checked yet',
+    'did you review it',
+    'did you review the site',
+    'any result yet',
+  ]);
+}
+
+bool _asksAboutWholeSiteBreachReviewEta(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  if (!_hasRecentWholeSiteBreachReviewContext(recentConversationTurns)) {
+    return false;
+  }
+  return _containsAny(normalizedMessage, const [
+    'how long will you take',
+    'how long will this take',
+    'how long will it take',
+    'how long',
+    'when will you finish',
+  ]);
+}
+
+bool _hasRecentWholeSiteBreachReviewContext(
+  List<String> recentConversationTurns,
+) {
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (joined.isEmpty) {
+    return false;
+  }
+  return _containsAny(joined, const [
+        'check every area',
+        'check all areas',
+        'review the site signals',
+        'full-site breach result',
+        'full site breach result',
+      ]) &&
+      _containsAny(joined, const ['alarm', 'breach', '4am', '04:00']);
+}
+
+bool _asksForHistoricalAlarmReview(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  final asksToReview = _containsAny(normalizedMessage, const [
+    'last night activity',
+    'last nights activity',
+    'check last night',
+    'review last night',
+    'check the 4am',
+    'review the 4am',
+    'around 4am',
+    'while setup was live',
+    'while the setup was live',
+    'while setup live',
+  ]);
+  if (!asksToReview) {
+    return false;
+  }
+  return _hasRecentHistoricalAlarmReviewContext(recentConversationTurns) ||
+      _containsAny(normalizedMessage, const [
+        'alarm',
+        'trigger',
+        'perimeter',
+        'outdoor camera',
+        'outdoor cameras',
+        '4am',
+        '04:00',
+      ]);
+}
+
+bool _asksAboutHistoricalAlarmReviewStatus(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  if (!_hasRecentHistoricalAlarmReviewContext(recentConversationTurns)) {
+    return false;
+  }
+  return _containsAny(normalizedMessage, const [
+    'did you check',
+    'did you check yet',
+    'have you checked',
+    'have you checked yet',
+    'did you review it',
+    'did you review last night',
+    'any result yet',
+  ]);
+}
+
+bool _asksToEscalateHistoricalAlarmReview(
+  String normalizedMessage,
+  List<String> recentConversationTurns,
+) {
+  if (!_hasRecentHistoricalAlarmReviewContext(recentConversationTurns)) {
+    return false;
+  }
+  return _containsAny(normalizedMessage, const [
+    'escalate',
+    'escalate this',
+    'manual review',
+    'control review',
+  ]);
+}
+
+bool _hasRecentHistoricalAlarmReviewContext(
+  List<String> recentConversationTurns,
+) {
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (joined.isEmpty) {
+    return false;
+  }
+  return _containsAny(joined, const [
+    'alarm at around 4am',
+    'alarm trigger at around 4am',
+    'closest to 04:00',
+    '4am window',
+    'last night activity',
+    'while setup was live',
+  ]);
+}
+
+String _historicalAlarmReviewScopeLabel(List<String> recentConversationTurns) {
+  final joined = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  if (_containsAny(joined, const ['outdoor camera', 'outdoor cameras'])) {
+    if (_containsAny(joined, const ['perimeter'])) {
+      return 'the perimeter and outdoor cameras';
+    }
+    return 'the outdoor cameras';
+  }
+  if (_containsAny(joined, const ['perimeter'])) {
+    return 'the perimeter';
+  }
+  return 'that 4am window';
 }
 
 String? _extractText(Object? decoded) {

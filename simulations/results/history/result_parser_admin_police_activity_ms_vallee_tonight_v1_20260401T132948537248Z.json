@@ -1,0 +1,22 @@
+{
+  "scenarioId": "parser_admin_police_activity_ms_vallee_tonight_v1",
+  "runId": "2026-04-01T13:29:48.537248Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "admin_scoped_read",
+    "actualIntent": "site_police_activity_lookup",
+    "actualEscalationState": "none",
+    "actualProjectionChanges": [],
+    "actualDrafts": [],
+    "actualBlockedActions": [
+      "live_escalation"
+    ],
+    "actualUiState": {
+      "surface": "admin_read_result",
+      "legacyWorkspaceVisible": false
+    },
+    "appendedEvents": [],
+    "notes": "Resolved showIncidentsLastNight from telegram under single_site scope across 1 site(s). Loaded 1 seeded event(s)."
+  },
+  "mismatches": []
+}

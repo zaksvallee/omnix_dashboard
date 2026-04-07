@@ -43,22 +43,19 @@ void main() {
               repeatUpdates: 1,
               escalationCandidates: 1,
               topPosture: 'escalation candidate',
-              latestActionTaken:
-                  '2026-03-14T21:18:00.000Z • Camera 2 • Escalation Candidate • Escalated for urgent review because person activity was detected near the boundary.',
-              latestSuppressedPattern:
-                  '2026-03-14T21:16:00.000Z • Camera 3 • Vehicle remained below escalation threshold.',
+              latestActionTaken: reportTestLatestActionTaken,
+              latestSuppressedPattern: reportTestLatestSuppressedPattern,
               highlights: [
                 SceneReviewHighlightSnapshot(
                   intelligenceId: 'intel-2',
-                  detectedAt: '2026-03-14T21:18:00.000Z',
+                  detectedAt: reportTestHighlightDetectedAt,
                   cameraLabel: 'Camera 2',
                   sourceLabel: 'metadata:fallback',
                   postureLabel: 'escalation candidate',
                   decisionLabel: 'Escalation Candidate',
                   decisionSummary:
                       'Escalated for urgent review because person activity was detected near the boundary.',
-                  summary:
-                      'Person visible near the boundary after repeat activity.',
+                  summary: reportTestEscalationSummary,
                 ),
               ],
             ),
@@ -121,6 +118,8 @@ void main() {
     expect(find.text('Preview Context'), findsOneWidget);
     expect(find.text('Governance Handoff PDF'), findsOneWidget);
     expect(find.textContaining('Governance handoff lane'), findsWidgets);
+    expect(find.text('DO THIS NOW'), findsOneWidget);
+    expect(find.textContaining('PRINT OR DOWNLOAD'), findsWidgets);
     expect(find.text('Print Governance PDF'), findsOneWidget);
     expect(find.text('Download Governance PDF'), findsOneWidget);
     expect(
@@ -313,7 +312,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    await tester.tap(find.text('Print').first);
+    expect(find.text('DO THIS NOW'), findsOneWidget);
+    expect(find.textContaining('PRINT OR DOWNLOAD'), findsWidgets);
+
+    await tester.tap(find.text('Print PDF').first);
     await tester.pump();
 
     expect(capturedCall, isNotNull);
@@ -372,7 +374,10 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
 
-    await tester.tap(find.text('Download').first);
+    expect(find.text('DO THIS NOW'), findsOneWidget);
+    expect(find.textContaining('PRINT OR DOWNLOAD'), findsWidgets);
+
+    await tester.tap(find.text('Download PDF').first);
     await tester.pump();
 
     expect(capturedCall, isNotNull);

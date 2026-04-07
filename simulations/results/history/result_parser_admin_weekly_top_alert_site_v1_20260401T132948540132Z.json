@@ -1,0 +1,22 @@
+{
+  "scenarioId": "parser_admin_weekly_top_alert_site_v1",
+  "runId": "2026-04-01T13:29:48.540132Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "admin_all_sites_read",
+    "actualIntent": "weekly_top_alert_site_lookup",
+    "actualEscalationState": "none",
+    "actualProjectionChanges": [],
+    "actualDrafts": [],
+    "actualBlockedActions": [
+      "live_escalation"
+    ],
+    "actualUiState": {
+      "surface": "admin_read_result",
+      "legacyWorkspaceVisible": false
+    },
+    "appendedEvents": [],
+    "notes": "Resolved showSiteMostAlertsThisWeek from telegram under all_sites scope across 3 site(s). Loaded 0 seeded event(s)."
+  },
+  "mismatches": []
+}

@@ -4,10 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/main.dart';
+import 'package:omnix_dashboard/ui/ai_queue_page.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
 import 'package:omnix_dashboard/ui/events_review_page.dart';
+import 'package:omnix_dashboard/ui/onyx_agent_page.dart';
 import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
+
+DateTime _opsNavigationOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 19, hour, minute);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -15,8 +20,12 @@ void main() {
   testWidgets('onyx app opens scoped events from ai queue hero action', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(1440, 2600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
     List<String>? openedEventIds;
     String? openedSelectedEventId;
@@ -31,7 +40,7 @@ void main() {
             eventId: 'evt-ai-route-1',
             sequence: 1,
             version: 1,
-            occurredAt: DateTime.utc(2026, 3, 19, 7, 30),
+            occurredAt: _opsNavigationOccurredAtUtc(7, 30),
             dispatchId: 'DSP-AI-1',
             clientId: 'CLIENT-001',
             regionId: 'REGION-GAUTENG',
@@ -47,6 +56,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('ai-queue-toggle-detailed-workspace')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('ai-queue-toggle-detailed-workspace')),
+    );
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byKey(const ValueKey('ai-queue-view-events-button')));
     await tester.pumpAndSettle();
 
@@ -55,6 +72,174 @@ void main() {
     expect(openedSelectedEventId, isNotNull);
     expect(openedScopeMode, 'shadow');
     expect(find.byType(EventsReviewPage), findsOneWidget);
+    expect(
+      tester
+          .widget<EventsReviewPage>(find.byType(EventsReviewPage))
+          .initialScopedMode,
+      'shadow',
+    );
+    expect(
+      tester
+          .widget<EventsReviewPage>(find.byType(EventsReviewPage))
+          .initialScopedEventIds,
+      openedEventIds,
+    );
+    expect(
+      tester
+          .widget<EventsReviewPage>(find.byType(EventsReviewPage))
+          .initialSelectedEventId,
+      openedSelectedEventId,
+    );
+  });
+
+  testWidgets('onyx app opens agent from ai queue alert action', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.aiQueue),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('ai-queue-action-open-agent')),
+    );
+    await tester.tap(find.byKey(const ValueKey('ai-queue-action-open-agent')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.byType(OnyxAgentPage), findsOneWidget);
+    expect(find.text('AI Copilot'), findsOneWidget);
+    expect(
+      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).sourceRouteLabel,
+      'CCTV',
+    );
+    expect(
+      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
+      'CLIENT-MS-VALLEE',
+    );
+    expect(
+      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
+      'SITE-MS-VALLEE-RESIDENCE',
+    );
+    expect(
+      tester
+          .widget<OnyxAgentPage>(find.byType(OnyxAgentPage))
+          .focusIncidentReference,
+      'INC-8829-QX',
+    );
+  });
+
+  testWidgets('onyx app opens alarms from ai queue dispatch guard action', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.aiQueue),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('ai-queue-action-dispatch-guard')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('ai-queue-action-dispatch-guard')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DispatchPage), findsOneWidget);
+    expect(find.text('AlarmMonitoring'), findsOneWidget);
+    expect(
+      tester.widget<DispatchPage>(find.byType(DispatchPage)).clientId,
+      'CLIENT-MS-VALLEE',
+    );
+    expect(
+      tester.widget<DispatchPage>(find.byType(DispatchPage)).siteId,
+      'SITE-MS-VALLEE-RESIDENCE',
+    );
+    expect(
+      tester
+          .widget<DispatchPage>(find.byType(DispatchPage))
+          .focusIncidentReference,
+      'INC-8829-QX',
+    );
+  });
+
+  testWidgets('onyx app returns from agent into the focused ai queue flow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.aiQueue),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('ai-queue-action-open-agent')),
+    );
+    await tester.tap(find.byKey(const ValueKey('ai-queue-action-open-agent')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.byType(OnyxAgentPage), findsOneWidget);
+    expect(
+      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).sourceRouteLabel,
+      'CCTV',
+    );
+    expect(
+      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
+      'CLIENT-MS-VALLEE',
+    );
+    expect(
+      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
+      'SITE-MS-VALLEE-RESIDENCE',
+    );
+    expect(
+      tester
+          .widget<OnyxAgentPage>(find.byType(OnyxAgentPage))
+          .focusIncidentReference,
+      'INC-8829-QX',
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('onyx-agent-resume-cctv-button')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('onyx-agent-resume-cctv-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AIQueuePage), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('ai-queue-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('AGENT RETURN'), findsOneWidget);
+    expect(find.textContaining('Returned from Agent for'), findsOneWidget);
+    expect(
+      tester
+          .widget<AIQueuePage>(find.byType(AIQueuePage))
+          .focusIncidentReference,
+      'INC-8829-QX',
+    );
   });
 
   testWidgets('onyx app opens events from governance hero action', (
@@ -64,10 +249,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.governance,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.governance),
     );
     await tester.pumpAndSettle();
 
@@ -77,6 +259,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(EventsReviewPage), findsOneWidget);
+    expect(
+      tester
+          .widget<EventsReviewPage>(find.byType(EventsReviewPage))
+          .initialScopedMode,
+      'shadow',
+    );
+    expect(
+      tester
+          .widget<EventsReviewPage>(find.byType(EventsReviewPage))
+          .initialScopedEventIds,
+      isNotEmpty,
+    );
+    expect(
+      tester
+          .widget<EventsReviewPage>(find.byType(EventsReviewPage))
+          .initialSelectedEventId,
+      isNotEmpty,
+    );
   });
 
   testWidgets('onyx app opens ledger from governance quick actions', (
@@ -86,10 +286,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.governance,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.governance),
     );
     await tester.pumpAndSettle();
 
@@ -102,6 +299,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SovereignLedgerPage), findsOneWidget);
+    expect(
+      tester
+          .widget<SovereignLedgerPage>(find.byType(SovereignLedgerPage))
+          .initialScopeClientId,
+      'CLIENT-MS-VALLEE',
+    );
+    expect(
+      tester
+          .widget<SovereignLedgerPage>(find.byType(SovereignLedgerPage))
+          .initialScopeSiteId,
+      'SITE-MS-VALLEE-RESIDENCE',
+    );
   });
 
   testWidgets('onyx app opens dispatches from tactical hero action', (
@@ -111,10 +320,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.tactical,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.tactical),
     );
     await tester.pumpAndSettle();
 
@@ -124,6 +330,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DispatchPage), findsOneWidget);
+    expect(
+      tester.widget<DispatchPage>(find.byType(DispatchPage)).clientId,
+      'CLIENT-MS-VALLEE',
+    );
+    expect(
+      tester.widget<DispatchPage>(find.byType(DispatchPage)).siteId,
+      'SITE-MS-VALLEE-RESIDENCE',
+    );
   });
 
   testWidgets('onyx app shows the shell status summary snack', (tester) async {
@@ -135,17 +349,14 @@ void main() {
     });
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.governance,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.governance),
     );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('app-shell-status-button')));
     await tester.pump();
 
-    expect(find.textContaining('Systems nominal.'), findsOneWidget);
+    expect(find.textContaining('Board ready.'), findsOneWidget);
   });
 
   testWidgets('onyx app quick jump navigates to dispatches', (tester) async {
@@ -157,10 +368,7 @@ void main() {
     });
 
     await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.governance,
-      ),
+      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.governance),
     );
     await tester.pumpAndSettle();
 

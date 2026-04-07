@@ -1,0 +1,74 @@
+{
+  "scenarioId": "client_comms_attention_queue_pending_draft_validation_v1",
+  "title": "Validation: attention queue pending draft should open scoped client comms",
+  "description": "Validation replay for the live operations attention queue handing a pending draft approval into scoped Client Comms without legacy recovery.",
+  "category": "client_comms",
+  "scenarioSet": "validation",
+  "tags": ["client_status_query", "route_persistence", "pending_draft"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T10:25:00Z",
+  "version": 1,
+  "status": "locked_validation",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:05:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_client_comms_idle.json"],
+      "projections": [
+        "fixture_projections_client_comms_attention_queue_pending_draft.json"
+      ],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "active",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_attention_queue"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "client_comms",
+    "expectedIntent": "open_client_comms_handoff",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [
+      {
+        "status": "pending_review",
+        "clientId": "CLIENT-MS-VALLEE",
+        "scopeSiteId": "SITE-MS-VALLEE-RESIDENCE",
+        "source": "pending_draft_approval"
+      }
+    ],
+    "expectedBlockedActions": [
+      "reopen_legacy_workspace",
+      "send_without_review"
+    ],
+    "expectedUiState": {
+      "surface": "live_ops_attention_queue_client_comms",
+      "scopedClientCommsVisible": true,
+      "pendingDraftApprovalVisible": true,
+      "queueHandoffVisible": true,
+      "clientId": "CLIENT-MS-VALLEE",
+      "siteId": "SITE-MS-VALLEE-RESIDENCE",
+      "pendingDraftCount": 1,
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

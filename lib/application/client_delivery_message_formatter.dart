@@ -11,8 +11,8 @@ class ClientDeliveryMessageFormatter {
     final headline = priority
         ? 'ONYX priority update for $normalizedSite'
         : 'ONYX update for $normalizedSite';
-    final cleanTitle = _sentence(title, maxLength: 72);
-    final cleanBody = _sentence(body, maxLength: 280);
+    final cleanTitle = _sentence(title, maxLength: 84);
+    final cleanBody = _sentence(body, maxLength: 360);
     return '$headline\n\n$cleanTitle\n$cleanBody\n\nReply here if you need us.';
   }
 
@@ -218,11 +218,31 @@ class ClientDeliveryMessageFormatter {
     }
     final truncated = normalized.length <= maxLength
         ? normalized
-        : '${normalized.substring(0, maxLength - 1).trimRight()}…';
+        : _truncateAtBoundary(normalized, maxLength: maxLength);
     if (RegExp(r'[.!?]$').hasMatch(truncated)) {
       return truncated;
     }
     return '$truncated.';
+  }
+
+  static String _truncateAtBoundary(String value, {required int maxLength}) {
+    if (value.length <= maxLength) {
+      return value;
+    }
+    final hardLimit = maxLength - 1;
+    final candidate = value.substring(0, hardLimit).trimRight();
+    final punctuationMatches = RegExp(r'[.!?](?=\s|$)').allMatches(candidate);
+    if (punctuationMatches.isNotEmpty) {
+      final lastBoundary = punctuationMatches.last.end;
+      if (lastBoundary >= (maxLength * 0.55).round()) {
+        return candidate.substring(0, lastBoundary).trimRight();
+      }
+    }
+    final whitespaceBoundary = candidate.lastIndexOf(RegExp(r'\s'));
+    if (whitespaceBoundary >= (maxLength * 0.55).round()) {
+      return '${candidate.substring(0, whitespaceBoundary).trimRight()}…';
+    }
+    return '${candidate.trimRight()}…';
   }
 
   static String _providerDisplayLabel(String providerLabel) {
@@ -270,9 +290,9 @@ class ClientDeliveryMessageFormatter {
     final normalized = reason.trim().toLowerCase();
     switch (normalized) {
       case 'telegram blocked':
-        return 'Telegram was blocked for this lane';
+        return 'Telegram was blocked for this client thread';
       case 'telegram degraded':
-        return 'Telegram delivery degraded for this lane';
+        return 'Telegram delivery degraded for this client thread';
       default:
         return _sentence(reason, maxLength: 80);
     }

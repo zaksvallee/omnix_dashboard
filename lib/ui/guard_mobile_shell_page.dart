@@ -39,6 +39,17 @@ enum GuardSyncOperationModeFilter { all, live, stub, unknown }
 
 enum GuardSyncHistoryFilter { queued, synced, failed, all }
 
+const _guardMobileSurfaceColor = Color(0xFFFFFFFF);
+const _guardMobileSurfaceAltColor = Color(0xFFF4F8FC);
+const _guardMobileSurfaceSoftColor = Color(0xFFEEF4FA);
+const _guardMobileBorderColor = Color(0xFFD6E1EC);
+const _guardMobileBorderStrongColor = Color(0xFFBDD0E2);
+const _guardMobileTitleColor = Color(0xFF172638);
+const _guardMobileBodyColor = Color(0xFF556B80);
+const _guardMobileMutedColor = Color(0xFF7A8FA4);
+const _guardMobileShadowColor = Color(0x0C0F2235);
+const _guardMobileActionBlue = Color(0xFF2F6AA3);
+
 class GuardMobileShellPage extends StatefulWidget {
   final String clientId;
   final String siteId;
@@ -350,9 +361,30 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
     if (oldWidget.initialSelectedOperationId !=
             widget.initialSelectedOperationId &&
         widget.initialSelectedOperationId != _selectedOperationId) {
-      _selectedOperationId = widget.initialSelectedOperationId;
+      setState(() {
+        _selectedOperationId = widget.initialSelectedOperationId;
+      });
     }
     _ensureValidOutcomeConfirmer();
+  }
+
+  void _queueSelectedOperationClear() {
+    if (_selectionClearNotifyQueued) {
+      return;
+    }
+    _selectionClearNotifyQueued = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _selectionClearNotifyQueued = false;
+      if (!mounted) {
+        return;
+      }
+      if (_selectedOperationId != null) {
+        setState(() {
+          _selectedOperationId = null;
+        });
+      }
+      unawaited(widget.onSelectedOperationChanged(null));
+    });
   }
 
   void _ensureValidOutcomeConfirmer() {
@@ -1112,13 +1144,25 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
+          backgroundColor: _guardMobileSurfaceColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _guardMobileBorderColor),
+          ),
           title: Text(
             'Retry Failed Operations',
-            style: GoogleFonts.rajdhani(fontWeight: FontWeight.w700),
+            style: GoogleFonts.inter(
+              color: _guardMobileTitleColor,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           content: Text(
             'Requeue $failedCount failed operation(s) in the current history view?',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            style: GoogleFonts.inter(
+              color: _guardMobileBodyColor,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           actions: [
             TextButton(
@@ -1870,7 +1914,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           ..sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
     return [
       'Dispatch Closeout Packet',
-      'Generated At: ${_formatUtc(DateTime.now().toUtc())}',
+      'Generated At: ${_formatUtc(nowUtc)}',
       'Reviewed Sync Context:',
       'Scope key: ${widget.activeScopeKey.trim().isEmpty ? 'unknown' : widget.activeScopeKey.trim()}',
       'Facade mode filter: ${widget.operationModeFilter.name}',
@@ -1945,14 +1989,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         !visibleHistoryOperations.any(
           (operation) => operation.operationId == _selectedOperationId,
         )) {
-      _selectedOperationId = null;
-      if (!_selectionClearNotifyQueued) {
-        _selectionClearNotifyQueued = true;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _selectionClearNotifyQueued = false;
-          unawaited(widget.onSelectedOperationChanged(null));
-        });
-      }
+      _queueSelectedOperationClear();
     }
     final viewportWidth = MediaQuery.sizeOf(context).width;
     final ultrawideSurface = isUltrawideLayout(
@@ -2255,10 +2292,10 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                                 ? _allFacadeFilterValue
                                                 : widget.selectedFacadeId!,
                                             dropdownColor: const Color(
-                                              0xFF0E1A2B,
+                                              0xFFFFFFFF,
                                             ),
                                             style: GoogleFonts.inter(
-                                              color: const Color(0xFFDCE9FF),
+                                              color: _guardMobileTitleColor,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -2683,10 +2720,10 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                                 ? _allFacadeFilterValue
                                                 : widget.selectedFacadeId!,
                                             dropdownColor: const Color(
-                                              0xFF0E1A2B,
+                                              0xFFFFFFFF,
                                             ),
                                             style: GoogleFonts.inter(
-                                              color: const Color(0xFFDCE9FF),
+                                              color: _guardMobileTitleColor,
                                               fontSize: 11,
                                               fontWeight: FontWeight.w700,
                                             ),
@@ -2968,10 +3005,10 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                                               ? _allFacadeFilterValue
                                               : widget.selectedFacadeId!,
                                           dropdownColor: const Color(
-                                            0xFF0E1A2B,
+                                            0xFFFFFFFF,
                                           ),
                                           style: GoogleFonts.inter(
-                                            color: const Color(0xFFDCE9FF),
+                                            color: _guardMobileTitleColor,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -3902,7 +3939,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                 SelectableText(
                   _telemetryReplayOutput!,
                   style: GoogleFonts.robotoMono(
-                    color: const Color(0xFFB8CBE7),
+                    color: _guardMobileBodyColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
                   ),
@@ -3923,7 +3960,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                 maxLines: 6,
                 onChanged: (value) => _customTelemetryPayloadJson = value,
                 style: GoogleFonts.robotoMono(
-                  color: const Color(0xFFB8CBE7),
+                  color: _guardMobileBodyColor,
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
                 ),
@@ -3936,15 +3973,19 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                     fontWeight: FontWeight.w500,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFF0E1A2B),
+                  fillColor: _guardMobileSurfaceColor,
                   contentPadding: const EdgeInsets.all(10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF223244)),
+                    borderSide: const BorderSide(
+                      color: _guardMobileBorderColor,
+                    ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: Color(0xFF223244)),
+                    borderSide: const BorderSide(
+                      color: _guardMobileBorderColor,
+                    ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -4708,19 +4749,19 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                     ),
                     decoration: BoxDecoration(
                       color: selected
-                          ? const Color(0xFF11243A)
-                          : const Color(0xFF0E1A2B),
+                          ? const Color(0xFFE7F2FF)
+                          : _guardMobileSurfaceColor,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: selected
                             ? const Color(0xFF61C7FF)
-                            : const Color(0xFF223244),
+                            : _guardMobileBorderColor,
                       ),
                     ),
                     child: Text(
                       '${event.eventType.name} • seq ${event.sequence} • $state • ${_formatUtc(event.occurredAt)}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB8CBE7),
+                        color: _guardMobileBodyColor,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -4817,19 +4858,19 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                     ),
                     decoration: BoxDecoration(
                       color: selected
-                          ? const Color(0xFF11243A)
-                          : const Color(0xFF0E1A2B),
+                          ? const Color(0xFFE7F2FF)
+                          : _guardMobileSurfaceColor,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: selected
                             ? const Color(0xFF61C7FF)
-                            : const Color(0xFF223244),
+                            : _guardMobileBorderColor,
                       ),
                     ),
                     child: Text(
                       '${media.bucket} • ${media.status.name} • ${_formatUtc(media.capturedAt)}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB8CBE7),
+                        color: _guardMobileBodyColor,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -5150,9 +5191,16 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: accent.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: accent.withValues(alpha: 0.55)),
+        border: Border.all(color: accent.withValues(alpha: 0.38)),
+        boxShadow: const [
+          BoxShadow(
+            color: _guardMobileShadowColor,
+            blurRadius: 14,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5168,8 +5216,8 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           const SizedBox(height: 4),
           Text(
             prompt.headline,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            style: GoogleFonts.inter(
+              color: _guardMobileTitleColor,
               fontSize: 20,
               fontWeight: FontWeight.w700,
             ),
@@ -5178,7 +5226,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           Text(
             prompt.message,
             style: GoogleFonts.inter(
-              color: const Color(0xFFB8CBE7),
+              color: _guardMobileBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -5311,9 +5359,16 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: accent.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: accent.withValues(alpha: 0.5)),
+        border: Border.all(color: accent.withValues(alpha: 0.36)),
+        boxShadow: const [
+          BoxShadow(
+            color: _guardMobileShadowColor,
+            blurRadius: 12,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5330,7 +5385,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           Text(
             prompt.headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _guardMobileTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -5464,9 +5519,9 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF0E1A2B),
+          color: _guardMobileSurfaceColor,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF223244)),
+          border: Border.all(color: _guardMobileBorderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -5474,7 +5529,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
             Text(
               'Event ${selectedEvent.eventType.name}',
               style: GoogleFonts.inter(
-                color: const Color(0xFFD3E3FA),
+                color: _guardMobileTitleColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -5483,7 +5538,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
             SelectableText(
               _eventDetailText(selectedEvent).split('\n').skip(1).join('\n'),
               style: GoogleFonts.inter(
-                color: const Color(0xFFC7D8F1),
+                color: _guardMobileBodyColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -5520,9 +5575,9 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _guardMobileSurfaceColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _guardMobileBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5530,7 +5585,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           Text(
             'Media ${media.status.name}',
             style: GoogleFonts.inter(
-              color: const Color(0xFFD3E3FA),
+              color: _guardMobileTitleColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -5539,7 +5594,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           SelectableText(
             _mediaDetailText(media).split('\n').skip(1).join('\n'),
             style: GoogleFonts.inter(
-              color: const Color(0xFFC7D8F1),
+              color: _guardMobileBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -5583,13 +5638,13 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF0E1A2B),
-        border: Border.all(color: const Color(0xFF223244)),
+        color: _guardMobileSurfaceColor,
+        border: Border.all(color: _guardMobileBorderColor),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
+            color: _guardMobileShadowColor,
+            blurRadius: 14,
+            offset: Offset(0, 8),
           ),
         ],
       ),
@@ -5598,8 +5653,8 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         children: [
           Text(
             title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE7F1FF),
+            style: GoogleFonts.inter(
+              color: _guardMobileTitleColor,
               fontSize: 24,
               fontWeight: FontWeight.w700,
             ),
@@ -5608,7 +5663,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           Text(
             body,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB1D2),
+              color: _guardMobileBodyColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -5684,16 +5739,16 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        color: const Color(0xFF091321),
-        border: Border.all(color: const Color(0xFF1E3248)),
+        color: _guardMobileSurfaceAltColor,
+        border: Border.all(color: _guardMobileBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE7F1FF),
+            style: GoogleFonts.inter(
+              color: _guardMobileTitleColor,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -5702,7 +5757,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           Text(
             subtitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C6),
+              color: _guardMobileBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -5800,12 +5855,8 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF12243B), Color(0xFF17314D)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: const Color(0xFF2F5F8E)),
+        color: const Color(0xFFEAF4FF),
+        border: Border.all(color: const Color(0xFFBED7F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5813,7 +5864,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           Text(
             'LATEST ACTION',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FCFFF),
+              color: _guardMobileActionBlue,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -5823,7 +5874,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           Text(
             _lastActionStatus!,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: _guardMobileTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -5853,10 +5904,19 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           borderRadius: BorderRadius.circular(12),
           color: selected
               ? accent.withValues(alpha: 0.16)
-              : const Color(0xFF0E1A2B),
+              : _guardMobileSurfaceColor,
           border: Border.all(
-            color: selected ? accent : const Color(0xFF223244),
+            color: selected
+                ? accent.withValues(alpha: 0.56)
+                : _guardMobileBorderColor,
           ),
+          boxShadow: const [
+            BoxShadow(
+              color: _guardMobileShadowColor,
+              blurRadius: 12,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -5866,8 +5926,10 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                 Expanded(
                   child: Text(
                     _screenWorkspaceTitle(screen),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: selected ? accent : const Color(0xFFE7F1FF),
+                      color: selected ? accent : _guardMobileTitleColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -5898,7 +5960,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
             Text(
               _screenWorkspaceSubtitle(screen),
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA5C6),
+                color: _guardMobileBodyColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
@@ -5926,8 +5988,11 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                 await _withSubmit(successMessage, action);
               },
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFF132E4E),
-          side: const BorderSide(color: Color(0xFF66C5FF)),
+          backgroundColor: const Color(0xFFEAF4FF),
+          foregroundColor: _guardMobileActionBlue,
+          disabledBackgroundColor: _guardMobileSurfaceSoftColor,
+          disabledForegroundColor: _guardMobileMutedColor,
+          side: const BorderSide(color: Color(0xFFBED7F0)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -5936,7 +6001,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: const Color(0xFF66C5FF),
+            color: _guardMobileActionBlue,
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
@@ -5963,12 +6028,19 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF101D30), Color(0xFF162740)],
+          colors: [Color(0xFFEAF4FF), Color(0xFFF8FBFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF26405C)),
+        border: Border.all(color: _guardMobileBorderStrongColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _guardMobileShadowColor,
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5980,13 +6052,13 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(0x1A66C5FF),
+                  color: const Color(0xFFE3F1FF),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0x5566C5FF)),
+                  border: Border.all(color: const Color(0xFFBED7F0)),
                 ),
                 child: const Icon(
                   Icons.phone_android_rounded,
-                  color: Color(0xFFD8F2FF),
+                  color: _guardMobileActionBlue,
                   size: 20,
                 ),
               ),
@@ -5998,7 +6070,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                     Text(
                       'GUARD DESKTOP WORKSPACE',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8FAFD4),
+                        color: _guardMobileActionBlue,
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 1.0,
@@ -6008,7 +6080,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                     Text(
                       '${_screenWorkspaceTitle(_screen)} is active while ${widget.historyFilter.name.toUpperCase()} history and ${_syncHealthLabel()} sync health stay visible.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
+                        color: _guardMobileTitleColor,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         height: 1.3,
@@ -6020,7 +6092,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
                           ? '${visibleHistoryOperations.length} visible operation${visibleHistoryOperations.length == 1 ? '' : 's'} in the current queue view.'
                           : 'Selected operation ${selectedOperation.operationId} is ready for full runtime inspection.',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFB4C8E1),
+                        color: _guardMobileBodyColor,
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -6372,29 +6444,29 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       initialValue: value,
       onChanged: onChanged,
       style: GoogleFonts.inter(
-        color: const Color(0xFFE7F1FF),
+        color: _guardMobileTitleColor,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: GoogleFonts.inter(
-          color: const Color(0xFF86A0C6),
+          color: _guardMobileMutedColor,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
         filled: true,
-        fillColor: const Color(0xFF0E1A2B),
+        fillColor: _guardMobileSurfaceColor,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF223244)),
+          borderSide: const BorderSide(color: _guardMobileBorderColor),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF223244)),
+          borderSide: const BorderSide(color: _guardMobileBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -6413,7 +6485,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       label: Text(
         label,
         style: GoogleFonts.inter(
-          color: selected ? const Color(0xFFDAE8FF) : const Color(0xFF8EA5C6),
+          color: selected ? _guardMobileActionBlue : _guardMobileBodyColor,
           fontSize: widget.guardOnlyExperience ? 13 : 12,
           fontWeight: FontWeight.w700,
         ),
@@ -6424,10 +6496,10 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           _screen = screen;
         });
       },
-      backgroundColor: const Color(0xFF0E1A2B),
-      selectedColor: const Color(0xFF11243A),
+      backgroundColor: _guardMobileSurfaceColor,
+      selectedColor: const Color(0xFFE7F2FF),
       side: BorderSide(
-        color: selected ? const Color(0xFF61C7FF) : const Color(0xFF223244),
+        color: selected ? const Color(0xFF61C7FF) : _guardMobileBorderColor,
       ),
     );
   }
@@ -6444,13 +6516,13 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         minimumSize: const Size(0, 0),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         foregroundColor: selected
-            ? const Color(0xFF09192F)
-            : const Color(0xFF9FB6D5),
+            ? _guardMobileActionBlue
+            : _guardMobileBodyColor,
         backgroundColor: selected
-            ? const Color(0xFF8FD1FF)
-            : const Color(0x1A223244),
+            ? const Color(0xFFE7F2FF)
+            : _guardMobileSurfaceAltColor,
         side: BorderSide(
-          color: selected ? const Color(0xFF8FD1FF) : const Color(0xFF2A5E97),
+          color: selected ? const Color(0xFF8FD1FF) : _guardMobileBorderColor,
         ),
       ),
       child: Text(
@@ -6465,14 +6537,20 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
     required Future<void> Function()? onPressed,
     bool danger = false,
   }) {
-    final color = danger ? const Color(0xFFFF6C7A) : const Color(0xFF66C5FF);
     return FilledButton(
       onPressed: _submitting || onPressed == null ? null : onPressed,
       style: FilledButton.styleFrom(
         backgroundColor: danger
-            ? const Color(0xFF3A1420)
-            : const Color(0xFF132E4E),
-        side: BorderSide(color: color.withValues(alpha: 0.75)),
+            ? const Color(0xFFFFEEF1)
+            : const Color(0xFFEAF4FF),
+        foregroundColor: danger
+            ? const Color(0xFFC2485A)
+            : _guardMobileActionBlue,
+        disabledBackgroundColor: _guardMobileSurfaceSoftColor,
+        disabledForegroundColor: _guardMobileMutedColor,
+        side: BorderSide(
+          color: danger ? const Color(0xFFFFC9D0) : const Color(0xFFBED7F0),
+        ),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         minimumSize: Size(
           widget.guardOnlyExperience ? 220 : 0,
@@ -6482,7 +6560,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       child: Text(
         label,
         style: GoogleFonts.inter(
-          color: color,
+          color: danger ? const Color(0xFFC2485A) : _guardMobileActionBlue,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -6507,9 +6585,9 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          color: selected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
+          color: selected ? const Color(0xFFE7F2FF) : _guardMobileSurfaceColor,
           border: Border.all(
-            color: selected ? const Color(0xFF69C3FF) : const Color(0xFF223244),
+            color: selected ? const Color(0xFF69C3FF) : _guardMobileBorderColor,
           ),
         ),
         child: Column(
@@ -6518,7 +6596,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
             Text(
               operation.type.name,
               style: GoogleFonts.inter(
-                color: const Color(0xFF8FD3FF),
+                color: _guardMobileActionBlue,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -6547,7 +6625,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
             Text(
               operation.operationId,
               style: GoogleFonts.inter(
-                color: const Color(0xFFDCE9FF),
+                color: _guardMobileTitleColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -6556,7 +6634,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
             Text(
               'At ${operation.createdAt.toUtc().toIso8601String()}',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA5C6),
+                color: _guardMobileBodyColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -6578,9 +6656,9 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _guardMobileSurfaceColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _guardMobileBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6588,7 +6666,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           Text(
             'Selected Operation Detail',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _guardMobileActionBlue,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -6632,7 +6710,7 @@ class _GuardMobileShellPageState extends State<GuardMobileShellPage> {
           SelectableText(
             _operationDetailText(operation),
             style: GoogleFonts.jetBrainsMono(
-              color: const Color(0xFFB8CBE7),
+              color: _guardMobileBodyColor,
               fontSize: 10,
               height: 1.45,
               fontWeight: FontWeight.w500,

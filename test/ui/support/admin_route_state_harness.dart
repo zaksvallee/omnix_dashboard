@@ -2,9 +2,10 @@ import 'package:omnix_dashboard/application/client_conversation_repository.dart'
 import 'package:omnix_dashboard/application/dispatch_persistence_service.dart';
 import 'package:omnix_dashboard/ui/client_app_page.dart';
 
-Future<void> saveTelegramAdminRuntimeState(
-  Map<String, Object?> state,
-) async {
+DateTime _adminRouteStateOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 18, hour, minute);
+
+Future<void> saveTelegramAdminRuntimeState(Map<String, Object?> state) async {
   final persistence = await DispatchPersistenceService.create();
   await persistence.saveTelegramAdminRuntimeState(state);
 }
@@ -19,7 +20,8 @@ waterfallScopedConversation() async {
   );
 }
 
-Future<SharedPrefsClientConversationRepository> defaultValleeConversation() async {
+Future<SharedPrefsClientConversationRepository>
+defaultValleeConversation() async {
   final persistence = await DispatchPersistenceService.create();
   return SharedPrefsClientConversationRepository(persistence);
 }
@@ -88,7 +90,7 @@ Future<void> seedWaterfallPushPressure({
   DateTime? occurredAtUtc,
 }) async {
   final scopedConversation = await waterfallScopedConversation();
-  final queuedAtUtc = occurredAtUtc ?? DateTime.utc(2026, 3, 18, 13, 14);
+  final queuedAtUtc = occurredAtUtc ?? _adminRouteStateOccurredAtUtc(13, 14);
   const failureReason =
       'Waterfall push sync needs operator review before retry.';
   await scopedConversation.savePushQueue(<ClientAppPushDeliveryItem>[
@@ -132,7 +134,7 @@ Future<void> seedWaterfallResidentAsk() async {
       author: '@waterfall_resident',
       body:
           'Please confirm whether the Waterfall response team has already arrived.',
-      occurredAt: DateTime.utc(2026, 3, 18, 12, 43),
+      occurredAt: _adminRouteStateOccurredAtUtc(12, 43),
       roomKey: 'Residents',
       viewerRole: ClientAppViewerRole.client.name,
       incidentStatusLabel: 'Update',
@@ -142,23 +144,20 @@ Future<void> seedWaterfallResidentAsk() async {
   ]);
 }
 
-Future<void> seedWaterfallSmsFallbackPushSync({
-  DateTime? occurredAtUtc,
-}) async {
-  final syncedAtUtc = occurredAtUtc ?? DateTime.utc(2026, 3, 18, 13, 23);
+Future<void> seedWaterfallSmsFallbackPushSync({DateTime? occurredAtUtc}) async {
+  final syncedAtUtc = occurredAtUtc ?? _adminRouteStateOccurredAtUtc(13, 23);
   await _saveWaterfallPushSyncState(
     syncedAtUtc: syncedAtUtc,
     statusLabel: 'degraded',
-    failureReason: 'BulkSMS reached 2/2 contacts after telegram target failure.',
+    failureReason:
+        'BulkSMS reached 2/2 contacts after telegram target failure.',
     retryCount: 1,
     historyStatus: 'sms-fallback-ok',
   );
 }
 
-Future<void> seedWaterfallVoipStagePushSync({
-  DateTime? occurredAtUtc,
-}) async {
-  final syncedAtUtc = occurredAtUtc ?? DateTime.utc(2026, 3, 18, 13, 24);
+Future<void> seedWaterfallVoipStagePushSync({DateTime? occurredAtUtc}) async {
+  final syncedAtUtc = occurredAtUtc ?? _adminRouteStateOccurredAtUtc(13, 24);
   await _saveWaterfallPushSyncState(
     syncedAtUtc: syncedAtUtc,
     statusLabel: 'degraded',
@@ -170,7 +169,7 @@ Future<void> seedWaterfallVoipStagePushSync({
 
 Future<void> seedWaterfallTelegramBlockedPushSync() async {
   await seedWaterfallTelegramBlockedPushSyncAt(
-    occurredAtUtc: DateTime.utc(2026, 3, 18, 13, 26),
+    occurredAtUtc: _adminRouteStateOccurredAtUtc(13, 26),
   );
 }
 
@@ -190,7 +189,7 @@ Future<void> seedWaterfallTelegramBlockedPushSyncAt({
 Future<void> seedDefaultValleeVoipStagePushSync({
   DateTime? occurredAtUtc,
 }) async {
-  final syncedAtUtc = occurredAtUtc ?? DateTime.utc(2026, 3, 18, 12, 55);
+  final syncedAtUtc = occurredAtUtc ?? _adminRouteStateOccurredAtUtc(12, 55);
   await _saveDefaultValleePushSyncState(
     syncedAtUtc: syncedAtUtc,
     statusLabel: 'degraded',
@@ -211,9 +210,10 @@ Future<void> seedDefaultValleeVoipAndSmsFallbackHistory({
   DateTime? voipOccurredAtUtc,
   DateTime? smsFallbackOccurredAtUtc,
 }) async {
-  final latestVoipAtUtc = voipOccurredAtUtc ?? DateTime.utc(2026, 3, 18, 13, 5);
+  final latestVoipAtUtc =
+      voipOccurredAtUtc ?? _adminRouteStateOccurredAtUtc(13, 5);
   final fallbackAtUtc =
-      smsFallbackOccurredAtUtc ?? DateTime.utc(2026, 3, 18, 13, 4);
+      smsFallbackOccurredAtUtc ?? _adminRouteStateOccurredAtUtc(13, 4);
   await _saveDefaultValleePushSyncState(
     syncedAtUtc: latestVoipAtUtc,
     statusLabel: 'degraded',
@@ -241,7 +241,8 @@ Future<void> seedWaterfallScopedVoipFailurePushSync({
   required DateTime occurredAtUtc,
   int retryCount = 0,
   DateTime? backendProbeOccurredAtUtc,
-  String failureReason = 'VoIP staging is not configured for Thabo Mokoena yet.',
+  String failureReason =
+      'VoIP staging is not configured for Thabo Mokoena yet.',
   String backendProbeFailureReason = 'Probe marker readback failed.',
 }) async {
   final persistence = await DispatchPersistenceService.create();
@@ -259,11 +260,13 @@ Future<void> seedWaterfallScopedVoipFailurePushSync({
           queueSize: 1,
         ),
       ],
-      backendProbeStatusLabel:
-          backendProbeOccurredAtUtc == null ? 'idle' : 'failed',
+      backendProbeStatusLabel: backendProbeOccurredAtUtc == null
+          ? 'idle'
+          : 'failed',
       backendProbeLastRunAtUtc: backendProbeOccurredAtUtc,
-      backendProbeFailureReason:
-          backendProbeOccurredAtUtc == null ? null : backendProbeFailureReason,
+      backendProbeFailureReason: backendProbeOccurredAtUtc == null
+          ? null
+          : backendProbeFailureReason,
       backendProbeHistory: backendProbeOccurredAtUtc == null
           ? const <ClientBackendProbeAttempt>[]
           : <ClientBackendProbeAttempt>[
@@ -333,9 +336,7 @@ Map<String, Object?> learnedApprovalRuntimeState(
   String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
 }) {
   return {
-    'ai_approved_rewrite_examples_by_scope': {
-      scopeKey: entries,
-    },
+    'ai_approved_rewrite_examples_by_scope': {scopeKey: entries},
   };
 }
 
@@ -368,9 +369,7 @@ Map<String, Object?> pinnedLaneVoiceRuntimeState({
   String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
 }) {
   return {
-    'ai_client_profile_overrides': {
-      scopeKey: profile,
-    },
+    'ai_client_profile_overrides': {scopeKey: profile},
   };
 }
 
@@ -388,9 +387,7 @@ Map<String, Object?> legacyLearnedApprovalRuntimeState(
   String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
 }) {
   return {
-    'ai_approved_rewrite_examples_by_scope': {
-      scopeKey: entries,
-    },
+    'ai_approved_rewrite_examples_by_scope': {scopeKey: entries},
   };
 }
 
@@ -417,9 +414,7 @@ Future<void> saveLiveOperationsQueueHintState({
 Map<String, Object?> pendingDraftRuntimeState(
   List<Map<String, Object?>> entries,
 ) {
-  return {
-    'ai_pending_drafts': entries,
-  };
+  return {'ai_pending_drafts': entries};
 }
 
 Map<String, Object?> telegramPendingDraftEntry({
@@ -455,7 +450,5 @@ Map<String, Object?> telegramPendingDraftEntry({
 Future<void> savePendingTelegramDrafts(
   List<Map<String, Object?>> entries,
 ) async {
-  await saveTelegramAdminRuntimeState(
-    pendingDraftRuntimeState(entries),
-  );
+  await saveTelegramAdminRuntimeState(pendingDraftRuntimeState(entries));
 }

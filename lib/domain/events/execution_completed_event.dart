@@ -6,6 +6,7 @@ enum ExecutionOutcome {
 }
 
 class ExecutionCompletedEvent extends DispatchEvent {
+  static const String auditTypeKey = 'execution_completed_event';
   final String dispatchId;
   final ExecutionOutcome outcome;
   final String? failureType;
@@ -32,4 +33,7 @@ class ExecutionCompletedEvent extends DispatchEvent {
       failureType: failureType,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

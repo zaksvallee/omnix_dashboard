@@ -1,0 +1,58 @@
+{
+  "scenarioId": "track_parent_rebuild_preserves_session_v1",
+  "title": "Track parent rebuild should preserve active detailed workspace",
+  "description": "A parent rebuild must keep the active Track detailed workspace instead of resetting back to the overview board.",
+  "category": "track_ui_state",
+  "scenarioSet": "replay",
+  "tags": ["route_persistence", "parent_rebuild", "session_state"],
+  "author": "zaks",
+  "createdAt": "2026-03-30T12:20:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_route",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "parent_rebuild",
+    "currentTime": "2026-03-30T19:55:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_track_baseline.json"],
+      "projections": ["fixture_projections_track_overview.json"],
+      "sessions": ["fixture_session_parent_rebuild_detailed_workspace.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "track"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_detailed_workspace",
+    "expectedIntent": "preserve_track_workspace",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["reset_to_track_overview"],
+    "expectedUiState": {
+      "surface": "track_detailed_workspace",
+      "legacyWorkspaceVisible": false,
+      "modernOverviewVisible": false,
+      "detailedWorkspaceVisible": true
+    }
+  }
+}

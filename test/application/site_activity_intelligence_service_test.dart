@@ -36,6 +36,7 @@ void main() {
           id: 'person-unknown-1',
           occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
           objectLabel: 'human',
+          trackId: 'cam-1-track-42',
           headline: 'Guard conversation observed',
           summary: 'Guard talking to unknown individual near the gate.',
         ),
@@ -43,6 +44,7 @@ void main() {
           id: 'person-unknown-2',
           occurredAt: DateTime.utc(2026, 3, 17, 0, 30),
           objectLabel: 'human',
+          trackId: 'cam-1-track-42',
           headline: 'Guard conversation continues',
           summary: 'Guard conversation with unknown individual continued.',
         ),
@@ -74,7 +76,7 @@ void main() {
       expect(snapshot.topFlaggedIdentitySummary, contains('cam-1'));
       expect(
         snapshot.topLongPresenceSummary,
-        contains('Unknown person remained near cam-1 for 3h'),
+        contains('Unknown person remained near cam-1 for 2h 30m'),
       );
       expect(
         snapshot.topGuardInteractionSummary,
@@ -85,6 +87,73 @@ void main() {
         containsAll(<String>['flagged-1', 'person-unknown-2']),
       );
     });
+
+    test(
+      'does not merge different tracked people into one long presence signal',
+      () {
+        final events = <DispatchEvent>[
+          _intel(
+            id: 'person-unknown-a',
+            occurredAt: DateTime.utc(2026, 3, 16, 22, 0),
+            objectLabel: 'human',
+            trackId: 'cam-1-track-a',
+            headline: 'Unknown person seen at the gate',
+            summary: 'Unknown person stood by the front gate.',
+          ),
+          _intel(
+            id: 'person-unknown-b',
+            occurredAt: DateTime.utc(2026, 3, 17, 0, 30),
+            objectLabel: 'human',
+            trackId: 'cam-1-track-b',
+            headline: 'Different unknown person seen at the gate',
+            summary: 'Another person passed near the front gate later.',
+          ),
+        ];
+
+        final snapshot = service.buildSnapshot(events: events);
+
+        expect(snapshot.personSignals, 2);
+        expect(snapshot.unknownPersonSignals, 2);
+        expect(snapshot.longPresenceSignals, 0);
+        expect(snapshot.topLongPresenceSummary, isEmpty);
+      },
+    );
+
+    test(
+      'infers people and vehicle counts from identity hits when object labels are absent',
+      () {
+        final events = <DispatchEvent>[
+          _intel(
+            id: 'fr-1',
+            occurredAt: DateTime.utc(2026, 3, 17, 2, 0),
+            objectLabel: '',
+            faceMatchId: 'RESIDENT-44',
+            headline: 'Face match captured',
+            summary: 'Face match arrived from Hik-Connect.',
+          ),
+          _intel(
+            id: 'lpr-1',
+            occurredAt: DateTime.utc(2026, 3, 17, 2, 5),
+            objectLabel: '',
+            plateNumber: 'CA123456',
+            headline: 'Plate hit captured',
+            summary: 'Plate read arrived from Hik-Connect.',
+          ),
+        ];
+
+        final snapshot = service.buildSnapshot(events: events);
+
+        expect(snapshot.totalSignals, 2);
+        expect(snapshot.personSignals, 1);
+        expect(snapshot.vehicleSignals, 1);
+        expect(snapshot.knownIdentitySignals, 2);
+        expect(snapshot.unknownPersonSignals, 0);
+        expect(snapshot.unknownVehicleSignals, 0);
+        expect(snapshot.summaryLine, contains('Vehicles 1'));
+        expect(snapshot.summaryLine, contains('People 1'));
+        expect(snapshot.summaryLine, contains('Known IDs 2'));
+      },
+    );
   });
 }
 
@@ -94,6 +163,7 @@ IntelligenceReceived _intel({
   required String objectLabel,
   required String headline,
   required String summary,
+  String trackId = '',
   String faceMatchId = '',
   String plateNumber = '',
 }) {
@@ -112,6 +182,7 @@ IntelligenceReceived _intel({
     cameraId: 'cam-1',
     objectLabel: objectLabel,
     objectConfidence: 0.91,
+    trackId: trackId.isEmpty ? null : trackId,
     faceMatchId: faceMatchId.isEmpty ? null : faceMatchId,
     plateNumber: plateNumber.isEmpty ? null : plateNumber,
     headline: headline,

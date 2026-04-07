@@ -21,6 +21,8 @@ class MonitoringWatchClientNotificationGateService {
     required MonitoringWatchRuntimeState runtime,
     required MonitoringWatchEscalationDecision decision,
     required DateTime occurredAtUtc,
+    bool monitoringAvailable = true,
+    bool hasUsableVisualEvidence = true,
   }) {
     if (!decision.shouldNotifyClient) {
       return const MonitoringWatchClientNotificationGateDecision(
@@ -28,11 +30,33 @@ class MonitoringWatchClientNotificationGateService {
         summary: 'Suppressed because the scene remained below client threshold.',
       );
     }
+    if (!monitoringAvailable) {
+      return const MonitoringWatchClientNotificationGateDecision(
+        shouldNotifyClient: false,
+        summary:
+            'Held for internal monitoring because the active watch does not currently have a live monitoring path.',
+      );
+    }
+    if (!hasUsableVisualEvidence) {
+      return const MonitoringWatchClientNotificationGateDecision(
+        shouldNotifyClient: false,
+        summary:
+            'Held for internal monitoring because ONYX does not yet have a usable verification image for client delivery.',
+      );
+    }
+    if (decision.kind != MonitoringWatchNotificationKind.escalationCandidate) {
+      return const MonitoringWatchClientNotificationGateDecision(
+        shouldNotifyClient: false,
+        summary:
+            'Held for internal monitoring because this update did not cross the client threat threshold.',
+      );
+    }
     final lastAt = runtime.latestClientNotificationAtUtc?.toUtc();
     if (lastAt == null) {
       return const MonitoringWatchClientNotificationGateDecision(
         shouldNotifyClient: true,
-        summary: 'Client notification allowed because no prior automated watch message exists.',
+        summary:
+            'Threat-routed client notification allowed because no prior automated threat message exists.',
       );
     }
     final now = occurredAtUtc.toUtc();
@@ -60,8 +84,8 @@ class MonitoringWatchClientNotificationGateService {
     return MonitoringWatchClientNotificationGateDecision(
       shouldNotifyClient: true,
       summary: nextSeverity > lastSeverity
-          ? 'Client notification allowed because the lane posture escalated beyond the previous automated message.'
-          : 'Client notification allowed because the watch cooldown has elapsed.',
+          ? 'Threat-routed client notification allowed because the lane posture escalated beyond the previous automated message.'
+          : 'Threat-routed client notification allowed because the watch cooldown has elapsed.',
     );
   }
 

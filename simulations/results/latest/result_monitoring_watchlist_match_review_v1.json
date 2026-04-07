@@ -1,0 +1,24 @@
+{
+  "scenarioId": "monitoring_watchlist_match_review_v1",
+  "runId": "2026-04-01T13:29:48.549810Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "monitoring_watch",
+    "actualIntent": "review_watch_signal",
+    "actualEscalationState": "review_pending",
+    "actualProjectionChanges": [],
+    "actualDrafts": [],
+    "actualBlockedActions": [
+      "dispatch_without_review"
+    ],
+    "actualUiState": {
+      "surface": "monitoring_watch_review",
+      "verificationRailVisible": true,
+      "watchlistQueueVisible": true,
+      "legacyWorkspaceVisible": false
+    },
+    "appendedEvents": [],
+    "notes": "Queued fr_watchlist_match for monitoring watch review. Pending review count is 1."
+  },
+  "mismatches": []
+}

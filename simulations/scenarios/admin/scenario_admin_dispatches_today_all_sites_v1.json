@@ -1,0 +1,58 @@
+{
+  "scenarioId": "parser_admin_dispatches_today_all_sites_v1",
+  "title": "Dispatches across all sites today should stay read-only",
+  "description": "An all-sites dispatch summary query should resolve to a deterministic admin-wide read route without escalation noise.",
+  "category": "admin_portfolio_read",
+  "scenarioSet": "replay",
+  "tags": ["multi_site", "admin_scope", "deterministic_read", "weekly_summary"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T09:05:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "admin",
+    "authorityScope": "all_sites",
+    "activeSiteIds": ["site_ms_vallee", "site_rosebank", "site_sandton"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:15:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_admin_weekly_baseline.json"],
+      "projections": ["fixture_projections_admin_overview.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "pending",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "telegram",
+        "text": "Dispatches across all sites today?"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "admin_all_sites_read",
+    "expectedIntent": "portfolio_dispatch_lookup",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["live_escalation"],
+    "expectedUiState": {
+      "surface": "admin_read_result",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

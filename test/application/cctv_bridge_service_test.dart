@@ -52,6 +52,46 @@ void main() {
     expect(records.first.riskScore, greaterThanOrEqualTo(90));
   });
 
+  test(
+    'hikvision payload normalizes video loss into a non-movement signal',
+    () async {
+      final client = MockClient((request) async {
+        return http.Response('''
+[
+  {
+    "event_id": "HIK-VIDLOSS-11",
+    "eventType": "videoloss",
+    "camera_id": "CAM-KITCHEN-11",
+    "summary": "Video loss on kitchen camera",
+    "occurred_at_utc": "2026-03-11T08:18:00Z"
+  }
+]
+''', 200);
+      });
+      final service = HttpCctvBridgeService(
+        provider: 'hikvision',
+        eventsUri: Uri.parse('https://cctv.example.com/events'),
+        client: client,
+        liveMonitoringEnabled: true,
+        facialRecognitionEnabled: false,
+        licensePlateRecognitionEnabled: false,
+      );
+
+      final records = await service.fetchLatest(
+        clientId: 'CLIENT-001',
+        regionId: 'REGION-GAUTENG',
+        siteId: 'SITE-SANDTON',
+      );
+
+      expect(records, hasLength(1));
+      expect(records.first.externalId, 'HIK-VIDLOSS-11');
+      expect(records.first.headline, 'HIKVISION VIDEO_LOSS');
+      expect(records.first.summary, contains('camera:CAM-KITCHEN-11'));
+      expect(records.first.objectLabel, isNull);
+      expect(records.first.riskScore, lessThan(30));
+    },
+  );
+
   test('axis payload with no capabilities still normalizes', () async {
     final client = MockClient((request) async {
       return http.Response('''
@@ -315,7 +355,7 @@ void main() {
   });
 
   test(
-    'false-positive rules suppress matching zone/time window events',
+    'false-positive rules suppress matching zone/time window low-confidence events',
     () async {
       final client = MockClient((request) async {
         return http.Response('''
@@ -325,13 +365,13 @@ void main() {
     "camera": "yard",
     "label": "cat",
     "entered_zones": ["garden"],
-    "top_score": 0.91,
+    "top_score": 0.41,
     "start_time": "2026-03-13T01:10:00Z"
   },
   {
     "id": "evt-keep",
     "camera": "yard",
-    "label": "person",
+    "label": "cat",
     "entered_zones": ["garden"],
     "top_score": 0.91,
     "start_time": "2026-03-13T01:12:00Z"

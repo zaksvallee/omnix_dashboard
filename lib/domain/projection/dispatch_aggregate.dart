@@ -27,7 +27,7 @@ class DispatchAggregate {
 
     if (event is ExecutionCompleted) {
       _status[event.dispatchId] =
-          event.success ? 'EXECUTED' : 'FAILED';
+          event.success ? 'CONFIRMED' : 'FAILED';
     }
   }
 

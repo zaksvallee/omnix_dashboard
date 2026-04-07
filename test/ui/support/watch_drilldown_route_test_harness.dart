@@ -8,19 +8,15 @@ import 'package:omnix_dashboard/application/monitoring_shift_scope_config.dart';
 import 'package:omnix_dashboard/main.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
 
+DateTime _valleeLimitedWatchStartedAtUtc() => DateTime.utc(2026, 3, 18, 12, 0);
+
 Future<void> seedValleeLimitedWatchRuntime({
   required DispatchPersistenceService persistence,
   int alertCount = 0,
 }) async {
   await persistence.saveMonitoringWatchRuntimeState({
     'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE': <String, Object?>{
-      'started_at_utc': DateTime.utc(
-        2026,
-        3,
-        18,
-        12,
-        0,
-      ).toIso8601String(),
+      'started_at_utc': _valleeLimitedWatchStartedAtUtc().toIso8601String(),
       'monitoring_available': false,
       'monitoring_availability_detail': 'One remote camera feed is stale.',
       'alert_count': alertCount,

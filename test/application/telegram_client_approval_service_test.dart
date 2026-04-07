@@ -6,22 +6,29 @@ import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 void main() {
   const service = TelegramClientApprovalService();
 
-  test('requires approval for unidentified person scenes that notify client', () {
-    final requiresApproval = service.requiresClientApproval(
-      event: _intel(objectLabel: 'person', faceMatchId: null, plateNumber: null),
-      assessment: const MonitoringWatchSceneAssessment(
-        objectLabel: 'person',
-        effectiveRiskScore: 80,
-        confidence: MonitoringWatchSceneConfidence.medium,
-        postureLabel: 'boundary concern',
-        shouldNotifyClient: true,
-        shouldEscalate: false,
-        repeatActivity: false,
-      ),
-    );
+  test(
+    'requires approval for unidentified person scenes that notify client',
+    () {
+      final requiresApproval = service.requiresClientApproval(
+        event: _intel(
+          objectLabel: 'person',
+          faceMatchId: null,
+          plateNumber: null,
+        ),
+        assessment: const MonitoringWatchSceneAssessment(
+          objectLabel: 'person',
+          effectiveRiskScore: 80,
+          confidence: MonitoringWatchSceneConfidence.medium,
+          postureLabel: 'boundary concern',
+          shouldNotifyClient: true,
+          shouldEscalate: false,
+          repeatActivity: false,
+        ),
+      );
 
-    expect(requiresApproval, isTrue);
-  });
+      expect(requiresApproval, isTrue);
+    },
+  );
 
   test('does not require approval for escalated or flagged scenes', () {
     expect(
@@ -58,27 +65,86 @@ void main() {
     );
   });
 
-  test('requires approval and can offer memory for unclassified identity match', () {
-    final event = _intel(objectLabel: 'person', faceMatchId: 'PERSON-44');
-    const assessment = MonitoringWatchSceneAssessment(
-      objectLabel: 'person',
-      effectiveRiskScore: 80,
-      confidence: MonitoringWatchSceneConfidence.medium,
-      postureLabel: 'identity match concern',
-      shouldNotifyClient: true,
-      shouldEscalate: false,
-      repeatActivity: false,
-    );
+  test(
+    'requires approval and can offer memory for unclassified identity match',
+    () {
+      final event = _intel(objectLabel: 'person', faceMatchId: 'PERSON-44');
+      const assessment = MonitoringWatchSceneAssessment(
+        objectLabel: 'person',
+        effectiveRiskScore: 80,
+        confidence: MonitoringWatchSceneConfidence.medium,
+        postureLabel: 'identity match concern',
+        shouldNotifyClient: true,
+        shouldEscalate: false,
+        repeatActivity: false,
+      );
 
-    expect(
-      service.requiresClientApproval(event: event, assessment: assessment),
-      isTrue,
-    );
-    expect(
-      service.canOfferPersistentAllowance(event: event, assessment: assessment),
-      isTrue,
-    );
-  });
+      expect(
+        service.requiresClientApproval(event: event, assessment: assessment),
+        isTrue,
+      );
+      expect(
+        service.canOfferPersistentAllowance(
+          event: event,
+          assessment: assessment,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'requires approval for unidentified face matches even when the assessment label stays generic',
+    () {
+      final event = _intel(objectLabel: '', faceMatchId: 'PERSON-44');
+      const assessment = MonitoringWatchSceneAssessment(
+        objectLabel: 'movement',
+        effectiveRiskScore: 80,
+        confidence: MonitoringWatchSceneConfidence.medium,
+        postureLabel: 'identity match concern',
+        shouldNotifyClient: true,
+        shouldEscalate: false,
+        repeatActivity: false,
+      );
+
+      expect(
+        service.requiresClientApproval(event: event, assessment: assessment),
+        isTrue,
+      );
+      expect(
+        service.canOfferPersistentAllowance(
+          event: event,
+          assessment: assessment,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'does not require approval for plate-only signals when no person cue is present',
+    () {
+      final event = _intel(
+        objectLabel: '',
+        faceMatchId: null,
+        plateNumber: 'CA123456',
+      );
+      const assessment = MonitoringWatchSceneAssessment(
+        objectLabel: 'movement',
+        effectiveRiskScore: 80,
+        confidence: MonitoringWatchSceneConfidence.medium,
+        postureLabel: 'vehicle identity signal',
+        shouldNotifyClient: true,
+        shouldEscalate: false,
+        repeatActivity: false,
+      );
+
+      expect(
+        service.requiresClientApproval(event: event, assessment: assessment),
+        isFalse,
+      );
+    },
+  );
 
   test('parses client decision replies and synonyms', () {
     expect(

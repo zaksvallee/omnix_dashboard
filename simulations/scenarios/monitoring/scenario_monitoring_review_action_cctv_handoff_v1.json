@@ -1,0 +1,63 @@
+{
+  "scenarioId": "monitoring_review_action_cctv_handoff_v1",
+  "title": "Review action should open CCTV handoff from live ops",
+  "description": "A live operations review action should pivot into CCTV review without dismissing the incident or reopening legacy workspace.",
+  "category": "monitoring_watch",
+  "scenarioSet": "replay",
+  "tags": ["visual_review", "route_persistence", "review_gate"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T11:05:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_visual"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:15:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_monitoring_watch_match.json"],
+      "projections": ["fixture_projections_monitoring_watch_review_action.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_review_action"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "monitoring_watch",
+    "expectedIntent": "open_cctv_review_handoff",
+    "expectedEscalationState": "review_opened",
+    "expectedProjectionChanges": [
+      {
+        "reviewSurface": "cctv_review"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["dismiss_without_review"],
+    "expectedUiState": {
+      "surface": "live_ops_review_handoff",
+      "reviewActionVisible": true,
+      "cctvRouteVisible": true,
+      "incidentReference": "INC-DSP-VISUAL",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

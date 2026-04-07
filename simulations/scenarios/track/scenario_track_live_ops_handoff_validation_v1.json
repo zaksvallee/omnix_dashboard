@@ -1,0 +1,68 @@
+{
+  "scenarioId": "track_live_ops_handoff_validation_v1",
+  "title": "Validation: live operations Track handoff should open detailed workspace",
+  "description": "Validation replay for a live operations Track handoff opening the detailed Track workspace without legacy fallback.",
+  "category": "track_ui_state",
+  "scenarioSet": "validation",
+  "tags": ["route_persistence", "track_takeover", "priority_handoff"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T11:45:00Z",
+  "version": 1,
+  "status": "locked_validation",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_route",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:25:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_track_baseline.json"],
+      "projections": ["fixture_projections_track_handoff_priority_incident.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "elevated"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "live_operations_track_handoff"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_detailed_workspace",
+    "expectedIntent": "open_track_handoff",
+    "expectedEscalationState": "track_opened",
+    "expectedProjectionChanges": [
+      {
+        "focusSiteId": "site_ms_vallee"
+      }
+    ],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["dismiss_without_track"],
+    "expectedUiState": {
+      "surface": "live_ops_track_handoff",
+      "trackWorkspaceVisible": true,
+      "tacticalTrackVisible": true,
+      "handoffVisible": true,
+      "readyToTrackVisible": true,
+      "detailedWorkspaceVisible": true,
+      "incidentReference": "INC-7721-TRACK",
+      "siteId": "site_ms_vallee",
+      "trackLabel": "Ms Vallee priority track",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

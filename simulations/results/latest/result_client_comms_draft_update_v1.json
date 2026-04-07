@@ -1,0 +1,30 @@
+{
+  "scenarioId": "client_comms_draft_update_v1",
+  "runId": "2026-04-01T13:29:48.543561Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "client_comms",
+    "actualIntent": "draft_client_update",
+    "actualEscalationState": "none",
+    "actualProjectionChanges": [],
+    "actualDrafts": [
+      {
+        "status": "staged",
+        "channel": "telegram",
+        "scopeSiteId": "site_ms_vallee",
+        "deliveryState": "review_required"
+      }
+    ],
+    "actualBlockedActions": [
+      "send_without_review"
+    ],
+    "actualUiState": {
+      "surface": "client_comms_draft_ready",
+      "draftReadyVisible": true,
+      "legacyWorkspaceVisible": false
+    },
+    "appendedEvents": [],
+    "notes": "Staged a scoped client reply from telegram. Delivery posture is review_required."
+  },
+  "mismatches": []
+}

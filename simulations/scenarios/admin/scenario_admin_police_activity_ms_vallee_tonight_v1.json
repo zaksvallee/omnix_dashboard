@@ -1,0 +1,58 @@
+{
+  "scenarioId": "parser_admin_police_activity_ms_vallee_tonight_v1",
+  "title": "Police activity at one site tonight should stay scoped and read-only",
+  "description": "A site-specific police activity lookup should resolve to a scoped read route without escalation drift.",
+  "category": "admin_portfolio_read",
+  "scenarioSet": "replay",
+  "tags": ["night_shift", "deterministic_read", "admin_scope"],
+  "author": "zaks",
+  "createdAt": "2026-03-30T12:10:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "admin",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T19:45:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_admin_police_tonight.json"],
+      "projections": ["fixture_projections_admin_overview.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "pending",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [
+      {
+        "channel": "telegram",
+        "text": "Police activity at MS Vallee tonight?"
+      }
+    ],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "admin_scoped_read",
+    "expectedIntent": "site_police_activity_lookup",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["live_escalation"],
+    "expectedUiState": {
+      "surface": "admin_read_result",
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

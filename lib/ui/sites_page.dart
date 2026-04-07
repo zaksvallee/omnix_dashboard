@@ -293,12 +293,12 @@ class _SitesPageState extends State<SitesPage> {
       padding: const EdgeInsets.all(1.1),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF10263C), Color(0xFF0E1728)],
+          colors: [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(4.75),
-        border: Border.all(color: const Color(0xFF274563)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -338,7 +338,7 @@ class _SitesPageState extends State<SitesPage> {
                         Text(
                           'Sites & Deployment',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFF6FBFF),
+                            color: const Color(0xFF172638),
                             fontSize: compact ? 10.9 : 12.2,
                             fontWeight: FontWeight.w800,
                           ),
@@ -347,7 +347,7 @@ class _SitesPageState extends State<SitesPage> {
                         Text(
                           'Site management, watch posture, and operational readiness.',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF95A9C7),
+                            color: const Color(0xFF556B80),
                             fontSize: 5.9,
                             fontWeight: FontWeight.w500,
                           ),
@@ -356,7 +356,7 @@ class _SitesPageState extends State<SitesPage> {
                         Text(
                           heroSummaryLine,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF8EA4C2),
+                            color: const Color(0xFF7A8FA4),
                             fontSize: 5.6,
                             fontWeight: FontWeight.w700,
                           ),
@@ -438,9 +438,9 @@ class _SitesPageState extends State<SitesPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.2),
       decoration: BoxDecoration(
-        color: const Color(0x14000000),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x33000000)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: RichText(
         text: TextSpan(
@@ -448,7 +448,7 @@ class _SitesPageState extends State<SitesPage> {
             TextSpan(
               text: '$label: ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: const Color(0xFF7A8FA4),
                 fontSize: 6.8,
                 fontWeight: FontWeight.w700,
               ),
@@ -456,7 +456,7 @@ class _SitesPageState extends State<SitesPage> {
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
+                color: const Color(0xFF172638),
                 fontSize: 6.8,
                 fontWeight: FontWeight.w800,
               ),
@@ -589,14 +589,14 @@ class _SitesPageState extends State<SitesPage> {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            statusColor.withValues(alpha: 0.16),
-            const Color(0xFF101A2B),
+            statusColor.withValues(alpha: 0.12),
+            const Color(0xFFFFFFFF),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(4.25),
-        border: Border.all(color: statusColor.withValues(alpha: 0.34)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,8 +639,8 @@ class _SitesPageState extends State<SitesPage> {
             selected.siteId,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFF4F8FF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 8.6,
               fontWeight: FontWeight.w700,
             ),
@@ -651,7 +651,7 @@ class _SitesPageState extends State<SitesPage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD5E1F2),
+              color: const Color(0xFF556B80),
               fontSize: 5.5,
               fontWeight: FontWeight.w600,
             ),
@@ -693,9 +693,9 @@ class _SitesPageState extends State<SitesPage> {
     return Container(
       padding: const EdgeInsets.all(2.25),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(4.25),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -718,7 +718,7 @@ class _SitesPageState extends State<SitesPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.robotoMono(
-                    color: const Color(0xFFF4F8FF),
+                    color: const Color(0xFF172638),
                     fontSize: 10.1,
                     fontWeight: FontWeight.w700,
                   ),
@@ -730,7 +730,7 @@ class _SitesPageState extends State<SitesPage> {
           Text(
             title.toUpperCase(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF93A5BF),
+              color: const Color(0xFF7A8FA4),
               fontSize: 6.6,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
@@ -742,7 +742,7 @@ class _SitesPageState extends State<SitesPage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD5E1F2),
+              color: const Color(0xFF556B80),
               fontSize: 6.4,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -758,18 +758,18 @@ class _SitesPageState extends State<SitesPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF111827),
+          backgroundColor: const Color(0xFFFFFFFF),
           title: Text(
             'Tactical Link Ready',
             style: GoogleFonts.inter(
-              color: const Color(0xFFF6FBFF),
+              color: const Color(0xFF172638),
               fontWeight: FontWeight.w800,
             ),
           ),
           content: Text(
             'Use Tactical to inspect watch posture, limited coverage, responder context, and map-driven site actions for the selected deployment.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFD6E2F2),
+              color: const Color(0xFF556B80),
               height: 1.45,
             ),
           ),
@@ -890,7 +890,7 @@ class _SitesPageState extends State<SitesPage> {
                               Text(
                                 'Lane pivots stay pinned in the site roster, while command, outcomes, trace, and tactical handoff stay anchored to the selected-site board below.',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF8EA4C2),
+                                  color: const Color(0xFF556B80),
                                   fontSize: 6.7,
                                   fontWeight: FontWeight.w600,
                                   height: 1.35,
@@ -926,9 +926,9 @@ class _SitesPageState extends State<SitesPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(1.5),
           decoration: BoxDecoration(
-            color: const Color(0xFF0E1A2B),
+            color: const Color(0xFFFFFFFF),
             borderRadius: BorderRadius.circular(4.25),
-            border: Border.all(color: const Color(0xFF223244)),
+            border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
           child: bannerChild,
         );
@@ -982,8 +982,8 @@ class _SitesPageState extends State<SitesPage> {
                         'Site Roster',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.rajdhani(
-                          color: const Color(0xFFDCEAFF),
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF172638),
                           fontSize: 11.0,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1013,7 +1013,7 @@ class _SitesPageState extends State<SitesPage> {
                       ? 'No sites match the active lane. Switch lanes to recover the roster.'
                       : '${sites.length} sites are visible in the ${_laneLabel(_siteLaneFilter).toLowerCase()} lane.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA4C2),
+                    color: const Color(0xFF556B80),
                     fontSize: 6.8,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -1159,15 +1159,15 @@ class _SitesPageState extends State<SitesPage> {
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
-                  colors: [Color(0xFF11273A), Color(0xFF0D1620)],
+                  colors: [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: selected ? null : const Color(0xFF0E1A2B),
+          color: selected ? null : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(6.0),
           border: Border.all(
-            color: selected ? const Color(0xFF3476B1) : const Color(0xFF223244),
+            color: selected ? const Color(0xFF3476B1) : const Color(0xFFD6E1EC),
           ),
         ),
         child: Column(
@@ -1183,7 +1183,7 @@ class _SitesPageState extends State<SitesPage> {
                       Text(
                         site.siteId,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFE7F0FF),
+                          color: const Color(0xFF172638),
                           fontSize: 9.6,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1194,7 +1194,7 @@ class _SitesPageState extends State<SitesPage> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF93AACE),
+                          color: const Color(0xFF556B80),
                           fontSize: 7.7,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1301,7 +1301,7 @@ class _SitesPageState extends State<SitesPage> {
               ),
               child: Text(
                 '${site.healthStatus} • ${site.healthScore.toStringAsFixed(1)}',
-                style: GoogleFonts.rajdhani(
+                style: GoogleFonts.inter(
                   color: statusColor,
                   fontWeight: FontWeight.w800,
                   fontSize: 7.6,
@@ -1501,7 +1501,7 @@ class _SitesPageState extends State<SitesPage> {
                   Text(
                     _siteDirective(site),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD7E5F8),
+                      color: const Color(0xFF556B80),
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       height: 1.4,
@@ -1736,7 +1736,7 @@ class _SitesPageState extends State<SitesPage> {
           ? Text(
               'No event trace available.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: const Color(0xFF556B80),
                 fontSize: 12,
               ),
             )
@@ -1768,7 +1768,7 @@ class _SitesPageState extends State<SitesPage> {
                           child: Text(
                             row,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFD2E2FA),
+                              color: const Color(0xFF556B80),
                               fontSize: 11.5,
                               fontWeight: FontWeight.w500,
                               height: 1.35,
@@ -1969,7 +1969,7 @@ class _SitesPageState extends State<SitesPage> {
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9FB5D4),
+                  color: const Color(0xFF7A8FA4),
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1978,7 +1978,7 @@ class _SitesPageState extends State<SitesPage> {
             Text(
               '$value%',
               style: GoogleFonts.inter(
-                color: const Color(0xFFD4E3F8),
+                color: const Color(0xFF172638),
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -1991,7 +1991,7 @@ class _SitesPageState extends State<SitesPage> {
           child: LinearProgressIndicator(
             minHeight: 3,
             value: value / 100,
-            backgroundColor: const Color(0xFF1A283A),
+            backgroundColor: const Color(0xFFE6EEF6),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
@@ -2014,10 +2014,10 @@ class _SitesPageState extends State<SitesPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.75),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF123244) : const Color(0xFF0F1728),
+          color: selected ? const Color(0xFFEDF6FF) : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF3F87C9) : const Color(0xFF223244),
+            color: selected ? const Color(0xFF3F87C9) : const Color(0xFFD6E1EC),
           ),
         ),
         child: Row(
@@ -2027,8 +2027,8 @@ class _SitesPageState extends State<SitesPage> {
               label,
               style: GoogleFonts.inter(
                 color: selected
-                    ? const Color(0xFFEAF2FF)
-                    : const Color(0xFF8EA4C2),
+                    ? const Color(0xFF2F6AA3)
+                    : const Color(0xFF7A8FA4),
                 fontSize: 6.8,
                 fontWeight: FontWeight.w700,
               ),
@@ -2041,14 +2041,14 @@ class _SitesPageState extends State<SitesPage> {
               ),
               decoration: BoxDecoration(
                 color: selected
-                    ? const Color(0xFF0E1C2A)
-                    : const Color(0xFF0B1421),
+                    ? const Color(0xFFDCEBFA)
+                    : const Color(0xFFF4F8FC),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 '$count',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF2FF),
+                  color: const Color(0xFF172638),
                   fontSize: 6.8,
                   fontWeight: FontWeight.w700,
                 ),
@@ -2074,16 +2074,16 @@ class _SitesPageState extends State<SitesPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.75),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF123244) : const Color(0xFF111C2B),
+          color: selected ? const Color(0xFFEDF6FF) : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF3F87C9) : const Color(0xFF243549),
+            color: selected ? const Color(0xFF3F87C9) : const Color(0xFFD6E1EC),
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFFEAF2FF) : const Color(0xFF8EA4C2),
+            color: selected ? const Color(0xFF2F6AA3) : const Color(0xFF7A8FA4),
             fontSize: 6.8,
             fontWeight: FontWeight.w700,
           ),
@@ -2108,14 +2108,14 @@ class _SitesPageState extends State<SitesPage> {
         padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.75),
         decoration: BoxDecoration(
           color: !enabled
-              ? const Color(0xFF1D2937)
+              ? const Color(0xFFF1F5F9)
               : selected
               ? accent.withValues(alpha: 0.2)
-              : const Color(0xFF111F33),
+              : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(5),
           border: Border.all(
             color: !enabled
-                ? const Color(0xFF314154)
+                ? const Color(0xFFD6E1EC)
                 : selected
                 ? accent.withValues(alpha: 0.75)
                 : accent.withValues(alpha: 0.35),
@@ -2124,7 +2124,7 @@ class _SitesPageState extends State<SitesPage> {
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: !enabled ? const Color(0xFF8EA4C2) : const Color(0xFFEAF1FB),
+            color: !enabled ? const Color(0xFF7A8FA4) : const Color(0xFF172638),
             fontSize: 6.6,
             fontWeight: FontWeight.w700,
           ),
@@ -2140,12 +2140,12 @@ class _SitesPageState extends State<SitesPage> {
       padding: const EdgeInsets.all(2.0),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF10273D), Color(0xFF0C1420)],
+          colors: [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(5.0),
-        border: Border.all(color: const Color(0xFF27425D)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -2156,7 +2156,7 @@ class _SitesPageState extends State<SitesPage> {
               Text(
                 'SITE COMMAND FOCUS',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8AA2C0),
+                  color: const Color(0xFF7A8FA4),
                   fontSize: 6.3,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.1,
@@ -2166,7 +2166,7 @@ class _SitesPageState extends State<SitesPage> {
               Text(
                 _siteDirective(site),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFF4F8FF),
+                  color: const Color(0xFF172638),
                   fontSize: 7.0,
                   fontWeight: FontWeight.w600,
                   height: 1.36,
@@ -2227,7 +2227,7 @@ class _SitesPageState extends State<SitesPage> {
               Text(
                 label,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9FB5D4),
+                  color: const Color(0xFF7A8FA4),
                   fontSize: 8.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -2236,7 +2236,7 @@ class _SitesPageState extends State<SitesPage> {
               Text(
                 '$value/$total',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFD4E3F8),
+                  color: const Color(0xFF172638),
                   fontSize: 8.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -2249,7 +2249,7 @@ class _SitesPageState extends State<SitesPage> {
             child: LinearProgressIndicator(
               minHeight: 4,
               value: ratio,
-              backgroundColor: const Color(0xFF1A283A),
+              backgroundColor: const Color(0xFFE6EEF6),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -2267,7 +2267,7 @@ class _SitesPageState extends State<SitesPage> {
             TextSpan(
               text: '$label: ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: const Color(0xFF7A8FA4),
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
@@ -2275,7 +2275,7 @@ class _SitesPageState extends State<SitesPage> {
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFFD7E5F8),
+                color: const Color(0xFF172638),
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
@@ -2326,8 +2326,8 @@ class _SitesPageState extends State<SitesPage> {
           const SizedBox(height: 1.5),
           Text(
             title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE4EEFF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
@@ -2359,7 +2359,7 @@ class _SitesPageState extends State<SitesPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: const Color(0xFF7A8FA4),
               fontSize: 7,
               fontWeight: FontWeight.w600,
             ),
@@ -2367,7 +2367,7 @@ class _SitesPageState extends State<SitesPage> {
           const SizedBox(height: 0.5),
           Text(
             value,
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: accent,
               fontSize: 14.5,
               fontWeight: FontWeight.w700,
@@ -2442,12 +2442,12 @@ class _SitesPageState extends State<SitesPage> {
         );
       } else if (event is ExecutionCompleted) {
         terminalDispatches[event.dispatchId] = event.success
-            ? 'EXECUTED'
+            ? 'CONFIRMED'
             : 'FAILED';
         if (event.success) {
           acc.executed += 1;
           acc.recentTrace.add(
-            _trace(event.occurredAt, 'EXECUTED ${event.dispatchId}'),
+            _trace(event.occurredAt, 'CONFIRMED ${event.dispatchId}'),
           );
         } else {
           acc.failed += 1;

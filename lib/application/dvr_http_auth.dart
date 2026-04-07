@@ -28,6 +28,44 @@ class DvrHttpAuthConfig {
     this.password,
   });
 
+  bool get configured {
+    return switch (mode) {
+      DvrHttpAuthMode.bearer => (bearerToken ?? '').trim().isNotEmpty,
+      DvrHttpAuthMode.digest =>
+        (username ?? '').trim().isNotEmpty && (password ?? '').isNotEmpty,
+      DvrHttpAuthMode.none => false,
+    };
+  }
+
+  Map<String, Object?> toJsonMap() {
+    return <String, Object?>{
+      'auth_mode': mode.name,
+      'bearer_token': (bearerToken ?? '').trim().isEmpty
+          ? null
+          : bearerToken!.trim(),
+      'username': (username ?? '').trim().isEmpty ? null : username!.trim(),
+      'password': (password ?? '').isEmpty ? null : password,
+    };
+  }
+
+  factory DvrHttpAuthConfig.fromJsonObject(Object? raw) {
+    if (raw is! Map) {
+      return const DvrHttpAuthConfig(mode: DvrHttpAuthMode.none);
+    }
+    final json = raw.map(
+      (key, value) => MapEntry(key.toString(), value as Object?),
+    );
+    final bearerToken = (json['bearer_token'] ?? '').toString().trim();
+    final username = (json['username'] ?? '').toString().trim();
+    final password = (json['password'] ?? '').toString();
+    return DvrHttpAuthConfig(
+      mode: parseDvrHttpAuthMode((json['auth_mode'] ?? '').toString()),
+      bearerToken: bearerToken.isEmpty ? null : bearerToken,
+      username: username.isEmpty ? null : username,
+      password: password.isEmpty ? null : password,
+    );
+  }
+
   Future<http.Response> get(
     http.Client client,
     Uri uri, {
@@ -61,9 +99,12 @@ class DvrHttpAuthConfig {
     String method,
     Uri uri, {
     Map<String, String> headers = const <String, String>{},
+    Object? body,
   }) async {
     final baseHeaders = _withBearer(headers);
-    final initialRequest = http.Request(method, uri)..headers.addAll(baseHeaders);
+    final initialRequest = http.Request(method, uri)
+      ..headers.addAll(baseHeaders);
+    _applyBody(initialRequest, body);
     final initialResponse = await client.send(initialRequest);
     if (mode != DvrHttpAuthMode.digest || initialResponse.statusCode != 401) {
       return initialResponse;
@@ -83,7 +124,27 @@ class DvrHttpAuthConfig {
     final retryRequest = http.Request(method, uri)
       ..headers.addAll(baseHeaders)
       ..headers['Authorization'] = digestHeader;
+    _applyBody(retryRequest, body);
     return client.send(retryRequest);
+  }
+
+  void _applyBody(http.Request request, Object? body) {
+    if (body == null) {
+      return;
+    }
+    if (body is String) {
+      request.body = body;
+      return;
+    }
+    if (body is List<int>) {
+      request.bodyBytes = body;
+      return;
+    }
+    if (body is Map<String, String>) {
+      request.bodyFields = body;
+      return;
+    }
+    request.body = body.toString();
   }
 
   Map<String, String> _withBearer(Map<String, String> headers) {

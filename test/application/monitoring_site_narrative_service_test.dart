@@ -117,6 +117,82 @@ void main() {
   });
 
   test(
+    'infers person signals from face-match events when object labels are absent',
+    () {
+      final snapshot = service.buildSnapshot(
+        recentEvents: <IntelligenceReceived>[
+          _intel(
+            intelligenceId: 'intel-fr-1',
+            cameraId: 'camera-lobby',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 45),
+            objectLabel: '',
+            faceMatchId: 'RESIDENT-44',
+            summary: 'Face match captured at the lobby turnstile.',
+          ),
+          _intel(
+            intelligenceId: 'intel-fr-2',
+            cameraId: 'camera-gate',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 44),
+            objectLabel: '',
+            faceMatchId: 'VISITOR-12',
+            summary: 'Face match captured at the pedestrian gate.',
+          ),
+        ],
+        cameraLabelForId: (cameraId) => switch (cameraId) {
+          'camera-lobby' => 'Lobby Camera',
+          'camera-gate' => 'Gate Camera',
+          _ => 'Camera 1',
+        },
+      );
+
+      expect(snapshot, isNotNull);
+      expect(
+        snapshot!.assessment,
+        'distributed movement across multiple cameras',
+      );
+      expect(
+        snapshot.narrative,
+        contains(
+          'Recent camera review saw 2 person signals across Gate Camera and Lobby Camera.',
+        ),
+      );
+      expect(snapshot.narrative, isNot(contains('movement signals')));
+    },
+  );
+
+  test(
+    'infers vehicle signals from plate hits when object labels are absent',
+    () {
+      final snapshot = service.buildSnapshot(
+        recentEvents: <IntelligenceReceived>[
+          _intel(
+            intelligenceId: 'intel-lpr-1',
+            cameraId: 'camera-driveway',
+            occurredAt: DateTime.utc(2026, 3, 18, 9, 45),
+            objectLabel: '',
+            plateNumber: 'CA123456',
+            summary: 'Plate read captured at the driveway.',
+          ),
+        ],
+        cameraLabelForId: (cameraId) => switch (cameraId) {
+          'camera-driveway' => 'Driveway Camera',
+          _ => 'Camera 1',
+        },
+      );
+
+      expect(snapshot, isNotNull);
+      expect(snapshot!.assessment, 'multi-camera site activity under review');
+      expect(
+        snapshot.narrative,
+        contains(
+          'Recent camera review saw 1 vehicle signal across Driveway Camera.',
+        ),
+      );
+      expect(snapshot.narrative, isNot(contains('movement signal')));
+    },
+  );
+
+  test(
     'falls back to latest field summary when only one telemetry source is known',
     () {
       final snapshot = service.buildSnapshot(
@@ -209,6 +285,8 @@ IntelligenceReceived _intel({
   required DateTime occurredAt,
   required String objectLabel,
   required String summary,
+  String? faceMatchId,
+  String? plateNumber,
 }) {
   return IntelligenceReceived(
     eventId: 'evt-$intelligenceId',
@@ -225,6 +303,8 @@ IntelligenceReceived _intel({
     cameraId: cameraId,
     objectLabel: objectLabel,
     objectConfidence: 0.8,
+    faceMatchId: faceMatchId,
+    plateNumber: plateNumber,
     headline: 'Test movement',
     summary: summary,
     riskScore: 65,

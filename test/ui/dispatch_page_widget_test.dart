@@ -9,10 +9,28 @@ import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
 import 'package:omnix_dashboard/infrastructure/intelligence/news_intelligence_service.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
+import 'package:omnix_dashboard/ui/theme/onyx_design_tokens.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_sections.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_view.dart';
 
+DateTime _dispatchPageOccurredAtUtc(int day, int hour, int minute) =>
+    DateTime.utc(2026, 3, day, hour, minute);
+
+DateTime _dispatchScenarioNowUtc() => _dispatchPageOccurredAtUtc(27, 9, 0);
+
 void main() {
+  Future<void> openDetailedWorkspaceIfVisible(WidgetTester tester) async {
+    final toggle = find.byKey(
+      const ValueKey('dispatch-toggle-detailed-workspace'),
+    );
+    if (toggle.evaluate().isEmpty) {
+      return;
+    }
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+  }
+
   Widget buildPage({
     String clientId = 'CLIENT-001',
     String siteId = 'SITE-SANDTON',
@@ -39,12 +57,18 @@ void main() {
     ValueChanged<VideoFleetWatchActionDrilldown?>?
     onWatchActionDrilldownChanged,
     String? initialSelectedDispatchId,
+    String? agentReturnIncidentReference,
+    ValueChanged<String>? onConsumeAgentReturnIncidentReference,
     ValueChanged<String?>? onSelectedDispatchChanged,
     void Function(String clientId, String siteId, String? incidentReference)?
     onOpenFleetTacticalScope,
     void Function(String clientId, String siteId, String? incidentReference)?
     onOpenFleetDispatchScope,
     void Function(String clientId, String siteId)? onRecoverFleetWatchScope,
+    ValueChanged<String>? onOpenTrackForDispatch,
+    ValueChanged<String>? onOpenCctvForDispatch,
+    ValueChanged<String>? onOpenClientForDispatch,
+    ValueChanged<String>? onOpenAgentForDispatch,
     Future<String> Function(VideoFleetScopeHealthView scope)?
     onExtendTemporaryIdentityApproval,
     Future<String> Function(VideoFleetScopeHealthView scope)?
@@ -56,6 +80,19 @@ void main() {
     List<DispatchEvent> events = const [],
     required ValueChanged<String> onExecute,
     ValueChanged<String>? onOpenReportForDispatch,
+    VoidCallback? onOpenRosterPlanner,
+    VoidCallback? onOpenRosterAudit,
+    VoidCallback? onOpenLatestAudit,
+    DispatchEvidenceReturnReceipt? evidenceReturnReceipt,
+    ValueChanged<String>? onConsumeEvidenceReturnReceipt,
+    void Function(String dispatchId, String action, String detail)?
+    onAutoAuditAction,
+    DispatchAutoAuditReceipt? latestAutoAuditReceipt,
+    String? guardRosterSignalLabel,
+    String? guardRosterSignalHeadline,
+    String? guardRosterSignalDetail,
+    Color? guardRosterSignalAccent,
+    bool guardRosterSignalNeedsAttention = false,
   }) {
     return MaterialApp(
       home: DispatchPage(
@@ -91,10 +128,17 @@ void main() {
         initialWatchActionDrilldown: initialWatchActionDrilldown,
         onWatchActionDrilldownChanged: onWatchActionDrilldownChanged,
         initialSelectedDispatchId: initialSelectedDispatchId,
+        agentReturnIncidentReference: agentReturnIncidentReference,
+        onConsumeAgentReturnIncidentReference:
+            onConsumeAgentReturnIncidentReference,
         onSelectedDispatchChanged: onSelectedDispatchChanged,
         onOpenFleetTacticalScope: onOpenFleetTacticalScope,
         onOpenFleetDispatchScope: onOpenFleetDispatchScope,
         onRecoverFleetWatchScope: onRecoverFleetWatchScope,
+        onOpenTrackForDispatch: onOpenTrackForDispatch,
+        onOpenCctvForDispatch: onOpenCctvForDispatch,
+        onOpenClientForDispatch: onOpenClientForDispatch,
+        onOpenAgentForDispatch: onOpenAgentForDispatch,
         onExtendTemporaryIdentityApproval: onExtendTemporaryIdentityApproval,
         onExpireTemporaryIdentityApproval: onExpireTemporaryIdentityApproval,
         radioQueueHasPending: radioQueueHasPending,
@@ -130,6 +174,18 @@ void main() {
         events: events,
         onExecute: onExecute,
         onOpenReportForDispatch: onOpenReportForDispatch,
+        onOpenRosterPlanner: onOpenRosterPlanner,
+        onOpenRosterAudit: onOpenRosterAudit,
+        onOpenLatestAudit: onOpenLatestAudit,
+        evidenceReturnReceipt: evidenceReturnReceipt,
+        onConsumeEvidenceReturnReceipt: onConsumeEvidenceReturnReceipt,
+        onAutoAuditAction: onAutoAuditAction,
+        latestAutoAuditReceipt: latestAutoAuditReceipt,
+        guardRosterSignalLabel: guardRosterSignalLabel,
+        guardRosterSignalHeadline: guardRosterSignalHeadline,
+        guardRosterSignalDetail: guardRosterSignalDetail,
+        guardRosterSignalAccent: guardRosterSignalAccent,
+        guardRosterSignalNeedsAttention: guardRosterSignalNeedsAttention,
       ),
     );
   }
@@ -149,8 +205,69 @@ void main() {
 
     expect(find.text('DISPATCH COMMAND'), findsOneWidget);
     expect(find.text('ACTIVE DISPATCH QUEUE'), findsOneWidget);
-    expect(find.text('SYSTEM STATUS'), findsOneWidget);
+    expect(find.text('FLEET WATCH STATUS'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dispatch page shows guard roster signal in the war room', (
+    tester,
+  ) async {
+    var plannerOpened = false;
+    var auditOpened = false;
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        onOpenRosterPlanner: () {
+          plannerOpened = true;
+        },
+        onOpenRosterAudit: () {
+          auditOpened = true;
+        },
+        guardRosterSignalLabel: 'ROSTER WATCH',
+        guardRosterSignalHeadline: 'Fill two open posts before night handoff.',
+        guardRosterSignalDetail:
+            'Month planner has gaps at Sandton and Midrand.',
+        guardRosterSignalAccent: const Color(0xFFF59E0B),
+        guardRosterSignalNeedsAttention: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('dispatch-roster-signal-banner')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('dispatch-roster-action-card')),
+      findsOneWidget,
+    );
+    expect(find.text('ROSTER WATCH'), findsOneWidget);
+    expect(find.text('ACT NOW'), findsOneWidget);
+    expect(
+      find.text('Fill two open posts before night handoff.'),
+      findsAtLeastNWidgets(2),
+    );
+    expect(find.text('ROSTER GAPS'), findsOneWidget);
+    expect(find.text('OPEN SIGNED AUDIT'), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey('dispatch-open-roster-planner')),
+    );
+    await tester.pumpAndSettle();
+    expect(plannerOpened, isTrue);
+    expect(
+      find.byKey(const ValueKey('dispatch-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('Planner handoff opened from dispatch.'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('dispatch-open-roster-audit')));
+    await tester.pumpAndSettle();
+    expect(auditOpened, isTrue);
+    expect(
+      find.byKey(const ValueKey('dispatch-workspace-command-receipt')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('dispatch page header open report uses selected dispatch', (
@@ -176,6 +293,67 @@ void main() {
     expect(openedDispatchId, 'DSP-2441');
   });
 
+  testWidgets(
+    'dispatch page routes track, client, and closure actions from the alarm board',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      String? trackedDispatchId;
+      String? clientDispatchId;
+      String? clearedDispatchId;
+
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          onOpenTrackForDispatch: (dispatchId) {
+            trackedDispatchId = dispatchId;
+          },
+          onOpenClientForDispatch: (dispatchId) {
+            clientDispatchId = dispatchId;
+          },
+          onOpenReportForDispatch: (dispatchId) {
+            clearedDispatchId = dispatchId;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final trackButton = find.byKey(
+        const ValueKey('dispatch-action-track-officer'),
+      );
+      await tester.ensureVisible(trackButton);
+      await tester.tap(trackButton);
+      await tester.pumpAndSettle();
+
+      expect(trackedDispatchId, 'DSP-2441');
+
+      final clientButton = find.byKey(
+        const ValueKey('dispatch-action-call-client'),
+      );
+      await tester.ensureVisible(clientButton);
+      await tester.tap(clientButton);
+      await tester.pumpAndSettle();
+
+      expect(clientDispatchId, 'DSP-2441');
+
+      final clearButton = find.byKey(
+        const ValueKey('dispatch-action-clear-alarm'),
+      );
+      await tester.ensureVisible(clearButton);
+      await tester.tap(clearButton);
+      await tester.pumpAndSettle();
+
+      expect(clearedDispatchId, 'DSP-2441');
+    },
+  );
+
   testWidgets('dispatch page stays stable on landscape phone viewport', (
     tester,
   ) async {
@@ -193,7 +371,7 @@ void main() {
 
     expect(find.text('DISPATCH COMMAND'), findsOneWidget);
     expect(find.text('ACTIVE DISPATCH QUEUE'), findsOneWidget);
-    expect(find.text('SYSTEM STATUS'), findsOneWidget);
+    expect(find.text('FLEET WATCH STATUS'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -224,7 +402,7 @@ void main() {
   testWidgets('dispatch page marks intelligence focus as scope-backed', (
     tester,
   ) async {
-    final now = DateTime.now().toUtc();
+    final now = _dispatchScenarioNowUtc();
     String? selectedDispatchId;
 
     await tester.pumpWidget(
@@ -292,7 +470,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final viewReportButton = find.widgetWithText(OutlinedButton, 'VIEW REPORT');
+    final viewReportButton = find.byKey(
+      const ValueKey('dispatch-selected-board-open-report'),
+    );
     expect(viewReportButton, findsOneWidget);
 
     await tester.ensureVisible(viewReportButton);
@@ -302,8 +482,401 @@ void main() {
     expect(openedReportDispatchId, 'DSP-2439');
   });
 
+  testWidgets(
+    'dispatch page selected-board report follows focus-backed cleared dispatch',
+    (tester) async {
+      String? openedReportDispatchId;
+      String? selectedDispatchId = 'DSP-2441';
+
+      await tester.pumpWidget(
+        buildPage(
+          focusIncidentReference: 'DSP-2439',
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          initialSelectedDispatchId: selectedDispatchId,
+          onSelectedDispatchChanged: (value) {
+            selectedDispatchId = value;
+          },
+          onOpenReportForDispatch: (dispatchId) {
+            openedReportDispatchId = dispatchId;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(selectedDispatchId, 'DSP-2439');
+
+      final viewReportButton = find.byKey(
+        const ValueKey('dispatch-selected-board-open-report'),
+      );
+      expect(viewReportButton, findsOneWidget);
+
+      await tester.ensureVisible(viewReportButton);
+      await tester.tap(viewReportButton);
+      await tester.pumpAndSettle();
+
+      expect(openedReportDispatchId, 'DSP-2439');
+    },
+  );
+
+  testWidgets('dispatch page marks INC-prefixed focus as scope-backed', (
+    tester,
+  ) async {
+    final now = _dispatchScenarioNowUtc();
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        focusIncidentReference: 'INC-DSP-2442',
+        events: [
+          DecisionCreated(
+            eventId: 'decision-vallee-inc',
+            sequence: 1,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 3)),
+            dispatchId: 'DSP-2442',
+            clientId: 'CLIENT-001',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-SANDTON',
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Focus Scope-backed: DSP-2442'), findsOneWidget);
+    expect(find.text('Focused Dispatch Lane'), findsNothing);
+  });
+
+  testWidgets('dispatch page routes alarm action row into simple handoffs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    String? trackedDispatchId;
+    String? viewedCameraDispatchId;
+    String? calledClientDispatchId;
+    String? agentDispatchId;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        onOpenTrackForDispatch: (dispatchId) {
+          trackedDispatchId = dispatchId;
+        },
+        onOpenCctvForDispatch: (dispatchId) {
+          viewedCameraDispatchId = dispatchId;
+        },
+        onOpenClientForDispatch: (dispatchId) {
+          calledClientDispatchId = dispatchId;
+        },
+        onOpenAgentForDispatch: (dispatchId) {
+          agentDispatchId = dispatchId;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final trackButton = find.byKey(
+      const ValueKey('dispatch-action-track-officer'),
+    );
+    await tester.ensureVisible(trackButton);
+    await tester.tap(trackButton);
+    await tester.pumpAndSettle();
+    expect(trackedDispatchId, 'DSP-2441');
+
+    final viewCameraButton = find.byKey(
+      const ValueKey('dispatch-action-view-camera'),
+    );
+    await tester.ensureVisible(viewCameraButton);
+    await tester.tap(viewCameraButton);
+    await tester.pumpAndSettle();
+    expect(viewedCameraDispatchId, 'DSP-2441');
+
+    final callClientButton = find.byKey(
+      const ValueKey('dispatch-action-call-client'),
+    );
+    await tester.ensureVisible(callClientButton);
+    await tester.tap(callClientButton);
+    await tester.pumpAndSettle();
+    expect(calledClientDispatchId, 'DSP-2441');
+
+    final askAgentButton = find.byKey(
+      const ValueKey('dispatch-action-open-agent'),
+    );
+    await tester.ensureVisible(askAgentButton);
+    await tester.tap(askAgentButton);
+    await tester.pumpAndSettle();
+    expect(agentDispatchId, 'DSP-2441');
+  });
+
+  testWidgets('dispatch action row follows focus-backed board selection', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    String? viewedCameraDispatchId;
+    String? calledClientDispatchId;
+    String? agentDispatchId;
+    String? trackedDispatchId;
+    String? selectedDispatchId = 'DSP-2441';
+
+    await tester.pumpWidget(
+      buildPage(
+        focusIncidentReference: 'DSP-2442',
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        onOpenTrackForDispatch: (dispatchId) {
+          trackedDispatchId = dispatchId;
+        },
+        onOpenCctvForDispatch: (dispatchId) {
+          viewedCameraDispatchId = dispatchId;
+        },
+        onOpenClientForDispatch: (dispatchId) {
+          calledClientDispatchId = dispatchId;
+        },
+        onOpenAgentForDispatch: (dispatchId) {
+          agentDispatchId = dispatchId;
+        },
+        initialSelectedDispatchId: selectedDispatchId,
+        onSelectedDispatchChanged: (value) {
+          selectedDispatchId = value;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(selectedDispatchId, 'DSP-2442');
+
+    final trackButton = find.byKey(
+      const ValueKey('dispatch-action-track-officer'),
+    );
+    await tester.ensureVisible(trackButton);
+    await tester.tap(trackButton);
+    await tester.pumpAndSettle();
+    expect(trackedDispatchId, 'DSP-2442');
+
+    final viewCameraButton = find.byKey(
+      const ValueKey('dispatch-action-view-camera'),
+    );
+    await tester.ensureVisible(viewCameraButton);
+    await tester.tap(viewCameraButton);
+    await tester.pumpAndSettle();
+    expect(viewedCameraDispatchId, 'DSP-2442');
+
+    final callClientButton = find.byKey(
+      const ValueKey('dispatch-action-call-client'),
+    );
+    await tester.ensureVisible(callClientButton);
+    await tester.tap(callClientButton);
+    await tester.pumpAndSettle();
+    expect(calledClientDispatchId, 'DSP-2442');
+
+    final askAgentButton = find.byKey(
+      const ValueKey('dispatch-action-open-agent'),
+    );
+    await tester.ensureVisible(askAgentButton);
+    await tester.tap(askAgentButton);
+    await tester.pumpAndSettle();
+    expect(agentDispatchId, 'DSP-2442');
+  });
+
+  testWidgets('dispatch page ingests agent returns into the focused board', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    String? consumedIncidentReference;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        agentReturnIncidentReference: 'INC-DSP-2441',
+        onConsumeAgentReturnIncidentReference: (incidentReference) {
+          consumedIncidentReference = incidentReference;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openDetailedWorkspaceIfVisible(tester);
+
+    expect(find.text('AGENT RETURN'), findsOneWidget);
+    expect(find.text('Returned from Agent for DSP-2441.'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('dispatch-selected-board')),
+        matching: find.text('DSP-2441'),
+      ),
+      findsOneWidget,
+    );
+    expect(consumedIncidentReference, 'INC-DSP-2441');
+  });
+
+  testWidgets('dispatch page ingests evidence returns into the closure board', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    String? consumedAuditId;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        evidenceReturnReceipt: const DispatchEvidenceReturnReceipt(
+          auditId: 'DSP-AUDIT-RESOLVE-1',
+          incidentReference: 'INC-DSP-2442',
+          label: 'EVIDENCE RETURN',
+          headline: 'Returned to closure board for DSP-2442.',
+          detail:
+              'The signed closure record was verified in the ledger. Finish comms, reporting, and clean handoff from the same board.',
+          accent: Color(0xFF63E6A1),
+        ),
+        onConsumeEvidenceReturnReceipt: (auditId) {
+          consumedAuditId = auditId;
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openDetailedWorkspaceIfVisible(tester);
+
+    expect(find.text('EVIDENCE RETURN'), findsOneWidget);
+    expect(
+      find.text('Returned to closure board for DSP-2442.'),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('dispatch-selected-board')),
+        matching: find.text('DSP-2442'),
+      ),
+      findsOneWidget,
+    );
+    expect(consumedAuditId, 'DSP-AUDIT-RESOLVE-1');
+  });
+
+  testWidgets('dispatch page opens comms from cleared alarm actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    String? openedClientDispatchId;
+    final auditActions = <String>[];
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        initialSelectedDispatchId: 'DSP-2439',
+        onOpenClientForDispatch: (dispatchId) {
+          openedClientDispatchId = dispatchId;
+        },
+        onAutoAuditAction: (dispatchId, action, detail) {
+          auditActions.add('$dispatchId|$action|$detail');
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final openCommsButton = find.widgetWithText(
+      OutlinedButton,
+      'OPEN CLIENT COMMS',
+    );
+    expect(openCommsButton, findsWidgets);
+
+    await tester.ensureVisible(openCommsButton.first);
+    await tester.tap(openCommsButton.first);
+    await tester.pumpAndSettle();
+
+    expect(openedClientDispatchId, 'DSP-2439');
+    expect(
+      auditActions.any((entry) => entry.contains('|client_handoff_opened|')),
+      isTrue,
+    );
+  });
+
+  testWidgets(
+    'dispatch page converts clear alarm into open comms on the focused dispatch',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      String? openedClientDispatchId;
+
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          onOpenClientForDispatch: (dispatchId) {
+            openedClientDispatchId = dispatchId;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final clearAlarmButton = find.byKey(
+        const ValueKey('dispatch-action-clear-alarm'),
+      );
+      await tester.ensureVisible(clearAlarmButton);
+      await tester.tap(clearAlarmButton);
+      await tester.pumpAndSettle();
+
+      final openCommsButton = find.widgetWithText(
+        OutlinedButton,
+        'OPEN CLIENT COMMS',
+      );
+      expect(openCommsButton, findsWidgets);
+
+      await tester.ensureVisible(openCommsButton.first);
+      await tester.tap(openCommsButton.first);
+      await tester.pumpAndSettle();
+
+      expect(openedClientDispatchId, 'DSP-2441');
+    },
+  );
+
   testWidgets('dispatch page supports client-wide scope focus', (tester) async {
-    final now = DateTime.now().toUtc();
+    final now = _dispatchScenarioNowUtc();
 
     await tester.pumpWidget(
       buildPage(
@@ -384,6 +957,14 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.text('Dispatch Board'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('dispatch-alarm-attention-strip')),
+        findsOneWidget,
+      );
+
+      await openDetailedWorkspaceIfVisible(tester);
+
       expect(
         find.byKey(const ValueKey('dispatch-workspace-status-banner')),
         findsOneWidget,
@@ -408,7 +989,30 @@ void main() {
         find.byKey(const ValueKey('dispatch-workspace-focus-card')),
         findsOneWidget,
       );
+      final officerBanner = tester.widget<Container>(
+        find.byKey(const ValueKey('dispatch-officer-banner-DSP-2441')),
+      );
+      final officerBannerDecoration =
+          officerBanner.decoration! as BoxDecoration;
+      expect(officerBannerDecoration.color, const Color(0xFFEAF8FB));
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('dispatch-alarm-card-DSP-2441')),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Container &&
+                widget.decoration is BoxDecoration &&
+                (widget.decoration! as BoxDecoration).color ==
+                    const Color(0xFFF7FBFE),
+          ),
+        ),
+        findsOneWidget,
+      );
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('dispatch-workspace-filter-cleared')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(const ValueKey('dispatch-workspace-filter-cleared')),
       );
@@ -422,8 +1026,12 @@ void main() {
         findsOneWidget,
       );
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('dispatch-workspace-focus-open-report')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(
-        find.byKey(const ValueKey('dispatch-open-report-button')),
+        find.byKey(const ValueKey('dispatch-workspace-focus-open-report')),
       );
       await tester.pumpAndSettle();
 
@@ -441,7 +1049,7 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      final now = DateTime.now().toUtc();
+      final now = _dispatchScenarioNowUtc();
       await tester.pumpWidget(
         buildPage(
           onGenerate: () {},
@@ -465,6 +1073,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      await openDetailedWorkspaceIfVisible(tester);
+
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('dispatch-workspace-focus-card')),
@@ -473,12 +1083,19 @@ void main() {
         findsOneWidget,
       );
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('dispatch-workspace-filter-cleared')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(
         find.byKey(const ValueKey('dispatch-workspace-filter-cleared')),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('No mission is pinned in the board.'), findsOneWidget);
+      expect(
+        find.text('No dispatch is pinned in Dispatch Board.'),
+        findsOneWidget,
+      );
       expect(
         find.byKey(
           const ValueKey('dispatch-workspace-focus-open-active-lanes'),
@@ -552,6 +1169,137 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+    'dispatch page does not throw when a workspace lane filter callback outlives the page',
+    (tester) async {
+      tester.view.physicalSize = const Size(1680, 1200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        buildPage(onGenerate: () {}, onIngestFeeds: () {}, onExecute: (_) {}),
+      );
+      await tester.pumpAndSettle();
+
+      await openDetailedWorkspaceIfVisible(tester);
+      final pendingFilter = find.byKey(
+        const ValueKey('dispatch-workspace-filter-pending'),
+      );
+      await tester.ensureVisible(pendingFilter);
+      await tester.tap(pendingFilter);
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'dispatch cleared action row stays scoped to the retargeted mission board',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      String? openedClientDispatchId;
+
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          onOpenClientForDispatch: (dispatchId) {
+            openedClientDispatchId = dispatchId;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('dispatch-queue-filter-cleared')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-queue-filter-cleared')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('dispatch-selected-board')),
+          matching: find.text('DSP-2439'),
+        ),
+        findsOneWidget,
+      );
+
+      final openCommsButton = find.widgetWithText(
+        OutlinedButton,
+        'OPEN CLIENT COMMS',
+      );
+      expect(openCommsButton, findsWidgets);
+
+      await tester.ensureVisible(openCommsButton.first);
+      await tester.tap(openCommsButton.first);
+      await tester.pumpAndSettle();
+
+      expect(openedClientDispatchId, 'DSP-2439');
+    },
+  );
+
+  testWidgets(
+    'dispatch cleared action row follows focus-backed board selection',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      String? openedClientDispatchId;
+      String? selectedDispatchId = 'DSP-2441';
+
+      await tester.pumpWidget(
+        buildPage(
+          focusIncidentReference: 'DSP-2439',
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          initialSelectedDispatchId: selectedDispatchId,
+          onSelectedDispatchChanged: (value) {
+            selectedDispatchId = value;
+          },
+          onOpenClientForDispatch: (dispatchId) {
+            openedClientDispatchId = dispatchId;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(selectedDispatchId, 'DSP-2439');
+
+      final openCommsButton = find.widgetWithText(
+        OutlinedButton,
+        'OPEN CLIENT COMMS',
+      );
+      expect(openCommsButton, findsWidgets);
+
+      await tester.ensureVisible(openCommsButton.first);
+      await tester.tap(openCommsButton.first);
+      await tester.pumpAndSettle();
+
+      expect(openedClientDispatchId, 'DSP-2439');
+    },
+  );
 
   testWidgets('dispatch page restores watch action focus from parent state', (
     tester,
@@ -709,6 +1457,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await openDetailedWorkspaceIfVisible(tester);
+
     await tester.tap(find.text('Generate Dispatch').first);
     await tester.pump();
 
@@ -757,6 +1507,131 @@ void main() {
     expect(executedDispatch, isNotNull);
   });
 
+  testWidgets('dispatch page surfaces latest auto-audit receipt', (
+    tester,
+  ) async {
+    var openedLatestAudit = false;
+
+    await tester.pumpWidget(
+      buildPage(
+        onGenerate: () {},
+        onIngestFeeds: () {},
+        onExecute: (_) {},
+        onOpenLatestAudit: () {
+          openedLatestAudit = true;
+        },
+        latestAutoAuditReceipt: const DispatchAutoAuditReceipt(
+          auditId: 'audit-1',
+          label: 'AUTO-AUDIT',
+          headline: 'Dispatch DSP-2442 signed automatically.',
+          detail: 'Executed dispatch DSP-2442 • hash 2d7f4c91ab',
+          accent: Color(0xFF63E6A1),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('dispatch-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('AUTO-AUDIT'), findsOneWidget);
+    expect(
+      find.text('Dispatch DSP-2442 signed automatically.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('hash 2d7f4c91ab'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('dispatch-workspace-view-latest-audit')),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('dispatch-workspace-view-latest-audit')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('dispatch-workspace-view-latest-audit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(openedLatestAudit, isTrue);
+  });
+
+  testWidgets(
+    'dispatch page emits auto-audit callbacks for key action row flows',
+    (tester) async {
+      final auditActions = <String>[];
+
+      await tester.binding.setSurfaceSize(const Size(1400, 2200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        buildPage(
+          onGenerate: () {},
+          onIngestFeeds: () {},
+          onExecute: (_) {},
+          onOpenTrackForDispatch: (_) {},
+          onOpenReportForDispatch: (_) {},
+          onAutoAuditAction: (dispatchId, action, detail) {
+            auditActions.add('$dispatchId|$action|$detail');
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      await openDetailedWorkspaceIfVisible(tester);
+
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-action-track-officer')).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-action-call-client')).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-action-view-camera')).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-action-open-agent')).first,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey('dispatch-action-clear-alarm')).first,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        auditActions.any((entry) => entry.contains('|track_handoff_opened|')),
+        isTrue,
+      );
+      expect(
+        auditActions.any((entry) => entry.contains('|client_handoff_opened|')),
+        isTrue,
+      );
+      expect(
+        auditActions.any((entry) => entry.contains('|cctv_handoff_opened|')),
+        isTrue,
+      );
+      expect(
+        auditActions.any((entry) => entry.contains('|agent_handoff_opened|')),
+        isTrue,
+      );
+      expect(
+        auditActions.any((entry) => entry.contains('|report_handoff_opened|')),
+        isTrue,
+      );
+      expect(
+        auditActions.any((entry) => entry.contains('|alarm_cleared|')),
+        isTrue,
+      );
+    },
+  );
+
   testWidgets('dispatch page shows partner progression on selected dispatch', (
     tester,
   ) async {
@@ -768,9 +1643,9 @@ void main() {
         morningSovereignReportHistory: [
           SovereignReport(
             date: '2026-03-14',
-            generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-            shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-            shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+            generatedAtUtc: _dispatchPageOccurredAtUtc(14, 6, 0),
+            shiftWindowStartUtc: _dispatchPageOccurredAtUtc(13, 22, 0),
+            shiftWindowEndUtc: _dispatchPageOccurredAtUtc(14, 6, 0),
             ledgerIntegrity: const SovereignReportLedgerIntegrity(
               totalEvents: 10,
               hashVerified: true,
@@ -819,9 +1694,9 @@ void main() {
           ),
           SovereignReport(
             date: '2026-03-15',
-            generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-            shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-            shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+            generatedAtUtc: _dispatchPageOccurredAtUtc(15, 6, 0),
+            shiftWindowStartUtc: _dispatchPageOccurredAtUtc(14, 22, 0),
+            shiftWindowEndUtc: _dispatchPageOccurredAtUtc(15, 6, 0),
             ledgerIntegrity: const SovereignReportLedgerIntegrity(
               totalEvents: 10,
               hashVerified: true,
@@ -874,7 +1749,7 @@ void main() {
             eventId: 'decision-1',
             sequence: 4,
             version: 1,
-            occurredAt: DateTime.utc(2026, 3, 15, 21, 10),
+            occurredAt: _dispatchPageOccurredAtUtc(15, 21, 10),
             dispatchId: 'DSP-8821',
             clientId: 'CLIENT-001',
             regionId: 'REGION-GAUTENG',
@@ -884,7 +1759,7 @@ void main() {
             eventId: 'partner-1',
             sequence: 3,
             version: 1,
-            occurredAt: DateTime.utc(2026, 3, 15, 21, 11),
+            occurredAt: _dispatchPageOccurredAtUtc(15, 21, 11),
             dispatchId: 'DSP-8821',
             clientId: 'CLIENT-001',
             regionId: 'REGION-GAUTENG',
@@ -899,7 +1774,7 @@ void main() {
             eventId: 'partner-2',
             sequence: 2,
             version: 1,
-            occurredAt: DateTime.utc(2026, 3, 15, 21, 14),
+            occurredAt: _dispatchPageOccurredAtUtc(15, 21, 14),
             dispatchId: 'DSP-8821',
             clientId: 'CLIENT-001',
             regionId: 'REGION-GAUTENG',
@@ -914,7 +1789,7 @@ void main() {
             eventId: 'partner-3',
             sequence: 1,
             version: 1,
-            occurredAt: DateTime.utc(2026, 3, 15, 21, 19),
+            occurredAt: _dispatchPageOccurredAtUtc(15, 21, 19),
             dispatchId: 'DSP-8821',
             clientId: 'CLIENT-001',
             regionId: 'REGION-GAUTENG',
@@ -1093,6 +1968,10 @@ void main() {
     await tester.tap(find.text('Clear Queue').first);
     await tester.pumpAndSettle();
     expect(find.text('Clear Radio Queue?'), findsOneWidget);
+    expect(
+      tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
+      OnyxDesignTokens.cardSurface,
+    );
     await tester.tap(find.text('Confirm Clear').first);
     await tester.pumpAndSettle();
 
@@ -1122,6 +2001,10 @@ void main() {
     await tester.tap(find.text('Clear Queue').first);
     await tester.pumpAndSettle();
     expect(find.text('Clear Radio Queue?'), findsOneWidget);
+    expect(
+      tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
+      OnyxDesignTokens.cardSurface,
+    );
     await tester.tap(find.text('Cancel').last);
     await tester.pumpAndSettle();
 
@@ -1315,7 +2198,7 @@ void main() {
             decisionSummary:
                 'Suppressed because the activity remained below the client notification threshold.',
             summary: 'Vehicle remained below escalation threshold.',
-            reviewedAtUtc: DateTime.utc(2026, 3, 13, 21, 14),
+            reviewedAtUtc: _dispatchPageOccurredAtUtc(13, 21, 14),
           ),
         },
         onExecute: (_) {},
@@ -1684,6 +2567,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await openDetailedWorkspaceIfVisible(tester);
+
     expect(find.text('Temporary ID 1'), findsOneWidget);
     expect(
       find.textContaining(
@@ -1720,6 +2605,10 @@ void main() {
     await tester.tap(find.text('Expire now'));
     await tester.pumpAndSettle();
     expect(find.text('Expire Temporary Approval?'), findsOneWidget);
+    expect(
+      tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
+      OnyxDesignTokens.cardSurface,
+    );
     expect(
       find.textContaining(
         'This immediately removes the temporary identity approval for MS Vallee Residence.',

@@ -109,6 +109,7 @@ abstract class GuardTelemetryIngestionAdapter {
   Future<GuardTelemetryAdapterStatus> getStatus();
   Future<WearableTelemetrySample> captureWearableHeartbeat();
   Future<DeviceHealthSample> captureDeviceHealth();
+  void dispose();
 }
 
 class GuardTelemetryNativeSdkConfig {
@@ -223,16 +224,21 @@ class DemoGuardTelemetryIngestionAdapter
       sdkStatus: 'stub',
     );
   }
+
+  @override
+  void dispose() {}
 }
 
 class HttpGuardTelemetryIngestionAdapter
     implements GuardTelemetryIngestionAdapter {
   final GuardTelemetryHttpConfig config;
   final http.Client client;
+  final bool ownsClient;
 
   const HttpGuardTelemetryIngestionAdapter({
     required this.config,
     required this.client,
+    this.ownsClient = false,
   });
 
   @override
@@ -352,6 +358,13 @@ class HttpGuardTelemetryIngestionAdapter
         fallback: 'live',
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    if (ownsClient) {
+      client.close();
+    }
   }
 
   Future<Map<String, Object?>> _fetchJson(Uri uri) async {
@@ -475,6 +488,9 @@ class NativeGuardTelemetryIngestionAdapter
   }
 
   @override
+  void dispose() {}
+
+  @override
   Future<GuardTelemetryAdapterStatus> getStatus() async {
     try {
       final payload = await config.channel.invokeMapMethod<String, Object?>(
@@ -505,7 +521,10 @@ class NativeGuardTelemetryIngestionAdapter
       );
       final payloadAdapterSource = _stringValue(
         payload ?? const <String, Object?>{},
-        const ['fsk_payload_adapter_source', 'hikvision_payload_adapter_source'],
+        const [
+          'fsk_payload_adapter_source',
+          'hikvision_payload_adapter_source',
+        ],
         '',
       );
       final catalogHint = await _providerCatalogHint();
@@ -552,39 +571,30 @@ class NativeGuardTelemetryIngestionAdapter
         ],
         '',
       );
-      final vendorConnectorSource = _stringValue(
-        payload ?? const <String, Object?>{},
-        const [
-          'fsk_vendor_connector_source',
-          'hikvision_vendor_connector_source',
-          'vendor_connector_source',
-        ],
-        '',
-      );
-      final vendorConnectorErrorMessage = _stringValue(
-        payload ?? const <String, Object?>{},
-        const [
-          'fsk_vendor_connector_error',
-          'hikvision_vendor_connector_error',
-          'vendor_connector_error',
-        ],
-        '',
-      );
-      final vendorConnectorFallbackActiveRaw = _rawValue(
-        payload ?? const <String, Object?>{},
-        const [
-          'fsk_vendor_connector_fallback_active',
-          'hikvision_vendor_connector_fallback_active',
-          'vendor_connector_fallback_active',
-        ],
-      );
-      final vendorConnectorFallbackActive = switch (
-        vendorConnectorFallbackActiveRaw
-      ) {
-        bool value => value,
-        String value => value.trim().toLowerCase() == 'true',
-        _ => null,
-      };
+      final vendorConnectorSource =
+          _stringValue(payload ?? const <String, Object?>{}, const [
+            'fsk_vendor_connector_source',
+            'hikvision_vendor_connector_source',
+            'vendor_connector_source',
+          ], '');
+      final vendorConnectorErrorMessage =
+          _stringValue(payload ?? const <String, Object?>{}, const [
+            'fsk_vendor_connector_error',
+            'hikvision_vendor_connector_error',
+            'vendor_connector_error',
+          ], '');
+      final vendorConnectorFallbackActiveRaw =
+          _rawValue(payload ?? const <String, Object?>{}, const [
+            'fsk_vendor_connector_fallback_active',
+            'hikvision_vendor_connector_fallback_active',
+            'vendor_connector_fallback_active',
+          ]);
+      final vendorConnectorFallbackActive =
+          switch (vendorConnectorFallbackActiveRaw) {
+            bool value => value,
+            String value => value.trim().toLowerCase() == 'true',
+            _ => null,
+          };
       final facadeSourceActiveRaw = _rawValue(
         payload ?? const <String, Object?>{},
         const ['facade_source_active', 'source_active'],
@@ -640,11 +650,10 @@ class NativeGuardTelemetryIngestionAdapter
               ),
         adapterLabel: adapterLabel,
         isStub: isStub,
-        providerId: _stringValue(
-          payload ?? const <String, Object?>{},
-          const ['provider_id', 'providerId'],
-          config.providerId,
-        ),
+        providerId: _stringValue(payload ?? const <String, Object?>{}, const [
+          'provider_id',
+          'providerId',
+        ], config.providerId),
         facadeId: facadeId.isEmpty ? null : facadeId,
         facadeLiveMode: facadeLiveMode,
         facadeToggleSource: facadeToggleSource.isEmpty
@@ -849,7 +858,10 @@ class NativeGuardTelemetryIngestionAdapter
     required Map<String, Object?> payload,
     String? payloadAdapter,
   }) {
-    return validatePayloadMapping(payload: payload, payloadAdapter: payloadAdapter);
+    return validatePayloadMapping(
+      payload: payload,
+      payloadAdapter: payloadAdapter,
+    );
   }
 
   @override
@@ -1043,5 +1055,6 @@ GuardTelemetryIngestionAdapter createGuardTelemetryIngestionAdapter({
   return HttpGuardTelemetryIngestionAdapter(
     config: config,
     client: client ?? http.Client(),
+    ownsClient: client == null,
   );
 }

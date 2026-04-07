@@ -1,0 +1,12 @@
+{
+  "clientComms": {
+    "deliveryState": "review_required",
+    "pendingDraftCount": 1,
+    "telegramHealth": "ok",
+    "attentionQueueEntry": {
+      "clientId": "CLIENT-MS-VALLEE",
+      "siteId": "SITE-MS-VALLEE-RESIDENCE",
+      "reason": "pending_draft_approval"
+    }
+  }
+}

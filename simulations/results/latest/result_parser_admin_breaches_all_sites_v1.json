@@ -1,0 +1,22 @@
+{
+  "scenarioId": "parser_admin_breaches_all_sites_v1",
+  "runId": "2026-04-01T13:29:48.531151Z",
+  "passed": true,
+  "actualOutcome": {
+    "actualRoute": "admin_all_sites_read",
+    "actualIntent": "portfolio_breach_lookup",
+    "actualEscalationState": "none",
+    "actualProjectionChanges": [],
+    "actualDrafts": [],
+    "actualBlockedActions": [
+      "live_escalation"
+    ],
+    "actualUiState": {
+      "surface": "admin_read_result",
+      "legacyWorkspaceVisible": false
+    },
+    "appendedEvents": [],
+    "notes": "Resolved showUnresolvedIncidents from telegram under all_sites scope across 3 site(s). Loaded 0 seeded event(s)."
+  },
+  "mismatches": []
+}

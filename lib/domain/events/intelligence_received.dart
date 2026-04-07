@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class IntelligenceReceived extends DispatchEvent {
+  static const String auditTypeKey = 'intelligence_received';
   final String intelligenceId;
   final String provider;
   final String sourceType;
@@ -12,6 +13,7 @@ class IntelligenceReceived extends DispatchEvent {
   final String? zone;
   final String? objectLabel;
   final double? objectConfidence;
+  final String? trackId;
   final String? faceMatchId;
   final double? faceConfidence;
   final String? plateNumber;
@@ -42,6 +44,7 @@ class IntelligenceReceived extends DispatchEvent {
     this.zone,
     this.objectLabel,
     this.objectConfidence,
+    this.trackId,
     this.faceMatchId,
     this.faceConfidence,
     this.plateNumber,
@@ -75,6 +78,7 @@ class IntelligenceReceived extends DispatchEvent {
       zone: zone,
       objectLabel: objectLabel,
       objectConfidence: objectConfidence,
+      trackId: trackId,
       faceMatchId: faceMatchId,
       faceConfidence: faceConfidence,
       plateNumber: plateNumber,
@@ -90,4 +94,7 @@ class IntelligenceReceived extends DispatchEvent {
       evidenceRecordHash: evidenceRecordHash,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

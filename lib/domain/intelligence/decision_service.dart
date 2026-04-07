@@ -12,16 +12,19 @@ class DecisionService {
     required String clientId,
     required String regionId,
     required String siteId,
+    DateTime Function()? clock,
   }) {
     if (!policy.shouldEscalate(item)) {
       return null;
     }
 
+    final nowUtc = (clock ?? DateTime.now).call().toUtc();
+
     return DecisionCreated(
-      eventId: DateTime.now().microsecondsSinceEpoch.toString(),
+      eventId: nowUtc.microsecondsSinceEpoch.toString(),
       sequence: 0,
       version: 1,
-      occurredAt: DateTime.now().toUtc(),
+      occurredAt: nowUtc,
       clientId: clientId,
       regionId: regionId,
       siteId: siteId,

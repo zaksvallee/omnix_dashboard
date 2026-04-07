@@ -1,9 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../application/admin/admin_directory_service.dart';
+import '../application/export_coordinator.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../application/report_entry_context.dart';
@@ -24,10 +26,18 @@ import '../application/review_shortcut_contract.dart';
 import '../application/site_activity_intelligence_service.dart';
 import '../domain/crm/reporting/report_branding_configuration.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
+import '../domain/crm/reporting/report_sections.dart';
+import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
+import '../domain/events/execution_completed.dart';
+import '../domain/events/execution_denied.dart';
+import '../domain/events/guard_checked_in.dart';
 import '../domain/events/intelligence_received.dart';
+import '../domain/events/incident_closed.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
+import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
+import '../domain/events/response_arrived.dart';
 import '../domain/store/in_memory_event_store.dart';
 import '../presentation/reports/report_preview_dock_card.dart';
 import '../presentation/reports/report_meta_pill.dart';
@@ -40,7 +50,18 @@ import '../presentation/reports/report_preview_target_banner.dart';
 import '../presentation/reports/report_status_badge.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
+
+const _reportsPanelColor = OnyxDesignTokens.cardSurface;
+const _reportsPanelAltColor = OnyxDesignTokens.backgroundSecondary;
+const _reportsPanelTintColor = OnyxDesignTokens.surfaceInset;
+const _reportsBorderColor = OnyxDesignTokens.borderSubtle;
+const _reportsTitleColor = OnyxDesignTokens.textPrimary;
+const _reportsBodyColor = OnyxDesignTokens.textSecondary;
+const _reportsMutedColor = OnyxDesignTokens.textMuted;
+const _reportsShadowColor = Color(0x0D000000);
+const _reportsAccentSky = OnyxDesignTokens.accentSky;
 
 class ClientIntelligenceReportsPage extends StatefulWidget {
   final InMemoryEventStore store;
@@ -59,6 +80,8 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
   onOpenGovernanceForPartnerScope;
   final void Function(List<String> eventIds, String selectedEventId)?
   onOpenEventsForScope;
+  final ReportsEvidenceReturnReceipt? evidenceReturnReceipt;
+  final ValueChanged<String>? onConsumeEvidenceReturnReceipt;
 
   const ClientIntelligenceReportsPage({
     super.key,
@@ -76,6 +99,8 @@ class ClientIntelligenceReportsPage extends StatefulWidget {
     this.onOpenGovernanceForScope,
     this.onOpenGovernanceForPartnerScope,
     this.onOpenEventsForScope,
+    this.evidenceReturnReceipt,
+    this.onConsumeEvidenceReturnReceipt,
   });
 
   @override
@@ -97,32 +122,44 @@ class _ReportsCommandReceipt {
   });
 }
 
+class ReportsEvidenceReturnReceipt {
+  final String auditId;
+  final String label;
+  final String message;
+  final String detail;
+  final Color accent;
+
+  const ReportsEvidenceReturnReceipt({
+    required this.auditId,
+    required this.label,
+    required this.message,
+    required this.detail,
+    required this.accent,
+  });
+}
+
 class _ClientIntelligenceReportsPageState
     extends State<ClientIntelligenceReportsPage>
     with ReportShellBindingHost<ClientIntelligenceReportsPage> {
+  static const _exportCoordinator = ExportCoordinator();
   static const _siteActivityService = SiteActivityIntelligenceService();
   static const _defaultCommandReceipt = _ReportsCommandReceipt(
     label: 'REPORTS READY',
-    message:
-        'Receipt exports and handoffs stay pinned in this rail on desktop.',
+    message: 'Pick the right receipt and move it out fast.',
     detail:
-        'Use the receipt board, governance handoffs, and partner chains without losing the last command outcome.',
-    accent: Color(0xFF8FD1FF),
+        'Preview, governance handoff, and receipt proof stay pinned here so the next move is obvious.',
+    accent: _reportsAccentSky,
   );
   bool _isGenerating = false;
   bool _isRefreshing = false;
   List<_ReceiptRow> _receipts = const [];
   late ReportShellBinding _shellBinding;
+  late ReportGenerationService _service;
   String _selectedScope = 'Sandton Estate North';
   DateTime _startDate = DateTime.utc(2024, 3, 1);
   DateTime _endDate = DateTime.utc(2024, 3, 10);
   _ReportsCommandReceipt _commandReceipt = _defaultCommandReceipt;
   bool _desktopWorkspaceActive = false;
-
-  ReportGenerationService get _service => ReportGenerationService(
-    store: widget.store,
-    sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
-  );
 
   VoidCallback? _openGovernanceScopeAction({
     String clientId = '',
@@ -142,14 +179,21 @@ class _ClientIntelligenceReportsPageState
   @override
   void initState() {
     super.initState();
+    _service = _createReportGenerationService();
     _shellBinding = ReportShellBinding.fromShellState(widget.reportShellState);
     _syncFocusedPartnerScopeFromWidget(deferEmit: true);
     _loadReceipts();
+    _ingestEvidenceReturnReceipt(widget.evidenceReturnReceipt);
   }
 
   @override
   void didUpdateWidget(covariant ClientIntelligenceReportsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.store != widget.store ||
+        oldWidget.sceneReviewByIntelligenceId !=
+            widget.sceneReviewByIntelligenceId) {
+      _service = _createReportGenerationService();
+    }
     _shellBinding = _shellBinding.syncFromWidget(
       oldShellState: oldWidget.reportShellState,
       newShellState: widget.reportShellState,
@@ -162,6 +206,114 @@ class _ClientIntelligenceReportsPageState
             widget.initialPartnerScopePartnerLabel) {
       _syncFocusedPartnerScopeFromWidget();
     }
+    if (oldWidget.evidenceReturnReceipt?.auditId !=
+        widget.evidenceReturnReceipt?.auditId) {
+      _ingestEvidenceReturnReceipt(
+        widget.evidenceReturnReceipt,
+        useSetState: true,
+      );
+    }
+  }
+
+  void _ingestEvidenceReturnReceipt(
+    ReportsEvidenceReturnReceipt? receipt, {
+    bool useSetState = false,
+  }) {
+    if (receipt == null) {
+      return;
+    }
+
+    void apply() {
+      _commandReceipt = _ReportsCommandReceipt(
+        label: receipt.label,
+        message: receipt.message,
+        detail: receipt.detail,
+        accent: receipt.accent,
+      );
+    }
+
+    if (useSetState) {
+      setState(apply);
+    } else {
+      apply();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      widget.onConsumeEvidenceReturnReceipt?.call(receipt.auditId);
+    });
+  }
+
+  ReportGenerationService _createReportGenerationService() {
+    return ReportGenerationService(
+      store: widget.store,
+      sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
+      guardProfilesLoader: () async {
+        final snapshot = await const AdminDirectoryService().loadDirectory(
+          supabase: Supabase.instance.client,
+        );
+        return <String, GuardReportingProfile>{
+          for (final guard in snapshot.guards)
+            guard.id: GuardReportingProfile(
+              guardId: guard.id,
+              displayName: guard.name,
+              psiraNumber: guard.psiraNumber,
+              rank: guard.role,
+            ),
+        };
+      },
+    );
+  }
+
+  DateTime _reportGenerationNowUtc() {
+    DateTime? latestOccurredAtUtc;
+    for (final event in widget.store.allEvents()) {
+      final occurredAtUtc = switch (event) {
+        GuardCheckedIn value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        PatrolCompleted value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        DecisionCreated value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        ResponseArrived value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        IncidentClosed value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        IntelligenceReceived value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        ExecutionCompleted value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        ExecutionDenied value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        _ => null,
+      };
+      if (occurredAtUtc == null) {
+        continue;
+      }
+      if (latestOccurredAtUtc == null ||
+          occurredAtUtc.isAfter(latestOccurredAtUtc)) {
+        latestOccurredAtUtc = occurredAtUtc;
+      }
+    }
+    return latestOccurredAtUtc ?? _endDate.toUtc();
   }
 
   Future<void> _loadReceipts() async {
@@ -208,7 +360,7 @@ class _ClientIntelligenceReportsPageState
     final generated = await _service.generatePdfReport(
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
-      nowUtc: DateTime.now().toUtc(),
+      nowUtc: _reportGenerationNowUtc(),
       brandingConfiguration: _currentBrandingConfiguration,
       sectionConfiguration: _currentSectionConfiguration,
       investigationContextKey: _entryContext?.storageValue ?? '',
@@ -222,6 +374,9 @@ class _ClientIntelligenceReportsPageState
     }
     focusReportReceiptWorkspace(generated.receiptEvent.eventId);
     setState(() => _isGenerating = false);
+    if (!mounted) {
+      return;
+    }
     presentReportPreviewRequest(
       ReportPreviewRequest(
         bundle: generated.bundle,
@@ -389,9 +544,8 @@ class _ClientIntelligenceReportsPageState
         _desktopWorkspaceActive = !stacked;
         final receiptRail = _workspaceDeckPanel(
           key: const ValueKey('reports-workspace-panel-receipts'),
-          title: 'Receipt Rail',
-          subtitle:
-              'Filter, export, and retarget the live receipt lane without leaving the reports board.',
+          title: 'PICK A RECEIPT',
+          subtitle: 'Filter the receipt board and open the right report fast.',
           shellless: !stacked,
           child: stacked
               ? Column(
@@ -422,9 +576,8 @@ class _ClientIntelligenceReportsPageState
         );
         final selectedBoard = _workspaceDeckPanel(
           key: const ValueKey('reports-workspace-panel-selected'),
-          title: 'Active Receipt Board',
-          subtitle:
-              'Focused receipt status, verification posture, and generated output for the current lane.',
+          title: 'DO THIS NOW',
+          subtitle: 'Keep one receipt in focus and decide the next move.',
           shellless: !stacked,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -452,9 +605,8 @@ class _ClientIntelligenceReportsPageState
         );
         final contextRail = _workspaceDeckPanel(
           key: const ValueKey('reports-workspace-panel-context'),
-          title: 'Delivery & Handoffs',
-          subtitle:
-              'Keep preview routing, governance handoff, and generation controls in one command column.',
+          title: 'HANDOFFS',
+          subtitle: 'Preview, governance, and output moves live here.',
           shellless: !stacked,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -563,17 +715,24 @@ class _ClientIntelligenceReportsPageState
           width: double.infinity,
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: const Color(0xFF09111D),
+            color: _reportsPanelColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF1D3046)),
+            border: Border.all(color: _reportsBorderColor),
+            boxShadow: const [
+              BoxShadow(
+                color: _reportsShadowColor,
+                blurRadius: 14,
+                offset: Offset(0, 8),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFEAF3FF),
+                style: GoogleFonts.inter(
+                  color: _reportsTitleColor,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
@@ -582,7 +741,7 @@ class _ClientIntelligenceReportsPageState
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF90A8C9),
+                  color: _reportsBodyColor,
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                   height: 1.35,
@@ -591,10 +750,19 @@ class _ClientIntelligenceReportsPageState
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 5),
-              onyxBoundedPanelBody(
-                context: context,
-                constraints: constraints,
-                child: child,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: _reportsPanelAltColor,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _reportsBorderColor),
+                ),
+                child: onyxBoundedPanelBody(
+                  context: context,
+                  constraints: constraints,
+                  child: child,
+                ),
               ),
             ],
           ),
@@ -708,8 +876,8 @@ class _ClientIntelligenceReportsPageState
         if (summaryOnly)
           Text(
             hasPartnerLane
-                ? 'Receipt filters and partner focus stay pinned in the receipt rail, while governance and preview pivots stay anchored to the focused board and context rail below.'
-                : 'Receipt filters stay pinned in the receipt rail, while governance and preview pivots stay anchored to the focused board and context rail below.',
+                ? 'Filter the receipt board, keep the right report in focus, and route it without losing partner scope.'
+                : 'Filter the receipt board, keep the right report in focus, and route it fast.',
             style: GoogleFonts.inter(
               color: const Color(0xFF9CB2D1),
               fontSize: 9,
@@ -736,7 +904,7 @@ class _ClientIntelligenceReportsPageState
                 key: const ValueKey('reports-workspace-banner-filter-alerts'),
                 label: 'Focus Alerts',
                 selected: _receiptFilter == ReportReceiptSceneFilter.alerts,
-                accent: const Color(0xFFF6C067),
+                accent: const Color(0xFF60A5FA),
                 onTap: () =>
                     toggleReportReceiptFilter(ReportReceiptSceneFilter.alerts),
               ),
@@ -783,10 +951,10 @@ class _ClientIntelligenceReportsPageState
               _workspaceStatusAction(
                 key: const ValueKey('reports-workspace-banner-open-preview'),
                 label: previewTargetReceipt != null
-                    ? 'Open Staged Target'
+                    ? 'OPEN PREVIEW TARGET'
                     : activeReceipt != null
                     ? 'Open Active Receipt'
-                    : 'Recover Receipt Lane',
+                    : 'Recover Receipt Board',
                 selected: previewTargetReceipt != null || activeReceipt != null,
                 accent: const Color(0xFF59D79B),
                 onTap: previewTargetReceipt != null
@@ -816,9 +984,9 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF09111D),
+        color: const Color(0xFFF2F6FB),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1D3046)),
+        border: Border.all(color: const Color(0xFFD1DCE8)),
       ),
       child: bannerContent,
     );
@@ -826,13 +994,19 @@ class _ClientIntelligenceReportsPageState
 
   Widget _reportsWorkspaceCommandReceipt({bool shellless = false}) {
     final receipt = _commandReceipt;
+    final titleColor = shellless ? receipt.accent : const Color(0xFF33506E);
+    final labelColor = shellless ? _reportsTitleColor : const Color(0xFF10243A);
+    final messageColor = shellless
+        ? _reportsTitleColor
+        : const Color(0xFF18304A);
+    final detailColor = shellless ? _reportsBodyColor : const Color(0xFF5B7086);
     final receiptContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'LATEST COMMAND',
+          'LAST MOVE',
           style: GoogleFonts.inter(
-            color: receipt.accent,
+            color: titleColor,
             fontSize: 8.5,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
@@ -842,7 +1016,7 @@ class _ClientIntelligenceReportsPageState
         Text(
           receipt.label,
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF4FF),
+            color: labelColor,
             fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
@@ -853,7 +1027,7 @@ class _ClientIntelligenceReportsPageState
         Text(
           receipt.message,
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF4FF),
+            color: messageColor,
             fontSize: 10,
             fontWeight: FontWeight.w700,
             height: 1.35,
@@ -865,7 +1039,7 @@ class _ClientIntelligenceReportsPageState
         Text(
           receipt.detail,
           style: GoogleFonts.inter(
-            color: const Color(0xFF9AB1CF),
+            color: detailColor,
             fontSize: 9,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -884,11 +1058,11 @@ class _ClientIntelligenceReportsPageState
     return Container(
       key: const ValueKey('reports-workspace-command-receipt'),
       width: double.infinity,
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: receipt.accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: receipt.accent.withValues(alpha: 0.34)),
+        color: const Color(0xFFF3F7FC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.24)),
       ),
       child: receiptContent,
     );
@@ -910,27 +1084,27 @@ class _ClientIntelligenceReportsPageState
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
         decoration: BoxDecoration(
           color: onTap == null
-              ? const Color(0xFF0D1724)
+              ? const Color(0xFFE3EAF2)
               : selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFF102337),
+              : const Color(0xFFE9F1F8),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: onTap == null
-                ? const Color(0xFF29425F)
+                ? const Color(0xFFC7D5E3)
                 : selected
                 ? accent.withValues(alpha: 0.52)
-                : const Color(0xFF29425F),
+                : const Color(0xFFC7D5E3),
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
             color: onTap == null
-                ? const Color(0xFF6F86A3)
+                ? const Color(0xFF7A8CA1)
                 : selected
                 ? accent
-                : const Color(0xFFEAF3FF),
+                : const Color(0xFF18304A),
             fontSize: 9,
             fontWeight: FontWeight.w800,
           ),
@@ -948,13 +1122,23 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF102337),
+        color: _reportsPanelColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF29425F)),
+        border: Border.all(color: _reportsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'RECEIPT LANE',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF8FD1FF),
+              fontSize: 9.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 4),
           Wrap(
             spacing: 5,
             runSpacing: 5,
@@ -1103,7 +1287,7 @@ class _ClientIntelligenceReportsPageState
                     ? 'Focused receipt ${activeReceipt.event.eventId} stays anchored to the selected board while preview target ${previewTargetReceipt.event.eventId} remains staged for ${_previewSurface.label.toLowerCase()} below.'
                     : 'Focused receipt ${activeReceipt.event.eventId} stays anchored to the selected board, while events handoff, receipt copy, and governance review stay pinned to the board and context surfaces below.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9CB2D1),
+                  color: _reportsBodyColor,
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                   height: 1.35,
@@ -1138,9 +1322,7 @@ class _ClientIntelligenceReportsPageState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          activeReceipt == null
-                              ? 'RECEIPT BOARD RECOVERY'
-                              : 'RECEIPT IN FOCUS',
+                          'DO THIS NOW',
                           style: GoogleFonts.inter(
                             color: activeAccent,
                             fontSize: 9,
@@ -1151,10 +1333,10 @@ class _ClientIntelligenceReportsPageState
                         const SizedBox(height: 2),
                         Text(
                           activeReceipt == null
-                              ? 'Active Receipt Board'
+                              ? 'GET A RECEIPT BACK'
                               : activeReceipt.event.eventId,
-                          style: GoogleFonts.rajdhani(
-                            color: const Color(0xFFE8F1FF),
+                          style: GoogleFonts.inter(
+                            color: _reportsTitleColor,
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             height: 0.95,
@@ -1177,10 +1359,10 @@ class _ClientIntelligenceReportsPageState
               const SizedBox(height: 5),
               Text(
                 activeReceipt == null
-                    ? 'Receipt lane recovery ready.'
+                    ? 'Receipt board recovery ready.'
                     : _receiptPolicyHistoryHeadline(activeReceipt.event),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFE8F1FF),
+                  color: _reportsTitleColor,
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   height: 1.35,
@@ -1194,7 +1376,7 @@ class _ClientIntelligenceReportsPageState
                   if (activeReceipt == null)
                     _partnerScopeChip(
                       label: '${reportRows.length} scoped',
-                      color: const Color(0xFF8FD1FF),
+                      color: _reportsAccentSky,
                     ),
                   if (previewTargetReceipt != null)
                     _partnerScopeChip(
@@ -1213,7 +1395,7 @@ class _ClientIntelligenceReportsPageState
                   ),
                   if (activeReceipt == null)
                     _partnerScopeChip(
-                      label: '${visibleReceipts.length} lane rows',
+                      label: '${visibleReceipts.length} board rows',
                       color: const Color(0xFF8EA4C2),
                     ),
                 ],
@@ -1226,7 +1408,7 @@ class _ClientIntelligenceReportsPageState
                     ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()} while ${activeReceipt.event.eventId} stays pinned for operator review.'
                     : 'Focused receipt ${activeReceipt.event.eventId} is ready for preview, events handoff, and governance review from this board.',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF9CB2D1),
+                  color: _reportsBodyColor,
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                   height: 1.45,
@@ -1269,7 +1451,7 @@ class _ClientIntelligenceReportsPageState
                       ),
                       label: 'All Receipts',
                       selected: _receiptFilter == ReportReceiptSceneFilter.all,
-                      accent: const Color(0xFF8FD1FF),
+                      accent: _reportsAccentSky,
                       onTap: reportRows.isEmpty
                           ? null
                           : () => _recoverReceiptWorkspace(
@@ -1298,7 +1480,7 @@ class _ClientIntelligenceReportsPageState
                       ? 'Events handoff, receipt copy, and staged preview target stay pinned in the context rail and preview target surfaces below.'
                       : 'Events handoff and receipt copy stay pinned in the context rail, while governance and active-board pivots stay anchored to the selected receipt board.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8EA4C2),
+                    color: _reportsMutedColor,
                     fontSize: 9,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -1320,13 +1502,13 @@ class _ClientIntelligenceReportsPageState
         gradient: LinearGradient(
           colors: [
             activeAccent.withValues(alpha: 0.16),
-            const Color(0xFF102337),
+            const Color(0xFFF2F6FB),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: activeAccent.withValues(alpha: 0.34)),
+        border: Border.all(color: activeAccent.withValues(alpha: 0.28)),
       ),
       child: focusContent,
     );
@@ -1362,7 +1544,7 @@ class _ClientIntelligenceReportsPageState
           const SizedBox(height: 5),
         ],
         Text(
-          'Context Snapshot',
+          'HANDOFF SNAPSHOT',
           style: GoogleFonts.inter(
             color: const Color(0xFF8FD1FF),
             fontSize: 9.5,
@@ -1397,12 +1579,12 @@ class _ClientIntelligenceReportsPageState
         const SizedBox(height: 5),
         Text(
           previewTargetReceipt != null
-              ? 'Preview target ${previewTargetReceipt.event.eventId} is staged for ${_previewSurface.label.toLowerCase()}.'
+              ? 'Preview target ${previewTargetReceipt.event.eventId} is staged and ready to open.'
               : activeReceipt != null
-              ? 'Focused receipt ${activeReceipt.event.eventId} is ready for governance handoff and preview.'
+              ? 'Focused receipt ${activeReceipt.event.eventId} is ready for preview and governance handoff.'
               : recoveryFilters.isEmpty
-              ? '${reportRows.length} scoped receipts remain available for this site lane.'
-              : '${reportRows.length} scoped receipts remain available outside ${_receiptFilter.label.toLowerCase()}. Use the recovery controls to reopen the active board or pivot into ${recoveryFilters.first.label.toLowerCase()}.',
+              ? '${reportRows.length} scoped receipts remain available on this receipt board.'
+              : '${reportRows.length} scoped receipts remain outside ${_receiptFilter.label.toLowerCase()}. Reopen the board or pivot into ${recoveryFilters.first.label.toLowerCase()}.',
           style: GoogleFonts.inter(
             color: const Color(0xFF9CB2D1),
             fontSize: 9,
@@ -1420,7 +1602,7 @@ class _ClientIntelligenceReportsPageState
             children: [
               _workspaceQuickButton(
                 key: const ValueKey('reports-workspace-open-governance'),
-                label: 'Open Governance',
+                label: 'OPEN GOVERNANCE DESK',
                 onTap: governanceAction,
               ),
               _workspaceQuickButton(
@@ -1432,7 +1614,7 @@ class _ClientIntelligenceReportsPageState
               ),
               _workspaceQuickButton(
                 key: const ValueKey('reports-workspace-open-preview-target'),
-                label: 'Open Staged Target',
+                label: 'OPEN PREVIEW TARGET',
                 onTap: previewTargetReceipt == null
                     ? null
                     : () => _previewReceipt(
@@ -1445,8 +1627,8 @@ class _ClientIntelligenceReportsPageState
         else
           Text(
             previewTargetReceipt != null
-                ? 'Governance handoff stays pinned in the page header, while the selected receipt and staged target stay anchored to the board and preview surfaces below.'
-                : 'Governance handoff stays pinned in the page header, while selected receipt review stays anchored to the board and preview surfaces below.',
+                ? 'Governance Desk stays pinned in the page header, while the selected receipt and staged target stay anchored to the board and preview surfaces below.'
+                : 'Governance Desk stays pinned in the page header, while selected receipt review stays anchored to the board and preview surfaces below.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA4C2),
               fontSize: 9,
@@ -1467,9 +1649,9 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF102337),
+        color: const Color(0xFFEFF4FA),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF29425F)),
+        border: Border.all(color: const Color(0xFFD1DCE8)),
       ),
       child: contextContent,
     );
@@ -1484,8 +1666,8 @@ class _ClientIntelligenceReportsPageState
       key: key,
       onPressed: onTap,
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF153655),
-        side: const BorderSide(color: Color(0xFF63BDFF)),
+        backgroundColor: const Color(0xFF28527D),
+        side: const BorderSide(color: Color(0xFF8EC8FF)),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
@@ -1513,12 +1695,11 @@ class _ClientIntelligenceReportsPageState
       siteId: widget.selectedSite,
     );
     return OnyxStoryHero(
-      eyebrow: 'SHIFT STORY',
+      eyebrow: 'WAR ROOM',
       title: 'Reports & Documentation',
-      subtitle:
-          'Review the shift story ONYX assembles from alarms, dispatches, OB entries, scene reviews, and client communication before it leaves the room.',
+      subtitle: 'Pick the right receipt, preview it, and move it out cleanly.',
       icon: Icons.description_rounded,
-      gradientColors: const [Color(0xFF15283F), Color(0xFF0F1728)],
+      gradientColors: const [_reportsPanelAltColor, _reportsPanelTintColor],
       metrics: [
         OnyxStoryMetric(
           value: widget.selectedClient,
@@ -1538,13 +1719,13 @@ class _ClientIntelligenceReportsPageState
           value: '$pendingCount',
           label: 'building',
           foreground: pendingCount > 0
-              ? const Color(0xFFFBBF24)
+              ? const Color(0xFF7DD3FC)
               : const Color(0xFF9AB1CF),
           background: pendingCount > 0
-              ? const Color(0x1AF59E0B)
+              ? const Color(0x1438BDF8)
               : const Color(0x1494A3B8),
           border: pendingCount > 0
-              ? const Color(0x66F59E0B)
+              ? const Color(0x6638BDF8)
               : const Color(0x6694A3B8),
         ),
         OnyxStoryMetric(
@@ -1556,24 +1737,24 @@ class _ClientIntelligenceReportsPageState
         ),
         OnyxStoryMetric(
           value: '${reviewedCount + pendingSceneCount}',
-          label: 'review lane',
-          foreground: const Color(0xFFEAF4FF),
-          background: const Color(0x14000000),
-          border: const Color(0x3322405F),
+          label: 'review desk',
+          foreground: const Color(0xFF172638),
+          background: const Color(0xFFF5F8FC),
+          border: const Color(0xFFD4DFEA),
         ),
         OnyxStoryMetric(
           value: '$totalReceipts',
           label: 'reports',
-          foreground: const Color(0xFFEAF4FF),
-          background: const Color(0x14000000),
-          border: const Color(0x3322405F),
+          foreground: const Color(0xFF172638),
+          background: const Color(0xFFF5F8FC),
+          border: const Color(0xFFD4DFEA),
         ),
       ],
       actions: [
         _heroActionButton(
           key: const ValueKey('reports-routed-view-governance-button'),
           icon: Icons.open_in_new,
-          label: 'View Governance',
+          label: 'OPEN GOVERNANCE DESK',
           accent: const Color(0xFF93C5FD),
           onPressed: governanceAction,
         ),
@@ -1604,7 +1785,7 @@ class _ClientIntelligenceReportsPageState
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
-        disabledBackgroundColor: const Color(0x12000000),
+        disabledBackgroundColor: const Color(0xFFF0F5FB),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -1635,7 +1816,7 @@ class _ClientIntelligenceReportsPageState
         Text(
           '${visibleReceipts.length} visible receipt${visibleReceipts.length == 1 ? '' : 's'} of $totalReceipts total',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
+            color: _reportsMutedColor,
             fontSize: 9.5,
             fontWeight: FontWeight.w600,
           ),
@@ -1645,7 +1826,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Focused receipt ${activeReceipt.event.eventId} stays pinned in the selected board while this rail keeps lane filters and receipt history together.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: _reportsBodyColor,
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -1731,7 +1912,7 @@ class _ClientIntelligenceReportsPageState
         Text(
           _receiptBrandingSummary(row.event),
           style: GoogleFonts.inter(
-            color: const Color(0xFF93A6C2),
+            color: _reportsBodyColor,
             fontSize: 10.5,
             fontWeight: FontWeight.w600,
             height: 1.45,
@@ -1752,7 +1933,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     _receiptPolicyHistoryHeadline(row.event),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF3FF),
+                      color: _reportsTitleColor,
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1761,7 +1942,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     'Generated $generatedAt',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF93A6C2),
+                      color: _reportsMutedColor,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1823,7 +2004,7 @@ class _ClientIntelligenceReportsPageState
           children: [
             Expanded(
               child: _pillActionButton(
-                label: 'Open Selected Receipt',
+                label: 'OPEN PREVIEW TARGET',
                 icon: Icons.visibility_rounded,
                 buttonKey: const ValueKey('reports-selected-preview-button'),
                 onTap: () => _previewReceipt(row, hasLiveReceipts),
@@ -1877,8 +2058,8 @@ class _ClientIntelligenceReportsPageState
     final detail = rows.isEmpty
         ? 'Generate a receipt to reopen the preview workspace and restore the delivery handoff.'
         : leadRecoveryFilter == null
-        ? '$availableCount $receiptLabel are still staged in this reports lane. Reopen the full history stream to restore the preview workspace.'
-        : '$availableCount $receiptLabel are still staged in this reports lane. Reopen the full history stream or pivot straight into $leadRecoveryFilter to restore the preview workspace.';
+        ? '$availableCount $receiptLabel are still staged in this Reports Workspace. Reopen the full history stream to restore the preview workspace.'
+        : '$availableCount $receiptLabel are still staged in this Reports Workspace. Reopen the full history stream or pivot straight into $leadRecoveryFilter to restore the preview workspace.';
 
     return Container(
       key: const ValueKey('reports-selected-recovery-surface'),
@@ -1890,7 +2071,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'No Receipt Selected',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF3FF),
+              color: _reportsTitleColor,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
@@ -1899,7 +2080,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: _reportsBodyColor,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -1976,9 +2157,9 @@ class _ClientIntelligenceReportsPageState
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1522),
+        color: _reportsPanelColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF263648)),
+        border: Border.all(color: _reportsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1986,7 +2167,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF6E829E),
+              color: _reportsMutedColor,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -1996,7 +2177,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFFF2F7FF),
+              color: _reportsTitleColor,
               fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
@@ -2031,7 +2212,7 @@ class _ClientIntelligenceReportsPageState
             if (!summaryOnly)
               _actionButton(
                 key: const ValueKey('reports-related-governance-button'),
-                label: 'View Governance',
+                label: 'OPEN GOVERNANCE DESK',
                 icon: Icons.open_in_new_rounded,
                 onTap: _openGovernanceScopeAction(
                   clientId: widget.selectedClient,
@@ -2040,7 +2221,7 @@ class _ClientIntelligenceReportsPageState
               ),
             _actionButton(
               key: const ValueKey('reports-related-events-button'),
-              label: 'View Events',
+              label: 'OPEN EVENTS SCOPE',
               icon: Icons.rule_folder_rounded,
               onTap: activeReceipt == null
                   ? null
@@ -2076,9 +2257,9 @@ class _ClientIntelligenceReportsPageState
         if (summaryOnly) ...[
           const SizedBox(height: 6),
           Text(
-            'Governance handoff and report generation stay pinned in the page header, while verification and receipt copy stay anchored to the selected board below.',
+            'Governance Desk and Reports Workspace delivery stay pinned in the page header, while verification and receipt copy stay anchored to the selected board below.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _reportsMutedColor,
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -2114,9 +2295,9 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF102337),
+              color: _reportsPanelAltColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF29425F)),
+              border: Border.all(color: _reportsBorderColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2134,7 +2315,7 @@ class _ClientIntelligenceReportsPageState
                 Text(
                   _currentBrandingConfiguration.primaryLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE8F1FF),
+                    color: _reportsTitleColor,
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2146,7 +2327,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     _currentBrandingConfiguration.endorsementLine,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9CB2D1),
+                      color: _reportsBodyColor,
                       fontSize: 9.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -2461,9 +2642,9 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF102337),
+              color: const Color(0xFFFFFFFF),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF29425F)),
+              border: Border.all(color: const Color(0xFFD6E1EC)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2481,7 +2662,7 @@ class _ClientIntelligenceReportsPageState
                 Text(
                   '${_partnerScopeClientId!}/${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE8F1FF),
+                    color: const Color(0xFF172638),
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2491,7 +2672,7 @@ class _ClientIntelligenceReportsPageState
                   latestPoint?.row.summaryLine ??
                       'Morning partner scorecard sync pending for this scope.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9CB2D1),
+                    color: const Color(0xFF556B80),
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -2657,13 +2838,13 @@ class _ClientIntelligenceReportsPageState
               ),
               _actionButton(
                 key: const ValueKey('reports-partner-scorecard-open-activity'),
-                label: 'Open Activity Truth',
+                label: 'OPEN ACTIVITY TRUTH DESK',
                 icon: Icons.groups_rounded,
                 onTap: _openPartnerScopeActivityTruth,
               ),
               _actionButton(
                 key: const ValueKey('reports-partner-scorecard-open-drill-in'),
-                label: 'Open Drill-In',
+                label: 'OPEN PARTNER DRILL-IN',
                 icon: Icons.manage_search_rounded,
                 onTap: _openPartnerScopeDrillIn,
               ),
@@ -2678,7 +2859,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-scorecard-open-governance',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: openGovernanceAction,
                 ),
@@ -2686,7 +2867,7 @@ class _ClientIntelligenceReportsPageState
                   currentChains.isNotEmpty)
                 _actionButton(
                   key: const ValueKey('reports-partner-scorecard-open-events'),
-                  label: 'Open Events Review',
+                  label: 'OPEN EVENTS SCOPE',
                   icon: Icons.rule_folder_rounded,
                   onTap: () =>
                       _openEventsForPartnerDispatchChain(currentChains.first),
@@ -2698,7 +2879,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               'Scorecard history',
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
+                color: const Color(0xFF172638),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -2714,7 +2895,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               'Current dispatch chains',
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
+                color: const Color(0xFF172638),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -2868,9 +3049,9 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF102337),
+        color: _reportsPanelColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF29425F)),
+        border: Border.all(color: _reportsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2881,7 +3062,7 @@ class _ClientIntelligenceReportsPageState
             children: [
               _partnerScopeChip(
                 label: 'SCORECARD COMMAND',
-                color: const Color(0xFF8FD1FF),
+                color: _reportsAccentSky,
               ),
               _partnerScopeChip(
                 label: '$laneCount lane${laneCount == 1 ? '' : 's'}',
@@ -2905,7 +3086,7 @@ class _ClientIntelligenceReportsPageState
               else if (formingCount > 0)
                 _partnerScopeChip(
                   label: '$formingCount forming',
-                  color: const Color(0xFF8FD1FF),
+                  color: _reportsAccentSky,
                 ),
               if (receiptCount > 0)
                 _partnerScopeChip(
@@ -2926,7 +3107,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: const Color(0xFF556B80),
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -2962,7 +3143,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-lanes-command-open-receipts',
                   ),
-                  label: 'Open Receipt Lane',
+                  label: 'Open Receipt Board',
                   icon: Icons.receipt_long_rounded,
                   onTap: onOpenReceiptLane,
                 ),
@@ -2970,7 +3151,7 @@ class _ClientIntelligenceReportsPageState
                 key: const ValueKey(
                   'reports-partner-lanes-command-open-activity',
                 ),
-                label: 'Open Activity Truth',
+                label: 'OPEN ACTIVITY TRUTH DESK',
                 icon: Icons.groups_rounded,
                 onTap: onOpenActivityTruth,
               ),
@@ -2979,7 +3160,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-lanes-command-open-governance',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: onOpenGovernance,
                 ),
@@ -3251,7 +3432,7 @@ class _ClientIntelligenceReportsPageState
               ),
               _actionButton(
                 key: const ValueKey('reports-partner-comparison-open-activity'),
-                label: 'Open Activity Truth',
+                label: 'OPEN ACTIVITY TRUTH DESK',
                 icon: Icons.groups_rounded,
                 onTap: () => _openSiteActivityTruth(
                   clientId: widget.selectedClient,
@@ -3441,11 +3622,16 @@ class _ClientIntelligenceReportsPageState
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF08111F),
+          backgroundColor: _reportsPanelColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: _reportsBorderColor),
+          ),
           title: Text(
             'Receipt Investigation History',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            style: GoogleFonts.inter(
+              color: _reportsTitleColor,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -3499,7 +3685,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       _receiptPolicyHistoryHeadline(current.event),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: _reportsTitleColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -3630,11 +3816,16 @@ class _ClientIntelligenceReportsPageState
         final canOpenGovernance =
             partnerGovernanceAction != null || genericGovernanceAction != null;
         return AlertDialog(
-          backgroundColor: const Color(0xFF08111F),
+          backgroundColor: _reportsPanelColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: _reportsBorderColor),
+          ),
           title: Text(
             'Visitor / Activity Truth',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            style: GoogleFonts.inter(
+              color: _reportsTitleColor,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -3650,7 +3841,7 @@ class _ClientIntelligenceReportsPageState
                         ? '$clientId/$siteId'
                         : '$clientId/$siteId • $partnerLabel',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE8F1FF),
+                      color: _reportsTitleColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -3706,7 +3897,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       currentPoint.snapshot.summaryLine,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9CB2D1),
+                        color: _reportsBodyColor,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -3730,7 +3921,7 @@ class _ClientIntelligenceReportsPageState
                                 scopedReceiptRows.first.event.eventId,
                               );
                               _showReceiptActionFeedback(
-                                'Focused quiet activity scope on receipt lane ${scopedReceiptRows.first.event.eventId}.',
+                                'Focused quiet activity scope on receipt board ${scopedReceiptRows.first.event.eventId}.',
                               );
                             },
                       onOpenGovernance: !canOpenGovernance
@@ -3756,7 +3947,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       'Activity truth by shift',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: _reportsTitleColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -3816,8 +4007,8 @@ class _ClientIntelligenceReportsPageState
     required VoidCallback? onOpenGovernance,
   }) {
     final detail = hasScopedReceipts
-        ? 'This scope is quiet so far. Visitor and site-activity signals have not landed yet, but the reports lane is still live for $siteId. Reopen the receipt lane or pivot into governance while the activity stream warms up.'
-        : 'This scope is quiet so far. Visitor and site-activity signals have not landed yet, so use governance to keep the operating picture moving while the activity stream warms up.';
+        ? 'This scope is quiet so far. Visitor and site-activity signals have not landed yet, but the Reports Workspace is still live for $siteId. Reopen the receipt board or pivot into Governance Desk while the activity stream warms up.'
+        : 'This scope is quiet so far. Visitor and site-activity signals have not landed yet, so use Governance Desk to keep the operating picture moving while the activity stream warms up.';
 
     return Container(
       key: ValueKey<String>(
@@ -3826,9 +4017,16 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1F30),
+        color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF36516F)),
+        border: Border.all(color: _reportsBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _reportsShadowColor,
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3836,7 +4034,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'This scope is quiet so far.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _reportsTitleColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -3845,7 +4043,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -3861,7 +4059,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-site-activity-quiet-open-receipts-$clientId/$siteId/${partnerLabel ?? 'scope'}',
                   ),
-                  label: 'Open Receipt Lane',
+                  label: 'Open Receipt Board',
                   icon: Icons.receipt_long_rounded,
                   onTap: onOpenReceiptLane,
                 ),
@@ -3870,7 +4068,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-site-activity-quiet-open-governance-$clientId/$siteId/${partnerLabel ?? 'scope'}',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: onOpenGovernance,
                 ),
@@ -3892,17 +4090,24 @@ class _ClientIntelligenceReportsPageState
   }) {
     final hasActivitySignals = activitySignals > 0;
     final detail = hasScopedReceipts || hasActivitySignals
-        ? 'The partner lane is already live, but the morning scorecard snapshot has not landed yet. Reopen the receipt lane, inspect activity truth, or pivot into governance while the scorecard sync catches up.'
-        : 'The partner scope is selected, but the morning scorecard has not landed yet. Open activity truth, pivot into governance, or clear focus while this lane catches up.';
+        ? 'The partner scope is already live, but the morning scorecard snapshot has not landed yet. Reopen the receipt board, inspect activity truth, or pivot into Governance Desk while the scorecard sync catches up.'
+        : 'The partner scope is selected, but the morning scorecard has not landed yet. Open activity truth, pivot into Governance Desk, or clear focus while this scope catches up.';
 
     return Container(
       key: const ValueKey('reports-partner-scope-recovery-card'),
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1F30),
+        color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF36516F)),
+        border: Border.all(color: _reportsBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _reportsShadowColor,
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3917,8 +4122,8 @@ class _ClientIntelligenceReportsPageState
               ),
               _partnerScopeChip(
                 label: hasScopedReceipts
-                    ? 'Receipt lane live'
-                    : 'Receipt lane idle',
+                    ? 'Receipt board live'
+                    : 'Receipt board idle',
                 color: hasScopedReceipts
                     ? const Color(0xFF5DC8FF)
                     : const Color(0xFF7A8EA8),
@@ -3942,7 +4147,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -3958,7 +4163,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-scope-recovery-open-receipts',
                   ),
-                  label: 'Open Receipt Lane',
+                  label: 'Open Receipt Board',
                   icon: Icons.receipt_long_rounded,
                   onTap: onOpenReceiptLane,
                 ),
@@ -3966,7 +4171,7 @@ class _ClientIntelligenceReportsPageState
                 key: const ValueKey(
                   'reports-partner-scope-recovery-open-activity',
                 ),
-                label: 'Open Activity Truth',
+                label: 'OPEN ACTIVITY TRUTH DESK',
                 icon: Icons.groups_rounded,
                 onTap: onOpenActivityTruth,
               ),
@@ -3975,7 +4180,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-scope-recovery-open-governance',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: onOpenGovernance,
                 ),
@@ -4006,17 +4211,24 @@ class _ClientIntelligenceReportsPageState
   }) {
     final hasActivitySignals = activitySignals > 0;
     final detail = hasScopedReceipts || hasActivitySignals
-        ? 'No scorecard history has landed for this partner scope yet, but the lane already has live receipt or activity context. Reopen the receipt lane, inspect activity truth, or bridge into governance while the scorecard history sync catches up.'
-        : 'No scorecard history has landed for this partner scope yet. Use activity truth or governance to keep the lane moving while scorecard history catches up.';
+        ? 'No scorecard history has landed for this partner scope yet, but the scope already has live receipt or activity context. Reopen the receipt board, inspect activity truth, or bridge into Governance Desk while the scorecard history sync catches up.'
+        : 'No scorecard history has landed for this partner scope yet. Use activity truth or Governance Desk to keep the scope moving while scorecard history catches up.';
 
     return Container(
       key: const ValueKey('reports-partner-drill-in-recovery-card'),
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1F30),
+        color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF36516F)),
+        border: Border.all(color: _reportsBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _reportsShadowColor,
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4024,7 +4236,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'No scorecard history has landed for this partner scope yet.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _reportsTitleColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -4040,8 +4252,8 @@ class _ClientIntelligenceReportsPageState
               ),
               _partnerScopeChip(
                 label: hasScopedReceipts
-                    ? 'Receipt lane live'
-                    : 'Receipt lane idle',
+                    ? 'Receipt board live'
+                    : 'Receipt board idle',
                 color: hasScopedReceipts
                     ? const Color(0xFF5DC8FF)
                     : const Color(0xFF7A8EA8),
@@ -4065,7 +4277,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -4081,7 +4293,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-drill-in-recovery-open-receipts',
                   ),
-                  label: 'Open Receipt Lane',
+                  label: 'Open Receipt Board',
                   icon: Icons.receipt_long_rounded,
                   onTap: onOpenReceiptLane,
                 ),
@@ -4089,7 +4301,7 @@ class _ClientIntelligenceReportsPageState
                 key: const ValueKey(
                   'reports-partner-drill-in-recovery-open-activity',
                 ),
-                label: 'Open Activity Truth',
+                label: 'OPEN ACTIVITY TRUTH DESK',
                 icon: Icons.groups_rounded,
                 onTap: onOpenActivityTruth,
               ),
@@ -4098,7 +4310,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-drill-in-recovery-open-governance',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: onOpenGovernance,
                 ),
@@ -4172,11 +4384,16 @@ class _ClientIntelligenceReportsPageState
             _partnerScopeSiteId == siteId &&
             _partnerScopePartnerLabel == partnerLabel;
         return AlertDialog(
-          backgroundColor: const Color(0xFF08111F),
+          backgroundColor: _reportsPanelColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: _reportsBorderColor),
+          ),
           title: Text(
             'Partner Scorecard Drill-In',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            style: GoogleFonts.inter(
+              color: _reportsTitleColor,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -4190,7 +4407,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     '$clientId/$siteId • $partnerLabel',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE8F1FF),
+                      color: _reportsTitleColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -4220,7 +4437,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       trendReason,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
+                        color: _reportsMutedColor,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -4231,7 +4448,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       'Receipt provenance by shift',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: _reportsTitleColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4337,7 +4554,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       'Scorecard history',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: _reportsTitleColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4362,7 +4579,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       'Dispatch chains',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: _reportsTitleColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -4449,11 +4666,16 @@ class _ClientIntelligenceReportsPageState
             widget.onOpenGovernanceForPartnerScope != null ||
             genericGovernanceAction != null;
         return AlertDialog(
-          backgroundColor: const Color(0xFF08111F),
+          backgroundColor: _reportsPanelColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: _reportsBorderColor),
+          ),
           title: Text(
             'Partner Shift Detail',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            style: GoogleFonts.inter(
+              color: _reportsTitleColor,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -4467,7 +4689,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     '${point.reportDate} • ${point.row.clientId}/${point.row.siteId} • ${point.row.partnerLabel}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE8F1FF),
+                      color: _reportsTitleColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -4507,7 +4729,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     point.row.summaryLine,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9CB2D1),
+                      color: _reportsBodyColor,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4527,7 +4749,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     'Shift receipts',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE8F1FF),
+                      color: _reportsTitleColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -4550,7 +4772,7 @@ class _ClientIntelligenceReportsPageState
                                 scopedReceiptRows.first.event.eventId,
                               );
                               _showReceiptActionFeedback(
-                                'Focused shift receipt lane for ${point.reportDate} • ${point.row.partnerLabel}.',
+                                'Focused shift receipt board for ${point.reportDate} • ${point.row.partnerLabel}.',
                               );
                             },
                       onOpenGovernance: !canOpenGovernance
@@ -4595,7 +4817,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     'Shift dispatch chains',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE8F1FF),
+                      color: _reportsTitleColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -4686,7 +4908,7 @@ class _ClientIntelligenceReportsPageState
                       key: ValueKey<String>(
                         'reports-partner-shift-open-events-${point.reportDate}',
                       ),
-                      label: 'Open Events Review',
+                      label: 'OPEN EVENTS SCOPE',
                       icon: Icons.rule_folder_rounded,
                       onTap: () {
                         Navigator.of(context).pop();
@@ -4720,8 +4942,8 @@ class _ClientIntelligenceReportsPageState
     required VoidCallback? onOpenEvents,
   }) {
     final detail = hasScopedReceipts
-        ? 'No generated receipts landed in this shift window, but this client/site lane still has report receipts outside the current shift. Reopen the receipt lane, pivot into governance, or review the scoped event trail to keep the handoff moving.'
-        : 'No generated receipts landed in this shift window. Pivot into governance or the scoped event trail to keep the lane moving while the receipt history catches up.';
+        ? 'No generated receipts landed in this shift window, but this client/site scope still has report receipts outside the current shift. Reopen the receipt board, pivot into Governance Desk, or review the scoped event trail to keep the handoff moving.'
+        : 'No generated receipts landed in this shift window. Pivot into Governance Desk or the scoped event trail to keep the scope moving while the receipt history catches up.';
 
     return Container(
       key: ValueKey<String>(
@@ -4730,9 +4952,16 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1F30),
+        color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF36516F)),
+        border: Border.all(color: _reportsBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _reportsShadowColor,
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4740,7 +4969,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'No generated receipts landed in this shift window.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _reportsTitleColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -4749,7 +4978,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -4765,7 +4994,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-shift-empty-receipts-open-lane-${point.reportDate}',
                   ),
-                  label: 'Open Receipt Lane',
+                  label: 'Open Receipt Board',
                   icon: Icons.receipt_long_rounded,
                   onTap: onOpenReceiptLane,
                 ),
@@ -4774,7 +5003,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-shift-empty-receipts-open-governance-${point.reportDate}',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: onOpenGovernance,
                 ),
@@ -4783,7 +5012,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-shift-empty-receipts-open-events-${point.reportDate}',
                   ),
-                  label: 'Open Events Review',
+                  label: 'OPEN EVENTS SCOPE',
                   icon: Icons.rule_folder_rounded,
                   onTap: onOpenEvents,
                 ),
@@ -4814,9 +5043,16 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1F30),
+        color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF36516F)),
+        border: Border.all(color: _reportsBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _reportsShadowColor,
+            blurRadius: 14,
+            offset: Offset(0, 7),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4824,7 +5060,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'No partner dispatch chains formed during this shift window.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _reportsTitleColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -4833,7 +5069,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -4858,7 +5094,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-shift-empty-chains-open-governance-${point.reportDate}',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: onOpenGovernance,
                 ),
@@ -4867,7 +5103,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-shift-empty-chains-open-events-${point.reportDate}',
                   ),
-                  label: 'Open Events Review',
+                  label: 'OPEN EVENTS SCOPE',
                   icon: Icons.rule_folder_rounded,
                   onTap: onOpenEvents,
                 ),
@@ -4900,9 +5136,16 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1E31),
+        color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF253B57)),
+        border: Border.all(color: _reportsBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _reportsShadowColor,
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4910,7 +5153,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Investigation Lens',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: const Color(0xFF2F6E9C),
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -4932,7 +5175,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             activeDetail,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _reportsTitleColor,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -4941,7 +5184,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             baselineDetail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -4954,7 +5197,7 @@ class _ClientIntelligenceReportsPageState
             const SizedBox(height: 10),
             _actionButton(
               key: const ValueKey('reports-receipt-policy-open-governance'),
-              label: 'Open Governance Scope',
+              label: 'OPEN GOVERNANCE DESK',
               icon: Icons.verified_user_rounded,
               onTap: () {
                 _openGovernanceScopeAction(
@@ -4979,9 +5222,16 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF102337),
+        color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF29425F)),
+        border: Border.all(color: _reportsBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _reportsShadowColor,
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4989,7 +5239,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             entryContext.bannerTitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: const Color(0xFF2F6E9C),
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -4999,7 +5249,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             entryContext.bannerDetail,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _reportsTitleColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -5032,7 +5282,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-receipt-policy-entry-context-open-governance',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: () {
                     _openGovernanceScopeAction(
@@ -5071,14 +5321,9 @@ class _ClientIntelligenceReportsPageState
       ),
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1A29),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: point.current
-              ? const Color(0xFF59D79B)
-              : const Color(0xFF223244),
-        ),
+      decoration: _reportsDrillInCardDecoration(
+        highlighted: point.current,
+        accent: const Color(0xFF59D79B),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5127,7 +5372,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             point.snapshot.summaryLine,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -5141,7 +5386,7 @@ class _ClientIntelligenceReportsPageState
                 buttonKey: ValueKey<String>(
                   'reports-site-activity-open-events-${point.reportDate}',
                 ),
-                label: 'Open Events Review',
+                label: 'OPEN EVENTS SCOPE',
                 icon: Icons.rule_folder_rounded,
                 filled: false,
                 onTap: () => _openEventsForSiteActivityPoint(point),
@@ -5159,15 +5404,15 @@ class _ClientIntelligenceReportsPageState
     final focused = _receiptPolicyRowMatchesPreviewTarget(row);
     final investigationContext = _storedEntryContextForReceipt(event);
     final backgroundColor = focused
-        ? const Color(0x1428C3FF)
+        ? const Color(0x1A5DC8FF)
         : current
         ? const Color(0x1A0EA5E9)
-        : const Color(0xFF0E1A2B);
+        : _reportsPanelAltColor;
     final borderColor = focused
         ? const Color(0xFF5DC8FF)
         : current
         ? const Color(0x550EA5E9)
-        : const Color(0xFF223244);
+        : _reportsBorderColor;
     return Container(
       key: ValueKey<String>('reports-receipt-policy-row-${event.eventId}'),
       padding: const EdgeInsets.all(10),
@@ -5175,6 +5420,13 @@ class _ClientIntelligenceReportsPageState
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: _reportsShadowColor,
+            blurRadius: 12,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5189,7 +5441,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       '${event.eventId} • ${_formatUtc(event.occurredAt)}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: _reportsTitleColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -5260,7 +5512,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             _receiptPolicyHistoryDetail(event),
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: _reportsMutedColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -5271,7 +5523,7 @@ class _ClientIntelligenceReportsPageState
               key: ValueKey<String>(
                 'reports-receipt-policy-open-events-${event.eventId}',
               ),
-              label: 'Open Events Review',
+              label: 'OPEN EVENTS SCOPE',
               icon: Icons.rule_folder_rounded,
               onTap: () => _openEventsForReceiptPolicyRow(row),
             ),
@@ -5303,12 +5555,14 @@ class _ClientIntelligenceReportsPageState
       constraints: const BoxConstraints(minHeight: 108, minWidth: 220),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
+        color: isActive
+            ? accent.withValues(alpha: 0.12)
+            : const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isActive
               ? accent.withValues(alpha: 0.85)
-              : const Color(0xFF223244),
+              : const Color(0xFFD6E1EC),
           width: isActive ? 1.4 : 1,
         ),
       ),
@@ -5330,7 +5584,7 @@ class _ClientIntelligenceReportsPageState
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16273D),
+                  color: const Color(0xFFF3F8FD),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: accent, size: 18),
@@ -5341,7 +5595,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
+              color: const Color(0xFF7A8FA4),
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -5349,7 +5603,7 @@ class _ClientIntelligenceReportsPageState
           const SizedBox(height: 2),
           Text(
             value,
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: accent,
               fontSize: 34,
               fontWeight: FontWeight.w700,
@@ -5382,7 +5636,7 @@ class _ClientIntelligenceReportsPageState
 
   Widget _partnerScopeChip({
     required String label,
-    Color color = const Color(0xFF8FD1FF),
+    Color color = _reportsAccentSky,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
@@ -5402,6 +5656,31 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
+  BoxDecoration _reportsDrillInCardDecoration({
+    bool highlighted = false,
+    Color accent = _reportsAccentSky,
+    double radius = 12,
+  }) {
+    return BoxDecoration(
+      color: highlighted
+          ? accent.withValues(alpha: 0.1)
+          : _reportsPanelAltColor,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(
+        color: highlighted
+            ? accent.withValues(alpha: 0.3)
+            : _reportsBorderColor,
+      ),
+      boxShadow: const [
+        BoxShadow(
+          color: _reportsShadowColor,
+          blurRadius: 12,
+          offset: Offset(0, 6),
+        ),
+      ],
+    );
+  }
+
   Widget _partnerScopeHistoryRow(
     _PartnerScopeHistoryPoint point, {
     VoidCallback? onOpenShift,
@@ -5412,16 +5691,10 @@ class _ClientIntelligenceReportsPageState
       ),
       width: double.infinity,
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: point.current
-            ? const Color(0x1A0EA5E9)
-            : const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: point.current
-              ? const Color(0x550EA5E9)
-              : const Color(0xFF223244),
-        ),
+      decoration: _reportsDrillInCardDecoration(
+        highlighted: point.current,
+        accent: const Color(0xFF0EA5E9),
+        radius: 10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5429,7 +5702,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             point.current ? '${point.reportDate} • CURRENT' : point.reportDate,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _reportsTitleColor,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -5438,7 +5711,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             point.row.summaryLine,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -5552,10 +5825,10 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0x1418D39E) : const Color(0xFF0E1A2B),
+        color: isActive ? const Color(0x1418D39E) : const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? const Color(0xFF59D79B) : const Color(0xFF223244),
+          color: isActive ? const Color(0xFF59D79B) : const Color(0xFFD6E1EC),
         ),
       ),
       child: Column(
@@ -5571,7 +5844,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       row.partnerLabel,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: const Color(0xFF172638),
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -5580,7 +5853,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       comparison.summaryLine,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF9CB2D1),
+                        color: const Color(0xFF556B80),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -5620,7 +5893,7 @@ class _ClientIntelligenceReportsPageState
                       ? comparison.trendReason
                       : '${deltaParts.join(' • ')} vs leader'),
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: const Color(0xFF556B80),
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -5630,7 +5903,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               comparison.trendReason,
               style: GoogleFonts.inter(
-                color: const Color(0xFF7D93B1),
+                color: const Color(0xFF7A8FA4),
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -5830,7 +6103,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               'Recent shifts',
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
+                color: const Color(0xFF172638),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -5852,7 +6125,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Investigate',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: const Color(0xFF172638),
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -5866,7 +6139,7 @@ class _ClientIntelligenceReportsPageState
                 key: ValueKey<String>(
                   'reports-partner-comparison-open-events-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
-                label: 'Open Events',
+                label: 'OPEN EVENTS SCOPE',
                 icon: Icons.timeline_rounded,
                 onTap: comparison.historyPoints.isEmpty
                     ? null
@@ -5890,7 +6163,7 @@ class _ClientIntelligenceReportsPageState
                 key: ValueKey<String>(
                   'reports-partner-comparison-open-drill-in-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
-                label: 'Open Drill-In',
+                label: 'OPEN PARTNER DRILL-IN',
                 icon: Icons.manage_search_rounded,
                 onTap: () => _openPartnerDrillIn(
                   clientId: row.clientId,
@@ -5920,7 +6193,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Export',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: const Color(0xFF556B80),
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -5975,8 +6248,8 @@ class _ClientIntelligenceReportsPageState
   }) {
     final hasActivitySignals = activitySignals > 0;
     final detail = latestPoint == null
-        ? 'This comparison lane is visible before scorecard history has landed. Use the receipt lane, activity truth, or governance to keep the lane moving while the first scorecard arrives.'
-        : 'This comparison lane is still building its baseline from a single scored shift. Use the receipt lane, activity truth, or governance to keep the operator picture rich while the next scorecard lands.';
+        ? 'This comparison board is visible before scorecard history has landed. Use the receipt board, activity truth, or Governance Desk to keep the scope moving while the first scorecard arrives.'
+        : 'This comparison board is still building its baseline from a single scored shift. Use the receipt board, activity truth, or Governance Desk to keep the operator picture rich while the next scorecard lands.';
 
     return Container(
       key: ValueKey<String>(
@@ -5985,9 +6258,9 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1F30),
+        color: _reportsPanelColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF36516F)),
+        border: Border.all(color: _reportsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6006,12 +6279,12 @@ class _ClientIntelligenceReportsPageState
                 label: latestPoint == null
                     ? 'Waiting on first shift'
                     : '${latestPoint.reportDate} first shift',
-                color: const Color(0xFF8FD1FF),
+                color: _reportsAccentSky,
               ),
               _partnerScopeChip(
                 label: hasScopedReceipts
-                    ? 'Receipt lane live'
-                    : 'Receipt lane idle',
+                    ? 'Receipt board live'
+                    : 'Receipt board idle',
                 color: hasScopedReceipts
                     ? const Color(0xFF5DC8FF)
                     : const Color(0xFF7A8EA8),
@@ -6030,7 +6303,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: const Color(0xFF556B80),
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -6046,7 +6319,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-comparison-recovery-open-receipts-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                   ),
-                  label: 'Open Receipt Lane',
+                  label: 'Open Receipt Board',
                   icon: Icons.receipt_long_rounded,
                   onTap: onOpenReceiptLane,
                 ),
@@ -6054,7 +6327,7 @@ class _ClientIntelligenceReportsPageState
                 key: ValueKey<String>(
                   'reports-partner-comparison-recovery-open-activity-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
-                label: 'Open Activity Truth',
+                label: 'OPEN ACTIVITY TRUTH DESK',
                 icon: Icons.groups_rounded,
                 onTap: onOpenActivityTruth,
               ),
@@ -6063,7 +6336,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-comparison-recovery-open-governance-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: onOpenGovernance,
                 ),
@@ -6101,21 +6374,21 @@ class _ClientIntelligenceReportsPageState
         ? '$pendingCount pending'
         : formingCount > 0
         ? '$formingCount forming'
-        : 'All lanes anchored';
+        : 'All boards anchored';
     final detail = pendingCount > 0
-        ? '$pendingCount comparison lane${pendingCount == 1 ? '' : 's'} are visible before the first scorecard lands. Keep receipts, activity truth, and governance moving while the ladder fills in.'
+        ? '$pendingCount comparison board${pendingCount == 1 ? '' : 's'} are visible before the first scorecard lands. Keep receipts, activity truth, and Governance Desk moving while the ladder fills in.'
         : formingCount > 0
-        ? '$formingCount comparison lane${formingCount == 1 ? '' : 's'} are still building a baseline from one scored shift. Focus a lane or open activity truth to anchor decisions while the baseline matures.'
-        : 'The comparison ladder is anchored. Use leader focus, receipts, and governance to move from site posture into a scoped operator lane.';
+        ? '$formingCount comparison board${formingCount == 1 ? '' : 's'} are still building a baseline from one scored shift. Focus a board or open activity truth to anchor decisions while the baseline matures.'
+        : 'The comparison ladder is anchored. Use leader focus, receipts, and Governance Desk to move from site posture into a scoped operator board.';
 
     return Container(
       key: const ValueKey('reports-partner-comparison-command-banner'),
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF102337),
+        color: _reportsPanelColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF29425F)),
+        border: Border.all(color: _reportsBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6126,7 +6399,7 @@ class _ClientIntelligenceReportsPageState
             children: [
               _partnerScopeChip(
                 label: 'COMPARISON COMMAND',
-                color: const Color(0xFF8FD1FF),
+                color: _reportsAccentSky,
               ),
               if (leaderComparison != null)
                 _partnerScopeChip(
@@ -6138,7 +6411,7 @@ class _ClientIntelligenceReportsPageState
                 color: pendingCount > 0
                     ? const Color(0xFFF6C067)
                     : formingCount > 0
-                    ? const Color(0xFF8FD1FF)
+                    ? _reportsAccentSky
                     : const Color(0xFF59D79B),
               ),
               if (receiptCount > 0)
@@ -6160,7 +6433,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: const Color(0xFF556B80),
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -6196,7 +6469,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-comparison-command-open-receipts',
                   ),
-                  label: 'Open Receipt Lane',
+                  label: 'Open Receipt Board',
                   icon: Icons.receipt_long_rounded,
                   onTap: onOpenReceiptLane,
                 ),
@@ -6204,7 +6477,7 @@ class _ClientIntelligenceReportsPageState
                 key: const ValueKey(
                   'reports-partner-comparison-command-open-activity',
                 ),
-                label: 'Open Activity Truth',
+                label: 'OPEN ACTIVITY TRUTH DESK',
                 icon: Icons.groups_rounded,
                 onTap: onOpenActivityTruth,
               ),
@@ -6213,7 +6486,7 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey(
                     'reports-partner-comparison-command-open-governance',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: onOpenGovernance,
                 ),
@@ -6355,31 +6628,31 @@ class _ClientIntelligenceReportsPageState
         latestReceiptSummary.governanceHandoffCount >
             latestReceiptSummary.routineReviewCount &&
         openGovernance != null) {
-      primaryActionLabel = 'Governance Handoff';
+      primaryActionLabel = 'Governance Desk';
       primaryActionReason =
-          'Latest receipt pressure leans toward Governance handoff for this lane.';
+          'Latest receipt pressure leans toward Governance Desk for this scope.';
       primaryActionIcon = Icons.verified_user_rounded;
       primaryAction = openGovernance;
     } else if (openEvents != null) {
       primaryActionLabel = 'Open Live Events';
       primaryActionReason =
-          'A current dispatch chain is already active for this responder lane.';
+          'A current dispatch chain is already active for this responder scope.';
       primaryActionIcon = Icons.timeline_rounded;
       primaryAction = openEvents;
     } else if (openReceiptLane != null) {
-      primaryActionLabel = 'Open Receipt Lane';
+      primaryActionLabel = 'Open Receipt Board';
       primaryActionReason =
-          'Receipts are already live for this lane, so the review rail is the fastest next move.';
+          'Receipts are already live for this scope, so the review rail is the fastest next move.';
       primaryActionIcon = Icons.receipt_long_rounded;
       primaryAction = openReceiptLane;
     } else if (siteActivity.totalSignals > 0) {
-      primaryActionLabel = 'Open Activity Truth';
+      primaryActionLabel = 'OPEN ACTIVITY TRUTH DESK';
       primaryActionReason =
           'Live activity signals are already present for this lane.';
       primaryActionIcon = Icons.groups_rounded;
       primaryAction = openActivityTruth;
     } else {
-      primaryActionLabel = 'Open Drill-In';
+      primaryActionLabel = 'OPEN PARTNER DRILL-IN';
       primaryActionReason =
           'Use the drill-in to anchor this lane while deeper scorecard context forms.';
       primaryActionIcon = Icons.manage_search_rounded;
@@ -6392,10 +6665,10 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0x1418D39E) : const Color(0xFF0E1A2B),
+        color: isActive ? const Color(0x1418D39E) : const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? const Color(0xFF59D79B) : const Color(0xFF223244),
+          color: isActive ? const Color(0xFF59D79B) : const Color(0xFFD6E1EC),
         ),
       ),
       child: Column(
@@ -6411,7 +6684,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       row.partnerLabel,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: const Color(0xFF172638),
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -6420,7 +6693,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       '${row.clientId}/${row.siteId}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7D93B1),
+                        color: const Color(0xFF7A8FA4),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -6440,7 +6713,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             row.summaryLine,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: const Color(0xFF556B80),
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -6482,7 +6755,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               laneReason,
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: const Color(0xFF556B80),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -6496,9 +6769,9 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF102337),
+              color: const Color(0xFFF7FAFD),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF29425F)),
+              border: Border.all(color: const Color(0xFFD6E1EC)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -6520,7 +6793,7 @@ class _ClientIntelligenceReportsPageState
                       Text(
                         primaryActionReason,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF9CB2D1),
+                          color: const Color(0xFF556B80),
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                           height: 1.35,
@@ -6567,7 +6840,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-lane-open-receipts-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                   ),
-                  label: 'Open Receipt Lane',
+                  label: 'Open Receipt Board',
                   icon: Icons.receipt_long_rounded,
                   onTap: openReceiptLane,
                 ),
@@ -6575,7 +6848,7 @@ class _ClientIntelligenceReportsPageState
                 key: ValueKey<String>(
                   'reports-partner-lane-open-activity-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
-                label: 'Open Activity Truth',
+                label: 'OPEN ACTIVITY TRUTH DESK',
                 icon: Icons.groups_rounded,
                 onTap: openActivityTruth,
               ),
@@ -6583,7 +6856,7 @@ class _ClientIntelligenceReportsPageState
                 key: ValueKey<String>(
                   'reports-partner-lane-open-drill-in-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                 ),
-                label: 'Open Drill-In',
+                label: 'OPEN PARTNER DRILL-IN',
                 icon: Icons.manage_search_rounded,
                 onTap: openDrillIn,
               ),
@@ -6593,7 +6866,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-lane-open-events-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                   ),
-                  label: 'Open Events',
+                  label: 'OPEN EVENTS SCOPE',
                   icon: Icons.timeline_rounded,
                   onTap: openEvents,
                 ),
@@ -6603,7 +6876,7 @@ class _ClientIntelligenceReportsPageState
                   key: ValueKey<String>(
                     'reports-partner-lane-open-governance-${row.clientId}/${row.siteId}/${row.partnerLabel}',
                   ),
-                  label: 'Open Governance Scope',
+                  label: 'OPEN GOVERNANCE DESK',
                   icon: Icons.verified_user_rounded,
                   onTap: openGovernance,
                 ),
@@ -6629,11 +6902,7 @@ class _ClientIntelligenceReportsPageState
       key: ValueKey<String>('reports-partner-scope-chain-${chain.dispatchId}'),
       width: double.infinity,
       padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
-      ),
+      decoration: _reportsDrillInCardDecoration(radius: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -6644,7 +6913,7 @@ class _ClientIntelligenceReportsPageState
                 child: Text(
                   chain.dispatchId,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE8F1FF),
+                    color: _reportsTitleColor,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -6666,7 +6935,7 @@ class _ClientIntelligenceReportsPageState
                 ? 'Latest ${chain.latestStatus.name.toUpperCase()}'
                 : chain.workflowSummary.trim(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: _reportsBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -6676,7 +6945,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               timingParts.join(' • '),
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: _reportsMutedColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -6687,7 +6956,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               chain.scoreReason.trim(),
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: _reportsMutedColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -6700,7 +6969,7 @@ class _ClientIntelligenceReportsPageState
               key: ValueKey<String>(
                 'reports-partner-chain-open-events-${chain.dispatchId}',
               ),
-              label: 'Open Events Review',
+              label: 'OPEN EVENTS SCOPE',
               icon: Icons.rule_folder_rounded,
               onTap: () => _openEventsForPartnerDispatchChain(chain),
             ),
@@ -7341,11 +7610,11 @@ class _ClientIntelligenceReportsPageState
       case 'OVERSIGHT RISING':
         return currentContext == ReportEntryContext.governanceBrandingDrift
             ? 'The latest receipt entered Reports through a Governance branding-drift handoff against a more routine recent baseline.'
-            : 'Governance-opened receipt investigations increased against the recent baseline.';
+            : 'Governance Desk-routed receipt investigations increased against the recent baseline.';
       case 'OVERSIGHT EASING':
         return currentContext == ReportEntryContext.governanceBrandingDrift
-            ? 'Governance-opened receipt investigations eased against recent history.'
-            : 'The latest receipt returned to routine review without a Governance handoff.';
+            ? 'Governance Desk-routed receipt investigations eased against recent history.'
+            : 'The latest receipt returned to routine review without a Governance Desk handoff.';
       case 'STABLE':
         return 'Receipt investigation provenance is holding close to the recent baseline.';
       case 'NEW':
@@ -7407,7 +7676,7 @@ class _ClientIntelligenceReportsPageState
       case 'SLIPPING':
         return const Color(0xFFF6C067);
       case 'STABLE':
-        return const Color(0xFF8FD1FF);
+        return _reportsAccentSky;
       case 'NEW':
         return const Color(0xFF8EA5C6);
       case 'NO DATA':
@@ -7423,7 +7692,7 @@ class _ClientIntelligenceReportsPageState
       case 'OVERSIGHT EASING':
         return const Color(0xFF59D79B);
       case 'STABLE':
-        return const Color(0xFF8FD1FF);
+        return _reportsAccentSky;
       case 'NEW':
         return const Color(0xFF8EA5C6);
       case 'NO DATA':
@@ -7654,7 +7923,7 @@ class _ClientIntelligenceReportsPageState
     if (receiptSummary != null &&
         receiptSummary.governanceHandoffCount >
             receiptSummary.routineReviewCount) {
-      return 'Receipt investigations are leaning toward Governance handoff on this shift.';
+      return 'Receipt investigations are leaning toward the Governance Desk on this shift.';
     }
     final acceptDelta = comparison.acceptDeltaMinutes ?? 0;
     final onSiteDelta = comparison.onSiteDeltaMinutes ?? 0;
@@ -7679,7 +7948,7 @@ class _ClientIntelligenceReportsPageState
       case 'STRONG':
         return const Color(0xFF59D79B);
       case 'ON TRACK':
-        return const Color(0xFF8FD1FF);
+        return _reportsAccentSky;
       case 'WATCH':
         return const Color(0xFFF6C067);
       case 'CRITICAL':
@@ -7689,7 +7958,7 @@ class _ClientIntelligenceReportsPageState
       case 'SLIPPING':
         return const Color(0xFFFF7A7A);
       case 'STABLE':
-        return const Color(0xFF8FD1FF);
+        return _reportsAccentSky;
       case 'NEW':
         return const Color(0xFFF6C067);
       default:
@@ -7860,7 +8129,7 @@ class _ClientIntelligenceReportsPageState
         if (rows.isEmpty)
           const OnyxEmptyState(
             label:
-                'Live report receipts will appear here once this lane starts publishing them.',
+                'Live report receipts will appear here once this board starts publishing them.',
           )
         else if (filteredRows.isEmpty)
           _filteredReceiptEmptyState(
@@ -7888,8 +8157,8 @@ class _ClientIntelligenceReportsPageState
         ? null
         : recoveryFilters.first.label.toLowerCase();
     final detail = focusLabel == null
-        ? '$availableCount $receiptLabel are still available in this scoped reports lane. Reset the receipt filter to recover the preview and delivery handoff.'
-        : '$availableCount $receiptLabel are still available in this scoped reports lane. Reset the filter or pivot straight into $focusLabel to keep the preview and delivery handoff moving.';
+        ? '$availableCount $receiptLabel are still available in this Reports Workspace. Reset the receipt filter to recover the preview and delivery handoff.'
+        : '$availableCount $receiptLabel are still available in this Reports Workspace. Reset the filter or pivot straight into $focusLabel to keep the preview and delivery handoff moving.';
 
     return Container(
       key: const ValueKey('reports-history-empty-state'),
@@ -8046,7 +8315,7 @@ class _ClientIntelligenceReportsPageState
                   children: [
                     Text(
                       title,
-                      style: GoogleFonts.rajdhani(
+                      style: GoogleFonts.inter(
                         color: const Color(0xFFE8F1FF),
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -8131,7 +8400,7 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFF11243A) : const Color(0xFF10233A),
+        color: isSelected ? const Color(0xFFF7FBFF) : const Color(0xFFF1F6FB),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected
@@ -8154,8 +8423,8 @@ class _ClientIntelligenceReportsPageState
                   children: [
                     Text(
                       clientName,
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFE8F1FF),
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF10233A),
                         fontSize: 21,
                         fontWeight: FontWeight.w700,
                       ),
@@ -8164,7 +8433,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       siteName,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
+                        color: const Color(0xFF5F7388),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -8208,7 +8477,7 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF0E1A2B),
+              color: const Color(0xFFE3ECF4),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: sectionColor.withValues(alpha: 0.38)),
             ),
@@ -8218,7 +8487,7 @@ class _ClientIntelligenceReportsPageState
                 Text(
                   'Report Configuration',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE8F1FF),
+                    color: const Color(0xFF10233A),
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -8258,7 +8527,7 @@ class _ClientIntelligenceReportsPageState
                       ? '${row.event.brandingConfiguration.primaryLabel}${row.event.endorsementLine.trim().isNotEmpty ? ' • ${row.event.endorsementLine.trim()}' : ''}\n$brandingSummary\n$sectionSummary'
                       : sectionSummary,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9CB2D1),
+                    color: const Color(0xFF52667C),
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -8307,7 +8576,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Generated: $generatedAt',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: const Color(0xFF5F7388),
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -8435,7 +8704,7 @@ class _ClientIntelligenceReportsPageState
               _receipts.isNotEmpty,
             ),
       iconEnabledColor: const Color(0xFF8EA4C2),
-      textColor: const Color(0xFFE8F1FF),
+      textColor: _reportsTitleColor,
     );
   }
 
@@ -8569,11 +8838,16 @@ class _ClientIntelligenceReportsPageState
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF08111F),
+          backgroundColor: _reportsPanelColor,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: const BorderSide(color: _reportsBorderColor),
+          ),
           title: Text(
             'Edit Client Branding',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            style: GoogleFonts.inter(
+              color: _reportsTitleColor,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -8586,7 +8860,7 @@ class _ClientIntelligenceReportsPageState
                 Text(
                   'Default partner branding uses ${defaults.primaryLabel} with ${defaults.endorsementLine}.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9CB2D1),
+                    color: _reportsBodyColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
@@ -8597,9 +8871,34 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey('reports-branding-primary-field'),
                   initialValue: draftPrimary,
                   onChanged: (value) => draftPrimary = value,
-                  decoration: const InputDecoration(
+                  style: GoogleFonts.inter(
+                    color: _reportsTitleColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Primary client-facing label',
                     hintText: 'VISION Tactical',
+                    filled: true,
+                    fillColor: _reportsPanelAltColor,
+                    labelStyle: GoogleFonts.inter(
+                      color: _reportsMutedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    hintStyle: GoogleFonts.inter(
+                      color: _reportsMutedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _reportsBorderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF7EA9D0)),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -8607,9 +8906,34 @@ class _ClientIntelligenceReportsPageState
                   key: const ValueKey('reports-branding-endorsement-field'),
                   initialValue: draftEndorsement,
                   onChanged: (value) => draftEndorsement = value,
-                  decoration: const InputDecoration(
+                  style: GoogleFonts.inter(
+                    color: _reportsTitleColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
                     labelText: 'Endorsement line',
                     hintText: 'Powered by ONYX',
+                    filled: true,
+                    fillColor: _reportsPanelAltColor,
+                    labelStyle: GoogleFonts.inter(
+                      color: _reportsMutedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    hintStyle: GoogleFonts.inter(
+                      color: _reportsMutedColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: _reportsBorderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF7EA9D0)),
+                    ),
                   ),
                 ),
               ],
@@ -8629,7 +8953,7 @@ class _ClientIntelligenceReportsPageState
         );
       },
     );
-    if (saved != true) {
+    if (!mounted || saved != true) {
       return;
     }
     final nextPrimary = draftPrimary.trim();
@@ -8862,8 +9186,8 @@ class _ClientIntelligenceReportsPageState
     focusReportReceiptWorkspace(target.event.eventId);
     _showReceiptActionFeedback(
       filter == ReportReceiptSceneFilter.all
-          ? 'Receipt lane recovered around ${target.event.eventId}.'
-          : '${filter.label} lane opened around ${target.event.eventId}.',
+          ? 'Receipt board recovered around ${target.event.eventId}.'
+          : '${filter.label} board opened around ${target.event.eventId}.',
     );
   }
 
@@ -8882,8 +9206,8 @@ class _ClientIntelligenceReportsPageState
       onCopy: row == null ? null : () => _copyReceipt(row),
       onClear: clearReportPreviewTarget,
       openLabel: governanceTarget
-          ? 'Open Governance Preview'
-          : 'Open Preview Target',
+          ? 'OPEN GOVERNANCE PREVIEW DOCK'
+          : 'OPEN PREVIEW TARGET',
       copyLabel: governanceTarget ? 'Copy Governance Receipt' : null,
       clearLabel: governanceTarget ? 'Clear Governance Target' : null,
       openButtonKey: const ValueKey('reports-preview-target-open'),
@@ -8903,8 +9227,8 @@ class _ClientIntelligenceReportsPageState
     final governanceDock =
         _entryContext == ReportEntryContext.governanceBrandingDrift;
     final openLabel = governanceDock
-        ? 'Open Governance Preview'
-        : 'Open Full Preview';
+        ? 'OPEN GOVERNANCE PREVIEW DOCK'
+        : 'OPEN PREVIEW DOCK';
     final copyLabel = governanceDock
         ? 'Copy Governance Receipt'
         : 'Copy Receipt';
@@ -8917,7 +9241,7 @@ class _ClientIntelligenceReportsPageState
       detail: '$siteName • $period',
       title: governanceDock ? 'Governance Preview Dock' : null,
       subtitle: governanceDock
-          ? 'Governance handoff preview target held in the report workspace.'
+          ? 'Governance Desk preview target held in the Reports Workspace.'
           : null,
       contextTitle: _entryContext?.bannerTitle,
       contextDetail: _entryContext?.bannerDetail,
@@ -9093,24 +9417,24 @@ class _ClientIntelligenceReportsPageState
       isExpanded: true,
       onChanged: onChanged,
       iconEnabledColor: const Color(0xFF8EA4C2),
-      dropdownColor: const Color(0xFF0E1A2B),
+      dropdownColor: _reportsPanelColor,
       style: GoogleFonts.inter(
-        color: const Color(0xFFE8F1FF),
+        color: _reportsTitleColor,
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
       decoration: InputDecoration(
         isDense: true,
         filled: true,
-        fillColor: const Color(0xFF0A0E14),
+        fillColor: _reportsPanelAltColor,
         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF223244)),
+          borderSide: const BorderSide(color: _reportsBorderColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF3C79BB)),
+          borderSide: const BorderSide(color: OnyxDesignTokens.accentBlue),
         ),
       ),
       items: items
@@ -9141,14 +9465,14 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF0A0E14),
+              color: _reportsPanelColor,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF223244)),
+              border: Border.all(color: _reportsBorderColor),
             ),
             child: Text(
               _formatDate(date),
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
+                color: _reportsTitleColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -9172,19 +9496,17 @@ class _ClientIntelligenceReportsPageState
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x2230C8FF) : const Color(0xFF0A0E14),
+          color: selected ? OnyxDesignTokens.cyanSurface : _reportsPanelColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF3FA7D6) : const Color(0xFF223244),
+            color: selected ? OnyxDesignTokens.cyanBorder : _reportsBorderColor,
           ),
         ),
         child: Center(
           child: Text(
             label,
             style: GoogleFonts.inter(
-              color: selected
-                  ? const Color(0xFF63BDFF)
-                  : const Color(0xFF8EA4C2),
+              color: selected ? OnyxDesignTokens.accentBlue : _reportsBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -9206,12 +9528,12 @@ class _ClientIntelligenceReportsPageState
       visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
       controlAffinity: ListTileControlAffinity.leading,
       contentPadding: EdgeInsets.zero,
-      activeColor: const Color(0xFF3FA7D6),
-      checkColor: const Color(0xFF040A16),
+      activeColor: OnyxDesignTokens.accentBlue,
+      checkColor: OnyxDesignTokens.textPrimary,
       title: Text(
         label,
         style: GoogleFonts.inter(
-          color: const Color(0xFFD9E7FA),
+          color: _reportsTitleColor,
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
@@ -9257,14 +9579,18 @@ class _ClientIntelligenceReportsPageState
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         backgroundColor: filled
-            ? const Color(0xFF2A5D95)
-            : const Color(0xFF132947),
-        foregroundColor: const Color(0xFFE8F1FF),
-        disabledBackgroundColor: const Color(0xFF101A28),
-        disabledForegroundColor: const Color(0xFF5E738F),
+            ? OnyxDesignTokens.accentBlue
+            : OnyxDesignTokens.cyanSurface,
+        foregroundColor: filled
+            ? OnyxDesignTokens.textPrimary
+            : OnyxDesignTokens.accentBlue,
+        disabledBackgroundColor: _reportsPanelAltColor,
+        disabledForegroundColor: _reportsMutedColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(999),
-          side: const BorderSide(color: Color(0xFF2A4768)),
+          side: BorderSide(
+            color: filled ? OnyxDesignTokens.accentBlue : _reportsBorderColor,
+          ),
         ),
       ),
       icon: Icon(icon, size: 15),
@@ -9275,7 +9601,7 @@ class _ClientIntelligenceReportsPageState
     );
   }
 
-  void _exportAllReceipts(List<_ReceiptRow> rows) {
+  Future<void> _exportAllReceipts(List<_ReceiptRow> rows) async {
     if (rows.isEmpty) {
       logUiAction('reports.export_all', context: {'rows': 0});
       _showReceiptActionFeedback('No receipts available to export.');
@@ -9303,218 +9629,148 @@ class _ClientIntelligenceReportsPageState
               sceneReviewSummary: focusedReceipt.sceneReviewSummary,
             ),
     );
-    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction('reports.export_all', context: {'rows': rows.length});
+    await _exportCoordinator.copyJson(payload, label: 'reports.export_all');
     _showReceiptActionFeedback(
       'Exported ${rows.length} receipt records to clipboard.',
     );
   }
 
-  void _copyPartnerScopeJson() {
+  Future<void> _copyPartnerScopeJson() async {
     final payload = _partnerScopeExportPayload();
-    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_partner_scorecard_json',
-      context: <String, Object?>{
-        'client_id': _partnerScopeClientId,
-        'site_id': _partnerScopeSiteId,
-        'partner_label': _partnerScopePartnerLabel,
-      },
+    await _exportCoordinator.copyJson(
+      payload,
+      label: 'reports.copy_partner_scorecard_json',
     );
     _showReceiptActionFeedback('Partner scorecard JSON copied.');
   }
 
-  void _copyPartnerScopeCsv() {
-    final encoded = _partnerScopeExportCsv();
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_partner_scorecard_csv',
-      context: <String, Object?>{
-        'client_id': _partnerScopeClientId,
-        'site_id': _partnerScopeSiteId,
-        'partner_label': _partnerScopePartnerLabel,
-      },
+  Future<void> _copyPartnerScopeCsv() async {
+    await _exportCoordinator.copyCsv(
+      LineSplitter.split(_partnerScopeExportCsv()).toList(growable: false),
+      label: 'reports.copy_partner_scorecard_csv',
     );
     _showReceiptActionFeedback('Partner scorecard CSV copied.');
   }
 
-  void _copyPartnerDrillInJson({
+  Future<void> _copyPartnerDrillInJson({
     required String clientId,
     required String siteId,
     required String partnerLabel,
-  }) {
+  }) async {
     final payload = _partnerScopeExportPayloadFor(
       clientId: clientId,
       siteId: siteId,
       partnerLabel: partnerLabel,
     );
-    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_partner_drill_in_json',
-      context: <String, Object?>{
-        'client_id': clientId,
-        'site_id': siteId,
-        'partner_label': partnerLabel,
-      },
+    await _exportCoordinator.copyJson(
+      payload,
+      label: 'reports.copy_partner_drill_in_json',
     );
     _showReceiptActionFeedback('Partner drill-in JSON copied.');
   }
 
-  void _copyPartnerDrillInCsv({
+  Future<void> _copyPartnerDrillInCsv({
     required String clientId,
     required String siteId,
     required String partnerLabel,
-  }) {
-    final encoded = _partnerScopeExportCsvFor(
-      clientId: clientId,
-      siteId: siteId,
-      partnerLabel: partnerLabel,
-    );
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_partner_drill_in_csv',
-      context: <String, Object?>{
-        'client_id': clientId,
-        'site_id': siteId,
-        'partner_label': partnerLabel,
-      },
+  }) async {
+    await _exportCoordinator.copyCsv(
+      LineSplitter.split(
+        _partnerScopeExportCsvFor(
+          clientId: clientId,
+          siteId: siteId,
+          partnerLabel: partnerLabel,
+        ),
+      ).toList(growable: false),
+      label: 'reports.copy_partner_drill_in_csv',
     );
     _showReceiptActionFeedback('Partner drill-in CSV copied.');
   }
 
-  void _copyPartnerComparisonJson() {
+  Future<void> _copyPartnerComparisonJson() async {
     final payload = _partnerComparisonExportPayload();
-    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_partner_comparison_json',
-      context: <String, Object?>{
-        'client_id': widget.selectedClient,
-        'site_id': widget.selectedSite,
-        'rows': _sitePartnerComparisonRows.length,
-      },
+    await _exportCoordinator.copyJson(
+      payload,
+      label: 'reports.copy_partner_comparison_json',
     );
     _showReceiptActionFeedback('Partner comparison JSON copied.');
   }
 
-  void _copyPartnerComparisonCsv() {
-    final encoded = _partnerComparisonExportCsv();
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_partner_comparison_csv',
-      context: <String, Object?>{
-        'client_id': widget.selectedClient,
-        'site_id': widget.selectedSite,
-        'rows': _sitePartnerComparisonRows.length,
-      },
+  Future<void> _copyPartnerComparisonCsv() async {
+    await _exportCoordinator.copyCsv(
+      LineSplitter.split(_partnerComparisonExportCsv()).toList(growable: false),
+      label: 'reports.copy_partner_comparison_csv',
     );
     _showReceiptActionFeedback('Partner comparison CSV copied.');
   }
 
-  void _copyReceiptPolicyHistoryJson(List<_ReceiptRow> rows) {
+  Future<void> _copyReceiptPolicyHistoryJson(List<_ReceiptRow> rows) async {
     final payload = _receiptPolicyHistoryExportPayload(rows);
-    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_receipt_policy_json',
-      context: <String, Object?>{
-        'client_id': widget.selectedClient,
-        'site_id': widget.selectedSite,
-        'rows': rows.length,
-      },
+    await _exportCoordinator.copyJson(
+      payload,
+      label: 'reports.copy_receipt_policy_json',
     );
     _showReceiptActionFeedback('Receipt policy JSON copied.');
   }
 
-  void _copyReceiptPolicyHistoryCsv(List<_ReceiptRow> rows) {
-    final encoded = _receiptPolicyHistoryExportCsv(rows);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_receipt_policy_csv',
-      context: <String, Object?>{
-        'client_id': widget.selectedClient,
-        'site_id': widget.selectedSite,
-        'rows': rows.length,
-      },
+  Future<void> _copyReceiptPolicyHistoryCsv(List<_ReceiptRow> rows) async {
+    await _exportCoordinator.copyCsv(
+      LineSplitter.split(
+        _receiptPolicyHistoryExportCsv(rows),
+      ).toList(growable: false),
+      label: 'reports.copy_receipt_policy_csv',
     );
     _showReceiptActionFeedback('Receipt policy CSV copied.');
   }
 
-  void _copyPartnerShiftJson(_PartnerScopeHistoryPoint point) {
+  Future<void> _copyPartnerShiftJson(_PartnerScopeHistoryPoint point) async {
     final payload = _partnerShiftExportPayload(point);
-    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_partner_shift_json',
-      context: <String, Object?>{
-        'client_id': point.row.clientId,
-        'site_id': point.row.siteId,
-        'partner_label': point.row.partnerLabel,
-        'report_date': point.reportDate,
-      },
+    await _exportCoordinator.copyJson(
+      payload,
+      label: 'reports.copy_partner_shift_json',
     );
     _showReceiptActionFeedback('Partner shift JSON copied.');
   }
 
-  void _copyPartnerShiftCsv(_PartnerScopeHistoryPoint point) {
-    final encoded = _partnerShiftExportCsv(point);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_partner_shift_csv',
-      context: <String, Object?>{
-        'client_id': point.row.clientId,
-        'site_id': point.row.siteId,
-        'partner_label': point.row.partnerLabel,
-        'report_date': point.reportDate,
-      },
+  Future<void> _copyPartnerShiftCsv(_PartnerScopeHistoryPoint point) async {
+    await _exportCoordinator.copyCsv(
+      LineSplitter.split(_partnerShiftExportCsv(point)).toList(growable: false),
+      label: 'reports.copy_partner_shift_csv',
     );
     _showReceiptActionFeedback('Partner shift CSV copied.');
   }
 
-  void _copySiteActivityTruthJson({
+  Future<void> _copySiteActivityTruthJson({
     required String clientId,
     required String siteId,
     String? partnerLabel,
-  }) {
+  }) async {
     final payload = _siteActivityTruthExportPayload(
       clientId: clientId,
       siteId: siteId,
       partnerLabel: partnerLabel,
     );
-    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_site_activity_truth_json',
-      context: <String, Object?>{
-        'client_id': clientId,
-        'site_id': siteId,
-        'partner_label': partnerLabel,
-      },
+    await _exportCoordinator.copyJson(
+      payload,
+      label: 'reports.copy_site_activity_truth_json',
     );
     _showReceiptActionFeedback('Activity truth JSON copied.');
   }
 
-  void _copySiteActivityTruthCsv({
+  Future<void> _copySiteActivityTruthCsv({
     required String clientId,
     required String siteId,
     String? partnerLabel,
-  }) {
-    final encoded = _siteActivityTruthExportCsv(
-      clientId: clientId,
-      siteId: siteId,
-      partnerLabel: partnerLabel,
-    );
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_site_activity_truth_csv',
-      context: <String, Object?>{
-        'client_id': clientId,
-        'site_id': siteId,
-        'partner_label': partnerLabel,
-      },
+  }) async {
+    await _exportCoordinator.copyCsv(
+      LineSplitter.split(
+        _siteActivityTruthExportCsv(
+          clientId: clientId,
+          siteId: siteId,
+          partnerLabel: partnerLabel,
+        ),
+      ).toList(growable: false),
+      label: 'reports.copy_site_activity_truth_csv',
     );
     _showReceiptActionFeedback('Activity truth CSV copied.');
   }
@@ -10585,7 +10841,7 @@ class _ClientIntelligenceReportsPageState
     String message, {
     String label = 'REPORTS ACTION',
     String? detail,
-    Color accent = const Color(0xFF8FD1FF),
+    Color accent = _reportsAccentSky,
   }) {
     if (!mounted) {
       return;
@@ -10597,7 +10853,7 @@ class _ClientIntelligenceReportsPageState
           message: message,
           detail:
               detail ??
-              'The latest reports command remains pinned in the delivery rail while you continue working the receipt lane.',
+              'The latest reports command remains pinned in the delivery rail while you continue working the receipt board.',
           accent: accent,
         );
       });
@@ -10609,7 +10865,22 @@ class _ClientIntelligenceReportsPageState
     }
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      SnackBar(
+        backgroundColor: _reportsPanelColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: _reportsBorderColor),
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(
+            color: _reportsTitleColor,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 
@@ -10627,7 +10898,7 @@ class _ClientIntelligenceReportsPageState
         : 'Sample receipt metadata';
   }
 
-  void _copyReceipt(_ReceiptRow row) {
+  Future<void> _copyReceipt(_ReceiptRow row) async {
     final payload = ReportReceiptExportPayload.buildSingle(
       entry: ReportReceiptExportEntry(
         receiptEvent: row.event,
@@ -10640,11 +10911,9 @@ class _ClientIntelligenceReportsPageState
       activeSectionConfiguration: _currentSectionConfiguration.toJson(),
       entryContext: _effectiveEntryContextForReceipt(row.event),
     );
-    final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-    Clipboard.setData(ClipboardData(text: encoded));
-    logUiAction(
-      'reports.copy_receipt',
-      context: {'event_id': row.event.eventId},
+    await _exportCoordinator.copyJson(
+      payload,
+      label: 'reports.copy_receipt',
     );
     _showReceiptActionFeedback(
       '${_receiptExportFeedbackPrefix(row.event)} copied for command review: ${row.event.eventId}.',
@@ -10658,7 +10927,7 @@ class _ClientIntelligenceReportsPageState
         context: {'event_id': row.event.eventId},
       );
       _showReceiptActionFeedback(
-        'Receipt preview will unlock once the first live report lands in this lane.',
+        'Receipt preview will unlock once the first live report lands on this board.',
       );
       return;
     }
@@ -10682,11 +10951,9 @@ class _ClientIntelligenceReportsPageState
         activeSectionConfiguration: _currentSectionConfiguration.toJson(),
         entryContext: _effectiveEntryContextForReceipt(row.event),
       );
-      final encoded = const JsonEncoder.withIndent('  ').convert(payload);
-      Clipboard.setData(ClipboardData(text: encoded));
-      logUiAction(
-        'reports.download_sample_receipt',
-        context: {'event_id': row.event.eventId},
+      await _exportCoordinator.copyJson(
+        payload,
+        label: 'reports.download_sample_receipt',
       );
       _showReceiptActionFeedback(
         '${_receiptMetadataFeedbackPrefix(row.event)} copied for command review: ${row.event.eventId}.',
@@ -10710,11 +10977,13 @@ class _ClientIntelligenceReportsPageState
       key: key,
       onPressed: onTap,
       style: TextButton.styleFrom(
-        backgroundColor: const Color(0xFF194E87),
-        foregroundColor: const Color(0xFFE8F1FF),
+        backgroundColor: OnyxDesignTokens.cyanSurface,
+        foregroundColor: OnyxDesignTokens.accentBlue,
+        disabledBackgroundColor: _reportsPanelAltColor,
+        disabledForegroundColor: _reportsMutedColor,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(999),
-          side: const BorderSide(color: Color(0xFF2A4768)),
+          side: const BorderSide(color: _reportsBorderColor),
         ),
       ),
       icon: Icon(icon, size: 16),
@@ -10738,7 +11007,7 @@ class _ClientIntelligenceReportsPageState
       lastDate: last,
       helpText: 'Select report date',
     );
-    if (picked == null) {
+    if (!mounted || picked == null) {
       return;
     }
     onSelected(DateTime.utc(picked.year, picked.month, picked.day));

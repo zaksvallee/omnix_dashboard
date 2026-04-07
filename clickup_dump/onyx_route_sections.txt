@@ -1,0 +1,34 @@
+===== onyx_route_registry_sections.dart =====
+
+import '../domain/authority/onyx_route.dart';
+import 'onyx_route_registry.dart';
+
+List<OnyxRouteRegistrySection> buildOnyxRouteRegistrySections({
+  required Map<OnyxRoute, OnyxRouteBuilder> builders,
+}) {
+  return List<OnyxRouteRegistrySection>.unmodifiable(
+    OnyxRouteSection.values.map((section) {
+      final sectionRoutes = section.routes;
+      final missingRoutes = sectionRoutes
+          .where((route) => !builders.containsKey(route))
+          .map((route) => route.name)
+          .toList(growable: false);
+      if (missingRoutes.isNotEmpty) {
+        throw StateError(
+          'Missing route builders for ${missingRoutes.join(', ')} '
+          'in ${section.title}.',
+        );
+      }
+
+      return OnyxRouteRegistrySection(
+        section: section,
+        registrations: onyxRouteRegistrations(
+          routes: sectionRoutes,
+          builders: sectionRoutes
+              .map((route) => builders[route]!)
+              .toList(growable: false),
+        ),
+      );
+    }),
+  );
+}

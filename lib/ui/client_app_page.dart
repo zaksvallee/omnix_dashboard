@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -10,6 +12,17 @@ import '../domain/events/response_arrived.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
+
+const _clientPanelColor = Color(0xFFFFFFFF);
+const _clientPanelTint = Color(0xFFF7FAFE);
+const _clientPanelMuted = Color(0xFFF0F5FB);
+const _clientSelectedPanelColor = Color(0xFFE8F1FF);
+const _clientBorderColor = Color(0xFFD7E1EC);
+const _clientStrongBorderColor = Color(0xFFB7CDE2);
+const _clientTitleColor = Color(0xFF142235);
+const _clientBodyColor = Color(0xFF516882);
+const _clientMutedColor = Color(0xFF6A7D93);
+const _clientAccentBlue = Color(0xFF5B86B1);
 
 enum ClientAppLocale { en, zu, af }
 
@@ -39,6 +52,58 @@ extension ClientPushDeliveryProviderParser on ClientPushDeliveryProvider {
       ClientPushDeliveryProvider.inApp => 'in_app',
       ClientPushDeliveryProvider.telegram => 'telegram',
     };
+  }
+}
+
+enum ClientAppComposerPrefillType { update, advisory, closure, dispatch }
+
+class ClientAppComposerPrefill {
+  final String id;
+  final String text;
+  final String originalDraftText;
+  final ClientAppComposerPrefillType type;
+  final String commandLabel;
+  final String commandMessage;
+  final String commandDetail;
+  final bool autofocus;
+
+  const ClientAppComposerPrefill({
+    required this.id,
+    required this.text,
+    this.originalDraftText = '',
+    this.type = ClientAppComposerPrefillType.update,
+    this.commandLabel = 'AGENT HANDOFF',
+    this.commandMessage = 'Agent draft is staged in the control composer.',
+    this.commandDetail =
+        'Review, adapt, and send from the live scoped lane without leaving the controller flow.',
+    this.autofocus = true,
+  });
+}
+
+class ClientAppEvidenceReturnReceipt {
+  final String auditId;
+  final String clientId;
+  final String siteId;
+  final String label;
+  final String headline;
+  final String detail;
+  final String room;
+  final Color accent;
+
+  const ClientAppEvidenceReturnReceipt({
+    required this.auditId,
+    required this.clientId,
+    required this.siteId,
+    required this.label,
+    required this.headline,
+    required this.detail,
+    this.room = '',
+    this.accent = const Color(0xFF22D3EE),
+  });
+
+  bool matchesScope(String candidateClientId, String candidateSiteId) {
+    return clientId.trim() == candidateClientId.trim() &&
+        siteId.trim() == candidateSiteId.trim();
   }
 }
 
@@ -86,6 +151,17 @@ class ClientAppPage extends StatefulWidget {
   final Future<void> Function()? onClearLearnedLaneStyle;
   final Future<void> Function(String originalDraftText, String approvedText)?
   onRecordApprovedDraftLearning;
+  final Future<String?> Function(
+    String clientId,
+    String siteId,
+    String room,
+    String currentDraftText,
+  )?
+  onAiAssistComposerDraft;
+  final ClientAppComposerPrefill? initialComposerPrefill;
+  final VoidCallback? onInitialComposerPrefillConsumed;
+  final ClientAppEvidenceReturnReceipt? evidenceReturnReceipt;
+  final ValueChanged<String>? onConsumeEvidenceReturnReceipt;
   final void Function(
     ClientAppViewerRole viewerRole,
     Map<String, String> selectedRoomByRole,
@@ -145,6 +221,11 @@ class ClientAppPage extends StatefulWidget {
     this.learnedApprovalStyleExample = '',
     this.onClearLearnedLaneStyle,
     this.onRecordApprovedDraftLearning,
+    this.onAiAssistComposerDraft,
+    this.initialComposerPrefill,
+    this.onInitialComposerPrefillConsumed,
+    this.evidenceReturnReceipt,
+    this.onConsumeEvidenceReturnReceipt,
     this.onClientStateChanged,
     this.onPushQueueChanged,
   });
@@ -190,6 +271,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
   final GlobalKey _chatComposerKey = GlobalKey();
   final GlobalKey _chatThreadKey = GlobalKey();
   bool _showComposerLandingHighlight = false;
+  bool _aiAssistComposerBusy = false;
   bool _laneVoiceProfileBusy = false;
   bool _laneLearnedStyleBusy = false;
   String? _draftOpenedMessageKey;
@@ -200,9 +282,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
   String? _selectedPushMessageKey;
   String? _selectedNotificationMessageKey;
   _ClientSystemMessageType? _composedSystemType;
+  String _lastAppliedComposerPrefillId = '';
   String? _focusedIncidentReference;
   String? _selectedIncidentReference;
   _ClientCommandReceipt _commandReceipt = _defaultCommandReceipt;
+  ClientAppEvidenceReturnReceipt? _activeEvidenceReturnReceipt;
   late List<ClientAppMessage> _manualMessages;
   late List<ClientAppAcknowledgement> _acknowledgements;
   late ClientAppViewerRole _viewerRole;
@@ -265,6 +349,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
     );
     _restoreSelectedIncidentForRole(_viewerRole);
     _restoreFocusedIncidentForRole(_viewerRole);
+    _applyIncomingComposerPrefill(widget.initialComposerPrefill);
+    _ingestEvidenceReturnReceipt(widget.evidenceReturnReceipt);
   }
 
   @override
@@ -313,8 +399,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
         ClientAppViewerRole.client.name,
         () => widget.initialHasTouchedIncidentExpansion,
       );
+      _activeEvidenceReturnReceipt = null;
       _restoreSelectedIncidentForRole(_viewerRole);
       _restoreFocusedIncidentForRole(_viewerRole);
+      _applyIncomingComposerPrefill(widget.initialComposerPrefill);
+      _ingestEvidenceReturnReceipt(widget.evidenceReturnReceipt);
       return;
     }
 
@@ -342,6 +431,22 @@ class _ClientAppPageState extends State<ClientAppPage> {
         widget.initialAcknowledgements,
       );
     }
+
+    final nextPrefill = widget.initialComposerPrefill;
+    final previousPrefillId = oldWidget.initialComposerPrefill?.id.trim() ?? '';
+    final nextPrefillId = nextPrefill?.id.trim() ?? '';
+    if (nextPrefill != null &&
+        nextPrefillId.isNotEmpty &&
+        nextPrefillId != previousPrefillId) {
+      _applyIncomingComposerPrefill(nextPrefill);
+    }
+    if (oldWidget.evidenceReturnReceipt?.auditId !=
+        widget.evidenceReturnReceipt?.auditId) {
+      _ingestEvidenceReturnReceipt(
+        widget.evidenceReturnReceipt,
+        useSetState: true,
+      );
+    }
   }
 
   @override
@@ -349,6 +454,108 @@ class _ClientAppPageState extends State<ClientAppPage> {
     _chatController.dispose();
     _chatFocusNode.dispose();
     super.dispose();
+  }
+
+  void _applyIncomingComposerPrefill(ClientAppComposerPrefill? prefill) {
+    if (prefill == null) {
+      return;
+    }
+    final prefillId = prefill.id.trim();
+    final normalizedText = prefill.text.trim();
+    if (prefillId.isEmpty ||
+        normalizedText.isEmpty ||
+        prefillId == _lastAppliedComposerPrefillId) {
+      return;
+    }
+    _lastAppliedComposerPrefillId = prefillId;
+    _composedSystemType = _systemTypeFromComposerPrefill(prefill.type);
+    _reviewedDraftOriginalText = prefill.originalDraftText.trim().isEmpty
+        ? normalizedText
+        : prefill.originalDraftText.trim();
+    _chatController.text = normalizedText;
+    _chatController.selection = TextSelection.collapsed(
+      offset: _chatController.text.length,
+    );
+    _commandReceipt = _ClientCommandReceipt(
+      label: prefill.commandLabel.trim().isEmpty
+          ? 'AGENT HANDOFF'
+          : prefill.commandLabel.trim(),
+      message: prefill.commandMessage.trim().isEmpty
+          ? 'Agent draft is staged in the control composer.'
+          : prefill.commandMessage.trim(),
+      detail: prefill.commandDetail.trim().isEmpty
+          ? 'Review, adapt, and send from the live scoped lane without leaving the controller flow.'
+          : prefill.commandDetail.trim(),
+      accent: const Color(0xFF67E8F9),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      if (prefill.autofocus) {
+        _focusChatComposer();
+      }
+      _scheduleAiAssistForControlComposerPrefill();
+      widget.onInitialComposerPrefillConsumed?.call();
+    });
+  }
+
+  void _ingestEvidenceReturnReceipt(
+    ClientAppEvidenceReturnReceipt? receipt, {
+    bool useSetState = false,
+  }) {
+    if (receipt == null) {
+      return;
+    }
+    final normalizedRoom = receipt.room.trim();
+
+    void apply() {
+      _activeEvidenceReturnReceipt = receipt;
+      if (normalizedRoom.isNotEmpty) {
+        _selectedRoomByRole = <String, String>{
+          ..._selectedRoomByRole,
+          _viewerRole.name: normalizedRoom,
+        };
+      }
+      _commandReceipt = _ClientCommandReceipt(
+        label: receipt.label.trim().isEmpty
+            ? 'EVIDENCE RETURN'
+            : receipt.label.trim(),
+        message: receipt.headline.trim().isEmpty
+            ? 'Returned to the client room from evidence.'
+            : receipt.headline.trim(),
+        detail: receipt.detail.trim().isEmpty
+            ? 'The signed room handoff was verified in the ledger. Resume the same lane from here.'
+            : receipt.detail.trim(),
+        accent: receipt.accent,
+      );
+    }
+
+    if (useSetState) {
+      setState(apply);
+    } else {
+      apply();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      widget.onConsumeEvidenceReturnReceipt?.call(receipt.auditId);
+    });
+  }
+
+  _ClientSystemMessageType _systemTypeFromComposerPrefill(
+    ClientAppComposerPrefillType type,
+  ) {
+    return switch (type) {
+      ClientAppComposerPrefillType.advisory =>
+        _ClientSystemMessageType.advisory,
+      ClientAppComposerPrefillType.closure => _ClientSystemMessageType.closure,
+      ClientAppComposerPrefillType.dispatch =>
+        _ClientSystemMessageType.dispatch,
+      ClientAppComposerPrefillType.update => _ClientSystemMessageType.update,
+    };
   }
 
   @override
@@ -404,13 +611,20 @@ class _ClientAppPageState extends State<ClientAppPage> {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF0E1A2B),
+          color: _clientPanelColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: widget.backendSyncEnabled
-                ? const Color(0xFF3D8BFF).withValues(alpha: 0.45)
-                : const Color(0xFF35506F).withValues(alpha: 0.38),
+                ? const Color(0xFF7EA7D3).withValues(alpha: 0.75)
+                : _clientBorderColor,
           ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A081B33),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -423,8 +637,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       : Icons.storage_rounded,
                   size: 16,
                   color: widget.backendSyncEnabled
-                      ? const Color(0xFF8FD1FF)
-                      : const Color(0xFF93A8C9),
+                      ? _clientAccentBlue
+                      : _clientMutedColor,
                 ),
                 const SizedBox(width: _spaceSm),
                 Expanded(
@@ -433,7 +647,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         ? _localizedConversationSyncLive
                         : _localizedConversationSyncLocal,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD6E8FF),
+                      color: _clientTitleColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -447,7 +661,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               Text(
                 _localizedRunWithLocalDefines,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF93A8C9),
+                  color: _clientMutedColor,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -465,7 +679,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             _localizedLanguageLabel,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7FA2CF),
+              color: _clientMutedColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -601,17 +815,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
           final communicationsCard = boundedDesktopSurface
               ? communicationsWorkspace
               : OnyxSectionCard(
-                  title: 'Client Communications Workspace',
+                  title: 'TALK / REPLY / SEND',
                   subtitle:
-                      'Room-centered notifications, direct thread execution, and context actions in one operational body.',
+                      'Read the lane, answer fast, and keep the handoff close.',
                   child: communicationsWorkspace,
                 );
           final deliveryCard = boundedDesktopSurface
               ? deliveryWorkspace
               : OnyxSectionCard(
-                  title: 'Delivery & Incident Workspace',
+                  title: 'DELIVERY / INCIDENT',
                   subtitle:
-                      'Queued client delivery, sync telemetry, and incident-thread handoff in one desktop command body.',
+                      'Keep delivery, sync, and incident handoff in one lane.',
                   child: deliveryWorkspace,
                 );
 
@@ -627,8 +841,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       children: [
                         Text(
                           '${_localizedSurfaceTitle(_viewerRole)} — ${widget.clientId} / ${widget.siteId}',
-                          style: GoogleFonts.rajdhani(
-                            color: const Color(0xFFE5F1FF),
+                          style: GoogleFonts.inter(
+                            color: _clientTitleColor,
                             fontSize: _phoneLayout ? 23 : 26,
                             fontWeight: FontWeight.w700,
                           ),
@@ -637,7 +851,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         Text(
                           _localizedSurfaceSubtitle(_viewerRole),
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF93A8C9),
+                            color: _clientMutedColor,
                             fontSize: _phoneLayout ? 12 : 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -666,6 +880,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   },
                 ),
                 const SizedBox(height: 10),
+                if (_activeEvidenceReturnReceipt != null) ...[
+                  _evidenceReturnBanner(_activeEvidenceReturnReceipt!),
+                  const SizedBox(height: 10),
+                ],
                 buildRoleSelector(),
                 const SizedBox(height: 10),
                 buildMetricsRow(),
@@ -730,14 +948,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _clientPanelColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _clientBorderColor),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x10000000),
-            blurRadius: 8,
-            offset: Offset(0, 3),
+            color: Color(0x0A081B33),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -756,7 +974,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA7C8),
+              color: _clientMutedColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -764,10 +982,69 @@ class _ClientAppPageState extends State<ClientAppPage> {
           const SizedBox(height: 6),
           Text(
             value,
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: accent,
               fontSize: 28,
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _evidenceReturnBanner(ClientAppEvidenceReturnReceipt receipt) {
+    final normalizedRoom = receipt.room.trim();
+    return Container(
+      key: const ValueKey('client-app-evidence-return-banner'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            receipt.accent.withValues(alpha: 0.18),
+            const Color(0xFFFFFFFF),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: receipt.accent.withValues(alpha: 0.42)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            receipt.label,
+            style: GoogleFonts.inter(
+              color: receipt.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.05,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            receipt.headline,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              height: 1.35,
+            ),
+          ),
+          if (normalizedRoom.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _pill('ROOM $normalizedRoom', receipt.accent, receipt.accent),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            receipt.detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF556B80),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              height: 1.45,
             ),
           ),
         ],
@@ -780,14 +1057,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return OutlinedButton(
       onPressed: () => _setViewerRole(role),
       style: OutlinedButton.styleFrom(
-        foregroundColor: selected
-            ? const Color(0xFF021229)
-            : const Color(0xFFAFC8EB),
+        foregroundColor: selected ? _clientTitleColor : _clientBodyColor,
         backgroundColor: selected
-            ? const Color(0xFF8FD1FF)
-            : const Color(0xFF0E1A2B),
+            ? _clientSelectedPanelColor
+            : _clientPanelColor,
         side: BorderSide(
-          color: selected ? const Color(0xFF8FD1FF) : const Color(0xFF223244),
+          color: selected ? _clientStrongBorderColor : _clientBorderColor,
         ),
         minimumSize: Size(0, _phoneLayout ? 44 : 36),
         padding: _phoneLayout
@@ -801,7 +1076,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             : VisualDensity.compact,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         elevation: selected ? 2 : 0,
-        shadowColor: const Color(0x14000000),
+        shadowColor: const Color(0x0A000000),
       ),
       child: Text(
         role.displayLabelForLocale(widget.locale),
@@ -824,14 +1099,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _clientPanelColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _clientBorderColor),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
+            color: Color(0x0A081B33),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -842,7 +1117,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             width: 42,
             height: 3,
             decoration: BoxDecoration(
-              color: const Color(0xFF3C79BB),
+              color: _clientAccentBlue,
               borderRadius: BorderRadius.circular(999),
             ),
           ),
@@ -858,7 +1133,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     Text(
                       title,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE5F1FF),
+                        color: _clientTitleColor,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
@@ -874,7 +1149,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     child: Text(
                       title,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE5F1FF),
+                        color: _clientTitleColor,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
@@ -889,7 +1164,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             subtitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA7C8),
+              color: _clientMutedColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -954,7 +1229,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             Text(
               title,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE5F1FF),
+                color: _clientTitleColor,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
               ),
@@ -993,7 +1268,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             Text(
               title,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE5F1FF),
+                color: _clientTitleColor,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
               ),
@@ -1177,12 +1452,19 @@ class _ClientAppPageState extends State<ClientAppPage> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF11243A), Color(0xFF0E1A2B)],
+          colors: [_clientPanelTint, _clientPanelColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2B4F73)),
+        border: Border.all(color: _clientStrongBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x100D1726),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1253,7 +1535,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 Text(
                   'CLIENT COMMS FOCUS',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8FD1FF),
+                    color: _clientAccentBlue,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
@@ -1264,7 +1546,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               Text(
                 'Focus lane: ${activeRoom.displayName}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFF4F8FF),
+                  color: _clientTitleColor,
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1273,7 +1555,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               Text(
                 filterScopeLabel,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFD7E7FA),
+                  color: _clientBodyColor,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   height: 1.4,
@@ -1337,10 +1619,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
   Widget _bannerRoomPivot(_ClientRoom room, {required bool selected}) {
     final accent = selected
-        ? const Color(0xFF8FD1FF)
+        ? _clientAccentBlue
         : room.unread > 0
-        ? const Color(0xFFFFD6A5)
-        : const Color(0xFFB9D9FF);
+        ? const Color(0xFF8A5A1C)
+        : _clientBodyColor;
     return InkWell(
       key: ValueKey('client-comms-banner-room-${room.key}'),
       onTap: () => _setSelectedRoom(room.key),
@@ -1349,10 +1631,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1A8FD1FF) : const Color(0x14000000),
+          color: selected ? _clientSelectedPanelColor : _clientPanelMuted,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0x665D91C6) : const Color(0xFF223244),
+            color: selected ? _clientStrongBorderColor : _clientBorderColor,
           ),
         ),
         child: Text(
@@ -1383,24 +1665,22 @@ class _ClientAppPageState extends State<ClientAppPage> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected
-              ? accent.withValues(alpha: 0.18)
-              : const Color(0xFF10273D),
+          color: selected ? accent.withValues(alpha: 0.14) : _clientPanelColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.52)
                 : enabled
-                ? const Color(0xFF27425D)
-                : const Color(0xFF223244),
+                ? _clientStrongBorderColor
+                : _clientBorderColor,
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
             color: enabled
-                ? (selected ? accent : const Color(0xFFEAF2FF))
-                : const Color(0xFF6B7A90),
+                ? (selected ? accent : _clientTitleColor)
+                : _clientMutedColor,
             fontSize: 10.5,
             fontWeight: FontWeight.w800,
           ),
@@ -1427,8 +1707,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
         children: [
           Text(
             'Room Command Rail',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE6F0FF),
+            style: GoogleFonts.inter(
+              color: _clientTitleColor,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -1446,7 +1726,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               Text(
                 'Incident focus',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8FD1FF),
+                  color: _clientAccentBlue,
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1457,7 +1737,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ? 'No active thread selected'
                     : 'Thread ${selectedIncidentGroup.referenceLabel}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFE5F1FF),
+                  color: _clientTitleColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1467,7 +1747,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 Text(
                   selectedIncidentGroup.latestEntry.headline,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9DB3CF),
+                    color: _clientBodyColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -1563,7 +1843,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 Text(
                   title,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE5F1FF),
+                    color: _clientTitleColor,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1675,7 +1955,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'DELIVERY COMMAND WORKSPACE',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientAccentBlue,
               fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.1,
@@ -1689,7 +1969,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ? 'Delivery telemetry is active while incident-thread handoff remains available.'
                 : '${selectedDelivery.title} is pinned in the systems board while the incident rail stays live.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFF4F8FF),
+              color: _clientTitleColor,
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
             ),
@@ -1735,8 +2015,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 accent: const Color(0xFF8FD1FF),
                 onTap: widget.onRetryPushSync == null
                     ? null
-                    : () async {
-                        await widget.onRetryPushSync!.call();
+                    : () {
+                        unawaited(_retryPushSyncSafely());
                       },
               ),
               _bannerActionChip(
@@ -1745,8 +2025,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 accent: const Color(0xFF9FD8AC),
                 onTap: widget.onRunBackendProbe == null
                     ? null
-                    : () async {
-                        await widget.onRunBackendProbe!.call();
+                    : () {
+                        unawaited(_runBackendProbeSafely());
                       },
               ),
               _bannerActionChip(
@@ -1776,12 +2056,19 @@ class _ClientAppPageState extends State<ClientAppPage> {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF11243A), Color(0xFF0E1A2B)],
+          colors: [_clientPanelTint, _clientPanelColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2B4F73)),
+        border: Border.all(color: _clientStrongBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x100D1726),
+            blurRadius: 16,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: bannerChild,
     );
@@ -1953,7 +2240,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     Text(
                       title,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE5F1FF),
+                        color: _clientTitleColor,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1969,7 +2256,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     child: Text(
                       title,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE5F1FF),
+                        color: _clientTitleColor,
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
                       ),
@@ -2026,7 +2313,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'INCIDENT COMMAND RAIL',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientAccentBlue,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -2040,7 +2327,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ? 'The incident rail is armed. Open the first ready thread or widen scope without leaving the workspace.'
                 : 'Thread ${selectedIncidentGroup.referenceLabel} is holding the live incident focus while review, expansion, and composer pivots stay within reach.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF2FF),
+              color: _clientTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -2083,7 +2370,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'Recommended next move',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientAccentBlue,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -2148,9 +2435,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF101A2B),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2B4F73)),
+        border: Border.all(color: _clientStrongBorderColor),
       ),
       child: content,
     );
@@ -2166,10 +2453,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
     if (items.isEmpty) {
       return _deliveryRecoveryDeck(
         key: const ValueKey('client-delivery-queue-empty-recovery'),
-        eyebrow: 'DELIVERY RAIL READY',
-        title: _localizedNoPushNotificationsQueuedYet,
+        eyebrow: 'QUEUE READY',
+        title: 'No delivery is hot right now.',
         summary:
-            'The queue rail stays armed so operators can retry sync, probe delivery health, or keep incident handoff moving without leaving this workspace.',
+            'The queue is quiet. Retry sync, run a probe, or reopen the linked incident thread from here.',
         accent: const Color(0xFFFFD6A5),
         metrics: [
           _pill('Queue 0', const Color(0xFFFFD6A5), const Color(0xFF8A5A1C)),
@@ -2269,9 +2556,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       children: [
         if (!shellless) ...[
           Text(
-            'DELIVERY QUEUE COMMAND',
+            'DO THIS NOW',
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFD6A5),
+              color: const Color(0xFF8A5A1C),
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -2282,10 +2569,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
         if (!shellless) ...[
           Text(
             selectedDelivery == null
-                ? 'The queue rail is armed. Pick the next delivery row or reopen the linked incident thread.'
-                : '${selectedDelivery.title} is holding the active queue focus while sync, thread handoff, and alert actions stay within reach.',
+                ? 'Pick the next delivery row or reopen the linked incident thread.'
+                : '${selectedDelivery.title} is the live queue focus. Sync, thread handoff, and alert actions stay one tap away.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF2FF),
+              color: _clientTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -2329,9 +2616,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         if (!shellless) ...[
           const SizedBox(height: 10),
           Text(
-            'Recommended next move',
+            'NEXT MOVE',
             style: GoogleFonts.inter(
-              color: const Color(0xFFFFD6A5),
+              color: const Color(0xFF8A5A1C),
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -2365,8 +2652,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   key: const ValueKey('client-delivery-queue-retry-sync'),
                   label: _localizedRetryPushSyncLabel,
                   accent: const Color(0xFFB9D9FF),
-                  onTap: () async {
-                    await widget.onRetryPushSync!.call();
+                  onTap: () {
+                    unawaited(_retryPushSyncSafely());
                   },
                 ),
               if (widget.onRunBackendProbe != null)
@@ -2374,8 +2661,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   key: const ValueKey('client-delivery-queue-run-probe'),
                   label: _localizedRunBackendProbeLabel,
                   accent: const Color(0xFF9FD8AC),
-                  onTap: () async {
-                    await widget.onRunBackendProbe!.call();
+                  onTap: () {
+                    unawaited(_runBackendProbeSafely());
                   },
                 ),
             ],
@@ -2388,9 +2675,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF101A2B),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2B4F73)),
+        border: Border.all(color: _clientStrongBorderColor),
       ),
       child: content,
     );
@@ -2411,13 +2698,18 @@ class _ClientAppPageState extends State<ClientAppPage> {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
+          color: isSelected ? _clientSelectedPanelColor : _clientPanelColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFF5D91C6)
-                : const Color(0xFF223244),
+            color: isSelected ? _clientStrongBorderColor : _clientBorderColor,
           ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x100D1726),
+              blurRadius: 10,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2453,7 +2745,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 Text(
                   item.timeLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7FA8D5),
+                    color: _clientAccentBlue,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2464,7 +2756,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             Text(
               item.title,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE5F1FF),
+                color: _clientTitleColor,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -2473,7 +2765,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             Text(
               item.body,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9AB4D8),
+                color: _clientBodyColor,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -2485,7 +2777,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ? 'Recommended next move: reopen the linked incident thread from the queue rail.'
                     : 'Recommended next move: ${_canSendNotificationActionNow(selectedNotification.systemType) ? _notificationSendNowLabelFor(selectedNotification.systemType) : _notificationActionLabelFor(selectedNotification.systemType)}',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFFFD6A5),
+                  color: const Color(0xFF8A5A1C),
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                   height: 1.35,
@@ -2603,10 +2895,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
         if (selectedDelivery == null)
           _deliveryRecoveryDeck(
             key: const ValueKey('client-delivery-selected-empty-recovery'),
-            eyebrow: 'SYSTEMS BOARD STANDBY',
-            title: 'No delivery is pinned in the systems board.',
+            eyebrow: 'BOARD READY',
+            title: 'Nothing is pinned right now.',
             summary:
-                'Delivery telemetry is still live. Reopen an incident thread, retry sync, run a backend probe, or jump back into the composer from this board.',
+                'Delivery telemetry is live. Reopen a thread, retry sync, run a probe, or jump back into the composer.',
             accent: const Color(0xFF8FD1FF),
             metrics: [
               _pill(
@@ -2636,7 +2928,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             selectedDelivery.title,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE5F1FF),
+              color: _clientTitleColor,
               fontSize: 13,
               fontWeight: FontWeight.w700,
             ),
@@ -2645,7 +2937,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             selectedDelivery.body,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB4D8),
+              color: _clientBodyColor,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -2733,16 +3025,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
               if (!shellless && widget.onRetryPushSync != null)
                 OutlinedButton(
                   key: const ValueKey('client-delivery-retry-sync'),
-                  onPressed: () async {
-                    await widget.onRetryPushSync!.call();
+                  onPressed: () {
+                    unawaited(_retryPushSyncSafely());
                   },
                   child: Text(_localizedRetryPushSyncLabel),
                 ),
               if (!shellless && widget.onRunBackendProbe != null)
                 OutlinedButton(
                   key: const ValueKey('client-delivery-run-probe'),
-                  onPressed: () async {
-                    await widget.onRunBackendProbe!.call();
+                  onPressed: () {
+                    unawaited(_runBackendProbeSafely());
                   },
                   child: Text(_localizedRunBackendProbeLabel),
                 ),
@@ -2763,7 +3055,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             Text(
               _draftRequiredHintFor(selectedNotification.systemType),
               style: GoogleFonts.inter(
-                color: const Color(0xFF9AB4D8),
+                color: _clientBodyColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -2783,9 +3075,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF101A2B),
+        color: _clientPanelColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _clientBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2808,9 +3100,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: accent.withValues(alpha: 0.34)),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2828,7 +3120,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF2FF),
+              color: _clientTitleColor,
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -2838,7 +3130,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             summary,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB4D8),
+              color: _clientBodyColor,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -2878,8 +3170,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
           key: const ValueKey('client-delivery-recovery-retry-sync'),
           label: 'Retry Push Sync',
           accent: const Color(0xFFFFD6A5),
-          onTap: () async {
-            await widget.onRetryPushSync!.call();
+          onTap: () {
+            unawaited(_retryPushSyncSafely());
           },
         ),
       if (widget.onRunBackendProbe != null)
@@ -2887,8 +3179,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
           key: const ValueKey('client-delivery-recovery-run-probe'),
           label: 'Run Backend Probe',
           accent: const Color(0xFF9FD8AC),
-          onTap: () async {
-            await widget.onRunBackendProbe!.call();
+          onTap: () {
+            unawaited(_runBackendProbeSafely());
           },
         ),
       if (includeComposer)
@@ -2914,15 +3206,15 @@ class _ClientAppPageState extends State<ClientAppPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
-          color: const Color(0xFF0D1117),
+          color: const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF2A374A)),
+          border: Border.all(color: _clientBorderColor),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: const Color(0xFFD9E7FA),
+            color: _clientTitleColor,
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 0.3,
@@ -2955,13 +3247,55 @@ class _ClientAppPageState extends State<ClientAppPage> {
     });
   }
 
+  Future<void> _retryPushSyncSafely() async {
+    final callback = widget.onRetryPushSync;
+    if (callback == null) {
+      return;
+    }
+    try {
+      await callback();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _showClientCommandFeedback(
+        'Push sync retry could not complete right now.',
+        label: 'DELIVERY RECOVERY',
+        detail:
+            'The current delivery lane stayed open. Retry the sync again without losing the selected incident context.',
+        accent: const Color(0xFFFFD6A5),
+      );
+    }
+  }
+
+  Future<void> _runBackendProbeSafely() async {
+    final callback = widget.onRunBackendProbe;
+    if (callback == null) {
+      return;
+    }
+    try {
+      await callback();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _showClientCommandFeedback(
+        'Backend probe could not complete right now.',
+        label: 'DELIVERY RECOVERY',
+        detail:
+            'The workspace stayed in place. Retry the backend probe again without resetting the current delivery rail.',
+        accent: const Color(0xFFFFD6A5),
+      );
+    }
+  }
+
   Widget _workspaceCommandReceiptCard(Key key, {bool shellless = false}) {
     if (shellless) {
       return Text(
         _commandReceipt.message,
         key: key,
         style: GoogleFonts.inter(
-          color: const Color(0xFFEAF4FF),
+          color: _clientTitleColor,
           fontSize: 11,
           fontWeight: FontWeight.w700,
           height: 1.35,
@@ -2988,7 +3322,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             receipt.label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: _clientTitleColor,
               fontSize: 11.5,
               fontWeight: FontWeight.w800,
             ),
@@ -2997,7 +3331,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             receipt.message,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: _clientTitleColor,
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -3008,7 +3342,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         Text(
           receipt.detail,
           style: GoogleFonts.inter(
-            color: const Color(0xFF9AB1CF),
+            color: _clientBodyColor,
             fontSize: 10.5,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -3021,7 +3355,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: receipt.accent.withValues(alpha: 0.12),
+        color: receipt.accent.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: receipt.accent.withValues(alpha: 0.34)),
       ),
@@ -3041,10 +3375,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
     if (items.isEmpty) {
       return _deliveryRecoveryDeck(
         key: const ValueKey('client-notifications-empty-recovery'),
-        eyebrow: 'ALERT FEED READY',
+        eyebrow: 'ALERT RAIL READY',
         title: _viewerRole.notificationsEmptyLabel,
         summary:
-            'This notification lane is quiet right now, but the shell stays armed so you can widen scope, reopen an incident thread, or pivot back into message drafting.',
+            'This lane is quiet right now. Widen scope, reopen an incident thread, or jump back into drafting from here.',
         accent: const Color(0xFFFFD6A5),
         metrics: [
           _pill(
@@ -3167,7 +3501,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       children: [
         if (!shellless) ...[
           Text(
-            'ALERT COMMAND DECK',
+            'DO THIS NOW',
             style: GoogleFonts.inter(
               color: const Color(0xFFFFD6A5),
               fontSize: 10,
@@ -3179,9 +3513,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
         ],
         if (!shellless) ...[
           Text(
-            '${selectedNotification.title} is the active alert focus. Draft, send, or pivot the lane without leaving the rail.',
+            '${selectedNotification.title} is the live alert focus. Draft, send, or pivot the lane without leaving this rail.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF2FF),
+              color: _clientTitleColor,
               fontSize: 13,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -3240,7 +3574,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         if (!shellless) ...[
           const SizedBox(height: 12),
           Text(
-            'Recommended next move',
+            'NEXT MOVE',
             style: GoogleFonts.inter(
               color: const Color(0xFFFFD6A5),
               fontSize: 10,
@@ -3296,7 +3630,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             selectedNotification.body,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB4D8),
+              color: _clientBodyColor,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -3310,9 +3644,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF101A2B),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2B4F73)),
+        border: Border.all(color: _clientBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A081B33),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: content,
     );
@@ -3329,20 +3670,20 @@ class _ClientAppPageState extends State<ClientAppPage> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF11243A) : const Color(0xFF0E1A2B),
+          color: selected ? _clientSelectedPanelColor : _clientPanelColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected
-                ? const Color(0xFF5D91C6)
+                ? _clientStrongBorderColor
                 : item.priority
                 ? item.systemType.priorityBorderColor
-                : item.systemType.cardBorderColor,
+                : _clientBorderColor,
           ),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x12000000),
-              blurRadius: 10,
-              offset: Offset(0, 6),
+              color: Color(0x0A081B33),
+              blurRadius: 12,
+              offset: Offset(0, 4),
             ),
           ],
         ),
@@ -3382,7 +3723,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 Text(
                   item.timeLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7FA8D5),
+                    color: _clientMutedColor,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3403,7 +3744,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   child: Text(
                     item.title,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE5F1FF),
+                      color: _clientTitleColor,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -3415,7 +3756,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             Text(
               item.body,
               style: GoogleFonts.inter(
-                color: const Color(0xFF9AB4D8),
+                color: _clientBodyColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -3472,7 +3813,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   Text(
                     _draftRequiredHintFor(item.systemType),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB4D8),
+                      color: _clientBodyColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -3567,8 +3908,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
           key: const ValueKey('client-delivery-telemetry-retry-sync'),
           label: _localizedRetryPushSyncLabel,
           accent: const Color(0xFF8FD1FF),
-          onTap: () async {
-            await widget.onRetryPushSync!.call();
+          onTap: () {
+            unawaited(_retryPushSyncSafely());
           },
         ),
       if (widget.onRunBackendProbe != null)
@@ -3576,8 +3917,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
           key: const ValueKey('client-delivery-telemetry-run-probe'),
           label: _localizedRunBackendProbeLabel,
           accent: const Color(0xFF9FD8AC),
-          onTap: () async {
-            await widget.onRunBackendProbe!.call();
+          onTap: () {
+            unawaited(_runBackendProbeSafely());
           },
         ),
       if (widget.onClearBackendProbeHistory != null)
@@ -3607,7 +3948,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'Push sync, Telegram bridge, and backend probe health stay pinned while the delivery board shifts below.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9DB3CF),
+              color: _clientBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -3668,7 +4009,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             _humanizedScopedCommsSummary(telegramDetail),
             style: GoogleFonts.inter(
-              color: const Color(0xFF9DB3CF),
+              color: _clientBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -3692,7 +4033,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             widget.pushSyncRetryCount,
           ),
           style: GoogleFonts.inter(
-            color: const Color(0xFF9DB3CF),
+            color: _clientBodyColor,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -3704,7 +4045,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             probeLastRunLabel,
           ),
           style: GoogleFonts.inter(
-            color: const Color(0xFF9DB3CF),
+            color: _clientBodyColor,
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -3748,9 +4089,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _clientPanelColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _clientBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A081B33),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: content,
     );
@@ -3764,18 +4112,18 @@ class _ClientAppPageState extends State<ClientAppPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF0E1A2B),
+          backgroundColor: _clientPanelColor,
           title: Text(
             _localizedClearProbeHistoryTitle,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE5F1FF),
+            style: GoogleFonts.inter(
+              color: _clientTitleColor,
               fontWeight: FontWeight.w700,
             ),
           ),
           content: Text(
             _localizedClearProbeHistoryBody,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9DB3CF),
+              color: _clientBodyColor,
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -3809,9 +4157,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
         );
       },
     );
-    if (shouldClear == true) {
-      await widget.onClearBackendProbeHistory!.call();
+    if (!mounted || shouldClear != true) {
+      return;
     }
+    await widget.onClearBackendProbeHistory!.call();
   }
 
   Widget _pushSyncHistoryList(
@@ -3821,10 +4170,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
     if (history.isEmpty) {
       return _deliveryRecoveryDeck(
         key: const ValueKey('client-delivery-push-sync-empty-recovery'),
-        eyebrow: 'SYNC HISTORY READY',
+        eyebrow: 'SYNC READY',
         title: _localizedPushSyncHistoryEmpty,
         summary:
-            'No sync attempts are recorded yet. You can still force a sync cycle or run a backend probe from this telemetry stack.',
+            'No sync attempts are recorded yet. Force a sync cycle or run a backend probe from here.',
         accent: const Color(0xFF8FD1FF),
         metrics: [
           _pill(
@@ -3844,8 +4193,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
               key: const ValueKey('client-delivery-push-sync-empty-retry-sync'),
               label: _localizedRetryPushSyncLabel,
               accent: const Color(0xFF8FD1FF),
-              onTap: () async {
-                await widget.onRetryPushSync!.call();
+              onTap: () {
+                unawaited(_retryPushSyncSafely());
               },
             ),
           if (widget.onRunBackendProbe != null)
@@ -3853,8 +4202,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
               key: const ValueKey('client-delivery-push-sync-empty-run-probe'),
               label: _localizedRunBackendProbeLabel,
               accent: const Color(0xFF9FD8AC),
-              onTap: () async {
-                await widget.onRunBackendProbe!.call();
+              onTap: () {
+                unawaited(_runBackendProbeSafely());
               },
             ),
         ],
@@ -3952,10 +4301,10 @@ class _ClientAppPageState extends State<ClientAppPage> {
     if (history.isEmpty) {
       return _deliveryRecoveryDeck(
         key: const ValueKey('client-delivery-backend-probe-empty-recovery'),
-        eyebrow: 'PROBE HISTORY READY',
+        eyebrow: 'PROBE READY',
         title: _localizedBackendProbeHistoryEmpty,
         summary:
-            'No probe runs are recorded yet. Start a backend probe to validate delivery health or clear stale notes before the next cycle.',
+            'No probe runs are recorded yet. Start a backend probe to validate delivery health or clear stale notes.',
         accent: const Color(0xFF9FD8AC),
         metrics: [
           _pill(
@@ -3979,8 +4328,8 @@ class _ClientAppPageState extends State<ClientAppPage> {
               ),
               label: _localizedRunBackendProbeLabel,
               accent: const Color(0xFF9FD8AC),
-              onTap: () async {
-                await widget.onRunBackendProbe!.call();
+              onTap: () {
+                unawaited(_runBackendProbeSafely());
               },
             ),
           if (widget.onClearBackendProbeHistory != null)
@@ -4073,18 +4422,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: selected
-                  ? const Color(0xFF11243A)
-                  : const Color(0xFF0E1A2B),
+              color: selected ? _clientSelectedPanelColor : _clientPanelColor,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: selected
-                    ? const Color(0xFF5D91C6)
-                    : const Color(0xFF223244),
+                color: selected ? _clientStrongBorderColor : _clientBorderColor,
               ),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x10000000),
+                  color: Color(0x100D1726),
                   blurRadius: 10,
                   offset: Offset(0, 6),
                 ),
@@ -4099,7 +4444,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       child: Text(
                         room.displayName,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFE5F1FF),
+                          color: _clientTitleColor,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -4116,7 +4461,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 Text(
                   room.summary,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9AB4D8),
+                    color: _clientBodyColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -4249,7 +4594,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'ROOM COMMAND RAIL',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientAccentBlue,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -4261,7 +4606,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             '${activeRoom.displayName} is holding the live lane while comms, alerts, and thread handoff stay within reach.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF2FF),
+              color: _clientTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -4343,9 +4688,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF101A2B),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2B4F73)),
+        border: Border.all(color: _clientStrongBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4402,7 +4747,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF0E1A2B),
+                color: selected || expanded || focused
+                    ? _clientSelectedPanelColor
+                    : _clientPanelColor,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: _incidentRowBorderColor(
@@ -4473,7 +4820,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       Text(
                         _viewerRole.incidentTimeDisplayLabel(item.timeLabel),
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF7FA8D5),
+                          color: _clientAccentBlue,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
@@ -4489,7 +4836,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       detail: item.detail,
                     ),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE5F1FF),
+                      color: _clientTitleColor,
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -4503,7 +4850,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       detail: item.detail,
                     ),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB4D8),
+                      color: _clientBodyColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -4516,9 +4863,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0E1A2B),
+                        color: _clientPanelTint,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF223244)),
+                        border: Border.all(color: _clientBorderColor),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4640,12 +4987,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
               final incomingSystemType = message.outgoing
                   ? null
                   : message.systemType;
-              final incomingBubbleFillColor = const Color(0xFF0E1A2B);
+              final incomingBubbleFillColor = _clientPanelColor;
               final incomingBubbleBorderColor =
-                  incomingSystemType?.cardBorderColor ??
-                  const Color(0xFF223244);
+                  incomingSystemType?.cardBorderColor ?? _clientBorderColor;
               final incomingBubbleMetaColor =
-                  incomingSystemType?.textColor ?? const Color(0xFF7FA8D5);
+                  incomingSystemType?.textColor ?? _clientMutedColor;
               return Align(
                 alignment: message.outgoing
                     ? Alignment.centerRight
@@ -4696,7 +5042,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       Text(
                         message.body,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFE5F1FF),
+                          color: message.outgoing
+                              ? _clientTitleColor
+                              : _clientTitleColor,
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -4726,14 +5074,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF0E1A2B),
+              color: _clientPanelTint,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF223244)),
+              border: Border.all(color: _clientBorderColor),
             ),
             child: Text(
               'Room Focus: ${_activeRoomLabel()}',
               style: GoogleFonts.inter(
-                color: const Color(0xFFE5F1FF),
+                color: _clientTitleColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -4757,20 +5105,20 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ),
                     selected: selectedSource == source,
                     onSelected: (_) => _setChatSourceFilter(source),
-                    selectedColor: const Color(0xFF11243A),
+                    selectedColor: _clientSelectedPanelColor,
                     side: BorderSide(
                       color: selectedSource == source
-                          ? const Color(0xFF5D91C6)
-                          : const Color(0xFF223244),
+                          ? _clientStrongBorderColor
+                          : _clientBorderColor,
                     ),
                     labelStyle: GoogleFonts.inter(
                       color: selectedSource == source
-                          ? const Color(0xFFB9E2FF)
-                          : const Color(0xFF9AB4D8),
+                          ? _clientAccentBlue
+                          : _clientBodyColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
-                    backgroundColor: const Color(0xFF0E1A2B),
+                    backgroundColor: _clientPanelColor,
                   ),
                 )
                 .toList(growable: false),
@@ -4794,20 +5142,20 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     ),
                     selected: selectedProvider == provider,
                     onSelected: (_) => _setChatProviderFilter(provider),
-                    selectedColor: const Color(0xFF102737),
+                    selectedColor: _clientSelectedPanelColor,
                     side: BorderSide(
                       color: selectedProvider == provider
-                          ? const Color(0xFF4FAAD9)
-                          : const Color(0xFF223244),
+                          ? _clientStrongBorderColor
+                          : _clientBorderColor,
                     ),
                     labelStyle: GoogleFonts.inter(
                       color: selectedProvider == provider
-                          ? const Color(0xFFB8E7FF)
-                          : const Color(0xFF9AB4D8),
+                          ? _clientAccentBlue
+                          : _clientBodyColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
-                    backgroundColor: const Color(0xFF0E1A2B),
+                    backgroundColor: _clientPanelColor,
                   ),
                 )
                 .toList(growable: false),
@@ -4840,13 +5188,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
             final composerField = TextField(
               controller: _chatController,
               focusNode: _chatFocusNode,
-              style: GoogleFonts.inter(color: const Color(0xFFE5F1FF)),
+              style: GoogleFonts.inter(color: _clientTitleColor),
               decoration: InputDecoration(
                 hintText: _viewerRole.chatComposerHintFor(
                   _selectedRoomFor(_viewerRole),
                 ),
                 hintStyle: GoogleFonts.inter(
-                  color: const Color(0xFF6D86AA),
+                  color: _clientMutedColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -4882,6 +5230,43 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   _composerLearnedStyleCue(),
                 ],
                 const SizedBox(height: 8),
+                if (widget.onAiAssistComposerDraft != null) ...[
+                  OutlinedButton(
+                    key: const ValueKey('client-chat-ai-assist-action'),
+                    onPressed: _aiAssistComposerBusy
+                        ? null
+                        : _aiAssistClientMessage,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF365E94),
+                      side: const BorderSide(color: Color(0xFFBFD0EA)),
+                      backgroundColor: const Color(0xFFF7FAFE),
+                      minimumSize: Size(0, _phoneLayout ? 44 : 38),
+                      padding: _phoneLayout
+                          ? const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            )
+                          : const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                      tapTargetSize: _phoneLayout
+                          ? MaterialTapTargetSize.padded
+                          : MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: _phoneLayout
+                          ? VisualDensity.standard
+                          : VisualDensity.compact,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      _aiAssistComposerBusy ? 'AI ASSISTING...' : 'AI ASSIST',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 FilledButton(
                   key: const ValueKey('client-chat-send-action'),
                   onPressed: _sendClientMessage,
@@ -4905,7 +5290,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                         ? VisualDensity.standard
                         : VisualDensity.compact,
                     elevation: 0,
-                    shadowColor: const Color(0x14000000),
+                    shadowColor: const Color(0x0A000000),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -4994,7 +5379,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ? '$roomDisplayName has a staged ${composedType.label.toLowerCase()} ready for review and send.'
                 : '$roomDisplayName is hot. Load the recommended draft, adjust posture, and push the next operator update from one surface.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF2FF),
+              color: _clientBodyColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -5105,7 +5490,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
         Text(
           'Quick drafts',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA7C8),
+            color: _clientMutedColor,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -5121,14 +5506,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 onPressed: () => _applyQuickAction(quickActionTemplates[index]),
                 style: _compactOutlinedActionStyle(
                   foregroundColor: index == 0
-                      ? const Color(0xFFB9E2FF)
-                      : const Color(0xFFB9D9FF),
+                      ? _clientAccentBlue
+                      : _clientBodyColor,
                   sideColor: index == 0
-                      ? const Color(0xFF5D91C6)
-                      : const Color(0xFF223244),
+                      ? _clientStrongBorderColor
+                      : _clientBorderColor,
                   backgroundColor: index == 0
-                      ? const Color(0xFF11243A)
-                      : const Color(0xFF0E1A2B),
+                      ? _clientSelectedPanelColor
+                      : _clientPanelColor,
                 ),
                 child: Text(
                   quickActionTemplates[index],
@@ -5148,12 +5533,12 @@ class _ClientAppPageState extends State<ClientAppPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF0B1626),
+            color: _clientPanelMuted,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: _showComposerLandingHighlight
-                  ? const Color(0xFF8FD1FF)
-                  : const Color(0xFF223244),
+                  ? _clientStrongBorderColor
+                  : _clientBorderColor,
             ),
           ),
           child: composerSurface,
@@ -5171,14 +5556,14 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF101A2B),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF2B4F73)),
+        border: Border.all(color: _clientBorderColor),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 14,
-            offset: Offset(0, 8),
+            color: Color(0x0A081B33),
+            blurRadius: 12,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -5203,9 +5588,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF101E30),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C4766)),
+        border: Border.all(color: _clientBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5222,7 +5607,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 child: Text(
                   'Lane voice: ${widget.laneVoiceProfileLabel}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFE5F1FF),
+                    color: _clientTitleColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
@@ -5243,7 +5628,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'Shape ONYX toward the tone this lane needs before you review or send the next reply.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA7C8),
+              color: _clientBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -5253,7 +5638,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'ONYX mode: ${_laneOnyxModeLabel(hasPinnedVoice: hasPinnedVoice, hasLearnedStyle: hasLearnedStyle)}',
             style: GoogleFonts.inter(
-              color: const Color(0xFFD9ECFF),
+              color: _clientTitleColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -5290,9 +5675,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF0E1A2B),
+                color: _clientPanelColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF245B72)),
+                border: Border.all(color: _clientBorderColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -5300,7 +5685,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   Text(
                     'Learned approval style',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFB9F4FF),
+                      color: _clientAccentBlue,
                       fontSize: 10.8,
                       fontWeight: FontWeight.w800,
                     ),
@@ -5309,7 +5694,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                   Text(
                     widget.learnedApprovalStyleExample.trim(),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE5F1FF),
+                      color: _clientTitleColor,
                       fontSize: 11.2,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
@@ -5376,20 +5761,18 @@ class _ClientAppPageState extends State<ClientAppPage> {
                     onSelected: !canAdjust || _laneVoiceProfileBusy
                         ? null
                         : (_) => _setLaneVoiceProfile(option.signal),
-                    selectedColor: const Color(0xFF11243A),
+                    selectedColor: const Color(0xFFEAF7FF),
                     side: BorderSide(
                       color: selected
-                          ? const Color(0xFF5D91C6)
-                          : const Color(0xFF223244),
+                          ? _clientStrongBorderColor
+                          : _clientBorderColor,
                     ),
                     labelStyle: GoogleFonts.inter(
-                      color: selected
-                          ? const Color(0xFFB9E2FF)
-                          : const Color(0xFF9AB4D8),
+                      color: selected ? _clientAccentBlue : _clientBodyColor,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
-                    backgroundColor: const Color(0xFF0E1A2B),
+                    backgroundColor: _clientPanelColor,
                   );
                 })
                 .toList(growable: false),
@@ -5497,7 +5880,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               ? 'Incident Type: Dispatch review active'
               : 'Incident Type',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA7C8),
+            color: _clientMutedColor,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
@@ -5519,13 +5902,13 @@ class _ClientAppPageState extends State<ClientAppPage> {
                       style: _compactOutlinedActionStyle(
                         foregroundColor: selected
                             ? type.textColor
-                            : const Color(0xFFB9D9FF),
+                            : _clientBodyColor,
                         sideColor: selected
                             ? type.borderColor
-                            : const Color(0xFF223244),
+                            : _clientBorderColor,
                         backgroundColor: selected
-                            ? const Color(0xFF11243A)
-                            : const Color(0xFF0E1A2B),
+                            ? _clientSelectedPanelColor
+                            : _clientPanelColor,
                       ),
                       child: Text(
                         type.label,
@@ -5565,7 +5948,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _clientPanelColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: type.cardBorderColor),
       ),
@@ -5594,9 +5977,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       constraints: const BoxConstraints(maxWidth: 320),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A2230),
+        color: _clientPanelMuted,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF24546E)),
+        border: Border.all(color: _clientBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5613,7 +5996,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               Text(
                 'Uses learned approval style',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFD7F7FF),
+                  color: _clientTitleColor,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -5624,7 +6007,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'This prefill is leaning on approved lane wording from earlier operator edits.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CC8D8),
+              color: _clientBodyColor,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -5637,7 +6020,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                color: const Color(0xFFCFEFFF),
+                color: _clientTitleColor,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 fontStyle: FontStyle.italic,
@@ -5929,7 +6312,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       style: OutlinedButton.styleFrom(
         foregroundColor: item.systemType.textColor,
         side: BorderSide(color: item.systemType.borderColor),
-        backgroundColor: const Color(0x0AFFFFFF),
+        backgroundColor: Colors.white,
         minimumSize: Size(0, _phoneLayout ? 42 : 36),
         padding: _phoneLayout
             ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
@@ -5978,8 +6361,90 @@ class _ClientAppPageState extends State<ClientAppPage> {
         originalDraftText.isNotEmpty &&
         text.isNotEmpty &&
         widget.onRecordApprovedDraftLearning != null) {
-      await widget.onRecordApprovedDraftLearning!(originalDraftText, text);
+      try {
+        await widget.onRecordApprovedDraftLearning!(originalDraftText, text);
+      } catch (_) {
+        if (!mounted) {
+          return;
+        }
+        _showClientCommandFeedback(
+          'Dispatch review sent, but approval-style learning was not saved.',
+          label: 'LEARNING RETRY',
+          detail:
+              'The message still went out. Retry the learning pass later without blocking the active lane.',
+          accent: const Color(0xFFFFD6A5),
+        );
+      }
     }
+  }
+
+  Future<void> _aiAssistClientMessage() async {
+    final assist = widget.onAiAssistComposerDraft;
+    if (assist == null || _aiAssistComposerBusy) {
+      return;
+    }
+    final currentDraftText = _chatController.text.trim();
+    final room = _selectedRoomFor(_viewerRole);
+    setState(() {
+      _aiAssistComposerBusy = true;
+    });
+    try {
+      final assistedDraft = await assist(
+        widget.clientId,
+        widget.siteId,
+        room,
+        currentDraftText,
+      );
+      final normalizedAssistedDraft = assistedDraft?.trim() ?? '';
+      if (!mounted || normalizedAssistedDraft.isEmpty) {
+        return;
+      }
+      setState(() {
+        if (_reviewedDraftOriginalText == null && currentDraftText.isNotEmpty) {
+          _reviewedDraftOriginalText = currentDraftText;
+        }
+        _chatController.text = normalizedAssistedDraft;
+        _chatController.selection = TextSelection.collapsed(
+          offset: _chatController.text.length,
+        );
+      });
+      _focusChatComposer();
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      _showClientCommandFeedback(
+        'AI assist could not refine this draft right now.',
+        label: 'AI ASSIST',
+        detail:
+            'The current draft stayed in the composer unchanged so you can edit or send it manually.',
+        accent: const Color(0xFFFFD6A5),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _aiAssistComposerBusy = false;
+        });
+      }
+    }
+  }
+
+  bool get _shouldAutoAssistControlComposerPrefill =>
+      _viewerRole == ClientAppViewerRole.control &&
+      widget.onAiAssistComposerDraft != null &&
+      !_aiAssistComposerBusy &&
+      _chatController.text.trim().isNotEmpty;
+
+  void _scheduleAiAssistForControlComposerPrefill() {
+    if (!_shouldAutoAssistControlComposerPrefill) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_shouldAutoAssistControlComposerPrefill) {
+        return;
+      }
+      unawaited(_aiAssistClientMessage());
+    });
   }
 
   void _applyQuickAction(
@@ -6000,6 +6465,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
   void _loadRecommendedChatDraft(String template) {
     _applyQuickAction(template);
     _focusChatComposer();
+    _scheduleAiAssistForControlComposerPrefill();
   }
 
   void _draftNotificationAction(_ClientNotification item) {
@@ -6009,6 +6475,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       systemType: item.systemType,
       reviewedDraftOriginalText: draftText,
     );
+    _scheduleAiAssistForControlComposerPrefill();
   }
 
   void _setComposedSystemType(_ClientSystemMessageType type) {
@@ -6022,6 +6489,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
     _draftNotificationAction(item);
     _triggerComposerLandingHighlight(item.messageKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
       final composerContext = _chatComposerKey.currentContext;
       if (composerContext != null) {
         Scrollable.ensureVisible(
@@ -6042,6 +6512,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       });
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
       final composerContext = _chatComposerKey.currentContext;
       if (composerContext != null) {
         Scrollable.ensureVisible(
@@ -6108,6 +6581,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
     }
     _triggerThreadLandingHighlight(messageKey);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
       final chatThreadContext = _chatThreadKey.currentContext;
       if (chatThreadContext != null) {
         Scrollable.ensureVisible(
@@ -6140,32 +6616,32 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
   Color _chatComposerFillColor() {
     return _showComposerLandingHighlight
-        ? const Color(0xFF11243A)
-        : const Color(0xFF0E1A2B);
+        ? _clientSelectedPanelColor
+        : _clientPanelColor;
   }
 
   Color _chatComposerBorderColor() {
     return _showComposerLandingHighlight
-        ? const Color(0xFF8FD1FF)
-        : const Color(0xFF223244);
+        ? _clientStrongBorderColor
+        : _clientBorderColor;
   }
 
   Color _chatComposerFocusedBorderColor() {
     return _showComposerLandingHighlight
-        ? const Color(0xFFB9E2FF)
-        : const Color(0xFF3E7BFF);
+        ? _clientAccentBlue
+        : const Color(0xFF7EA7D3);
   }
 
   Color _threadLandingBubbleFillColor() {
-    return const Color(0xFF11243A);
+    return _clientSelectedPanelColor;
   }
 
   Color _threadLandingBubbleBorderColor() {
-    return const Color(0xFF8FD1FF);
+    return _clientStrongBorderColor;
   }
 
   Color _threadLandingBubbleMetaColor() {
-    return const Color(0xFFB9E2FF);
+    return _clientAccentBlue;
   }
 
   ButtonStyle _inlineHandoffButtonStyle(
@@ -6191,16 +6667,16 @@ class _ClientAppPageState extends State<ClientAppPage> {
       }),
       backgroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return const Color(0x08223244);
+          return const Color(0xFFF3F6FA);
         }
         if (states.contains(WidgetState.pressed)) {
-          return const Color(0x1A8FD1FF);
+          return const Color(0xFFEAF6FF);
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return const Color(0x14223244);
+          return const Color(0xFFF5F8FC);
         }
-        return const Color(0x0F223244);
+        return Colors.white;
       }),
       overlayColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
@@ -6208,17 +6684,17 @@ class _ClientAppPageState extends State<ClientAppPage> {
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return const Color(0x14223244);
+          return const Color(0xFFF5F8FC);
         }
         if (states.contains(WidgetState.pressed)) {
-          return const Color(0x1A8FD1FF);
+          return const Color(0xFFEAF6FF);
         }
         return null;
       }),
       shape: WidgetStateProperty.all(
         RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: Color(0x33223244)),
+          side: const BorderSide(color: Color(0xFFD4DFEA)),
         ),
       ),
     );
@@ -6245,7 +6721,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           : VisualDensity.compact,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 0,
-      shadowColor: const Color(0x10000000),
+      shadowColor: const Color(0x08000000),
     );
   }
 
@@ -6262,11 +6738,11 @@ class _ClientAppPageState extends State<ClientAppPage> {
       builder: (context) {
         final latest = group.latestEntry;
         return AlertDialog(
-          backgroundColor: const Color(0xFF0E1A2B),
+          backgroundColor: _clientPanelColor,
           title: Text(
             _viewerRole.incidentDetailTitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE5F1FF),
+              color: _clientTitleColor,
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -6310,7 +6786,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               Text(
                 _viewerRole.incidentMilestonesLabel,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF8EA7C8),
+                  color: _clientMutedColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
@@ -6345,7 +6821,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             TextSpan(
               text: '$label: ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA7C8),
+                color: _clientMutedColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -6353,7 +6829,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE5F1FF),
+                color: _clientTitleColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -6370,9 +6846,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _clientBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6383,7 +6859,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               entry.timeLabel,
             ),
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA7C8),
+              color: _clientMutedColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -6397,7 +6873,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               detail: entry.detail,
             ),
             style: GoogleFonts.inter(
-              color: const Color(0xFFE5F1FF),
+              color: _clientTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -6422,7 +6898,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
                 ? _viewerRole.incidentCollapseHint
                 : _viewerRole.incidentExpandHint,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA7C8),
+              color: _clientMutedColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -6449,9 +6925,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _clientPanelMuted,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _clientBorderColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -6462,7 +6938,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               minimumSize: const Size(0, 0),
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              foregroundColor: const Color(0xFF8EA7C8),
+              foregroundColor: _clientMutedColor,
             ),
             child: Text(
               _viewerRole.incidentToggleActionLabel(expanded),
@@ -6507,9 +6983,9 @@ class _ClientAppPageState extends State<ClientAppPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _clientPanelTint,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _clientBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6517,7 +6993,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'INCIDENT WORKSPACE READY',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: _clientAccentBlue,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -6527,7 +7003,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             _viewerRole.incidentFeedEmptyLabel,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF2FF),
+              color: _clientTitleColor,
               fontSize: 13,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -6537,7 +7013,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             'Keep the lane anchored by checking the current scope, opening the first ready thread, or jumping back to the composer.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9AB4D8),
+              color: _clientBodyColor,
               fontSize: 12,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -8049,14 +8525,6 @@ class _ClientAppPageState extends State<ClientAppPage> {
     ).replaceAll('{room}', roomDisplayName);
   }
 
-  String get _localizedNoPushNotificationsQueuedYet {
-    return ClientAppLocaleText.generalText(
-      locale: widget.locale,
-      key: 'noPushNotificationsQueuedYet',
-      fallback: 'No push notifications queued yet.',
-    );
-  }
-
   String get _localizedQueuedStatus {
     return ClientAppLocaleText.generalText(
       locale: widget.locale,
@@ -8730,6 +9198,7 @@ class ClientPushSyncState {
   final String? failureReason;
   final int retryCount;
   final List<ClientPushSyncAttempt> history;
+  final List<String> telegramDeliveredMessageKeys;
   final String backendProbeStatusLabel;
   final DateTime? backendProbeLastRunAtUtc;
   final String? backendProbeFailureReason;
@@ -8741,6 +9210,7 @@ class ClientPushSyncState {
     this.failureReason,
     required this.retryCount,
     required this.history,
+    this.telegramDeliveredMessageKeys = const <String>[],
     required this.backendProbeStatusLabel,
     this.backendProbeLastRunAtUtc,
     this.backendProbeFailureReason,
@@ -8753,6 +9223,7 @@ class ClientPushSyncState {
       failureReason = null,
       retryCount = 0,
       history = const [],
+      telegramDeliveredMessageKeys = const <String>[],
       backendProbeStatusLabel = 'idle',
       backendProbeLastRunAtUtc = null,
       backendProbeFailureReason = null,
@@ -8761,6 +9232,7 @@ class ClientPushSyncState {
   factory ClientPushSyncState.fromJson(Map<String, Object?> json) {
     final rawHistory = json['history'];
     final rawBackendProbeHistory = json['backendProbeHistory'];
+    final rawTelegramDeliveredMessageKeys = json['telegramDeliveredMessageKeys'];
     return ClientPushSyncState(
       statusLabel: json['status']?.toString().trim().isNotEmpty == true
           ? json['status']!.toString()
@@ -8781,6 +9253,13 @@ class ClientPushSyncState {
                 .take(20)
                 .toList(growable: false)
           : const [],
+      telegramDeliveredMessageKeys: rawTelegramDeliveredMessageKeys is List
+          ? rawTelegramDeliveredMessageKeys
+                .map((item) => item?.toString().trim() ?? '')
+                .where((item) => item.isNotEmpty)
+                .take(200)
+                .toList(growable: false)
+          : const <String>[],
       backendProbeStatusLabel:
           json['backendProbeStatus']?.toString().trim().isNotEmpty == true
           ? json['backendProbeStatus']!.toString()
@@ -8810,6 +9289,7 @@ class ClientPushSyncState {
       'failureReason': failureReason,
       'retryCount': retryCount,
       'history': history.map((entry) => entry.toJson()).toList(growable: false),
+      'telegramDeliveredMessageKeys': telegramDeliveredMessageKeys,
       'backendProbeStatus': backendProbeStatusLabel,
       'backendProbeLastRunAtUtc': backendProbeLastRunAtUtc?.toIso8601String(),
       'backendProbeFailureReason': backendProbeFailureReason,
@@ -8824,36 +9304,36 @@ enum _ClientSystemMessageType {
   dispatch(
     'Dispatch',
     Icons.flash_on_rounded,
-    Color(0xFFB9D9FF),
     Color(0xFF2A5D91),
-    Color(0xFF0E1A2B),
+    Color(0xFF2A5D91),
+    Color(0xFFEAF4FF),
     Color(0xFF2F5F94),
     Color(0xFF8A3D4A),
   ),
   advisory(
     'Advisory',
     Icons.campaign_rounded,
-    Color(0xFFFFD9A8),
     Color(0xFF8A5A1C),
-    Color(0xFF0E1A2B),
+    Color(0xFF8A5A1C),
+    Color(0xFFFFF5E8),
     Color(0xFF8A5A1C),
     Color(0xFFA85A1F),
   ),
   closure(
     'Closure',
     Icons.check_circle_rounded,
-    Color(0xFFBFF0C8),
     Color(0xFF2E7D4E),
-    Color(0xFF0E1A2B),
+    Color(0xFF2E7D4E),
+    Color(0xFFEFFAF4),
     Color(0xFF2E7D4E),
     Color(0xFF2E7D4E),
   ),
   update(
     'Update',
     Icons.sync_rounded,
-    Color(0xFFD6CBFF),
     Color(0xFF6352A3),
-    Color(0xFF0E1A2B),
+    Color(0xFF6352A3),
+    Color(0xFFF3EEFF),
     Color(0xFF6352A3),
     Color(0xFF7D57C5),
   );
@@ -9628,7 +10108,11 @@ enum ClientAppViewerRole {
   }
 
   Color get outgoingBubbleFillColor {
-    return const Color(0xFF0E1A2B);
+    return switch (this) {
+      ClientAppViewerRole.client => const Color(0xFFEAF4FF),
+      ClientAppViewerRole.control => const Color(0xFFEFFAF4),
+      ClientAppViewerRole.resident => const Color(0xFFFFF4E8),
+    };
   }
 
   Color get outgoingBubbleBorderColor {
@@ -9641,9 +10125,9 @@ enum ClientAppViewerRole {
 
   Color get outgoingBubbleMetaColor {
     return switch (this) {
-      ClientAppViewerRole.client => const Color(0xFF8FD1FF),
-      ClientAppViewerRole.control => const Color(0xFF8CF1C3),
-      ClientAppViewerRole.resident => const Color(0xFFFFD2A5),
+      ClientAppViewerRole.client => const Color(0xFF2F6AA3),
+      ClientAppViewerRole.control => const Color(0xFF2E7D4E),
+      ClientAppViewerRole.resident => const Color(0xFF9A5B20),
     };
   }
 

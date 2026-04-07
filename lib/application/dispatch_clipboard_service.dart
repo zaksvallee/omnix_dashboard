@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import '../ui/dispatch_models.dart';
+import 'dispatch_models.dart';
 
 class DispatchClipboardService {
   const DispatchClipboardService();

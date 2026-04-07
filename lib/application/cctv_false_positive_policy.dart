@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 class CctvFalsePositiveRule {
   final String zone;
@@ -6,6 +7,7 @@ class CctvFalsePositiveRule {
   final int startHourLocal;
   final int endHourLocal;
   final double? minConfidencePercent;
+  final bool isActive;
 
   const CctvFalsePositiveRule({
     required this.zone,
@@ -13,16 +15,55 @@ class CctvFalsePositiveRule {
     required this.startHourLocal,
     required this.endHourLocal,
     this.minConfidencePercent,
+    this.isActive = true,
   });
 
   factory CctvFalsePositiveRule.fromJson(Map<String, Object?> json) {
-    final startHour = _asInt(json['start_hour_local']);
-    final endHour = _asInt(json['end_hour_local']);
+    final normalizedZone = (json['zone'] ?? '').toString().trim().toLowerCase();
+    final normalizedLabel = (json['object_label'] ?? '')
+        .toString()
+        .trim()
+        .toLowerCase();
+    final rawStartHour = json['start_hour_local'];
+    final rawEndHour = json['end_hour_local'];
+    if (rawStartHour == null || rawEndHour == null) {
+      developer.log(
+        'Skipping inactive CCTV false-positive rule because start/end hour is missing '
+        '(zone="$normalizedZone", label="$normalizedLabel").',
+        name: 'CctvFalsePositivePolicy',
+      );
+      return CctvFalsePositiveRule(
+        zone: normalizedZone,
+        objectLabel: normalizedLabel,
+        startHourLocal: 0,
+        endHourLocal: 0,
+        minConfidencePercent: _asDouble(json['min_confidence_percent']),
+        isActive: false,
+      );
+    }
+    final startHour = _asInt(rawStartHour).clamp(0, 23);
+    final endHour = _asInt(rawEndHour).clamp(0, 23);
+    if (startHour == endHour) {
+      developer.log(
+        'Skipping invalid CCTV false-positive rule because start/end hour resolves '
+        'to the same value ($startHour) '
+        '(zone="$normalizedZone", label="$normalizedLabel").',
+        name: 'CctvFalsePositivePolicy',
+      );
+      return CctvFalsePositiveRule(
+        zone: normalizedZone,
+        objectLabel: normalizedLabel,
+        startHourLocal: startHour,
+        endHourLocal: endHour,
+        minConfidencePercent: _asDouble(json['min_confidence_percent']),
+        isActive: false,
+      );
+    }
     return CctvFalsePositiveRule(
-      zone: (json['zone'] ?? '').toString().trim().toLowerCase(),
-      objectLabel: (json['object_label'] ?? '').toString().trim().toLowerCase(),
-      startHourLocal: startHour.clamp(0, 23),
-      endHourLocal: endHour.clamp(0, 23),
+      zone: normalizedZone,
+      objectLabel: normalizedLabel,
+      startHourLocal: startHour,
+      endHourLocal: endHour,
       minConfidencePercent: _asDouble(json['min_confidence_percent']),
     );
   }
@@ -33,6 +74,9 @@ class CctvFalsePositiveRule {
     required double? objectConfidencePercent,
     required DateTime occurredAtUtc,
   }) {
+    if (!isActive) {
+      return false;
+    }
     final normalizedZone = zoneValue.trim().toLowerCase();
     final normalizedLabel = objectLabelValue.trim().toLowerCase();
     if (zone.isNotEmpty && normalizedZone != zone) {
@@ -42,12 +86,14 @@ class CctvFalsePositiveRule {
       return false;
     }
     final confidence = objectConfidencePercent ?? 0;
-    if (minConfidencePercent != null && confidence < minConfidencePercent!) {
+    // Suppress only low-confidence nuisance detections; high-confidence
+    // detections should still surface to an operator.
+    if (minConfidencePercent != null && confidence >= minConfidencePercent!) {
       return false;
     }
     final localHour = occurredAtUtc.toLocal().hour;
     if (startHourLocal == endHourLocal) {
-      return true;
+      return false;
     }
     if (startHourLocal < endHourLocal) {
       return localHour >= startHourLocal && localHour < endHourLocal;
@@ -93,6 +139,7 @@ class CctvFalsePositivePolicy {
               ),
             ),
           )
+          .where((rule) => rule.isActive)
           .toList(growable: false);
       return CctvFalsePositivePolicy(rules: rules);
     } catch (_) {

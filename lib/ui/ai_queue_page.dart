@@ -105,26 +105,92 @@ class _AiQueueCommandReceipt {
   });
 }
 
+class AiQueueEvidenceReturnReceipt {
+  final String auditId;
+  final String label;
+  final String message;
+  final String detail;
+  final Color accent;
+
+  const AiQueueEvidenceReturnReceipt({
+    required this.auditId,
+    required this.label,
+    required this.message,
+    required this.detail,
+    required this.accent,
+  });
+}
+
+class _CctvBoardAlert {
+  final String id;
+  final String headline;
+  final String summary;
+  final String siteLabel;
+  final String cameraLabel;
+  final String feedId;
+  final String occurredLabel;
+  final _AiIncidentPriority priority;
+
+  const _CctvBoardAlert({
+    required this.id,
+    required this.headline,
+    required this.summary,
+    required this.siteLabel,
+    required this.cameraLabel,
+    required this.feedId,
+    required this.occurredLabel,
+    required this.priority,
+  });
+}
+
+class _CctvBoardFeed {
+  final String id;
+  final String label;
+  final bool highlighted;
+
+  const _CctvBoardFeed({
+    required this.id,
+    required this.label,
+    this.highlighted = false,
+  });
+}
+
 class AIQueuePage extends StatefulWidget {
   final List<DispatchEvent> events;
+  final String focusIncidentReference;
+  final String? agentReturnIncidentReference;
+  final ValueChanged<String>? onConsumeAgentReturnIncidentReference;
+  final AiQueueEvidenceReturnReceipt? evidenceReturnReceipt;
+  final ValueChanged<String>? onConsumeEvidenceReturnReceipt;
+  final String initialSelectedFeedId;
   final List<String> historicalSyntheticLearningLabels;
   final List<String> historicalShadowMoLabels;
   final List<String> historicalShadowStrengthLabels;
   final String previousTomorrowUrgencySummary;
   final String videoOpsLabel;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
+  final ValueChanged<String>? onOpenAlarmsForIncident;
+  final ValueChanged<String>? onOpenAgentForIncident;
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
 
   const AIQueuePage({
     super.key,
     required this.events,
+    this.focusIncidentReference = '',
+    this.agentReturnIncidentReference,
+    this.onConsumeAgentReturnIncidentReference,
+    this.evidenceReturnReceipt,
+    this.onConsumeEvidenceReturnReceipt,
+    this.initialSelectedFeedId = '',
     this.historicalSyntheticLearningLabels = const <String>[],
     this.historicalShadowMoLabels = const <String>[],
     this.historicalShadowStrengthLabels = const <String>[],
     this.previousTomorrowUrgencySummary = '',
     this.videoOpsLabel = 'CCTV',
     this.sceneReviewByIntelligenceId = const {},
+    this.onOpenAlarmsForIncident,
+    this.onOpenAgentForIncident,
     this.onOpenEventsForScope,
   });
 
@@ -136,14 +202,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
   static const _autonomyService = MonitoringWatchAutonomyService();
   static const _globalPostureService = MonitoringGlobalPostureService();
   static const _defaultCommandReceipt = _AiQueueCommandReceipt(
-    label: 'QUEUE READY',
-    message: 'Workspace commands stay pinned in this rail on desktop.',
+    label: 'AI CALL READY',
+    message: 'The last AI decision stays pinned in this rail on desktop.',
     detail:
-        'Promotions, pause changes, and shadow dossier exports remain visible while you keep working the queue.',
+        'Promotions, pause changes, and shadow dossier exports stay visible while you work the next queue call.',
     accent: Color(0xFF8FD1FF),
   );
   late List<_AiQueueAction> _actions;
-  late final _AiQueueDailyStats _stats;
+  late _AiQueueDailyStats _stats;
   Timer? _ticker;
   bool _queuePaused = false;
   _AiQueueLaneFilter _laneFilter = _AiQueueLaneFilter.live;
@@ -151,6 +217,11 @@ class _AIQueuePageState extends State<AIQueuePage> {
   String? _selectedFocusId;
   _AiQueueCommandReceipt _commandReceipt = _defaultCommandReceipt;
   bool _desktopWorkspaceActive = false;
+  bool _showDetailedWorkspace = false;
+  final Set<String> _dismissedCctvAlertIds = <String>{};
+  final Set<String> _dispatchedCctvAlertIds = <String>{};
+  String? _selectedCctvAlertId;
+  String? _selectedCctvFeedId;
 
   @override
   void initState() {
@@ -159,6 +230,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       _seedActions(widget.events, widget.sceneReviewByIntelligenceId),
     );
     _stats = _buildDailyStats(widget.events);
+    _syncCctvRouteSelection();
+    _ingestEvidenceReturnReceipt(widget.evidenceReturnReceipt, fromInit: true);
+    _ingestAgentReturnIncidentReference(fromInit: true);
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _onTick());
   }
 
@@ -177,6 +251,24 @@ class _AIQueuePageState extends State<AIQueuePage> {
       _actions = List<_AiQueueAction>.from(
         _seedActions(widget.events, widget.sceneReviewByIntelligenceId),
       );
+      _stats = _buildDailyStats(widget.events);
+    }
+    final routeSelectionActive =
+        widget.focusIncidentReference.trim().isNotEmpty ||
+        widget.initialSelectedFeedId.trim().isNotEmpty;
+    final routeSelectionChanged =
+        oldWidget.focusIncidentReference != widget.focusIncidentReference ||
+        oldWidget.initialSelectedFeedId != widget.initialSelectedFeedId;
+    if (routeSelectionChanged || routeSelectionActive) {
+      _syncCctvRouteSelection();
+    }
+    if (oldWidget.agentReturnIncidentReference?.trim() !=
+        widget.agentReturnIncidentReference?.trim()) {
+      _ingestAgentReturnIncidentReference();
+    }
+    if (oldWidget.evidenceReturnReceipt?.auditId !=
+        widget.evidenceReturnReceipt?.auditId) {
+      _ingestEvidenceReturnReceipt(widget.evidenceReturnReceipt);
     }
   }
 
@@ -206,8 +298,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
       laneItems: laneItems,
       allItems: focusItems,
     );
+    final agentIncidentReference =
+        (selectedFocus?.action?.incidentId ?? activeAction?.incidentId ?? '')
+            .trim();
     final viewport = MediaQuery.sizeOf(context).width;
     final compact = viewport < 900 || isHandsetLayout(context);
+    final showPinnedCommandReceipt = _hasPinnedCommandReceipt;
+    if (!compact && viewport >= 1180 && !_showDetailedWorkspace) {
+      return _buildCctvOverviewPage(
+        context,
+        showPinnedCommandReceipt: showPinnedCommandReceipt,
+      );
+    }
     final useEmbeddedWorkspace = !compact && allowEmbeddedPanelScroll(context);
     final mergeWorkspaceBannerIntoHero = !compact && viewport >= 1180;
     final contentPadding = compact
@@ -352,6 +454,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
               context,
               compact: compact,
               totalQueueCount: _actions.length,
+              showOverviewToggle: !compact && viewport >= 1180,
+              agentIncidentReference: agentIncidentReference,
+              onOpenAgent:
+                  widget.onOpenAgentForIncident == null ||
+                      agentIncidentReference.isEmpty
+                  ? null
+                  : () =>
+                        widget.onOpenAgentForIncident!(agentIncidentReference),
               workspaceBanner: mergeWorkspaceBannerIntoHero
                   ? _workspaceStatusBanner(
                       activeAction: activeAction,
@@ -407,10 +517,781 @@ class _AIQueuePageState extends State<AIQueuePage> {
     callback(eventIds, eventIds.first);
   }
 
+  _AiQueueAction? _actionForAlert(_CctvBoardAlert alert) {
+    for (final action in _actions) {
+      if (action.id == alert.id) {
+        return action;
+      }
+    }
+    return null;
+  }
+
+  String _normalizeIncidentReference(String value) {
+    final normalized = value.trim().toUpperCase();
+    if (normalized.startsWith('INC-')) {
+      return normalized.substring(4);
+    }
+    return normalized;
+  }
+
+  bool _matchesCctvRouteFocus(_CctvBoardAlert alert) {
+    final preferredFeedId = widget.initialSelectedFeedId.trim();
+    if (preferredFeedId.isNotEmpty && alert.feedId == preferredFeedId) {
+      return true;
+    }
+    final focusReference = widget.focusIncidentReference.trim();
+    if (focusReference.isEmpty) {
+      return false;
+    }
+    final action = _actionForAlert(alert);
+    if (action == null) {
+      return false;
+    }
+    final normalizedFocusReference = _normalizeIncidentReference(
+      focusReference,
+    );
+    return _normalizeIncidentReference(action.incidentId) ==
+            normalizedFocusReference ||
+        _normalizeIncidentReference(alert.id) == normalizedFocusReference;
+  }
+
+  void _syncCctvRouteSelection() {
+    final routeFeedId = widget.initialSelectedFeedId.trim();
+    final alerts = _seedCctvAlerts()
+        .where((alert) => !_dismissedCctvAlertIds.contains(alert.id))
+        .toList(growable: false);
+    final focusedAlert = alerts.cast<_CctvBoardAlert?>().firstWhere(
+      (alert) => alert != null && _matchesCctvRouteFocus(alert),
+      orElse: () => null,
+    );
+    _selectedCctvAlertId = focusedAlert?.id;
+    _selectedCctvFeedId = routeFeedId.isNotEmpty
+        ? routeFeedId
+        : focusedAlert?.feedId;
+  }
+
+  Widget _buildCctvOverviewPage(
+    BuildContext context, {
+    required bool showPinnedCommandReceipt,
+  }) {
+    final alerts = _visibleCctvAlerts;
+    final selectedAlert = _resolveSelectedCctvAlert(alerts);
+    final feeds = _buildCctvFeeds(selectedAlert: selectedAlert);
+
+    return OnyxPageScaffold(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final ultrawideSurface = isUltrawideLayout(
+            context,
+            viewportWidth: constraints.maxWidth,
+          );
+          final surfaceMaxWidth = commandSurfaceMaxWidth(
+            context,
+            compactDesktopWidth: 1600,
+            viewportWidth: constraints.maxWidth,
+            widescreenFillFactor: ultrawideSurface ? 1 : 0.95,
+          );
+          final singleColumn = constraints.maxWidth < 1420;
+
+          final content = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCctvAttentionStrip(alertCount: alerts.length),
+              const SizedBox(height: 18),
+              Text(
+                'CCTV Monitoring',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFF6FBFF),
+                  fontSize: 34,
+                  fontWeight: FontWeight.w700,
+                  height: 0.92,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'AI-powered video surveillance and alerts',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF92A7C4),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (showPinnedCommandReceipt) ...[
+                const SizedBox(height: 18),
+                _workspaceCommandReceiptCard(),
+              ],
+              const SizedBox(height: 18),
+              if (singleColumn) ...[
+                _buildCctvAlertPanel(selectedAlert: selectedAlert),
+                const SizedBox(height: 18),
+                _buildCctvFeedsPanel(feeds: feeds),
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 354,
+                      child: _buildCctvAlertPanel(selectedAlert: selectedAlert),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(child: _buildCctvFeedsPanel(feeds: feeds)),
+                  ],
+                ),
+              const SizedBox(height: 18),
+              _buildCctvWorkspaceToggle(),
+            ],
+          );
+
+          return Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: surfaceMaxWidth),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+                child: content,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCctvAttentionStrip({required int alertCount}) {
+    final hasAlerts = alertCount > 0;
+    final accent = hasAlerts
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF34D399);
+    final background = hasAlerts
+        ? const Color(0xFF5B1A12)
+        : const Color(0xFF173C2D);
+    final border = hasAlerts
+        ? const Color(0xFF7C2418)
+        : const Color(0xFF24573F);
+    final label = hasAlerts
+        ? '${alertCount.toString()} ${alertCount == 1 ? 'AI ALERT' : 'AI ALERTS'}'
+        : 'SYSTEMS NOMINAL';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: background,
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            hasAlerts ? Icons.videocam_rounded : Icons.verified_rounded,
+            color: accent,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                color: const Color(0xFFF6FBFF),
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCctvAlertPanel({required _CctvBoardAlert? selectedAlert}) {
+    if (selectedAlert == null) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFD6E1EC)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'No AI alerts',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF172638),
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Live feeds remain available for passive watch while ONYX keeps monitoring in the background.',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF556B80),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                height: 1.45,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final priorityStyle = _priorityStyle(selectedAlert.priority);
+    final dispatched = _dispatchedCctvAlertIds.contains(selectedAlert.id);
+    final agentIncidentReference = _incidentReferenceForAlert(selectedAlert);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: priorityStyle.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
+            decoration: BoxDecoration(
+              color: priorityStyle.background,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(17),
+              ),
+              border: Border(bottom: BorderSide(color: priorityStyle.border)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI ALERT',
+                  style: GoogleFonts.inter(
+                    color: priorityStyle.foreground,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  selectedAlert.headline,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF172638),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w700,
+                    height: 0.96,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCctvInfoTile(
+                  label: 'SITE',
+                  value: selectedAlert.siteLabel,
+                ),
+                const SizedBox(height: 10),
+                _buildCctvInfoTile(
+                  label: 'CAMERA',
+                  value: selectedAlert.cameraLabel,
+                ),
+                const SizedBox(height: 10),
+                _buildCctvInfoTile(
+                  label: 'TIME',
+                  value: selectedAlert.occurredLabel,
+                ),
+                if (dispatched) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0x1A22D3EE),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0x6622D3EE)),
+                    ),
+                    child: Text(
+                      'Guard dispatch staged. Keep this camera pinned until the scene is verified.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF176087),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    key: const ValueKey('ai-queue-action-view-camera'),
+                    onPressed: () => _viewCctvAlert(selectedAlert),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                    label: const Text('View Camera'),
+                    style: FilledButton.styleFrom(
+                      foregroundColor: const Color(0xFF78DAFF),
+                      backgroundColor: const Color(0x1A22D3EE),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                if (widget.onOpenAgentForIncident != null &&
+                    agentIncidentReference.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.tonalIcon(
+                      key: const ValueKey('ai-queue-action-open-agent'),
+                      onPressed: () => widget.onOpenAgentForIncident!(
+                        agentIncidentReference,
+                      ),
+                      icon: const Icon(Icons.psychology_alt_rounded, size: 16),
+                      label: const Text('Ask Agent'),
+                      style: FilledButton.styleFrom(
+                        foregroundColor: const Color(0xFFE9D5FF),
+                        backgroundColor: const Color(0x332D1B69),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        textStyle: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    key: const ValueKey('ai-queue-action-dispatch-guard'),
+                    onPressed: dispatched
+                        ? null
+                        : () => _dispatchCctvAlert(selectedAlert),
+                    icon: const Icon(Icons.local_shipping_outlined, size: 16),
+                    label: Text(
+                      dispatched ? 'Guard Dispatched' : 'Dispatch Guard',
+                    ),
+                    style: FilledButton.styleFrom(
+                      foregroundColor: const Color(0xFFFF8B8B),
+                      backgroundColor: const Color(0x22EF4444),
+                      disabledBackgroundColor: const Color(0xFFEAF0F6),
+                      disabledForegroundColor: const Color(0xFF7F93AE),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _dismissCctvAlert(selectedAlert),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF556B80),
+                      side: const BorderSide(color: Color(0xFFD6E1EC)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text('Dismiss'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCctvInfoTile({required String label, required String value}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAFD),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF6B7F93),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
+              fontSize: 13.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCctvFeedsPanel({required List<_CctvBoardFeed> feeds}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'LIVE FEEDS',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF556B80),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 14),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.3,
+            ),
+            itemCount: feeds.length,
+            itemBuilder: (context, index) {
+              final feed = feeds[index];
+              return _buildCctvFeedTile(feed: feed);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCctvFeedTile({required _CctvBoardFeed feed}) {
+    final selected = feed.highlighted;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () {
+        setState(() {
+          _selectedCctvFeedId = feed.id;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFEAF6FF) : const Color(0xFFF7FAFD),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? const Color(0xFF8FCBFF) : const Color(0xFFD4DFEA),
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Center(
+              child: Icon(
+                Icons.play_circle_outline_rounded,
+                color: selected
+                    ? const Color(0xFF315A86)
+                    : const Color(0x556C8198),
+                size: 34,
+              ),
+            ),
+            Positioned(
+              left: 12,
+              bottom: 12,
+              child: Text(
+                feed.label,
+                style: GoogleFonts.inter(
+                  color: selected
+                      ? const Color(0xFF172638)
+                      : const Color(0xFF6E7F96),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCctvWorkspaceToggle() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: OutlinedButton.icon(
+        key: const ValueKey('ai-queue-toggle-detailed-workspace'),
+        onPressed: () {
+          setState(() {
+            _showDetailedWorkspace = true;
+          });
+        },
+        icon: const Icon(Icons.open_in_new_rounded, size: 15),
+        label: const Text('Open Detailed Workspace'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF315A86),
+          side: const BorderSide(color: Color(0xFFD4DFEA)),
+          backgroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          textStyle: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<_CctvBoardAlert> get _visibleCctvAlerts {
+    final alerts = _availableCctvAlerts().toList(growable: true);
+    final focusedIndex = alerts.indexWhere(_matchesCctvRouteFocus);
+    if (focusedIndex > 0) {
+      final focusedAlert = alerts.removeAt(focusedIndex);
+      alerts.insert(0, focusedAlert);
+    }
+    return alerts.take(1).toList(growable: false);
+  }
+
+  List<_CctvBoardAlert> _availableCctvAlerts({String? excludingAlertId}) {
+    final normalizedExcludedId = (excludingAlertId ?? '').trim();
+    return _seedCctvAlerts()
+        .where((alert) => !_dismissedCctvAlertIds.contains(alert.id))
+        .where(
+          (alert) =>
+              normalizedExcludedId.isEmpty || alert.id != normalizedExcludedId,
+        )
+        .toList(growable: false);
+  }
+
+  _CctvBoardAlert? _resolveSelectedCctvAlert(List<_CctvBoardAlert> alerts) {
+    if (alerts.isEmpty) {
+      return null;
+    }
+    for (final alert in alerts) {
+      if (alert.id == _selectedCctvAlertId) {
+        return alert;
+      }
+    }
+    return alerts.first;
+  }
+
+  List<_CctvBoardFeed> _buildCctvFeeds({
+    required _CctvBoardAlert? selectedAlert,
+  }) {
+    final routeFeedId = widget.initialSelectedFeedId.trim();
+    final selectedFeedId =
+        (_selectedCctvFeedId ??
+                (routeFeedId.isEmpty ? null : routeFeedId) ??
+                selectedAlert?.feedId ??
+                '')
+            .trim();
+    return List<_CctvBoardFeed>.generate(9, (index) {
+      final id = 'CAM-${(index + 1).toString().padLeft(2, '0')}';
+      return _CctvBoardFeed(
+        id: id,
+        label: id,
+        highlighted: id == selectedFeedId,
+      );
+    }, growable: false);
+  }
+
+  void _viewCctvAlert(_CctvBoardAlert alert) {
+    setState(() {
+      _selectedCctvAlertId = alert.id;
+      _selectedCctvFeedId = alert.feedId;
+    });
+  }
+
+  void _dispatchCctvAlert(_CctvBoardAlert alert) {
+    setState(() {
+      _selectedCctvAlertId = alert.id;
+      _selectedCctvFeedId = alert.feedId;
+      _dispatchedCctvAlertIds.add(alert.id);
+    });
+    final callback = widget.onOpenAlarmsForIncident;
+    final action = _actionForAlert(alert);
+    final incidentReference =
+        action != null && action.incidentId.trim().isNotEmpty
+        ? action.incidentId.trim()
+        : alert.id;
+    if (callback != null && incidentReference.isNotEmpty) {
+      callback(incidentReference);
+    }
+  }
+
+  String _incidentReferenceForAlert(_CctvBoardAlert alert) {
+    final action = _actionForAlert(alert);
+    return action != null && action.incidentId.trim().isNotEmpty
+        ? action.incidentId.trim()
+        : alert.id.trim();
+  }
+
+  void _dismissCctvAlert(_CctvBoardAlert alert) {
+    final replacementAlert = _availableCctvAlerts(excludingAlertId: alert.id)
+        .cast<_CctvBoardAlert?>()
+        .firstWhere(
+          (candidate) => candidate != null && candidate.feedId == alert.feedId,
+          orElse: () => null,
+        );
+    setState(() {
+      _dismissedCctvAlertIds.add(alert.id);
+      if (_selectedCctvAlertId == alert.id) {
+        _selectedCctvAlertId = replacementAlert?.id;
+        if (_selectedCctvFeedId == alert.feedId && replacementAlert == null) {
+          _selectedCctvFeedId = null;
+        }
+      }
+    });
+  }
+
+  List<_CctvBoardAlert> _seedCctvAlerts() {
+    final cameraLabels = <String>[
+      'CAM-03 - North Gate',
+      'CAM-07 - South Lot',
+      'CAM-02 - East Fence',
+      'CAM-05 - Main Entrance',
+    ];
+    return _actions
+        .take(3)
+        .toList(growable: false)
+        .asMap()
+        .entries
+        .map((entry) {
+          final index = entry.key;
+          final action = entry.value;
+          final cameraLabel = cameraLabels[index % cameraLabels.length];
+          return _CctvBoardAlert(
+            id: action.id,
+            headline: _cctvHeadlineForAction(action, index),
+            summary: _cctvSummaryForAction(action),
+            siteLabel: _humanizeCctvLabel(action.site),
+            cameraLabel: cameraLabel,
+            feedId: _cctvFeedIdFromCameraLabel(cameraLabel),
+            occurredLabel: _formatCctvTime(
+              DateTime.now().subtract(Duration(minutes: 2 + (index * 3))),
+            ),
+            priority: action.incidentPriority,
+          );
+        })
+        .toList(growable: false);
+  }
+
+  String _cctvHeadlineForAction(_AiQueueAction action, int index) {
+    final normalizedType = action.actionType.trim().toUpperCase();
+    if (normalizedType.contains('VISION')) {
+      return 'Suspicious Movement';
+    }
+    if (normalizedType.contains('AUTO-DISPATCH')) {
+      return 'Restricted Zone Breach';
+    }
+    if (normalizedType.contains('VOIP')) {
+      return 'Loitering Detected';
+    }
+    if (normalizedType.contains(widget.videoOpsLabel.toUpperCase())) {
+      return 'AI Alert';
+    }
+    return switch (index) {
+      0 => 'Loitering Detected',
+      1 => 'Suspicious Movement',
+      _ => 'Perimeter Watch',
+    };
+  }
+
+  String _cctvSummaryForAction(_AiQueueAction action) {
+    final description = action.description.trim();
+    if (description.isNotEmpty) {
+      return description;
+    }
+    return 'ONYX flagged unusual activity for controller review.';
+  }
+
+  String _cctvFeedIdFromCameraLabel(String cameraLabel) {
+    final dashIndex = cameraLabel.indexOf(' - ');
+    if (dashIndex <= 0) {
+      return cameraLabel.trim();
+    }
+    return cameraLabel.substring(0, dashIndex).trim();
+  }
+
+  String _formatCctvTime(DateTime dateTime) {
+    final hour = dateTime.hour.toString().padLeft(2, '0');
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _humanizeCctvLabel(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return 'Sandton Estate North';
+    }
+    return trimmed
+        .replaceAll('-', ' ')
+        .replaceAll('_', ' ')
+        .split(RegExp(r'\s+'))
+        .where((segment) => segment.isNotEmpty)
+        .map(
+          (segment) =>
+              segment.substring(0, 1).toUpperCase() +
+              segment.substring(1).toLowerCase(),
+        )
+        .join(' ');
+  }
+
   Widget _heroHeader(
     BuildContext context, {
     required bool compact,
     required int totalQueueCount,
+    required bool showOverviewToggle,
+    required String agentIncidentReference,
+    required VoidCallback? onOpenAgent,
     Widget? workspaceBanner,
   }) {
     final activeAction = _activeAction;
@@ -454,7 +1335,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
               const SizedBox(height: 1.0),
               Text(
-                'Human-parallel execution supervision with 30s intervention windows.',
+                'AI flags what matters, ranks the risk, and waits 30s for your override.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF95A9C7),
                   fontSize: 6.8,
@@ -471,6 +1352,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
       runSpacing: 1.25,
       alignment: WrapAlignment.end,
       children: [
+        if (showOverviewToggle)
+          _heroActionButton(
+            key: const ValueKey('ai-queue-toggle-detailed-workspace'),
+            icon: Icons.visibility_off_rounded,
+            label: 'Hide Detailed Workspace',
+            accent: const Color(0xFF9FD8FF),
+            onPressed: () {
+              setState(() {
+                _showDetailedWorkspace = false;
+              });
+            },
+          ),
         _heroActionButton(
           key: const ValueKey('ai-queue-view-events-button'),
           icon: Icons.open_in_new,
@@ -479,6 +1372,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
           onPressed: openEventsAction == null
               ? null
               : () => _openEventsForAction(openEventsAction),
+        ),
+        _heroActionButton(
+          key: const ValueKey('ai-queue-open-agent-button'),
+          icon: Icons.psychology_alt_rounded,
+          label: 'Ask Agent',
+          accent: const Color(0xFFC4B5FD),
+          onPressed: agentIncidentReference.isEmpty ? null : onOpenAgent,
         ),
         _heroStatusChip(
           label: _queuePaused ? 'AI Engine Paused' : 'AI Engine Active',
@@ -568,9 +1468,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(2.7, 1.7, 2.7, 1.7),
       decoration: BoxDecoration(
-        color: const Color(0xFF10141F),
+        color: const Color(0xFFFBFDFF),
         borderRadius: BorderRadius.circular(5.5),
-        border: Border.all(color: const Color(0xFF293245)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -578,7 +1478,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label.toUpperCase(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF7D8DA8),
+              color: const Color(0xFF7A8FA4),
               fontSize: 6.0,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.9,
@@ -614,7 +1514,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
-        disabledBackgroundColor: const Color(0x12000000),
+        disabledBackgroundColor: const Color(0xFFF0F4F8),
         disabledForegroundColor: const Color(0x667A8CA8),
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
         padding: const EdgeInsets.symmetric(horizontal: 2.9, vertical: 1.7),
@@ -683,9 +1583,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: EdgeInsets.all(compactPresentation ? 1.35 : 1.7),
       decoration: BoxDecoration(
-        color: const Color(0xFF10141F),
+        color: const Color(0xFFFBFDFF),
         borderRadius: BorderRadius.circular(5.0),
-        border: Border.all(color: const Color(0xFF293245)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,7 +1593,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             'QUEUE SNAPSHOT',
             style: GoogleFonts.inter(
-              color: const Color(0xFF7D8DA8),
+              color: const Color(0xFF7A8FA4),
               fontSize: 5.8,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.9,
@@ -748,8 +1648,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
           const SizedBox(height: 0.45),
           Text(
             value,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFF5FAFF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: compactPresentation ? 10.4 : 10.8,
               fontWeight: FontWeight.w700,
               height: 0.92,
@@ -766,10 +1666,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required bool compactPresentation,
   }) {
     final accent = selectedFocus?.accent ?? _laneAccent(effectiveLane);
-    final headline = selectedFocus?.primaryLabel ?? 'Standby Supervision';
+    final headline = selectedFocus?.primaryLabel ?? 'Board clear';
     final summary =
         selectedFocus?.summary ??
-        'The queue is clear for now, but the runbook, policy, and context shells stay armed for the next automation wave.';
+        'The board is quiet for now, but runbook, policy, and context stay armed for the next signal.';
     final laneRecovery =
         selectedFocus != null && selectedFocus.lane != effectiveLane
         ? selectedFocus.lane
@@ -784,12 +1684,12 @@ class _AIQueuePageState extends State<AIQueuePage> {
       padding: EdgeInsets.all(compactPresentation ? 1.35 : 1.55),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.16), const Color(0xFF101A2B)],
+          colors: [accent.withValues(alpha: 0.12), const Color(0xFFFFFFFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(4.9),
-        border: Border.all(color: accent.withValues(alpha: 0.34)),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -818,7 +1718,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'AUTOMATION IN FOCUS',
+                      'AI OPINION',
                       style: GoogleFonts.inter(
                         color: accent,
                         fontSize: 5.6,
@@ -854,8 +1754,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
           SizedBox(height: compactPresentation ? 0.5 : 0.75),
           Text(
             headline,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE7F1FF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: compactPresentation ? 9.0 : 9.5,
               fontWeight: FontWeight.w700,
               height: 0.95,
@@ -867,7 +1767,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD7E4F5),
+              color: const Color(0xFF556B80),
               fontSize: compactPresentation ? 5.8 : 6.0,
               fontWeight: FontWeight.w600,
               height: 1.26,
@@ -982,7 +1882,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'Lane pivots stay pinned in the queue rail, while runbook, policy, context, promote, pause, and scope actions stay anchored to the selected automation board below.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF9CB2D1),
+                color: const Color(0xFF556B80),
                 fontSize: 6.2,
                 fontWeight: FontWeight.w600,
                 height: 1.35,
@@ -1025,13 +1925,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4.9),
         gradient: const LinearGradient(
-          colors: [Color(0xFF101D30), Color(0xFF172842)],
+          colors: [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: const Color(0xFF26405C)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
         boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 12, spreadRadius: 1),
+          BoxShadow(color: Color(0x12172638), blurRadius: 12, spreadRadius: 1),
         ],
       ),
       child: bannerContent,
@@ -1074,18 +1974,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFF10273D),
+              : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.5)
-                : const Color(0xFF27425D),
+                : const Color(0xFFD6E1EC),
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFFEAF2FF),
+            color: selected ? accent : const Color(0xFF172638),
             fontSize: 6.0,
             fontWeight: FontWeight.w800,
           ),
@@ -1198,7 +2098,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         children: [
           Text(
             'Queue Lanes',
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: const Color(0xFFE7F1FF),
               fontSize: 10.8,
               fontWeight: FontWeight.w700,
@@ -1246,18 +2146,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.16)
-              : const Color(0xFF0B1930),
+              : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.42)
-                : const Color(0xFF223244),
+                : const Color(0xFFD4DFEA),
           ),
         ),
         child: Text(
           '${_laneLabel(lane)} $count',
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFF9AB1CF),
+            color: selected ? accent : const Color(0xFF556B80),
             fontSize: 6.5,
             fontWeight: FontWeight.w800,
           ),
@@ -1449,7 +2349,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         children: [
           Text(
             'Selected Automation',
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: const Color(0xFFE7F1FF),
               fontSize: 11.0,
               fontWeight: FontWeight.w700,
@@ -1499,7 +2399,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       return _workspaceRecoveryDeck(
         key: const ValueKey('ai-queue-focus-standby-recovery'),
         eyebrow: 'WORKSPACE STANDBY',
-        title: 'Queue clear. No automation is pinned.',
+        title: 'Board clear. Nothing hot is pinned.',
         summary:
             'Standby supervision is still armed. Reset the live lane or pivot to policy and context without leaving the board.',
         accent: const Color(0xFF8FD1FF),
@@ -1519,7 +2419,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         gradient: LinearGradient(
           colors: [
             selectedFocus.accent.withValues(alpha: 0.18),
-            const Color(0xFF101A2B),
+            const Color(0xFFFBFDFF),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1542,8 +2442,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
           const SizedBox(height: 0.6),
           Text(
             selectedFocus.headline,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFF4F8FF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 11.0,
               fontWeight: FontWeight.w700,
             ),
@@ -1552,7 +2452,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             selectedFocus.bannerSummary,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD8E4F5),
+              color: const Color(0xFF556B80),
               fontSize: 6.9,
               fontWeight: FontWeight.w600,
               height: 1.3,
@@ -1609,18 +2509,18 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.16)
-              : const Color(0xFF0B1930),
+              : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.45)
-                : const Color(0xFF223244),
+                : const Color(0xFFD4DFEA),
           ),
         ),
         child: Text(
           _workspaceLabel(view),
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFF9DB1CF),
+            color: selected ? accent : const Color(0xFF556B80),
             fontSize: 7.3,
             fontWeight: FontWeight.w800,
           ),
@@ -1926,9 +2826,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0x14000000),
+                      color: const Color(0xFFFFFFFF),
                       borderRadius: BorderRadius.circular(9),
-                      border: Border.all(color: const Color(0x335B9BD5)),
+                      border: Border.all(color: const Color(0xFFD4DFEA)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1936,7 +2836,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         Text(
                           match.title,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFB8D7FF),
+                            color: const Color(0xFF315A86),
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1945,7 +2845,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         Text(
                           'Indicators ${match.matchedIndicators.join(', ')}',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF9AB5D7),
+                            color: const Color(0xFF556B80),
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -2059,8 +2959,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       children: [
         Text(
           'Policy Signals',
-          style: GoogleFonts.rajdhani(
-            color: const Color(0xFFE7F1FF),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF172638),
             fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
@@ -2069,7 +2969,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Autonomy pressure, biasing cues, and carry-forward posture for the current focus.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA5C6),
+            color: const Color(0xFF556B80),
             fontSize: 9.5,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -2134,9 +3034,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F1B2D),
+            color: const Color(0xFFF7FAFD),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF223244)),
+            border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
           child: Text(
             (action.metadata['scope'] ?? '').trim().toUpperCase() ==
@@ -2144,7 +3044,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ? 'This recommendation is currently staged for the next-shift carry-forward lane.'
                 : 'This recommendation is held inside the live queue and can be promoted directly into execution.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFD7E3F4),
+              color: const Color(0xFF556B80),
               fontSize: 9.5,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -2161,8 +3061,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       children: [
         Text(
           'Shadow Pattern Weighting',
-          style: GoogleFonts.rajdhani(
-            color: const Color(0xFFE7F1FF),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF172638),
             fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
@@ -2171,7 +3071,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Pattern strength, recommended actions, and evidence density for the selected shadow site.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA5C6),
+            color: const Color(0xFF556B80),
             fontSize: 9.5,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -2201,9 +3101,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0x14000000),
+              color: const Color(0xFFF7FAFD),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0x335B9BD5)),
+              border: Border.all(color: const Color(0xFFD6E1EC)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2211,7 +3111,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   match.title,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFB8D7FF),
+                    color: const Color(0xFF2F6AA3),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2220,7 +3120,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   'Actions ${match.recommendedActionPlans.join(' • ')}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9AB5D7),
+                    color: const Color(0xFF556B80),
                     fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -2238,9 +3138,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF10233D),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accent.withValues(alpha: 0.24)),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2248,7 +3148,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C6),
+              color: const Color(0xFF7A8FA4),
               fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
@@ -2285,8 +3185,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       children: [
         Text(
           'Execution Context',
-          style: GoogleFonts.rajdhani(
-            color: const Color(0xFFE7F1FF),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF172638),
             fontSize: 16.5,
             fontWeight: FontWeight.w700,
           ),
@@ -2295,7 +3195,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         Text(
           'Queue counts, related lanes, and handoffs for the current automation focus.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA5C6),
+            color: const Color(0xFF556B80),
             fontSize: 9.5,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -2389,9 +3289,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF091728),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: const Color(0xFF1A355A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: body,
     );
@@ -2402,9 +3302,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: const Color(0xFF10233D),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF1A355A)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2412,7 +3312,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7F95B5),
+              color: const Color(0xFF7A8FA4),
               fontSize: 8.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
@@ -2422,7 +3322,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE6F0FF),
+              color: const Color(0xFF172638),
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
             ),
@@ -2489,6 +3389,61 @@ class _AIQueuePageState extends State<AIQueuePage> {
     );
   }
 
+  bool get _hasPinnedCommandReceipt =>
+      _commandReceipt.label == 'AGENT RETURN' ||
+      _commandReceipt.label == 'EVIDENCE RETURN';
+
+  void _ingestEvidenceReturnReceipt(
+    AiQueueEvidenceReturnReceipt? receipt, {
+    bool fromInit = false,
+  }) {
+    if (receipt == null) {
+      return;
+    }
+    final commandReceipt = _AiQueueCommandReceipt(
+      label: receipt.label,
+      message: receipt.message,
+      detail: receipt.detail,
+      accent: receipt.accent,
+    );
+    if (fromInit) {
+      _commandReceipt = commandReceipt;
+    } else if (mounted) {
+      setState(() {
+        _commandReceipt = commandReceipt;
+      });
+    } else {
+      _commandReceipt = commandReceipt;
+    }
+    widget.onConsumeEvidenceReturnReceipt?.call(receipt.auditId);
+  }
+
+  void _ingestAgentReturnIncidentReference({bool fromInit = false}) {
+    final ref = (widget.agentReturnIncidentReference ?? '').trim();
+    if (ref.isEmpty) {
+      return;
+    }
+    final receipt = _AiQueueCommandReceipt(
+      label: 'AGENT RETURN',
+      message: 'Returned from Agent for $ref.',
+      detail:
+          'The CCTV focus stayed pinned so controllers can keep validating the same incident inside the simple queue flow.',
+      accent: const Color(0xFF8B5CF6),
+    );
+    if (fromInit) {
+      _commandReceipt = receipt;
+    } else if (mounted) {
+      setState(() {
+        _commandReceipt = receipt;
+      });
+    } else {
+      _commandReceipt = receipt;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onConsumeAgentReturnIncidentReference?.call(ref);
+    });
+  }
+
   Widget _workspaceContextRail({
     required _AiQueueAction? activeAction,
     required List<_AiQueueAction> queuedActions,
@@ -2507,8 +3462,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Queue Context Rail',
-              style: GoogleFonts.rajdhani(
+              'WHY IT FIRED',
+              style: GoogleFonts.inter(
                 color: const Color(0xFFE7F1FF),
                 fontSize: 11.0,
                 fontWeight: FontWeight.w700,
@@ -2516,7 +3471,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ),
             const SizedBox(height: 1.0),
             Text(
-              'Preview cards and controls that stay visible while the selected workspace changes.',
+              'Keep the active lane, the last receipt, and the next queues visible while the workspace changes.',
               style: GoogleFonts.inter(
                 color: const Color(0xFF8EA5C5),
                 fontSize: 6.8,
@@ -2534,7 +3489,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           ],
         ),
       ),
-      if (_desktopWorkspaceActive) ...[
+      if (_desktopWorkspaceActive || _hasPinnedCommandReceipt) ...[
         const SizedBox(height: 2.2),
         _workspaceCommandReceiptCard(),
       ],
@@ -2611,7 +3566,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   Text(
                     paused
                         ? 'Execution hold is active'
-                        : 'AI preparing to execute • intervention window active',
+                        : 'AI thinks this should happen next • override window live',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF9AB5D7),
                       fontSize: 10.5,
@@ -2800,7 +3755,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     const SizedBox(height: 7),
                     Text(
                       _formatTime(action.timeUntilExecutionSeconds),
-                      style: GoogleFonts.rajdhani(
+                      style: GoogleFonts.inter(
                         color: countdownColor,
                         fontSize: 32,
                         height: 0.88,
@@ -2842,7 +3797,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   ),
                   Text(
                     _formatTime(action.timeUntilExecutionSeconds),
-                    style: GoogleFonts.rajdhani(
+                    style: GoogleFonts.inter(
                       color: countdownColor,
                       fontSize: 36,
                       height: 0.88,
@@ -2858,7 +3813,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
               minHeight: 6,
-              value: paused ? progress : progress,
+              value: paused ? 0.0 : progress,
               backgroundColor: const Color(0x66000000),
               valueColor: AlwaysStoppedAnimation<Color>(countdownColor),
             ),
@@ -2942,9 +3897,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return _workspaceRecoveryDeck(
       key: const ValueKey('ai-queue-runbook-standby-recovery'),
       eyebrow: 'RUNBOOK STANDBY',
-      title: 'The live automation board is standing by.',
+      title: 'Nothing is firing right now.',
       summary:
-          'No action is executing right now, but the shell remains hot so you can reset the live lane or move straight into policy and context review.',
+          'The board is quiet, but the shell stays hot so you can reset the live lane or move straight into policy and context review.',
       accent: const Color(0xFF22D3EE),
       metrics: _standbyWorkspaceMetrics(
         totalQueueCount: totalQueueCount,
@@ -2970,14 +3925,15 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFF101A2B),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accent.withValues(alpha: 0.34)),
+        border: Border.all(color: accent.withValues(alpha: 0.24)),
         boxShadow: [
           BoxShadow(
-            color: accent.withValues(alpha: 0.08),
-            blurRadius: 14,
-            spreadRadius: 1,
+            color: accent.withValues(alpha: 0.05),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -2996,8 +3952,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
           const SizedBox(height: 4),
           Text(
             title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFF4F8FF),
+            style: GoogleFonts.inter(
+              color: const Color(0xFF172638),
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
@@ -3006,7 +3962,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             summary,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD8E4F5),
+              color: const Color(0xFF556B80),
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -3099,8 +4055,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
               Text(
                 'Queued Actions',
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFE7F1FF),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF172638),
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -3133,21 +4089,21 @@ class _AIQueuePageState extends State<AIQueuePage> {
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                color: const Color(0x33000000),
-                border: Border.all(color: const Color(0xFF2A3D58)),
+                color: const Color(0xFFF7FAFD),
+                border: Border.all(color: const Color(0xFFD6E1EC)),
               ),
               child: Column(
                 children: [
                   const Icon(
                     Icons.schedule_rounded,
-                    color: Color(0xFF6F84A3),
+                    color: Color(0xFF7A8FA4),
                     size: 24,
                   ),
                   const SizedBox(height: 5),
                   Text(
                     'No actions queued',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9AB1CF),
+                      color: const Color(0xFF556B80),
                       fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -3180,8 +4136,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       padding: const EdgeInsets.all(5.5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: const Color(0x33000000),
-        border: Border.all(color: const Color(0xFF2A3E59)),
+        color: const Color(0xFFF7FAFD),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -3222,7 +4178,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                             Text(
                               action.actionType,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFE5EFFF),
+                                color: const Color(0xFF172638),
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -3260,7 +4216,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         Text(
                           action.description,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF9CB2D1),
+                            color: const Color(0xFF556B80),
                             fontSize: 9,
                             fontWeight: FontWeight.w600,
                           ),
@@ -3305,7 +4261,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     Text(
                       'Executes in',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7D92B2),
+                        color: const Color(0xFF7A8FA4),
                         fontSize: 8,
                         fontWeight: FontWeight.w600,
                       ),
@@ -3408,8 +4364,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
               Text(
                 'Next-Shift Drafts',
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFE7F1FF),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF172638),
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -3439,7 +4395,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             leadDraft.actionType,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE7F1FF),
+              color: const Color(0xFF172638),
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
             ),
@@ -3448,7 +4404,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             leadDraft.description,
             style: GoogleFonts.inter(
-              color: const Color(0xFFDAE4FF),
+              color: const Color(0xFF556B80),
               fontSize: 9,
               fontWeight: FontWeight.w600,
             ),
@@ -3553,8 +4509,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ),
               Text(
                 'Shadow MO Intelligence',
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFE7F1FF),
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF172638),
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),
@@ -3584,7 +4540,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             '${lead.siteId} • ${lead.moShadowSummary}',
             style: GoogleFonts.inter(
-              color: const Color(0xFFE6F0FF),
+              color: const Color(0xFF172638),
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
             ),
@@ -3617,7 +4573,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             Text(
               'Supporting sites: $supporting',
               style: GoogleFonts.inter(
-                color: const Color(0xFF9AB5D7),
+                color: const Color(0xFF556B80),
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
               ),
@@ -3633,7 +4589,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       context: context,
       builder: (dialogContext) {
         return Dialog(
-          backgroundColor: const Color(0xFF08111B),
+          backgroundColor: const Color(0xFFFFFFFF),
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 24,
             vertical: 24,
@@ -3652,7 +4608,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         child: Text(
                           'SHADOW MO DOSSIER',
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFEAF4FF),
+                            color: const Color(0xFF172638),
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.8,
@@ -3685,7 +4641,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: Color(0xFFEAF4FF)),
+                        icon: const Icon(Icons.close, color: Color(0xFF172638)),
                       ),
                     ],
                   ),
@@ -3699,9 +4655,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0x14000000),
+                            color: const Color(0xFFF7FAFD),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0x335B9BD5)),
+                            border: Border.all(color: const Color(0xFFD6E1EC)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -3709,7 +4665,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                               Text(
                                 '${site.siteId} • ${site.moShadowSummary}',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFFEAF4FF),
+                                  color: const Color(0xFF172638),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -3719,7 +4675,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                 Text(
                                   match.title,
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFFB8D7FF),
+                                    color: const Color(0xFF2F6AA3),
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -3728,7 +4684,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                 Text(
                                   'Indicators ${match.matchedIndicators.join(', ')}',
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFF9AB5D7),
+                                    color: const Color(0xFF556B80),
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -3751,7 +4707,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                                   Text(
                                     'Actions ${match.recommendedActionPlans.join(' • ')}',
                                     style: GoogleFonts.inter(
-                                      color: const Color(0xFF8FD1FF),
+                                      color: const Color(0xFF2F6AA3),
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -3813,7 +4769,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C5),
+              color: const Color(0xFF7A8FA4),
               fontSize: compactPresentation ? 8.5 : 9,
               fontWeight: FontWeight.w700,
             ),
@@ -3821,7 +4777,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           const SizedBox(height: 2),
           Text(
             value,
-            style: GoogleFonts.rajdhani(
+            style: GoogleFonts.inter(
               color: color,
               fontSize: compactPresentation ? 18 : 22,
               height: 0.9,
@@ -3908,9 +4864,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C1421),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF24364D)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3919,7 +4875,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           Text(
             label.toUpperCase(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF7387A7),
+              color: const Color(0xFF7A8FA4),
               fontSize: 8.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.9,
@@ -3934,14 +4890,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 ? GoogleFonts.robotoMono(
                     color: accent
                         ? const Color(0xFF22D3EE)
-                        : const Color(0xFFF5FAFF),
+                        : const Color(0xFF172638),
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   )
                 : GoogleFonts.inter(
                     color: accent
                         ? const Color(0xFF22D3EE)
-                        : const Color(0xFFF5FAFF),
+                        : const Color(0xFF172638),
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -3960,9 +4916,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C1421),
+        color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF24364D)),
+        border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Row(
         children: [
@@ -3983,7 +4939,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 Text(
                   label,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7F95B6),
+                    color: const Color(0xFF7A8FA4),
                     fontSize: 8.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -4028,7 +4984,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                   fontWeight: FontWeight.w700,
                 )
               : GoogleFonts.inter(
-                  color: const Color(0xFFE8F1FF),
+                  color: const Color(0xFF172638),
                   fontSize: 10.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -4064,18 +5020,24 @@ class _AIQueuePageState extends State<AIQueuePage> {
   BoxDecoration _panelDecoration({required Color border, bool glow = false}) {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(10),
-      color: const Color(0xFF0E1A2B),
+      color: const Color(0xFFFFFFFF),
       border: Border.all(color: border),
       boxShadow: glow
           ? const [
               BoxShadow(
-                color: Color(0x3022D3EE),
+                color: Color(0x18172638),
                 blurRadius: 18,
                 spreadRadius: 1,
                 offset: Offset(0, 0),
               ),
             ]
-          : const [],
+          : const [
+              BoxShadow(
+                color: Color(0x10172638),
+                blurRadius: 12,
+                offset: Offset(0, 6),
+              ),
+            ],
     );
   }
 
@@ -4114,7 +5076,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       .toList(growable: false);
 
   List<_AiQueueAction> get _nextShiftDrafts => _actions
-      .where((action) => action.metadata['scope'] == 'NEXT_SHIFT')
+      .where(_isNextShiftDraft)
       .toList(growable: false);
 
   List<MonitoringGlobalSitePosture> get _moShadowSites {
@@ -4197,7 +5159,22 @@ class _AIQueuePageState extends State<AIQueuePage> {
     final messenger = ScaffoldMessenger.maybeOf(context);
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
+      SnackBar(
+        backgroundColor: const Color(0xFFFFFFFF),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: Color(0xFFD6E1EC)),
+        ),
+        content: Text(
+          message,
+          style: GoogleFonts.inter(
+            color: const Color(0xFF172638),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        duration: const Duration(seconds: 2),
+      ),
     );
   }
 

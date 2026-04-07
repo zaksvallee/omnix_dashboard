@@ -18,7 +18,10 @@ void main() {
 
     expect(find.byKey(const ValueKey('controller-login-page')), findsOneWidget);
     expect(find.text('Controller Login'), findsOneWidget);
-    expect(find.text('Command Center'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('live-operations-command-center-hero')),
+      findsNothing,
+    );
   });
 
   testWidgets('demo account sign in opens the command surface', (tester) async {
@@ -41,7 +44,14 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.byKey(const ValueKey('controller-login-page')), findsNothing);
-    expect(find.text('Command Center'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('live-operations-command-center-hero')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-operations-command-current-focus')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('route overrides still bypass the login gate', (tester) async {

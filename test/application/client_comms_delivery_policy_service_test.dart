@@ -57,4 +57,22 @@ void main() {
     expect(readiness.voiceReadinessLabel, 'VoIP contact pending');
     expect(readiness.detail, contains('verified phone contact'));
   });
+
+  test('calls out ambiguous telegram endpoint mappings as not ready', () {
+    final readiness = service.evaluate(
+      telegramBridgeConfigured: true,
+      telegramTargetCount: 1,
+      telegramHealthLabel: 'ok',
+      telegramFallbackActive: false,
+      telegramEndpointMappingAmbiguous: true,
+      smsProviderConfigured: true,
+      phoneContactCount: 1,
+      voipProviderConfigured: true,
+    );
+
+    expect(readiness.smsFallbackLabel, 'SMS standby');
+    expect(readiness.smsFallbackEligibleNow, isFalse);
+    expect(readiness.detail, contains('ambiguous'));
+    expect(readiness.detail, contains('duplicate Telegram endpoint rows'));
+  });
 }

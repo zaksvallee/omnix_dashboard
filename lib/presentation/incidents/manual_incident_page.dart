@@ -119,6 +119,7 @@ class _ManualIncidentPageState extends State<ManualIncidentPage> {
 }
 
 class _ManualIncidentCreated extends DispatchEvent {
+  static const String auditTypeKey = 'manual_incident_created';
   final String clientId;
   final String siteId;
   final String description;
@@ -145,4 +146,7 @@ class _ManualIncidentCreated extends DispatchEvent {
       description: description,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

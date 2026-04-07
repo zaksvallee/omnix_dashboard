@@ -1,0 +1,61 @@
+{
+  "scenarioId": "monitoring_watchlist_match_review_v1",
+  "title": "Watchlist match should queue monitoring review before dispatch",
+  "description": "A watchlist-linked face match should route into monitoring watch review and block direct dispatch until review is completed.",
+  "category": "monitoring_watch",
+  "scenarioSet": "replay",
+  "tags": ["false_positive", "night_shift", "guard_offline", "watch_review"],
+  "author": "zaks",
+  "createdAt": "2026-03-30T12:30:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_site",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T20:05:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_monitoring_watch_match.json"],
+      "projections": ["fixture_projections_monitoring_watch_review.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "active",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [
+      {
+        "kind": "fr_watchlist_match",
+        "siteId": "site_ms_vallee",
+        "cameraId": "cam_gate_01"
+      }
+    ],
+    "adminQueries": [],
+    "clientMessages": []
+  },
+  "expectedOutcome": {
+    "expectedRoute": "monitoring_watch",
+    "expectedIntent": "review_watch_signal",
+    "expectedEscalationState": "review_pending",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["dispatch_without_review"],
+    "expectedUiState": {
+      "surface": "monitoring_watch_review",
+      "verificationRailVisible": true,
+      "watchlistQueueVisible": true,
+      "legacyWorkspaceVisible": false
+    }
+  }
+}

@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../application/report_entry_context.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
+import '../domain/evidence/client_ledger_repository.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/execution_completed.dart';
@@ -17,19 +18,30 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
+import '../infrastructure/events/supabase_client_ledger_repository.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+
+const _ledgerPanelColor = Color(0xFFFFFFFF);
+const _ledgerPanelTint = Color(0xFFF7FAFE);
+const _ledgerPanelMuted = Color(0xFFF0F5FB);
+const _ledgerBorderColor = Color(0xFFD7E1EC);
+const _ledgerTitleColor = Color(0xFF142235);
+const _ledgerBodyColor = Color(0xFF516882);
+const _ledgerMutedColor = Color(0xFF6A7D93);
 
 class LedgerPage extends StatefulWidget {
   final String clientId;
   final bool supabaseEnabled;
   final List<DispatchEvent> events;
+  final ClientLedgerRepository? ledgerRepository;
 
   const LedgerPage({
     super.key,
     required this.clientId,
     required this.supabaseEnabled,
     required this.events,
+    this.ledgerRepository,
   });
 
   @override
@@ -66,16 +78,24 @@ class _LedgerPageState extends State<LedgerPage> {
       return;
     }
 
-    final client = Supabase.instance.client;
-    final data = await client
-        .from('client_evidence_ledger')
-        .select()
-        .eq('client_id', widget.clientId)
-        .order('created_at', ascending: true);
+    final repository =
+        widget.ledgerRepository ??
+        SupabaseClientLedgerRepository(Supabase.instance.client);
+    final data = await repository.listLedgerRows(widget.clientId);
 
     if (!mounted) return;
     setState(() {
-      _rows = List<Map<String, dynamic>>.from(data);
+      _rows = data
+          .map(
+            (row) => <String, dynamic>{
+              'client_id': row.clientId,
+              'dispatch_id': row.dispatchId,
+              'canonical_json': row.canonicalJson,
+              'hash': row.hash,
+              'previous_hash': row.previousHash,
+            },
+          )
+          .toList(growable: false);
       _runtimeConfigHint = null;
       _verificationResult = null;
     });
@@ -188,9 +208,9 @@ class _LedgerPageState extends State<LedgerPage> {
                 );
                 if (!useTwoColumnLayout) {
                   return OnyxSectionCard(
-                    title: 'Ledger Workspace',
+                    title: 'DO THIS NOW',
                     subtitle:
-                        'Lane-driven audit review for evidence continuity, report receipts, and chain exceptions.',
+                        'Pick the row, check the chain, and move the case forward.',
                     flexibleChild: embedScroll,
                     child: workspace,
                   );
@@ -323,6 +343,16 @@ class _LedgerPageState extends State<LedgerPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
+                          'WAR ROOM',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF63E6BE),
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
                           'Sovereign Ledger',
                           style: GoogleFonts.inter(
                             color: const Color(0xFFF6FBFF),
@@ -332,7 +362,7 @@ class _LedgerPageState extends State<LedgerPage> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Immutable event chain, provenance tracking, and integrity verification.',
+                          'Pick the row. Check the chain. Move fast.',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF95A9C7),
                             fontSize: 10.5,
@@ -374,14 +404,14 @@ class _LedgerPageState extends State<LedgerPage> {
               _heroActionButton(
                 key: const ValueKey('ledger-view-events-button'),
                 icon: Icons.open_in_new,
-                label: 'View Events',
+                label: 'OPEN EVENTS SCOPE',
                 accent: const Color(0xFF93C5FD),
                 onPressed: () => _showEventsLinkDialog(context),
               ),
               _heroActionButton(
                 key: const ValueKey('ledger-verify-chain-hero-button'),
                 icon: Icons.verified_rounded,
-                label: 'Verify Chain',
+                label: 'Check Chain',
                 accent: const Color(0xFF34D399),
                 onPressed: _verifyChain,
               ),
@@ -413,9 +443,9 @@ class _LedgerPageState extends State<LedgerPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0x14000000),
+        color: const Color(0xFFF5F8FC),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x33000000)),
+        border: Border.all(color: const Color(0xFFD4DFEA)),
       ),
       child: RichText(
         text: TextSpan(
@@ -423,7 +453,7 @@ class _LedgerPageState extends State<LedgerPage> {
             TextSpan(
               text: '$label: ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: const Color(0xFF556B80),
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -478,9 +508,9 @@ class _LedgerPageState extends State<LedgerPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1F1C),
+        color: const Color(0xFFF2FBF7),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF25413A)),
+        border: Border.all(color: const Color(0xFFB9DEC8)),
       ),
       child: Wrap(
         spacing: 8,
@@ -488,9 +518,9 @@ class _LedgerPageState extends State<LedgerPage> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
-            'CHAIN INTEGRITY',
+            'CHAIN READY',
             style: GoogleFonts.inter(
-              color: const Color(0x669BB0CE),
+              color: const Color(0xFF6C8198),
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
@@ -586,8 +616,7 @@ class _LedgerPageState extends State<LedgerPage> {
             _overviewCard(
               title: 'Visible Rows',
               value: '$rowCount',
-              detail:
-                  '$totalRows total ledger rows are available for audit review.',
+              detail: '$totalRows ledger rows are ready for review.',
               icon: Icons.view_list_outlined,
               accent: const Color(0xFF59D79B),
             ),
@@ -612,7 +641,7 @@ class _LedgerPageState extends State<LedgerPage> {
               value: widget.supabaseEnabled ? 'Hybrid' : 'Fallback',
               detail: widget.supabaseEnabled
                   ? 'Supabase-backed verification with local fallback support.'
-                  : 'EventStore-backed fallback timeline with in-memory ordering checks.',
+                  : 'EventStore-backed fallback timeline with in-memory checks.',
               icon: Icons.account_tree_outlined,
               accent: const Color(0xFFA78BFA),
             ),
@@ -632,9 +661,16 @@ class _LedgerPageState extends State<LedgerPage> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _ledgerPanelColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _ledgerBorderColor),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A081B33),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -658,7 +694,7 @@ class _LedgerPageState extends State<LedgerPage> {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
                   style: GoogleFonts.robotoMono(
-                    color: const Color(0xFFF4F8FF),
+                    color: accent,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
@@ -670,7 +706,7 @@ class _LedgerPageState extends State<LedgerPage> {
           Text(
             title.toUpperCase(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF93A5BF),
+              color: _ledgerMutedColor,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.2,
@@ -682,7 +718,7 @@ class _LedgerPageState extends State<LedgerPage> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD5E1F2),
+              color: _ledgerBodyColor,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -753,9 +789,9 @@ class _LedgerPageState extends State<LedgerPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Lane pivots stay pinned in the continuity rail, while integrity, trace, verify-chain, latest-report, and related-events actions stay anchored to the selected-entry workspace below.',
+          'Pick the row, check the proof, and move the case where it belongs.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF9AB1CF),
+            color: _ledgerBodyColor,
             fontSize: 10,
             fontWeight: FontWeight.w600,
             height: 1.35,
@@ -774,9 +810,9 @@ class _LedgerPageState extends State<LedgerPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _ledgerPanelColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _ledgerBorderColor),
       ),
       child: bannerContent,
     );
@@ -964,8 +1000,8 @@ class _LedgerPageState extends State<LedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Ledger Lanes',
-            style: GoogleFonts.rajdhani(
+            'LANE CONTROL',
+            style: GoogleFonts.inter(
               color: const Color(0xFFE6F0FF),
               fontSize: 19,
               fontWeight: FontWeight.w700,
@@ -973,7 +1009,7 @@ class _LedgerPageState extends State<LedgerPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Filter the visible evidence stack by receipts, continuity, or rows needing operator attention.',
+            'Filter rows by receipts, continuity, or attention first.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C6),
               fontSize: 10.5,
@@ -1005,7 +1041,7 @@ class _LedgerPageState extends State<LedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'No entries in this lane yet.',
+            'No rows in this lane yet.',
             style: GoogleFonts.inter(
               color: const Color(0xFFE6F0FF),
               fontSize: 13,
@@ -1014,7 +1050,7 @@ class _LedgerPageState extends State<LedgerPage> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Shift back to the full evidence stream to restore the wider audit view.',
+            'Open the full evidence stream to bring the board back.',
             style: GoogleFonts.inter(
               color: const Color(0xFF8EA5C6),
               fontSize: 12,
@@ -1065,18 +1101,18 @@ class _LedgerPageState extends State<LedgerPage> {
         decoration: BoxDecoration(
           color: selected
               ? filter.accent.withValues(alpha: 0.16)
-              : const Color(0xFF0B1930),
+              : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? filter.accent.withValues(alpha: 0.42)
-                : const Color(0xFF223244),
+                : const Color(0xFFD4DFEA),
           ),
         ),
         child: Text(
           '${filter.label} ${matchingRows.length}',
           style: GoogleFonts.inter(
-            color: selected ? filter.accent : const Color(0xFF9AB1CF),
+            color: selected ? filter.accent : _ledgerBodyColor,
             fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
@@ -1115,7 +1151,7 @@ class _LedgerPageState extends State<LedgerPage> {
                     children: [
                       Text(
                         row.typeLabel,
-                        style: GoogleFonts.rajdhani(
+                        style: GoogleFonts.inter(
                           color: row.color,
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -1125,7 +1161,7 @@ class _LedgerPageState extends State<LedgerPage> {
                       Text(
                         'UTC ${_shortUtc(row.occurredAt)}',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF8EA5C6),
+                          color: _ledgerMutedColor,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1190,7 +1226,7 @@ class _LedgerPageState extends State<LedgerPage> {
             Text(
               row.summary,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE6F0FF),
+                color: _ledgerBodyColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -1202,7 +1238,7 @@ class _LedgerPageState extends State<LedgerPage> {
                   ? 'Hash ${_short(row.hash!)}'
                   : 'Event ${row.eventId ?? row.id}',
               style: GoogleFonts.inter(
-                color: const Color(0xFF7188AA),
+                color: _ledgerMutedColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -1243,18 +1279,18 @@ class _LedgerPageState extends State<LedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Selected Entry',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFE8F1FF),
+            'YOU ARE HERE',
+            style: GoogleFonts.inter(
+              color: _ledgerTitleColor,
               fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'A deeper case file for the active ledger row, with integrity context and linked chain navigation.',
+            'One row. One proof trail. One next move.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF7D93B1),
+              color: _ledgerMutedColor,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -1286,14 +1322,14 @@ class _LedgerPageState extends State<LedgerPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF101A2B),
+          color: _ledgerPanelColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF223244)),
+          border: Border.all(color: _ledgerBorderColor),
         ),
         child: Text(
-          'Select a ledger row to load its report receipt, integrity posture, and linked continuity context.',
+          'Select a row to load its proof, integrity posture, and linked continuity context.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA5C6),
+            color: _ledgerBodyColor,
             fontSize: 12,
             fontWeight: FontWeight.w600,
             height: 1.4,
@@ -1327,7 +1363,7 @@ class _LedgerPageState extends State<LedgerPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [row.color.withValues(alpha: 0.18), const Color(0xFF101A2B)],
+          colors: [row.color.withValues(alpha: 0.12), _ledgerPanelColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1338,7 +1374,7 @@ class _LedgerPageState extends State<LedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'ACTIVE CHAIN ENTRY',
+            'DO THIS NOW',
             style: GoogleFonts.inter(
               color: row.color,
               fontSize: 9.5,
@@ -1349,8 +1385,8 @@ class _LedgerPageState extends State<LedgerPage> {
           const SizedBox(height: 5),
           Text(
             row.title,
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFF4F8FF),
+            style: GoogleFonts.inter(
+              color: _ledgerTitleColor,
               fontSize: 24,
               fontWeight: FontWeight.w700,
             ),
@@ -1361,7 +1397,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 ? 'Supabase-backed chain evidence is in focus for replay-safe review.'
                 : 'Fallback EventStore evidence is in focus for receipt and continuity review.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFD8E4F5),
+              color: _ledgerBodyColor,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -1441,7 +1477,7 @@ class _LedgerPageState extends State<LedgerPage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF10233D),
+        color: _ledgerPanelMuted,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
@@ -1451,7 +1487,7 @@ class _LedgerPageState extends State<LedgerPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA5C6),
+              color: _ledgerMutedColor,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.7,
@@ -1461,7 +1497,7 @@ class _LedgerPageState extends State<LedgerPage> {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFFF4F8FF),
+              color: _ledgerTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -1482,18 +1518,18 @@ class _LedgerPageState extends State<LedgerPage> {
         decoration: BoxDecoration(
           color: selected
               ? view.accent.withValues(alpha: 0.16)
-              : const Color(0xFF0B1930),
+              : _ledgerPanelColor,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? view.accent.withValues(alpha: 0.45)
-                : const Color(0xFF223244),
+                : _ledgerBorderColor,
           ),
         ),
         child: Text(
           view.label,
           style: GoogleFonts.inter(
-            color: selected ? view.accent : const Color(0xFF9DB1CF),
+            color: selected ? view.accent : _ledgerBodyColor,
             fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
@@ -1513,8 +1549,8 @@ class _LedgerPageState extends State<LedgerPage> {
         shellless: useScrollable,
         children: [
           _panelEmptyCopy(
-            'No active case file.',
-            'Choose a ledger row to pull its receipt details and scope metadata into this workspace.',
+            'No active case.',
+            'Choose a row to pull its proof, scope, and chain context into this workspace.',
           ),
         ],
       );
@@ -1552,7 +1588,7 @@ class _LedgerPageState extends State<LedgerPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF0F1B2D),
+              color: _ledgerPanelMuted,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: row.configurationBorderColor ?? const Color(0xFF425B80),
@@ -1564,8 +1600,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 Text(
                   row.configurationLabel!,
                   style: GoogleFonts.inter(
-                    color:
-                        row.configurationTextColor ?? const Color(0xFFE6F0FF),
+                    color: row.configurationTextColor ?? _ledgerTitleColor,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1575,7 +1610,7 @@ class _LedgerPageState extends State<LedgerPage> {
                   Text(
                     row.detailSummary!,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD7E3F4),
+                      color: _ledgerBodyColor,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       height: 1.45,
@@ -1622,7 +1657,7 @@ class _LedgerPageState extends State<LedgerPage> {
         if (row == null)
           _panelEmptyCopy(
             'No integrity focus selected.',
-            'Select a row to inspect its verification posture and continuity metadata.',
+            'Select a row to check its verification posture and continuity metadata.',
           )
         else ...[
           Wrap(
@@ -1630,7 +1665,7 @@ class _LedgerPageState extends State<LedgerPage> {
             runSpacing: 8,
             children: [
               _miniLedgerMetric(
-                label: 'Verification',
+                label: 'Check',
                 value: _verificationResult == null
                     ? 'Pending'
                     : _verificationResult!.contains('VERIFIED')
@@ -1643,14 +1678,14 @@ class _LedgerPageState extends State<LedgerPage> {
                     : const Color(0xFFF87171),
               ),
               _miniLedgerMetric(
-                label: 'Stored Hash',
+                label: 'Hash',
                 value: row.hash == null
                     ? 'Fallback ordering'
                     : _short(row.hash!),
                 accent: row.color,
               ),
               _miniLedgerMetric(
-                label: 'Previous Link',
+                label: 'Prev',
                 value: row.previousHash == null
                     ? 'Start of chain'
                     : _short(row.previousHash!),
@@ -1661,11 +1696,11 @@ class _LedgerPageState extends State<LedgerPage> {
           const SizedBox(height: 10),
           _detailNarrative(
             row.hash == null
-                ? 'Fallback rows validate by sequence ordering rather than stored hashes. Use Verify Chain to rerun the in-memory continuity check.'
-                : 'Supabase rows preserve canonical payload hashes and previous-link references for replay-safe integrity verification.',
+                ? 'Fallback rows validate by sequence ordering rather than stored hashes. Use Check Chain to rerun the in-memory continuity check.'
+                : 'Supabase rows preserve canonical payload hashes and previous-link references for replay-safe integrity checks.',
           ),
           const SizedBox(height: 10),
-          _detailRow('Continuity Review', row.attentionReason),
+          _detailRow('Continuity', row.attentionReason),
           if (row.hash != null)
             _detailRow('Current Hash', row.hash!)
           else
@@ -1681,7 +1716,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 key: const ValueKey('ledger-workspace-verify-chain'),
                 onPressed: _verifyChain,
                 icon: const Icon(Icons.verified_rounded, size: 18),
-                label: const Text('Run Verify Chain'),
+                label: const Text('Check Chain'),
               ),
               FilledButton.tonalIcon(
                 key: const ValueKey('ledger-workspace-open-attention-lane'),
@@ -1711,13 +1746,13 @@ class _LedgerPageState extends State<LedgerPage> {
       if (row == null)
         _panelEmptyCopy(
           'No linked trace yet.',
-          'Choose a ledger row to inspect nearby continuity context and related scope entries.',
+          'Choose a row to inspect nearby proof context and related scope entries.',
         )
       else ...[
         _detailNarrative(
           relatedRows.isEmpty
-              ? 'No linked rows were found inside the visible audit stack for this entry.'
-              : 'Linked rows share the current dispatch or site scope and can be opened directly from this chain view.',
+              ? 'No linked rows were found inside the visible stack for this entry.'
+              : 'Linked rows share the current dispatch or site scope and can be opened directly from this trace view.',
         ),
         const SizedBox(height: 10),
         if (relatedRows.isEmpty)
@@ -1750,7 +1785,7 @@ class _LedgerPageState extends State<LedgerPage> {
                           Text(
                             related.title,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFFE6F0FF),
+                              color: _ledgerTitleColor,
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                             ),
@@ -1759,7 +1794,7 @@ class _LedgerPageState extends State<LedgerPage> {
                           Text(
                             related.summary,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF8EA5C6),
+                              color: _ledgerBodyColor,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               height: 1.4,
@@ -1803,9 +1838,9 @@ class _LedgerPageState extends State<LedgerPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF091728),
+        color: _ledgerPanelColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1A355A)),
+        border: Border.all(color: _ledgerBorderColor),
       ),
       child: KeyedSubtree(
         key: key,
@@ -1821,7 +1856,7 @@ class _LedgerPageState extends State<LedgerPage> {
         Text(
           title,
           style: GoogleFonts.inter(
-            color: const Color(0xFFE6F0FF),
+            color: _ledgerTitleColor,
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),
@@ -1830,7 +1865,7 @@ class _LedgerPageState extends State<LedgerPage> {
         Text(
           detail,
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA5C6),
+            color: _ledgerBodyColor,
             fontSize: 12,
             fontWeight: FontWeight.w600,
             height: 1.4,
@@ -1845,14 +1880,14 @@ class _LedgerPageState extends State<LedgerPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1B2D),
+        color: _ledgerPanelMuted,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: _ledgerBorderColor),
       ),
       child: Text(
         text,
         style: GoogleFonts.inter(
-          color: const Color(0xFFD7E3F4),
+          color: _ledgerBodyColor,
           fontSize: 12,
           fontWeight: FontWeight.w600,
           height: 1.45,
@@ -1868,9 +1903,9 @@ class _LedgerPageState extends State<LedgerPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF10233D),
+          color: _ledgerPanelMuted,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF1A355A)),
+          border: Border.all(color: _ledgerBorderColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1878,7 +1913,7 @@ class _LedgerPageState extends State<LedgerPage> {
             Text(
               label,
               style: GoogleFonts.inter(
-                color: const Color(0xFF7F95B5),
+                color: _ledgerMutedColor,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.7,
@@ -1888,7 +1923,7 @@ class _LedgerPageState extends State<LedgerPage> {
             Text(
               value,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE6F0FF),
+                color: _ledgerTitleColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -1923,8 +1958,8 @@ class _LedgerPageState extends State<LedgerPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Continuity Rail',
-                style: GoogleFonts.rajdhani(
+                'TRACE RAIL',
+                style: GoogleFonts.inter(
                   color: const Color(0xFFE6F0FF),
                   fontSize: 19,
                   fontWeight: FontWeight.w700,
@@ -1932,7 +1967,7 @@ class _LedgerPageState extends State<LedgerPage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Live continuity posture, scope stats, and lane handoffs for the active audit stack.',
+                'Live proof posture, scope stats, and lane handoffs for the active stack.',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF8EA5C6),
                   fontSize: 10.5,
@@ -1962,7 +1997,7 @@ class _LedgerPageState extends State<LedgerPage> {
                             view: _LedgerWorkspaceView.casefile,
                           ),
                     icon: const Icon(Icons.description_outlined, size: 18),
-                    label: const Text('Focus Latest Report'),
+                    label: const Text('Open Latest Report'),
                   ),
                   FilledButton.tonalIcon(
                     key: const ValueKey('ledger-context-open-attention'),
@@ -2035,7 +2070,7 @@ class _LedgerPageState extends State<LedgerPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: _ledgerPanelTint,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor),
       ),
@@ -2059,7 +2094,7 @@ class _LedgerPageState extends State<LedgerPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF111F33),
+        color: _ledgerPanelTint,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
@@ -2071,7 +2106,7 @@ class _LedgerPageState extends State<LedgerPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: _ledgerTitleColor,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -2313,20 +2348,17 @@ class _LedgerPageState extends State<LedgerPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF111827),
+          backgroundColor: _ledgerPanelColor,
           title: Text(
-            'Events Link Ready',
+            'Events Scope Ready',
             style: GoogleFonts.inter(
-              color: const Color(0xFFF6FBFF),
+              color: _ledgerTitleColor,
               fontWeight: FontWeight.w800,
             ),
           ),
           content: Text(
-            'Use Events to inspect the forensic timeline, selected event payloads, and the upstream chain that feeds this ledger view.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFFD6E2F2),
-              height: 1.45,
-            ),
+            'Use Events Scope to inspect the forensic timeline, selected event payloads, and the upstream chain that feeds this ledger view.',
+            style: GoogleFonts.inter(color: _ledgerBodyColor, height: 1.45),
           ),
           actions: [
             TextButton(
@@ -2377,14 +2409,14 @@ class _LedgerPageState extends State<LedgerPage> {
 
   BoxDecoration _timelineRowDecoration() {
     return BoxDecoration(
-      color: const Color(0xFF0E1A2B),
+      color: _ledgerPanelColor,
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0xFF223244)),
+      border: Border.all(color: _ledgerBorderColor),
       boxShadow: const [
         BoxShadow(
-          color: Color(0x10000000),
-          blurRadius: 8,
-          offset: Offset(0, 3),
+          color: Color(0x0A081B33),
+          blurRadius: 12,
+          offset: Offset(0, 4),
         ),
       ],
     );

@@ -1,0 +1,57 @@
+{
+  "scenarioId": "track_fresh_entry_modern_overview_v1",
+  "title": "Track fresh entry should open modern overview",
+  "description": "A fresh Track entry must land on the modern overview board instead of reopening the legacy tactical workspace.",
+  "category": "track_ui_state",
+  "scenarioSet": "replay",
+  "tags": ["route_persistence", "fresh_entry", "modern_overview"],
+  "author": "zaks",
+  "createdAt": "2026-03-30T12:05:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_route",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "fresh_entry",
+    "currentTime": "2026-03-30T19:35:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_track_baseline.json"],
+      "projections": ["fixture_projections_track_overview.json"],
+      "sessions": ["fixture_session_fresh_entry.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "track"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_overview",
+    "expectedIntent": "open_track_workspace",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": ["reopen_legacy_tactical_workspace"],
+    "expectedUiState": {
+      "surface": "track_modern_overview",
+      "legacyWorkspaceVisible": false,
+      "modernOverviewVisible": true
+    }
+  }
+}

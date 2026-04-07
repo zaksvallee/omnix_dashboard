@@ -1,0 +1,21 @@
+{
+  "adminOverview": {
+    "siteCount": 3,
+    "activeEscalations": 0,
+    "pendingDispatches": 0
+  },
+  "siteAlertRanking": [
+    {
+      "siteId": "site_ms_vallee",
+      "alertsThisWeek": 7
+    },
+    {
+      "siteId": "site_rosebank",
+      "alertsThisWeek": 4
+    },
+    {
+      "siteId": "site_sandton",
+      "alertsThisWeek": 2
+    }
+  ]
+}

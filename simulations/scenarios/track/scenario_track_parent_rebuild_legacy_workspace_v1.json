@@ -1,0 +1,58 @@
+{
+  "scenarioId": "track_parent_rebuild_legacy_workspace_v1",
+  "title": "Track parent rebuild should reopen the legacy workspace when it was active",
+  "description": "A parent rebuild must keep the legacy Track tactical workspace open when that was the active persisted session.",
+  "category": "track_ui_state",
+  "scenarioSet": "replay",
+  "tags": ["route_persistence", "parent_rebuild", "session_state"],
+  "author": "zaks",
+  "createdAt": "2026-04-01T09:15:00Z",
+  "version": 1,
+  "status": "draft",
+  "runtimeContext": {
+    "operatorRole": "controller",
+    "authorityScope": "single_route",
+    "activeSiteIds": ["site_ms_vallee"],
+    "viewportProfile": "desktop_standard",
+    "sessionMode": "parent_rebuild",
+    "currentTime": "2026-03-30T20:20:00+02:00",
+    "timezone": "Africa/Johannesburg"
+  },
+  "seedState": {
+    "fixtures": {
+      "events": ["fixture_events_track_baseline.json"],
+      "projections": ["fixture_projections_track_overview.json"],
+      "sessions": ["fixture_session_parent_rebuild_legacy_workspace.json"]
+    },
+    "onboardingState": "none",
+    "watchState": "stable",
+    "dispatchState": "idle",
+    "clientConversationState": "none",
+    "siteStatusState": "normal"
+  },
+  "inputs": {
+    "prompts": [],
+    "inboundSignals": [],
+    "telemetryInputs": [],
+    "cameraInputs": [],
+    "adminQueries": [],
+    "clientMessages": [],
+    "navigation": {
+      "entryRoute": "track"
+    }
+  },
+  "expectedOutcome": {
+    "expectedRoute": "track_legacy_tactical_workspace",
+    "expectedIntent": "open_track_workspace",
+    "expectedEscalationState": "none",
+    "expectedProjectionChanges": [],
+    "expectedDrafts": [],
+    "expectedBlockedActions": [],
+    "expectedUiState": {
+      "surface": "track_legacy_workspace",
+      "legacyWorkspaceVisible": true,
+      "modernOverviewVisible": false,
+      "detailedWorkspaceVisible": false
+    }
+  }
+}

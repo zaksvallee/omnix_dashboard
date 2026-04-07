@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -6,9 +8,82 @@ import '../domain/events/dispatch_event.dart';
 import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
+import 'client_comms_queue_board.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
+
+class ClientsAgentDraftHandoff {
+  final String id;
+  final String clientId;
+  final String siteId;
+  final String room;
+  final String incidentReference;
+  final String draftText;
+  final String originalDraftText;
+  final String sourceRouteLabel;
+  final DateTime createdAtUtc;
+  final ClientCommsQueueSeverity severity;
+
+  const ClientsAgentDraftHandoff({
+    required this.id,
+    required this.clientId,
+    required this.siteId,
+    required this.room,
+    required this.incidentReference,
+    required this.draftText,
+    required this.originalDraftText,
+    required this.sourceRouteLabel,
+    required this.createdAtUtc,
+    this.severity = ClientCommsQueueSeverity.medium,
+  });
+
+  bool matchesScope(String candidateClientId, String candidateSiteId) {
+    return clientId.trim() == candidateClientId.trim() &&
+        siteId.trim() == candidateSiteId.trim();
+  }
+}
+
+class ClientsEvidenceReturnReceipt {
+  final String auditId;
+  final String label;
+  final String headline;
+  final String detail;
+  final Color accent;
+
+  const ClientsEvidenceReturnReceipt({
+    required this.auditId,
+    required this.label,
+    required this.headline,
+    required this.detail,
+    required this.accent,
+  });
+}
+
+class ClientsLiveFollowUpNotice {
+  final String id;
+  final String author;
+  final String body;
+  final DateTime occurredAtUtc;
+  final bool urgent;
+  final String suggestedReplyDraft;
+
+  const ClientsLiveFollowUpNotice({
+    required this.id,
+    required this.author,
+    required this.body,
+    required this.occurredAtUtc,
+    this.urgent = false,
+    this.suggestedReplyDraft = '',
+  });
+}
+
+enum ClientsRouteHandoffTarget {
+  none,
+  pendingDrafts,
+  threadContext,
+  channelReview,
+}
 
 class ClientsPage extends StatefulWidget {
   final String clientId;
@@ -19,6 +94,33 @@ class ClientsPage extends StatefulWidget {
   onOpenClientRoomForScope;
   final void Function(List<String> eventIds, String? selectedEventId)?
   onOpenEventsForScope;
+  final ValueChanged<String>? onOpenAgentForIncident;
+  final ClientsAgentDraftHandoff? stagedAgentDraftHandoff;
+  final ValueChanged<String>? onConsumeStagedAgentDraftHandoff;
+  final ClientsEvidenceReturnReceipt? evidenceReturnReceipt;
+  final ValueChanged<String>? onConsumeEvidenceReturnReceipt;
+  final ClientsLiveFollowUpNotice? liveFollowUpNotice;
+  final Future<String> Function(
+    ClientsLiveFollowUpNotice notice,
+    String clientId,
+    String siteId,
+  )?
+  onSuggestLiveFollowUpReply;
+  final Future<bool> Function(
+    ClientsAgentDraftHandoff handoff,
+    String draftText,
+  )?
+  onSendStagedAgentDraftHandoff;
+  final Future<String?> Function(
+    String clientId,
+    String siteId,
+    String room,
+    String currentDraftText,
+  )?
+  onAiAssistQueueDraft;
+  final bool usePlaceholderDataWhenEmpty;
+  final int routeHandoffToken;
+  final ClientsRouteHandoffTarget routeHandoffTarget;
 
   const ClientsPage({
     super.key,
@@ -28,6 +130,18 @@ class ClientsPage extends StatefulWidget {
     this.onRetryPushSync,
     this.onOpenClientRoomForScope,
     this.onOpenEventsForScope,
+    this.onOpenAgentForIncident,
+    this.stagedAgentDraftHandoff,
+    this.onConsumeStagedAgentDraftHandoff,
+    this.evidenceReturnReceipt,
+    this.onConsumeEvidenceReturnReceipt,
+    this.liveFollowUpNotice,
+    this.onSuggestLiveFollowUpReply,
+    this.onSendStagedAgentDraftHandoff,
+    this.onAiAssistQueueDraft,
+    this.usePlaceholderDataWhenEmpty = true,
+    this.routeHandoffToken = 0,
+    this.routeHandoffTarget = ClientsRouteHandoffTarget.none,
   });
 
   @override
@@ -36,61 +150,265 @@ class ClientsPage extends StatefulWidget {
 
 class _ClientsPageState extends State<ClientsPage> {
   final GlobalKey _messageHistoryKey = GlobalKey();
+  final GlobalKey _pendingDraftsCardKey = GlobalKey();
+  final GlobalKey _roomThreadContextCardKey = GlobalKey();
+  final GlobalKey _communicationChannelsCardKey = GlobalKey();
 
   String? _selectedClientId;
   String? _selectedSiteId;
+  bool _selectionReconcileScheduled = false;
+  bool _showDetailedWorkspace = false;
   int _pushRetryCount = 0;
   String _pushSyncStatus = 'push idle';
   String _backendProbeStatus = 'healthy';
-  String _voipStageStatus = 'staged';
+  String? _voipStageStatus;
   String _selectedPinnedVoice = 'Auto';
+  String? _focusedQueueItemId;
+  _DetailedCommsResumeTarget _focusedQueueResumeTarget =
+      _DetailedCommsResumeTarget.pendingDrafts;
+  final Map<String, ClientsAgentDraftHandoff> _stagedAgentDraftHandoffs =
+      <String, ClientsAgentDraftHandoff>{};
+  final Set<String> _resolvedQueueItemIds = <String>{};
+  final Map<String, String> _editedQueueDraftBodies = <String, String>{};
+  ClientsEvidenceReturnReceipt? _activeEvidenceReturnReceipt;
+  bool _preparingLatestSentFollowUpReply = false;
+  int _lastAppliedRouteHandoffToken = 0;
 
   @override
   void initState() {
     super.initState();
-    _selectedClientId = widget.clientId;
-    _selectedSiteId = widget.siteId;
+    _ingestStagedAgentDraftHandoff(widget.stagedAgentDraftHandoff);
+    _ingestEvidenceReturnReceipt(widget.evidenceReturnReceipt);
+    _syncSelectedScopeFromWidget();
+    _applyRouteHandoff(force: true);
   }
 
   @override
   void dispose() => super.dispose();
 
   @override
-  Widget build(BuildContext context) {
-    final model = _deriveClientSiteModel(widget.events);
-    final clients = model.clients.isEmpty ? _fallbackClients : model.clients;
-    final sites = model.sites.isEmpty ? _fallbackSites : model.sites;
+  void didUpdateWidget(covariant ClientsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.stagedAgentDraftHandoff?.id !=
+        widget.stagedAgentDraftHandoff?.id) {
+      _ingestStagedAgentDraftHandoff(
+        widget.stagedAgentDraftHandoff,
+        useSetState: true,
+      );
+    }
+    if (oldWidget.evidenceReturnReceipt?.auditId !=
+        widget.evidenceReturnReceipt?.auditId) {
+      _ingestEvidenceReturnReceipt(
+        widget.evidenceReturnReceipt,
+        useSetState: true,
+      );
+    }
+    if (oldWidget.clientId != widget.clientId ||
+        oldWidget.siteId != widget.siteId) {
+      _syncSelectedScopeFromWidget(useSetState: true);
+    }
+    if (oldWidget.routeHandoffToken != widget.routeHandoffToken ||
+        oldWidget.routeHandoffTarget != widget.routeHandoffTarget) {
+      _applyRouteHandoff(useSetState: true, force: true);
+    }
+  }
 
-    if (_selectedClientId == null ||
-        !clients.any((c) => c.id == _selectedClientId)) {
-      _selectedClientId = clients.first.id;
+  void _syncSelectedScopeFromWidget({bool useSetState = false}) {
+    final normalizedClientId = widget.clientId.trim();
+    final normalizedSiteId = widget.siteId.trim();
+    final effectiveClientId = normalizedClientId.isEmpty
+        ? _selectedClientId
+        : normalizedClientId;
+    final effectiveSiteId = normalizedSiteId.isEmpty
+        ? _selectedSiteId
+        : normalizedSiteId;
+
+    void apply() {
+      if (effectiveClientId != null && effectiveClientId.isNotEmpty) {
+        _selectedClientId = effectiveClientId;
+      }
+      if (effectiveSiteId != null && effectiveSiteId.isNotEmpty) {
+        _selectedSiteId = effectiveSiteId;
+      }
+      final latestDraft =
+          effectiveClientId == null ||
+              effectiveClientId.isEmpty ||
+              effectiveSiteId == null ||
+              effectiveSiteId.isEmpty
+          ? null
+          : _latestStagedAgentDraftHandoffForScope(
+              clientId: effectiveClientId,
+              siteId: effectiveSiteId,
+            );
+      _focusedQueueItemId = latestDraft?.id;
+      if (latestDraft == null) {
+        _focusedQueueResumeTarget = _DetailedCommsResumeTarget.pendingDrafts;
+      }
     }
 
+    if (useSetState && mounted) {
+      setState(apply);
+    } else {
+      apply();
+    }
+  }
+
+  void _applyRouteHandoff({bool useSetState = false, bool force = false}) {
+    final handoffToken = widget.routeHandoffToken;
+    if (!force && handoffToken == _lastAppliedRouteHandoffToken) {
+      return;
+    }
+    final normalizedClientId = widget.clientId.trim();
+    final normalizedSiteId = widget.siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      _lastAppliedRouteHandoffToken = handoffToken;
+      return;
+    }
+    final latestDraft = _latestStagedAgentDraftHandoffForScope(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    final effectiveTarget = latestDraft != null
+        ? ClientsRouteHandoffTarget.pendingDrafts
+        : widget.routeHandoffTarget;
+
+    void apply() {
+      _selectedClientId = normalizedClientId;
+      _selectedSiteId = normalizedSiteId;
+      _lastAppliedRouteHandoffToken = handoffToken;
+      switch (effectiveTarget) {
+        case ClientsRouteHandoffTarget.none:
+          return;
+        case ClientsRouteHandoffTarget.pendingDrafts:
+          _showDetailedWorkspace = false;
+          _focusedQueueItemId = latestDraft?.id;
+          _focusedQueueResumeTarget = _DetailedCommsResumeTarget.pendingDrafts;
+        case ClientsRouteHandoffTarget.threadContext:
+          _showDetailedWorkspace = true;
+          _focusedQueueItemId = null;
+          _focusedQueueResumeTarget = _DetailedCommsResumeTarget.threadContext;
+        case ClientsRouteHandoffTarget.channelReview:
+          _showDetailedWorkspace = true;
+          _focusedQueueItemId = null;
+          _focusedQueueResumeTarget = _DetailedCommsResumeTarget.channelReview;
+      }
+    }
+
+    if (useSetState && mounted) {
+      setState(apply);
+    } else {
+      apply();
+    }
+
+    if (effectiveTarget == ClientsRouteHandoffTarget.threadContext ||
+        effectiveTarget == ClientsRouteHandoffTarget.channelReview) {
+      final resumeTarget = effectiveTarget ==
+              ClientsRouteHandoffTarget.threadContext
+          ? _DetailedCommsResumeTarget.threadContext
+          : _DetailedCommsResumeTarget.channelReview;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        _scrollToDetailedCommsResumeTarget(resumeTarget);
+      });
+    }
+  }
+
+  void _ingestEvidenceReturnReceipt(
+    ClientsEvidenceReturnReceipt? receipt, {
+    bool useSetState = false,
+  }) {
+    if (receipt == null) {
+      return;
+    }
+
+    void apply() {
+      _activeEvidenceReturnReceipt = receipt;
+    }
+
+    if (useSetState) {
+      setState(apply);
+    } else {
+      apply();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      widget.onConsumeEvidenceReturnReceipt?.call(receipt.auditId);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseModel = _withAgentDraftHandoffScopes(
+      _deriveClientSiteModel(widget.events),
+    );
+    final model = widget.usePlaceholderDataWhenEmpty
+        ? baseModel
+        : _withExplicitRouteScope(baseModel);
+    final clients =
+        model.clients.isEmpty && widget.usePlaceholderDataWhenEmpty
+        ? _fallbackClients
+        : model.clients;
+    final sites = model.sites.isEmpty && widget.usePlaceholderDataWhenEmpty
+        ? _fallbackSites
+        : model.sites;
+    if (clients.isEmpty || sites.isEmpty) {
+      return OnyxPageScaffold(
+        child: Center(
+          child: Text(
+            'Client Communications needs a scoped client and site before the workspace can open.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF516882),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    final selectedClientId =
+        _selectedClientId != null && clients.any((c) => c.id == _selectedClientId)
+        ? _selectedClientId!
+        : clients.first.id;
     var availableSites = sites
-        .where((site) => site.clientId == _selectedClientId)
+        .where((site) => site.clientId == selectedClientId)
         .toList(growable: false);
     if (availableSites.isEmpty) {
       availableSites = sites;
     }
 
-    if (_selectedSiteId == null ||
-        !availableSites.any((site) => site.id == _selectedSiteId)) {
-      _selectedSiteId = availableSites.first.id;
-    }
+    final selectedSiteId =
+        _selectedSiteId != null &&
+            availableSites.any((site) => site.id == _selectedSiteId)
+        ? _selectedSiteId!
+        : availableSites.first.id;
+    _scheduleSelectionReconcile(
+      clientId: selectedClientId,
+      siteId: selectedSiteId,
+    );
 
     final currentClient = clients.firstWhere(
-      (client) => client.id == _selectedClientId,
+      (client) => client.id == selectedClientId,
     );
     final currentSite = availableSites.firstWhere(
-      (site) => site.id == _selectedSiteId,
+      (site) => site.id == selectedSiteId,
     );
 
     final feedRows = _incidentFeedRows(
       events: widget.events,
-      selectedClientId: _selectedClientId!,
-      selectedSiteId: _selectedSiteId!,
+      selectedClientId: selectedClientId,
+      selectedSiteId: selectedSiteId,
     );
-    final rows = feedRows.isEmpty ? _fallbackFeed : feedRows;
+    final rows =
+        feedRows.isEmpty && widget.usePlaceholderDataWhenEmpty
+        ? _fallbackFeed
+        : feedRows;
 
     final unreadAlerts = rows
         .where((row) => row.status != _FeedStatus.info)
@@ -99,24 +417,31 @@ class _ClientsPageState extends State<ClientsPage> {
         .whereType<DecisionCreated>()
         .where(
           (event) =>
-              event.clientId == _selectedClientId &&
-              event.siteId == _selectedSiteId,
+              event.clientId == selectedClientId &&
+              event.siteId == selectedSiteId,
         )
         .length;
     final directUpdates = rows.length;
-    final pendingAsks = rows
-        .where((row) => row.type == _FeedType.update)
-        .length;
+    final pendingAsks =
+        rows.where((row) => row.type == _FeedType.update).length +
+        _stagedAgentDraftCountForScope(
+          clientId: selectedClientId,
+          siteId: selectedSiteId,
+        );
     final pushSyncLower = _pushSyncStatus.toLowerCase();
     final backendProbeLower = _backendProbeStatus.toLowerCase();
-    final voipStageLower = _voipStageStatus.toLowerCase();
+    final voipStageLower = (_voipStageStatus ?? '').toLowerCase();
+    final voipConfigured = (_voipStageStatus ?? '').trim().isNotEmpty;
     final telegramBlocked = pushSyncLower.contains('blocked');
     final smsFallbackActive = pushSyncLower.contains('fallback');
     final voipReady =
+        voipConfigured &&
         voipStageLower.contains('dialing') ||
+        voipConfigured &&
         voipStageLower.contains('ready') ||
+        voipConfigured &&
         voipStageLower.contains('connected');
-    final voipStaged = voipStageLower.contains('staged');
+    final voipStaged = voipConfigured && voipStageLower.contains('staged');
     final pushNeedsReview =
         pushSyncLower.contains('retry') || pushSyncLower.contains('review');
     final pushIdle =
@@ -131,6 +456,19 @@ class _ClientsPageState extends State<ClientsPage> {
         break;
       }
     }
+    final queueItems = _visibleControllerQueueItems();
+    final agentIncidentReference = _agentIncidentReference(
+      selectedClientId: selectedClientId,
+      selectedSiteId: selectedSiteId,
+    );
+    final queuedDraftItemId = _latestStagedAgentDraftHandoffForScope(
+      clientId: selectedClientId,
+      siteId: selectedSiteId,
+    )?.id.trim();
+    final learnedStyleSummary = _learnedStyleSummaryForScope(
+      clientId: selectedClientId,
+      siteId: selectedSiteId,
+    );
 
     return OnyxPageScaffold(
       child: LayoutBuilder(
@@ -152,39 +490,68 @@ class _ClientsPageState extends State<ClientsPage> {
               : 1760.0;
           final communicationsBoard = Column(
             children: [
-              _messageHistoryCard(rows),
-              const SizedBox(height: 8),
-              _roomThreadContextCard(
+              _messageHistoryCard(
+                rows,
                 currentClient: currentClient,
                 currentSite: currentSite,
-                clients: clients,
-                sites: sites,
-                availableSites: availableSites,
+                pendingAsks: pendingAsks,
+                unreadAlerts: unreadAlerts,
+                directUpdates: directUpdates,
               ),
               const SizedBox(height: 8),
-              _communicationChannelsCard(
-                telegramBlocked: telegramBlocked,
-                smsFallbackActive: smsFallbackActive,
-                voipReady: voipReady,
-                voipStaged: voipStaged,
-                pushNeedsReview: pushNeedsReview,
-                pushIdle: pushIdle,
-                backendProbeHealthy:
-                    backendProbeLower.contains('healthy') ||
-                    backendProbeLower.contains('ok'),
-                pendingAsks: pendingAsks,
+              KeyedSubtree(
+                key: _roomThreadContextCardKey,
+                child: _roomThreadContextCard(
+                  currentClient: currentClient,
+                  currentSite: currentSite,
+                  clients: clients,
+                  sites: sites,
+                  availableSites: availableSites,
+                  pendingAsks: pendingAsks,
+                  agentIncidentReference: agentIncidentReference,
+                  queuedDraftItemId: queuedDraftItemId,
+                ),
+              ),
+              const SizedBox(height: 8),
+              KeyedSubtree(
+                key: _communicationChannelsCardKey,
+                child: _communicationChannelsCard(
+                  telegramBlocked: telegramBlocked,
+                  smsFallbackActive: smsFallbackActive,
+                  voipConfigured: voipConfigured,
+                  voipReady: voipReady,
+                  voipStaged: voipStaged,
+                  pushNeedsReview: pushNeedsReview,
+                  pushIdle: pushIdle,
+                  backendProbeHealthy:
+                      backendProbeLower.contains('healthy') ||
+                      backendProbeLower.contains('ok'),
+                  pendingAsks: pendingAsks,
+                  agentIncidentReference: agentIncidentReference,
+                  queuedDraftItemId: queuedDraftItemId,
+                ),
               ),
             ],
           );
           final contextRail = Column(
             children: [
-              _pendingDraftsCard(
-                pendingAsks: pendingAsks,
-                activeIncidents: activeIncidents,
-                reviewEventId: reviewEventId,
+              KeyedSubtree(
+                key: _pendingDraftsCardKey,
+                child: _pendingDraftsCard(
+                  pendingAsks: pendingAsks,
+                  activeIncidents: activeIncidents,
+                  reviewEventId: reviewEventId,
+                  agentIncidentReference: agentIncidentReference,
+                  queuedDraftItemId: queuedDraftItemId,
+                ),
               ),
-              const SizedBox(height: 8),
-              _learnedStyleCard(),
+              if (learnedStyleSummary != null) ...[
+                const SizedBox(height: 8),
+                _learnedStyleCard(
+                  label: learnedStyleSummary.label,
+                  source: learnedStyleSummary.source,
+                ),
+              ],
               const SizedBox(height: 8),
               _pinnedVoiceCard(),
             ],
@@ -235,6 +602,62 @@ class _ClientsPageState extends State<ClientsPage> {
                           ),
                   ],
                 );
+          final detailedBody = _buildDetailedWorkspaceBody(
+            desktopWorkspace: desktopWorkspace,
+            boundedDesktopSurface: boundedDesktopSurface,
+            currentClient: currentClient,
+            currentSite: currentSite,
+            clients: clients,
+            sites: sites,
+            pendingAsks: pendingAsks,
+            unreadAlerts: unreadAlerts,
+            directUpdates: directUpdates,
+            activeIncidents: activeIncidents,
+            reviewEventId: reviewEventId,
+            communicationsBoard: communicationsBoard,
+            contextRail: contextRail,
+            legacyBody: body,
+          );
+
+          if (!_showDetailedWorkspace) {
+            return OnyxViewportWorkspaceLayout(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+              maxWidth: surfaceMaxWidth,
+              spacing: 0,
+              lockToViewport: false,
+              header: const SizedBox.shrink(),
+              body: ClientCommsQueueBoard(
+                items: queueItems,
+                showDetailedWorkspace: false,
+                latestSentFollowUpAuthor: widget.liveFollowUpNotice?.author,
+                latestSentFollowUpBody: widget.liveFollowUpNotice?.body,
+                latestSentFollowUpOccurredAtUtc:
+                    widget.liveFollowUpNotice?.occurredAtUtc,
+                latestSentFollowUpUrgent:
+                    widget.liveFollowUpNotice?.urgent ?? false,
+                preparingLatestSentFollowUpReply:
+                    _preparingLatestSentFollowUpReply,
+                onPrepareLatestSentFollowUpReply:
+                    widget.liveFollowUpNotice == null ||
+                        _preparingLatestSentFollowUpReply
+                    ? null
+                    : () {
+                        unawaited(_prepareLatestSentFollowUpReply());
+                      },
+                onToggleDetailedWorkspace: _toggleDetailedWorkspace,
+                focusedItemId: _focusedQueueItemId,
+                focusedResumeActionLabel: _focusedQueueResumeActionLabel,
+                onResumeDetailedWorkspaceForItem:
+                    _resumeDetailedWorkspaceForQueueItem,
+                onSend: (item) {
+                  unawaited(_sendQueueItem(item));
+                },
+                onEdit: _editQueueItem,
+                onReject: _rejectQueueItem,
+                onOpenAgentForIncident: widget.onOpenAgentForIncident,
+              ),
+            );
+          }
 
           return OnyxViewportWorkspaceLayout(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
@@ -247,6 +670,7 @@ class _ClientsPageState extends State<ClientsPage> {
               unreadAlerts: unreadAlerts,
               pendingAsks: pendingAsks,
               directUpdates: directUpdates,
+              agentIncidentReference: agentIncidentReference,
               desktopStatusCard: desktopWorkspace
                   ? _clientsWorkspaceStatusBanner(
                       currentClient: currentClient,
@@ -256,6 +680,7 @@ class _ClientsPageState extends State<ClientsPage> {
                       directUpdates: directUpdates,
                       activeIncidents: activeIncidents,
                       reviewEventId: reviewEventId,
+                      agentIncidentReference: agentIncidentReference,
                       pushRetryAvailable: widget.onRetryPushSync != null,
                       roomRoutingAvailable:
                           widget.onOpenClientRoomForScope != null,
@@ -263,10 +688,105 @@ class _ClientsPageState extends State<ClientsPage> {
                     )
                   : null,
             ),
-            body: body,
+            body: detailedBody,
           );
         },
       ),
+    );
+  }
+
+  Widget _buildDetailedWorkspaceBody({
+    required bool desktopWorkspace,
+    required bool boundedDesktopSurface,
+    required _ClientOption currentClient,
+    required _SiteOption currentSite,
+    required List<_ClientOption> clients,
+    required List<_SiteOption> sites,
+    required int pendingAsks,
+    required int unreadAlerts,
+    required int directUpdates,
+    required int activeIncidents,
+    required String? reviewEventId,
+    required Widget communicationsBoard,
+    required Widget contextRail,
+    required Widget legacyBody,
+  }) {
+    final toggle = _clientsDetailedWorkspaceToggle();
+    if (!desktopWorkspace) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [legacyBody, const SizedBox(height: 12), toggle],
+      );
+    }
+
+    final desktopBody = _clientsDesktopWorkspace(
+      currentClient: currentClient,
+      currentSite: currentSite,
+      clients: clients,
+      sites: sites,
+      pendingAsks: pendingAsks,
+      unreadAlerts: unreadAlerts,
+      directUpdates: directUpdates,
+      activeIncidents: activeIncidents,
+      reviewEventId: reviewEventId,
+      pushRetryAvailable: widget.onRetryPushSync != null,
+      roomRoutingAvailable: widget.onOpenClientRoomForScope != null,
+      communicationsBoard: communicationsBoard,
+      contextRail: contextRail,
+    );
+
+    if (boundedDesktopSurface) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: desktopBody),
+          const SizedBox(height: 12),
+          toggle,
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [desktopBody, const SizedBox(height: 12), toggle],
+    );
+  }
+
+  Widget _clientsDetailedWorkspaceToggle() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: OutlinedButton.icon(
+        key: const ValueKey('clients-toggle-detailed-workspace'),
+        onPressed: _toggleDetailedWorkspace,
+        icon: const Icon(Icons.visibility_off_rounded, size: 15),
+        label: const Text('Hide Detailed Workspace'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF365E94),
+          side: const BorderSide(color: Color(0xFFBFD0EA)),
+          backgroundColor: const Color(0xFFFFFFFF),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          textStyle: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _toggleDetailedWorkspace() {
+    setState(() {
+      _showDetailedWorkspace = !_showDetailedWorkspace;
+    });
+    logUiAction(
+      'clients.toggle_detailed_workspace',
+      context: {
+        'open': _showDetailedWorkspace,
+        'client_id': _selectedClientId,
+        'site_id': _selectedSiteId,
+      },
     );
   }
 
@@ -319,9 +839,8 @@ class _ClientsPageState extends State<ClientsPage> {
               width: leftRailWidth,
               child: _clientsWorkspacePanel(
                 key: const ValueKey('clients-workspace-panel-rail'),
-                title: 'Client Ops Rail',
-                subtitle:
-                    'Keep lane selection, active room state, and live communications handoffs visible while the message board stays anchored.',
+                title: 'PICK A CLIENT THREAD',
+                subtitle: 'Choose the client thread and move fast.',
                 shellless: true,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,7 +854,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Draft review, room routing, push retry, and message history now stay pinned in the communications board so this rail can stay lane-first.',
+                      'Pick the thread first. Clear drafts and open rooms from the boards next to it.',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF9CB2D1),
                         fontSize: 9,
@@ -351,9 +870,8 @@ class _ClientsPageState extends State<ClientsPage> {
             Expanded(
               child: _clientsWorkspacePanel(
                 key: const ValueKey('clients-workspace-panel-board'),
-                title: 'Communications Board',
-                subtitle:
-                    'Selected room context, channel posture, and the live incident feed stay together in one command surface.',
+                title: 'TALK / REVIEW / SEND',
+                subtitle: 'Read the thread, review the draft, send the reply.',
                 shellless: true,
                 child: communicationsBoard,
               ),
@@ -363,22 +881,10 @@ class _ClientsPageState extends State<ClientsPage> {
               width: rightRailWidth,
               child: _clientsWorkspacePanel(
                 key: const ValueKey('clients-workspace-panel-context'),
-                title: 'Draft & Voice Rail',
-                subtitle:
-                    'Pending reviews, learned tone, and pinned delivery posture remain visible while lane context changes.',
+                title: 'QUEUE / VOICE',
+                subtitle: 'Clear queued drafts and keep voice ready.',
                 shellless: true,
-                child: Column(
-                  children: [
-                    _clientsWorkspaceSnapshot(
-                      pendingAsks: pendingAsks,
-                      unreadAlerts: unreadAlerts,
-                      activeIncidents: activeIncidents,
-                      shellless: true,
-                    ),
-                    const SizedBox(height: 8),
-                    contextRail,
-                  ],
-                ),
+                child: contextRail,
               ),
             ),
           ],
@@ -407,12 +913,12 @@ class _ClientsPageState extends State<ClientsPage> {
           key: key,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFF111A26),
+            color: const Color(0xFFFFFFFF),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFF223548)),
+            border: Border.all(color: const Color(0xFFD7E1EC)),
             boxShadow: const [
               BoxShadow(
-                color: Color(0x22000000),
+                color: Color(0x120D1726),
                 blurRadius: 12,
                 offset: Offset(0, 8),
               ),
@@ -425,8 +931,8 @@ class _ClientsPageState extends State<ClientsPage> {
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.rajdhani(
-                    color: const Color(0xFFEAF4FF),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF142235),
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -437,7 +943,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF92A6C1),
+                    color: const Color(0xFF6A7D93),
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -465,83 +971,178 @@ class _ClientsPageState extends State<ClientsPage> {
     required int directUpdates,
     required int activeIncidents,
     required String? reviewEventId,
+    required String? agentIncidentReference,
     required bool pushRetryAvailable,
     required bool roomRoutingAvailable,
     bool shellless = false,
   }) {
+    final evidenceReceipt = _activeEvidenceReturnReceipt;
+    if (evidenceReceipt != null) {
+      final content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'EVIDENCE RETURN',
+            style: GoogleFonts.inter(
+              color: evidenceReceipt.accent,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            evidenceReceipt.label,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF142235),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            evidenceReceipt.headline,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF142235),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            evidenceReceipt.detail,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF6A7D93),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton(
+              key: const ValueKey('clients-acknowledge-evidence-return'),
+              onPressed: _acknowledgeEvidenceReturnReceipt,
+              child: const Text('Acknowledge'),
+            ),
+          ),
+        ],
+      );
+      if (shellless) {
+        return KeyedSubtree(
+          key: const ValueKey('clients-workspace-status-banner'),
+          child: content,
+        );
+      }
+      return Container(
+        key: const ValueKey('clients-workspace-status-banner'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: evidenceReceipt.accent.withValues(alpha: 0.34),
+          ),
+        ),
+        child: content,
+      );
+    }
+    final openAgent = widget.onOpenAgentForIncident;
+    final canOpenAgent =
+        openAgent != null && (agentIncidentReference ?? '').trim().isNotEmpty;
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'ACTIVE COMMUNICATIONS',
+          'What needs attention',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
-            fontSize: 10,
+            color: const Color(0xFF516882),
+            fontSize: 10.5,
             fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
           ),
         ),
         const SizedBox(height: 4),
         Text(
-          currentClient.name,
-          style: GoogleFonts.rajdhani(
-            color: const Color(0xFFEAF4FF),
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+          _clientsNextMoveLabel(
+            pendingAsks: pendingAsks,
+            unreadAlerts: unreadAlerts,
+            directUpdates: directUpdates,
+          ),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF142235),
+            fontSize: 15.5,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 3),
         Text(
-          '${currentClient.code} / ${currentSite.code}',
+          '${currentClient.name} • ${currentSite.name}',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
-            fontSize: 10,
+            color: const Color(0xFF6A7D93),
+            fontSize: 10.8,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            _clientsWorkspaceChip(
-              label: 'Alerts',
-              value: '$unreadAlerts',
-              accent: unreadAlerts > 0
-                  ? const Color(0xFFFBBF24)
-                  : const Color(0xFF8EA4C2),
-            ),
-            _clientsWorkspaceChip(
-              label: 'Drafts',
-              value: '$pendingAsks',
-              accent: pendingAsks > 0
-                  ? const Color(0xFFFBBF24)
-                  : const Color(0xFF8EA4C2),
-            ),
-            _clientsWorkspaceChip(
-              label: 'Feed',
-              value: '$directUpdates',
-              accent: const Color(0xFF67E8F9),
-            ),
-            _clientsWorkspaceChip(
-              label: 'Incidents',
-              value: '$activeIncidents',
-              accent: activeIncidents > 0
-                  ? const Color(0xFF34D399)
-                  : const Color(0xFF8EA4C2),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         Text(
-          'Live room routing, draft review, and push retry stay pinned in the communications board while this banner tracks lane status.',
+          _clientsNextMoveDetail(
+            pendingAsks: pendingAsks,
+            unreadAlerts: unreadAlerts,
+            directUpdates: directUpdates,
+          ),
           style: GoogleFonts.inter(
-            color: const Color(0xFF9CB2D1),
-            fontSize: 9,
+            color: const Color(0xFF6A7D93),
+            fontSize: 10.2,
             fontWeight: FontWeight.w600,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          _clientsWorkspaceSummaryLine(
+            unreadAlerts: unreadAlerts,
+            pendingAsks: pendingAsks,
+            directUpdates: directUpdates,
+            activeIncidents: activeIncidents,
+          ),
+          style: GoogleFonts.inter(
+            color: const Color(0xFF516882),
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
             height: 1.35,
           ),
         ),
+        if (canOpenAgent) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const ValueKey('clients-workspace-open-agent'),
+              onPressed: () => openAgent(agentIncidentReference!.trim()),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF365E94),
+                side: const BorderSide(color: Color(0xFFBFD0EA)),
+                backgroundColor: const Color(0xFFF7FAFE),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                textStyle: GoogleFonts.inter(
+                  fontSize: 11.2,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.psychology_alt_rounded, size: 16),
+              label: const Text('Ask Junior Analyst'),
+            ),
+          ),
+        ],
       ],
     );
     if (shellless) {
@@ -553,128 +1154,31 @@ class _ClientsPageState extends State<ClientsPage> {
     return Container(
       key: const ValueKey('clients-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0C1117),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x332B425F)),
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: content,
     );
   }
 
-  Widget _clientsWorkspaceSnapshot({
-    required int pendingAsks,
+  String _clientsWorkspaceSummaryLine({
     required int unreadAlerts,
+    required int pendingAsks,
+    required int directUpdates,
     required int activeIncidents,
-    bool shellless = false,
   }) {
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'WORKSPACE SNAPSHOT',
-          style: GoogleFonts.inter(
-            color: const Color(0xFF8EA4C2),
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 6),
-        _clientsWorkspaceSnapshotRow('Pending approvals', '$pendingAsks'),
-        const SizedBox(height: 5),
-        _clientsWorkspaceSnapshotRow('Unread alerts', '$unreadAlerts'),
-        const SizedBox(height: 5),
-        _clientsWorkspaceSnapshotRow(
-          'Active lane incidents',
-          '$activeIncidents',
-        ),
-        const SizedBox(height: 5),
-        _clientsWorkspaceSnapshotRow(
-          'Pinned voice',
-          'Voice • $_selectedPinnedVoice',
-        ),
-      ],
-    );
-    if (shellless) {
-      return content;
-    }
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0C1117),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x332B425F)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [content],
-      ),
-    );
-  }
-
-  Widget _clientsWorkspaceSnapshotRow(String label, String value) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.inter(
-            color: const Color(0xFFEAF4FF),
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _clientsWorkspaceChip({
-    required String label,
-    required String value,
-    required Color accent,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accent.withValues(alpha: 0.35)),
-      ),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '$label ',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            TextSpan(
-              text: value,
-              style: GoogleFonts.inter(
-                color: accent,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    final parts = <String>[
+      unreadAlerts == 1 ? '1 alert' : '$unreadAlerts alerts',
+      pendingAsks == 1 ? '1 draft waiting' : '$pendingAsks drafts waiting',
+      directUpdates == 1 ? '1 recent update' : '$directUpdates recent updates',
+      activeIncidents == 1
+          ? '1 live incident'
+          : '$activeIncidents live incidents',
+    ];
+    return parts.join(' • ');
   }
 
   Widget _heroHeader({
@@ -683,128 +1187,333 @@ class _ClientsPageState extends State<ClientsPage> {
     required int unreadAlerts,
     required int pendingAsks,
     required int directUpdates,
+    required String? agentIncidentReference,
     Widget? desktopStatusCard,
   }) {
+    final openAgent = widget.onOpenAgentForIncident;
+    final normalizedAgentIncidentReference = (agentIncidentReference ?? '')
+        .trim();
+    final canOpenAgent =
+        openAgent != null && normalizedAgentIncidentReference.isNotEmpty;
+    final threadStatus = _chatThreadStatus(
+      pendingAsks: pendingAsks,
+      unreadAlerts: unreadAlerts,
+      directUpdates: directUpdates,
+    );
     final snapshotCard = Container(
-      padding: const EdgeInsets.all(7),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Lane Snapshot',
+            'What needs attention',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 10,
+              color: const Color(0xFF516882),
+              fontSize: 10.5,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 3),
           Text(
-            '${currentClient.name} • ${currentSite.name}',
+            _clientsNextMoveLabel(
+              pendingAsks: pendingAsks,
+              unreadAlerts: unreadAlerts,
+              directUpdates: directUpdates,
+            ),
             style: GoogleFonts.inter(
-              color: const Color(0xFF9BB0CE),
-              fontSize: 9.5,
+              color: const Color(0xFF142235),
+              fontSize: 15.2,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${currentClient.name} • ${currentSite.name} • $threadStatus',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF6A7D93),
+              fontSize: 10.6,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 6),
           Text(
-            '$directUpdates visible updates in the current communication lane',
+            _clientsNextMoveDetail(
+              pendingAsks: pendingAsks,
+              unreadAlerts: unreadAlerts,
+              directUpdates: directUpdates,
+            ),
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
+              color: const Color(0xFF6A7D93),
+              fontSize: 10.1,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
             ),
           ),
         ],
       ),
     );
-    return OnyxStoryHero(
-      eyebrow: 'CLIENT LANE',
-      title: 'Client Communications',
-      subtitle:
-          'Approve drafts, send updates, and keep the client aligned without leaving the incident story.',
-      icon: Icons.business_center_rounded,
-      gradientColors: const [Color(0xFF111722), Color(0xFF0D1117)],
-      metrics: [
-        OnyxStoryMetric(
-          value: currentClient.code,
-          label: 'client',
-          foreground: const Color(0xFF8FD1FF),
-          background: const Color(0x1A8FD1FF),
-          border: const Color(0x668FD1FF),
-        ),
-        OnyxStoryMetric(
-          value: currentSite.code,
-          label: 'site',
-          foreground: const Color(0xFF22D3EE),
-          background: const Color(0x1A22D3EE),
-          border: const Color(0x6622D3EE),
-        ),
-        OnyxStoryMetric(
-          value: '$pendingAsks',
-          label: 'pending',
-          foreground: pendingAsks > 0
-              ? const Color(0xFFF59E0B)
-              : const Color(0xFF9AB1CF),
-          background: pendingAsks > 0
-              ? const Color(0x1AF59E0B)
-              : const Color(0x1A94A3B8),
-          border: pendingAsks > 0
-              ? const Color(0x66F59E0B)
-              : const Color(0x6694A3B8),
-        ),
-        OnyxStoryMetric(
-          value: '$unreadAlerts',
-          label: 'needs review',
-          foreground: unreadAlerts > 0
-              ? const Color(0xFFF87171)
-              : const Color(0xFF9AB1CF),
-          background: unreadAlerts > 0
-              ? const Color(0x1AF87171)
-              : const Color(0x1A94A3B8),
-          border: unreadAlerts > 0
-              ? const Color(0x66F87171)
-              : const Color(0x6694A3B8),
-        ),
-      ],
-      banner: desktopStatusCard ?? snapshotCard,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE4ECF9),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.mark_chat_read_rounded,
+                  color: Color(0xFF325996),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Client Communications',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF142235),
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${currentClient.name} • ${currentSite.name}',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF6A7D93),
+                        fontSize: 11.6,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Keep the chat familiar. Read the thread, clear the next draft, and reply without hunting through the UI.',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF6A7D93),
+                        fontSize: 11.4,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (canOpenAgent)
+                OutlinedButton.icon(
+                  key: const ValueKey('clients-open-agent-button'),
+                  onPressed: () => openAgent(normalizedAgentIncidentReference),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF365E94),
+                    side: const BorderSide(color: Color(0xFFBFD0EA)),
+                    backgroundColor: const Color(0xFFF7FAFE),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 11.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.psychology_alt_rounded, size: 16),
+                  label: const Text('Ask Junior Analyst'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          desktopStatusCard ?? snapshotCard,
+        ],
+      ),
     );
   }
 
-  Widget _heroChip({
-    required String label,
-    required Color foreground,
-    required Color background,
-    required Color border,
+  String _clientsNextMoveLabel({
+    required int pendingAsks,
+    required int unreadAlerts,
+    required int directUpdates,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: border),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: foreground,
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
+    if (pendingAsks > 0) return 'Review the top draft';
+    if (unreadAlerts > 0) return 'Reply to the thread';
+    if (directUpdates > 0) return 'Hold the thread';
+    return 'Keep the thread ready';
+  }
+
+  String _clientsNextMoveDetail({
+    required int pendingAsks,
+    required int unreadAlerts,
+    required int directUpdates,
+  }) {
+    if (pendingAsks > 0) {
+      return 'Queued replies are waiting for control approval. Review and send the top draft first.';
+    }
+    if (unreadAlerts > 0) {
+      return 'This thread needs attention. Open the room or ask the agent before the client chases you.';
+    }
+    if (directUpdates > 0) {
+      return 'The thread is active but stable. Keep it tight and stay ready for the next client ask.';
+    }
+    return 'Nothing is pushing right now. Stay on watch and keep the room ready.';
+  }
+
+  String? _agentIncidentReference({
+    required String selectedClientId,
+    required String selectedSiteId,
+  }) {
+    final stagedHandoffs =
+        _stagedAgentDraftHandoffs.values
+            .where(
+              (handoff) =>
+                  handoff.matchesScope(selectedClientId, selectedSiteId),
+            )
+            .toList(growable: false)
+          ..sort((a, b) => b.createdAtUtc.compareTo(a.createdAtUtc));
+    for (final handoff in stagedHandoffs) {
+      final reference = handoff.incidentReference.trim();
+      if (reference.isNotEmpty) {
+        return reference;
+      }
+    }
+    final scopedEvents =
+        widget.events
+            .where(
+              (event) =>
+                  _eventClientId(event) == selectedClientId &&
+                  _eventSiteId(event) == selectedSiteId,
+            )
+            .toList(growable: false)
+          ..sort((a, b) => b.sequence.compareTo(a.sequence));
+    for (final event in scopedEvents) {
+      final reference = _eventIncidentReference(event);
+      if (reference.isNotEmpty) {
+        return reference;
+      }
+      final eventId = event.eventId.trim();
+      if (eventId.isNotEmpty) {
+        return eventId;
+      }
+    }
+    return null;
+  }
+
+  String _chatThreadStatus({
+    required int pendingAsks,
+    required int unreadAlerts,
+    required int directUpdates,
+  }) {
+    if (pendingAsks > 0) {
+      return pendingAsks == 1
+          ? '1 draft waiting'
+          : '$pendingAsks drafts waiting';
+    }
+    if (unreadAlerts > 0) {
+      return unreadAlerts == 1
+          ? '1 unread update'
+          : '$unreadAlerts unread updates';
+    }
+    if (directUpdates > 0) {
+      return directUpdates == 1
+          ? '1 recent update'
+          : '$directUpdates recent updates';
+    }
+    return 'Quiet for now';
+  }
+
+  String _chatListPreview({
+    required int pendingDrafts,
+    required int alerts,
+    required int incidents,
+    required bool active,
+  }) {
+    if (pendingDrafts > 0) {
+      return pendingDrafts == 1
+          ? 'Draft waiting for approval.'
+          : '$pendingDrafts drafts waiting for approval.';
+    }
+    if (alerts > 0) {
+      return alerts == 1
+          ? '1 client update needs a reply.'
+          : '$alerts client updates need a reply.';
+    }
+    if (incidents > 0) {
+      return incidents == 1
+          ? '1 live incident in this thread.'
+          : '$incidents live incidents in this thread.';
+    }
+    return active
+        ? 'This is the thread you are working in now.'
+        : 'Quiet thread. Tap to switch here.';
+  }
+
+  String _chatAvatarLabel(String name) {
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+    if (parts.isEmpty) {
+      return '?';
+    }
+    final first = parts.first.characters.first.toUpperCase();
+    if (parts.length == 1) {
+      return first;
+    }
+    final second = parts[1].characters.first.toUpperCase();
+    return '$first$second';
   }
 
   Widget _feedRow(_FeedRow row) {
     final rowColor = _feedColor(row.status);
     final canOpenEvent =
         row.eventId != null && widget.onOpenEventsForScope != null;
+    final openAgent = widget.onOpenAgentForIncident;
+    final normalizedIncidentReference = (row.incidentReference ?? '').trim();
+    final canOpenAgent =
+        openAgent != null && normalizedIncidentReference.isNotEmpty;
+    final redraftWithAgent = row.type == _FeedType.update;
+    final agentActionKey = ValueKey(
+      redraftWithAgent
+          ? 'clients-incident-redraft-agent-${row.eventId ?? normalizedIncidentReference}'
+          : 'clients-incident-open-agent-${row.eventId ?? normalizedIncidentReference}',
+    );
+    final highlightsClientSide = row.type == _FeedType.update;
+    final bubbleBackground = highlightsClientSide
+        ? const Color(0xFFE9F1FF)
+        : const Color(0xFFFFFFFF);
+    final bubbleBorder = highlightsClientSide
+        ? const Color(0xFFC9D8F8)
+        : const Color(0xFFD9E3EE);
+    final labelColor = highlightsClientSide
+        ? const Color(0xFF315A9A)
+        : const Color(0xFF5B708B);
+    final surfaceTextColor = highlightsClientSide
+        ? const Color(0xFF1E355A)
+        : const Color(0xFF142235);
     return InkWell(
       key: ValueKey('clients-incident-row-${row.title}-${row.timestampLabel}'),
       borderRadius: BorderRadius.circular(9),
@@ -824,59 +1533,143 @@ class _ClientsPageState extends State<ClientsPage> {
             },
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(9),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0D1117),
-          borderRadius: BorderRadius.circular(9),
-          border: Border.all(color: const Color(0xFF30363D)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                color: const Color(0x14FFFFFF),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(_feedIcon(row.type), color: rowColor, size: 15),
+        alignment: highlightsClientSide
+            ? Alignment.centerRight
+            : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bubbleBackground,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: bubbleBorder),
             ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    row.title,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF1FB),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!highlightsClientSide) ...[
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F6FB),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFD7E1EC)),
                     ),
+                    child: Icon(_feedIcon(row.type), color: rowColor, size: 18),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    row.description,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF9BB0CE),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: highlightsClientSide
+                        ? CrossAxisAlignment.end
+                        : CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        row.title,
+                        textAlign: highlightsClientSide
+                            ? TextAlign.right
+                            : TextAlign.left,
+                        style: GoogleFonts.inter(
+                          color: surfaceTextColor,
+                          fontSize: 12.6,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        row.description,
+                        textAlign: highlightsClientSide
+                            ? TextAlign.right
+                            : TextAlign.left,
+                        style: GoogleFonts.inter(
+                          color: surfaceTextColor.withValues(alpha: 0.78),
+                          fontSize: 11.4,
+                          fontWeight: FontWeight.w600,
+                          height: 1.42,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        alignment: highlightsClientSide
+                            ? WrapAlignment.end
+                            : WrapAlignment.start,
+                        children: [
+                          Text(
+                            row.timestampLabel,
+                            style: GoogleFonts.inter(
+                              color: labelColor,
+                              fontSize: 10.4,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (canOpenAgent)
+                            OutlinedButton.icon(
+                              key: agentActionKey,
+                              onPressed: () =>
+                                  openAgent(normalizedIncidentReference),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF365E94),
+                                side: const BorderSide(
+                                  color: Color(0xFFBFD0EA),
+                                ),
+                                backgroundColor: const Color(0xFFF7FAFE),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                textStyle: GoogleFonts.inter(
+                                  fontSize: 10.4,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              icon: Icon(
+                                redraftWithAgent
+                                    ? Icons.auto_fix_high_rounded
+                                    : Icons.psychology_alt_rounded,
+                                size: 15,
+                              ),
+                              label: Text(
+                                redraftWithAgent
+                                    ? 'Redraft with Junior Analyst'
+                                    : 'Ask Junior Analyst',
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                if (highlightsClientSide) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDCE9FF),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFBED0F1)),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.mark_chat_read_rounded,
+                      color: Color(0xFF3B5F9A),
+                      size: 18,
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
-            const SizedBox(width: 8),
-            Text(
-              row.timestampLabel,
-              style: GoogleFonts.inter(
-                color: const Color(0x668EA4C2),
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -892,14 +1685,14 @@ class _ClientsPageState extends State<ClientsPage> {
     return InkWell(
       key: ValueKey('clients-room-$label'),
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFF0D1117),
-          borderRadius: BorderRadius.circular(7),
-          border: Border.all(color: const Color(0xFF30363D)),
+          color: const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFD7E1EC)),
         ),
         child: Row(
           children: [
@@ -910,8 +1703,8 @@ class _ClientsPageState extends State<ClientsPage> {
                 label,
                 style: GoogleFonts.inter(
                   color: enabled
-                      ? const Color(0xFFEAF1FB)
-                      : const Color(0xFF6B7A90),
+                      ? const Color(0xFF142235)
+                      : const Color(0xFF8EA1B8),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
@@ -928,7 +1721,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 child: Text(
                   unreadLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFFF7D8A),
+                    color: const Color(0xFFCC5B67),
                     fontSize: 9.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -937,7 +1730,7 @@ class _ClientsPageState extends State<ClientsPage> {
             const SizedBox(width: 8),
             const Icon(
               Icons.chevron_right_rounded,
-              color: Color(0x669BB0CE),
+              color: Color(0xFF8EA1B8),
               size: 16,
             ),
           ],
@@ -1005,206 +1798,217 @@ class _ClientsPageState extends State<ClientsPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'ACTIVE LANES',
+            'Client chats',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10,
+              color: const Color(0xFF142235),
+              fontSize: 18,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(height: 8),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 920;
-              final width = stacked
-                  ? constraints.maxWidth
-                  : (constraints.maxWidth - 12) / 3;
-              return Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final lane in laneCards)
-                    InkWell(
-                      key: ValueKey(
-                        'clients-active-lane-card-${lane.client.id}-${lane.site.id}',
+          const SizedBox(height: 4),
+          Text(
+            'Keep the familiar inbox list on the left. Open one thread and stay in it.',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF6A7D93),
+              fontSize: 11.2,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFFFF),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFD7E1EC)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.search_rounded,
+                  color: Color(0xFF7F93AB),
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Search or start a chat',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF8EA1B8),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (var index = 0; index < laneCards.length; index++) ...[
+            Builder(
+              builder: (context) {
+                final lane = laneCards[index];
+                final preview = _chatListPreview(
+                  pendingDrafts: lane.pendingDrafts,
+                  alerts: lane.alerts,
+                  incidents: lane.incidents,
+                  active: lane.active,
+                );
+                final badgeLabel = lane.pendingDrafts > 0
+                    ? '${lane.pendingDrafts}'
+                    : lane.alerts > 0
+                    ? '${lane.alerts}'
+                    : null;
+                return InkWell(
+                  key: ValueKey(
+                    'clients-active-lane-card-${lane.client.id}-${lane.site.id}',
+                  ),
+                  onTap: () => _selectClientSite(
+                    lane.client.id,
+                    lane.site.id,
+                    source: 'active_lane_card',
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: lane.active
+                          ? const Color(0xFFFFFFFF)
+                          : const Color(0xFFF8FAFD),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: lane.active
+                            ? const Color(0xFFBFD0EA)
+                            : const Color(0xFFD7E1EC),
                       ),
-                      onTap: () => _selectClientSite(
-                        lane.client.id,
-                        lane.site.id,
-                        source: 'active_lane_card',
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: width,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: lane.active
-                              ? const Color(0xFF15263C)
-                              : const Color(0xFF0D1117),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
+                      boxShadow: lane.active
+                          ? const [
+                              BoxShadow(
+                                color: Color(0x120E1726),
+                                blurRadius: 16,
+                                offset: Offset(0, 8),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
                             color: lane.active
-                                ? const Color(0xFF1F7AE0)
-                                : const Color(0xFF223244),
+                                ? const Color(0xFFE5EEFC)
+                                : const Color(0xFFEFF3F8),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            _chatAvatarLabel(lane.client.name),
+                            style: GoogleFonts.inter(
+                              color: const Color(0xFF274770),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    lane.client.name,
-                                    style: GoogleFonts.inter(
-                                      color: const Color(0xFFF8FBFF),
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: lane.active
-                                        ? const Color(0x1A1F7AE0)
-                                        : const Color(0x14000000),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(
-                                      color: lane.active
-                                          ? const Color(0x661F7AE0)
-                                          : const Color(0xFF223244),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    lane.active ? 'ACTIVE' : 'OPEN LANE',
-                                    style: GoogleFonts.inter(
-                                      color: lane.active
-                                          ? const Color(0xFF8FD1FF)
-                                          : const Color(0xFF9BB0CE),
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ),
-                                if (lane.pendingDrafts > 0) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0x1AF59E0B),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: const Color(0x66F59E0B),
-                                      ),
-                                    ),
-                                    alignment: Alignment.center,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
                                     child: Text(
-                                      '${lane.pendingDrafts}',
+                                      lane.client.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFFFBBF24),
-                                        fontSize: 10.5,
+                                        color: const Color(0xFF142235),
+                                        fontSize: 12.8,
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                   ),
+                                  Text(
+                                    lane.active ? 'Open' : 'Tap',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFF6C82A0),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
                                 ],
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${lane.client.code} • ${lane.site.name}',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF95A6BE),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0x331A0F3F),
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(
-                                  color: const Color(0x665E31A6),
+                              const SizedBox(height: 3),
+                              Text(
+                                lane.site.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF5D728C),
+                                  fontSize: 10.6,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              child: Text(
-                                '# ROOM-${lane.site.code}',
-                                style: GoogleFonts.robotoMono(
-                                  color: const Color(0xFFC084FC),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
+                              const SizedBox(height: 6),
+                              Text(
+                                preview,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFF6A7D93),
+                                  fontSize: 10.8,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Wrap(
-                              spacing: 6,
-                              runSpacing: 6,
-                              children: [
-                                _clientsWorkspaceChip(
-                                  label: 'Feed',
-                                  value: '${lane.feedCount}',
-                                  accent: const Color(0xFF67E8F9),
-                                ),
-                                _clientsWorkspaceChip(
-                                  label: 'Alerts',
-                                  value: '${lane.alerts}',
-                                  accent: lane.alerts > 0
-                                      ? const Color(0xFFFBBF24)
-                                      : const Color(0xFF8EA4C2),
-                                ),
-                                _clientsWorkspaceChip(
-                                  label: 'Incidents',
-                                  value: '${lane.incidents}',
-                                  accent: lane.incidents > 0
-                                      ? const Color(0xFF34D399)
-                                      : const Color(0xFF8EA4C2),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              lane.active
-                                  ? 'This lane is currently driving the client communications workspace.'
-                                  : 'Tap to switch the workspace, thread context, and message feed to this lane.',
-                              style: GoogleFonts.inter(
-                                color: lane.active
-                                    ? const Color(0xFF9ED9E8)
-                                    : const Color(0xFF8EA4C2),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
+                        if (badgeLabel != null) ...[
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE8F1FF),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              badgeLabel,
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF325996),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                ],
-              );
-            },
-          ),
+                  ),
+                );
+              },
+            ),
+            if (index != laneCards.length - 1) const SizedBox(height: 8),
+          ],
         ],
       ),
     );
@@ -1216,36 +2020,48 @@ class _ClientsPageState extends State<ClientsPage> {
     required List<_ClientOption> clients,
     required List<_SiteOption> sites,
     required List<_SiteOption> availableSites,
+    required int pendingAsks,
+    required String? agentIncidentReference,
+    required String? queuedDraftItemId,
   }) {
     final roomRoutingAvailable = widget.onOpenClientRoomForScope != null;
+    final openAgent = widget.onOpenAgentForIncident;
+    final normalizedAgentIncidentReference = (agentIncidentReference ?? '')
+        .trim();
+    final normalizedQueuedDraftItemId = (queuedDraftItemId ?? '').trim();
+    final canOpenAgent =
+        openAgent != null && normalizedAgentIncidentReference.isNotEmpty;
+    final canOpenQueuedDraft = normalizedQueuedDraftItemId.isNotEmpty;
+    final prefersRedraft = pendingAsks > 0;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'ROOM & THREAD CONTEXT',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+            'Chat details',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF142235),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
             ),
           ),
           Text(
-            'Active communication channels',
+            'Stay in one thread. Switch the client or room only when you need to.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10,
+              color: const Color(0xFF6A7D93),
+              fontSize: 11,
               fontWeight: FontWeight.w600,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 940;
@@ -1297,7 +2113,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 return Column(
                   children: [
                     selectors[0],
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     selectors[1],
                   ],
                 );
@@ -1305,13 +2121,13 @@ class _ClientsPageState extends State<ClientsPage> {
               return Row(
                 children: [
                   Expanded(child: selectors[0]),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                   Expanded(child: selectors[1]),
                 ],
               );
             },
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 940;
@@ -1331,52 +2147,115 @@ class _ClientsPageState extends State<ClientsPage> {
               );
               if (stacked) {
                 return Column(
-                  children: [roomCard, const SizedBox(height: 6), threadCard],
+                  children: [roomCard, const SizedBox(height: 8), threadCard],
                 );
               }
               return Row(
                 children: [
                   Expanded(child: roomCard),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                   Expanded(child: threadCard),
                 ],
               );
             },
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF123140),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF1F617C)),
+              color: const Color(0xFFFFFFFF),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFD7E1EC)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Thread Active',
+                  'This chat is live',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF5DE1FF),
-                    fontSize: 11,
+                    color: const Color(0xFF325996),
+                    fontSize: 11.4,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
-                  'All messages are scoped to the active incident thread. Client responses route to ${currentClient.name}.',
+                  'Replies stay tied to ${currentClient.name}. Use the quick actions only when you need help or want to reopen a queued draft.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF9ED9E8),
-                    fontSize: 10,
+                    color: const Color(0xFF6A7D93),
+                    fontSize: 10.8,
                     fontWeight: FontWeight.w600,
                     height: 1.4,
                   ),
                 ),
+                if (canOpenAgent) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    key: const ValueKey('clients-thread-open-agent'),
+                    onPressed: () =>
+                        openAgent(normalizedAgentIncidentReference),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF365E94),
+                      side: const BorderSide(color: Color(0xFFBFD0EA)),
+                      backgroundColor: const Color(0xFFF7FAFE),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 10.6,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: Icon(
+                      prefersRedraft
+                          ? Icons.auto_fix_high_rounded
+                          : Icons.psychology_alt_rounded,
+                      size: 15,
+                    ),
+                    label: Text(
+                      prefersRedraft
+                          ? 'Redraft with Junior Analyst'
+                          : 'Ask Junior Analyst',
+                    ),
+                  ),
+                ],
+                if (canOpenQueuedDraft) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    key: const ValueKey('clients-thread-review-queued-draft'),
+                    onPressed: () => _openSimpleQueueForDraft(
+                      normalizedQueuedDraftItemId,
+                      resumeTarget: _DetailedCommsResumeTarget.threadContext,
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF325996),
+                      side: const BorderSide(color: Color(0xFFBFD0EA)),
+                      backgroundColor: const Color(0xFFF7FAFE),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 10.6,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.queue_rounded, size: 15),
+                    label: const Text('Open queued draft'),
+                  ),
+                ],
               ],
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) {
               final stacked = constraints.maxWidth < 760;
@@ -1406,7 +2285,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   children: [
                     for (var i = 0; i < children.length; i++) ...[
                       children[i],
-                      if (i != children.length - 1) const SizedBox(height: 4),
+                      if (i != children.length - 1) const SizedBox(height: 8),
                     ],
                   ],
                 );
@@ -1414,9 +2293,9 @@ class _ClientsPageState extends State<ClientsPage> {
               return Row(
                 children: [
                   Expanded(child: children[0]),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                   Expanded(child: children[1]),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                   Expanded(child: children[2]),
                 ],
               );
@@ -1425,10 +2304,10 @@ class _ClientsPageState extends State<ClientsPage> {
           if (!roomRoutingAvailable) ...[
             const SizedBox(height: 8),
             Text(
-              'Room routing is view-only in this session.',
+              'Room switching is view-only in this session.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF6B7A90),
-                fontSize: 9.5,
+                color: const Color(0xFF8EA1B8),
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1447,9 +2326,9 @@ class _ClientsPageState extends State<ClientsPage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1457,7 +2336,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: const Color(0xFF6A7D93),
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.0,
@@ -1467,10 +2346,10 @@ class _ClientsPageState extends State<ClientsPage> {
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              dropdownColor: const Color(0xFF0D1117),
-              iconEnabledColor: const Color(0xFF9BB0CE),
+              dropdownColor: const Color(0xFFFFFFFF),
+              iconEnabledColor: const Color(0xFF8EA1B8),
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
+                color: const Color(0xFF142235),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -1493,9 +2372,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1117),
+        color: const Color(0xFFFFFFFF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1503,7 +2382,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: const Color(0xFF6A7D93),
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1,
@@ -1532,129 +2411,150 @@ class _ClientsPageState extends State<ClientsPage> {
   Widget _communicationChannelsCard({
     required bool telegramBlocked,
     required bool smsFallbackActive,
+    required bool voipConfigured,
     required bool voipReady,
     required bool voipStaged,
     required bool pushNeedsReview,
     required bool pushIdle,
     required bool backendProbeHealthy,
     required int pendingAsks,
+    required String? agentIncidentReference,
+    required String? queuedDraftItemId,
   }) {
     final pushRetryAvailable = widget.onRetryPushSync != null;
+    final openAgent = widget.onOpenAgentForIncident;
+    final normalizedAgentIncidentReference = (agentIncidentReference ?? '')
+        .trim();
+    final normalizedQueuedDraftItemId = (queuedDraftItemId ?? '').trim();
+    final canOpenAgent =
+        openAgent != null &&
+        pendingAsks > 0 &&
+        normalizedAgentIncidentReference.isNotEmpty;
+    final canOpenQueuedDraft = normalizedQueuedDraftItemId.isNotEmpty;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'COMMUNICATION CHANNELS',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+            'Delivery',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF142235),
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
             ),
           ),
           Text(
-            _selectedClientId ?? '',
+            'What is ready, what is blocked, and what still needs a nudge.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF7F91AA),
-              fontSize: 10,
+              color: const Color(0xFF6A7D93),
+              fontSize: 11,
               fontWeight: FontWeight.w600,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           Wrap(
-            spacing: 5,
-            runSpacing: 5,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               _channelChip(
-                label: telegramBlocked ? 'Telegram Blocked' : 'Telegram Ready',
+                label: telegramBlocked ? 'Telegram blocked' : 'Telegram ready',
                 icon: Icons.check_circle_rounded,
                 foreground: telegramBlocked
-                    ? const Color(0xFFF87171)
-                    : const Color(0xFF34D399),
+                    ? const Color(0xFFAF4E57)
+                    : const Color(0xFF2D7A5F),
                 background: telegramBlocked
-                    ? const Color(0x1AF87171)
-                    : const Color(0x1A10B981),
+                    ? const Color(0xFFFFF2F2)
+                    : const Color(0xFFF3FBF7),
                 border: telegramBlocked
-                    ? const Color(0x66F87171)
-                    : const Color(0x6610B981),
+                    ? const Color(0xFFF0CDD1)
+                    : const Color(0xFFCFE6DA),
               ),
               _channelChip(
-                label: smsFallbackActive ? 'SMS Fallback' : 'SMS Idle',
+                label: smsFallbackActive ? 'SMS fallback' : 'SMS idle',
                 icon: Icons.sms_outlined,
                 foreground: smsFallbackActive
-                    ? const Color(0xFFFBBF24)
-                    : const Color(0xFF8EA4C2),
+                    ? const Color(0xFF9A6A19)
+                    : const Color(0xFF6A7D93),
                 background: smsFallbackActive
-                    ? const Color(0x1AF59E0B)
-                    : const Color(0x1494A3B8),
+                    ? const Color(0xFFFFF7EA)
+                    : const Color(0xFFFFFFFF),
                 border: smsFallbackActive
-                    ? const Color(0x66F59E0B)
-                    : const Color(0x3394A3B8),
+                    ? const Color(0xFFF1D9A7)
+                    : const Color(0xFFD7E1EC),
               ),
               _channelChip(
-                label: voipStaged
-                    ? 'VoIP Staging'
+                label: !voipConfigured
+                    ? 'VoIP unconfigured'
+                    : voipStaged
+                    ? 'VoIP staging'
                     : voipReady
-                    ? 'VoIP Ready'
-                    : 'VoIP Idle',
+                    ? 'VoIP ready'
+                    : 'VoIP idle',
                 icon: Icons.phone_forwarded_rounded,
-                foreground: voipStaged
-                    ? const Color(0xFFFBBF24)
+                foreground: !voipConfigured
+                    ? const Color(0xFF6A7D93)
+                    : voipStaged
+                    ? const Color(0xFF9A6A19)
                     : voipReady
-                    ? const Color(0xFF34D399)
-                    : const Color(0xFF8EA4C2),
-                background: voipStaged
-                    ? const Color(0x1AF59E0B)
+                    ? const Color(0xFF2D7A5F)
+                    : const Color(0xFF6A7D93),
+                background: !voipConfigured
+                    ? const Color(0xFFFFFFFF)
+                    : voipStaged
+                    ? const Color(0xFFFFF7EA)
                     : voipReady
-                    ? const Color(0x1A10B981)
-                    : const Color(0x1494A3B8),
-                border: voipStaged
-                    ? const Color(0x66F59E0B)
+                    ? const Color(0xFFF3FBF7)
+                    : const Color(0xFFFFFFFF),
+                border: !voipConfigured
+                    ? const Color(0xFFD7E1EC)
+                    : voipStaged
+                    ? const Color(0xFFF1D9A7)
                     : voipReady
-                    ? const Color(0x6610B981)
-                    : const Color(0x3394A3B8),
+                    ? const Color(0xFFCFE6DA)
+                    : const Color(0xFFD7E1EC),
               ),
               _channelChip(
                 label: pushNeedsReview
-                    ? 'Push Review'
+                    ? 'Push review'
                     : pushIdle
-                    ? 'Push Idle'
-                    : 'Push Healthy',
+                    ? 'Push idle'
+                    : 'Push healthy',
                 icon: Icons.notifications_active_outlined,
                 foreground: pushNeedsReview
-                    ? const Color(0xFFFBBF24)
+                    ? const Color(0xFF9A6A19)
                     : pushIdle
-                    ? const Color(0xFF8EA4C2)
-                    : const Color(0xFF8EA4C2),
+                    ? const Color(0xFF6A7D93)
+                    : const Color(0xFF6A7D93),
                 background: pushNeedsReview
-                    ? const Color(0x1AF59E0B)
+                    ? const Color(0xFFFFF7EA)
                     : pushIdle
-                    ? const Color(0x1494A3B8)
-                    : const Color(0x1494A3B8),
+                    ? const Color(0xFFFFFFFF)
+                    : const Color(0xFFFFFFFF),
                 border: pushNeedsReview
-                    ? const Color(0x66F59E0B)
+                    ? const Color(0xFFF1D9A7)
                     : pushIdle
-                    ? const Color(0x3394A3B8)
-                    : const Color(0x3394A3B8),
+                    ? const Color(0xFFD7E1EC)
+                    : const Color(0xFFD7E1EC),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          if (voipStaged || voipReady)
+          const SizedBox(height: 10),
+          if (voipConfigured && (voipStaged || voipReady))
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF3A210E),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF80511D)),
+                color: const Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFF1D9A7)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1662,7 +2562,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   Text(
                     voipReady ? 'VoIP Call Active' : 'VoIP Call Staged',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFBBF24),
+                      color: const Color(0xFF9A6A19),
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                     ),
@@ -1673,7 +2573,7 @@ class _ClientsPageState extends State<ClientsPage> {
                         ? 'Voice call is actively engaging the client escalation path.'
                         : 'Voice call queued for high-priority incident escalation. Ready to dial.',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD7B47C),
+                      color: const Color(0xFF7B6947),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
@@ -1711,7 +2611,7 @@ class _ClientsPageState extends State<ClientsPage> {
                       final cancelStage = _channelActionButton(
                         key: const ValueKey('clients-cancel-stage-action'),
                         label: voipReady ? 'End Call' : 'Cancel Stage',
-                        accent: const Color(0xFF9AA7B8),
+                        accent: const Color(0xFF6A7D93),
                         filled: false,
                         onTap: () {
                           setState(() {
@@ -1748,30 +2648,31 @@ class _ClientsPageState extends State<ClientsPage> {
                 ],
               ),
             ),
-          if (voipStaged || voipReady) const SizedBox(height: 8),
+          if (voipConfigured && (voipStaged || voipReady))
+            const SizedBox(height: 8),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: backendProbeHealthy
-                  ? const Color(0xFF123425)
-                  : const Color(0xFF22181A),
-              borderRadius: BorderRadius.circular(12),
+                  ? const Color(0xFFF3FBF7)
+                  : const Color(0xFFFFF2F2),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: backendProbeHealthy
-                    ? const Color(0xFF1D7A55)
-                    : const Color(0xFF6B2B30),
+                    ? const Color(0xFFCFE6DA)
+                    : const Color(0xFFF0CDD1),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Backend Probe',
+                  'Delivery health',
                   style: GoogleFonts.inter(
                     color: backendProbeHealthy
-                        ? const Color(0xFF34D399)
-                        : const Color(0xFFF87171),
+                        ? const Color(0xFF2D7A5F)
+                        : const Color(0xFFAF4E57),
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1783,8 +2684,8 @@ class _ClientsPageState extends State<ClientsPage> {
                       : 'Backend status is $_backendProbeStatus. Push sync is ${_pushSyncStatus.toLowerCase()}.',
                   style: GoogleFonts.inter(
                     color: backendProbeHealthy
-                        ? const Color(0xFF9CE5C8)
-                        : const Color(0xFFD7A1A8),
+                        ? const Color(0xFF4E816A)
+                        : const Color(0xFF8C5C62),
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -1799,31 +2700,84 @@ class _ClientsPageState extends State<ClientsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: pushRetryAvailable
-                          ? const Color(0xFF5A340D)
-                          : const Color(0xFF1B222B),
+                      color: const Color(0xFFFFFFFF),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: pushRetryAvailable
-                            ? const Color(0xFF9A5B14)
-                            : const Color(0xFF30363D),
+                            ? const Color(0xFFBFD0EA)
+                            : const Color(0xFFD7E1EC),
                       ),
                     ),
                     child: Text(
                       pendingAsks > 0
-                          ? 'Review Draft Queue'
-                          : 'Retry Push Sync',
+                          ? 'Review draft queue'
+                          : 'Retry push sync',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         color: pushRetryAvailable
-                            ? const Color(0xFFFBBF24)
-                            : const Color(0xFF6B7A90),
+                            ? const Color(0xFF325996)
+                            : const Color(0xFF8EA1B8),
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                 ),
+                if (canOpenAgent) ...[
+                  const SizedBox(height: 8),
+                  InkWell(
+                    key: const ValueKey('clients-channel-open-agent'),
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => openAgent(normalizedAgentIncidentReference),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7FAFE),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFD7E1EC)),
+                      ),
+                      child: Text(
+                        'Redraft with Junior Analyst',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF365E94),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (canOpenQueuedDraft) ...[
+                  const SizedBox(height: 8),
+                  InkWell(
+                    key: const ValueKey('clients-channel-review-queued-draft'),
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _openSimpleQueueForDraft(
+                      normalizedQueuedDraftItemId,
+                      resumeTarget: _DetailedCommsResumeTarget.channelReview,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFFFFF),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFBFD0EA)),
+                      ),
+                      child: Text(
+                        'Open queued draft',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF325996),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1843,30 +2797,30 @@ class _ClientsPageState extends State<ClientsPage> {
     return InkWell(
       key: key,
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(9),
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: filled
               ? enabled
-                    ? const Color(0xFF5A340D)
-                    : const Color(0xFF1B222B)
-              : const Color(0xFF0D1117),
-          borderRadius: BorderRadius.circular(9),
+                    ? const Color(0xFFE8F1FF)
+                    : const Color(0xFFF5F7FB)
+              : const Color(0xFFFFFFFF),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: filled
                 ? enabled
-                      ? const Color(0xFF9A5B14)
-                      : const Color(0xFF30363D)
-                : const Color(0xFF30363D),
+                      ? const Color(0xFFBFD0EA)
+                      : const Color(0xFFD7E1EC)
+                : const Color(0xFFD7E1EC),
           ),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: enabled ? accent : const Color(0xFF6B7A90),
+            color: enabled ? accent : const Color(0xFF8EA1B8),
             fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
@@ -1886,7 +2840,7 @@ class _ClientsPageState extends State<ClientsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: border),
       ),
       child: Row(
@@ -1907,41 +2861,115 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 
-  Widget _messageHistoryCard(List<_FeedRow> rows) {
+  Widget _messageHistoryCard(
+    List<_FeedRow> rows, {
+    required _ClientOption currentClient,
+    required _SiteOption currentSite,
+    required int pendingAsks,
+    required int unreadAlerts,
+    required int directUpdates,
+  }) {
+    final threadStatus = _chatThreadStatus(
+      pendingAsks: pendingAsks,
+      unreadAlerts: unreadAlerts,
+      directUpdates: directUpdates,
+    );
     return Container(
       key: _messageHistoryKey,
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF223244)),
+        color: const Color(0xFFF5F7FB),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'MESSAGE HISTORY',
-            style: GoogleFonts.rajdhani(
-              color: const Color(0xFFEAF4FF),
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE4ECF9),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  _chatAvatarLabel(currentClient.name),
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF274770),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      currentClient.name,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF142235),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${currentSite.name} • $threadStatus',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF667A92),
+                        fontSize: 11.6,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.center,
+            child: Text(
+              rows.isEmpty ? 'No messages yet' : 'Today',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF8EA1B8),
+                fontSize: 10.4,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          const SizedBox(height: 2),
-          Text(
-            'Recent client communications',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          for (int i = 0; i < rows.length; i++) ...[
-            _feedRow(rows[i]),
-            if (i != rows.length - 1) const SizedBox(height: 6),
-          ],
+          const SizedBox(height: 12),
+          if (rows.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFD7E1EC)),
+              ),
+              child: Text(
+                'The thread is clear right now. New client messages and drafted replies will land here.',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF6A7D93),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
+            )
+          else
+            for (int i = 0; i < rows.length; i++) ...[
+              _feedRow(rows[i]),
+              if (i != rows.length - 1) const SizedBox(height: 8),
+            ],
         ],
       ),
     );
@@ -1951,17 +2979,28 @@ class _ClientsPageState extends State<ClientsPage> {
     required int pendingAsks,
     required int activeIncidents,
     required String? reviewEventId,
+    required String? agentIncidentReference,
+    required String? queuedDraftItemId,
   }) {
+    final openAgent = widget.onOpenAgentForIncident;
+    final normalizedAgentIncidentReference = (agentIncidentReference ?? '')
+        .trim();
+    final normalizedQueuedDraftItemId = (queuedDraftItemId ?? '').trim();
+    final canOpenAgent =
+        openAgent != null &&
+        pendingAsks > 0 &&
+        normalizedAgentIncidentReference.isNotEmpty;
+    final opensQueuedDraft = normalizedQueuedDraftItemId.isNotEmpty;
     return _railCard(
-      title: 'PENDING AI DRAFTS',
+      title: 'Drafts waiting',
       icon: Icons.chat_bubble_outline_rounded,
-      accent: const Color(0xFFFBBF24),
+      accent: const Color(0xFF4C78B8),
       child: Column(
         children: [
           Text(
             '$pendingAsks',
             style: GoogleFonts.inter(
-              color: const Color(0xFFFBBF24),
+              color: const Color(0xFF325996),
               fontSize: 30,
               fontWeight: FontWeight.w900,
             ),
@@ -1969,7 +3008,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Awaiting review',
             style: GoogleFonts.inter(
-              color: const Color(0xFFB7A56C),
+              color: const Color(0xFF6A7D93),
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
             ),
@@ -1978,40 +3017,70 @@ class _ClientsPageState extends State<ClientsPage> {
           InkWell(
             key: const ValueKey('clients-review-drafts-action'),
             borderRadius: BorderRadius.circular(12),
-            onTap: () => _reviewPendingDrafts(reviewEventId),
+            onTap: () => _reviewPendingDrafts(
+              reviewEventId,
+              queuedDraftItemId: normalizedQueuedDraftItemId,
+              queuedDraftResumeTarget: _DetailedCommsResumeTarget.pendingDrafts,
+            ),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF3A2A11),
+                color: const Color(0xFFFFFFFF),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFF7E5B1D)),
+                border: Border.all(color: const Color(0xFFBFD0EA)),
               ),
               child: Text(
-                'REVIEW DRAFTS',
+                opensQueuedDraft ? 'Open queued draft' : 'Review drafts',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFFBBF24),
+                  color: const Color(0xFF325996),
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
               ),
             ),
           ),
+          if (canOpenAgent) ...[
+            const SizedBox(height: 8),
+            InkWell(
+              key: const ValueKey('clients-review-drafts-open-agent'),
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => openAgent(normalizedAgentIncidentReference),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7FAFE),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFD7E1EC)),
+                ),
+                child: Text(
+                  'Ask Junior Analyst',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF365E94),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFF11161D),
+              color: const Color(0xFFFFFFFF),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF2A3645)),
+              border: Border.all(color: const Color(0xFFD7E1EC)),
             ),
             child: Text(
-              '$activeIncidents active lane${activeIncidents == 1 ? '' : 's'}',
+              '$activeIncidents active thread${activeIncidents == 1 ? '' : 's'}',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                color: const Color(0xFFC7D2DE),
+                color: const Color(0xFF516882),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -2022,35 +3091,38 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 
-  Widget _learnedStyleCard() {
+  Widget _learnedStyleCard({
+    required String label,
+    required String source,
+  }) {
     return _railCard(
-      title: 'LEARNED STYLE',
+      title: 'Learned tone',
       icon: Icons.auto_graph_rounded,
-      accent: const Color(0xFFC084FC),
+      accent: const Color(0xFF4C78B8),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFF24142F),
+          color: const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF5E31A6)),
+          border: Border.all(color: const Color(0xFFD7E1EC)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '"Reassuring with ETAs"',
+              label,
               style: GoogleFonts.inter(
-                color: const Color(0xFFEBC8FF),
+                color: const Color(0xFF142235),
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              'AI-detected from approval history',
+              source,
               style: GoogleFonts.inter(
-                color: const Color(0xFFA88BC4),
+                color: const Color(0xFF6A7D93),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
@@ -2063,9 +3135,9 @@ class _ClientsPageState extends State<ClientsPage> {
 
   Widget _pinnedVoiceCard() {
     return _railCard(
-      title: 'PINNED VOICE',
+      title: 'Reply tone',
       icon: Icons.shield_outlined,
-      accent: const Color(0xFF8FD1FF),
+      accent: const Color(0xFF4C78B8),
       child: Column(
         children: [
           _voiceOption('Auto', selected: _selectedPinnedVoice == 'Auto'),
@@ -2102,17 +3174,17 @@ class _ClientsPageState extends State<ClientsPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF123140) : const Color(0xFF0D1117),
+          color: selected ? const Color(0xFFE8F1FF) : const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFF1F617C) : const Color(0xFF223244),
+            color: selected ? const Color(0xFFBFD0EA) : const Color(0xFFD7E1EC),
           ),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFF5DE1FF) : const Color(0xFFC7D2DE),
+            color: selected ? const Color(0xFF325996) : const Color(0xFF516882),
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
@@ -2131,9 +3203,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1A2B),
+        color: const Color(0xFFF5F7FB),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF223244)),
+        border: Border.all(color: const Color(0xFFD7E1EC)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2148,10 +3220,9 @@ class _ClientsPageState extends State<ClientsPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1,
+                    color: const Color(0xFF142235),
+                    fontSize: 11.4,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
@@ -2161,6 +3232,530 @@ class _ClientsPageState extends State<ClientsPage> {
           child,
         ],
       ),
+    );
+  }
+
+  List<ClientCommsQueueItem> _visibleControllerQueueItems() {
+    final selectedClientId = (_selectedClientId ?? '').trim();
+    final selectedSiteId = (_selectedSiteId ?? '').trim();
+    final stagedItems =
+        _stagedAgentDraftHandoffs.values
+            .where(
+              (handoff) =>
+                  handoff.matchesScope(selectedClientId, selectedSiteId),
+            )
+            .toList(growable: false)
+          ..sort((a, b) => b.createdAtUtc.compareTo(a.createdAtUtc));
+    return <ClientCommsQueueItem>[
+          for (final handoff in stagedItems)
+            _queueItemFromAgentDraftHandoff(handoff),
+          if (widget.usePlaceholderDataWhenEmpty) ..._seedControllerQueueItems(),
+        ]
+        .where((item) => !_resolvedQueueItemIds.contains(item.id))
+        .map(
+          (item) => item.copyWith(
+            draftMessage: _editedQueueDraftBodies[item.id] ?? item.draftMessage,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  ClientsAgentDraftHandoff? _latestStagedAgentDraftHandoffForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return null;
+    }
+    final stagedItems =
+        _stagedAgentDraftHandoffs.values
+            .where(
+              (handoff) =>
+                  handoff.matchesScope(normalizedClientId, normalizedSiteId),
+            )
+            .toList(growable: false)
+          ..sort((a, b) => b.createdAtUtc.compareTo(a.createdAtUtc));
+    if (stagedItems.isEmpty) {
+      return null;
+    }
+    return stagedItems.first;
+  }
+
+  int _stagedAgentDraftCountForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return 0;
+    }
+    return _stagedAgentDraftHandoffs.values
+        .where(
+          (handoff) =>
+              handoff.matchesScope(normalizedClientId, normalizedSiteId),
+        )
+        .length;
+  }
+
+  List<ClientCommsQueueItem> _seedControllerQueueItems() {
+    return const <ClientCommsQueueItem>[
+      ClientCommsQueueItem(
+        id: 'INC-4430-31',
+        clientName: 'Sandton Corp',
+        siteName: 'Sandton Estate North',
+        incidentLabel: 'INC-4430-31',
+        incidentReference: 'INC-4430-31',
+        severity: ClientCommsQueueSeverity.high,
+        generatedAtLabel: '23:42',
+        context: 'Perimeter breach alarm triggered',
+        draftMessage:
+            'Armed response officer Echo-3 has been dispatched to Sandton Estate North following perimeter breach detection at 23:42. Estimated arrival 4 minutes. Officer will verify scene and provide update.',
+      ),
+      ClientCommsQueueItem(
+        id: 'INC-4430-22',
+        clientName: 'Ms Valley',
+        siteName: 'Ms Valley Residence',
+        incidentLabel: 'INC-4430-22',
+        incidentReference: 'INC-4430-22',
+        severity: ClientCommsQueueSeverity.medium,
+        generatedAtLabel: '23:40',
+        context: 'Motion sensor alert - Zone 3',
+        draftMessage:
+            'We detected unusual activity near the north gate camera feed at 23:38. Our team is reviewing footage and will call you shortly to verify safe-word protocol. No immediate action required.',
+      ),
+      ClientCommsQueueItem(
+        id: 'INC-4430-18',
+        clientName: 'Hyde Park Management',
+        siteName: 'Hyde Park Complex',
+        incidentLabel: 'INC-4430-18',
+        incidentReference: 'INC-4430-18',
+        severity: ClientCommsQueueSeverity.low,
+        generatedAtLabel: '23:35',
+        context: 'Routine patrol completion',
+        draftMessage:
+            'Guard patrol completed at Hyde Park Complex. All zones checked and secured. Next scheduled patrol in 2 hours.',
+      ),
+    ];
+  }
+
+  Future<void> _sendQueueItem(ClientCommsQueueItem item) async {
+    final stagedHandoff = _stagedAgentDraftHandoffs[item.id];
+    final draftText = (_editedQueueDraftBodies[item.id] ?? item.draftMessage)
+        .trim();
+    if (stagedHandoff != null && widget.onSendStagedAgentDraftHandoff != null) {
+      final sent = await widget.onSendStagedAgentDraftHandoff!(
+        stagedHandoff,
+        draftText,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (!sent) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Telegram reply could not be delivered yet. The draft is still queued.',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+            ),
+          ),
+        );
+        return;
+      }
+    }
+    setState(() {
+      _resolvedQueueItemIds.add(item.id);
+      _stagedAgentDraftHandoffs.remove(item.id);
+      _editedQueueDraftBodies.remove(item.id);
+      if (_focusedQueueItemId == item.id) {
+        _focusedQueueItemId = null;
+        _focusedQueueResumeTarget = _DetailedCommsResumeTarget.pendingDrafts;
+      }
+    });
+    logUiAction(
+      'clients.send_pending_message',
+      context: {'draft_id': item.id, 'severity': item.severity.name},
+    );
+    if (mounted && stagedHandoff != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Reply sent to the client on Telegram.',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _rejectQueueItem(ClientCommsQueueItem item) {
+    setState(() {
+      _resolvedQueueItemIds.add(item.id);
+      _stagedAgentDraftHandoffs.remove(item.id);
+      _editedQueueDraftBodies.remove(item.id);
+      if (_focusedQueueItemId == item.id) {
+        _focusedQueueItemId = null;
+        _focusedQueueResumeTarget = _DetailedCommsResumeTarget.pendingDrafts;
+      }
+    });
+    logUiAction(
+      'clients.reject_pending_message',
+      context: {'draft_id': item.id, 'severity': item.severity.name},
+    );
+  }
+
+  void _ingestStagedAgentDraftHandoff(
+    ClientsAgentDraftHandoff? handoff, {
+    bool useSetState = false,
+  }) {
+    final normalizedId = handoff?.id.trim() ?? '';
+    if (handoff == null || normalizedId.isEmpty) {
+      return;
+    }
+    if (_stagedAgentDraftHandoffs.containsKey(normalizedId)) {
+      return;
+    }
+    void apply() {
+      _stagedAgentDraftHandoffs[normalizedId] = handoff;
+      _focusedQueueItemId = normalizedId;
+      _focusedQueueResumeTarget = _DetailedCommsResumeTarget.pendingDrafts;
+    }
+
+    if (useSetState && mounted) {
+      setState(apply);
+    } else {
+      apply();
+    }
+    final consume = widget.onConsumeStagedAgentDraftHandoff;
+    if (consume != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        consume(normalizedId);
+      });
+    }
+  }
+
+  ClientCommsQueueItem _queueItemFromAgentDraftHandoff(
+    ClientsAgentDraftHandoff handoff,
+  ) {
+    final incidentLabel = handoff.incidentReference.trim().isEmpty
+        ? 'AGENT HANDOFF'
+        : handoff.incidentReference.trim();
+    final clientId = handoff.clientId.trim();
+    final siteId = handoff.siteId.trim();
+    return ClientCommsQueueItem(
+      id: handoff.id,
+      clientName: _humanizeName(clientId, prefix: 'CLIENT-'),
+      siteName: _humanizeName(siteId, prefix: 'SITE-'),
+      incidentLabel: incidentLabel,
+      incidentReference: handoff.incidentReference.trim(),
+      severity: handoff.severity,
+      generatedAtLabel: _utc(handoff.createdAtUtc),
+      context:
+          'Agent handoff ready for ${handoff.room} from ${handoff.sourceRouteLabel}. Review and send from the scoped client thread.',
+      draftMessage: handoff.draftText.trim(),
+    );
+  }
+
+  Future<void> _prepareLatestSentFollowUpReply() async {
+    final notice = widget.liveFollowUpNotice;
+    final selectedClientId = (_selectedClientId ?? '').trim();
+    final selectedSiteId = (_selectedSiteId ?? '').trim();
+    if (_preparingLatestSentFollowUpReply) {
+      return;
+    }
+    if (notice == null || selectedClientId.isEmpty || selectedSiteId.isEmpty) {
+      _toggleDetailedWorkspace();
+      return;
+    }
+    setState(() {
+      _preparingLatestSentFollowUpReply = true;
+    });
+    try {
+      var draftText = notice.suggestedReplyDraft.trim().isEmpty
+          ? 'Control is following up now and will confirm here as soon as the next verified update comes in.'
+          : notice.suggestedReplyDraft.trim();
+      final suggestReply = widget.onSuggestLiveFollowUpReply;
+      if (suggestReply != null) {
+        final suggestedDraft = await suggestReply(
+          notice,
+          selectedClientId,
+          selectedSiteId,
+        );
+        if (suggestedDraft.trim().isNotEmpty) {
+          draftText = suggestedDraft.trim();
+        }
+      }
+      if (!mounted) {
+        return;
+      }
+      final handoff = ClientsAgentDraftHandoff(
+        id: notice.id.trim().isEmpty
+            ? 'live-follow-up-${notice.occurredAtUtc.microsecondsSinceEpoch}'
+            : notice.id.trim(),
+        clientId: selectedClientId,
+        siteId: selectedSiteId,
+        room: 'Residents',
+        incidentReference: '',
+        draftText: draftText,
+        originalDraftText: draftText,
+        sourceRouteLabel: 'Live Follow-up',
+        createdAtUtc: notice.occurredAtUtc,
+        severity: notice.urgent
+            ? ClientCommsQueueSeverity.high
+            : ClientCommsQueueSeverity.medium,
+      );
+      setState(() {
+        _resolvedQueueItemIds.remove(handoff.id);
+        _stagedAgentDraftHandoffs[handoff.id] = handoff;
+        _editedQueueDraftBodies.remove(handoff.id);
+        _focusedQueueItemId = handoff.id;
+        _focusedQueueResumeTarget = _DetailedCommsResumeTarget.pendingDrafts;
+        _showDetailedWorkspace = false;
+      });
+      logUiAction(
+        'clients.prepare_live_follow_up_reply',
+        context: {
+          'client_id': selectedClientId,
+          'site_id': selectedSiteId,
+          'follow_up_id': handoff.id,
+          'urgent': notice.urgent,
+        },
+      );
+      final queueItem = _queueItemFromAgentDraftHandoff(handoff);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          return;
+        }
+        unawaited(_editQueueItem(queueItem));
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _preparingLatestSentFollowUpReply = false;
+        });
+      }
+    }
+  }
+
+  _ClientSiteModel _withAgentDraftHandoffScopes(_ClientSiteModel model) {
+    final clientsById = <String, _ClientOption>{
+      for (final client in model.clients) client.id: client,
+    };
+    final sitesById = <String, _SiteOption>{
+      for (final site in model.sites) site.id: site,
+    };
+    for (final handoff in _stagedAgentDraftHandoffs.values) {
+      final clientId = handoff.clientId.trim();
+      final siteId = handoff.siteId.trim();
+      if (clientId.isNotEmpty && !clientsById.containsKey(clientId)) {
+        clientsById[clientId] = _ClientOption(
+          id: clientId,
+          name: _humanizeName(clientId, prefix: 'CLIENT-'),
+          code: clientId,
+        );
+      }
+      if (siteId.isNotEmpty && !sitesById.containsKey(siteId)) {
+        sitesById[siteId] = _SiteOption(
+          id: siteId,
+          name: _humanizeName(siteId, prefix: 'SITE-'),
+          code: siteId,
+          clientId: clientId.isEmpty ? 'CLIENT-UNKNOWN' : clientId,
+        );
+      }
+    }
+    final clients = clientsById.values.toList(growable: false)
+      ..sort((a, b) => a.id.compareTo(b.id));
+    final sites = sitesById.values.toList(growable: false)
+      ..sort((a, b) => a.id.compareTo(b.id));
+    return _ClientSiteModel(clients: clients, sites: sites);
+  }
+
+  _ClientSiteModel _withExplicitRouteScope(_ClientSiteModel model) {
+    final normalizedClientId = widget.clientId.trim();
+    final normalizedSiteId = widget.siteId.trim();
+    if (normalizedClientId.isEmpty && normalizedSiteId.isEmpty) {
+      return model;
+    }
+    final clientsById = <String, _ClientOption>{
+      for (final client in model.clients) client.id: client,
+    };
+    final sitesById = <String, _SiteOption>{
+      for (final site in model.sites) site.id: site,
+    };
+    if (normalizedClientId.isNotEmpty &&
+        !clientsById.containsKey(normalizedClientId)) {
+      clientsById[normalizedClientId] = _ClientOption(
+        id: normalizedClientId,
+        name: _humanizeName(normalizedClientId, prefix: 'CLIENT-'),
+        code: normalizedClientId,
+      );
+    }
+    if (normalizedSiteId.isNotEmpty && !sitesById.containsKey(normalizedSiteId)) {
+      sitesById[normalizedSiteId] = _SiteOption(
+        id: normalizedSiteId,
+        name: _humanizeName(normalizedSiteId, prefix: 'SITE-'),
+        code: normalizedSiteId,
+        clientId: normalizedClientId.isEmpty
+            ? 'CLIENT-UNKNOWN'
+            : normalizedClientId,
+      );
+    }
+    final clients = clientsById.values.toList(growable: false)
+      ..sort((a, b) => a.id.compareTo(b.id));
+    final sites = sitesById.values.toList(growable: false)
+      ..sort((a, b) => a.id.compareTo(b.id));
+    return _ClientSiteModel(clients: clients, sites: sites);
+  }
+
+  Future<void> _editQueueItem(ClientCommsQueueItem item) async {
+    final controller = TextEditingController(
+      text: _editedQueueDraftBodies[item.id] ?? item.draftMessage,
+    );
+    final handoff = _stagedAgentDraftHandoffs[item.id];
+    final aiAssistQueueDraft = widget.onAiAssistQueueDraft;
+    final canAiAssist =
+        aiAssistQueueDraft != null &&
+        handoff != null &&
+        handoff.clientId.trim().isNotEmpty &&
+        handoff.siteId.trim().isNotEmpty &&
+        handoff.room.trim().isNotEmpty;
+    var aiAssistBusy = false;
+    final updated = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            Future<void> runAiAssist() async {
+              if (!canAiAssist || aiAssistBusy) {
+                return;
+              }
+              setDialogState(() {
+                aiAssistBusy = true;
+              });
+              try {
+                final assistedDraft = await aiAssistQueueDraft(
+                  handoff.clientId,
+                  handoff.siteId,
+                  handoff.room,
+                  controller.text.trim(),
+                );
+                if (!mounted || !dialogContext.mounted) {
+                  return;
+                }
+                final normalizedAssistedDraft = assistedDraft?.trim() ?? '';
+                if (normalizedAssistedDraft.isEmpty) {
+                  return;
+                }
+                controller.text = normalizedAssistedDraft;
+                controller.selection = TextSelection.collapsed(
+                  offset: controller.text.length,
+                );
+              } finally {
+                if (dialogContext.mounted) {
+                  setDialogState(() {
+                    aiAssistBusy = false;
+                  });
+                }
+              }
+            }
+
+            return AlertDialog(
+              backgroundColor: const Color(0xFFFFFFFF),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: const BorderSide(color: Color(0xFFD7E1EC)),
+              ),
+              title: Text(
+                'Edit Draft',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF142235),
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              content: SizedBox(
+                width: 560,
+                child: TextField(
+                  controller: controller,
+                  maxLines: 8,
+                  minLines: 6,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF142235),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Refine the outgoing message',
+                    hintStyle: GoogleFonts.inter(
+                      color: const Color(0xFF8EA1B8),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF7FAFE),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFD7E1EC)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF253548)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF22D3EE)),
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                if (canAiAssist)
+                  OutlinedButton(
+                    key: const ValueKey('clients-edit-draft-ai-assist'),
+                    onPressed: aiAssistBusy ? null : runAiAssist,
+                    child: Text(
+                      aiAssistBusy ? 'AI ASSISTING...' : 'AI ASSIST',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                FilledButton(
+                  onPressed: () =>
+                      Navigator.of(dialogContext).pop(controller.text.trim()),
+                  child: Text(
+                    'Save',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.dispose();
+    });
+    if (!mounted || updated == null || updated.isEmpty) {
+      return;
+    }
+    setState(() {
+      _editedQueueDraftBodies[item.id] = updated;
+    });
+    logUiAction(
+      'clients.edit_pending_message',
+      context: {'draft_id': item.id, 'severity': item.severity.name},
     );
   }
 
@@ -2194,7 +3789,60 @@ class _ClientsPageState extends State<ClientsPage> {
         'site_id': _selectedSiteId,
       },
     );
-    await callback();
+    try {
+      await callback();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pushSyncStatus = 'push idle';
+        });
+      }
+    }
+  }
+
+  void _scheduleSelectionReconcile({
+    required String clientId,
+    required String siteId,
+  }) {
+    if ((_selectedClientId == clientId && _selectedSiteId == siteId) ||
+        _selectionReconcileScheduled) {
+      return;
+    }
+    _selectionReconcileScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _selectionReconcileScheduled = false;
+      if (!mounted) {
+        return;
+      }
+      if (_selectedClientId == clientId && _selectedSiteId == siteId) {
+        return;
+      }
+      setState(() {
+        _selectedClientId = clientId;
+        _selectedSiteId = siteId;
+      });
+    });
+  }
+
+  ({String label, String source})? _learnedStyleSummaryForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return null;
+    }
+    return null;
+  }
+
+  void _acknowledgeEvidenceReturnReceipt() {
+    if (_activeEvidenceReturnReceipt == null) {
+      return;
+    }
+    setState(() {
+      _activeEvidenceReturnReceipt = null;
+    });
   }
 
   void _selectClientSite(
@@ -2208,6 +3856,8 @@ class _ClientsPageState extends State<ClientsPage> {
     setState(() {
       _selectedClientId = clientId;
       _selectedSiteId = siteId;
+      _focusedQueueItemId = null;
+      _focusedQueueResumeTarget = _DetailedCommsResumeTarget.pendingDrafts;
     });
     logUiAction(
       'clients.select_lane',
@@ -2225,12 +3875,15 @@ class _ClientsPageState extends State<ClientsPage> {
       selectedSiteId: siteId,
     );
     if (rows.isEmpty &&
+        widget.usePlaceholderDataWhenEmpty &&
         clientId == _selectedClientId &&
         siteId == _selectedSiteId) {
       rows = _fallbackFeed;
     }
     return (
-      pendingDrafts: rows.where((row) => row.type == _FeedType.update).length,
+      pendingDrafts:
+          rows.where((row) => row.type == _FeedType.update).length +
+          _stagedAgentDraftCountForScope(clientId: clientId, siteId: siteId),
       alerts: rows.where((row) => row.status != _FeedStatus.info).length,
       feedCount: rows.length,
       incidents: widget.events
@@ -2242,7 +3895,32 @@ class _ClientsPageState extends State<ClientsPage> {
     );
   }
 
-  void _reviewPendingDrafts(String? reviewEventId) {
+  void _reviewPendingDrafts(
+    String? reviewEventId, {
+    String? queuedDraftItemId,
+    _DetailedCommsResumeTarget queuedDraftResumeTarget =
+        _DetailedCommsResumeTarget.pendingDrafts,
+  }) {
+    final normalizedQueuedDraftItemId = (queuedDraftItemId ?? '').trim();
+    if (normalizedQueuedDraftItemId.isNotEmpty) {
+      logUiAction(
+        'clients.review_pending_drafts',
+        context: {
+          'client_id': _selectedClientId,
+          'site_id': _selectedSiteId,
+          'source': 'queued_agent_draft',
+          'draft_id': normalizedQueuedDraftItemId,
+          'resume_target': _detailedCommsResumeTargetValue(
+            queuedDraftResumeTarget,
+          ),
+        },
+      );
+      _openSimpleQueueForDraft(
+        normalizedQueuedDraftItemId,
+        resumeTarget: queuedDraftResumeTarget,
+      );
+      return;
+    }
     if (reviewEventId != null && widget.onOpenEventsForScope != null) {
       logUiAction(
         'clients.review_pending_drafts',
@@ -2255,7 +3933,123 @@ class _ClientsPageState extends State<ClientsPage> {
       widget.onOpenEventsForScope!.call(<String>[reviewEventId], reviewEventId);
       return;
     }
+    final selectedClientId = (_selectedClientId ?? '').trim();
+    final selectedSiteId = (_selectedSiteId ?? '').trim();
+    final stagedDraftCount = _stagedAgentDraftCountForScope(
+      clientId: selectedClientId,
+      siteId: selectedSiteId,
+    );
+    if (_showDetailedWorkspace && stagedDraftCount > 0) {
+      final latestStagedDraft = _latestStagedAgentDraftHandoffForScope(
+        clientId: selectedClientId,
+        siteId: selectedSiteId,
+      );
+      if (latestStagedDraft != null) {
+        logUiAction(
+          'clients.review_pending_drafts',
+          context: {
+            'client_id': selectedClientId,
+            'site_id': selectedSiteId,
+            'source': 'staged_agent_queue',
+            'draft_count': stagedDraftCount,
+            'draft_id': latestStagedDraft.id,
+            'resume_target': _detailedCommsResumeTargetValue(
+              _DetailedCommsResumeTarget.pendingDrafts,
+            ),
+          },
+        );
+        _openSimpleQueueForDraft(
+          latestStagedDraft.id,
+          resumeTarget: _DetailedCommsResumeTarget.pendingDrafts,
+        );
+        return;
+      }
+      logUiAction(
+        'clients.review_pending_drafts',
+        context: {
+          'client_id': selectedClientId,
+          'site_id': selectedSiteId,
+          'source': 'staged_agent_queue',
+          'draft_count': stagedDraftCount,
+        },
+      );
+      _toggleDetailedWorkspace();
+      return;
+    }
     _scrollToMessageHistory();
+  }
+
+  String get _focusedQueueResumeActionLabel {
+    return switch (_focusedQueueResumeTarget) {
+      _DetailedCommsResumeTarget.pendingDrafts => 'RESUME DRAFT RAIL',
+      _DetailedCommsResumeTarget.threadContext => 'RESUME THREAD CONTEXT',
+      _DetailedCommsResumeTarget.channelReview => 'RESUME CHANNEL REVIEW',
+    };
+  }
+
+  String _detailedCommsResumeTargetValue(_DetailedCommsResumeTarget target) {
+    return switch (target) {
+      _DetailedCommsResumeTarget.pendingDrafts => 'pending_drafts',
+      _DetailedCommsResumeTarget.threadContext => 'thread_context',
+      _DetailedCommsResumeTarget.channelReview => 'channel_review',
+    };
+  }
+
+  void _openSimpleQueueForDraft(
+    String queueItemId, {
+    _DetailedCommsResumeTarget resumeTarget =
+        _DetailedCommsResumeTarget.pendingDrafts,
+  }) {
+    final normalizedQueueItemId = queueItemId.trim();
+    if (normalizedQueueItemId.isEmpty) {
+      return;
+    }
+    setState(() {
+      _showDetailedWorkspace = false;
+      _focusedQueueItemId = normalizedQueueItemId;
+      _focusedQueueResumeTarget = resumeTarget;
+    });
+    logUiAction(
+      'clients.toggle_detailed_workspace',
+      context: {
+        'open': false,
+        'client_id': _selectedClientId,
+        'site_id': _selectedSiteId,
+        'source': 'focused_queue_draft',
+        'draft_id': normalizedQueueItemId,
+        'resume_target': _detailedCommsResumeTargetValue(resumeTarget),
+      },
+    );
+  }
+
+  void _resumeDetailedWorkspaceForQueueItem(ClientCommsQueueItem item) {
+    final normalizedQueueItemId = item.id.trim();
+    if (normalizedQueueItemId.isEmpty) {
+      _toggleDetailedWorkspace();
+      return;
+    }
+    final resumeTarget = _focusedQueueResumeTarget;
+    setState(() {
+      _showDetailedWorkspace = true;
+      _focusedQueueItemId = normalizedQueueItemId;
+    });
+    logUiAction(
+      'clients.toggle_detailed_workspace',
+      context: {
+        'open': true,
+        'client_id': _selectedClientId,
+        'site_id': _selectedSiteId,
+        'source': 'resume_detailed_comms',
+        'draft_id': normalizedQueueItemId,
+        'resume_target': _detailedCommsResumeTargetValue(resumeTarget),
+      },
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _scrollToDetailedCommsResumeTarget(resumeTarget);
+    });
   }
 
   void _scrollToMessageHistory() {
@@ -2263,6 +4057,26 @@ class _ClientsPageState extends State<ClientsPage> {
     if (context == null) return;
     Scrollable.ensureVisible(
       context,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      alignment: 0.08,
+    );
+  }
+
+  void _scrollToDetailedCommsResumeTarget(_DetailedCommsResumeTarget target) {
+    final targetContext = switch (target) {
+      _DetailedCommsResumeTarget.pendingDrafts =>
+        _pendingDraftsCardKey.currentContext,
+      _DetailedCommsResumeTarget.threadContext =>
+        _roomThreadContextCardKey.currentContext,
+      _DetailedCommsResumeTarget.channelReview =>
+        _communicationChannelsCardKey.currentContext,
+    };
+    if (targetContext == null) {
+      return;
+    }
+    Scrollable.ensureVisible(
+      targetContext,
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
       alignment: 0.08,
@@ -2281,6 +4095,7 @@ class _FeedRow {
   final String description;
   final String timestampLabel;
   final String? eventId;
+  final String? incidentReference;
 
   const _FeedRow({
     required this.type,
@@ -2289,8 +4104,11 @@ class _FeedRow {
     required this.description,
     required this.timestampLabel,
     this.eventId,
+    this.incidentReference,
   });
 }
+
+enum _DetailedCommsResumeTarget { pendingDrafts, threadContext, channelReview }
 
 class _ClientOption {
   final String id;
@@ -2369,7 +4187,7 @@ const List<_FeedRow> _fallbackFeed = [
     type: _FeedType.arrival,
     status: _FeedStatus.success,
     title: 'Responder On Site',
-    description: 'Response unit arrived for DSP-4 and is checking the lane.',
+    description: 'Response unit arrived for DSP-4 and is checking the site.',
     timestampLabel: '19:47 UTC',
   ),
   _FeedRow(
@@ -2383,7 +4201,7 @@ const List<_FeedRow> _fallbackFeed = [
     type: _FeedType.arrival,
     status: _FeedStatus.success,
     title: 'Responder On Site',
-    description: 'Response unit arrived for DSP-3 and is checking the lane.',
+    description: 'Response unit arrived for DSP-3 and is checking the site.',
     timestampLabel: '18:53 UTC',
   ),
   _FeedRow(
@@ -2397,7 +4215,7 @@ const List<_FeedRow> _fallbackFeed = [
     type: _FeedType.arrival,
     status: _FeedStatus.success,
     title: 'Responder On Site',
-    description: 'Response unit arrived for DSP-2 and is checking the lane.',
+    description: 'Response unit arrived for DSP-2 and is checking the site.',
     timestampLabel: '17:47 UTC',
   ),
   _FeedRow(
@@ -2466,6 +4284,7 @@ List<_FeedRow> _incidentFeedRows({
           description: '${event.guardId} arrived for ${event.dispatchId}.',
           timestampLabel: _utc(event.occurredAt),
           eventId: event.eventId,
+          incidentReference: _eventIncidentReference(event),
         ),
       );
       continue;
@@ -2479,6 +4298,7 @@ List<_FeedRow> _incidentFeedRows({
           description: '${event.dispatchId} opened for ${event.siteId}.',
           timestampLabel: _utc(event.occurredAt),
           eventId: event.eventId,
+          incidentReference: _eventIncidentReference(event),
         ),
       );
       continue;
@@ -2492,6 +4312,7 @@ List<_FeedRow> _incidentFeedRows({
           description: event.headline,
           timestampLabel: _utc(event.occurredAt),
           eventId: event.eventId,
+          incidentReference: _eventIncidentReference(event),
         ),
       );
       continue;
@@ -2505,6 +4326,7 @@ List<_FeedRow> _incidentFeedRows({
           description: '${event.dispatchId} closed for ${event.siteId}.',
           timestampLabel: _utc(event.occurredAt),
           eventId: event.eventId,
+          incidentReference: _eventIncidentReference(event),
         ),
       );
       continue;
@@ -2512,6 +4334,14 @@ List<_FeedRow> _incidentFeedRows({
   }
 
   return rows;
+}
+
+String _eventIncidentReference(DispatchEvent event) {
+  if (event is IntelligenceReceived) return event.intelligenceId.trim();
+  if (event is DecisionCreated) return event.dispatchId.trim();
+  if (event is ResponseArrived) return event.dispatchId.trim();
+  if (event is IncidentClosed) return event.dispatchId.trim();
+  return '';
 }
 
 String _eventClientId(DispatchEvent event) {

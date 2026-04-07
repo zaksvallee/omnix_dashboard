@@ -4,12 +4,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../infrastructure/intelligence/news_intelligence_service.dart';
 import '../domain/guard/guard_mobile_ops.dart';
+import 'dispatch_models.dart';
 import 'radio_bridge_service.dart';
 import 'offline_incident_spool_service.dart';
 import 'monitoring_identity_policy_service.dart';
 import '../ui/client_app_page.dart';
 import '../ui/admin_page.dart';
-import '../ui/dispatch_models.dart';
 import '../ui/video_fleet_scope_health_sections.dart';
 
 class DispatchPersistenceService {
@@ -94,6 +94,10 @@ class DispatchPersistenceService {
       'onyx_guard_export_audit_clear_meta_v1';
   static const offlineIncidentSpoolReplayAuditKey =
       'onyx_offline_incident_spool_replay_audit_v1';
+  static const onyxAgentCameraAuditHistoryKey =
+      'onyx_agent_camera_audit_history_v1';
+  static const onyxAgentThreadSessionStateKey =
+      'onyx_agent_thread_session_state_v1';
   static const morningSovereignReportKey = 'onyx_morning_sovereign_report_v1';
   static const morningSovereignReportHistoryKey =
       'onyx_morning_sovereign_report_history_v1';
@@ -1021,7 +1025,10 @@ class DispatchPersistenceService {
         decoded.map((key, value) => MapEntry(key.toString(), value as Object?)),
       );
     } catch (_) {
-      await clearScopedClientAppPushSyncState(clientId: clientId, siteId: siteId);
+      await clearScopedClientAppPushSyncState(
+        clientId: clientId,
+        siteId: siteId,
+      );
       return const ClientPushSyncState.idle();
     }
   }
@@ -1078,6 +1085,31 @@ class DispatchPersistenceService {
     await prefs.remove(telegramAdminRuntimeStateKey);
   }
 
+  Future<Map<String, Object?>> readOnyxAgentThreadSessionState() async {
+    final raw = prefs.getString(onyxAgentThreadSessionStateKey);
+    if (raw == null || raw.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return const {};
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value as Object?),
+      );
+    } catch (_) {
+      await clearOnyxAgentThreadSessionState();
+      return const {};
+    }
+  }
+
+  Future<void> saveOnyxAgentThreadSessionState(
+    Map<String, Object?> state,
+  ) async {
+    await prefs.setString(onyxAgentThreadSessionStateKey, jsonEncode(state));
+  }
+
+  Future<void> clearOnyxAgentThreadSessionState() async {
+    await prefs.remove(onyxAgentThreadSessionStateKey);
+  }
+
   String _scopedClientConversationKey(
     String baseKey, {
     required String clientId,
@@ -1101,13 +1133,13 @@ class DispatchPersistenceService {
     required String clientId,
     required String siteId,
   }) async {
+    if (clientId.trim().isEmpty || siteId.trim().isEmpty) {
+      return;
+    }
     final scopeKey = _clientConversationScopeKey(
       clientId: clientId,
       siteId: siteId,
     );
-    if (scopeKey == '|') {
-      return;
-    }
     final existing = await readClientConversationScopeKeys();
     if (existing.contains(scopeKey)) {
       return;
@@ -1147,7 +1179,6 @@ class DispatchPersistenceService {
     }
     final normalized = raw.trim();
     if (normalized.isEmpty) {
-      await clearMonitoringWatchAuditSummary();
       return null;
     }
     return normalized;
@@ -1340,6 +1371,42 @@ class DispatchPersistenceService {
     await prefs.remove(offlineIncidentSpoolReplayAuditKey);
   }
 
+  Future<List<Map<String, Object?>>> readOnyxAgentCameraAuditHistory() async {
+    final raw = prefs.getString(onyxAgentCameraAuditHistoryKey);
+    if (raw == null || raw.isEmpty) {
+      return const <Map<String, Object?>>[];
+    }
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return const <Map<String, Object?>>[];
+      }
+      final entries = <Map<String, Object?>>[];
+      for (final item in decoded) {
+        if (item is! Map) {
+          continue;
+        }
+        entries.add(
+          item.map((key, value) => MapEntry(key.toString(), value as Object?)),
+        );
+      }
+      return entries;
+    } catch (_) {
+      await clearOnyxAgentCameraAuditHistory();
+      return const <Map<String, Object?>>[];
+    }
+  }
+
+  Future<void> saveOnyxAgentCameraAuditHistory(
+    List<Map<String, Object?>> history,
+  ) async {
+    await prefs.setString(onyxAgentCameraAuditHistoryKey, jsonEncode(history));
+  }
+
+  Future<void> clearOnyxAgentCameraAuditHistory() async {
+    await prefs.remove(onyxAgentCameraAuditHistoryKey);
+  }
+
   Future<List<GuardAssignment>> readGuardAssignments() async {
     final raw = prefs.getString(guardAssignmentsKey);
     if (raw == null || raw.isEmpty) return const [];
@@ -1419,7 +1486,12 @@ class DispatchPersistenceService {
   }
 
   Future<void> saveGuardSyncHistoryFilter(String filter) async {
-    await prefs.setString(guardSyncHistoryFilterKey, filter.trim());
+    final normalized = filter.trim();
+    if (normalized.isEmpty) {
+      await clearGuardSyncHistoryFilter();
+      return;
+    }
+    await prefs.setString(guardSyncHistoryFilterKey, normalized);
   }
 
   Future<void> clearGuardSyncHistoryFilter() async {

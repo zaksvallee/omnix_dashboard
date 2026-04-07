@@ -70,6 +70,7 @@ class VideoEdgeEventContract {
   final String? zone;
   final String? objectLabel;
   final double? objectConfidence;
+  final String? trackId;
   final String? faceMatchId;
   final double? faceConfidence;
   final String? plateNumber;
@@ -94,6 +95,7 @@ class VideoEdgeEventContract {
     this.zone,
     this.objectLabel,
     this.objectConfidence,
+    this.trackId,
     this.faceMatchId,
     this.faceConfidence,
     this.plateNumber,
@@ -142,6 +144,7 @@ class VideoEdgeEventContract {
       zone: zone,
       objectLabel: objectLabel,
       objectConfidence: objectConfidence,
+      trackId: trackId,
       faceMatchId: faceMatchId,
       faceConfidence: faceConfidence,
       plateNumber: plateNumber,

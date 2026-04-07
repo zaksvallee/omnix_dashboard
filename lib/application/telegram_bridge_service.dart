@@ -7,6 +7,8 @@ class TelegramBridgeMessage {
   final String chatId;
   final int? messageThreadId;
   final String text;
+  final List<int>? photoBytes;
+  final String? photoFilename;
   final Map<String, Object?>? replyMarkup;
   final String? parseMode;
 
@@ -15,9 +17,13 @@ class TelegramBridgeMessage {
     required this.chatId,
     this.messageThreadId,
     required this.text,
+    this.photoBytes,
+    this.photoFilename,
     this.replyMarkup,
     this.parseMode,
   });
+
+  bool get isPhoto => photoBytes != null && photoBytes!.isNotEmpty;
 }
 
 class TelegramBridgeInboundMessage {
@@ -170,26 +176,28 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
         continue;
       }
       try {
-        final response = await client
-            .post(
-              endpoint,
-              headers: const {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-              },
-              body: jsonEncode({
-                'chat_id': chatId,
-                if (message.messageThreadId != null)
-                  'message_thread_id': message.messageThreadId,
-                'text': message.text,
-                if ((message.parseMode ?? '').trim().isNotEmpty)
-                  'parse_mode': message.parseMode!.trim(),
-                if (message.replyMarkup != null)
-                  'reply_markup': message.replyMarkup,
-                'disable_web_page_preview': true,
-              }),
-            )
-            .timeout(requestTimeout);
+        final response = message.isPhoto
+            ? await _sendPhotoMessage(message).timeout(requestTimeout)
+            : await client
+                  .post(
+                    endpoint,
+                    headers: const {
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json',
+                    },
+                    body: jsonEncode({
+                      'chat_id': chatId,
+                      if (message.messageThreadId != null)
+                        'message_thread_id': message.messageThreadId,
+                      'text': message.text,
+                      if ((message.parseMode ?? '').trim().isNotEmpty)
+                        'parse_mode': message.parseMode!.trim(),
+                      if (message.replyMarkup != null)
+                        'reply_markup': message.replyMarkup,
+                      'disable_web_page_preview': true,
+                    }),
+                  )
+                  .timeout(requestTimeout);
         if (response.statusCode < 200 || response.statusCode >= 300) {
           failed.add(message);
           failureReasons[message.messageKey] =
@@ -224,6 +232,38 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       failureReasonsByMessageKey: failureReasons,
       telegramMessageIdsByMessageKey: telegramMessageIds,
     );
+  }
+
+  Future<http.Response> _sendPhotoMessage(TelegramBridgeMessage message) async {
+    final endpoint = Uri.https(
+      'api.telegram.org',
+      '/bot${botToken.trim()}/sendPhoto',
+    );
+    final request = http.MultipartRequest('POST', endpoint)
+      ..fields['chat_id'] = message.chatId.trim();
+    if (message.messageThreadId != null) {
+      request.fields['message_thread_id'] = '${message.messageThreadId!}';
+    }
+    if (message.text.trim().isNotEmpty) {
+      request.fields['caption'] = message.text.trim();
+    }
+    if ((message.parseMode ?? '').trim().isNotEmpty) {
+      request.fields['parse_mode'] = message.parseMode!.trim();
+    }
+    if (message.replyMarkup != null) {
+      request.fields['reply_markup'] = jsonEncode(message.replyMarkup);
+    }
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'photo',
+        message.photoBytes!,
+        filename: (message.photoFilename ?? '').trim().isEmpty
+            ? 'snapshot.jpg'
+            : message.photoFilename!.trim(),
+      ),
+    );
+    final streamed = await client.send(request);
+    return http.Response.fromStream(streamed);
   }
 
   @override

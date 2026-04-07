@@ -62,7 +62,8 @@ class VideoFleetScopeHealthPanel extends StatelessWidget {
             activeWatchActionDrilldown?.actionableSectionTitle ?? 'ACTIONABLE',
             sections.actionableScopes.length,
             sections.actionableLabelFor(activeWatchActionDrilldown),
-            accent: activeWatchActionDrilldown?.accentColor ??
+            accent:
+                activeWatchActionDrilldown?.accentColor ??
                 const Color(0xFF8FD1FF),
             supportingChips: [
               _supportChip(
@@ -141,9 +142,9 @@ class VideoFleetScopeHealthPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF111826),
+        color: const Color(0xFFFBFDFF),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: accent.withValues(alpha: 0.34)),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,10 +166,7 @@ class VideoFleetScopeHealthPanel extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '$title ($count) • $detail',
-                      style: sectionLabelStyle,
-                    ),
+                    Text('$title ($count) • $detail', style: sectionLabelStyle),
                   ],
                 ),
               ),
@@ -186,7 +184,7 @@ class VideoFleetScopeHealthPanel extends StatelessWidget {
                 child: Text(
                   '$count',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF4FF),
+                    color: const Color(0xFF172638),
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
                   ),
@@ -212,7 +210,7 @@ class VideoFleetScopeHealthPanel extends StatelessWidget {
       child: Text(
         '$label • $value',
         style: GoogleFonts.inter(
-          color: const Color(0xFFCAD7E8),
+          color: const Color(0xFF556B80),
           fontSize: 10,
           fontWeight: FontWeight.w700,
         ),

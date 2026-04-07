@@ -1,0 +1,181 @@
+{
+  "date": "2026-04-04",
+  "generatedAtUtc": "2026-04-04T16:30:00.000Z",
+  "shiftWindowStartUtc": "2026-04-04T06:00:00.000Z",
+  "shiftWindowEndUtc": "2026-04-04T16:00:00.000Z",
+  "estimatedRevenue": 3895,
+  "repeatCustomerRate": "27%",
+  "ledgerIntegrity": {
+    "totalEvents": 118,
+    "hashVerified": true,
+    "integrityScore": 99
+  },
+  "aiHumanDelta": {
+    "aiDecisions": 8,
+    "humanOverrides": 1,
+    "overrideReasons": {
+      "operator_review": 1
+    }
+  },
+  "normDrift": {
+    "sitesMonitored": 1,
+    "driftDetected": 0,
+    "avgMatchScore": 98.1
+  },
+  "complianceBlockage": {
+    "psiraExpired": 0,
+    "pdpExpired": 0,
+    "totalBlocked": 0
+  },
+  "siteActivity": {
+    "totalSignals": 56,
+    "personSignals": 9,
+    "vehicleSignals": 47,
+    "knownIdentitySignals": 0,
+    "flaggedIdentitySignals": 2,
+    "unknownSignals": 47,
+    "longPresenceSignals": 2,
+    "guardInteractionSignals": 3,
+    "executiveSummary": "Saturday throughput peaked between 10:00 and 12:00 as the entry lane fed Wash Bay 1 continuously.",
+    "headline": "56 site-activity signals recorded",
+    "summaryLine": "Signals 56 • Vehicles 47 • People 9 • Unknown 47 • Long presence 2 • Guard interactions 3"
+  },
+  "sceneReview": {
+    "totalReviews": 9,
+    "modelReviews": 7,
+    "metadataFallbackReviews": 2,
+    "suppressedActions": 0,
+    "incidentAlerts": 0,
+    "repeatUpdates": 3,
+    "escalationCandidates": 0,
+    "topPosture": "weekend wash-bay queueing",
+    "actionMixSummary": "Vehicle flow stayed commercially healthy with only two loitering visits flagged for follow-up.",
+    "latestActionTaken": "Saturday peak queueing at Wash Bay 1 was monitored until the exit lane cleared.",
+    "recentActionsSummary": "Peak-hour congestion stayed within the expected 10:00-12:00 band.",
+    "latestSuppressedPattern": ""
+  },
+  "receiptPolicy": {
+    "generatedReports": 3,
+    "trackedConfigurationReports": 3,
+    "legacyConfigurationReports": 0,
+    "fullyIncludedReports": 2,
+    "reportsWithOmittedSections": 1,
+    "omittedAiDecisionLogReports": 1,
+    "omittedGuardMetricsReports": 0,
+    "standardBrandingReports": 2,
+    "defaultPartnerBrandingReports": 0,
+    "customBrandingOverrideReports": 1,
+    "governanceHandoffReports": 1,
+    "routineReviewReports": 2,
+    "executiveSummary": "Three Saturday BI reports were generated with tracked configuration and one governance handoff for the loitering review.",
+    "headline": "3 BI reports generated with 1 governance handoff",
+    "summaryLine": "Reports 3 • Fully included 2 • Omitted sections 1 • Governance handoffs 1 • Routine reviews 2",
+    "latestReportSummary": "12:30 UTC • Custom-branded client pack issued after the Saturday peak window.",
+    "brandingExecutiveSummary": "Two standard packs and one custom-branded client pack were issued for the carwash demo.",
+    "latestBrandingSummary": "Latest branding mode: custom client-ready pack for the Saturday throughput review.",
+    "investigationExecutiveSummary": "Two loitering exceptions were reviewed and one governance escalation pack was prepared.",
+    "latestInvestigationSummary": "Latest investigation pack closed the exit-lane loitering review at 11:31 UTC."
+  },
+  "vehicleThroughput": {
+    "totalVisits": 47,
+    "entryCount": 47,
+    "serviceCount": 43,
+    "exitCount": 41,
+    "completedVisits": 41,
+    "activeVisits": 4,
+    "incompleteVisits": 2,
+    "uniqueVehicles": 37,
+    "repeatVehicles": 10,
+    "unknownVehicleEvents": 0,
+    "peakHourLabel": "10:00-11:00",
+    "peakHourVisitCount": 12,
+    "averageCompletedDwellMinutes": 14.6,
+    "suspiciousShortVisitCount": 2,
+    "loiteringVisitCount": 2,
+    "workflowHeadline": "41 completed visits reached EXIT",
+    "summaryLine": "Visits 47 • Entry 47 • Completed 41 • Active 4 • Incomplete 2 • Unique 37 • Repeat 10 • Avg dwell 14.6m • Peak 10:00-11:00 (12) • Short visits 2 • Loitering 2",
+    "hourlyBreakdown": {
+      "7": 2,
+      "8": 4,
+      "9": 6,
+      "10": 12,
+      "11": 10,
+      "12": 5,
+      "13": 3,
+      "14": 2,
+      "15": 2,
+      "16": 1
+    },
+    "scopeBreakdowns": [
+      {
+        "clientId": "CLIENT-CARWASH-DEMO",
+        "siteId": "SITE-CARWASH-01",
+        "totalVisits": 47,
+        "completedVisits": 41,
+        "activeVisits": 4,
+        "incompleteVisits": 2,
+        "unknownVehicleEvents": 0,
+        "summaryLine": "Visits 47 • Entry 47 • Completed 41 • Active 4 • Incomplete 2 • Unique 37 • Repeat 10 • Avg dwell 14.6m • Peak 10:00-11:00 (12)"
+      }
+    ],
+    "exceptionVisits": [
+      {
+        "clientId": "CLIENT-CARWASH-DEMO",
+        "siteId": "SITE-CARWASH-01",
+        "vehicleLabel": "ND456783",
+        "statusLabel": "RESOLVED",
+        "reasonLabel": "Loitering visit",
+        "startedAtUtc": "2026-04-04T08:58:00.000Z",
+        "lastSeenAtUtc": "2026-04-04T09:43:00.000Z",
+        "dwellMinutes": 45,
+        "workflowSummary": "ENTRY -> WASH BAY 1 (RESOLVED)",
+        "reviewed": true,
+        "operatorReviewed": true,
+        "operatorReviewedAtUtc": "2026-04-04T09:48:00.000Z",
+        "operatorStatusOverride": "resolved",
+        "primaryEventId": "INT-CARWASH-LOITER-1",
+        "eventIds": ["INT-CARWASH-LOITER-1"],
+        "zoneLabels": ["Entry Lane", "Wash Bay 1"],
+        "intelligenceIds": ["INT-CARWASH-LOITER-1"],
+        "scoreLabel": "WATCH",
+        "scoreReason": "Vehicle stayed in the service queue longer than the Saturday baseline."
+      },
+      {
+        "clientId": "CLIENT-CARWASH-DEMO",
+        "siteId": "SITE-CARWASH-01",
+        "vehicleLabel": "GP128440",
+        "statusLabel": "RESOLVED",
+        "reasonLabel": "Loitering visit",
+        "startedAtUtc": "2026-04-04T10:36:00.000Z",
+        "lastSeenAtUtc": "2026-04-04T11:22:00.000Z",
+        "dwellMinutes": 46,
+        "workflowSummary": "ENTRY -> SERVICE -> EXIT LANE (RESOLVED)",
+        "reviewed": true,
+        "operatorReviewed": true,
+        "operatorReviewedAtUtc": "2026-04-04T11:31:00.000Z",
+        "operatorStatusOverride": "resolved",
+        "primaryEventId": "INT-CARWASH-LOITER-2",
+        "eventIds": ["INT-CARWASH-LOITER-2"],
+        "zoneLabels": ["Wash Bay 1", "Exit Lane"],
+        "intelligenceIds": ["INT-CARWASH-LOITER-2"],
+        "scoreLabel": "WATCH",
+        "scoreReason": "Vehicle held the exit lane beyond the expected Saturday wash-cycle dwell time."
+      }
+    ]
+  },
+  "partnerProgression": {
+    "dispatchCount": 0,
+    "declarationCount": 0,
+    "acceptedCount": 0,
+    "onSiteCount": 0,
+    "allClearCount": 0,
+    "cancelledCount": 0,
+    "workflowHeadline": "",
+    "performanceHeadline": "",
+    "slaHeadline": "",
+    "summaryLine": "",
+    "scopeBreakdowns": [],
+    "scoreboardRows": [],
+    "dispatchChains": []
+  }
+}

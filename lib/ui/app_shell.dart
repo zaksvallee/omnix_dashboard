@@ -1,58 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 
+import '../domain/authority/onyx_route.dart';
+
+export '../domain/authority/onyx_route.dart';
+
 import 'layout_breakpoints.dart';
+import 'theme/onyx_design_tokens.dart';
 
-enum OnyxRoute {
-  dashboard,
-  aiQueue,
-  tactical,
-  governance,
-  clients,
-  sites,
-  guards,
-  dispatches,
-  events,
-  ledger,
-  reports,
-  admin,
-}
+const _appShellBackgroundColor = OnyxDesignTokens.backgroundPrimary;
+const _appShellSurfaceColor = OnyxDesignTokens.cardSurface;
+const _appShellAltSurfaceColor = OnyxDesignTokens.backgroundSecondary;
+const _appShellBorderColor = OnyxDesignTokens.borderSubtle;
+const _appShellTitleColor = OnyxDesignTokens.textPrimary;
+const _appShellBodyColor = OnyxDesignTokens.textSecondary;
+const _appShellMutedColor = OnyxDesignTokens.textMuted;
+const _appShellAccentSky = OnyxDesignTokens.accentSky;
+const _appShellAccentBlue = OnyxDesignTokens.accentBlue;
 
-String _appShellRouteLabel(OnyxRoute route) {
-  return switch (route) {
-    OnyxRoute.dashboard => 'Command',
-    OnyxRoute.aiQueue => 'AI Queue',
-    OnyxRoute.tactical => 'Tactical',
-    OnyxRoute.governance => 'Governance',
-    OnyxRoute.clients => 'Clients',
-    OnyxRoute.sites => 'Sites',
-    OnyxRoute.guards => 'Guards',
-    OnyxRoute.dispatches => 'Dispatches',
-    OnyxRoute.events => 'Events',
-    OnyxRoute.ledger => 'OB Log',
-    OnyxRoute.reports => 'Reports',
-    OnyxRoute.admin => 'Admin',
-  };
-}
-
-String _appShellHeaderLabel(OnyxRoute route) {
-  return switch (route) {
-    OnyxRoute.dashboard => 'COMMAND',
-    OnyxRoute.aiQueue => 'AI QUEUE',
-    OnyxRoute.tactical => 'TRACK',
-    OnyxRoute.governance => 'GOVERNANCE',
-    OnyxRoute.clients => 'CLIENTS',
-    OnyxRoute.sites => 'SITES',
-    OnyxRoute.guards => 'GUARDS',
-    OnyxRoute.dispatches => 'ALARMS',
-    OnyxRoute.events => 'EVENTS',
-    OnyxRoute.ledger => 'LEDGER',
-    OnyxRoute.reports => 'REPORTS',
-    OnyxRoute.admin => 'ADMIN',
-  };
+TextStyle _appShellTextStyle({
+  Color? color,
+  double? fontSize,
+  FontWeight? fontWeight,
+  double? letterSpacing,
+}) {
+  return TextStyle(
+    fontFamily: OnyxDesignTokens.fontFamily,
+    color: color,
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    letterSpacing: letterSpacing,
+  );
 }
 
 Future<void> _showAppShellQuickJumpDialog({
@@ -60,166 +40,159 @@ Future<void> _showAppShellQuickJumpDialog({
   required OnyxRoute currentRoute,
   required ValueChanged<OnyxRoute> onRouteChanged,
 }) async {
-  final routes = <({OnyxRoute route, String label})>[
-    (route: OnyxRoute.dashboard, label: 'Command'),
-    (route: OnyxRoute.aiQueue, label: 'AI Queue'),
-    (route: OnyxRoute.tactical, label: 'Tactical'),
-    (route: OnyxRoute.governance, label: 'Governance'),
-    (route: OnyxRoute.clients, label: 'Clients'),
-    (route: OnyxRoute.sites, label: 'Sites'),
-    (route: OnyxRoute.guards, label: 'Guards'),
-    (route: OnyxRoute.dispatches, label: 'Dispatches'),
-    (route: OnyxRoute.events, label: 'Events'),
-    (route: OnyxRoute.ledger, label: 'OB Log'),
-    (route: OnyxRoute.reports, label: 'Reports'),
-    (route: OnyxRoute.admin, label: 'Admin'),
-  ];
-  final selection = await showDialog<OnyxRoute>(
-    context: context,
-    builder: (dialogContext) {
-      final queryNotifier = ValueNotifier<String>('');
-      return Dialog(
-        backgroundColor: const Color(0xFF101722),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFF233244)),
-        ),
-        child: SizedBox(
-          width: 420,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: ValueListenableBuilder<String>(
-              valueListenable: queryNotifier,
-              builder: (context, query, _) {
-                final normalizedQuery = query.trim().toLowerCase();
-                final filtered = routes
-                    .where((entry) {
-                      if (normalizedQuery.isEmpty) return true;
-                      return entry.label.toLowerCase().contains(
-                        normalizedQuery,
-                      );
-                    })
-                    .toList(growable: false);
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Quick jump',
-                      style: GoogleFonts.rajdhani(
-                        color: const Color(0xFFEAF4FF),
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
+  final routes = OnyxRouteSection.values
+      .expand((section) => section.routes)
+      .map((route) => (route: route, label: route.label))
+      .toList(growable: false);
+  final queryNotifier = ValueNotifier<String>('');
+  OnyxRoute? selection;
+  try {
+    selection = await showDialog<OnyxRoute>(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: _appShellSurfaceColor,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: _appShellBorderColor),
+          ),
+          child: SizedBox(
+            width: 420,
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: ValueListenableBuilder<String>(
+                valueListenable: queryNotifier,
+                builder: (context, query, _) {
+                  final normalizedQuery = query.trim().toLowerCase();
+                  final filtered = routes
+                      .where((entry) {
+                        if (normalizedQuery.isEmpty) return true;
+                        return entry.label.toLowerCase().contains(
+                          normalizedQuery,
+                        );
+                      })
+                      .toList(growable: false);
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Quick jump',
+                        style: _appShellTextStyle(
+                          color: _appShellTitleColor,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      key: const ValueKey('app-shell-quick-jump-input'),
-                      autofocus: true,
-                      onChanged: (value) => queryNotifier.value = value,
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFFEAF4FF),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Search routes',
-                        prefixIcon: const Icon(
-                          Icons.search_rounded,
-                          color: Color(0xFF7D93B3),
+                      const SizedBox(height: 10),
+                      TextField(
+                        key: const ValueKey('app-shell-quick-jump-input'),
+                        autofocus: true,
+                        onChanged: (value) => queryNotifier.value = value,
+                        style: _appShellTextStyle(
+                          color: _appShellTitleColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
-                        filled: true,
-                        fillColor: const Color(0xFF0A0F17),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF253548),
+                        decoration: InputDecoration(
+                          hintText: 'Search routes',
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            color: _appShellMutedColor,
                           ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF253548),
+                          filled: true,
+                          fillColor: _appShellAltSurfaceColor,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _appShellBorderColor),
                           ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Color(0xFF22D3EE),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _appShellBorderColor),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: _appShellAccentBlue),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    Flexible(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 320),
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 6),
-                          itemBuilder: (context, index) {
-                            final entry = filtered[index];
-                            final active = entry.route == currentRoute;
-                            return InkWell(
-                              borderRadius: BorderRadius.circular(12),
-                              onTap: () =>
-                                  Navigator.of(dialogContext).pop(entry.route),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: active
-                                      ? const Color(0x1A22D3EE)
-                                      : const Color(0xFF0B1119),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
+                      const SizedBox(height: 14),
+                      Flexible(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxHeight: 320),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 6),
+                            itemBuilder: (context, index) {
+                              final entry = filtered[index];
+                              final active = entry.route == currentRoute;
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => Navigator.of(
+                                  dialogContext,
+                                ).pop(entry.route),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
                                     color: active
-                                        ? const Color(0x8822D3EE)
-                                        : const Color(0xFF223244),
+                                        ? OnyxDesignTokens.cyanSurface
+                                        : _appShellAltSurfaceColor,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: active
+                                          ? OnyxDesignTokens.cyanBorder
+                                          : _appShellBorderColor,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          entry.label,
+                                          style: _appShellTextStyle(
+                                            color: _appShellTitleColor,
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                      if (active)
+                                        Text(
+                                          'Current',
+                                          style: _appShellTextStyle(
+                                            color: _appShellAccentBlue,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        entry.label,
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFFEAF4FF),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                    if (active)
-                                      Text(
-                                        'Current',
-                                        style: GoogleFonts.inter(
-                                          color: const Color(0xFF67E8F9),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                );
-              },
+                    ],
+                  );
+                },
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-  if (selection != null && selection != currentRoute) {
+        );
+      },
+    );
+  } finally {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      queryNotifier.dispose();
+    });
+  }
+  if (context.mounted && selection != null && selection != currentRoute) {
     onRouteChanged(selection);
   }
 }
@@ -324,7 +297,7 @@ class _AppShellState extends State<AppShell> {
           return _wrapShellShortcuts(
             context: context,
             child: Scaffold(
-              backgroundColor: const Color(0xFF0C1220),
+              backgroundColor: _appShellBackgroundColor,
               drawer: Drawer(
                 width: constraints.maxWidth < 420
                     ? constraints.maxWidth * 0.84
@@ -347,7 +320,9 @@ class _AppShellState extends State<AppShell> {
               body: Stack(
                 children: [
                   Container(
-                    decoration: const BoxDecoration(color: Color(0xFF0C1220)),
+                    decoration: const BoxDecoration(
+                      color: _appShellBackgroundColor,
+                    ),
                     child: widget.child,
                   ),
                   if (widget.demoAutopilotStatusLabel.trim().isNotEmpty)
@@ -371,10 +346,12 @@ class _AppShellState extends State<AppShell> {
                       padding: const EdgeInsets.only(left: 6, top: 4),
                       child: Builder(
                         builder: (innerContext) => Material(
-                          color: const Color(0xBF0A0D14),
+                          color: _appShellSurfaceColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
-                            side: const BorderSide(color: Color(0x33FFFFFF)),
+                            side: const BorderSide(
+                              color: _appShellBorderColor,
+                            ),
                           ),
                           child: InkWell(
                             onTap: () => Scaffold.of(innerContext).openDrawer(),
@@ -384,7 +361,7 @@ class _AppShellState extends State<AppShell> {
                               child: Icon(
                                 Icons.menu_rounded,
                                 size: 20,
-                                color: Color(0xFFE7F0FF),
+                                color: _appShellAccentBlue,
                               ),
                             ),
                           ),
@@ -402,7 +379,7 @@ class _AppShellState extends State<AppShell> {
         return _wrapShellShortcuts(
           context: context,
           child: Scaffold(
-            backgroundColor: const Color(0xFF0C1220),
+            backgroundColor: _appShellBackgroundColor,
             body: Row(
               children: [
                 AnimatedContainer(
@@ -426,7 +403,9 @@ class _AppShellState extends State<AppShell> {
                 ),
                 Expanded(
                   child: Container(
-                    decoration: const BoxDecoration(color: Color(0xFF0C1220)),
+                    decoration: const BoxDecoration(
+                      color: _appShellBackgroundColor,
+                    ),
                     child: Column(
                       children: [
                         _ShellTopBar(
@@ -453,7 +432,7 @@ class _AppShellState extends State<AppShell> {
                           },
                         ),
                         if (widget.intelTickerItems.isNotEmpty &&
-                            widget.currentRoute != OnyxRoute.dashboard)
+                            widget.currentRoute.showsShellIntelTicker)
                           _ShellIntelTicker(
                             items: widget.intelTickerItems,
                             onItemTap: widget.onIntelTickerTap,
@@ -507,47 +486,28 @@ class _ShellTopBar extends StatelessWidget {
     required this.onToggleSidebar,
   });
 
-  String _routeLabel() => _appShellRouteLabel(currentRoute);
-  String _headerLabel() => _appShellHeaderLabel(currentRoute);
-
-  String _timeLabel() {
-    final now = DateTime.now();
-    final hh = now.hour.toString().padLeft(2, '0');
-    final mm = now.minute.toString().padLeft(2, '0');
-    final ss = now.second.toString().padLeft(2, '0');
-    return '$hh:$mm:$ss';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: const BoxDecoration(
-        color: Color(0xFF0A0D14),
-        border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
+        color: _appShellSurfaceColor,
+        border: Border(bottom: BorderSide(color: _appShellBorderColor)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final showAutopilot = demoAutopilotStatusLabel.trim().isNotEmpty;
           final showOperatorChip =
-              constraints.maxWidth >= (showAutopilot ? 1640 : 1180);
-          final showExtendedAutopilotControls = constraints.maxWidth >= 1460;
+              constraints.maxWidth >= (showAutopilot ? 1600 : 1320);
+          final showExtendedAutopilotControls = constraints.maxWidth >= 1440;
           final showCompactAutopilotControls =
               showAutopilot && !showExtendedAutopilotControls;
-          final showQuickJump =
-              constraints.maxWidth >= (showAutopilot ? 1560 : 1360);
-          final showClockText = constraints.maxWidth >= 1180;
           final autopilotChipWidth = showExtendedAutopilotControls
-              ? 272.0
+              ? 248.0
               : constraints.maxWidth >= 1280
-              ? 208.0
+              ? 196.0
               : 160.0;
-          final quickJumpWidth = constraints.maxWidth >= 1540
-              ? 340.0
-              : constraints.maxWidth >= 1320
-              ? 288.0
-              : 224.0;
 
           return Row(
             children: [
@@ -555,58 +515,47 @@ class _ShellTopBar extends StatelessWidget {
                 onPressed: onToggleSidebar,
                 visualDensity: VisualDensity.compact,
                 style: IconButton.styleFrom(
-                  backgroundColor: const Color(0xFF111823),
-                  side: const BorderSide(color: Color(0xFF233244)),
+                  backgroundColor: _appShellAltSurfaceColor,
+                  side: const BorderSide(color: _appShellBorderColor),
                 ),
                 icon: Icon(
                   sidebarOpen ? Icons.close_rounded : Icons.menu_rounded,
                   size: 18,
-                  color: const Color(0xFFD3E3F8),
+                  color: _appShellAccentBlue,
                 ),
               ),
               const SizedBox(width: 12),
               Text(
-                _headerLabel(),
-                style: GoogleFonts.rajdhani(
-                  color: const Color(0xFFF4F7FC),
-                  fontSize: 19,
+                currentRoute.shellHeaderLabel,
+                style: _appShellTextStyle(
+                  color: _appShellTitleColor,
+                  fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
+                  letterSpacing: 0.9,
                 ),
               ),
-              const SizedBox(width: 18),
-              if (showQuickJump) ...[
-                SizedBox(
-                  width: quickJumpWidth,
-                  child: _QuickJumpField(
-                    onOpen: () => _showQuickJumpDialog(context),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  currentRoute.autopilotNarration,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _appShellTextStyle(
+                    color: _appShellBodyColor,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.1,
                   ),
                 ),
-                const SizedBox(width: 14),
-              ] else ...[
-                _TopBarActionIcon(
-                  buttonKey: const ValueKey('app-shell-quick-jump-icon'),
-                  onPressed: () => _showQuickJumpDialog(context),
-                  icon: Icons.search_rounded,
-                  foregroundColor: const Color(0xFFBFDBFE),
-                  borderColor: const Color(0xFF35506F),
-                ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    _routeLabel(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF7F93AF),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
+              ),
+              const SizedBox(width: 10),
+              _TopBarActionIcon(
+                buttonKey: const ValueKey('app-shell-quick-jump-icon'),
+                onPressed: () => _showQuickJumpDialog(context),
+                icon: Icons.search_rounded,
+                foregroundColor: _appShellAccentSky,
+                borderColor: OnyxDesignTokens.borderStrong,
+              ),
               const Spacer(),
               if (showAutopilot) ...[
                 SizedBox(
@@ -619,8 +568,8 @@ class _ShellTopBar extends StatelessWidget {
                     _TopBarActionIcon(
                       onPressed: onStopDemoAutopilot!,
                       icon: Icons.stop_circle_outlined,
-                      foregroundColor: const Color(0xFFFCA5A5),
-                      borderColor: const Color(0xFF7F1D1D),
+                      foregroundColor: OnyxDesignTokens.redCritical,
+                      borderColor: OnyxDesignTokens.redBorder,
                     )
                   else
                     OutlinedButton(
@@ -628,9 +577,9 @@ class _ShellTopBar extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(56, 32),
                         padding: const EdgeInsets.symmetric(horizontal: 8),
-                        foregroundColor: const Color(0xFFFCA5A5),
-                        side: const BorderSide(color: Color(0xFF7F1D1D)),
-                        textStyle: GoogleFonts.inter(
+                        foregroundColor: OnyxDesignTokens.redCritical,
+                        side: const BorderSide(color: OnyxDesignTokens.redBorder),
+                        textStyle: _appShellTextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                         ),
@@ -646,9 +595,9 @@ class _ShellTopBar extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(66, 32),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      foregroundColor: const Color(0xFFBFDBFE),
-                      side: const BorderSide(color: Color(0xFF35506F)),
-                      textStyle: GoogleFonts.inter(
+                      foregroundColor: _appShellAccentSky,
+                      side: const BorderSide(color: OnyxDesignTokens.borderStrong),
+                      textStyle: _appShellTextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                       ),
@@ -664,9 +613,9 @@ class _ShellTopBar extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(56, 32),
                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                      foregroundColor: const Color(0xFF93C5FD),
-                      side: const BorderSide(color: Color(0xFF35506F)),
-                      textStyle: GoogleFonts.inter(
+                      foregroundColor: _appShellAccentSky,
+                      side: const BorderSide(color: OnyxDesignTokens.borderStrong),
+                      textStyle: _appShellTextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                       ),
@@ -682,8 +631,8 @@ class _ShellTopBar extends StatelessWidget {
                     icon: demoAutopilotPaused
                         ? Icons.play_arrow_rounded
                         : Icons.pause_rounded,
-                    foregroundColor: const Color(0xFFBFDBFE),
-                    borderColor: const Color(0xFF35506F),
+                    foregroundColor: _appShellAccentSky,
+                    borderColor: OnyxDesignTokens.borderStrong,
                   ),
                 ],
                 if (showCompactAutopilotControls &&
@@ -692,8 +641,8 @@ class _ShellTopBar extends StatelessWidget {
                   _TopBarActionIcon(
                     onPressed: onSkipDemoAutopilot!,
                     icon: Icons.skip_next_rounded,
-                    foregroundColor: const Color(0xFF93C5FD),
-                    borderColor: const Color(0xFF35506F),
+                    foregroundColor: _appShellAccentSky,
+                    borderColor: OnyxDesignTokens.borderStrong,
                   ),
                 ],
                 const SizedBox(width: 12),
@@ -707,31 +656,20 @@ class _ShellTopBar extends StatelessWidget {
                 const SizedBox(width: 12),
               ],
               _TopChip(
-                label: 'SYSTEMS NOMINAL',
-                foreground: const Color(0xFF34D399),
-                background: const Color(0x1221A86B),
-                border: const Color(0x4034D399),
+                label: 'READY',
+                foreground: OnyxDesignTokens.greenNominal,
+                background: OnyxDesignTokens.greenSurface,
+                border: OnyxDesignTokens.greenBorder,
               ),
               const SizedBox(width: 10),
               _TopBarActionIcon(
                 buttonKey: const ValueKey('app-shell-status-button'),
                 onPressed: () => _showShellStatusSnack(context),
                 icon: Icons.notifications_none_rounded,
-                foregroundColor: const Color(0xFFE4ECF8),
-                borderColor: const Color(0xFF273446),
+                foregroundColor: OnyxDesignTokens.textPrimary,
+                borderColor: OnyxDesignTokens.borderStrong,
                 showAlertDot: activeIncidentCount > 0 || aiActionCount > 0,
               ),
-              if (showClockText) ...[
-                const SizedBox(width: 14),
-                Text(
-                  _timeLabel(),
-                  style: GoogleFonts.robotoMono(
-                    color: const Color(0xFFD7E6FA),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
             ],
           );
         },
@@ -744,8 +682,18 @@ class _ShellTopBar extends StatelessWidget {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
+        backgroundColor: _appShellSurfaceColor,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: _appShellBorderColor),
+        ),
         content: Text(
-          'Systems nominal. ${activeIncidentCount.toString()} active incidents, $aiActionCount AI actions, $guardsOnlineCount guards online.',
+          'Ready. ${activeIncidentCount.toString()} live incidents, $aiActionCount AI moves, $guardsOnlineCount guards on floor.',
+          style: _appShellTextStyle(
+            color: _appShellTitleColor,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         duration: const Duration(seconds: 2),
       ),
@@ -757,59 +705,6 @@ class _ShellTopBar extends StatelessWidget {
       context: context,
       currentRoute: currentRoute,
       onRouteChanged: onRouteChanged,
-    );
-  }
-}
-
-class _QuickJumpField extends StatelessWidget {
-  final VoidCallback onOpen;
-
-  const _QuickJumpField({required this.onOpen});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF0A0F17),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        key: const ValueKey('app-shell-quick-jump-field'),
-        onTap: onOpen,
-        borderRadius: BorderRadius.circular(12),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return Container(
-              height: 42,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF233244)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.search_rounded,
-                    size: 16,
-                    color: Color(0xFF7D93B3),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Quick jump... (⌘K)',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
-                        color: const Color(0x7AAFC0D9),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
     );
   }
 }
@@ -858,117 +753,58 @@ class _Sidebar extends StatelessWidget {
     required this.onRouteChanged,
   });
 
+  int? _badgeForRoute(OnyxRoute route) {
+    final kind = route.shellBadgeKind;
+    if (kind == null) {
+      return null;
+    }
+
+    return switch (kind) {
+      OnyxRouteShellBadgeKind.activeIncidents =>
+        activeIncidentCount > 0 ? activeIncidentCount : null,
+      OnyxRouteShellBadgeKind.aiActions =>
+        aiActionCount > 0 ? aiActionCount : null,
+      OnyxRouteShellBadgeKind.tacticalSosAlerts =>
+        tacticalSosAlerts > 0 ? tacticalSosAlerts : null,
+      OnyxRouteShellBadgeKind.complianceIssues =>
+        complianceIssuesCount > 0 ? complianceIssuesCount : null,
+    };
+  }
+
+  _NavItemModel _navItemForRoute(OnyxRoute route) {
+    return _NavItemModel(
+      label: route.label,
+      icon: route.icon,
+      route: route,
+      badge: _badgeForRoute(route),
+      badgeColor: route.shellBadgeColor,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final navSections = <_NavSection>[
-      _NavSection(
-        title: 'COMMAND CENTER',
-        items: [
-          _NavItemModel(
-            label: 'Command',
-            icon: Icons.bolt_rounded,
-            route: OnyxRoute.dashboard,
-            badge: activeIncidentCount > 0 ? activeIncidentCount : null,
-            badgeColor: Color(0xFFEF4444),
+    final navSections = OnyxRouteSection.values
+        .map(
+          (section) => _NavSection(
+            title: section.title,
+            items: section.routes.map(_navItemForRoute).toList(growable: false),
           ),
-          _NavItemModel(
-            label: 'AI Queue',
-            icon: Icons.psychology_alt_rounded,
-            route: OnyxRoute.aiQueue,
-            badge: aiActionCount > 0 ? aiActionCount : null,
-            badgeColor: Color(0xFF22D3EE),
-          ),
-          _NavItemModel(
-            label: 'Dispatches',
-            icon: Icons.send_rounded,
-            route: OnyxRoute.dispatches,
-          ),
-          _NavItemModel(
-            label: 'Tactical',
-            icon: Icons.map_rounded,
-            route: OnyxRoute.tactical,
-            badge: tacticalSosAlerts > 0 ? tacticalSosAlerts : null,
-            badgeColor: Color(0xFFEF4444),
-          ),
-        ],
-      ),
-      _NavSection(
-        title: 'OPERATIONS',
-        items: [
-          _NavItemModel(
-            label: 'Clients',
-            icon: Icons.chat_bubble_rounded,
-            route: OnyxRoute.clients,
-          ),
-          _NavItemModel(
-            label: 'Guards',
-            icon: Icons.groups_rounded,
-            route: OnyxRoute.guards,
-          ),
-          _NavItemModel(
-            label: 'Sites',
-            icon: Icons.apartment_rounded,
-            route: OnyxRoute.sites,
-          ),
-          _NavItemModel(
-            label: 'Events',
-            icon: Icons.timeline_rounded,
-            route: OnyxRoute.events,
-          ),
-        ],
-      ),
-      _NavSection(
-        title: 'GOVERNANCE',
-        items: [
-          _NavItemModel(
-            label: 'Governance',
-            icon: Icons.shield_rounded,
-            route: OnyxRoute.governance,
-            badge: complianceIssuesCount > 0 ? complianceIssuesCount : null,
-            badgeColor: Color(0xFFF59E0B),
-          ),
-        ],
-      ),
-      _NavSection(
-        title: 'EVIDENCE',
-        items: [
-          _NavItemModel(
-            label: 'OB Log',
-            icon: Icons.menu_book_rounded,
-            route: OnyxRoute.ledger,
-          ),
-          _NavItemModel(
-            label: 'Reports',
-            icon: Icons.summarize_rounded,
-            route: OnyxRoute.reports,
-          ),
-        ],
-      ),
-      _NavSection(
-        title: 'SYSTEM',
-        items: [
-          _NavItemModel(
-            label: 'Admin',
-            icon: Icons.settings_rounded,
-            route: OnyxRoute.admin,
-          ),
-        ],
-      ),
-    ];
+        )
+        .toList(growable: false);
 
     return Container(
       width: width,
       decoration: const BoxDecoration(
-        color: Color(0xFF0A0D14),
-        border: Border(right: BorderSide(color: Color(0x22FFFFFF))),
+        color: _appShellSurfaceColor,
+        border: Border(right: BorderSide(color: _appShellBorderColor)),
       ),
       child: Column(
         children: [
           Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
+              border: Border(bottom: BorderSide(color: _appShellBorderColor)),
             ),
             child: Row(
               children: [
@@ -977,77 +813,34 @@ class _Sidebar extends StatelessWidget {
                   height: 24,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(7),
-                    color: const Color(0xFF2563EB),
+                    color: _appShellAccentBlue,
                   ),
                   child: const Icon(
                     Icons.shield_rounded,
-                    color: Color(0xFFFFFFFF),
+                    color: _appShellTitleColor,
                     size: 14,
                   ),
                 ),
                 const SizedBox(width: 7),
                 Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'ONYX',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFFE7F0FF),
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      Text(
-                        'Sovereign Platform',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8CA6CC),
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'ONYX',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: _appShellTextStyle(
+                      color: _appShellTitleColor,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.fromLTRB(8, 7, 8, 5),
-            padding: const EdgeInsets.all(5),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0E1A2B),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0x22FFFFFF)),
-            ),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                _sidebarStatusPill(
-                  label: 'LIVE',
-                  color: const Color(0xFF10B981),
-                ),
-                _sidebarStatusPill(
-                  label: '$aiActionCount ACTIVE',
-                  color: const Color(0xFF22D3EE),
-                ),
-                _sidebarStatusPill(
-                  label: '$guardsOnlineCount On Shift',
-                  color: const Color(0xFFDBEAFE),
                 ),
               ],
             ),
           ),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+              padding: const EdgeInsets.fromLTRB(8, 10, 8, 6),
               children: [
                 for (final section in navSections) ...[
                   Padding(
@@ -1058,8 +851,8 @@ class _Sidebar extends StatelessWidget {
                     ),
                     child: Text(
                       section.title,
-                      style: GoogleFonts.inter(
-                        color: const Color(0x66FFFFFF),
+                      style: _appShellTextStyle(
+                        color: _appShellMutedColor,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.1,
@@ -1084,25 +877,6 @@ class _Sidebar extends StatelessWidget {
     );
   }
 
-  Widget _sidebarStatusPill({required String label, required Color color}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.28)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: color,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
   Widget _navItem(
     String label,
     IconData icon,
@@ -1118,9 +892,13 @@ class _Sidebar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          color: isActive ? const Color(0x3322D3EE) : const Color(0x14FFFFFF),
+          color: isActive
+              ? OnyxDesignTokens.cyanSurface
+              : _appShellAltSurfaceColor,
           border: Border.all(
-            color: isActive ? const Color(0x4D22D3EE) : const Color(0x22FFFFFF),
+            color: isActive
+                ? OnyxDesignTokens.cyanBorder
+                : _appShellBorderColor,
           ),
         ),
         child: Row(
@@ -1129,8 +907,8 @@ class _Sidebar extends StatelessWidget {
               icon,
               size: 15,
               color: isActive
-                  ? const Color(0xFF22D3EE)
-                  : const Color(0x99FFFFFF),
+                  ? _appShellAccentBlue
+                  : _appShellMutedColor,
             ),
             const SizedBox(width: 7),
             Expanded(
@@ -1138,10 +916,8 @@ class _Sidebar extends StatelessWidget {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: isActive
-                      ? const Color(0xFFE6F2FF)
-                      : const Color(0xB3FFFFFF),
+                style: _appShellTextStyle(
+                  color: isActive ? _appShellTitleColor : _appShellBodyColor,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1163,8 +939,8 @@ class _Sidebar extends StatelessWidget {
                 ),
                 child: Text(
                   '$badge',
-                  style: GoogleFonts.inter(
-                    color: badgeColor ?? const Color(0xFF99B6DA),
+                  style: _appShellTextStyle(
+                    color: badgeColor ?? _appShellAccentSky,
                     fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1201,7 +977,7 @@ class _TopChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(
+        style: _appShellTextStyle(
           color: foreground,
           fontSize: 11,
           fontWeight: FontWeight.w800,
@@ -1238,8 +1014,8 @@ class _TopBarActionIcon extends StatelessWidget {
         minimumSize: const Size(38, 38),
         padding: const EdgeInsets.symmetric(horizontal: 6),
         foregroundColor: foregroundColor,
-        side: BorderSide(color: borderColor),
-        backgroundColor: const Color(0xFF111823),
+        side: BorderSide(color: borderColor.withValues(alpha: 0.52)),
+        backgroundColor: OnyxDesignTokens.cardSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       child: Stack(
@@ -1252,7 +1028,7 @@ class _TopBarActionIcon extends StatelessWidget {
               right: -4,
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Color(0xFFEF4444),
+                  color: OnyxDesignTokens.redCritical,
                   shape: BoxShape.circle,
                 ),
                 child: SizedBox(width: 8, height: 8),
@@ -1286,9 +1062,9 @@ class _OperatorSessionChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF121923),
+        color: _appShellAltSurfaceColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF273446)),
+        border: Border.all(color: _appShellBorderColor),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1297,15 +1073,15 @@ class _OperatorSessionChip extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: const BoxDecoration(
-              color: Color(0xFFB16EFF),
+              color: OnyxDesignTokens.greenNominal,
               shape: BoxShape.circle,
             ),
           ),
           const SizedBox(width: 10),
           Text(
             normalizedOperator,
-            style: GoogleFonts.inter(
-              color: const Color(0xFFE9F0FA),
+            style: _appShellTextStyle(
+              color: _appShellTitleColor,
               fontSize: 11.5,
               fontWeight: FontWeight.w800,
             ),
@@ -1316,8 +1092,8 @@ class _OperatorSessionChip extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               'OPERATOR',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF8FA8CA),
+              style: _appShellTextStyle(
+                color: _appShellMutedColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -1329,8 +1105,8 @@ class _OperatorSessionChip extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               normalizedRole.toUpperCase(),
-              style: GoogleFonts.inter(
-                color: const Color(0xFFC889FF),
+              style: _appShellTextStyle(
+                color: _appShellAccentBlue,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
@@ -1342,8 +1118,8 @@ class _OperatorSessionChip extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               'Shift: $normalizedShift',
-              style: GoogleFonts.inter(
-                color: const Color(0xFFBCC8D9),
+              style: _appShellTextStyle(
+                color: _appShellMutedColor,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -1360,8 +1136,8 @@ class _OperatorSessionSeparator extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       '•',
-      style: GoogleFonts.inter(
-        color: const Color(0xFF69798F),
+      style: _appShellTextStyle(
+        color: _appShellMutedColor,
         fontSize: 11,
         fontWeight: FontWeight.w700,
       ),
@@ -1379,16 +1155,16 @@ class _AutopilotChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0x332563EB),
+        color: OnyxDesignTokens.cyanSurface,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0x664C6FFF)),
+        border: Border.all(color: OnyxDesignTokens.cyanBorder),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.auto_mode_rounded,
             size: 11,
-            color: Color(0xFF93C5FD),
+            color: _appShellAccentBlue,
           ),
           const SizedBox(width: 5),
           Expanded(
@@ -1396,8 +1172,8 @@ class _AutopilotChip extends StatelessWidget {
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFBFDBFE),
+              style: _appShellTextStyle(
+                color: _appShellAccentBlue,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -1430,31 +1206,31 @@ class _MobileAutopilotOverlay extends StatelessWidget {
     final skipAction = onSkip;
     final togglePauseAction = onTogglePause;
     return Material(
-      color: const Color(0xE60A0D14),
+      color: OnyxDesignTokens.cardSurface.withValues(alpha: 0.97),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0x334C6FFF)),
+          border: Border.all(color: _appShellBorderColor),
         ),
         child: Row(
           children: [
             const Icon(
               Icons.auto_mode_rounded,
               size: 14,
-              color: Color(0xFF93C5FD),
+              color: _appShellAccentBlue,
             ),
             const SizedBox(width: 6),
             Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFBFDBFE),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: _appShellTextStyle(
+                color: _appShellAccentBlue,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1462,19 +1238,19 @@ class _MobileAutopilotOverlay extends StatelessWidget {
               _mobileActionIcon(
                 onTap: togglePauseAction,
                 icon: paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
-                color: const Color(0xFFBFDBFE),
+                color: _appShellAccentSky,
               ),
             if (skipAction != null)
               _mobileActionIcon(
                 onTap: skipAction,
                 icon: Icons.skip_next_rounded,
-                color: const Color(0xFF93C5FD),
+                color: _appShellAccentSky,
               ),
             if (stopAction != null)
               _mobileActionIcon(
                 onTap: stopAction,
                 icon: Icons.stop_circle_outlined,
-                color: const Color(0xFFFCA5A5),
+                color: OnyxDesignTokens.redCritical,
               ),
           ],
         ),
@@ -1514,7 +1290,8 @@ class _ShellIntelTicker extends StatefulWidget {
 class _ShellIntelTickerState extends State<_ShellIntelTicker> {
   static const _autoScrollInterval = Duration(seconds: 4);
   static const _autoScrollDuration = Duration(milliseconds: 420);
-  static const _tickerBackground = Color(0xFF09101B);
+  static const _userInteractionResetTimeout = Duration(seconds: 5);
+  static const _tickerBackground = OnyxDesignTokens.backgroundSecondary;
   static const _edgeFadeWidth = 22.0;
   static const _sourceFilterOrder = <String>[
     'all',
@@ -1529,6 +1306,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
 
   late final ScrollController _scrollController = ScrollController();
   Timer? _autoScrollTimer;
+  Timer? _userInteractionResetTimer;
   bool _hovering = false;
   bool _userInteracting = false;
   String _sourceFilter = 'all';
@@ -1536,14 +1314,18 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
   @override
   void initState() {
     super.initState();
+    _reconcileSourceFilter();
     _syncAutoScrollState();
   }
 
   @override
   void didUpdateWidget(covariant _ShellIntelTicker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.items.length != widget.items.length ||
-        oldWidget.items != widget.items) {
+    final itemsChanged =
+        oldWidget.items.length != widget.items.length ||
+        oldWidget.items != widget.items;
+    final filterChanged = _reconcileSourceFilter();
+    if (itemsChanged || filterChanged) {
       _syncAutoScrollState();
     }
   }
@@ -1551,8 +1333,29 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
   @override
   void dispose() {
     _autoScrollTimer?.cancel();
+    _userInteractionResetTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  bool _reconcileSourceFilter() {
+    final activeFilter = _resolvedActiveFilter();
+    if (activeFilter == _sourceFilter) {
+      return false;
+    }
+    _sourceFilter = activeFilter;
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    return true;
+  }
+
+  String _resolvedActiveFilter() {
+    final availableFilters = _availableFilters(_sourceCounts());
+    if (availableFilters.contains(_sourceFilter)) {
+      return _sourceFilter;
+    }
+    return 'all';
   }
 
   void _syncAutoScrollState() {
@@ -1564,6 +1367,20 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
     _autoScrollTimer = Timer.periodic(_autoScrollInterval, (_) {
       _autoScrollTick();
     });
+  }
+
+  void _markUserInteracting() {
+    _userInteracting = true;
+    _userInteractionResetTimer?.cancel();
+    _userInteractionResetTimer = Timer(_userInteractionResetTimeout, () {
+      _userInteracting = false;
+    });
+  }
+
+  void _clearUserInteraction() {
+    _userInteractionResetTimer?.cancel();
+    _userInteractionResetTimer = null;
+    _userInteracting = false;
   }
 
   Future<void> _autoScrollTick() async {
@@ -1600,13 +1417,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
   Widget build(BuildContext context) {
     final sourceCounts = _sourceCounts();
     final availableFilters = _availableFilters(sourceCounts);
-    final activeFilter = availableFilters.contains(_sourceFilter)
-        ? _sourceFilter
-        : 'all';
-    if (activeFilter != _sourceFilter) {
-      _sourceFilter = activeFilter;
-      _syncAutoScrollState();
-    }
+    final activeFilter = _resolvedActiveFilter();
     final filteredItems = _filteredItems(activeFilter);
 
     return MouseRegion(
@@ -1621,7 +1432,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
         padding: const EdgeInsets.fromLTRB(7, 4, 7, 4),
         decoration: const BoxDecoration(
           color: _tickerBackground,
-          border: Border(bottom: BorderSide(color: Color(0x1FFFFFFF))),
+          border: Border(bottom: BorderSide(color: _appShellBorderColor)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1655,8 +1466,8 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'No ${_sourceLabel(activeFilter)} intelligence in ticker window.',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF8EA4C2),
+                        style: _appShellTextStyle(
+                          color: _appShellMutedColor,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1666,9 +1477,9 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                     NotificationListener<UserScrollNotification>(
                       onNotification: (notification) {
                         if (notification.direction == ScrollDirection.idle) {
-                          _userInteracting = false;
+                          _clearUserInteraction();
                         } else {
-                          _userInteracting = true;
+                          _markUserInteracting();
                         }
                         return false;
                       },
@@ -1705,10 +1516,10 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                                 vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                color: color.withValues(alpha: 0.13),
+                                color: OnyxDesignTokens.glassSurface,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
-                                  color: color.withValues(alpha: 0.42),
+                                  color: OnyxDesignTokens.glassBorder,
                                 ),
                               ),
                               child: Row(
@@ -1716,7 +1527,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                                 children: [
                                   Text(
                                     '$source • $provider • $hh:$mm',
-                                    style: GoogleFonts.inter(
+                                    style: _appShellTextStyle(
                                       color: color,
                                       fontSize: 10,
                                       fontWeight: FontWeight.w800,
@@ -1732,8 +1543,8 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                                       item.headline,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
-                                        color: const Color(0xFFD9E8FD),
+                                      style: _appShellTextStyle(
+                                        color: _appShellTitleColor,
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -1755,7 +1566,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                           gradient: LinearGradient(
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
-                            colors: [_tickerBackground, Color(0x0009101B)],
+                            colors: [_tickerBackground, Colors.transparent],
                           ),
                         ),
                       ),
@@ -1770,7 +1581,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
                           gradient: LinearGradient(
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
-                            colors: [Color(0x0009101B), _tickerBackground],
+                            colors: [Colors.transparent, _tickerBackground],
                           ),
                         ),
                       ),
@@ -1834,7 +1645,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
     required bool selected,
   }) {
     final color = source == 'all'
-        ? const Color(0xFF93C5FD)
+        ? _appShellAccentSky
         : _tickerColor(source);
     return GestureDetector(
       onTap: () {
@@ -1851,19 +1662,21 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
           color: selected
-              ? color.withValues(alpha: 0.22)
-              : const Color(0x12000000),
+              ? OnyxDesignTokens.glassSurface
+              : OnyxDesignTokens.cardSurface,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
-                ? color.withValues(alpha: 0.65)
-                : color.withValues(alpha: 0.32),
+                ? OnyxDesignTokens.glassHighlight
+                : _appShellBorderColor,
           ),
         ),
         child: Text(
           '${_sourceLabel(source)} • $count',
-          style: GoogleFonts.inter(
-            color: selected ? color : color.withValues(alpha: 0.78),
+          style: _appShellTextStyle(
+            color: selected
+                ? color
+                : Color.lerp(_appShellBodyColor, color, 0.2),
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
@@ -1873,28 +1686,28 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
   }
 
   Color _tickerColor(String sourceType) {
-    final source = sourceType.trim().toLowerCase();
+    final source = _normalizeSource(sourceType);
     if (source == 'radio') {
-      return const Color(0xFF22D3EE);
+      return OnyxDesignTokens.cyanInteractive;
     }
     if (source == 'news') {
-      return const Color(0xFFF59E0B);
+      return _appShellAccentSky;
     }
     if (source == 'wearable') {
-      return const Color(0xFF10B981);
+      return OnyxDesignTokens.greenNominal;
     }
     if (source == 'hardware') {
-      return const Color(0xFFF59E0B);
+      return OnyxDesignTokens.cyanInteractive;
     }
     if (source == 'dvr') {
-      return const Color(0xFFFB7185);
+      return OnyxDesignTokens.redCritical;
     }
     if (source == 'community') {
-      return const Color(0xFF3B82F6);
+      return _appShellAccentBlue;
     }
     if (source == 'system') {
-      return const Color(0xFF93C5FD);
+      return _appShellAccentSky;
     }
-    return const Color(0xFFA78BFA);
+    return OnyxDesignTokens.purpleAdmin;
   }
 }

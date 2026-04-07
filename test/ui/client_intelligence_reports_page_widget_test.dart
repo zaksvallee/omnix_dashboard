@@ -16,8 +16,27 @@ import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/client_intelligence_reports_page.dart';
 
 import '../fixtures/report_test_receipt.dart';
+import '../fixtures/report_test_bundle.dart';
 import '../fixtures/report_test_intelligence.dart';
 import '../fixtures/report_test_reviewed_workspace.dart';
+
+DateTime _clientReportsGeneratedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 6, 0);
+
+DateTime _clientReportsShiftStartedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 22, 0);
+
+DateTime _clientReportsHistoryOccurredAtUtc(int day, {int minute = 30}) =>
+    DateTime.utc(2026, 3, day, 23, minute);
+
+DateTime _clientReportsOvernightOccurredAtUtc(int day, int minute) =>
+    DateTime.utc(2026, 3, day, 1, minute);
+
+DateTime _clientReportsScenarioOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 15, hour, minute);
+
+DateTime _clientReportsPreviewOccurredAtUtc(int minute) =>
+    _clientReportsScenarioOccurredAtUtc(0, minute);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -157,7 +176,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Receipt preview will unlock once the first live report lands in this lane.',
+        'Receipt preview will unlock once the first live report lands on this board.',
       ),
       findsWidgets,
     );
@@ -172,7 +191,7 @@ void main() {
       find.byKey(const ValueKey('report-receipt-filter-banner-shell')),
       findsWidgets,
     );
-    expect(find.text('Receipt lane recovery ready.'), findsOneWidget);
+    expect(find.text('Receipt board recovery ready.'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('reports-workspace-focus-open-active')),
       findsOneWidget,
@@ -190,8 +209,46 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Receipt lane recovery ready.'), findsNothing);
-    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(find.text('Receipt board recovery ready.'), findsNothing);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
+  });
+
+  testWidgets('client reports ingests evidence return into the command rail', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    String? consumedAuditId;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ClientIntelligenceReportsPage(
+          store: InMemoryEventStore(),
+          selectedClient: 'CLIENT-001',
+          selectedSite: 'SITE-SANDTON',
+          evidenceReturnReceipt: const ReportsEvidenceReturnReceipt(
+            auditId: 'DSP-AUDIT-REPORT-1',
+            label: 'EVIDENCE RETURN',
+            message: 'Returned to the reports workspace for DSP-2442.',
+            detail:
+                'The signed report handoff was verified in the ledger. Keep the delivery rail pinned and finish the report from the same workspace.',
+            accent: Color(0xFF8FD1FF),
+          ),
+          onConsumeEvidenceReturnReceipt: (auditId) {
+            consumedAuditId = auditId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('EVIDENCE RETURN'), findsOneWidget);
+    expect(
+      find.text('Returned to the reports workspace for DSP-2442.'),
+      findsOneWidget,
+    );
+    expect(consumedAuditId, 'DSP-AUDIT-REPORT-1');
   });
 
   testWidgets('client reports export all button is actionable', (tester) async {
@@ -277,9 +334,9 @@ void main() {
 
     final priorReport = SovereignReport(
       date: '2026-03-14',
-      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(14),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(13),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(14),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -342,9 +399,9 @@ void main() {
     );
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -397,11 +454,11 @@ void main() {
             partnerLabel: 'PARTNER • Alpha',
             declarationCount: 3,
             latestStatus: PartnerDispatchStatus.allClear,
-            latestOccurredAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
-            dispatchCreatedAtUtc: DateTime.utc(2026, 3, 15, 1, 0),
-            acceptedAtUtc: DateTime.utc(2026, 3, 15, 1, 4),
-            onSiteAtUtc: DateTime.utc(2026, 3, 15, 1, 10),
-            allClearAtUtc: DateTime.utc(2026, 3, 15, 1, 18),
+            latestOccurredAtUtc: _clientReportsOvernightOccurredAtUtc(15, 18),
+            dispatchCreatedAtUtc: _clientReportsOvernightOccurredAtUtc(15, 0),
+            acceptedAtUtc: _clientReportsOvernightOccurredAtUtc(15, 4),
+            onSiteAtUtc: _clientReportsOvernightOccurredAtUtc(15, 10),
+            allClearAtUtc: _clientReportsOvernightOccurredAtUtc(15, 18),
             acceptedDelayMinutes: 4.0,
             onSiteDelayMinutes: 10.0,
             scoreLabel: 'STRONG',
@@ -419,7 +476,7 @@ void main() {
         eventId: 'PARTNER-EVT-1',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 15, 1, 4),
+        occurredAt: _clientReportsOvernightOccurredAtUtc(15, 4),
         dispatchId: 'DSP-9001',
         clientId: 'CLIENT-001',
         regionId: 'REGION-1',
@@ -436,7 +493,7 @@ void main() {
         eventId: 'PARTNER-EVT-2',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 15, 1, 10),
+        occurredAt: _clientReportsOvernightOccurredAtUtc(15, 10),
         dispatchId: 'DSP-9001',
         clientId: 'CLIENT-001',
         regionId: 'REGION-1',
@@ -453,7 +510,7 @@ void main() {
         eventId: 'PARTNER-EVT-3',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 15, 1, 18),
+        occurredAt: _clientReportsOvernightOccurredAtUtc(15, 18),
         dispatchId: 'DSP-9001',
         clientId: 'CLIENT-001',
         regionId: 'REGION-1',
@@ -470,7 +527,7 @@ void main() {
         eventId: 'PARTNER-RPT-1',
         sequence: 4,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 13, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(13),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -488,7 +545,7 @@ void main() {
         eventId: 'PARTNER-RPT-2',
         sequence: 5,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 14, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(14),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -506,7 +563,7 @@ void main() {
         eventId: 'PARTNER-RPT-3',
         sequence: 6,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 15, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(15),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -524,7 +581,7 @@ void main() {
       buildTestIntelligenceReceived(
         eventId: 'ACTIVITY-1',
         sequence: 7,
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 20),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(0, 20),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         intelligenceId: 'activity-1',
@@ -538,7 +595,7 @@ void main() {
       buildTestIntelligenceReceived(
         eventId: 'ACTIVITY-2',
         sequence: 8,
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(0, 40),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         intelligenceId: 'activity-2',
@@ -552,7 +609,7 @@ void main() {
       buildTestIntelligenceReceived(
         eventId: 'ACTIVITY-3',
         sequence: 9,
-        occurredAt: DateTime.utc(2026, 3, 15, 2, 10),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(2, 10),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         intelligenceId: 'activity-3',
@@ -996,9 +1053,9 @@ void main() {
       final fixture = buildReviewedReportWorkspaceFixture();
       final currentReport = SovereignReport(
         date: '2026-03-15',
-        generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+        generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+        shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+        shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 2,
           hashVerified: true,
@@ -1181,7 +1238,7 @@ void main() {
           eventId: 'PARTNER-EMPTY-RPT-EVT-1',
           sequence: 20,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 1, 5),
+          occurredAt: _clientReportsOvernightOccurredAtUtc(16, 5),
           dispatchId: 'DSP-EMPTY-RPT-1',
           clientId: 'CLIENT-001',
           regionId: 'REGION-1',
@@ -1198,7 +1255,7 @@ void main() {
           eventId: 'PARTNER-EMPTY-RPT-EVT-2',
           sequence: 21,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 1, 18),
+          occurredAt: _clientReportsOvernightOccurredAtUtc(16, 18),
           dispatchId: 'DSP-EMPTY-RPT-1',
           clientId: 'CLIENT-001',
           regionId: 'REGION-1',
@@ -1213,9 +1270,9 @@ void main() {
 
       final currentReport = SovereignReport(
         date: '2026-03-16',
-        generatedAtUtc: DateTime.utc(2026, 3, 16, 6, 0),
-        shiftWindowStartUtc: DateTime.utc(2026, 3, 15, 22, 0),
-        shiftWindowEndUtc: DateTime.utc(2026, 3, 16, 6, 0),
+        generatedAtUtc: _clientReportsGeneratedAtUtc(16),
+        shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(15),
+        shiftWindowEndUtc: _clientReportsGeneratedAtUtc(16),
         ledgerIntegrity: const SovereignReportLedgerIntegrity(
           totalEvents: 2,
           hashVerified: true,
@@ -1268,10 +1325,10 @@ void main() {
               partnerLabel: 'PARTNER • Alpha',
               declarationCount: 2,
               latestStatus: PartnerDispatchStatus.onSite,
-              latestOccurredAtUtc: DateTime.utc(2026, 3, 16, 1, 18),
-              dispatchCreatedAtUtc: DateTime.utc(2026, 3, 16, 1, 0),
-              acceptedAtUtc: DateTime.utc(2026, 3, 16, 1, 5),
-              onSiteAtUtc: DateTime.utc(2026, 3, 16, 1, 18),
+              latestOccurredAtUtc: _clientReportsOvernightOccurredAtUtc(16, 18),
+              dispatchCreatedAtUtc: _clientReportsOvernightOccurredAtUtc(16, 0),
+              acceptedAtUtc: _clientReportsOvernightOccurredAtUtc(16, 5),
+              onSiteAtUtc: _clientReportsOvernightOccurredAtUtc(16, 18),
               acceptedDelayMinutes: 5.0,
               onSiteDelayMinutes: 18.0,
               scoreLabel: 'ON TRACK',
@@ -1386,10 +1443,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Partner Shift Detail'), findsNothing);
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
       expect(
         find.textContaining(
-          'Focused shift receipt lane for 2026-03-16 • PARTNER • Alpha.',
+          'Focused shift receipt board for 2026-03-16 • PARTNER • Alpha.',
         ),
         findsWidgets,
       );
@@ -1428,7 +1485,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-QUIET-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 45),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(0, 45),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -1441,9 +1498,9 @@ void main() {
 
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 1,
         hashVerified: true,
@@ -1543,10 +1600,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Visitor / Activity Truth'), findsNothing);
-    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     expect(
       find.textContaining(
-        'Focused quiet activity scope on receipt lane RPT-QUIET-1.',
+        'Focused quiet activity scope on receipt board RPT-QUIET-1.',
       ),
       findsWidgets,
     );
@@ -1584,7 +1641,7 @@ void main() {
       store.append(
         buildTestReportGenerated(
           eventId: 'RPT-PENDING-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 1, 15),
+          occurredAt: _clientReportsOvernightOccurredAtUtc(15, 15),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           reportSchemaVersion: 2,
@@ -1657,7 +1714,7 @@ void main() {
       await tester.tap(recoverReceiptsButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
       expect(
         find.textContaining(
           'Recovered pending partner scorecard scope around RPT-PENDING-1.',
@@ -1689,7 +1746,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-DRILL-EMPTY-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 2, 0),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(2, 0),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -1800,7 +1857,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-CMP-RECOVERY-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 2, 20),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(2, 20),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -1813,9 +1870,9 @@ void main() {
 
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 1,
         hashVerified: true,
@@ -1939,7 +1996,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-CMP-SHELL-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 3, 10),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(3, 10),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -1952,9 +2009,9 @@ void main() {
 
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 1,
         hashVerified: true,
@@ -2032,7 +2089,7 @@ void main() {
     await tester.tap(openReceiptsButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     expect(
       find.textContaining('Recovered comparison shell around RPT-CMP-SHELL-1.'),
       findsWidgets,
@@ -2077,7 +2134,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LANES-SHELL-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 3, 30),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(3, 30),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -2090,9 +2147,9 @@ void main() {
 
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 1,
         hashVerified: true,
@@ -2170,7 +2227,7 @@ void main() {
     await tester.tap(openReceiptsButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     expect(
       find.textContaining(
         'Recovered scorecard lanes around RPT-LANES-SHELL-1.',
@@ -2219,7 +2276,7 @@ void main() {
     );
   });
 
-  testWidgets('client reports lane cards expose richer command actions', (
+  testWidgets('client reports board cards expose richer command actions', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
@@ -2229,7 +2286,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LANE-ROW-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 4, 0),
+        occurredAt: _clientReportsScenarioOccurredAtUtc(4, 0),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -2242,9 +2299,9 @@ void main() {
 
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 1,
         hashVerified: true,
@@ -2320,8 +2377,8 @@ void main() {
     await tester.tap(primaryActionButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Open Selected Receipt'), findsOneWidget);
-    expect(find.text('Open Receipt Lane'), findsWidgets);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
+    expect(find.text('Open Receipt Board'), findsWidgets);
     expect(
       find.textContaining(
         'Recovered lane PARTNER • Alpha around RPT-LANE-ROW-1.',
@@ -2338,7 +2395,7 @@ void main() {
     await tester.tap(openReceiptsButton);
     await tester.pumpAndSettle();
 
-    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     expect(
       find.textContaining(
         'Recovered lane PARTNER • Alpha around RPT-LANE-ROW-1.',
@@ -2417,9 +2474,9 @@ void main() {
 
     final priorReport = SovereignReport(
       date: '2026-03-14',
-      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(14),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(13),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(14),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -2482,9 +2539,9 @@ void main() {
     );
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -2552,7 +2609,7 @@ void main() {
         eventId: 'CMP-RPT-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 13, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(13),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -2570,7 +2627,7 @@ void main() {
         eventId: 'CMP-RPT-2',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 14, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(14),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -2588,7 +2645,7 @@ void main() {
         eventId: 'CMP-RPT-3',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 15, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(15),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -2682,7 +2739,7 @@ void main() {
     expect(find.text('OVERSIGHT PRESSURE'), findsOneWidget);
     expect(
       find.text(
-        'Receipt investigations are leaning toward Governance handoff on this shift.',
+        'Receipt investigations are leaning toward the Governance Desk on this shift.',
       ),
       findsOneWidget,
     );
@@ -2986,7 +3043,7 @@ void main() {
         eventId: 'RPT-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 13, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(13),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -3004,7 +3061,7 @@ void main() {
         eventId: 'RPT-2',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 14, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(14),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -3022,7 +3079,7 @@ void main() {
         eventId: 'RPT-3',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 15, 23, 30),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(15),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -3089,7 +3146,7 @@ void main() {
     expect(find.text('Current Routine: 0'), findsOneWidget);
     expect(find.text('Baseline Governance: 0.0'), findsOneWidget);
     expect(find.text('Baseline Routine: 1.0'), findsOneWidget);
-    expect(find.text('Open Governance Scope'), findsWidgets);
+    expect(find.text('OPEN GOVERNANCE DESK'), findsWidgets);
     expect(find.text('OVERSIGHT HANDOFFS'), findsOneWidget);
     expect(find.text('ROUTINE REVIEW'), findsWidgets);
     expect(find.text('INVESTIGATION DRIFT'), findsOneWidget);
@@ -3296,7 +3353,7 @@ void main() {
           eventId: 'RPT-CTX-1',
           sequence: 1,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 15, 23, 30),
+          occurredAt: _clientReportsHistoryOccurredAtUtc(15),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           month: '2026-03',
@@ -3426,9 +3483,9 @@ void main() {
 
     final priorReport = SovereignReport(
       date: '2026-03-14',
-      generatedAtUtc: DateTime.utc(2026, 3, 14, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 13, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 14, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(14),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(13),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(14),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -3491,9 +3548,9 @@ void main() {
     );
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -3618,9 +3675,9 @@ void main() {
 
     final currentReport = SovereignReport(
       date: '2026-03-15',
-      generatedAtUtc: DateTime.utc(2026, 3, 15, 6, 0),
-      shiftWindowStartUtc: DateTime.utc(2026, 3, 14, 22, 0),
-      shiftWindowEndUtc: DateTime.utc(2026, 3, 15, 6, 0),
+      generatedAtUtc: _clientReportsGeneratedAtUtc(15),
+      shiftWindowStartUtc: _clientReportsShiftStartedAtUtc(14),
+      shiftWindowEndUtc: _clientReportsGeneratedAtUtc(15),
       ledgerIntegrity: const SovereignReportLedgerIntegrity(
         totalEvents: 10,
         hashVerified: true,
@@ -3969,7 +4026,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-COPY-1',
-        occurredAt: DateTime.utc(2026, 3, 14, 22, 0),
+        occurredAt: _clientReportsShiftStartedAtUtc(14),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 1,
@@ -4060,7 +4117,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Receipt preview will unlock once the first live report lands in this lane.',
+        'Receipt preview will unlock once the first live report lands on this board.',
       ),
       findsWidgets,
     );
@@ -4166,7 +4223,7 @@ void main() {
       findsNothing,
     );
     expect(find.text('Viewing Escalation receipts (0/3)'), findsNothing);
-    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     expect(find.byType(SnackBar), findsNothing);
   });
 
@@ -4230,7 +4287,7 @@ void main() {
 
     expect(find.text('Viewing Suppressed receipts (1/2)'), findsOneWidget);
     expect(
-      find.textContaining('Vehicle remained below escalation threshold.'),
+      find.textContaining(reportTestSuppressedDecisionSummary),
       findsOneWidget,
     );
     expect(
@@ -4711,7 +4768,7 @@ void main() {
         find.text('Preview target: $reviewedReceiptEventId'),
         findsOneWidget,
       );
-      expect(find.text('Open Preview Target'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
 
       final jsonControl = find.byKey(
         const ValueKey('reports-output-mode-json'),
@@ -4729,7 +4786,7 @@ void main() {
         find.text('Preview target: $reviewedReceiptEventId'),
         findsOneWidget,
       );
-      expect(find.text('Open Preview Target'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     },
   );
 
@@ -4761,7 +4818,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
       expect(find.text('FOCUSED'), findsWidgets);
     },
   );
@@ -4805,7 +4862,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
 
       final escalationKpi = find.byKey(
         const ValueKey('reports-kpi-escalation'),
@@ -4828,7 +4885,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
     },
   );
@@ -4876,7 +4933,7 @@ void main() {
         find.text('Preview target: $reviewedReceiptEventId'),
         findsOneWidget,
       );
-      expect(find.text('Open Preview Target'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
 
       final escalationKpi = find.byKey(
         const ValueKey('reports-kpi-escalation'),
@@ -4907,7 +4964,7 @@ void main() {
         find.text('Preview target: $reviewedReceiptEventId'),
         findsOneWidget,
       );
-      expect(find.text('Open Preview Target'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
     },
@@ -4957,7 +5014,7 @@ void main() {
         find.text('Preview target: $reviewedReceiptEventId'),
         findsOneWidget,
       );
-      expect(find.text('Open Preview Target'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
 
       final dockControl = find.byKey(
         const ValueKey('reports-preview-surface-dock'),
@@ -4974,7 +5031,7 @@ void main() {
         find.text('Preview target: $reviewedReceiptEventId'),
         findsOneWidget,
       );
-      expect(find.text('Open Full Preview'), findsWidgets);
+      expect(find.text('OPEN PREVIEW DOCK'), findsWidgets);
 
       final routeControl = find.byKey(
         const ValueKey('reports-preview-surface-route'),
@@ -4991,7 +5048,7 @@ void main() {
         find.text('Preview target: $reviewedReceiptEventId'),
         findsOneWidget,
       );
-      expect(find.text('Open Preview Target'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     },
   );
 
@@ -5024,7 +5081,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Preview target: RPT-2024-03-10-001'), findsOneWidget);
-    expect(find.text('Open Preview Target'), findsOneWidget);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     expect(
       find.byKey(const ValueKey('reports-preview-target-open')),
       findsOneWidget,
@@ -5062,7 +5119,7 @@ void main() {
 
     expect(find.text('Preview Dock'), findsOneWidget);
     expect(find.text('Docked'), findsOneWidget);
-    expect(find.text('Open Full Preview'), findsWidgets);
+    expect(find.text('OPEN PREVIEW DOCK'), findsWidgets);
     expect(
       find.byKey(const ValueKey('reports-preview-dock-open')),
       findsOneWidget,
@@ -5076,7 +5133,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-DOCK-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 15),
+        occurredAt: _clientReportsPreviewOccurredAtUtc(15),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -5225,7 +5282,7 @@ void main() {
         findsNothing,
       );
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     },
   );
 
@@ -5234,7 +5291,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-DOCK-CLEAR-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 20),
+        occurredAt: _clientReportsPreviewOccurredAtUtc(20),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -5341,7 +5398,7 @@ void main() {
     expect(find.text('Preview Dock'), findsNothing);
     expect(find.text('Preview target: $reviewedReceiptEventId'), findsNothing);
     expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-    expect(find.text('Open Selected Receipt'), findsOneWidget);
+    expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
   });
 
   testWidgets('client reports uses shared preview callback when provided', (
@@ -5353,7 +5410,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-1',
-        occurredAt: DateTime.utc(2026, 3, 14, 23, 55),
+        occurredAt: _clientReportsHistoryOccurredAtUtc(14, minute: 55),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 1,
@@ -5394,7 +5451,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-DOCK-OPEN-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 45),
+        occurredAt: _clientReportsPreviewOccurredAtUtc(45),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 1,
@@ -5440,7 +5497,7 @@ void main() {
       store.append(
         buildTestReportGenerated(
           eventId: 'RPT-LIVE-DOCK-ROUTE-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 0, 55),
+          occurredAt: _clientReportsPreviewOccurredAtUtc(55),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           reportSchemaVersion: 2,
@@ -5504,7 +5561,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-DOCK-COPY-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 55),
+        occurredAt: _clientReportsPreviewOccurredAtUtc(55),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 2,
@@ -5552,7 +5609,7 @@ void main() {
       store.append(
         buildTestReportGenerated(
           eventId: 'RPT-LIVE-DOCK-GOV-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 0, 55),
+          occurredAt: _clientReportsPreviewOccurredAtUtc(55),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           reportSchemaVersion: 2,
@@ -5577,7 +5634,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Governance Preview Dock'), findsOneWidget);
-      expect(find.text('Open Governance Preview'), findsWidgets);
+      expect(find.text('OPEN GOVERNANCE PREVIEW DOCK'), findsWidgets);
       expect(find.text('Copy Governance Receipt'), findsWidgets);
       expect(find.text('Download Governance PDF'), findsWidgets);
       expect(
@@ -5596,7 +5653,7 @@ void main() {
       store.append(
         buildTestReportGenerated(
           eventId: 'RPT-LIVE-DOCK-DOWNLOAD-GOV-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 0, 55),
+          occurredAt: _clientReportsPreviewOccurredAtUtc(55),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           reportSchemaVersion: 2,
@@ -5657,7 +5714,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-TARGET-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+        occurredAt: _clientReportsPreviewOccurredAtUtc(40),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 1,
@@ -5699,7 +5756,7 @@ void main() {
       store.append(
         buildTestReportGenerated(
           eventId: 'RPT-LIVE-TARGET-GOV-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+          occurredAt: _clientReportsPreviewOccurredAtUtc(40),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           reportSchemaVersion: 1,
@@ -5721,7 +5778,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Open Governance Preview'), findsOneWidget);
+      expect(find.text('OPEN GOVERNANCE PREVIEW DOCK'), findsOneWidget);
       expect(find.text('Copy Governance Receipt'), findsOneWidget);
       expect(find.text('Clear Governance Target'), findsOneWidget);
     },
@@ -5734,7 +5791,7 @@ void main() {
       store.append(
         buildTestReportGenerated(
           eventId: 'RPT-LIVE-ROW-GOV-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+          occurredAt: _clientReportsPreviewOccurredAtUtc(40),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           reportSchemaVersion: 1,
@@ -5786,7 +5843,7 @@ void main() {
       store.append(
         buildTestReportGenerated(
           eventId: 'RPT-GOV-COPY-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+          occurredAt: _clientReportsPreviewOccurredAtUtc(40),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           reportSchemaVersion: 1,
@@ -5852,7 +5909,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-TARGET-COPY-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 40),
+        occurredAt: _clientReportsPreviewOccurredAtUtc(40),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 1,
@@ -5950,7 +6007,7 @@ void main() {
       expect(previewRequests.single.bundle.sceneReview.totalReviews, 1);
       expect(
         previewRequests.single.bundle.sceneReview.highlights.single.summary,
-        'Vehicle remained below escalation threshold.',
+        reportTestSuppressedDecisionSummary,
       );
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
@@ -6008,7 +6065,7 @@ void main() {
       expect(find.text('Receipt Integrity'), findsOneWidget);
       expect(find.textContaining(reviewedReceiptEventId), findsWidgets);
       expect(
-        find.textContaining('Vehicle remained below escalation threshold.'),
+        find.textContaining(reportTestSuppressedDecisionSummary),
         findsOneWidget,
       );
 
@@ -6035,7 +6092,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-LANE-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 30),
+        occurredAt: _clientReportsPreviewOccurredAtUtc(30),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 1,
@@ -6058,7 +6115,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final reviewAction = find.text('Open Selected Receipt').first;
+    final reviewAction = find.text('OPEN PREVIEW TARGET').first;
     await tester.ensureVisible(reviewAction);
     await tester.tap(reviewAction);
     await tester.pumpAndSettle();
@@ -6092,7 +6149,7 @@ void main() {
     store.append(
       buildTestReportGenerated(
         eventId: 'RPT-LIVE-LANE-COPY-1',
-        occurredAt: DateTime.utc(2026, 3, 15, 0, 30),
+        occurredAt: _clientReportsPreviewOccurredAtUtc(30),
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         reportSchemaVersion: 1,
@@ -6181,9 +6238,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Viewing Reviewed receipts (1/2)'), findsOneWidget);
-      expect(find.text('Open Selected Receipt'), findsOneWidget);
+      expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
 
-      final reviewAction = find.text('Open Selected Receipt').first;
+      final reviewAction = find.text('OPEN PREVIEW TARGET').first;
       await tester.ensureVisible(reviewAction);
       await tester.tap(reviewAction);
       await tester.pumpAndSettle();
@@ -6196,7 +6253,7 @@ void main() {
       expect(previewRequests.single.bundle.sceneReview.totalReviews, 1);
       expect(
         previewRequests.single.bundle.sceneReview.highlights.single.summary,
-        'Vehicle remained below escalation threshold.',
+        reportTestSuppressedDecisionSummary,
       );
       expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
       expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
@@ -6242,7 +6299,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final reviewAction = find.text('Open Selected Receipt').first;
+      final reviewAction = find.text('OPEN PREVIEW TARGET').first;
       await tester.ensureVisible(reviewAction);
       await tester.tap(reviewAction);
       await tester.pump();
@@ -6252,7 +6309,7 @@ void main() {
       expect(find.text('Receipt Integrity'), findsOneWidget);
       expect(find.textContaining(reviewedReceiptEventId), findsWidgets);
       expect(
-        find.textContaining('Vehicle remained below escalation threshold.'),
+        find.textContaining(reportTestSuppressedDecisionSummary),
         findsOneWidget,
       );
 
@@ -6277,7 +6334,7 @@ void main() {
       store.append(
         buildTestReportGenerated(
           eventId: 'RPT-LIVE-ROUTE-1',
-          occurredAt: DateTime.utc(2026, 3, 15, 0, 5),
+          occurredAt: _clientReportsPreviewOccurredAtUtc(5),
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           reportSchemaVersion: 2,
@@ -6387,7 +6444,7 @@ void main() {
     expect(previewRequests.single.bundle.sceneReview.totalReviews, 1);
     expect(
       previewRequests.single.bundle.sceneReview.highlights.single.summary,
-      'Vehicle remained below escalation threshold.',
+      reportTestSuppressedDecisionSummary,
     );
     expect(shellState.value.selectedReceiptEventId, reviewedReceiptEventId);
     expect(shellState.value.previewReceiptEventId, reviewedReceiptEventId);
@@ -6446,7 +6503,7 @@ void main() {
       expect(find.text('Receipt Integrity'), findsOneWidget);
       expect(find.textContaining(reviewedReceiptEventId), findsWidgets);
       expect(
-        find.textContaining('Vehicle remained below escalation threshold.'),
+        find.textContaining(reportTestSuppressedDecisionSummary),
         findsOneWidget,
       );
 
@@ -6538,7 +6595,7 @@ void main() {
       expect(previewRequests.single.bundle.sceneReview.totalReviews, 1);
       expect(
         previewRequests.single.bundle.sceneReview.highlights.single.summary,
-        'Vehicle remained below escalation threshold.',
+        reportTestSuppressedDecisionSummary,
       );
       expect(shellState.value.selectedReceiptEventId, generatedReceipt.eventId);
       expect(shellState.value.previewReceiptEventId, generatedReceipt.eventId);
@@ -6787,7 +6844,7 @@ void main() {
       expect(find.text('Scene Review Brief'), findsOneWidget);
       expect(find.text('Receipt Integrity'), findsOneWidget);
       expect(
-        find.textContaining('Vehicle remained below escalation threshold.'),
+        find.textContaining(reportTestSuppressedDecisionSummary),
         findsOneWidget,
       );
       expect(find.textContaining(reportEvents.single.eventId), findsWidgets);

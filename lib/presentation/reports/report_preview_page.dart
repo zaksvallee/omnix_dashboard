@@ -85,15 +85,15 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
 
   String get _previewHeaderSubtitle {
     return _isGovernanceHandoffPreview
-        ? 'Preview, verify, print, and distribute deterministic report output from the Governance handoff lane.'
-        : 'Preview, verify, print, and distribute deterministic report output.';
+        ? 'Check the receipt. Prove replay. Print or download from Governance.'
+        : 'Check the receipt. Prove replay. Print or download.';
   }
 
   String get _printActionLabel =>
-      _isGovernanceHandoffPreview ? 'Print Governance PDF' : 'Print';
+      _isGovernanceHandoffPreview ? 'Print Governance PDF' : 'Print PDF';
 
   String get _downloadActionLabel =>
-      _isGovernanceHandoffPreview ? 'Download Governance PDF' : 'Download';
+      _isGovernanceHandoffPreview ? 'Download Governance PDF' : 'Download PDF';
 
   String get _pdfFileName {
     final primaryLabel = _brandingConfiguration.primaryLabel
@@ -117,7 +117,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
     return OnyxSectionCard(
       title: 'Preview Context',
       subtitle:
-          'Why this receipt preview was opened and which oversight lane handed it off.',
+          'Why this preview is open and which lane handed it here.',
       child: Container(
         key: const ValueKey('report-preview-entry-context-banner'),
         width: double.infinity,
@@ -459,11 +459,56 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
     );
   }
 
+  Widget _previewCommandStrip({
+    required ReportGenerated? receipt,
+    required bool replayMatched,
+  }) {
+    final hasReceipt = receipt != null;
+    return OnyxSectionCard(
+      title: 'DO THIS NOW',
+      subtitle: hasReceipt
+          ? 'Check the receipt, prove replay, then PRINT OR DOWNLOAD.'
+          : 'Generate the report first, then come back here to verify and ship it.',
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: [
+          _chip(
+            'Receipt',
+            hasReceipt ? receipt.eventId : 'WAITING',
+            const Color(0xFF63BDFF),
+          ),
+          _chip(
+            'Replay',
+            hasReceipt ? (replayMatched ? 'MATCHED' : 'FAILED') : 'PENDING',
+            hasReceipt
+                ? (replayMatched
+                    ? const Color(0xFF59D79B)
+                    : const Color(0xFFFF7A7A))
+                : const Color(0xFFF6C067),
+          ),
+          _chip(
+            'Mode',
+            _exportModeLabel,
+            _isGovernanceHandoffPreview
+                ? const Color(0xFF8FD1FF)
+                : const Color(0xFF8AA4C9),
+          ),
+          _chip(
+            'Next',
+            hasReceipt ? 'PRINT OR DOWNLOAD' : 'GENERATE REPORT',
+            const Color(0xFFF6C067),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _reportConfigurationPane() {
     final config = widget.bundle.sectionConfiguration;
     return OnyxSectionCard(
       title: 'Report Configuration',
-      subtitle: 'Included and omitted sections for this generated brief.',
+      subtitle: 'What this PDF includes right now.',
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -588,9 +633,9 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
             },
           );
     final previewPane = OnyxSectionCard(
-      title: 'PDF Preview',
+      title: 'FINAL PDF',
       subtitle:
-          'Use this viewer as the final operator checkpoint before print or distribution.',
+          'Look at the rendered PDF before print or download.',
       flexibleChild: !phoneLayout,
       child: phoneLayout
           ? SizedBox(
@@ -691,6 +736,11 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                       const SizedBox(height: 14),
                       _brandingPane(),
                     ],
+                    const SizedBox(height: 14),
+                    _previewCommandStrip(
+                      receipt: receipt,
+                      replayMatched: replayMatched,
+                    ),
                     if (receipt != null) ...[
                       const SizedBox(height: 14),
                       receiptSummary,
@@ -698,7 +748,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                       OnyxSectionCard(
                         title: 'Receipt Integrity',
                         subtitle:
-                            'Current report receipt, content hash, event range, and replay match state.',
+                            'Receipt, hash, mode, range, and replay state.',
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -749,7 +799,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                                 ),
                               ),
                               child: Text(
-                                'Receipt integrity is tied to the generated content hash and event range. $_exportModeSummary Re-open this receipt from the harness to prove replay-safe regeneration before delivery.',
+                                'This receipt stays pinned to the content hash and event range. $_exportModeSummary Re-open it from the harness to prove replay-safe regeneration before delivery.',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF94ABCB),
                                   fontSize: 12,
@@ -837,6 +887,11 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                     const SizedBox(height: 14),
                     _brandingPane(),
                   ],
+                  const SizedBox(height: 14),
+                  _previewCommandStrip(
+                    receipt: receipt,
+                    replayMatched: replayMatched,
+                  ),
                   if (receipt != null) ...[
                     const SizedBox(height: 14),
                     receiptSummary,
@@ -844,7 +899,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                     OnyxSectionCard(
                       title: 'Receipt Integrity',
                       subtitle:
-                          'Current report receipt, content hash, event range, and replay match state.',
+                          'Receipt, hash, mode, range, and replay state.',
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -888,7 +943,7 @@ class _ReportPreviewPageState extends State<ReportPreviewPage> {
                               ),
                             ),
                             child: Text(
-                              'Receipt integrity is tied to the generated content hash and event range. Re-open this receipt from the harness to prove replay-safe regeneration before delivery.',
+                              'This receipt stays pinned to the content hash and event range. Re-open it from the harness to prove replay-safe regeneration before delivery.',
                               style: GoogleFonts.inter(
                                 color: const Color(0xFF94ABCB),
                                 fontSize: 12,

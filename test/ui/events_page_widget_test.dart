@@ -10,6 +10,17 @@ import 'package:omnix_dashboard/ui/events_page.dart';
 
 import '../fixtures/report_test_receipt.dart';
 
+DateTime _eventsNowUtc() => DateTime.now().toUtc();
+
+DateTime _recentForensicOccurredAtUtc() =>
+    _eventsNowUtc().subtract(const Duration(hours: 2));
+
+DateTime _olderTimelineOccurredAtUtc() =>
+    _eventsNowUtc().subtract(const Duration(days: 2));
+
+DateTime _eventsIntegrityCertificateOccurredAtUtc() =>
+    DateTime.utc(2026, 3, 13, 10, 5);
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -22,7 +33,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
+    expect(find.text('EVENT WAR ROOM'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -37,7 +48,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
+    expect(find.text('EVENT WAR ROOM'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -49,13 +60,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Events & Forensic Timeline'), findsOneWidget);
+    expect(find.text('EVENT WAR ROOM'), findsOneWidget);
     expect(find.byKey(const ValueKey('events-overview-grid')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('events-overview-selected-card')),
       findsOneWidget,
     );
-    expect(find.text('No case pinned'), findsOneWidget);
+    expect(find.text('GET A CASE BACK'), findsOneWidget);
   });
 
   testWidgets('events page empty state recovers timeline and lane focus', (
@@ -64,9 +75,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final olderEventTime = DateTime.now().toUtc().subtract(
-      const Duration(days: 2),
-    );
+    final olderEventTime = _olderTimelineOccurredAtUtc();
     final events = <DispatchEvent>[
       DecisionCreated(
         eventId: 'DEC-EMPTY-1',
@@ -143,7 +152,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('events-view-ledger-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ledger Link Ready'), findsOneWidget);
+    expect(find.text('Sovereign Ledger Ready'), findsOneWidget);
     expect(
       find.textContaining('provenance, evidence continuity'),
       findsOneWidget,
@@ -151,9 +160,7 @@ void main() {
   });
 
   testWidgets('events page renders forensic timeline rows', (tester) async {
-    final recentBase = DateTime.now().toUtc().subtract(
-      const Duration(hours: 2),
-    );
+    final recentBase = _recentForensicOccurredAtUtc();
     final events = <DispatchEvent>[
       IntelligenceReceived(
         eventId: 'INT-1',
@@ -218,7 +225,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Event Review'), findsOneWidget);
+    expect(find.text('Events Scope'), findsOneWidget);
     final rowLabel = find.text('Event ID ARR-1');
     await tester.scrollUntilVisible(
       rowLabel,
@@ -233,9 +240,7 @@ void main() {
   testWidgets('events page switches review lanes and linked focus', (
     tester,
   ) async {
-    final recentBase = DateTime.now().toUtc().subtract(
-      const Duration(hours: 2),
-    );
+    final recentBase = _recentForensicOccurredAtUtc();
     final events = <DispatchEvent>[
       IntelligenceReceived(
         eventId: 'INT-1',
@@ -336,7 +341,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('events-view-ledger-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Ledger Link Ready'), findsOneWidget);
+    expect(find.text('Sovereign Ledger Ready'), findsOneWidget);
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
@@ -362,9 +367,7 @@ void main() {
   testWidgets('events page context rail recovers chain focus in place', (
     tester,
   ) async {
-    final recentBase = DateTime.now().toUtc().subtract(
-      const Duration(hours: 2),
-    );
+    final recentBase = _recentForensicOccurredAtUtc();
     final events = <DispatchEvent>[
       IntelligenceReceived(
         eventId: 'INT-SOLO-1',
@@ -422,7 +425,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Ledger Link Ready'), findsOneWidget);
+    expect(find.text('Sovereign Ledger Ready'), findsOneWidget);
     expect(
       find.textContaining('provenance, evidence continuity'),
       findsOneWidget,
@@ -432,9 +435,7 @@ void main() {
   testWidgets('events page opens mobile detail drawer without overflow', (
     tester,
   ) async {
-    final occurredAt = DateTime.now().toUtc().subtract(
-      const Duration(hours: 1),
-    );
+    final occurredAt = _recentForensicOccurredAtUtc();
     final events = <DispatchEvent>[
       IntelligenceReceived(
         eventId: 'INT-1',
@@ -464,16 +465,17 @@ void main() {
     await tester.dragFrom(const Offset(389, 200), const Offset(-280, 0));
     await tester.pumpAndSettle();
 
-    expect(find.text('Selected Event'), findsOneWidget);
+    expect(find.text('YOU ARE HERE'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets(
     'events page lists tracked report receipts in the forensic timeline',
     (tester) async {
+      final occurredAt = _recentForensicOccurredAtUtc();
       final reportEvent = buildTestReportGenerated(
         eventId: 'RPT-EVT-1',
-        occurredAt: DateTime.now().toUtc().subtract(const Duration(hours: 1)),
+        occurredAt: occurredAt,
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -508,9 +510,10 @@ void main() {
   testWidgets(
     'events page lists legacy report receipts in the forensic timeline',
     (tester) async {
+      final occurredAt = _recentForensicOccurredAtUtc();
       final reportEvent = buildTestReportGenerated(
         eventId: 'RPT-EVT-LEGACY-1',
-        occurredAt: DateTime.now().toUtc().subtract(const Duration(hours: 1)),
+        occurredAt: occurredAt,
         clientId: 'CLIENT-001',
         siteId: 'SITE-SANDTON',
         month: '2026-03',
@@ -538,7 +541,7 @@ void main() {
   testWidgets('integrity certificate preview card opens certificate dialog', (
     tester,
   ) async {
-    final occurredAt = DateTime.utc(2026, 3, 13, 10, 5);
+    final occurredAt = _eventsIntegrityCertificateOccurredAtUtc();
     final event = IntelligenceReceived(
       eventId: 'INT-CERT-1',
       sequence: 1,

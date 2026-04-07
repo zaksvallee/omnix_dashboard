@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/ui/video_fleet_scope_health_view.dart';
 
+DateTime _videoFleetOccurredAtUtc(int day, int hour, int minute) =>
+    DateTime.utc(2026, 3, day, hour, minute);
+
 void main() {
   group('VideoFleetScopeHealthView', () {
     test('formats note text for quiet and pending scopes', () {
@@ -303,42 +306,50 @@ void main() {
 
       expect(
         view.temporaryIdentityValidUntilUtcValue,
-        DateTime.utc(2026, 3, 15, 18, 0),
+        _videoFleetOccurredAtUtc(15, 18, 0),
       );
       expect(
-        view.temporaryIdentityUrgency(DateTime.utc(2026, 3, 15, 12, 0)),
+        view.temporaryIdentityUrgency(_videoFleetOccurredAtUtc(15, 12, 0)),
         VideoFleetTemporaryIdentityUrgency.active,
       );
       expect(
-        view.temporaryIdentityUrgency(DateTime.utc(2026, 3, 15, 15, 30)),
+        view.temporaryIdentityUrgency(_videoFleetOccurredAtUtc(15, 15, 30)),
         VideoFleetTemporaryIdentityUrgency.warning,
       );
       expect(
-        view.temporaryIdentityUrgency(DateTime.utc(2026, 3, 15, 17, 30)),
+        view.temporaryIdentityUrgency(_videoFleetOccurredAtUtc(15, 17, 30)),
         VideoFleetTemporaryIdentityUrgency.critical,
       );
       expect(
-        view.temporaryIdentityUrgency(DateTime.utc(2026, 3, 15, 18, 0)),
+        view.temporaryIdentityUrgency(_videoFleetOccurredAtUtc(15, 18, 0)),
         VideoFleetTemporaryIdentityUrgency.expired,
       );
       expect(
-        view.temporaryIdentityRemaining(DateTime.utc(2026, 3, 15, 17, 18)),
+        view.temporaryIdentityRemaining(_videoFleetOccurredAtUtc(15, 17, 18)),
         const Duration(minutes: 42),
       );
       expect(
-        view.temporaryIdentityCountdownText(DateTime.utc(2026, 3, 15, 17, 18)),
+        view.temporaryIdentityCountdownText(
+          _videoFleetOccurredAtUtc(15, 17, 18),
+        ),
         'Temporary approval expires in 42m.',
       );
       expect(
-        view.temporaryIdentityCountdownText(DateTime.utc(2026, 3, 15, 15, 30)),
+        view.temporaryIdentityCountdownText(
+          _videoFleetOccurredAtUtc(15, 15, 30),
+        ),
         'Temporary approval expires in 2h 30m.',
       );
       expect(
-        view.temporaryIdentityCountdownText(DateTime.utc(2026, 3, 13, 15, 0)),
+        view.temporaryIdentityCountdownText(
+          _videoFleetOccurredAtUtc(13, 15, 0),
+        ),
         'Temporary approval expires in 2d 3h.',
       );
       expect(
-        view.temporaryIdentityCountdownText(DateTime.utc(2026, 3, 15, 18, 1)),
+        view.temporaryIdentityCountdownText(
+          _videoFleetOccurredAtUtc(15, 18, 1),
+        ),
         'Temporary approval expired.',
       );
     });
@@ -379,7 +390,7 @@ void main() {
         latestClientDecisionLabel: 'Client Review Requested',
         latestClientDecisionSummary:
             'Client asked ONYX control to keep the event open for manual review.',
-        latestClientDecisionAtUtc: DateTime.utc(2026, 3, 14, 21, 16),
+        latestClientDecisionAtUtc: _videoFleetOccurredAtUtc(14, 21, 16),
       );
 
       expect(view.clientDecisionChipValue, 'Review');

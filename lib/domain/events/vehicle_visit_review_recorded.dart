@@ -1,6 +1,7 @@
 import 'dispatch_event.dart';
 
 class VehicleVisitReviewRecorded extends DispatchEvent {
+  static const String auditTypeKey = 'vehicle_visit_review_recorded';
   final String vehicleVisitKey;
   final String primaryEventId;
   final String clientId;
@@ -57,4 +58,7 @@ class VehicleVisitReviewRecorded extends DispatchEvent {
       sourceSurface: sourceSurface,
     );
   }
+
+  @override
+  String toAuditTypeKey() => auditTypeKey;
 }

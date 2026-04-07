@@ -1,0 +1,8 @@
+{
+  "sessionMode": "parent_rebuild",
+  "persistedWorkspace": "legacy_tactical_workspace",
+  "persistedDrilldown": "map",
+  "persistedRouteState": {
+    "surface": "track_legacy_workspace"
+  }
+}

@@ -1,5 +1,6 @@
 import '../domain/events/dispatch_event.dart';
 import '../domain/events/intelligence_received.dart';
+import 'intelligence_event_object_semantics.dart';
 
 class SiteActivityIntelligenceSnapshot {
   final int totalSignals;
@@ -129,7 +130,7 @@ class SiteActivityIntelligenceService {
         id: event.eventId,
         occurredAt: event.occurredAt.toUtc(),
       ));
-      final objectLabel = _normalizedObjectLabel(event.objectLabel);
+      final objectLabel = _normalizedObjectLabel(event);
       final hasKnownIdentity =
           (event.faceMatchId ?? '').trim().isNotEmpty ||
           (event.plateNumber ?? '').trim().isNotEmpty;
@@ -266,7 +267,16 @@ class SiteActivityIntelligenceService {
     );
   }
 
-  String _normalizedObjectLabel(String? raw) {
+  String _normalizedObjectLabel(IntelligenceReceived event) {
+    final directObjectLabel =
+        _normalizedDirectObjectLabel(event.objectLabel) ?? '';
+    return resolveIdentityBackedObjectLabel(
+      event: event,
+      directObjectLabel: directObjectLabel,
+    );
+  }
+
+  String? _normalizedDirectObjectLabel(String? raw) {
     final label = (raw ?? '').trim().toLowerCase();
     if (label == 'human' || label == 'intruder') {
       return 'person';
@@ -274,16 +284,19 @@ class SiteActivityIntelligenceService {
     if (label == 'car' || label == 'truck') {
       return 'vehicle';
     }
-    return label;
+    return label.isEmpty ? null : label;
   }
 
   String _presenceGroupingKey(IntelligenceReceived event, String objectLabel) {
     final faceMatchId = (event.faceMatchId ?? '').trim();
     final plateNumber = (event.plateNumber ?? '').trim();
+    final trackId = (event.trackId ?? '').trim();
     final identity = faceMatchId.isNotEmpty
         ? 'face:$faceMatchId'
         : plateNumber.isNotEmpty
         ? 'plate:$plateNumber'
+        : trackId.isNotEmpty
+        ? 'track:$trackId'
         : 'camera:${(event.cameraId ?? '').trim()}|object:$objectLabel';
     return '${event.clientId}|${event.siteId}|$identity';
   }
@@ -323,7 +336,7 @@ class SiteActivityIntelligenceService {
   }
 
   String _flaggedIdentitySummaryFor(IntelligenceReceived event) {
-    final objectLabel = _normalizedObjectLabel(event.objectLabel);
+    final objectLabel = _normalizedObjectLabel(event);
     final evidence = _evidenceLabelFor(event, objectLabel);
     return '$evidence flagged near ${_cameraLabel(event.cameraId)}';
   }

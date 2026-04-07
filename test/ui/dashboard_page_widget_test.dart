@@ -14,6 +14,26 @@ import 'package:omnix_dashboard/domain/guard/guard_ops_event.dart';
 import 'package:omnix_dashboard/domain/store/in_memory_event_store.dart';
 import 'package:omnix_dashboard/ui/dashboard_page.dart';
 
+DateTime _dashboardTriageOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 6, 12, minute);
+
+DateTime _dashboardActivityOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 9, hour, minute);
+
+DateTime _dashboardMorningReportGeneratedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 6, 0);
+
+DateTime _dashboardNightShiftStartedAtUtc(int day) =>
+    DateTime.utc(2026, 3, day, 22, 0);
+
+DateTime _dashboardPartnerProgressionOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 9, 23, minute);
+
+DateTime _dashboardWorkspaceOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 10, 10, minute);
+
+DateTime _dashboardNowUtc() => DateTime.now().toUtc();
+
 void main() {
   void expectTextButtonDisabled(WidgetTester tester, String label) {
     final button = tester.widget<TextButton>(
@@ -73,13 +93,14 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1600, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    final nowUtc = _dashboardNowUtc();
     final store = InMemoryEventStore();
     store.append(
       IntelligenceReceived(
         eventId: 'evt-activity-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+        occurredAt: _dashboardActivityOccurredAtUtc(0, 10),
         intelligenceId: 'intel-activity-1',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -103,7 +124,7 @@ void main() {
         eventId: 'evt-activity-2',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 2, 40),
+        occurredAt: _dashboardActivityOccurredAtUtc(2, 40),
         intelligenceId: 'intel-activity-2',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -142,8 +163,8 @@ void main() {
           guardOutcomePolicyDenied24h: 3,
           guardOutcomePolicyDenied7d: 6,
           guardOutcomePolicyDeniedHistoryUtc: [
-            DateTime.now().toUtc().subtract(const Duration(hours: 2)),
-            DateTime.now().toUtc().subtract(const Duration(days: 2)),
+            nowUtc.subtract(const Duration(hours: 2)),
+            nowUtc.subtract(const Duration(days: 2)),
           ],
           guardCoachingAckCount: 5,
           guardCoachingSnoozeCount: 2,
@@ -152,7 +173,7 @@ void main() {
             '[2026-03-05T12:10:00.000Z] high_failure_backlog acknowledged @ sync by guard',
             '[2026-03-05T12:20:00.000Z] high_failure_backlog snoozed 10m @ dispatch by supervisor',
           ],
-          guardLastSuccessfulSyncAtUtc: DateTime.now().toUtc().subtract(
+          guardLastSuccessfulSyncAtUtc: nowUtc.subtract(
             const Duration(minutes: 20),
           ),
           guardLastFailureReason: 'network unavailable',
@@ -164,7 +185,7 @@ void main() {
               shiftId: 'SHIFT-1',
               eventType: GuardOpsEventType.panicTriggered,
               sequence: 44,
-              occurredAt: DateTime.now().toUtc(),
+              occurredAt: nowUtc,
               deviceId: 'DEVICE-1',
               appVersion: '1.0.0',
               payload: const {},
@@ -181,16 +202,16 @@ void main() {
               bucket: 'guard-incident-media',
               path: 'guards/GUARD-001/incident/evidence.jpg',
               localPath: '/tmp/evidence.jpg',
-              capturedAt: DateTime.now().toUtc(),
+              capturedAt: nowUtc,
               status: GuardMediaUploadStatus.failed,
               failureReason: 'upload timeout',
             ),
           ],
           morningSovereignReport: SovereignReport(
             date: '2026-03-09',
-            generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
-            shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
-            shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+            generatedAtUtc: _dashboardMorningReportGeneratedAtUtc(9),
+            shiftWindowStartUtc: _dashboardNightShiftStartedAtUtc(8),
+            shiftWindowEndUtc: _dashboardMorningReportGeneratedAtUtc(9),
             ledgerIntegrity: const SovereignReportLedgerIntegrity(
               totalEvents: 42,
               hashVerified: true,
@@ -276,7 +297,8 @@ void main() {
                   dispatchCount: 2,
                   declarationCount: 5,
                   latestStatus: PartnerDispatchStatus.onSite,
-                  latestOccurredAtUtc: DateTime.utc(2026, 3, 9, 23, 44),
+                  latestOccurredAtUtc:
+                      _dashboardPartnerProgressionOccurredAtUtc(44),
                   summaryLine:
                       'Dispatches 2 • Declarations 5 • Latest ON SITE @ 2026-03-09T23:44:00.000Z',
                 ),
@@ -289,11 +311,13 @@ void main() {
                   partnerLabel: 'Partner Alpha',
                   declarationCount: 3,
                   latestStatus: PartnerDispatchStatus.allClear,
-                  latestOccurredAtUtc: DateTime.utc(2026, 3, 9, 23, 20),
-                  dispatchCreatedAtUtc: DateTime.utc(2026, 3, 9, 23, 0),
-                  acceptedAtUtc: DateTime.utc(2026, 3, 9, 23, 5),
-                  onSiteAtUtc: DateTime.utc(2026, 3, 9, 23, 12),
-                  allClearAtUtc: DateTime.utc(2026, 3, 9, 23, 20),
+                  latestOccurredAtUtc:
+                      _dashboardPartnerProgressionOccurredAtUtc(20),
+                  dispatchCreatedAtUtc:
+                      _dashboardPartnerProgressionOccurredAtUtc(0),
+                  acceptedAtUtc: _dashboardPartnerProgressionOccurredAtUtc(5),
+                  onSiteAtUtc: _dashboardPartnerProgressionOccurredAtUtc(12),
+                  allClearAtUtc: _dashboardPartnerProgressionOccurredAtUtc(20),
                   acceptedDelayMinutes: 5.0,
                   onSiteDelayMinutes: 12.0,
                   scoreLabel: 'STRONG',
@@ -308,9 +332,9 @@ void main() {
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-08',
-              generatedAtUtc: DateTime.utc(2026, 3, 8, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 7, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 8, 6, 0),
+              generatedAtUtc: _dashboardMorningReportGeneratedAtUtc(8),
+              shiftWindowStartUtc: _dashboardNightShiftStartedAtUtc(7),
+              shiftWindowEndUtc: _dashboardMorningReportGeneratedAtUtc(8),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 38,
                 hashVerified: true,
@@ -548,7 +572,7 @@ void main() {
         eventId: 'evt-activity-copy-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+        occurredAt: _dashboardActivityOccurredAtUtc(0, 10),
         intelligenceId: 'intel-activity-copy-1',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -572,7 +596,7 @@ void main() {
         eventId: 'evt-activity-copy-2',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 2, 40),
+        occurredAt: _dashboardActivityOccurredAtUtc(2, 40),
         intelligenceId: 'intel-activity-copy-2',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -597,9 +621,9 @@ void main() {
           eventStore: store,
           morningSovereignReport: SovereignReport(
             date: '2026-03-09',
-            generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
-            shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
-            shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+            generatedAtUtc: _dashboardMorningReportGeneratedAtUtc(9),
+            shiftWindowStartUtc: _dashboardNightShiftStartedAtUtc(8),
+            shiftWindowEndUtc: _dashboardMorningReportGeneratedAtUtc(9),
             ledgerIntegrity: const SovereignReportLedgerIntegrity(
               totalEvents: 42,
               hashVerified: true,
@@ -624,9 +648,9 @@ void main() {
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-08',
-              generatedAtUtc: DateTime.utc(2026, 3, 8, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 7, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 8, 6, 0),
+              generatedAtUtc: _dashboardMorningReportGeneratedAtUtc(8),
+              shiftWindowStartUtc: _dashboardNightShiftStartedAtUtc(7),
+              shiftWindowEndUtc: _dashboardMorningReportGeneratedAtUtc(8),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 38,
                 hashVerified: true,
@@ -738,7 +762,7 @@ void main() {
           eventId: 'evt-activity-share-1',
           sequence: 1,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+          occurredAt: _dashboardActivityOccurredAtUtc(0, 10),
           intelligenceId: 'intel-activity-share-1',
           provider: 'hikvision_dvr_monitor_only',
           sourceType: 'dvr',
@@ -808,7 +832,7 @@ void main() {
         eventId: 'evt-activity-telegram-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+        occurredAt: _dashboardActivityOccurredAtUtc(0, 10),
         intelligenceId: 'intel-activity-telegram-1',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -832,7 +856,7 @@ void main() {
         eventId: 'evt-activity-telegram-2',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 2, 40),
+        occurredAt: _dashboardActivityOccurredAtUtc(2, 40),
         intelligenceId: 'intel-activity-telegram-2',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -857,9 +881,9 @@ void main() {
           eventStore: store,
           morningSovereignReport: SovereignReport(
             date: '2026-03-09',
-            generatedAtUtc: DateTime.utc(2026, 3, 9, 6, 0),
-            shiftWindowStartUtc: DateTime.utc(2026, 3, 8, 22, 0),
-            shiftWindowEndUtc: DateTime.utc(2026, 3, 9, 6, 0),
+            generatedAtUtc: _dashboardMorningReportGeneratedAtUtc(9),
+            shiftWindowStartUtc: _dashboardNightShiftStartedAtUtc(8),
+            shiftWindowEndUtc: _dashboardMorningReportGeneratedAtUtc(9),
             ledgerIntegrity: const SovereignReportLedgerIntegrity(
               totalEvents: 42,
               hashVerified: true,
@@ -884,9 +908,9 @@ void main() {
           morningSovereignReportHistory: [
             SovereignReport(
               date: '2026-03-08',
-              generatedAtUtc: DateTime.utc(2026, 3, 8, 6, 0),
-              shiftWindowStartUtc: DateTime.utc(2026, 3, 7, 22, 0),
-              shiftWindowEndUtc: DateTime.utc(2026, 3, 8, 6, 0),
+              generatedAtUtc: _dashboardMorningReportGeneratedAtUtc(8),
+              shiftWindowStartUtc: _dashboardNightShiftStartedAtUtc(7),
+              shiftWindowEndUtc: _dashboardMorningReportGeneratedAtUtc(8),
               ledgerIntegrity: const SovereignReportLedgerIntegrity(
                 totalEvents: 38,
                 hashVerified: true,
@@ -963,7 +987,7 @@ void main() {
         eventId: 'ACTIVITY-7',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 0, 10),
+        occurredAt: _dashboardActivityOccurredAtUtc(0, 10),
         intelligenceId: 'INT-ACTIVITY-7',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -986,7 +1010,7 @@ void main() {
         eventId: 'ACTIVITY-11',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 9, 3, 10),
+        occurredAt: _dashboardActivityOccurredAtUtc(3, 10),
         intelligenceId: 'INT-ACTIVITY-11',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -1115,7 +1139,7 @@ void main() {
         eventId: 'SIG-INT-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 10, 0),
+        occurredAt: _dashboardWorkspaceOccurredAtUtc(0),
         intelligenceId: 'INT-WS-1',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -1134,7 +1158,7 @@ void main() {
         eventId: 'SIG-FIELD-1',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 10, 5),
+        occurredAt: _dashboardWorkspaceOccurredAtUtc(5),
         guardId: 'GUARD-1',
         clientId: 'CLIENT-STRONG',
         regionId: 'REGION-1',
@@ -1146,7 +1170,7 @@ void main() {
         eventId: 'SIG-PATROL-1',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 10, 8),
+        occurredAt: _dashboardWorkspaceOccurredAtUtc(8),
         guardId: 'GUARD-1',
         routeId: 'R-1',
         clientId: 'CLIENT-STRONG',
@@ -1160,7 +1184,7 @@ void main() {
         eventId: 'DSP-RISK-1',
         sequence: 4,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 10, 10),
+        occurredAt: _dashboardWorkspaceOccurredAtUtc(10),
         dispatchId: 'DSP-RISK',
         clientId: 'CLIENT-RISK',
         regionId: 'REGION-1',
@@ -1172,7 +1196,7 @@ void main() {
         eventId: 'DSP-RISK-2',
         sequence: 5,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 10, 14),
+        occurredAt: _dashboardWorkspaceOccurredAtUtc(14),
         dispatchId: 'DSP-RISK',
         clientId: 'CLIENT-RISK',
         regionId: 'REGION-1',
@@ -1186,7 +1210,7 @@ void main() {
         eventId: 'DSP-SAFE-1',
         sequence: 6,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 10, 16),
+        occurredAt: _dashboardWorkspaceOccurredAtUtc(16),
         dispatchId: 'DSP-SAFE',
         clientId: 'CLIENT-STRONG',
         regionId: 'REGION-1',
@@ -1198,7 +1222,7 @@ void main() {
         eventId: 'DSP-SAFE-2',
         sequence: 7,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 10, 10, 20),
+        occurredAt: _dashboardWorkspaceOccurredAtUtc(20),
         dispatchId: 'DSP-SAFE',
         clientId: 'CLIENT-STRONG',
         regionId: 'REGION-1',
@@ -1302,7 +1326,7 @@ void main() {
           guardPendingMedia: 0,
           guardFailedEvents: 1,
           guardFailedMedia: 0,
-          guardLastSuccessfulSyncAtUtc: DateTime.now().toUtc().subtract(
+          guardLastSuccessfulSyncAtUtc: _dashboardNowUtc().subtract(
             const Duration(minutes: 9),
           ),
           guardFailureAlertThreshold: 2,
@@ -1329,7 +1353,7 @@ void main() {
         eventId: 'E-INT-1',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 12, 0),
+        occurredAt: _dashboardTriageOccurredAtUtc(0),
         intelligenceId: 'INT-1',
         provider: 'newsapi.org',
         sourceType: 'news',
@@ -1348,7 +1372,7 @@ void main() {
         eventId: 'E-INT-2',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 12, 2),
+        occurredAt: _dashboardTriageOccurredAtUtc(2),
         intelligenceId: 'INT-2',
         provider: 'community-feed',
         sourceType: 'community',
@@ -1367,7 +1391,7 @@ void main() {
         eventId: 'DEC-1',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 6, 12, 5),
+        occurredAt: _dashboardTriageOccurredAtUtc(5),
         dispatchId: 'DSP-1',
         clientId: 'CLIENT-001',
         regionId: 'REGION-GAUTENG',

@@ -1,7 +1,9 @@
 import '../domain/events/intelligence_received.dart';
+import 'intelligence_event_object_semantics.dart';
 import 'monitoring_watch_scene_assessment_service.dart';
 
 enum TelegramClientApprovalDecision { approve, review, escalate }
+
 enum TelegramClientAllowanceDecision { allowOnce, allowAlways }
 
 extension TelegramClientApprovalDecisionX on TelegramClientApprovalDecision {
@@ -36,11 +38,10 @@ class TelegramClientApprovalService {
     if (!assessment.shouldNotifyClient || assessment.shouldEscalate) {
       return false;
     }
-    final objectLabel = assessment.objectLabel.trim().toLowerCase();
-    final isHumanLike =
-        objectLabel == 'person' ||
-        objectLabel == 'human' ||
-        objectLabel == 'intruder';
+    final isHumanLike = _isHumanLikeSignal(
+      event: event,
+      assessment: assessment,
+    );
     if (!isHumanLike) {
       return false;
     }
@@ -67,6 +68,29 @@ class TelegramClientApprovalService {
     }
     return (event.faceMatchId ?? '').trim().isNotEmpty ||
         (event.plateNumber ?? '').trim().isNotEmpty;
+  }
+
+  bool _isHumanLikeSignal({
+    required IntelligenceReceived event,
+    required MonitoringWatchSceneAssessment assessment,
+  }) {
+    final assessmentObjectLabel = assessment.objectLabel.trim().toLowerCase();
+    if (assessmentObjectLabel == 'person' ||
+        assessmentObjectLabel == 'human' ||
+        assessmentObjectLabel == 'intruder') {
+      return true;
+    }
+    final eventObjectLabel = resolveIdentityBackedObjectLabel(
+      event: event,
+      directObjectLabel: (event.objectLabel ?? '').trim(),
+    ).toLowerCase();
+    if (eventObjectLabel == 'person' ||
+        eventObjectLabel == 'human' ||
+        eventObjectLabel == 'intruder') {
+      return true;
+    }
+    return (event.faceMatchId ?? '').trim().isNotEmpty ||
+        (assessment.faceMatchId ?? '').trim().isNotEmpty;
   }
 
   Map<String, Object?> replyKeyboardMarkup() {

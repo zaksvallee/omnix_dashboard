@@ -66,6 +66,25 @@ void main() {
     );
   });
 
+  test('formats motion incident without duplicated movement wording', () {
+    final message = service.formatIncident(
+      site: site,
+      incident: MonitoringIncidentUpdate(
+        occurredAt: DateTime.utc(2026, 3, 13, 23, 14),
+        cameraLabel: 'Camera 11',
+        objectLabel: 'movement',
+      ),
+    );
+
+    expect(
+      message,
+      contains(
+        'ONYX has detected movement on Camera 11 at MS Vallee Residence.',
+      ),
+    );
+    expect(message, isNot(contains('movement movement')));
+  });
+
   test('formats fire incident message with emergency-specific wording', () {
     final message = service.formatIncident(
       site: site,
@@ -97,25 +116,28 @@ void main() {
     );
   });
 
-  test('formats fire incident dispatch pack with emergency-specific action wording', () {
-    final message = service.formatIncident(
-      site: site,
-      incident: MonitoringIncidentUpdate(
-        occurredAt: DateTime.utc(2026, 3, 13, 23, 16),
-        cameraLabel: 'Generator Room',
-        objectLabel: 'smoke',
-        postureLabel: 'fire and smoke emergency',
-        dispatchInitiated: true,
-      ),
-    );
+  test(
+    'formats fire incident dispatch pack with emergency-specific action wording',
+    () {
+      final message = service.formatIncident(
+        site: site,
+        incident: MonitoringIncidentUpdate(
+          occurredAt: DateTime.utc(2026, 3, 13, 23, 16),
+          cameraLabel: 'Generator Room',
+          objectLabel: 'smoke',
+          postureLabel: 'fire and smoke emergency',
+          dispatchInitiated: true,
+        ),
+      );
 
-    expect(
-      message,
-      contains(
-        'Fire response has been staged while ONYX keeps the client safety and occupant welfare lane active.',
-      ),
-    );
-  });
+      expect(
+        message,
+        contains(
+          'Fire response has been staged while ONYX keeps the client safety and occupant welfare lane active.',
+        ),
+      );
+    },
+  );
 
   test('formats repeat-activity update with premium direct address', () {
     final message = service.formatRepeatActivity(
@@ -275,25 +297,28 @@ void main() {
     );
   });
 
-  test('formats leak escalation dispatch pack with containment-specific action wording', () {
-    final message = service.formatEscalationCandidate(
-      site: site,
-      incident: MonitoringIncidentUpdate(
-        occurredAt: DateTime.utc(2026, 3, 13, 23, 25),
-        cameraLabel: 'Stock Room',
-        objectLabel: 'leak',
-        postureLabel: 'flood or leak emergency',
-        dispatchInitiated: true,
-      ),
-    );
+  test(
+    'formats leak escalation dispatch pack with containment-specific action wording',
+    () {
+      final message = service.formatEscalationCandidate(
+        site: site,
+        incident: MonitoringIncidentUpdate(
+          occurredAt: DateTime.utc(2026, 3, 13, 23, 25),
+          cameraLabel: 'Stock Room',
+          objectLabel: 'leak',
+          postureLabel: 'flood or leak emergency',
+          dispatchInitiated: true,
+        ),
+      );
 
-    expect(
-      message,
-      contains(
-        'Leak containment has been staged while ONYX keeps the client safety and occupant welfare lane active.',
-      ),
-    );
-  });
+      expect(
+        message,
+        contains(
+          'Leak containment has been staged while ONYX keeps the client safety and occupant welfare lane active.',
+        ),
+      );
+    },
+  );
 
   test('formats client verification prompt for unidentified person scenes', () {
     final message = service.formatClientVerificationPrompt(
@@ -337,11 +362,12 @@ void main() {
     expect(message, contains('🛡️ ONYX Allowlist Option'));
     expect(
       message,
-      contains(
-        'ONYX has logged this person as expected on Gate Camera.',
-      ),
+      contains('ONYX has logged this person as expected on Gate Camera.'),
     );
-    expect(message, contains('Observed identity signal: Face PERSON-44 91.2%.'));
+    expect(
+      message,
+      contains('Observed identity signal: Face PERSON-44 91.2%.'),
+    );
     expect(
       message,
       contains(

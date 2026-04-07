@@ -70,5 +70,52 @@ void main() {
 
       expect(configs, isEmpty);
     });
+
+    test('parses Hik-Connect OpenAPI cloud scope config', () {
+      final configs = DvrScopeConfig.parseJson(
+        '''
+        [
+          {
+            "client_id": "CLIENT-MS-VALLEE",
+            "region_id": "REGION-GAUTENG",
+            "site_id": "SITE-MS-VALLEE-RESIDENCE",
+            "provider": "hik_connect_openapi",
+            "api_base_url": "https://api.hik-connect.example.com",
+            "app_key": "app-key",
+            "app_secret": "app-secret",
+            "area_id": "-1",
+            "include_sub_area": true,
+            "device_serial_no": "SERIAL-001",
+            "alarm_event_types": [0, 1, 100657],
+            "camera_labels": {
+              "camera-front": "Front Yard"
+            }
+          }
+        ]
+        ''',
+        fallbackClientId: 'CLIENT-FALLBACK',
+        fallbackRegionId: 'REGION-FALLBACK',
+        fallbackSiteId: 'SITE-FALLBACK',
+        fallbackProvider: 'hikvision_dvr_monitor_only',
+        fallbackEventsUri: Uri.parse('http://192.168.8.200/events'),
+        fallbackAuthMode: 'digest',
+        fallbackUsername: '',
+        fallbackPassword: '',
+        fallbackBearerToken: '',
+      );
+
+      expect(configs, hasLength(1));
+      expect(configs.first.provider, 'hik_connect_openapi');
+      expect(configs.first.eventsUri, isNull);
+      expect(configs.first.apiBaseUri?.host, 'api.hik-connect.example.com');
+      expect(configs.first.hikConnectConfigured, isTrue);
+      expect(configs.first.appKey, 'app-key');
+      expect(configs.first.appSecret, 'app-secret');
+      expect(configs.first.areaId, '-1');
+      expect(configs.first.includeSubArea, isTrue);
+      expect(configs.first.deviceSerialNo, 'SERIAL-001');
+      expect(configs.first.alarmEventTypes, <int>[0, 1, 100657]);
+      expect(configs.first.cameraLabels['camera-front'], 'Front Yard');
+    });
   });
 }

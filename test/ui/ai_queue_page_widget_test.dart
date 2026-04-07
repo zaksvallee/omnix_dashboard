@@ -4,10 +4,32 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
+import 'package:omnix_dashboard/domain/events/execution_completed.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/ui/ai_queue_page.dart';
 
+DateTime _aiQueueOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 19, hour, minute);
+
+DateTime _aiQueueSceneReviewOccurredAtUtc(int minute) =>
+    DateTime.utc(2026, 3, 16, 21, minute);
+
+DateTime _aiQueueShadowOccurredAtUtc(int hour, int minute) =>
+    DateTime.utc(2026, 3, 16, hour, minute);
+
 void main() {
+  Future<void> openDetailedWorkspace(WidgetTester tester) async {
+    final toggle = find.byKey(
+      const ValueKey('ai-queue-toggle-detailed-workspace'),
+    );
+    if (toggle.evaluate().isEmpty) {
+      return;
+    }
+    await tester.ensureVisible(toggle.first);
+    await tester.tap(toggle.first);
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('ai queue stays stable on phone viewport', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1.0;
@@ -22,6 +44,33 @@ void main() {
     expect(find.text('AI Automation Queue'), findsWidgets);
     expect(find.text('Queued Actions'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('ai queue shows cctv monitoring board on wide desktop', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CCTV Monitoring'), findsOneWidget);
+    expect(find.text('LIVE FEEDS'), findsOneWidget);
+    expect(find.textContaining('AI ALERT'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey('ai-queue-toggle-detailed-workspace')),
+      findsOneWidget,
+    );
+
+    await openDetailedWorkspace(tester);
+
+    expect(find.text('AI Automation Queue'), findsWidgets);
+    expect(find.text('Queued Actions'), findsOneWidget);
   });
 
   testWidgets('ai queue stays stable on landscape phone viewport', (
@@ -58,6 +107,115 @@ void main() {
     expect(find.text('Queued Actions'), findsOneWidget);
   });
 
+  testWidgets('ai queue pauses the active timer without progress fill', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
+    await tester.pumpAndSettle();
+
+    final pauseButton = find.text('PAUSE').first;
+    await tester.ensureVisible(pauseButton);
+    await tester.tap(pauseButton, warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    final indicator = tester.widget<LinearProgressIndicator>(
+      find.byType(LinearProgressIndicator).first,
+    );
+    expect(indicator.value, 0.0);
+  });
+
+  testWidgets('ai queue refreshes daily stats when new events arrive', (
+    tester,
+  ) async {
+    final decision = DecisionCreated(
+      eventId: 'evt-stats-1',
+      sequence: 1,
+      version: 1,
+      occurredAt: DateTime.now().toUtc().subtract(const Duration(minutes: 30)),
+      dispatchId: 'DSP-STATS-1',
+      clientId: 'CLIENT-STATS',
+      regionId: 'REGION-GAUTENG',
+      siteId: 'SITE-STATS',
+    );
+    final completed = ExecutionCompleted(
+      eventId: 'evt-stats-2',
+      sequence: 2,
+      version: 1,
+      occurredAt: DateTime.now().toUtc().subtract(const Duration(minutes: 5)),
+      dispatchId: 'DSP-STATS-1',
+      clientId: 'CLIENT-STATS',
+      regionId: 'REGION-GAUTENG',
+      siteId: 'SITE-STATS',
+      success: true,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: AIQueuePage(events: [decision])),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('100%'), findsNothing);
+
+    await tester.pumpWidget(
+      MaterialApp(home: AIQueuePage(events: [decision, completed])),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('100%'), findsOneWidget);
+  });
+
+  testWidgets(
+    'ai queue keeps a manually selected feed pinned when dismissing the alert on that feed',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIQueuePage(
+            events: [
+              DecisionCreated(
+                eventId: 'evt-feed-1',
+                sequence: 1,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(7, 30),
+                dispatchId: 'DSP-FEED-1',
+                clientId: 'CLIENT-FEED',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-FEED',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final feedsGrid = find.byType(GridView).first;
+      final cam03 = find.descendant(of: feedsGrid, matching: find.text('CAM-03'));
+      await tester.ensureVisible(cam03);
+      await tester.tap(cam03, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      Text feedLabel = tester.widget<Text>(
+        find.descendant(of: feedsGrid, matching: find.text('CAM-03')).first,
+      );
+      expect(feedLabel.style?.color, const Color(0xFF172638));
+
+      final dismissButton = find.text('Dismiss');
+      await tester.ensureVisible(dismissButton);
+      await tester.tap(dismissButton, warnIfMissed: false);
+      await tester.pumpAndSettle();
+
+      feedLabel = tester.widget<Text>(
+        find.descendant(of: feedsGrid, matching: find.text('CAM-03')).first,
+      );
+      expect(feedLabel.style?.color, const Color(0xFF172638));
+    },
+  );
+
   testWidgets('ai queue header view events opens scoped event review', (
     tester,
   ) async {
@@ -72,7 +230,7 @@ void main() {
               eventId: 'evt-dispatch-1',
               sequence: 1,
               version: 1,
-              occurredAt: DateTime.utc(2026, 3, 19, 7, 30),
+              occurredAt: _aiQueueOccurredAtUtc(7, 30),
               dispatchId: 'DISP-100',
               clientId: 'CLIENT-VALLEE',
               regionId: 'REGION-GAUTENG',
@@ -95,6 +253,495 @@ void main() {
     expect(openedSelectedEventId, 'evt-dispatch-1');
   });
 
+  testWidgets(
+    'ai queue dispatch guard opens alarms handoff for focused alert',
+    (tester) async {
+      String? openedIncidentReference;
+
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIQueuePage(
+            events: [
+              DecisionCreated(
+                eventId: 'evt-dispatch-100',
+                sequence: 1,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(7, 30),
+                dispatchId: 'DISP-100',
+                clientId: 'CLIENT-VALLEE',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'SITE-VALLEE',
+              ),
+            ],
+            focusIncidentReference: 'INC-DISP-100',
+            onOpenAlarmsForIncident: (incidentReference) {
+              openedIncidentReference = incidentReference;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final dispatchGuardButton = find.byKey(
+        const ValueKey('ai-queue-action-dispatch-guard'),
+      );
+      await tester.ensureVisible(dispatchGuardButton);
+      await tester.tap(dispatchGuardButton);
+      await tester.pumpAndSettle();
+
+      expect(openedIncidentReference, 'DISP-100');
+    },
+  );
+
+  testWidgets('ai queue ask agent opens the focused alert incident handoff', (
+    tester,
+  ) async {
+    String? openedIncidentReference;
+
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: [
+            DecisionCreated(
+              eventId: 'evt-dispatch-200',
+              sequence: 1,
+              version: 1,
+              occurredAt: _aiQueueOccurredAtUtc(7, 30),
+              dispatchId: 'DSP-200',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+            ),
+          ],
+          focusIncidentReference: 'INC-DSP-200',
+          onOpenAgentForIncident: (incidentReference) {
+            openedIncidentReference = incidentReference;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final askAgentButton = find.byKey(
+      const ValueKey('ai-queue-action-open-agent'),
+    );
+    await tester.ensureVisible(askAgentButton);
+    await tester.tap(askAgentButton);
+    await tester.pumpAndSettle();
+
+    expect(openedIncidentReference, 'DSP-200');
+  });
+
+  testWidgets(
+    'ai queue ask agent keeps the routed incident scope after manual feed drift',
+    (tester) async {
+      String? openedIncidentReference;
+
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIQueuePage(
+            events: [
+              DecisionCreated(
+                eventId: 'evt-dispatch-latest',
+                sequence: 1,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(8, 30),
+                dispatchId: 'DSP-LATEST',
+                clientId: 'CLIENT-ALPHA',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'site-alpha',
+              ),
+              DecisionCreated(
+                eventId: 'evt-dispatch-focus',
+                sequence: 2,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(7, 30),
+                dispatchId: 'DSP-FOCUS',
+                clientId: 'CLIENT-BRAVO',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'site-beta',
+              ),
+            ],
+            focusIncidentReference: 'INC-DSP-FOCUS',
+            onOpenAgentForIncident: (incidentReference) {
+              openedIncidentReference = incidentReference;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final feedGrid = find.byType(GridView);
+      final cam01Finder = find.descendant(
+        of: feedGrid,
+        matching: find.text('CAM-01'),
+      );
+
+      await tester.tap(cam01Finder);
+      await tester.pumpAndSettle();
+
+      final askAgentButton = find.byKey(
+        const ValueKey('ai-queue-action-open-agent'),
+      );
+      await tester.ensureVisible(askAgentButton);
+      await tester.tap(askAgentButton);
+      await tester.pumpAndSettle();
+
+      expect(openedIncidentReference, 'DSP-FOCUS');
+    },
+  );
+
+  testWidgets('ai queue ingests agent returns into the focused cctv flow', (
+    tester,
+  ) async {
+    String? consumedIncidentReference;
+
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: [
+            DecisionCreated(
+              eventId: 'evt-dispatch-201',
+              sequence: 1,
+              version: 1,
+              occurredAt: _aiQueueOccurredAtUtc(7, 30),
+              dispatchId: 'DSP-201',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+            ),
+          ],
+          focusIncidentReference: 'INC-DSP-201',
+          agentReturnIncidentReference: 'INC-DSP-201',
+          onConsumeAgentReturnIncidentReference: (incidentReference) {
+            consumedIncidentReference = incidentReference;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('ai-queue-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('AGENT RETURN'), findsOneWidget);
+    expect(find.text('Returned from Agent for INC-DSP-201.'), findsOneWidget);
+    expect(consumedIncidentReference, 'INC-DSP-201');
+  });
+
+  testWidgets('ai queue ingests evidence returns into the focused cctv flow', (
+    tester,
+  ) async {
+    String? consumedAuditId;
+
+    await tester.binding.setSurfaceSize(const Size(1440, 980));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AIQueuePage(
+          events: [
+            DecisionCreated(
+              eventId: 'evt-dispatch-202',
+              sequence: 1,
+              version: 1,
+              occurredAt: _aiQueueOccurredAtUtc(7, 32),
+              dispatchId: 'DSP-202',
+              clientId: 'CLIENT-VALLEE',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-VALLEE',
+            ),
+          ],
+          focusIncidentReference: 'INC-DSP-202',
+          evidenceReturnReceipt: const AiQueueEvidenceReturnReceipt(
+            auditId: 'audit-cctv-202',
+            label: 'EVIDENCE RETURN',
+            message: 'Returned to CCTV for DSP-202.',
+            detail:
+                'The signed CCTV handoff was verified in the ledger. Keep the same feed pinned and finish visual confirmation from this queue.',
+            accent: Color(0xFF6EE7B7),
+          ),
+          onConsumeEvidenceReturnReceipt: (auditId) {
+            consumedAuditId = auditId;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('ai-queue-workspace-command-receipt')),
+      findsOneWidget,
+    );
+    expect(find.text('EVIDENCE RETURN'), findsOneWidget);
+    expect(find.text('Returned to CCTV for DSP-202.'), findsOneWidget);
+    expect(consumedAuditId, 'audit-cctv-202');
+  });
+
+  testWidgets(
+    'ai queue prioritizes routed CCTV focus and hands dispatch into alarms',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      String? openedIncidentReference;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIQueuePage(
+            focusIncidentReference: 'INC-DSP-FOCUS',
+            events: [
+              DecisionCreated(
+                eventId: 'evt-dispatch-latest',
+                sequence: 1,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(8, 30),
+                dispatchId: 'DSP-LATEST',
+                clientId: 'CLIENT-ALPHA',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'site-alpha',
+              ),
+              DecisionCreated(
+                eventId: 'evt-dispatch-focus',
+                sequence: 2,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(7, 30),
+                dispatchId: 'DSP-FOCUS',
+                clientId: 'CLIENT-BRAVO',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'site-beta',
+              ),
+            ],
+            onOpenAlarmsForIncident: (incidentReference) {
+              openedIncidentReference = incidentReference;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Site Beta'), findsOneWidget);
+
+      final dispatchGuardButton = find.byKey(
+        const ValueKey('ai-queue-action-dispatch-guard'),
+      );
+      await tester.ensureVisible(dispatchGuardButton);
+      await tester.tap(dispatchGuardButton);
+      await tester.pumpAndSettle();
+
+      expect(openedIncidentReference, 'DSP-FOCUS');
+    },
+  );
+
+  testWidgets(
+    'ai queue view camera re-pins the routed alert feed after manual feed drift',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIQueuePage(
+            focusIncidentReference: 'INC-DSP-FOCUS',
+            events: [
+              DecisionCreated(
+                eventId: 'evt-dispatch-latest',
+                sequence: 1,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(8, 30),
+                dispatchId: 'DSP-LATEST',
+                clientId: 'CLIENT-ALPHA',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'site-alpha',
+              ),
+              DecisionCreated(
+                eventId: 'evt-dispatch-focus',
+                sequence: 2,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(7, 30),
+                dispatchId: 'DSP-FOCUS',
+                clientId: 'CLIENT-BRAVO',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'site-beta',
+              ),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final feedGrid = find.byType(GridView);
+      final cam01Finder = find.descendant(
+        of: feedGrid,
+        matching: find.text('CAM-01'),
+      );
+      final cam07Finder = find.descendant(
+        of: feedGrid,
+        matching: find.text('CAM-07'),
+      );
+
+      expect(find.text('CAM-07 - South Lot'), findsOneWidget);
+      expect(
+        tester.widget<Text>(cam07Finder).style?.color,
+        const Color(0xFF172638),
+      );
+
+      await tester.tap(cam01Finder);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(cam01Finder).style?.color,
+        const Color(0xFF172638),
+      );
+      expect(
+        tester.widget<Text>(cam07Finder).style?.color,
+        const Color(0xFF6E7F96),
+      );
+
+      final viewCameraButton = find.byKey(
+        const ValueKey('ai-queue-action-view-camera'),
+      );
+      await tester.ensureVisible(viewCameraButton);
+      await tester.tap(viewCameraButton);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(cam07Finder).style?.color,
+        const Color(0xFF172638),
+      );
+      expect(
+        tester.widget<Text>(cam01Finder).style?.color,
+        const Color(0xFF6E7F96),
+      );
+    },
+  );
+
+  testWidgets(
+    'ai queue dispatch guard re-pins the routed alert feed and stages guard dispatch',
+    (tester) async {
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      String? openedIncidentReference;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: AIQueuePage(
+            focusIncidentReference: 'INC-DSP-FOCUS',
+            events: [
+              DecisionCreated(
+                eventId: 'evt-dispatch-latest',
+                sequence: 1,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(8, 30),
+                dispatchId: 'DSP-LATEST',
+                clientId: 'CLIENT-ALPHA',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'site-alpha',
+              ),
+              DecisionCreated(
+                eventId: 'evt-dispatch-focus',
+                sequence: 2,
+                version: 1,
+                occurredAt: _aiQueueOccurredAtUtc(7, 30),
+                dispatchId: 'DSP-FOCUS',
+                clientId: 'CLIENT-BRAVO',
+                regionId: 'REGION-GAUTENG',
+                siteId: 'site-beta',
+              ),
+            ],
+            onOpenAlarmsForIncident: (incidentReference) {
+              openedIncidentReference = incidentReference;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final feedGrid = find.byType(GridView);
+      final cam01Finder = find.descendant(
+        of: feedGrid,
+        matching: find.text('CAM-01'),
+      );
+      final cam07Finder = find.descendant(
+        of: feedGrid,
+        matching: find.text('CAM-07'),
+      );
+
+      await tester.tap(cam01Finder);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(cam01Finder).style?.color,
+        const Color(0xFF172638),
+      );
+      expect(
+        tester.widget<Text>(cam07Finder).style?.color,
+        const Color(0xFF6E7F96),
+      );
+
+      final dispatchGuardButton = find.byKey(
+        const ValueKey('ai-queue-action-dispatch-guard'),
+      );
+      await tester.ensureVisible(dispatchGuardButton);
+      await tester.tap(dispatchGuardButton);
+      await tester.pumpAndSettle();
+
+      expect(openedIncidentReference, 'DSP-FOCUS');
+      expect(
+        tester.widget<Text>(cam07Finder).style?.color,
+        const Color(0xFF172638),
+      );
+      expect(
+        tester.widget<Text>(cam01Finder).style?.color,
+        const Color(0xFF6E7F96),
+      );
+      expect(
+        find.text(
+          'Guard dispatch staged. Keep this camera pinned until the scene is verified.',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('ai queue countdown decrements every second', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
 
@@ -107,11 +754,16 @@ void main() {
   testWidgets(
     'ai queue switches lanes, changes workspace views, and promotes queued work',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
       await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
       await tester.pumpAndSettle();
+      await openDetailedWorkspace(tester);
 
       expect(
         find.byKey(const ValueKey('ai-queue-workspace-status-banner')),
@@ -190,11 +842,16 @@ void main() {
   testWidgets(
     'ai queue standby workspace recovers through runbook, policy, and context',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(1440, 980);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
 
       await tester.pumpWidget(const MaterialApp(home: AIQueuePage(events: [])));
       await tester.pumpAndSettle();
+      await openDetailedWorkspace(tester);
 
       for (var i = 0; i < 3; i++) {
         final cancelActionButton = find.text('CANCEL ACTION').first;
@@ -296,7 +953,7 @@ void main() {
         eventId: 'evt-1',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        occurredAt: _aiQueueSceneReviewOccurredAtUtc(14),
         intelligenceId: 'intel-1',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -318,7 +975,7 @@ void main() {
         eventId: 'evt-2',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 13),
+        occurredAt: _aiQueueSceneReviewOccurredAtUtc(13),
         intelligenceId: 'intel-2',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -345,7 +1002,7 @@ void main() {
         decisionSummary:
             'Escalated for urgent review because person activity was detected.',
         summary: 'Person visible near the boundary line.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        reviewedAtUtc: _aiQueueSceneReviewOccurredAtUtc(15),
       ),
       'intel-2': MonitoringSceneReviewRecord(
         intelligenceId: 'intel-2',
@@ -354,7 +1011,7 @@ void main() {
         decisionLabel: 'Monitoring Alert',
         decisionSummary: 'Routine perimeter watch remains active.',
         summary: 'Sandton remains under active watch.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 16),
+        reviewedAtUtc: _aiQueueSceneReviewOccurredAtUtc(16),
       ),
     };
 
@@ -389,7 +1046,7 @@ void main() {
         eventId: 'evt-fire',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        occurredAt: _aiQueueSceneReviewOccurredAtUtc(14),
         intelligenceId: 'intel-fire',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -416,7 +1073,7 @@ void main() {
         decisionSummary:
             'Escalated for urgent review because fire or smoke indicators were detected.',
         summary: 'Smoke plume visible in the generator room.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        reviewedAtUtc: _aiQueueSceneReviewOccurredAtUtc(15),
       ),
     };
 
@@ -458,7 +1115,7 @@ void main() {
           eventId: 'evt-shadow-news',
           sequence: 1,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 20, 50),
+          occurredAt: _aiQueueShadowOccurredAtUtc(20, 50),
           intelligenceId: 'intel-shadow-news',
           provider: 'news_feed_monitor',
           sourceType: 'news',
@@ -480,7 +1137,7 @@ void main() {
           eventId: 'evt-shadow-live',
           sequence: 2,
           version: 1,
-          occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+          occurredAt: _aiQueueShadowOccurredAtUtc(21, 14),
           intelligenceId: 'intel-shadow-live',
           provider: 'hikvision_dvr_monitor_only',
           sourceType: 'dvr',
@@ -509,7 +1166,7 @@ void main() {
               'Likely spoofed service access with abnormal roaming.',
           summary:
               'Likely maintenance impersonation moving across office zones.',
-          reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+          reviewedAtUtc: _aiQueueShadowOccurredAtUtc(21, 15),
         ),
       };
 
@@ -555,7 +1212,7 @@ void main() {
         eventId: 'evt-shadow-news',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 20, 50),
+        occurredAt: _aiQueueShadowOccurredAtUtc(20, 50),
         intelligenceId: 'intel-shadow-news',
         provider: 'news_feed_monitor',
         sourceType: 'news',
@@ -577,7 +1234,7 @@ void main() {
         eventId: 'evt-shadow-live-1',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        occurredAt: _aiQueueShadowOccurredAtUtc(21, 14),
         intelligenceId: 'intel-shadow-live-1',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -599,7 +1256,7 @@ void main() {
         eventId: 'evt-shadow-live-2',
         sequence: 3,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 18),
+        occurredAt: _aiQueueShadowOccurredAtUtc(21, 18),
         intelligenceId: 'intel-shadow-live-2',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -620,7 +1277,7 @@ void main() {
         eventId: 'evt-shadow-live-3',
         sequence: 4,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 22),
+        occurredAt: _aiQueueShadowOccurredAtUtc(21, 22),
         intelligenceId: 'intel-shadow-live-3',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -642,7 +1299,7 @@ void main() {
         eventId: 'evt-shadow-live-4',
         sequence: 5,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 26),
+        occurredAt: _aiQueueShadowOccurredAtUtc(21, 26),
         intelligenceId: 'intel-shadow-live-4',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -669,7 +1326,7 @@ void main() {
         decisionLabel: 'Escalation Candidate',
         decisionSummary: 'Likely spoofed service access with abnormal roaming.',
         summary: 'Likely maintenance impersonation moving across office zones.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        reviewedAtUtc: _aiQueueShadowOccurredAtUtc(21, 15),
       ),
       'intel-shadow-live-2': MonitoringSceneReviewRecord(
         intelligenceId: 'intel-shadow-live-2',
@@ -679,7 +1336,7 @@ void main() {
         decisionSummary: 'Likely spoofed service access with abnormal roaming.',
         summary:
             'Likely maintenance impersonation moving across office zones repeatedly.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 18),
+        reviewedAtUtc: _aiQueueShadowOccurredAtUtc(21, 18),
       ),
       'intel-shadow-live-3': MonitoringSceneReviewRecord(
         intelligenceId: 'intel-shadow-live-3',
@@ -689,7 +1346,7 @@ void main() {
         decisionSummary: 'Likely spoofed service access with abnormal roaming.',
         summary:
             'Likely maintenance impersonation moving across office zones again.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 22),
+        reviewedAtUtc: _aiQueueShadowOccurredAtUtc(21, 22),
       ),
       'intel-shadow-live-4': MonitoringSceneReviewRecord(
         intelligenceId: 'intel-shadow-live-4',
@@ -699,7 +1356,7 @@ void main() {
         decisionSummary: 'Likely spoofed service access with abnormal roaming.',
         summary:
             'Likely maintenance impersonation continuing across office zones.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 26),
+        reviewedAtUtc: _aiQueueShadowOccurredAtUtc(21, 26),
       ),
     };
 
@@ -746,7 +1403,7 @@ void main() {
         eventId: 'evt-news',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 20, 0),
+        occurredAt: _aiQueueShadowOccurredAtUtc(20, 0),
         intelligenceId: 'intel-news',
         provider: 'security_bulletin',
         sourceType: 'news',
@@ -768,7 +1425,7 @@ void main() {
         eventId: 'evt-office',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        occurredAt: _aiQueueShadowOccurredAtUtc(21, 14),
         intelligenceId: 'intel-office',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -795,7 +1452,7 @@ void main() {
         decisionLabel: 'Escalation Candidate',
         decisionSummary: 'Likely spoofed service access with abnormal roaming.',
         summary: 'Likely maintenance impersonation moving across office zones.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        reviewedAtUtc: _aiQueueShadowOccurredAtUtc(21, 15),
       ),
     };
 
@@ -829,9 +1486,23 @@ void main() {
     expect(find.text('POSTURE WEIGHT'), findsOneWidget);
     expect(find.textContaining('weight '), findsWidgets);
 
-    final openDossierButton = find.byKey(
+    var openDossierButton = find.byKey(
       const ValueKey('ai-queue-mo-shadow-open-dossier'),
     );
+    if (openDossierButton.evaluate().isEmpty) {
+      openDossierButton = find.text('VIEW DOSSIER');
+    }
+    if (openDossierButton.evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('ai-queue-lane-shadow')));
+      await tester.pumpAndSettle();
+      openDossierButton = find.byKey(
+        const ValueKey('ai-queue-workspace-open-shadow-dossier'),
+      );
+      if (openDossierButton.evaluate().isEmpty) {
+        openDossierButton = find.text('OPEN DOSSIER');
+      }
+    }
+    expect(openDossierButton, findsOneWidget);
     await tester.ensureVisible(openDossierButton);
     await tester.tap(openDossierButton);
     await tester.pumpAndSettle();
@@ -861,8 +1532,12 @@ void main() {
   testWidgets('ai queue pins shadow dossier copy in the desktop context rail', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.physicalSize = const Size(1440, 980);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
     String? clipboardText;
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -889,7 +1564,7 @@ void main() {
         eventId: 'evt-news',
         sequence: 1,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 20, 0),
+        occurredAt: _aiQueueShadowOccurredAtUtc(20, 0),
         intelligenceId: 'intel-news',
         provider: 'security_bulletin',
         sourceType: 'news',
@@ -911,7 +1586,7 @@ void main() {
         eventId: 'evt-office',
         sequence: 2,
         version: 1,
-        occurredAt: DateTime.utc(2026, 3, 16, 21, 14),
+        occurredAt: _aiQueueShadowOccurredAtUtc(21, 14),
         intelligenceId: 'intel-office',
         provider: 'hikvision_dvr_monitor_only',
         sourceType: 'dvr',
@@ -938,7 +1613,7 @@ void main() {
         decisionLabel: 'Escalation Candidate',
         decisionSummary: 'Likely spoofed service access with abnormal roaming.',
         summary: 'Likely maintenance impersonation moving across office zones.',
-        reviewedAtUtc: DateTime.utc(2026, 3, 16, 21, 15),
+        reviewedAtUtc: _aiQueueShadowOccurredAtUtc(21, 15),
       ),
     };
 
@@ -952,15 +1627,30 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await openDetailedWorkspace(tester);
 
     expect(
       find.byKey(const ValueKey('ai-queue-workspace-command-receipt')),
       findsOneWidget,
     );
 
-    final openDossierButton = find.byKey(
+    var openDossierButton = find.byKey(
       const ValueKey('ai-queue-mo-shadow-open-dossier'),
     );
+    if (openDossierButton.evaluate().isEmpty) {
+      openDossierButton = find.text('VIEW DOSSIER');
+    }
+    if (openDossierButton.evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('ai-queue-lane-shadow')));
+      await tester.pumpAndSettle();
+      openDossierButton = find.byKey(
+        const ValueKey('ai-queue-workspace-open-shadow-dossier'),
+      );
+      if (openDossierButton.evaluate().isEmpty) {
+        openDossierButton = find.text('OPEN DOSSIER');
+      }
+    }
+    expect(openDossierButton, findsOneWidget);
     await tester.ensureVisible(openDossierButton);
     await tester.tap(openDossierButton);
     await tester.pumpAndSettle();

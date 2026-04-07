@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 import '../domain/intelligence/intel_ingestion.dart';
+import 'intelligence_event_object_semantics.dart';
 
 class CctvCameraHealth {
   final String cameraId;
@@ -254,7 +255,11 @@ class HttpCctvEvidenceProbeService {
           record.occurredAtUtc.isAfter(aggregate.lastSeenAtUtc!)) {
         aggregate.lastSeenAtUtc = record.occurredAtUtc;
         aggregate.lastZone = (record.zone ?? '').trim();
-        aggregate.lastObjectLabel = (record.objectLabel ?? '').trim();
+        aggregate.lastObjectLabel = resolveIdentityBackedObjectLabelFromSignals(
+          directObjectLabel: (record.objectLabel ?? '').trim(),
+          faceMatchId: record.faceMatchId,
+          plateNumber: record.plateNumber,
+        );
       }
     }
 
