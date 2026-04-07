@@ -44,7 +44,7 @@ enum OnyxRoute {
     Icons.bolt_rounded,
     OnyxRouteSection.commandCenter,
     'COMMAND',
-    'Action ladder and decision speed.',
+    'Operational overview.',
     autopilotLabel: 'Operations',
     shellBadgeKind: OnyxRouteShellBadgeKind.activeIncidents,
     shellBadgeColor: Color(0xFFEF4444),

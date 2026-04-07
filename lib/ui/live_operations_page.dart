@@ -3201,6 +3201,16 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 0,
                 (sum, m) => sum + (int.tryParse(m.countLabel) ?? 0),
               );
+          // Reserve space for header (~56), banner (~44), spacers (~52),
+          // optional roster signal (~36), recent activity (~164), container
+          // padding (20). Cards fill the remaining viewport height.
+          final reservedHeight =
+              56 + 44 + 52 + (rosterSignalVisible ? 50 : 0) + 164 + 20;
+          final gridTargetHeight =
+              (MediaQuery.sizeOf(context).height - reservedHeight).clamp(
+                200.0,
+                double.infinity,
+              );
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3224,7 +3234,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 _guardRosterSignalBanner(),
                 const SizedBox(height: 14),
               ],
-              _commandFullGrid(modules: modules),
+              _commandFullGrid(
+                modules: modules,
+                targetGridHeight: gridTargetHeight,
+              ),
               const SizedBox(height: 14),
               _commandRecentActivity(ledger),
             ],
@@ -3944,89 +3957,128 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   Widget _commandFullGrid({
     required List<_CommandCenterModule> modules,
     bool compact = false,
+    double? targetGridHeight,
   }) {
-    final aspectRatio = compact ? 1.1 : 1.4;
-    return GridView.builder(
-      key: const ValueKey('live-operations-command-full-grid'),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: aspectRatio,
-      ),
-      itemCount: modules.length,
-      itemBuilder: (context, index) {
-        final m = modules[index];
-        return GestureDetector(
-          onTap: m.onTap != null ? () => m.onTap!() : null,
-          child: Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  gradient: m.gradient,
-                  color: m.gradient == null ? m.surface : null,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: m.border),
-                ),
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(m.icon, size: 24, color: m.accent),
-                    const Spacer(),
-                    Text(
-                      m.countLabel,
-                      style: TextStyle(
-                        fontSize: compact ? 32 : 48,
-                        fontWeight: FontWeight.bold,
-                        color: m.accent,
-                        height: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      m.metricLabel,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: _commandMutedColor,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      m.label,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _commandTitleColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 10,
-                right: 10,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: m.accent,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: m.accent.withValues(alpha: 0.6),
-                        blurRadius: 4,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Compute childAspectRatio so the 2-row grid fills the target height.
+        // Falls back to a fixed ratio for compact / unconstrained cases.
+        final cardWidth = (constraints.maxWidth - 16) / 3; // 2 × 8px spacing
+        final double childAspectRatio;
+        if (targetGridHeight != null && targetGridHeight > 0) {
+          final cardHeight = (targetGridHeight - 8) / 2; // 1 × 8px row spacing
+          childAspectRatio =
+              cardHeight > 0 ? cardWidth / cardHeight : (compact ? 1.1 : 1.4);
+        } else {
+          childAspectRatio = compact ? 1.1 : 1.4;
+        }
+
+        return GridView.builder(
+          key: const ValueKey('live-operations-command-full-grid'),
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            childAspectRatio: childAspectRatio,
           ),
+          itemCount: modules.length,
+          itemBuilder: (context, index) {
+            final m = modules[index];
+            return GestureDetector(
+              onTap: m.onTap != null ? () => m.onTap!() : null,
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: double.infinity,
+                    decoration: BoxDecoration(
+                      gradient: m.gradient,
+                      color: m.gradient == null ? m.surface : null,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: m.border),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Icon — 40×40 container, top-left
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: m.accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Center(
+                            child: Icon(m.icon, size: 32, color: m.accent),
+                          ),
+                        ),
+                        // Count + metric label — vertically centered in remaining space
+                        const Spacer(),
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                m.countLabel,
+                                style: TextStyle(
+                                  fontSize: compact ? 32 : 48,
+                                  fontWeight: FontWeight.bold,
+                                  color: m.accent,
+                                  height: 1,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                m.metricLabel,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: _commandMutedColor,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        // Module name — bottom-left
+                        Text(
+                          m.label,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: _commandTitleColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Status dot — top-right, 8px from edges, clipped to card bounds
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: m.accent,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: m.accent.withValues(alpha: 0.6),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
