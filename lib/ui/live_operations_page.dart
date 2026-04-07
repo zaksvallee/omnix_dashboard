@@ -11877,20 +11877,45 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
     }
 
-    final stepsList = wide
-        ? ListView.separated(
-            itemCount: steps.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 5),
-            itemBuilder: (context, index) => stepTile(index),
-          )
-        : Column(
-            children: [
-              for (var i = 0; i < steps.length; i++) ...[
-                stepTile(i),
-                if (i < steps.length - 1) const SizedBox(height: 5),
+    final Widget stepsList;
+    if (steps.isEmpty) {
+      stepsList = Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.playlist_add_check_rounded,
+              color: _commandMutedColor,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Pin the lead incident to load the action steps.',
+              style: GoogleFonts.inter(
+                color: _commandMutedColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      stepsList = wide
+          ? ListView.separated(
+              itemCount: steps.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 5),
+              itemBuilder: (context, index) => stepTile(index),
+            )
+          : Column(
+              children: [
+                for (var i = 0; i < steps.length; i++) ...[
+                  stepTile(i),
+                  if (i < steps.length - 1) const SizedBox(height: 5),
+                ],
               ],
-            ],
-          );
+            );
+    }
     return KeyedSubtree(
       key: _actionLadderPanelGlobalKey,
       child: _panel(
@@ -15565,6 +15590,30 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ],
             ),
           ),
+        ),
+      );
+    }
+
+    if (_vigilance.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.shield_moon_outlined,
+              color: _commandMutedColor,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'No guards online — check-in signals will appear here.',
+              style: GoogleFonts.inter(
+                color: _commandMutedColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       );
     }

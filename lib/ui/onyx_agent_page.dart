@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -7203,8 +7204,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   Future<void> _runCameraChangeApproveAction(_AgentActionCard action) async {
     if (!_cameraChangeAvailable) {
       _appendToolMessage(
-        body:
-            'Camera change approval is not wired in this session. Keep the packet local and use CCTV to verify the target manually.',
+        body: kDebugMode
+            ? 'Camera change approval is not wired in this session. Keep the packet local and use CCTV to verify the target manually.'
+            : 'Camera changes are not enabled for this deployment. Use CCTV to verify the target manually.',
         summary: 'Camera execution unavailable',
       );
       return;
@@ -7266,8 +7268,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
   Future<void> _runCameraRollbackAction(_AgentActionCard action) async {
     if (!_cameraChangeAvailable) {
       _appendToolMessage(
-        body:
-            'Rollback logging is not wired in this session. Record the rollback manually in the incident notes and recheck CCTV.',
+        body: kDebugMode
+            ? 'Rollback logging is not wired in this session. Record the rollback manually in the incident notes and recheck CCTV.'
+            : 'Rollback logging is not enabled for this deployment. Record the rollback manually in the incident notes and recheck CCTV.',
         summary: 'Rollback logging unavailable',
       );
       return;

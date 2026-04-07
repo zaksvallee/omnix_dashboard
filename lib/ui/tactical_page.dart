@@ -1,8 +1,12 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart'
+    show FlutterMap, MapOptions, Marker, MarkerLayer, TileLayer, LatLngBounds;
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart' show LatLng;
 
+import '../application/admin/admin_directory_service.dart';
 import '../application/monitoring_scene_review_store.dart';
 import '../domain/events/decision_created.dart';
 import '../domain/events/dispatch_event.dart';
@@ -12,6 +16,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
+import '../domain/guard/guard_position_summary.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
@@ -48,8 +53,7 @@ const _tacticalDetailedWorkspaceMinHeight = 760.0;
 class _MapMarker {
   final String id;
   final _MarkerType type;
-  final double x;
-  final double y;
+  final LatLng point;
   final String label;
   final _MarkerStatus status;
   final String? lastPing;
@@ -60,8 +64,7 @@ class _MapMarker {
   const _MapMarker({
     required this.id,
     required this.type,
-    required this.x,
-    required this.y,
+    required this.point,
     required this.label,
     required this.status,
     this.lastPing,
@@ -73,15 +76,13 @@ class _MapMarker {
 
 class _SafetyGeofence {
   final String centerId;
-  final double x;
-  final double y;
+  final LatLng point;
   final _FenceStatus status;
   final int? stationaryTime;
 
   const _SafetyGeofence({
     required this.centerId,
-    required this.x,
-    required this.y,
+    required this.point,
     required this.status,
     this.stationaryTime,
   });
@@ -272,6 +273,9 @@ class TacticalPage extends StatelessWidget {
   final String cctvCapabilitySummary;
   final String cctvRecentSignalSummary;
   final List<VideoFleetScopeHealthView> fleetScopeHealth;
+  final List<GuardPositionSummary> guardPositions;
+  final List<AdminDirectorySiteRow> siteMarkers;
+  final bool supabaseReady;
   final Map<String, MonitoringSceneReviewRecord> sceneReviewByIntelligenceId;
   final void Function(
     String clientId,
@@ -314,6 +318,9 @@ class TacticalPage extends StatelessWidget {
     this.cctvRecentSignalSummary =
         'recent video intel 0 (6h) • intrusion 0 • line_crossing 0 • motion 0 • fr 0 • lpr 0',
     this.fleetScopeHealth = const [],
+    this.guardPositions = const <GuardPositionSummary>[],
+    this.siteMarkers = const <AdminDirectorySiteRow>[],
+    this.supabaseReady = true,
     this.sceneReviewByIntelligenceId =
         const <String, MonitoringSceneReviewRecord>{},
     this.onOpenFleetTacticalScope,
@@ -326,12 +333,13 @@ class TacticalPage extends StatelessWidget {
     this.onWatchActionDrilldownChanged,
   });
 
+  static const LatLng _johannesburgCenter = LatLng(-26.2041, 28.0473);
+
   static const List<_MapMarker> _markers = [
     _MapMarker(
       id: 'GUARD-ECHO-3',
       type: _MarkerType.guard,
-      x: 0.20,
-      y: 0.34,
+      point: LatLng(-26.1068, 28.0559),
       label: 'Echo-3',
       status: _MarkerStatus.active,
       lastPing: '45s ago',
@@ -340,8 +348,7 @@ class TacticalPage extends StatelessWidget {
     _MapMarker(
       id: 'GUARD-ALPHA-1',
       type: _MarkerType.guard,
-      x: 0.47,
-      y: 0.58,
+      point: LatLng(-26.1084, 28.0572),
       label: 'Alpha-1',
       status: _MarkerStatus.sos,
       lastPing: '12s ago',
@@ -350,8 +357,7 @@ class TacticalPage extends StatelessWidget {
     _MapMarker(
       id: 'VEHICLE-R12',
       type: _MarkerType.vehicle,
-      x: 0.58,
-      y: 0.26,
+      point: LatLng(-26.1074, 28.0601),
       label: 'Vehicle R-12',
       status: _MarkerStatus.responding,
       eta: 'ETA 4m 12s',
@@ -359,16 +365,14 @@ class TacticalPage extends StatelessWidget {
     _MapMarker(
       id: 'SITE-NORTH',
       type: _MarkerType.site,
-      x: 0.76,
-      y: 0.74,
+      point: LatLng(-26.1098, 28.0586),
       label: 'Sandton North',
       status: _MarkerStatus.staticMarker,
     ),
     _MapMarker(
       id: 'INC-8829-QX',
       type: _MarkerType.incident,
-      x: 0.63,
-      y: 0.54,
+      point: LatLng(-26.1089, 28.0591),
       label: 'INC-8829-QX',
       status: _MarkerStatus.sos,
       priority: 'P1-CRITICAL',
@@ -378,20 +382,17 @@ class TacticalPage extends StatelessWidget {
   static const List<_SafetyGeofence> _geofences = [
     _SafetyGeofence(
       centerId: 'Echo-3',
-      x: 0.20,
-      y: 0.34,
+      point: LatLng(-26.1068, 28.0559),
       status: _FenceStatus.safe,
     ),
     _SafetyGeofence(
       centerId: 'Alpha-1',
-      x: 0.47,
-      y: 0.58,
+      point: LatLng(-26.1084, 28.0572),
       status: _FenceStatus.breach,
     ),
     _SafetyGeofence(
       centerId: 'Delta-6',
-      x: 0.36,
-      y: 0.75,
+      point: LatLng(-26.1096, 28.0564),
       status: _FenceStatus.stationary,
       stationaryTime: 163,
     ),
@@ -522,6 +523,13 @@ class TacticalPage extends StatelessWidget {
             final markers = _resolvedMarkers(
               focusReference: focusReference,
               focusState: focusState,
+              scopeClientId: scopeClientId,
+              scopeSiteId: scopeSiteId,
+            );
+            final mapBounds = _mapBoundsForScope(
+              markers: markers,
+              scopeClientId: scopeClientId,
+              scopeSiteId: scopeSiteId,
             );
             final visibleMarkers = _filteredMarkers(markers, mapFilter);
             if (selectedMarkerId == null ||
@@ -546,13 +554,16 @@ class TacticalPage extends StatelessWidget {
                           (fence.stationaryTime ?? 0) > 120),
                 )
                 .length;
-            final sosAlerts = _markers
+            final sosAlerts = markers
                 .where(
                   (marker) =>
                       marker.status == _MarkerStatus.sos &&
                       marker.type == _MarkerType.guard,
                 )
                 .length;
+            final connectingToLiveData = !supabaseReady &&
+                guardPositions.isEmpty &&
+                siteMarkers.isEmpty;
             final lensTelemetry = _buildCctvLensTelemetry();
             final suppressedEntries = _suppressedFleetReviewEntries(
               visibleFleetScopeHealth,
@@ -773,6 +784,7 @@ class TacticalPage extends StatelessWidget {
                 final content = _mapPanel(
                   buildContext: context,
                   markers: visibleMarkers,
+                  mapBounds: mapBounds,
                   activeMarker: activeMarker,
                   zoom: mapZoom,
                   activeFilter: mapFilter,
@@ -824,6 +836,7 @@ class TacticalPage extends StatelessWidget {
                   focusState: focusState,
                   geofenceAlerts: geofenceAlerts,
                   sosAlerts: sosAlerts,
+                  connectingToLiveData: connectingToLiveData,
                 );
                 if (!embedScroll) {
                   return content;
@@ -1121,6 +1134,7 @@ class TacticalPage extends StatelessWidget {
                   _mapPanel(
                     buildContext: context,
                     markers: visibleMarkers,
+                    mapBounds: mapBounds,
                     activeMarker: activeMarker,
                     zoom: mapZoom,
                     activeFilter: mapFilter,
@@ -1174,6 +1188,7 @@ class TacticalPage extends StatelessWidget {
                     focusState: focusState,
                     geofenceAlerts: geofenceAlerts,
                     sosAlerts: sosAlerts,
+                    connectingToLiveData: connectingToLiveData,
                   ),
                   const SizedBox(height: 8),
                   _verificationPanel(
@@ -4368,6 +4383,7 @@ class TacticalPage extends StatelessWidget {
   Widget _mapPanel({
     required BuildContext buildContext,
     required List<_MapMarker> markers,
+    required LatLngBounds mapBounds,
     required _MapMarker? activeMarker,
     required double zoom,
     required _TacticalMapFilter activeFilter,
@@ -4383,6 +4399,7 @@ class TacticalPage extends StatelessWidget {
     required _FocusLinkState focusState,
     required int geofenceAlerts,
     required int sosAlerts,
+    bool connectingToLiveData = false,
   }) {
     final triggerSos = _geofences
         .where((fence) {
@@ -4451,174 +4468,233 @@ class TacticalPage extends StatelessWidget {
             width: double.infinity,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.maxWidth;
-                  final height = constraints.maxHeight;
-                  return Stack(
-                    children: [
-                      Positioned.fill(
-                        child: ClipRect(
-                          child: Transform.scale(
-                            scale: zoom,
-                            alignment: _mapZoomAlignment(activeMarker),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    painter: _GridBackdropPainter(),
-                                  ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: FlutterMap(
+                      key: ValueKey(
+                        'tactical-map-${activeMarker?.id ?? 'none'}-${zoom.toStringAsFixed(2)}-${mapBounds.south.toStringAsFixed(4)}-${mapBounds.west.toStringAsFixed(4)}',
+                      ),
+                      options: MapOptions(
+                        initialCenter:
+                            activeMarker?.point ?? _mapBoundsCenter(mapBounds),
+                        initialZoom: _mapZoomLevelForBounds(
+                          mapBounds: mapBounds,
+                          zoomScale: zoom,
+                        ),
+                        maxZoom: 18,
+                        minZoom: 10,
+                        backgroundColor: const Color(0xFF08101A),
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'omnix_dashboard',
+                        ),
+                        MarkerLayer(
+                          markers: markers
+                              .where((marker) => marker.type == _MarkerType.site)
+                              .map(
+                                (marker) => _markerOverlay(
+                                  marker: marker,
+                                  selected: activeMarker?.id == marker.id,
+                                  onTap: () => onSelectMarker(marker.id),
                                 ),
-                                Positioned.fill(
-                                  child: CustomPaint(
-                                    painter: _RouteOverlayPainter(),
-                                  ),
+                              )
+                              .toList(growable: false),
+                        ),
+                        MarkerLayer(
+                          markers: markers
+                              .where(
+                                (marker) =>
+                                    marker.type == _MarkerType.guard ||
+                                    marker.type == _MarkerType.vehicle,
+                              )
+                              .map(
+                                (marker) => _markerOverlay(
+                                  marker: marker,
+                                  selected: activeMarker?.id == marker.id,
+                                  onTap: () => onSelectMarker(marker.id),
                                 ),
-                                Positioned(
-                                  left: width * 0.08,
-                                  top: height * 0.12,
-                                  child: Container(
-                                    width: width * 0.64,
-                                    height: height * 0.66,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: const Color(0x3363A8FF),
-                                        width: 1.2,
-                                      ),
-                                      color: const Color(0x090E213B),
-                                    ),
-                                  ),
+                              )
+                              .toList(growable: false),
+                        ),
+                        MarkerLayer(
+                          markers: markers
+                              .where(
+                                (marker) => marker.type == _MarkerType.incident,
+                              )
+                              .map(
+                                (marker) => _markerOverlay(
+                                  marker: marker,
+                                  selected: activeMarker?.id == marker.id,
+                                  onTap: () => onSelectMarker(marker.id),
                                 ),
-                                for (final fence in _geofences)
-                                  _fenceOverlay(
-                                    fence: fence,
-                                    width: width,
-                                    height: height,
-                                  ),
-                                for (final marker in markers)
-                                  _markerOverlay(
-                                    marker: marker,
-                                    width: width,
-                                    height: height,
-                                    selected: activeMarker?.id == marker.id,
-                                    onTap: () => onSelectMarker(marker.id),
-                                  ),
-                              ],
-                            ),
+                              )
+                              .toList(growable: false),
+                        ),
+                        MarkerLayer(
+                          markers: _geofences
+                              .map((fence) => _fenceOverlay(fence: fence))
+                              .toList(growable: false),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (focusReference.isNotEmpty)
+                    Positioned(
+                      right: 10,
+                      top: triggerSos.isNotEmpty ? 52 : 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _focusStateColor(
+                            focusState,
+                          ).withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: _focusStateColor(
+                              focusState,
+                            ).withValues(alpha: 0.66),
+                          ),
+                        ),
+                        child: Text(
+                          'FOCUS ${_focusStateLabel(focusState).toUpperCase()} • $focusReference',
+                          style: GoogleFonts.inter(
+                            color: _focusStateTextColor(focusState),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-                      if (focusReference.isNotEmpty)
-                        Positioned(
-                          right: 10,
-                          top: triggerSos.isNotEmpty ? 52 : 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _focusStateColor(
-                                focusState,
-                              ).withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: _focusStateColor(
-                                  focusState,
-                                ).withValues(alpha: 0.66),
-                              ),
-                            ),
-                            child: Text(
-                              'FOCUS ${_focusStateLabel(focusState).toUpperCase()} • $focusReference',
-                              style: GoogleFonts.inter(
-                                color: _focusStateTextColor(focusState),
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
+                    ),
+                  if (triggerSos.isNotEmpty)
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0x33EF4444),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0x99EF4444),
                           ),
                         ),
-                      if (triggerSos.isNotEmpty)
-                        Positioned(
-                          right: 10,
-                          top: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0x33EF4444),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0x99EF4444),
-                              ),
-                            ),
-                            child: Text(
-                              'SOS TRIGGER • ${triggerSos.length} geofence anomalies',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFFFFB8C1),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
+                        child: Text(
+                          'SOS TRIGGER • ${triggerSos.length} geofence anomalies',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFFFFB8C1),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                      if (markers.isEmpty)
-                        Center(
+                      ),
+                    ),
+                  if (connectingToLiveData && markers.isEmpty)
+                    Positioned.fill(
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0xCC08101A),
+                        ),
+                        child: Center(
                           child: Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
+                              horizontal: 16,
+                              vertical: 12,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xF6FFFFFF),
+                              color: const Color(0xFF0F1E2E),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
                                 color: _tacticalStrongBorderColor,
                               ),
                             ),
-                            child: Text(
-                              'No markers match the ${_mapFilterLabel(activeFilter).toLowerCase()} filter.',
-                              style: GoogleFonts.inter(
-                                color: _tacticalBodyColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF8EC8FF),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  'Connecting to live data\u2026',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF8EC8FF),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      Positioned(
-                        left: 10,
-                        bottom: 10,
-                        right: 10,
-                        child: Wrap(
-                          spacing: 6,
-                          runSpacing: 5,
-                          children: [
-                            _legendPill('Guard Ping', const Color(0xFF3B82F6)),
-                            _legendPill('Vehicle', const Color(0xFF10B981)),
-                            _legendPill('Incident', const Color(0xFFEF4444)),
-                            _legendPill('Geofence', const Color(0xFF22D3EE)),
-                            _legendPill(
-                              'Geofence Alert',
-                              geofenceAlerts > 0
-                                  ? const Color(0xFFF59E0B)
-                                  : const Color(0xFF8EA4C2),
-                            ),
-                            _legendPill(
-                              'SOS',
-                              sosAlerts > 0
-                                  ? const Color(0xFFEF4444)
-                                  : const Color(0xFF8EA4C2),
-                            ),
-                          ],
+                      ),
+                    ),
+                  if (!connectingToLiveData && markers.isEmpty)
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xF6FFFFFF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _tacticalStrongBorderColor,
+                          ),
+                        ),
+                        child: Text(
+                          'No markers match the ${_mapFilterLabel(activeFilter).toLowerCase()} filter.',
+                          style: GoogleFonts.inter(
+                            color: _tacticalBodyColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ],
-                  );
-                },
+                    ),
+                  Positioned(
+                    left: 10,
+                    bottom: 10,
+                    right: 10,
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 5,
+                      children: [
+                        _legendPill('Guard Ping', const Color(0xFF3B82F6)),
+                        _legendPill('Vehicle', const Color(0xFF10B981)),
+                        _legendPill('Incident', const Color(0xFFEF4444)),
+                        _legendPill('Geofence', const Color(0xFF22D3EE)),
+                        _legendPill(
+                          'Geofence Alert',
+                          geofenceAlerts > 0
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFF8EA4C2),
+                        ),
+                        _legendPill(
+                          'SOS',
+                          sosAlerts > 0
+                              ? const Color(0xFFEF4444)
+                              : const Color(0xFF8EA4C2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -4759,14 +4835,30 @@ class TacticalPage extends StatelessWidget {
     return _preferredMarker(markers, focusReference: focusReference);
   }
 
-  Alignment _mapZoomAlignment(_MapMarker? marker) {
-    if (marker == null) {
-      return Alignment.center;
-    }
-    return Alignment(
-      (marker.x * 2 - 1).clamp(-1.0, 1.0),
-      (marker.y * 2 - 1).clamp(-1.0, 1.0),
+  LatLng _mapBoundsCenter(LatLngBounds bounds) {
+    return LatLng(
+      (bounds.south + bounds.north) / 2,
+      (bounds.west + bounds.east) / 2,
     );
+  }
+
+  double _mapZoomLevelForBounds({
+    required LatLngBounds mapBounds,
+    required double zoomScale,
+  }) {
+    final span = math.max(
+      (mapBounds.north - mapBounds.south).abs(),
+      (mapBounds.east - mapBounds.west).abs(),
+    );
+    final baseZoom = switch (span) {
+      <= 0.004 => 16.0,
+      <= 0.008 => 15.0,
+      <= 0.015 => 14.0,
+      <= 0.04 => 13.0,
+      <= 0.08 => 12.0,
+      _ => 11.0,
+    };
+    return (baseZoom + (zoomScale - 1.0) * 5.0).clamp(10.0, 18.0);
   }
 
   String _mapFilterLabel(_TacticalMapFilter filter) {
@@ -5168,23 +5260,301 @@ class TacticalPage extends StatelessWidget {
   List<_MapMarker> _resolvedMarkers({
     required String focusReference,
     required _FocusLinkState focusState,
+    required String scopeClientId,
+    required String scopeSiteId,
   }) {
+    final liveMarkers = <_MapMarker>[
+      ..._resolvedSiteMarkers(
+        scopeClientId: scopeClientId,
+        scopeSiteId: scopeSiteId,
+      ),
+      ..._resolvedGuardMarkers(
+        scopeClientId: scopeClientId,
+        scopeSiteId: scopeSiteId,
+      ),
+      ..._resolvedIncidentMarkers(
+        scopeClientId: scopeClientId,
+        scopeSiteId: scopeSiteId,
+      ),
+    ];
+    final baseMarkers = liveMarkers.isEmpty ? _markers : liveMarkers;
     if (focusReference.isEmpty || focusState != _FocusLinkState.seeded) {
-      return _markers;
+      return baseMarkers;
     }
     return [
       _MapMarker(
         id: focusReference,
         type: _MarkerType.incident,
-        x: 0.67,
-        y: 0.49,
+        point: _seededFocusPoint(baseMarkers),
         label: focusReference,
         status: _MarkerStatus.sos,
         priority: 'P2-SEEDED',
       ),
-      ..._markers,
+      ...baseMarkers,
     ];
   }
+
+  List<_MapMarker> _resolvedSiteMarkers({
+    required String scopeClientId,
+    required String scopeSiteId,
+  }) {
+    final scoped = siteMarkers.where((site) {
+      final siteClientId = site.clientId.trim();
+      if (scopeClientId.isNotEmpty && siteClientId != scopeClientId) {
+        return false;
+      }
+      if (scopeSiteId.isNotEmpty && site.id.trim() != scopeSiteId) {
+        return false;
+      }
+      return true;
+    }).toList(growable: false);
+    return scoped
+        .map(
+          (site) => _MapMarker(
+            id: site.id.trim().isEmpty ? site.code : site.id.trim(),
+            type: _MarkerType.site,
+            point: LatLng(site.lat, site.lng),
+            label: site.name.trim().isEmpty ? site.code : site.name.trim(),
+            status: _MarkerStatus.staticMarker,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  List<_MapMarker> _resolvedGuardMarkers({
+    required String scopeClientId,
+    required String scopeSiteId,
+  }) {
+    final scoped = guardPositions.where((position) {
+      if (scopeClientId.isNotEmpty &&
+          position.clientId.trim() != scopeClientId) {
+        return false;
+      }
+      if (scopeSiteId.isNotEmpty && position.siteId.trim() != scopeSiteId) {
+        return false;
+      }
+      return true;
+    });
+    return scoped
+        .map(
+          (position) => _MapMarker(
+            id: position.guardId,
+            type: _MarkerType.guard,
+            point: LatLng(position.latitude, position.longitude),
+            label: position.guardId,
+            status: _MarkerStatus.active,
+            lastPing: _guardPositionTimestampLabel(position.recordedAtUtc),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  List<_MapMarker> _resolvedIncidentMarkers({
+    required String scopeClientId,
+    required String scopeSiteId,
+  }) {
+    final sitePointByScope = <String, LatLng>{
+      for (final site in siteMarkers)
+        _siteScopeKey(site.clientId, site.id): LatLng(site.lat, site.lng),
+    };
+    final latestByReference = <String, DispatchEvent>{};
+    for (final event in events) {
+      final scope = _scopeForEvent(event);
+      if (scope == null) {
+        continue;
+      }
+      if (scopeClientId.isNotEmpty && scope.clientId != scopeClientId) {
+        continue;
+      }
+      if (scopeSiteId.isNotEmpty && scope.siteId != scopeSiteId) {
+        continue;
+      }
+      final reference = _eventIncidentReference(event);
+      final existing = latestByReference[reference];
+      if (existing == null || event.occurredAt.isAfter(existing.occurredAt)) {
+        latestByReference[reference] = event;
+      }
+    }
+    final orderedEvents = latestByReference.values.toList(growable: false)
+      ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    return orderedEvents.asMap().entries.map((entry) {
+      final event = entry.value;
+      final scope = _scopeForEvent(event)!;
+      final sitePoint =
+          sitePointByScope[_siteScopeKey(scope.clientId, scope.siteId)] ??
+          _johannesburgCenter;
+      final offsetPoint = _offsetIncidentPoint(sitePoint, entry.key);
+      return _MapMarker(
+        id: _eventIncidentReference(event),
+        type: _MarkerType.incident,
+        point: offsetPoint,
+        label: _eventIncidentReference(event),
+        status: event is IncidentClosed
+            ? _MarkerStatus.staticMarker
+            : _MarkerStatus.sos,
+        priority: _eventIncidentPriority(event),
+      );
+    }).toList(growable: false);
+  }
+
+  String _siteScopeKey(String clientId, String siteId) =>
+      '${clientId.trim()}::${siteId.trim()}';
+
+  ({String clientId, String siteId})? _scopeForEvent(DispatchEvent event) {
+    final clientId = switch (event) {
+      DecisionCreated value => value.clientId.trim(),
+      ResponseArrived value => value.clientId.trim(),
+      PartnerDispatchStatusDeclared value => value.clientId.trim(),
+      ExecutionCompleted value => value.clientId.trim(),
+      ExecutionDenied value => value.clientId.trim(),
+      IncidentClosed value => value.clientId.trim(),
+      IntelligenceReceived value => value.clientId.trim(),
+      _ => '',
+    };
+    final siteId = switch (event) {
+      DecisionCreated value => value.siteId.trim(),
+      ResponseArrived value => value.siteId.trim(),
+      PartnerDispatchStatusDeclared value => value.siteId.trim(),
+      ExecutionCompleted value => value.siteId.trim(),
+      ExecutionDenied value => value.siteId.trim(),
+      IncidentClosed value => value.siteId.trim(),
+      IntelligenceReceived value => value.siteId.trim(),
+      _ => '',
+    };
+    if (clientId.isEmpty || siteId.isEmpty) {
+      return null;
+    }
+    return (clientId: clientId, siteId: siteId);
+  }
+
+  String _eventIncidentReference(DispatchEvent event) {
+    return switch (event) {
+      DecisionCreated value => _incidentReferenceFromDispatchId(
+        value.dispatchId,
+        fallback: value.eventId,
+      ),
+      ResponseArrived value => _incidentReferenceFromDispatchId(
+        value.dispatchId,
+        fallback: value.eventId,
+      ),
+      PartnerDispatchStatusDeclared value => _incidentReferenceFromDispatchId(
+        value.dispatchId,
+        fallback: value.eventId,
+      ),
+      ExecutionCompleted value => _incidentReferenceFromDispatchId(
+        value.dispatchId,
+        fallback: value.eventId,
+      ),
+      ExecutionDenied value => _incidentReferenceFromDispatchId(
+        value.dispatchId,
+        fallback: value.eventId,
+      ),
+      IncidentClosed value => _incidentReferenceFromDispatchId(
+        value.dispatchId,
+        fallback: value.eventId,
+      ),
+      IntelligenceReceived value => value.intelligenceId.trim().isEmpty
+          ? value.eventId
+          : value.intelligenceId.trim(),
+      _ => event.eventId,
+    };
+  }
+
+  String _incidentReferenceFromDispatchId(
+    String dispatchId, {
+    required String fallback,
+  }) {
+    final normalized = dispatchId.trim();
+    if (normalized.isEmpty) {
+      return fallback;
+    }
+    return normalized.startsWith('INC-') ? normalized : 'INC-$normalized';
+  }
+
+  String _eventIncidentPriority(DispatchEvent event) {
+    return switch (event) {
+      ExecutionDenied _ => 'P1-DENIED',
+      DecisionCreated _ => 'P1-ACTIVE',
+      ResponseArrived _ => 'P2-RESPONDING',
+      PartnerDispatchStatusDeclared _ => 'P2-PARTNER',
+      ExecutionCompleted _ => 'P3-COMPLETED',
+      IncidentClosed _ => 'RESOLVED',
+      IntelligenceReceived _ => 'P2-INTEL',
+      _ => 'P2-ACTIVE',
+    };
+  }
+
+  String _guardPositionTimestampLabel(DateTime recordedAtUtc) {
+    final utc = recordedAtUtc.toUtc();
+    final hour = utc.hour.toString().padLeft(2, '0');
+    final minute = utc.minute.toString().padLeft(2, '0');
+    return '$hour:$minute UTC';
+  }
+
+  LatLng _offsetIncidentPoint(LatLng point, int offsetIndex) {
+    final delta = 0.00035 * ((offsetIndex % 3) + 1);
+    final latShift = offsetIndex.isEven ? delta : -delta;
+    final lngShift = offsetIndex % 3 == 0 ? delta : -delta;
+    return LatLng(point.latitude + latShift, point.longitude + lngShift);
+  }
+
+  LatLng _seededFocusPoint(List<_MapMarker> baseMarkers) {
+    final incident = baseMarkers.where((marker) => marker.type == _MarkerType.incident);
+    if (incident.isNotEmpty) {
+      return incident.first.point;
+    }
+    final site = baseMarkers.where((marker) => marker.type == _MarkerType.site);
+    if (site.isNotEmpty) {
+      return site.first.point;
+    }
+    if (baseMarkers.isNotEmpty) {
+      return baseMarkers.first.point;
+    }
+    return _johannesburgCenter;
+  }
+
+  LatLngBounds _mapBoundsForScope({
+    required List<_MapMarker> markers,
+    required String scopeClientId,
+    required String scopeSiteId,
+  }) {
+    final scopedSites = siteMarkers.where((site) {
+      if (scopeClientId.isNotEmpty && site.clientId.trim() != scopeClientId) {
+        return false;
+      }
+      if (scopeSiteId.isNotEmpty && site.id.trim() != scopeSiteId) {
+        return false;
+      }
+      return true;
+    }).toList(growable: false);
+    final points = <LatLng>[
+      ...scopedSites.map((site) => LatLng(site.lat, site.lng)),
+      ...markers.map((marker) => marker.point),
+      ..._geofences.map((fence) => fence.point),
+    ];
+    if (points.isEmpty) {
+      return LatLngBounds(
+        LatLng(_johannesburgCenter.latitude - 0.01, _johannesburgCenter.longitude - 0.01),
+        LatLng(_johannesburgCenter.latitude + 0.01, _johannesburgCenter.longitude + 0.01),
+      );
+    }
+    var minLat = points.first.latitude;
+    var maxLat = points.first.latitude;
+    var minLng = points.first.longitude;
+    var maxLng = points.first.longitude;
+    for (final point in points.skip(1)) {
+      minLat = math.min(minLat, point.latitude);
+      maxLat = math.max(maxLat, point.latitude);
+      minLng = math.min(minLng, point.longitude);
+      maxLng = math.max(maxLng, point.longitude);
+    }
+    const padding = 0.0035;
+    return LatLngBounds(
+      LatLng(minLat - padding, minLng - padding),
+      LatLng(maxLat + padding, maxLng + padding),
+    );
+  }
+
 
   Widget _verificationPanel({
     required String normMode,
@@ -6319,15 +6689,11 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
-  Widget _markerOverlay({
+  Marker _markerOverlay({
     required _MapMarker marker,
-    required double width,
-    required double height,
     required bool selected,
     required VoidCallback onTap,
   }) {
-    final left = marker.x * width;
-    final top = marker.y * height;
     final color = _markerColor(marker.type, marker.status);
     final icon = switch (marker.type) {
       _MarkerType.guard => Icons.person_pin_circle_rounded,
@@ -6340,15 +6706,17 @@ class TacticalPage extends StatelessWidget {
         marker.priority ??
         (marker.lastPing == null ? null : 'Ping ${marker.lastPing}');
     final batteryLow = marker.battery != null && marker.battery! < 20;
-    return Positioned(
-      left: math.max(8, math.min(left - 60, width - 130)),
-      top: math.max(8, math.min(top - 20, height - 68)),
+    return Marker(
+      point: marker.point,
+      width: 132,
+      height: 86,
+      alignment: Alignment.topCenter,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          width: 122,
+          width: 132,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
           decoration: BoxDecoration(
             color: selected
@@ -6363,6 +6731,7 @@ class TacticalPage extends StatelessWidget {
             ),
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -6416,14 +6785,9 @@ class TacticalPage extends StatelessWidget {
     );
   }
 
-  Widget _fenceOverlay({
+  Marker _fenceOverlay({
     required _SafetyGeofence fence,
-    required double width,
-    required double height,
   }) {
-    final left = fence.x * width;
-    final top = fence.y * height;
-    final radius = math.max(32.0, width * 0.075);
     final color = switch (fence.status) {
       _FenceStatus.safe => const Color(0x8022D3EE),
       _FenceStatus.breach => const Color(0xCCEF4444),
@@ -6434,13 +6798,14 @@ class TacticalPage extends StatelessWidget {
       _FenceStatus.breach => const Color(0x22EF4444),
       _FenceStatus.stationary => const Color(0x22F59E0B),
     };
-    return Positioned(
-      left: left - radius,
-      top: top - radius,
+    return Marker(
+      point: fence.point,
+      width: 108,
+      height: 108,
       child: IgnorePointer(
         child: Container(
-          width: radius * 2,
-          height: radius * 2,
+          width: 108,
+          height: 108,
           alignment: Alignment.bottomCenter,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -7021,45 +7386,4 @@ class _MapControlChip extends StatelessWidget {
       ),
     );
   }
-}
-
-class _GridBackdropPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = const Color(0xFF0C1220);
-    canvas.drawRect(Offset.zero & size, bgPaint);
-
-    final fineLine = Paint()
-      ..color = const Color(0x1E6F91BE)
-      ..strokeWidth = 1;
-    const step = 32.0;
-    for (double x = 0; x <= size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), fineLine);
-    }
-    for (double y = 0; y <= size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), fineLine);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _RouteOverlayPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final route = Paint()
-      ..color = const Color(0x4D10B981)
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke;
-    final path = Path()
-      ..moveTo(size.width * 0.23, size.height * 0.36)
-      ..lineTo(size.width * 0.40, size.height * 0.42)
-      ..lineTo(size.width * 0.56, size.height * 0.30)
-      ..lineTo(size.width * 0.63, size.height * 0.54);
-    canvas.drawPath(path, route);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -2301,7 +2302,7 @@ class _ClientsPageState extends State<ClientsPage> {
               );
             },
           ),
-          if (!roomRoutingAvailable) ...[
+          if (!roomRoutingAvailable && kDebugMode) ...[
             const SizedBox(height: 8),
             Text(
               'Room switching is view-only in this session.',

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -70,7 +71,8 @@ class VipProtectionPage extends StatelessWidget {
   const VipProtectionPage({
     super.key,
     this.onCreateDetail,
-    this.scheduledDetails = defaultScheduledDetails,
+    this.scheduledDetails =
+        kDebugMode ? defaultScheduledDetails : const <VipScheduledDetail>[],
     this.onReviewScheduledDetail,
     this.latestAutoAuditReceipt,
     this.onOpenLatestAudit,

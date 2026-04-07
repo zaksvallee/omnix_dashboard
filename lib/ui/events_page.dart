@@ -69,8 +69,9 @@ class _EventsPageState extends State<EventsPage> {
     final allSites = _distinctValues(forensicRows.map((r) => r.siteId));
     final allGuards = _distinctValues(forensicRows.map((r) => r.guardId));
 
+    final filterNow = DateTime.now().toUtc();
     final filtered = forensicRows
-        .where(_matchesFilters)
+        .where((row) => _matchesFilters(row, filterNow))
         .toList(growable: false);
     final laneFiltered = filtered
         .where((row) => _matchesLaneFilter(row, _laneFilter))
@@ -89,9 +90,13 @@ class _EventsPageState extends State<EventsPage> {
         : visibleRows.first;
 
     if (selected != null && _selected?.eventId != selected.event.eventId) {
-      _selected = selected.event;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selected = selected.event);
+      });
     } else if (selected == null && _selected != null) {
-      _selected = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selected = null);
+      });
     }
     final relatedRows = selected == null
         ? const <_ForensicRow>[]
@@ -2606,7 +2611,7 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  bool _matchesFilters(_ForensicRow row) {
+  bool _matchesFilters(_ForensicRow row, DateTime now) {
     if (_typeFilter != _allValue && row.info.label != _typeFilter) {
       return false;
     }
@@ -2617,7 +2622,7 @@ class _EventsPageState extends State<EventsPage> {
       return false;
     }
 
-    final threshold = _timeWindow.threshold(DateTime.now().toUtc());
+    final threshold = _timeWindow.threshold(now);
     if (threshold != null && row.event.occurredAt.isBefore(threshold)) {
       return false;
     }

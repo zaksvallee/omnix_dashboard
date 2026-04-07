@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -156,8 +157,8 @@ class _ClientIntelligenceReportsPageState
   late ReportShellBinding _shellBinding;
   late ReportGenerationService _service;
   String _selectedScope = 'Sandton Estate North';
-  DateTime _startDate = DateTime.utc(2024, 3, 1);
-  DateTime _endDate = DateTime.utc(2024, 3, 10);
+  late DateTime _startDate;
+  late DateTime _endDate;
   _ReportsCommandReceipt _commandReceipt = _defaultCommandReceipt;
   bool _desktopWorkspaceActive = false;
 
@@ -179,6 +180,9 @@ class _ClientIntelligenceReportsPageState
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now().toUtc();
+    _endDate = DateTime.utc(now.year, now.month, now.day);
+    _startDate = _endDate.subtract(const Duration(days: 9));
     _service = _createReportGenerationService();
     _shellBinding = ReportShellBinding.fromShellState(widget.reportShellState);
     _syncFocusedPartnerScopeFromWidget(deferEmit: true);
@@ -357,6 +361,7 @@ class _ClientIntelligenceReportsPageState
 
   Future<void> _generateReport() async {
     setState(() => _isGenerating = true);
+    try {
     final generated = await _service.generatePdfReport(
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
@@ -373,7 +378,6 @@ class _ClientIntelligenceReportsPageState
       return;
     }
     focusReportReceiptWorkspace(generated.receiptEvent.eventId);
-    setState(() => _isGenerating = false);
     if (!mounted) {
       return;
     }
@@ -386,6 +390,9 @@ class _ClientIntelligenceReportsPageState
         entryContext: _effectiveEntryContextForReceipt(generated.receiptEvent),
       ),
     );
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
   }
 
   Future<void> _openReceipt(_ReceiptRow row) async {
@@ -11076,7 +11083,9 @@ class _ClientIntelligenceReportsPageState
     return '$yy-$mm-$dd';
   }
 
-  List<_ReceiptRow> get _sampleReceipts => [
+  List<_ReceiptRow> get _sampleReceipts => kDebugMode ? _debugSampleReceipts : const [];
+
+  List<_ReceiptRow> get _debugSampleReceipts => [
     _ReceiptRow(
       event: ReportGenerated(
         eventId: 'RPT-2024-03-10-001',

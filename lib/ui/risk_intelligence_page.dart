@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -107,8 +108,9 @@ class RiskIntelligencePage extends StatelessWidget {
     this.onAddManualIntel,
     this.onViewAreaIntel,
     this.onViewRecentIntel,
-    this.areas = defaultAreas,
-    this.recentItems = defaultRecentItems,
+    this.areas = kDebugMode ? defaultAreas : const <RiskIntelAreaSummary>[],
+    this.recentItems =
+        kDebugMode ? defaultRecentItems : const <RiskIntelFeedItem>[],
     this.latestAutoAuditReceipt,
     this.onOpenLatestAudit,
   });
@@ -203,12 +205,14 @@ class RiskIntelligencePage extends StatelessWidget {
                 value:
                     'Open Events Scope or Dispatch once a source is verified',
               ),
-              const SizedBox(height: 12),
-              _IntelDialogSection(
-                label: 'Operator Note',
-                value:
-                    'Use this as the intake brief while the full manual-intel workflow is being productized.',
-              ),
+              if (kDebugMode) ...[
+                const SizedBox(height: 12),
+                _IntelDialogSection(
+                  label: 'Operator Note',
+                  value:
+                      'Use this as the intake brief while the full manual-intel workflow is being productized.',
+                ),
+              ],
             ],
           ),
         );
@@ -264,7 +268,7 @@ class RiskIntelligencePage extends StatelessWidget {
       builder: (context) {
         return _IntelDialogFrame(
           dialogKey: ValueKey(
-            'intel-detail-${_intelKeySegment(item.sourceLabel)}-dialog',
+            'intel-detail-${_intelKeySegment(item.id)}-dialog',
           ),
           title: item.sourceLabel,
           eyebrow: item.timeLabel,
@@ -710,9 +714,7 @@ class _IntelPriorityPanel extends StatelessWidget {
               ? '1 live signal is clustered in ${priorityArea!.title}.'
               : '${priorityArea!.signalCount} live signals are clustered in ${priorityArea!.title}.'
         : (priorityItem?.summary ?? 'Board quiet. Keep passive watch armed.');
-    final actionLabel = showArea
-        ? 'OPEN EVENTS SCOPE'
-        : 'OPEN EVENTS SCOPE';
+    final actionLabel = showArea ? 'OPEN EVENTS SCOPE' : 'VIEW INTEL ITEM';
     final meta = showArea
         ? '${priorityArea!.level} RISK'
         : '${priorityItem?.sourceLabel ?? 'INTEL'}  ${priorityItem?.timeLabel ?? ''}'

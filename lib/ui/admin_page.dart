@@ -5215,7 +5215,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
           icon: Icons.chat_bubble_outline_rounded,
           accent: const Color(0xFF00D4FF),
           trailing: OutlinedButton(
-            onPressed: widget.telegramAiPendingDrafts.isEmpty ? null : () {},
+            onPressed: widget.telegramAiPendingDrafts.isEmpty
+                ? null
+                : () => _focusAdminSystemSection(
+                      _AdminSystemSection.aiCommunications,
+                    ),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF00D4FF),
               side: const BorderSide(color: Color(0xFF245B72)),
