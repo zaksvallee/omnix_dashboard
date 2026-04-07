@@ -38,7 +38,7 @@ import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
-import '../domain/store/in_memory_event_store.dart';
+import '../domain/store/event_store.dart';
 import '../presentation/reports/report_preview_dock_card.dart';
 import '../presentation/reports/report_meta_pill.dart';
 import '../presentation/reports/report_receipt_filter_control.dart';
@@ -64,7 +64,7 @@ const _reportsShadowColor = Color(0x0D000000);
 const _reportsAccentSky = OnyxDesignTokens.accentSky;
 
 class ClientIntelligenceReportsPage extends StatefulWidget {
-  final InMemoryEventStore store;
+  final EventStore store;
   final String selectedClient;
   final String selectedSite;
   final List<SovereignReport> morningSovereignReportHistory;

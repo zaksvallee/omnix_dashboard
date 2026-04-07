@@ -2,16 +2,16 @@ import 'incident_event.dart';
 import 'incident_enums.dart';
 import 'incident_projection.dart';
 import 'store/incident_event_log.dart';
+import 'store/incident_state_storage.dart';
 import 'risk/sla_breach_evaluator.dart';
 import '../integration/incident_to_crm_mapper.dart';
 import '../crm/store/crm_event_log.dart';
 import '../crm/sla_profile.dart';
-import '../../infrastructure/persistence/local_event_storage.dart';
 
 class IncidentService {
   final IncidentEventLog incidentLog;
   final CRMEventLog crmLog;
-  final LocalEventStorage storage;
+  final IncidentStateStorage storage;
   final DateTime Function() _clock;
   final Map<String, DateTime> _lastSlaEvaluationAtByIncident =
       <String, DateTime>{};

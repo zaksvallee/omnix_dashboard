@@ -43,3 +43,6 @@ tmp/guard_gate_reports/
 supabase/.temp/
 yolov8l.pt
 yolov8n.pt
+*.pt
+tool/model_cache/
+.venv-monitoring-yolo/

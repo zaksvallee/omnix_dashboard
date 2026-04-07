@@ -12,7 +12,6 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
-import '../infrastructure/intelligence/news_intelligence_service.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';

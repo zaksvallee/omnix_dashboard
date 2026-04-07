@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../application/report_entry_context.dart';
 import '../domain/crm/reporting/report_section_configuration.dart';
@@ -18,7 +17,6 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
-import '../infrastructure/events/supabase_client_ledger_repository.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -78,9 +76,17 @@ class _LedgerPageState extends State<LedgerPage> {
       return;
     }
 
-    final repository =
-        widget.ledgerRepository ??
-        SupabaseClientLedgerRepository(Supabase.instance.client);
+    final repository = widget.ledgerRepository;
+    if (repository == null) {
+      if (!mounted) return;
+      setState(() {
+        _rows = const [];
+        _runtimeConfigHint =
+            'Supabase ledger repository not injected. '
+            'Running EventStore fallback timeline.';
+      });
+      return;
+    }
     final data = await repository.listLedgerRows(widget.clientId);
 
     if (!mounted) return;

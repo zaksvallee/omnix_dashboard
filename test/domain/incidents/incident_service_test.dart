@@ -9,7 +9,7 @@ import 'package:omnix_dashboard/domain/incidents/incident_event.dart';
 import 'package:omnix_dashboard/domain/incidents/incident_projection.dart';
 import 'package:omnix_dashboard/domain/incidents/incident_service.dart';
 import 'package:omnix_dashboard/domain/incidents/store/incident_event_log.dart';
-import 'package:omnix_dashboard/infrastructure/persistence/local_event_storage.dart';
+import 'package:omnix_dashboard/domain/incidents/store/incident_state_storage.dart';
 
 void main() {
   test('incident SLA breach preserves status and sets breach flag', () async {
@@ -209,7 +209,7 @@ void main() {
   );
 }
 
-class _FakeLocalEventStorage extends LocalEventStorage {
+class _FakeLocalEventStorage implements IncidentStateStorage {
   List<IncidentEvent> savedIncidents;
   List<CRMEvent> savedCrm;
 

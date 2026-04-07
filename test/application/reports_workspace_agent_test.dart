@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:omnix_dashboard/application/onyx_claude_report_config.dart';
 import 'package:omnix_dashboard/application/reports_workspace_agent.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/client_narrative_result.dart';
+import 'package:omnix_dashboard/domain/crm/reporting/monthly_report.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_audience.dart';
 import 'package:omnix_dashboard/domain/crm/reporting/report_sections.dart';
 
@@ -157,7 +158,19 @@ void main() {
       );
 
       final result = await agent.generateNarrative(
-        bundle: buildTestReportBundle(),
+        bundle: buildTestReportBundle(
+          monthlyReport: const MonthlyReport(
+            clientId: 'CLIENT-MS-VALLEE',
+            month: '2026-03',
+            slaTierName: 'PROTECT',
+            totalIncidents: 0,
+            totalEscalations: 0,
+            totalSlaBreaches: 0,
+            totalSlaOverrides: 0,
+            totalClientContacts: 0,
+            slaComplianceRate: 1,
+          ),
+        ),
         audience: ReportAudience.client,
       );
 
@@ -166,7 +179,7 @@ void main() {
   });
 }
 
-void _expectFallback(dynamic result) {
+void _expectFallback(ClientNarrativeResult result) {
   expect(result.modelId, 'fallback');
   expect(result.executiveHeadline, isEmpty);
   expect(result.executivePerformanceSummary, isEmpty);
