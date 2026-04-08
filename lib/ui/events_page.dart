@@ -80,24 +80,7 @@ class _EventsPageState extends State<EventsPage> {
         .take(_maxTimelineRows)
         .toList(growable: false);
     final hiddenRows = laneFiltered.length - visibleRows.length;
-    final selected = visibleRows.isEmpty
-        ? null
-        : _selected != null
-        ? visibleRows.firstWhere(
-            (r) => r.event.eventId == _selected!.eventId,
-            orElse: () => visibleRows.first,
-          )
-        : visibleRows.first;
-
-    if (selected != null && _selected?.eventId != selected.event.eventId) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _selected = selected.event);
-      });
-    } else if (selected == null && _selected != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _selected = null);
-      });
-    }
+    final selected = _selectedRowForVisibleRows(visibleRows);
     final relatedRows = selected == null
         ? const <_ForensicRow>[]
         : _relatedRows(filtered, selected);
@@ -272,6 +255,36 @@ class _EventsPageState extends State<EventsPage> {
         ),
       ),
     );
+  }
+
+  _ForensicRow? _selectedRowForVisibleRows(List<_ForensicRow> visibleRows) {
+    if (visibleRows.isEmpty) {
+      if (_selected != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _selected = null);
+        });
+      }
+      return null;
+    }
+    final selectedEventId = _selected?.eventId;
+    if (selectedEventId == null || selectedEventId.isEmpty) {
+      final fallback = visibleRows.first;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selected = fallback.event);
+      });
+      return fallback;
+    }
+    final row = visibleRows.firstWhere(
+      (row) => row.event.eventId == selectedEventId,
+      orElse: () => visibleRows.first,
+    );
+    if (row.event.eventId != selectedEventId) {
+      // Selected event no longer in visible rows — sync state to displayed row.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selected = row.event);
+      });
+    }
+    return row;
   }
 
   Widget _heroHeader(

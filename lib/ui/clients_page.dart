@@ -159,7 +159,7 @@ class _ClientsPageState extends State<ClientsPage> {
 
   String? _selectedClientId;
   String? _selectedSiteId;
-  String _lastOpenedRoom = 'Residents';
+  String _lastOpenedRoom = '';
   bool _selectionReconcileScheduled = false;
   bool _showDetailedWorkspace = false;
   int _pushRetryCount = 0;
