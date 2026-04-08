@@ -2,7 +2,14 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart'
-    show FlutterMap, MapOptions, Marker, MarkerLayer, TileLayer, LatLngBounds;
+    show
+        FlutterMap,
+        MapController,
+        MapOptions,
+        Marker,
+        MarkerLayer,
+        TileLayer,
+        LatLngBounds;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 
@@ -185,6 +192,9 @@ class _TacticalDetailedWorkspaceHost extends StatefulWidget {
       ValueChanged<String>? onConsume,
     )
     consumeEvidenceReturnReceiptOnce,
+    GlobalKey fleetPanelKey,
+    GlobalKey suppressedPanelKey,
+    MapController mapController,
   )
   builder;
 
@@ -197,6 +207,9 @@ class _TacticalDetailedWorkspaceHost extends StatefulWidget {
 
 class _TacticalDetailedWorkspaceHostState
     extends State<_TacticalDetailedWorkspaceHost> {
+  final GlobalKey _fleetPanelKey = GlobalKey();
+  final GlobalKey _suppressedPanelKey = GlobalKey();
+  final MapController _mapController = MapController();
   bool _showDetailedWorkspace = false;
   String? _lastConsumedAgentReturnIncidentReference;
   String? _lastConsumedEvidenceReturnAuditId;
@@ -253,6 +266,9 @@ class _TacticalDetailedWorkspaceHostState
       _setDetailedWorkspace,
       _consumeAgentReturnIncidentReferenceOnce,
       _consumeEvidenceReturnReceiptOnce,
+      _fleetPanelKey,
+      _suppressedPanelKey,
+      _mapController,
     );
   }
 }
@@ -437,6 +453,9 @@ class TacticalPage extends StatelessWidget {
         setDetailedWorkspace,
         consumeAgentReturnIncidentReferenceOnce,
         consumeEvidenceReturnReceiptOnce,
+        fleetPanelKey,
+        suppressedPanelKey,
+        mapController,
       ) {
         final normalizedAgentReturnReference =
             (agentReturnIncidentReference ?? '').trim();
@@ -452,6 +471,7 @@ class TacticalPage extends StatelessWidget {
             ? null
             : focusIncidentReference.trim();
         var verificationQueueTab = _VerificationQueueTab.anomalies;
+        final now = DateTime.now();
         return StatefulBuilder(
           builder: (context, setState) {
             if (normalizedAgentReturnReference.isNotEmpty) {
@@ -467,8 +487,6 @@ class TacticalPage extends StatelessWidget {
                 onConsumeEvidenceReturnReceipt,
               );
             }
-            final fleetPanelKey = GlobalKey();
-            final suppressedPanelKey = GlobalKey();
             var wide = false;
             final contentPadding = const EdgeInsets.fromLTRB(6, 6, 6, 8);
             void showTacticalFeedback(
@@ -495,7 +513,6 @@ class TacticalPage extends StatelessWidget {
               ).showSnackBar(SnackBar(content: Text(message)));
             }
 
-            final now = DateTime.now();
             final isCombatWindow = now.hour >= 22 || now.hour < 6;
             final normMode = isCombatWindow ? 'night' : 'day';
             final focusReference = focusIncidentReference.trim();
@@ -787,6 +804,7 @@ class TacticalPage extends StatelessWidget {
                   mapBounds: mapBounds,
                   activeMarker: activeMarker,
                   zoom: mapZoom,
+                  mapController: mapController,
                   activeFilter: mapFilter,
                   activeQueueTab: verificationQueueTab,
                   onSelectMarker: (markerId) {
@@ -795,14 +813,30 @@ class TacticalPage extends StatelessWidget {
                     });
                   },
                   onZoomIn: () {
+                    final nextZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
                     setState(() {
-                      mapZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
+                      mapZoom = nextZoom;
                     });
+                    mapController.move(
+                      activeMarker?.point ?? _mapBoundsCenter(mapBounds),
+                      _mapZoomLevelForBounds(
+                        mapBounds: mapBounds,
+                        zoomScale: nextZoom,
+                      ),
+                    );
                   },
                   onZoomOut: () {
+                    final nextZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
                     setState(() {
-                      mapZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
+                      mapZoom = nextZoom;
                     });
+                    mapController.move(
+                      activeMarker?.point ?? _mapBoundsCenter(mapBounds),
+                      _mapZoomLevelForBounds(
+                        mapBounds: mapBounds,
+                        zoomScale: nextZoom,
+                      ),
+                    );
                   },
                   onCenterActive: () {
                     final targetMarker = _preferredMarker(
@@ -1137,6 +1171,7 @@ class TacticalPage extends StatelessWidget {
                     mapBounds: mapBounds,
                     activeMarker: activeMarker,
                     zoom: mapZoom,
+                    mapController: mapController,
                     activeFilter: mapFilter,
                     activeQueueTab: verificationQueueTab,
                     onSelectMarker: (markerId) {
@@ -1145,14 +1180,30 @@ class TacticalPage extends StatelessWidget {
                       });
                     },
                     onZoomIn: () {
+                      final nextZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
                       setState(() {
-                        mapZoom = (mapZoom + 0.12).clamp(1.0, 1.6);
+                        mapZoom = nextZoom;
                       });
+                      mapController.move(
+                        activeMarker?.point ?? _mapBoundsCenter(mapBounds),
+                        _mapZoomLevelForBounds(
+                          mapBounds: mapBounds,
+                          zoomScale: nextZoom,
+                        ),
+                      );
                     },
                     onZoomOut: () {
+                      final nextZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
                       setState(() {
-                        mapZoom = (mapZoom - 0.12).clamp(1.0, 1.6);
+                        mapZoom = nextZoom;
                       });
+                      mapController.move(
+                        activeMarker?.point ?? _mapBoundsCenter(mapBounds),
+                        _mapZoomLevelForBounds(
+                          mapBounds: mapBounds,
+                          zoomScale: nextZoom,
+                        ),
+                      );
                     },
                     onCenterActive: () {
                       final targetMarker = _preferredMarker(
@@ -4386,6 +4437,7 @@ class TacticalPage extends StatelessWidget {
     required LatLngBounds mapBounds,
     required _MapMarker? activeMarker,
     required double zoom,
+    required MapController mapController,
     required _TacticalMapFilter activeFilter,
     required _VerificationQueueTab activeQueueTab,
     required ValueChanged<String> onSelectMarker,
@@ -4472,9 +4524,8 @@ class TacticalPage extends StatelessWidget {
                 children: [
                   Positioned.fill(
                     child: FlutterMap(
-                      key: ValueKey(
-                        'tactical-map-${activeMarker?.id ?? 'none'}-${zoom.toStringAsFixed(2)}-${mapBounds.south.toStringAsFixed(4)}-${mapBounds.west.toStringAsFixed(4)}',
-                      ),
+                      mapController: mapController,
+                      key: const ValueKey('tactical-map'),
                       options: MapOptions(
                         initialCenter:
                             activeMarker?.point ?? _mapBoundsCenter(mapBounds),
