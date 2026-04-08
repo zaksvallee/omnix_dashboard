@@ -2023,6 +2023,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       laneItems: laneItems,
       effectiveLane: effectiveLane,
       useExpandedBody: useEmbeddedPanels,
+      shadowCount: moShadowSites.length,
     );
     final selectedBoard = _selectedAutomationBoard(
       selectedFocus: selectedFocus,
@@ -2041,6 +2042,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       selectedFocus: selectedFocus,
       compact: compact,
       useExpandedBody: useEmbeddedPanels,
+      useWideLayout: useWideLayout,
     );
 
     if (useWideLayout) {
@@ -2075,13 +2077,14 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required List<_AiQueueFocusItem> laneItems,
     required _AiQueueLaneFilter effectiveLane,
     required bool useExpandedBody,
+    required int shadowCount,
   }) {
     final list = laneItems.isEmpty
         ? _emptyLaneState(
             totalQueueCount: _actions.length,
             queuedCount: _displayQueuedActions.length,
             draftCount: _nextShiftDrafts.length,
-            shadowCount: _moShadowSites.length,
+            shadowCount: shadowCount,
           )
         : ListView.separated(
             shrinkWrap: !useExpandedBody,
@@ -2328,7 +2331,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         totalQueueCount: _actions.length,
         queuedCount: _displayQueuedActions.length,
         draftCount: _nextShiftDrafts.length,
-        shadowCount: _moShadowSites.length,
+        shadowCount: moShadowSites.length,
         useExpandedBody: useExpandedBody,
       ),
       _AiQueueWorkspaceView.policy => _policyPanel(
@@ -2337,7 +2340,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         nextShiftDrafts: nextShiftDrafts,
         moShadowSites: moShadowSites,
         totalQueueCount: _actions.length,
-        shadowCount: _moShadowSites.length,
+        shadowCount: moShadowSites.length,
         useExpandedBody: useExpandedBody,
       ),
       _AiQueueWorkspaceView.context => _contextPanel(
@@ -2379,7 +2382,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             totalQueueCount: _actions.length,
             queuedCount: _displayQueuedActions.length,
             draftCount: _nextShiftDrafts.length,
-            shadowCount: _moShadowSites.length,
+            shadowCount: moShadowSites.length,
           ),
           const SizedBox(height: 0.9),
           Wrap(
@@ -3460,6 +3463,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required _AiQueueFocusItem? selectedFocus,
     required bool compact,
     required bool useExpandedBody,
+    required bool useWideLayout,
   }) {
     final children = <Widget>[
       Container(
@@ -3497,7 +3501,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           ],
         ),
       ),
-      if (_desktopWorkspaceActive || _hasPinnedCommandReceipt) ...[
+      if (useWideLayout || _hasPinnedCommandReceipt) ...[
         const SizedBox(height: 2.2),
         _workspaceCommandReceiptCard(),
       ],
@@ -5295,6 +5299,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         .toList(growable: false);
     setState(() {
       _laneFilter = lane;
+      _selectedFocusId = null; // clear stale selection before reassigning
       if (laneItems.isEmpty) {
         return;
       }
@@ -5303,9 +5308,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         _selectedFocusId = preferredFocusId;
         return;
       }
-      if (!laneItems.any((item) => item.id == _selectedFocusId)) {
-        _selectedFocusId = laneItems.first.id;
-      }
+      _selectedFocusId = laneItems.first.id;
     });
   }
 
