@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:http/http.dart' as http;
 
 import 'dvr_http_auth.dart';
@@ -442,15 +444,183 @@ class DahuaOnyxAgentCameraWorker extends _CredentialReadyOnyxAgentCameraWorker {
     OnyxAgentCameraExecutionRequest request,
   ) async {
     final packet = request.executionPacket;
-    // TODO(zaks): Implement Dahua vendor API writes once the ONYX camera worker
-    // contract carries the exact encoder/channel payload expected by Dahua.
-    return stagingOutcome(
+    if (stagingMode) {
+      return stagingOutcome(
+        request,
+        detail:
+            'Camera control in staging mode. Configure Dahua digest credentials for ${request.scopeLabel} before approving live camera changes.',
+        recommendedNextStep:
+            'Add the site camera credentials, then retry the approved packet after verifying the target device path.',
+      );
+    }
+    final client = httpClient;
+    if (client == null) {
+      return _dahuaFailure(
+        request,
+        detail: 'The Dahua HTTP client is not wired for this runtime.',
+        recommendedNextStep:
+            'Restore the embedded camera bridge runtime before attempting a live Dahua write.',
+      );
+    }
+
+    final targetBaseUri = _deviceBaseUri(request.target);
+    if (targetBaseUri == null) {
+      return _dahuaFailure(
+        request,
+        detail:
+            'The target "${request.target}" is not a valid Dahua host or URL.',
+        recommendedNextStep:
+            'Restage the packet with a valid camera host or full device URL before retrying the live change.',
+      );
+    }
+
+    try {
+      // Step 1 — Verify device is reachable.
+      final deviceInfoUri = targetBaseUri.replace(
+        path: '/cgi-bin/magicBox.cgi',
+        query: 'action=getDeviceType',
+      );
+      final deviceInfoResponse = await credentials.get(client, deviceInfoUri);
+      if (!_isSuccess(deviceInfoResponse.statusCode) ||
+          deviceInfoResponse.body.trim().isEmpty) {
+        return _dahuaHttpFailure(
+          request,
+          response: deviceInfoResponse,
+          detail: 'Dahua device verification failed at /cgi-bin/magicBox.cgi.',
+        );
+      }
+
+      // Step 2 — Channel discovery: confirm Encode[0] channel exists.
+      final encodeUri = targetBaseUri.replace(
+        path: '/cgi-bin/configManager.cgi',
+        query: 'action=getConfig&name=Encode%5B0%5D',
+      );
+      final discoverResponse = await credentials.get(client, encodeUri);
+      if (!_isSuccess(discoverResponse.statusCode)) {
+        return _dahuaHttpFailure(
+          request,
+          response: discoverResponse,
+          detail:
+              'Dahua channel discovery failed at /cgi-bin/configManager.cgi for Encode[0].',
+        );
+      }
+      if (!_dahuaChannelExists(discoverResponse.body)) {
+        return _dahuaFailure(
+          request,
+          detail:
+              'Dahua returned no writable Encode[0] channel for ${request.target}.',
+          recommendedNextStep:
+              'Confirm the device exposes Encode[0] via configManager.cgi and restage the change against the correct host.',
+        );
+      }
+
+      // Step 3 — Read current config (same endpoint, already have it from step 2).
+      final currentConfig = discoverResponse.body;
+
+      // Step 4 — Write preset via CGI param POST.
+      final preset = _desiredDahuaPreset(packet.mainStreamLabel);
+      final cgiParams = _buildDahuaCgiParams(preset);
+      final writeUri = targetBaseUri.replace(
+        path: '/cgi-bin/configManager.cgi',
+      );
+      final postResponse = await http.Response.fromStream(
+        await credentials.send(
+          client,
+          'POST',
+          writeUri,
+          headers: const <String, String>{
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: cgiParams,
+        ),
+      );
+      if (!_isSuccess(postResponse.statusCode)) {
+        return _dahuaHttpFailure(
+          request,
+          response: postResponse,
+          detail:
+              'Dahua rejected the Encode[0] configuration update.',
+        );
+      }
+
+      // Step 5 — Read-back verification.
+      final verifyResponse = await credentials.get(client, encodeUri);
+      if (!_isSuccess(verifyResponse.statusCode)) {
+        return _dahuaHttpFailure(
+          request,
+          response: verifyResponse,
+          detail:
+              'Dahua did not return a readable confirmation for Encode[0] after the update.',
+        );
+      }
+      final mismatches = _verifyDahuaConfig(verifyResponse.body, preset);
+      if (mismatches.isNotEmpty) {
+        return _dahuaFailure(
+          request,
+          detail:
+              'Dahua Encode[0] did not confirm ${packet.profileLabel}. Read-back mismatches: ${mismatches.join(', ')}.',
+          recommendedNextStep:
+              'Keep the incident open, inspect the live device settings, and retry only after confirming which fields the device accepts.',
+        );
+      }
+
+      // currentConfig baseline captured — reserved for future diff logging.
+      assert(currentConfig.isNotEmpty);
+      return OnyxAgentCameraExecutionOutcome(
+        success: true,
+        providerLabel: 'local:camera-worker:dahua',
+        detail:
+            '$workerLabel confirmed ${packet.profileLabel} on Encode[0] after device verification, channel discovery, live write, and read-back validation.',
+        recommendedNextStep:
+            'Confirm live view, analytics overlays, and ${packet.recorderTarget} ingest before closing the packet. Keep ${packet.rollbackExportLabel} attached for rollback.',
+        remoteExecutionId: 'worker-dahua-encode0-${request.packetId}',
+        recordedAtUtc: DateTime.now().toUtc(),
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Dahua camera control failed.',
+        name: 'OnyxDahuaCameraWorker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return _dahuaFailure(
+        request,
+        detail:
+            'Dahua camera control failed before the change could be confirmed: ${error.toString().trim().isEmpty ? error.runtimeType : error.toString().trim()}.',
+        recommendedNextStep:
+            'Confirm the target is reachable on the LAN, validate credentials, and retry only after the device path responds cleanly.',
+      );
+    }
+  }
+
+  OnyxAgentCameraExecutionOutcome _dahuaHttpFailure(
+    OnyxAgentCameraExecutionRequest request, {
+    required http.Response response,
+    required String detail,
+  }) {
+    final responseDetail = response.body.trim().isEmpty
+        ? 'No response body returned.'
+        : _collapsed(response.body);
+    return _dahuaFailure(
       request,
-      detail: stagingMode
-          ? 'Camera control in staging mode. Dahua credentials are not configured for ${request.scopeLabel}.'
-          : '$workerLabel is credential-ready, but Dahua vendor API writes are still staged in this release.',
+      detail: '$detail HTTP ${response.statusCode}. $responseDetail',
       recommendedNextStep:
-          'Validate the feed manually, keep ${packet.rollbackExportLabel} attached, and use the Dahua console until the vendor worker is implemented.',
+          'Confirm device credentials and channel permissions, then retry the packet after the Dahua endpoint responds cleanly.',
+    );
+  }
+
+  OnyxAgentCameraExecutionOutcome _dahuaFailure(
+    OnyxAgentCameraExecutionRequest request, {
+    required String detail,
+    required String recommendedNextStep,
+  }) {
+    return OnyxAgentCameraExecutionOutcome(
+      success: false,
+      providerLabel: 'local:camera-worker:dahua',
+      detail: detail,
+      recommendedNextStep: recommendedNextStep,
+      remoteExecutionId: 'worker-dahua-${request.packetId}',
+      recordedAtUtc: DateTime.now().toUtc(),
     );
   }
 }
@@ -651,6 +821,95 @@ String _xmlValue(String xml, String tag) {
 String _collapsed(String value) {
   return value.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
+
+// ─── Dahua helpers ────────────────────────────────────────────────────────────
+
+bool _dahuaChannelExists(String body) {
+  return body.trim().isNotEmpty &&
+      body.toLowerCase().contains('encode[0]') &&
+      !body.toLowerCase().contains('error');
+}
+
+class _DahuaPreset {
+  final String width;
+  final String height;
+  final String fps;
+  final String bitrate;
+
+  const _DahuaPreset({
+    required this.width,
+    required this.height,
+    required this.fps,
+    required this.bitrate,
+  });
+}
+
+_DahuaPreset _desiredDahuaPreset(String mainStreamLabel) {
+  final match = RegExp(
+    r'(\d+)x(\d+)\s*@\s*(\d+)\s*fps\s*/\s*(\d+)\s*kbps',
+    caseSensitive: false,
+  ).firstMatch(mainStreamLabel);
+  if (match == null) {
+    return const _DahuaPreset(
+      width: '1920',
+      height: '1080',
+      fps: '15',
+      bitrate: '2048',
+    );
+  }
+  return _DahuaPreset(
+    width: match.group(1)!.trim(),
+    height: match.group(2)!.trim(),
+    fps: match.group(3)!.trim(),
+    bitrate: match.group(4)!.trim(),
+  );
+}
+
+/// Builds an `application/x-www-form-urlencoded` body for Dahua configManager
+/// setConfig targeting the Encode[0].MainFormat[0].Video fields.
+String _buildDahuaCgiParams(_DahuaPreset preset) {
+  final params = <String, String>{
+    'action': 'setConfig',
+    'Encode[0].MainFormat[0].Video.Width': preset.width,
+    'Encode[0].MainFormat[0].Video.Height': preset.height,
+    'Encode[0].MainFormat[0].Video.FPS': preset.fps,
+    'Encode[0].MainFormat[0].Video.BitRate': preset.bitrate,
+  };
+  return params.entries
+      .map(
+        (e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+      )
+      .join('&');
+}
+
+/// Verifies that the Dahua getConfig response contains the expected preset
+/// values. Returns a list of mismatch descriptions (empty = all confirmed).
+List<String> _verifyDahuaConfig(String body, _DahuaPreset preset) {
+  final mismatches = <String>[];
+  final fields = <String, String>{
+    'Encode[0].MainFormat[0].Video.Width': preset.width,
+    'Encode[0].MainFormat[0].Video.Height': preset.height,
+    'Encode[0].MainFormat[0].Video.FPS': preset.fps,
+    'Encode[0].MainFormat[0].Video.BitRate': preset.bitrate,
+  };
+  fields.forEach((key, expected) {
+    // Dahua response lines look like: table.Encode[0].MainFormat[0].Video.Width=1920
+    final escapedKey = RegExp.escape(key);
+    final match = RegExp(
+      r'(?:^|\n)\s*(?:table\.)?' + escapedKey + r'\s*=\s*([^\r\n]+)',
+      caseSensitive: false,
+      multiLine: true,
+    ).firstMatch(body);
+    final actual = match?.group(1)?.trim() ?? '';
+    if (actual != expected) {
+      mismatches.add('$key=$actual (expected $expected)');
+    }
+  });
+  return mismatches;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _HikvisionPreset {
   final String width;

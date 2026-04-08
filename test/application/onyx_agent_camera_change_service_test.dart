@@ -87,7 +87,7 @@ void main() {
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           incidentReference: 'INC-CTRL-42',
-          sourceRouteLabel: 'CCTV',
+          sourceRouteLabel: 'AI Queue',
         );
 
         expect(result.packetId, startsWith('CAM-PKT-'));
@@ -188,7 +188,7 @@ void main() {
           clientId: 'CLIENT-001',
           siteId: 'SITE-SANDTON',
           incidentReference: 'INC-CTRL-42',
-          sourceRouteLabel: 'CCTV',
+          sourceRouteLabel: 'AI Queue',
         );
         final execution = await service.approveAndExecute(
           packetId: stage.packetId,
@@ -309,7 +309,7 @@ void main() {
             siteId: 'SITE-SANDTON',
             scopeLabel: 'CLIENT-001 • SITE-SANDTON',
             incidentReference: 'INC-CTRL-42',
-            sourceRouteLabel: 'CCTV',
+            sourceRouteLabel: 'AI Queue',
             approvedAtUtc: DateTime.utc(2026, 3, 27, 8, 29),
             executionPacket: _testExecutionPacket(
               packetId: 'CAM-PKT-1',
@@ -358,7 +358,7 @@ void main() {
           siteId: 'SITE-SANDTON',
           scopeLabel: 'CLIENT-001 • SITE-SANDTON',
           incidentReference: 'INC-CTRL-42',
-          sourceRouteLabel: 'CCTV',
+          sourceRouteLabel: 'AI Queue',
           approvedAtUtc: DateTime.utc(2026, 3, 27, 8, 29),
           executionPacket: _testExecutionPacket(
             packetId: 'CAM-PKT-1',

@@ -20,7 +20,7 @@ OnyxAgentCameraExecutionRequest _request({
     siteId: 'SITE-SANDTON',
     scopeLabel: 'CLIENT-001 • SITE-SANDTON',
     incidentReference: 'INC-CTRL-42',
-    sourceRouteLabel: 'CCTV',
+    sourceRouteLabel: 'AI Queue',
     approvedAtUtc: DateTime.utc(2026, 3, 27, 9, 15),
     executionPacket: OnyxAgentCameraExecutionPacket(
       packetId: 'CAM-PKT-900',
@@ -44,49 +44,61 @@ OnyxAgentCameraExecutionRequest _request({
 
 void main() {
   group('OnyxAgentCameraBridgeReceiver', () {
-    test('confirms a Hikvision change after device verification and read-back', () async {
-      String? putBody;
-      final client = MockClient((request) async {
-        if (request.url.path == '/ISAPI/System/deviceInfo') {
-          return http.Response('<DeviceInfo><deviceName>North Gate</deviceName></DeviceInfo>', 200);
-        }
-        if (request.method == 'GET' &&
-            request.url.path == '/ISAPI/Streaming/channels') {
-          return http.Response(_channelListXml, 200);
-        }
-        if (request.method == 'PUT' &&
-            request.url.path == '/ISAPI/Streaming/channels/101') {
-          putBody = request.body;
-          return http.Response('<ResponseStatus>OK</ResponseStatus>', 200);
-        }
-        if (request.method == 'GET' &&
-            request.url.path == '/ISAPI/Streaming/channels/101') {
-          return http.Response(_verifiedChannelXml, 200);
-        }
-        return http.Response('not found', 404);
-      });
-      final receiver = OnyxAgentCameraBridgeReceiver(
-        workers: const <OnyxAgentCameraVendorWorker>[],
-        httpClient: client,
-        resolveCredentials: (_, _) => const DvrHttpAuthConfig(
-          mode: DvrHttpAuthMode.digest,
-          username: 'operator',
-          password: 'secret',
-        ),
-      );
+    test(
+      'confirms a Hikvision change after device verification and read-back',
+      () async {
+        String? putBody;
+        final client = MockClient((request) async {
+          if (request.url.path == '/ISAPI/System/deviceInfo') {
+            return http.Response(
+              '<DeviceInfo><deviceName>North Gate</deviceName></DeviceInfo>',
+              200,
+            );
+          }
+          if (request.method == 'GET' &&
+              request.url.path == '/ISAPI/Streaming/channels') {
+            return http.Response(_channelListXml, 200);
+          }
+          if (request.method == 'PUT' &&
+              request.url.path == '/ISAPI/Streaming/channels/101') {
+            putBody = request.body;
+            return http.Response('<ResponseStatus>OK</ResponseStatus>', 200);
+          }
+          if (request.method == 'GET' &&
+              request.url.path == '/ISAPI/Streaming/channels/101') {
+            return http.Response(_verifiedChannelXml, 200);
+          }
+          return http.Response('not found', 404);
+        });
+        final receiver = OnyxAgentCameraBridgeReceiver(
+          workers: const <OnyxAgentCameraVendorWorker>[],
+          httpClient: client,
+          resolveCredentials: (_, _) => const DvrHttpAuthConfig(
+            mode: DvrHttpAuthMode.digest,
+            username: 'operator',
+            password: 'secret',
+          ),
+        );
 
-      final outcome = await receiver.execute(_request());
+        final outcome = await receiver.execute(_request());
 
-      expect(outcome.success, isTrue);
-      expect(outcome.providerLabel, 'local:camera-worker:hikvision');
-      expect(outcome.detail, contains('Hikvision Camera Worker'));
-      expect(outcome.detail, contains('channel 101'));
-      expect(outcome.remoteExecutionId, contains('worker-hikvision-101'));
-      expect(putBody, contains('<videoResolutionWidth>2560</videoResolutionWidth>'));
-      expect(putBody, contains('<videoResolutionHeight>1440</videoResolutionHeight>'));
-      expect(putBody, contains('<maxFrameRate>18</maxFrameRate>'));
-      expect(putBody, contains('<constantBitRate>3072</constantBitRate>'));
-    });
+        expect(outcome.success, isTrue);
+        expect(outcome.providerLabel, 'local:camera-worker:hikvision');
+        expect(outcome.detail, contains('Hikvision Camera Worker'));
+        expect(outcome.detail, contains('channel 101'));
+        expect(outcome.remoteExecutionId, contains('worker-hikvision-101'));
+        expect(
+          putBody,
+          contains('<videoResolutionWidth>2560</videoResolutionWidth>'),
+        );
+        expect(
+          putBody,
+          contains('<videoResolutionHeight>1440</videoResolutionHeight>'),
+        );
+        expect(putBody, contains('<maxFrameRate>18</maxFrameRate>'));
+        expect(putBody, contains('<constantBitRate>3072</constantBitRate>'));
+      },
+    );
 
     test('returns success false when Hikvision auth fails', () async {
       var deviceInfoCalls = 0;
@@ -143,104 +155,122 @@ void main() {
 
       expect(outcome.success, isFalse);
       expect(outcome.detail, contains('connection refused'));
-      expect(outcome.detail, contains('failed before the change could be confirmed'));
+      expect(
+        outcome.detail,
+        contains('failed before the change could be confirmed'),
+      );
     });
 
-    test('returns success false when Hikvision read-back does not confirm the change', () async {
-      final client = MockClient((request) async {
-        if (request.url.path == '/ISAPI/System/deviceInfo') {
-          return http.Response('<DeviceInfo><deviceName>North Gate</deviceName></DeviceInfo>', 200);
-        }
-        if (request.method == 'GET' &&
-            request.url.path == '/ISAPI/Streaming/channels') {
-          return http.Response(_channelListXml, 200);
-        }
-        if (request.method == 'PUT' &&
-            request.url.path == '/ISAPI/Streaming/channels/101') {
-          return http.Response('<ResponseStatus>OK</ResponseStatus>', 200);
-        }
-        if (request.method == 'GET' &&
-            request.url.path == '/ISAPI/Streaming/channels/101') {
-          return http.Response(_unconfirmedChannelXml, 200);
-        }
-        return http.Response('not found', 404);
-      });
-      final receiver = OnyxAgentCameraBridgeReceiver(
-        workers: const <OnyxAgentCameraVendorWorker>[],
-        httpClient: client,
-        resolveCredentials: (_, _) => const DvrHttpAuthConfig(
-          mode: DvrHttpAuthMode.digest,
-          username: 'operator',
-          password: 'secret',
-        ),
-      );
+    test(
+      'returns success false when Hikvision read-back does not confirm the change',
+      () async {
+        final client = MockClient((request) async {
+          if (request.url.path == '/ISAPI/System/deviceInfo') {
+            return http.Response(
+              '<DeviceInfo><deviceName>North Gate</deviceName></DeviceInfo>',
+              200,
+            );
+          }
+          if (request.method == 'GET' &&
+              request.url.path == '/ISAPI/Streaming/channels') {
+            return http.Response(_channelListXml, 200);
+          }
+          if (request.method == 'PUT' &&
+              request.url.path == '/ISAPI/Streaming/channels/101') {
+            return http.Response('<ResponseStatus>OK</ResponseStatus>', 200);
+          }
+          if (request.method == 'GET' &&
+              request.url.path == '/ISAPI/Streaming/channels/101') {
+            return http.Response(_unconfirmedChannelXml, 200);
+          }
+          return http.Response('not found', 404);
+        });
+        final receiver = OnyxAgentCameraBridgeReceiver(
+          workers: const <OnyxAgentCameraVendorWorker>[],
+          httpClient: client,
+          resolveCredentials: (_, _) => const DvrHttpAuthConfig(
+            mode: DvrHttpAuthMode.digest,
+            username: 'operator',
+            password: 'secret',
+          ),
+        );
 
-      final outcome = await receiver.execute(_request());
+        final outcome = await receiver.execute(_request());
 
-      expect(outcome.success, isFalse);
-      expect(outcome.detail, contains('did not confirm Alarm Verification'));
-      expect(outcome.detail, contains('maxFrameRate=12'));
-    });
+        expect(outcome.success, isFalse);
+        expect(outcome.detail, contains('did not confirm Alarm Verification'));
+        expect(outcome.detail, contains('maxFrameRate=12'));
+      },
+    );
 
-    test('falls back to the generic worker for unknown vendors and stays staged', () async {
-      const receiver = OnyxAgentCameraBridgeReceiver();
+    test(
+      'falls back to the generic worker for unknown vendors and stays staged',
+      () async {
+        const receiver = OnyxAgentCameraBridgeReceiver();
 
-      final outcome = await receiver.execute(
-        _request(
-          vendorKey: 'unknown_vendor',
-          vendorLabel: 'Unknown Vendor',
-          profileKey: 'balanced_monitoring',
-          profileLabel: 'Balanced Monitoring',
-        ),
-      );
+        final outcome = await receiver.execute(
+          _request(
+            vendorKey: 'unknown_vendor',
+            vendorLabel: 'Unknown Vendor',
+            profileKey: 'balanced_monitoring',
+            profileLabel: 'Balanced Monitoring',
+          ),
+        );
 
-      expect(outcome.success, isFalse);
-      expect(outcome.providerLabel, 'local:camera-worker:generic_onvif');
-      expect(outcome.detail, contains('Camera control in staging mode'));
-      expect(outcome.detail, contains('Balanced Monitoring'));
-    });
+        expect(outcome.success, isFalse);
+        expect(outcome.providerLabel, 'local:camera-worker:generic_onvif');
+        expect(outcome.detail, contains('Camera control in staging mode'));
+        expect(outcome.detail, contains('Balanced Monitoring'));
+      },
+    );
 
-    test('handles execution json and returns worker plus packet metadata', () async {
-      final client = MockClient((request) async {
-        if (request.url.path == '/ISAPI/System/deviceInfo') {
-          return http.Response('<DeviceInfo><deviceName>North Gate</deviceName></DeviceInfo>', 200);
-        }
-        if (request.method == 'GET' &&
-            request.url.path == '/ISAPI/Streaming/channels') {
-          return http.Response(_channelListXml, 200);
-        }
-        if (request.method == 'PUT' &&
-            request.url.path == '/ISAPI/Streaming/channels/101') {
-          return http.Response('<ResponseStatus>OK</ResponseStatus>', 200);
-        }
-        if (request.method == 'GET' &&
-            request.url.path == '/ISAPI/Streaming/channels/101') {
-          return http.Response(_verifiedChannelXml, 200);
-        }
-        return http.Response('not found', 404);
-      });
-      final receiver = OnyxAgentCameraBridgeReceiver(
-        workers: const <OnyxAgentCameraVendorWorker>[],
-        httpClient: client,
-        resolveCredentials: (_, _) => const DvrHttpAuthConfig(
-          mode: DvrHttpAuthMode.digest,
-          username: 'operator',
-          password: 'secret',
-        ),
-      );
+    test(
+      'handles execution json and returns worker plus packet metadata',
+      () async {
+        final client = MockClient((request) async {
+          if (request.url.path == '/ISAPI/System/deviceInfo') {
+            return http.Response(
+              '<DeviceInfo><deviceName>North Gate</deviceName></DeviceInfo>',
+              200,
+            );
+          }
+          if (request.method == 'GET' &&
+              request.url.path == '/ISAPI/Streaming/channels') {
+            return http.Response(_channelListXml, 200);
+          }
+          if (request.method == 'PUT' &&
+              request.url.path == '/ISAPI/Streaming/channels/101') {
+            return http.Response('<ResponseStatus>OK</ResponseStatus>', 200);
+          }
+          if (request.method == 'GET' &&
+              request.url.path == '/ISAPI/Streaming/channels/101') {
+            return http.Response(_verifiedChannelXml, 200);
+          }
+          return http.Response('not found', 404);
+        });
+        final receiver = OnyxAgentCameraBridgeReceiver(
+          workers: const <OnyxAgentCameraVendorWorker>[],
+          httpClient: client,
+          resolveCredentials: (_, _) => const DvrHttpAuthConfig(
+            mode: DvrHttpAuthMode.digest,
+            username: 'operator',
+            password: 'secret',
+          ),
+        );
 
-      final response = await receiver.handleExecutionJson(
-        _request().toJson(),
-      );
+        final response = await receiver.handleExecutionJson(
+          _request().toJson(),
+        );
 
-      expect(response['success'], true);
-      expect(response['provider_label'], 'local:camera-worker:hikvision');
-      expect(response['worker_label'], 'Hikvision Camera Worker');
-      expect(response['execution_packet'], isA<Map>());
-      final packet = response['execution_packet']! as Map<String, Object?>;
-      expect(packet['vendor_label'], 'Hikvision');
-      expect(packet['profile_label'], 'Alarm Verification');
-    });
+        expect(response['success'], true);
+        expect(response['provider_label'], 'local:camera-worker:hikvision');
+        expect(response['worker_label'], 'Hikvision Camera Worker');
+        expect(response['execution_packet'], isA<Map>());
+        final packet = response['execution_packet']! as Map<String, Object?>;
+        expect(packet['vendor_label'], 'Hikvision');
+        expect(packet['profile_label'], 'Alarm Verification');
+      },
+    );
 
     test('returns a structured failure when json is invalid', () async {
       const receiver = OnyxAgentCameraBridgeReceiver();
@@ -252,6 +282,225 @@ void main() {
       expect(response['success'], false);
       expect(response['detail'], contains('The execution packet was invalid'));
       expect(response['provider_label'], 'local:camera-bridge-receiver');
+    });
+  });
+
+  group('DahuaOnyxAgentCameraWorker', () {
+    OnyxAgentCameraExecutionRequest dahuaRequest({
+      String target = '192.168.1.80',
+      String mainStreamLabel = 'H.265 2560x1440 @ 18 fps / 3072 kbps',
+    }) {
+      return OnyxAgentCameraExecutionRequest(
+        packetId: 'CAM-PKT-901',
+        target: target,
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        scopeLabel: 'CLIENT-001 • SITE-SANDTON',
+        incidentReference: 'INC-CTRL-43',
+        sourceRouteLabel: 'AI Queue',
+        approvedAtUtc: DateTime.utc(2026, 3, 28, 9, 0),
+        executionPacket: OnyxAgentCameraExecutionPacket(
+          packetId: 'CAM-PKT-901',
+          target: target,
+          vendorKey: 'dahua',
+          vendorLabel: 'Dahua',
+          profileKey: 'alarm_verification',
+          profileLabel: 'Alarm Verification',
+          onvifProfileToken: 'onyx-dahua-alarm-verification',
+          mainStreamLabel: mainStreamLabel,
+          subStreamLabel: 'H.264 704x480 @ 10 fps / 512 kbps',
+          recorderTarget: 'alarm_review_nvr',
+          rollbackExportLabel: 'rollback-CAM-PKT-901-192-168-1-80.json',
+          credentialHandling: 'Keep device credentials local.',
+          changePlan: const <String>['Apply the approved profile.'],
+          verificationPlan: const <String>['Confirm live view.'],
+          rollbackPlan: const <String>['Restore the previous profile.'],
+        ),
+      );
+    }
+
+    const creds = DvrHttpAuthConfig(
+      mode: DvrHttpAuthMode.digest,
+      username: 'admin',
+      password: 'secret',
+    );
+
+    OnyxAgentCameraBridgeReceiver receiverWith(http.Client client) {
+      return OnyxAgentCameraBridgeReceiver(
+        workers: const <OnyxAgentCameraVendorWorker>[],
+        httpClient: client,
+        resolveCredentials: (_, _) => creds,
+      );
+    }
+
+    test('confirms a Dahua change after device verification and read-back',
+        () async {
+      String? postBody;
+      final client = MockClient((request) async {
+        if (request.url.path == '/cgi-bin/magicBox.cgi') {
+          return http.Response('table.DeviceType=IPC-HDW\r\n', 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi' &&
+            request.method == 'GET') {
+          return http.Response(_dahuaEncodeConfig, 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi' &&
+            request.method == 'POST') {
+          postBody = request.body;
+          return http.Response('OK\r\n', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await receiverWith(client).execute(dahuaRequest());
+
+      expect(outcome.success, isTrue);
+      expect(outcome.providerLabel, 'local:camera-worker:dahua');
+      expect(outcome.detail, contains('Dahua Camera Worker'));
+      expect(outcome.detail, contains('Encode[0]'));
+      expect(outcome.remoteExecutionId, contains('worker-dahua-encode0'));
+      final encWidth = Uri.encodeQueryComponent('Encode[0].MainFormat[0].Video.Width');
+      final encHeight = Uri.encodeQueryComponent('Encode[0].MainFormat[0].Video.Height');
+      final encFps = Uri.encodeQueryComponent('Encode[0].MainFormat[0].Video.FPS');
+      final encBitrate = Uri.encodeQueryComponent('Encode[0].MainFormat[0].Video.BitRate');
+      expect(postBody, contains('action=setConfig'));
+      expect(postBody, contains('$encWidth=2560'));
+      expect(postBody, contains('$encHeight=1440'));
+      expect(postBody, contains('$encFps=18'));
+      expect(postBody, contains('$encBitrate=3072'));
+    });
+
+    test('returns staging outcome when credentials are not configured',
+        () async {
+      const worker = DahuaOnyxAgentCameraWorker(
+        credentials: DvrHttpAuthConfig(mode: DvrHttpAuthMode.none),
+      );
+      final outcome = await worker.execute(dahuaRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.providerLabel, 'local:camera-worker:dahua');
+      expect(outcome.detail, contains('staging mode'));
+    });
+
+    test('returns failure when device info endpoint is unreachable', () async {
+      final client = MockClient((request) async {
+        throw http.ClientException('connection refused', request.url);
+      });
+
+      final outcome = await receiverWith(client).execute(dahuaRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('failed before the change could be confirmed'));
+    });
+
+    test('returns failure when device info returns non-200', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/cgi-bin/magicBox.cgi') {
+          return http.Response('', 401);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await receiverWith(client).execute(dahuaRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('device verification failed'));
+      expect(outcome.detail, contains('HTTP 401'));
+    });
+
+    test('returns failure when channel discovery finds no Encode[0]', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/cgi-bin/magicBox.cgi') {
+          return http.Response('table.DeviceType=IPC-HDW\r\n', 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi') {
+          return http.Response('Error=NoData\r\n', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await receiverWith(client).execute(dahuaRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('no writable Encode[0] channel'));
+    });
+
+    test('returns failure when POST config write is rejected', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/cgi-bin/magicBox.cgi') {
+          return http.Response('table.DeviceType=IPC-HDW\r\n', 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi' &&
+            request.method == 'GET') {
+          return http.Response(_dahuaEncodeConfig, 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi' &&
+            request.method == 'POST') {
+          return http.Response('Error=PermissionDenied\r\n', 403);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await receiverWith(client).execute(dahuaRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('rejected the Encode[0] configuration update'));
+      expect(outcome.detail, contains('HTTP 403'));
+    });
+
+    test('returns failure when read-back does not confirm the change', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/cgi-bin/magicBox.cgi') {
+          return http.Response('table.DeviceType=IPC-HDW\r\n', 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi' &&
+            request.method == 'GET') {
+          // Return stale values on both discovery and read-back.
+          return http.Response(_dahuaEncodeConfigStale, 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi' &&
+            request.method == 'POST') {
+          return http.Response('OK\r\n', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await receiverWith(client).execute(dahuaRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('did not confirm Alarm Verification'));
+      expect(
+        outcome.detail,
+        contains('Encode[0].MainFormat[0].Video.Width'),
+      );
+    });
+
+    test('falls back to default preset when mainStreamLabel is unparseable',
+        () async {
+      String? postBody;
+      final client = MockClient((request) async {
+        if (request.url.path == '/cgi-bin/magicBox.cgi') {
+          return http.Response('table.DeviceType=IPC-HDW\r\n', 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi' &&
+            request.method == 'GET') {
+          return http.Response(_dahuaEncodeConfigDefault, 200);
+        }
+        if (request.url.path == '/cgi-bin/configManager.cgi' &&
+            request.method == 'POST') {
+          postBody = request.body;
+          return http.Response('OK\r\n', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await receiverWith(client).execute(
+        dahuaRequest(mainStreamLabel: 'no resolution here'),
+      );
+
+      final encWidth = Uri.encodeQueryComponent('Encode[0].MainFormat[0].Video.Width');
+      expect(outcome.success, isTrue);
+      expect(postBody, contains('$encWidth=1920'));
     });
   });
 }
@@ -286,4 +535,33 @@ const String _unconfirmedChannelXml = '''
   <maxFrameRate>12</maxFrameRate>
   <constantBitRate>3072</constantBitRate>
 </StreamingChannel>
+''';
+
+// ─── Dahua fixtures ───────────────────────────────────────────────────────────
+
+// Verified response — values match the 2560×1440@18fps/3072kbps preset.
+const String _dahuaEncodeConfig = '''
+table.Encode[0].MainFormat[0].Video.Width=2560
+table.Encode[0].MainFormat[0].Video.Height=1440
+table.Encode[0].MainFormat[0].Video.FPS=18
+table.Encode[0].MainFormat[0].Video.BitRate=3072
+table.Encode[0].MainFormat[0].Video.Compression=H.265
+''';
+
+// Stale response — old values, mismatch expected after write.
+const String _dahuaEncodeConfigStale = '''
+table.Encode[0].MainFormat[0].Video.Width=1280
+table.Encode[0].MainFormat[0].Video.Height=720
+table.Encode[0].MainFormat[0].Video.FPS=12
+table.Encode[0].MainFormat[0].Video.BitRate=1024
+table.Encode[0].MainFormat[0].Video.Compression=H.264
+''';
+
+// Default response — values match the fallback 1920×1080@15fps/2048kbps preset.
+const String _dahuaEncodeConfigDefault = '''
+table.Encode[0].MainFormat[0].Video.Width=1920
+table.Encode[0].MainFormat[0].Video.Height=1080
+table.Encode[0].MainFormat[0].Video.FPS=15
+table.Encode[0].MainFormat[0].Video.BitRate=2048
+table.Encode[0].MainFormat[0].Video.Compression=H.265
 ''';

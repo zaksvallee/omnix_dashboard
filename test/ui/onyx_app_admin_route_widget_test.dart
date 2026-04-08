@@ -2283,7 +2283,7 @@ void main() {
           ),
           (
             prompt: 'what do the feeds show',
-            expected: const <String>['ONYX OPS', 'CCTV'],
+            expected: const <String>['ONYX OPS', 'AI Queue'],
             forbidden: const <String>[],
             updateId: 44103,
             sentAtUtc: null,
@@ -2306,7 +2306,7 @@ void main() {
           ),
           (
             prompt: 'review cameras',
-            expected: const <String>['ONYX OPS', 'CCTV'],
+            expected: const <String>['ONYX OPS', 'AI Queue'],
             forbidden: const <String>[],
             updateId: 44053,
             sentAtUtc: null,

@@ -118,7 +118,7 @@ void main() {
     expect(find.text('AI Copilot'), findsOneWidget);
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).sourceRouteLabel,
-      'CCTV',
+      'AI Queue',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
@@ -202,7 +202,7 @@ void main() {
     expect(find.byType(OnyxAgentPage), findsOneWidget);
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).sourceRouteLabel,
-      'CCTV',
+      'AI Queue',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
@@ -220,10 +220,10 @@ void main() {
     );
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('onyx-agent-resume-cctv-button')),
+      find.byKey(const ValueKey('onyx-agent-resume-ai-queue-button')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('onyx-agent-resume-cctv-button')),
+      find.byKey(const ValueKey('onyx-agent-resume-ai-queue-button')),
     );
     await tester.pumpAndSettle();
 

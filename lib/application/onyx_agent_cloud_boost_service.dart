@@ -1044,11 +1044,16 @@ OnyxToolTarget? _toolTargetFromValue(Object? value) {
     'dispatchboard' ||
     'dispatch_board' ||
     'dispatch' ||
+    'dispatches' ||
     'alarms' => OnyxToolTarget.dispatchBoard,
     'tacticaltrack' ||
     'tactical_track' ||
     'track' ||
     'telemetry' => OnyxToolTarget.tacticalTrack,
+    'ai queue' ||
+    'ai_queue' ||
+    'ai-queue' ||
+    'aiqueue' ||
     'cctvreview' ||
     'cctv_review' ||
     'cctv' ||

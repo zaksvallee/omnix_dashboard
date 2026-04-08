@@ -22977,7 +22977,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return 'run /syncguards to reduce queue pressure';
     }
     if (pendingActions > 0) {
-      return 'review pending CCTV items and close backlog';
+      return 'review pending AI Queue items and close backlog';
     }
     if (_guardOpsFailedEvents > 0 || _guardOpsFailedMedia > 0) {
       return 'check /guards and clear failed guard ops';
@@ -23014,7 +23014,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
     }
     if (pendingActions > 0) {
-      actions.add('Review pending CCTV items (pending=$pendingActions).');
+      actions.add('Review pending AI Queue items (pending=$pendingActions).');
     }
     if (activeIncidents > 0) {
       actions.add('Review /incidents and confirm ownership + ETA updates.');

@@ -4776,11 +4776,15 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
         border: const Color(0xFF6B4F18),
       );
     }
-    if (sourceLabel == 'cctv' && widget.onOpenCctvForIncident != null) {
+    if ((sourceLabel == 'cctv' ||
+            sourceLabel == 'ai queue' ||
+            sourceLabel == 'aiqueue' ||
+            sourceLabel == 'ai-queue') &&
+        widget.onOpenCctvForIncident != null) {
       return _scopeActionPill(
-        key: const ValueKey('onyx-agent-resume-cctv-button'),
+        key: const ValueKey('onyx-agent-resume-ai-queue-button'),
         icon: Icons.videocam_rounded,
-        label: 'RESUME CCTV REVIEW',
+        label: 'RESUME AI QUEUE',
         onPressed: () {
           _openCctvRoute();
         },
