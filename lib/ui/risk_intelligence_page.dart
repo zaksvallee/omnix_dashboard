@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
-import 'theme/onyx_design_tokens.dart';
 
 const _intelSurfaceColor = Color(0xFFFFFFFF);
 const _intelSurfaceAltColor = Color(0xFFF4F8FE);
@@ -111,8 +110,9 @@ class RiskIntelligencePage extends StatelessWidget {
     this.onViewAreaIntel,
     this.onViewRecentIntel,
     this.areas = kDebugMode ? defaultAreas : const <RiskIntelAreaSummary>[],
-    this.recentItems =
-        kDebugMode ? defaultRecentItems : const <RiskIntelFeedItem>[],
+    this.recentItems = kDebugMode
+        ? defaultRecentItems
+        : const <RiskIntelFeedItem>[],
     this.latestAutoAuditReceipt,
     this.onOpenLatestAudit,
   });
@@ -212,7 +212,7 @@ class RiskIntelligencePage extends StatelessWidget {
                 _IntelDialogSection(
                   label: 'Operator Note',
                   value:
-                      'Use this as the intake brief while the full manual-intel workflow is being productized.',
+                      'Use this intake brief while the manual-intel workflow is being finalized.',
                 ),
               ],
             ],
@@ -270,7 +270,7 @@ class RiskIntelligencePage extends StatelessWidget {
       builder: (context) {
         return _IntelDialogFrame(
           dialogKey: ValueKey(
-            'intel-detail-${_intelKeySegment(item.id)}-dialog',
+            'intel-detail-${_intelKeySegment(item.provider)}-dialog',
           ),
           title: item.sourceLabel,
           eyebrow: item.timeLabel,
@@ -329,27 +329,30 @@ class RiskIntelligencePage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     OnyxPageHeader(
-                      icon: Icons.trending_up,
-                      iconColor: OnyxDesignTokens.accentTeal,
+                      icon: Icons.radar_rounded,
+                      iconColor: Colors.amber,
                       title: 'Risk Intelligence',
-                      subtitle:
-                          'Area threat assessment and news monitoring',
+                      subtitle: 'Threat intelligence and risk.',
                     ),
                     const SizedBox(height: 10),
                     OnyxStatusBanner(
-                      message: switch (
-                        hottestArea?.level.trim().toUpperCase() ?? ''
-                      ) {
+                      message: switch (hottestArea?.level
+                              .trim()
+                              .toUpperCase() ??
+                          '') {
                         'CRITICAL' || 'HIGH' => 'THREAT LEVEL: HIGH',
-                        'MEDIUM' => 'THREAT LEVEL: MEDIUM',
-                        _ => 'THREAT LEVEL: LOW',
+                        'MEDIUM' || 'MED' => 'THREAT LEVEL: MED',
+                        'LOW' => 'THREAT LEVEL: LOW',
+                        _ => 'Threat level unknown',
                       },
-                      severity: switch (
-                        hottestArea?.level.trim().toUpperCase() ?? ''
-                      ) {
+                      severity: switch (hottestArea?.level
+                              .trim()
+                              .toUpperCase() ??
+                          '') {
                         'CRITICAL' || 'HIGH' => OnyxSeverity.critical,
-                        'MEDIUM' => OnyxSeverity.warning,
-                        _ => OnyxSeverity.success,
+                        'MEDIUM' || 'MED' => OnyxSeverity.warning,
+                        'LOW' => OnyxSeverity.info,
+                        _ => OnyxSeverity.info,
                       },
                     ),
                     const SizedBox(height: 18),
@@ -531,10 +534,7 @@ class _IntelAuditReceipt extends StatelessWidget {
   final RiskIntelAutoAuditReceipt receipt;
   final VoidCallback? onOpenLatestAudit;
 
-  const _IntelAuditReceipt({
-    required this.receipt,
-    this.onOpenLatestAudit,
-  });
+  const _IntelAuditReceipt({required this.receipt, this.onOpenLatestAudit});
 
   @override
   Widget build(BuildContext context) {
@@ -572,9 +572,7 @@ class _IntelAuditReceipt extends StatelessWidget {
             decoration: BoxDecoration(
               color: receipt.accent.withValues(alpha: 0.14),
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: receipt.accent.withValues(alpha: 0.45),
-              ),
+              border: Border.all(color: receipt.accent.withValues(alpha: 0.45)),
             ),
             child: Text(
               receipt.label,
@@ -649,26 +647,26 @@ class _IntelStatusStrip extends StatelessWidget {
         .fold<int>(0, (current, value) => value > current ? value : current);
     final status = switch (highestRank) {
       >= 3 => (
-          'RED',
-          'Check the hottest lane right now.',
-          const Color(0xFFD9485F),
-          const Color(0xFFFFE8EC),
-          const Color(0xFFF1C5CD),
-        ),
+        'RED',
+        'Check the hottest lane right now.',
+        const Color(0xFFD9485F),
+        const Color(0xFFFFE8EC),
+        const Color(0xFFF1C5CD),
+      ),
       2 => (
-          'AMBER',
-          'Keep dispatch and events ready.',
-          const Color(0xFFB7791F),
-          const Color(0xFFFFF4DE),
-          const Color(0xFFF0D39A),
-        ),
+        'AMBER',
+        'Keep dispatch and events ready.',
+        const Color(0xFFB7791F),
+        const Color(0xFFFFF4DE),
+        const Color(0xFFF0D39A),
+      ),
       _ => (
-          'GREEN',
-          'Board quiet. Hold watch.',
-          const Color(0xFF218B5A),
-          const Color(0xFFE9F8EF),
-          const Color(0xFFC1E1CE),
-        ),
+        'GREEN',
+        'Board quiet. Hold watch.',
+        const Color(0xFF218B5A),
+        const Color(0xFFE9F8EF),
+        const Color(0xFFC1E1CE),
+      ),
     };
 
     return Container(
@@ -745,7 +743,7 @@ class _IntelPriorityPanel extends StatelessWidget {
     final meta = showArea
         ? '${priorityArea!.level} RISK'
         : '${priorityItem?.sourceLabel ?? 'INTEL'}  ${priorityItem?.timeLabel ?? ''}'
-            .trim();
+              .trim();
 
     return Container(
       width: double.infinity,
@@ -1072,9 +1070,7 @@ class _IntelAreaCard extends StatelessWidget {
                 ),
               ),
               child: Text(
-                area.signalCount == 0
-                    ? 'CHECK AREA'
-                    : 'OPEN EVENTS SCOPE',
+                area.signalCount == 0 ? 'CHECK AREA' : 'OPEN EVENTS SCOPE',
               ),
             ),
           ),
@@ -1218,7 +1214,7 @@ class _IntelItemCard extends StatelessWidget {
                     ),
                     Text(
                       item.timeLabel,
-                    style: GoogleFonts.robotoMono(
+                      style: GoogleFonts.robotoMono(
                         color: _intelMutedColor,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,

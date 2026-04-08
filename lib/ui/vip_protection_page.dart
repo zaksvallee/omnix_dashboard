@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -71,65 +71,14 @@ class VipProtectionPage extends StatelessWidget {
   const VipProtectionPage({
     super.key,
     this.onCreateDetail,
-    this.scheduledDetails =
-        kDebugMode ? defaultScheduledDetails : const <VipScheduledDetail>[],
+    this.scheduledDetails = const <VipScheduledDetail>[],
     this.onReviewScheduledDetail,
     this.latestAutoAuditReceipt,
     this.onOpenLatestAudit,
   });
 
-  static const List<VipScheduledDetail> defaultScheduledDetails = [
-    VipScheduledDetail(
-      title: 'CEO Airport Escort',
-      subtitle: 'Sandton to OR Tambo International',
-      badgeLabel: 'TOMORROW',
-      badgeBackground: Color(0x1A22D3EE),
-      badgeForeground: Color(0xFF7DDCFF),
-      badgeBorder: Color(0x5522D3EE),
-      facts: <VipDetailFact>[
-        VipDetailFact(
-          icon: Icons.schedule_rounded,
-          title: 'Time window',
-          label: '09:00 - 12:00',
-        ),
-        VipDetailFact(
-          icon: Icons.groups_rounded,
-          title: 'Detail team',
-          label: '2 Officers',
-        ),
-        VipDetailFact(
-          icon: Icons.place_outlined,
-          title: 'Route plan',
-          label: '45km route',
-        ),
-      ],
-    ),
-    VipScheduledDetail(
-      title: 'Board Meeting Security',
-      subtitle: 'Hyde Park Complex - Executive Suite',
-      badgeLabel: 'FRIDAY',
-      badgeBackground: Color(0x1A8B5CF6),
-      badgeForeground: Color(0xFFD8B4FE),
-      badgeBorder: Color(0x558B5CF6),
-      facts: <VipDetailFact>[
-        VipDetailFact(
-          icon: Icons.schedule_rounded,
-          title: 'Time window',
-          label: '14:00 - 17:00',
-        ),
-        VipDetailFact(
-          icon: Icons.groups_rounded,
-          title: 'Detail team',
-          label: '4 Officers',
-        ),
-        VipDetailFact(
-          icon: Icons.verified_rounded,
-          title: 'Assignment mode',
-          label: 'Static Detail',
-        ),
-      ],
-    ),
-  ];
+  static const List<VipScheduledDetail> defaultScheduledDetails =
+      <VipScheduledDetail>[];
 
   @override
   Widget build(BuildContext context) {
@@ -158,46 +107,20 @@ class VipProtectionPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _VipStatusStrip(hasScheduledDetails: hasScheduledDetails),
-                    const SizedBox(height: 18),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE9F8EF),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: const Color(0xFFBEDFCB)),
-                      ),
-                      child: Text(
-                        'WAR ROOM',
-                        style: GoogleFonts.inter(
-                          color: const Color(0xFF218B5A),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
+                    OnyxPageHeader(
+                      title: 'VIP Protection',
+                      subtitle: 'VIP protection and escort.',
+                      icon: Icons.star_rounded,
+                      iconColor: Theme.of(context).colorScheme.primary,
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      'VIP Protection',
-                      style: GoogleFonts.inter(
-                        color: _vipTitleColor,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w700,
-                        height: 0.92,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Protect the principal, watch the next move, and hand off fast.',
-                      style: GoogleFonts.inter(
-                        color: _vipBodyColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    OnyxStatusBanner(
+                      message: hasScheduledDetails
+                          ? '${scheduledDetails.length} active VIP movements'
+                          : 'No active VIP details',
+                      severity: hasScheduledDetails
+                          ? OnyxSeverity.info
+                          : OnyxSeverity.success,
                     ),
                     if (latestAutoAuditReceipt != null) ...[
                       const SizedBox(height: 18),
@@ -381,14 +304,14 @@ Future<void> _showVipCreateDetailDialog(BuildContext context) async {
                 _VipDraftField(
                   key: const ValueKey('vip-detail-principal-field'),
                   label: 'Protectee',
-                  hintText: 'CEO Airport Escort',
+                  hintText: 'Principal name or code',
                   controller: principalController,
                 ),
                 const SizedBox(height: 12),
                 _VipDraftField(
                   key: const ValueKey('vip-detail-corridor-field'),
                   label: 'Route Corridor',
-                  hintText: 'OR Tambo -> Sandton',
+                  hintText: 'Origin -> destination',
                   controller: corridorController,
                 ),
                 const SizedBox(height: 12),
@@ -437,71 +360,6 @@ Future<void> _showVipCreateDetailDialog(BuildContext context) async {
     principalController.dispose();
     corridorController.dispose();
     startTimeController.dispose();
-  }
-}
-
-class _VipStatusStrip extends StatelessWidget {
-  final bool hasScheduledDetails;
-
-  const _VipStatusStrip({required this.hasScheduledDetails});
-
-  @override
-  Widget build(BuildContext context) {
-    final status = hasScheduledDetails
-        ? (
-            'AMBER',
-            'Prep the next package before wheels move.',
-            const Color(0xFFB7791F),
-            const Color(0xFFFFF4DE),
-            const Color(0xFFF0D39A),
-          )
-        : (
-            'GREEN',
-            'Board quiet. No live VIP movement.',
-            const Color(0xFF218B5A),
-            const Color(0xFFE9F8EF),
-            const Color(0xFFC1E1CE),
-          );
-    return Container(
-      key: const ValueKey('vip-status-strip'),
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: status.$4,
-        border: Border.all(color: status.$5),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.shield_outlined, color: status.$3, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  status.$1,
-                  style: GoogleFonts.inter(
-                    color: _vipTitleColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  status.$2,
-                  style: GoogleFonts.inter(
-                    color: _vipBodyColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

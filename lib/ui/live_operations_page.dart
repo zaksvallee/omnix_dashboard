@@ -2901,6 +2901,15 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                     canCollapse: !autoShowDetailedWorkspace,
                                   ),
                                 ],
+                                if (!showDetailedWorkspace) ...[
+                                  const SizedBox(height: 8),
+                                  _commandOverviewDeck(
+                                    activeIncident: activeIncident,
+                                    clientCommsSnapshot: clientCommsSnapshot,
+                                    controlInboxSnapshot: controlInboxSnapshot,
+                                    ledger: ledger,
+                                  ),
+                                ],
                                 if (showDetailedWorkspace) ...[
                                   const SizedBox(height: 8),
                                   if (hasScopeFocus) ...[
@@ -3197,10 +3206,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     m.accent != OnyxDesignTokens.textMuted &&
                     m.accent != OnyxDesignTokens.greenNominal,
               )
-              .fold(
-                0,
-                (sum, m) => sum + (int.tryParse(m.countLabel) ?? 0),
-              );
+              .fold(0, (sum, m) => sum + (int.tryParse(m.countLabel) ?? 0));
           // Reserve space for header (~56), banner (~44), spacers (~52),
           // optional roster signal (~36), recent activity (~164), container
           // padding (20). Cards fill the remaining viewport height.
@@ -3216,17 +3222,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             children: [
               OnyxPageHeader(
                 title: 'Command Center',
-                subtitle: 'Operational overview across all security services',
-                icon: Icons.bolt,
-                iconColor: OnyxDesignTokens.statusCritical,
+                subtitle: 'Operational overview.',
+                icon: Icons.dashboard_rounded,
+                iconColor: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(height: 10),
               OnyxStatusBanner(
                 message: attentionCount > 0
-                    ? '$attentionCount ITEMS NEED ATTENTION'
-                    : 'ALL SYSTEMS NOMINAL',
+                    ? '$attentionCount items need attention'
+                    : 'All clear',
                 severity: attentionCount > 0
-                    ? OnyxSeverity.critical
+                    ? OnyxSeverity.warning
                     : OnyxSeverity.success,
               ),
               const SizedBox(height: 14),
@@ -3244,6 +3250,74 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           );
         },
       ),
+    );
+  }
+
+  Widget _commandOverviewDeck({
+    required _IncidentRecord? activeIncident,
+    required LiveClientCommsSnapshot? clientCommsSnapshot,
+    required LiveControlInboxSnapshot? controlInboxSnapshot,
+    required List<_LedgerEntry> ledger,
+  }) {
+    final modules = _commandCenterModules(
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+      controlInboxSnapshot: controlInboxSnapshot,
+      ledger: ledger,
+    );
+    final decisionItems = _commandDecisionItems(
+      activeIncident: activeIncident,
+      clientCommsSnapshot: clientCommsSnapshot,
+      controlInboxSnapshot: controlInboxSnapshot,
+      ledger: ledger,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wideDeck = constraints.maxWidth >= 1380;
+        final compactPanels = constraints.maxWidth < 1200;
+        final focusAndQuickOpen = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _commandCurrentFocusPanel(
+              activeIncident: activeIncident,
+              clientCommsSnapshot: clientCommsSnapshot,
+              streamlined: compactPanels,
+            ),
+            const SizedBox(height: 8),
+            _commandQuickOpenPanel(modules: modules, compact: compactPanels),
+          ],
+        );
+        final queuePanel = _commandDecisionQueuePanel(
+          items: decisionItems,
+          streamlined: compactPanels,
+        );
+        final memoryPanel = _commandMemoryPanel(ledger);
+
+        if (!wideDeck) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              focusAndQuickOpen,
+              const SizedBox(height: 8),
+              queuePanel,
+              const SizedBox(height: 8),
+              memoryPanel,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 38, child: focusAndQuickOpen),
+            const SizedBox(width: 8),
+            Expanded(flex: 34, child: queuePanel),
+            const SizedBox(width: 8),
+            Expanded(flex: 28, child: memoryPanel),
+          ],
+        );
+      },
     );
   }
 
@@ -3967,8 +4041,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         final double childAspectRatio;
         if (targetGridHeight != null && targetGridHeight > 0) {
           final cardHeight = (targetGridHeight - 8) / 2; // 1 × 8px row spacing
-          childAspectRatio =
-              cardHeight > 0 ? cardWidth / cardHeight : (compact ? 1.1 : 1.4);
+          childAspectRatio = cardHeight > 0
+              ? cardWidth / cardHeight
+              : (compact ? 1.1 : 1.4);
         } else {
           childAspectRatio = compact ? 1.1 : 1.4;
         }
@@ -3988,94 +4063,121 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             final m = modules[index];
             return GestureDetector(
               onTap: m.onTap != null ? () => m.onTap!() : null,
-              child: Stack(
-                clipBehavior: Clip.hardEdge,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: double.infinity,
-                    decoration: BoxDecoration(
-                      gradient: m.gradient,
-                      color: m.gradient == null ? m.surface : null,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: m.border),
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Icon — 40×40 container, top-left
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: m.accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Center(
-                            child: Icon(m.icon, size: 32, color: m.accent),
-                          ),
+              child: LayoutBuilder(
+                builder: (context, cardConstraints) {
+                  final denseCard = compact || cardConstraints.maxHeight < 118;
+                  final contentPadding = denseCard ? 8.0 : 12.0;
+                  final iconContainerSize = denseCard ? 30.0 : 40.0;
+                  final iconSize = denseCard ? 22.0 : 32.0;
+                  final countFontSize = denseCard
+                      ? 24.0
+                      : (compact ? 32.0 : 48.0);
+                  final metricFontSize = denseCard ? 9.0 : 11.0;
+                  final labelFontSize = denseCard ? 11.0 : 13.0;
+                  final badgeOffset = denseCard ? 6.0 : 8.0;
+
+                  return Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        height: double.infinity,
+                        decoration: BoxDecoration(
+                          gradient: m.gradient,
+                          color: m.gradient == null ? m.surface : null,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: m.border),
                         ),
-                        // Count + metric label — vertically centered in remaining space
-                        const Spacer(),
-                        Center(
-                          child: Column(
-                            children: [
-                              Text(
-                                m.countLabel,
-                                style: TextStyle(
-                                  fontSize: compact ? 32 : 48,
-                                  fontWeight: FontWeight.bold,
-                                  color: m.accent,
-                                  height: 1,
+                        padding: EdgeInsets.all(contentPadding),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: iconContainerSize,
+                              height: iconContainerSize,
+                              decoration: BoxDecoration(
+                                color: m.accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(
+                                  denseCard ? 8 : 10,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                m.metricLabel,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: _commandMutedColor,
-                                  letterSpacing: 0.8,
+                              child: Center(
+                                child: Icon(
+                                  m.icon,
+                                  size: iconSize,
+                                  color: m.accent,
                                 ),
+                              ),
+                            ),
+                            Expanded(
+                              child: SizedBox.expand(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        m.countLabel,
+                                        style: TextStyle(
+                                          fontSize: countFontSize,
+                                          fontWeight: FontWeight.bold,
+                                          color: m.accent,
+                                          height: 1,
+                                        ),
+                                      ),
+                                      SizedBox(height: denseCard ? 2 : 3),
+                                      Text(
+                                        m.metricLabel,
+                                        textAlign: TextAlign.center,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: metricFontSize,
+                                          color: _commandMutedColor,
+                                          letterSpacing: denseCard ? 0.45 : 0.8,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              m.label,
+                              maxLines: denseCard ? 1 : 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: labelFontSize,
+                                fontWeight: FontWeight.w600,
+                                color: _commandTitleColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        top: badgeOffset,
+                        right: badgeOffset,
+                        child: Container(
+                          width: 7,
+                          height: 7,
+                          decoration: BoxDecoration(
+                            color: m.accent,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: m.accent.withValues(alpha: 0.6),
+                                blurRadius: 4,
+                                spreadRadius: 1,
                               ),
                             ],
                           ),
                         ),
-                        const Spacer(),
-                        // Module name — bottom-left
-                        Text(
-                          m.label,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: _commandTitleColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Status dot — top-right, 8px from edges, clipped to card bounds
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Container(
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        color: m.accent,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: m.accent.withValues(alpha: 0.6),
-                            blurRadius: 4,
-                            spreadRadius: 1,
-                          ),
-                        ],
                       ),
-                    ),
-                  ),
-                ],
+                    ],
+                  );
+                },
               ),
             );
           },
@@ -4231,7 +4333,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       Container(
                         padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
                         decoration: BoxDecoration(
-                          gradient: module.gradient ??
+                          gradient:
+                              module.gradient ??
                               LinearGradient(
                                 colors: [
                                   Color.alphaBlend(
@@ -9151,52 +9254,38 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ) !=
                   null) ...[
                 const SizedBox(width: 6),
-                OutlinedButton.icon(
-                  onPressed: _openClientLaneAction(
+                _compactCommandActionChip(
+                  key: const ValueKey('client-lane-watch-open-client-comms'),
+                  label: 'OPEN CLIENT COMMS',
+                  foregroundColor: accent,
+                  borderColor: accent.withValues(alpha: 0.42),
+                  onTap: _openClientLaneAction(
                     clientId: snapshot.clientId,
                     siteId: snapshot.siteId,
                   ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: accent,
-                    side: BorderSide(color: accent.withValues(alpha: 0.42)),
-                    backgroundColor: _commandPanelColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 4.25,
-                    ),
-                    minimumSize: const Size(0, 24),
-                  ),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                  label: Text(
-                    'OPEN CLIENT COMMS',
-                    style: GoogleFonts.inter(
-                      fontSize: 8.0,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  icon: Icons.open_in_new_rounded,
+                  fontSize: 8.0,
+                  minHeight: 24,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 4.25,
                   ),
                 ),
               ],
               if (snapshot.learnedApprovalStyleCount > 0 &&
                   widget.onClearLearnedLaneStyleForScope != null) ...[
                 const SizedBox(width: 5),
-                OutlinedButton.icon(
+                _compactCommandActionChip(
                   key: ValueKey(
                     'client-lane-watch-clear-learned-style-${snapshot.clientId}-${snapshot.siteId}',
                   ),
-                  onPressed: learnedStyleBusy
+                  label: 'Clear Learned Style',
+                  foregroundColor: const Color(0xFF2E6EA8),
+                  borderColor: _commandBorderStrongColor,
+                  onTap: learnedStyleBusy
                       ? null
                       : () => _clearLearnedLaneStyle(snapshot),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF2E6EA8),
-                    side: const BorderSide(color: _commandBorderStrongColor),
-                    backgroundColor: _commandPanelColor,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 4.25,
-                    ),
-                    minimumSize: const Size(0, 24),
-                  ),
-                  icon: learnedStyleBusy
+                  leading: learnedStyleBusy
                       ? const SizedBox(
                           width: 14,
                           height: 14,
@@ -9206,12 +9295,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           ),
                         )
                       : const Icon(Icons.refresh_rounded, size: 14),
-                  label: Text(
-                    'Clear Learned Style',
-                    style: GoogleFonts.inter(
-                      fontSize: 8.0,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  fontSize: 8.0,
+                  minHeight: 24,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 4.25,
                   ),
                 ),
               ],
@@ -9611,26 +9699,21 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  OutlinedButton.icon(
+                  _compactCommandActionChip(
                     key: ValueKey(
                       'client-lane-camera-refresh-${snapshot.clientId}-${snapshot.siteId}',
                     ),
-                    onPressed: loading
+                    label: packet?.hasCurrentVisualConfirmation == true
+                        ? 'REFRESH FRAME'
+                        : 'REFRESH CHECK',
+                    foregroundColor: accent,
+                    borderColor: accent.withValues(alpha: 0.42),
+                    onTap: loading
                         ? null
                         : () => unawaited(
                             _loadClientLaneCameraHealth(showFeedback: true),
                           ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: accent,
-                      side: BorderSide(color: accent.withValues(alpha: 0.42)),
-                      backgroundColor: _commandPanelColor,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 5,
-                      ),
-                      minimumSize: const Size(0, 26),
-                    ),
-                    icon: loading
+                    leading: loading
                         ? SizedBox(
                             width: 12,
                             height: 12,
@@ -9640,52 +9723,39 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             ),
                           )
                         : const Icon(Icons.refresh_rounded, size: 14),
-                    label: Text(
-                      packet?.hasCurrentVisualConfirmation == true
-                          ? 'REFRESH FRAME'
-                          : 'REFRESH CHECK',
-                      style: GoogleFonts.inter(
-                        fontSize: 7.8,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontSize: 7.8,
+                    minHeight: 26,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 5,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  OutlinedButton.icon(
+                  _compactCommandActionChip(
                     key: ValueKey(
                       'client-lane-camera-toggle-${snapshot.clientId}-${snapshot.siteId}',
                     ),
-                    onPressed: _toggleClientLaneCameraPreviewAutoRefresh,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _clientLaneCameraPreviewAutoRefresh
-                          ? const Color(0xFF2E6EA8)
-                          : const Color(0xFF9A6700),
-                      side: BorderSide(
-                        color: _clientLaneCameraPreviewAutoRefresh
-                            ? const Color(0xFFBDD0E3)
-                            : const Color(0xFFE9D19A),
-                      ),
-                      backgroundColor: _commandPanelColor,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 5,
-                      ),
-                      minimumSize: const Size(0, 26),
-                    ),
-                    icon: Icon(
+                    label: _clientLaneCameraPreviewAutoRefresh
+                        ? 'PAUSE PREVIEW'
+                        : 'RESUME PREVIEW',
+                    foregroundColor: _clientLaneCameraPreviewAutoRefresh
+                        ? const Color(0xFF2E6EA8)
+                        : const Color(0xFF9A6700),
+                    borderColor: _clientLaneCameraPreviewAutoRefresh
+                        ? const Color(0xFFBDD0E3)
+                        : const Color(0xFFE9D19A),
+                    onTap: _toggleClientLaneCameraPreviewAutoRefresh,
+                    leading: Icon(
                       _clientLaneCameraPreviewAutoRefresh
                           ? Icons.pause_circle_outline_rounded
                           : Icons.play_circle_outline_rounded,
                       size: 14,
                     ),
-                    label: Text(
-                      _clientLaneCameraPreviewAutoRefresh
-                          ? 'PAUSE PREVIEW'
-                          : 'RESUME PREVIEW',
-                      style: GoogleFonts.inter(
-                        fontSize: 7.8,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontSize: 7.8,
+                    minHeight: 26,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 5,
                     ),
                   ),
                 ],
@@ -10938,27 +11008,19 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     siteId: ask.siteId,
                   ) !=
                   null)
-                OutlinedButton.icon(
-                  onPressed: _openClientLaneAction(
+                _compactCommandActionChip(
+                  label: 'Shape Reply',
+                  foregroundColor: accent,
+                  borderColor: accent.withValues(alpha: 0.42),
+                  onTap: _openClientLaneAction(
                     clientId: ask.clientId,
                     siteId: ask.siteId,
                   ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: accent,
-                    backgroundColor: _commandPanelColor,
-                    side: BorderSide(color: accent.withValues(alpha: 0.42)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 6,
-                    ),
-                  ),
-                  icon: const Icon(Icons.open_in_new_rounded, size: 13),
-                  label: Text(
-                    'Shape Reply',
-                    style: GoogleFonts.inter(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  icon: Icons.open_in_new_rounded,
+                  fontSize: 10.5,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
                   ),
                 ),
             ],
@@ -13946,6 +14008,77 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _compactCommandActionChip({
+    required String label,
+    required Color foregroundColor,
+    required Color borderColor,
+    VoidCallback? onTap,
+    IconData? icon,
+    Widget? leading,
+    Key? key,
+    double fontSize = 9.1,
+    double minHeight = 28,
+    EdgeInsetsGeometry padding = const EdgeInsets.symmetric(
+      horizontal: 8,
+      vertical: 6,
+    ),
+  }) {
+    final child = Ink(
+      decoration: BoxDecoration(
+        color: _commandPanelColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minHeight),
+        child: Padding(
+          padding: padding,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (leading != null) ...[
+                IconTheme(
+                  data: IconThemeData(color: foregroundColor, size: 14),
+                  child: leading,
+                ),
+                const SizedBox(width: 4),
+              ] else if (icon != null) ...[
+                Icon(icon, size: 14, color: foregroundColor),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: foregroundColor,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return Semantics(
+      key: key,
+      button: true,
+      enabled: onTap != null,
+      child: Opacity(
+        opacity: onTap == null ? 0.56 : 1,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(999),
+            child: child,
+          ),
+        ),
       ),
     );
   }

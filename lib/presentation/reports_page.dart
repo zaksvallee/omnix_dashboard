@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../ui/components/onyx_status_banner.dart';
 import '../ui/onyx_surface.dart';
 
 class ReportsPage extends StatelessWidget {
@@ -8,6 +10,9 @@ class ReportsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final verifiedReportCount = kDebugMode ? 2 : 0;
+    final pendingReportCount = kDebugMode ? 1 : 0;
+    final failedReportCount = kDebugMode ? 1 : 0;
     return OnyxPageScaffold(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
@@ -19,15 +24,29 @@ class ReportsPage extends StatelessWidget {
               children: [
                 _heroHeader(context),
                 const SizedBox(height: 8),
-                _statusSummaryBar(),
+                OnyxPageHeader(
+                  title: 'Reports Command Hub',
+                  subtitle: 'Intelligence and operational reports.',
+                  icon: Icons.description_rounded,
+                  iconColor: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 8),
+                OnyxStatusBanner(
+                  message: pendingReportCount > 0
+                      ? '$pendingReportCount reports pending'
+                      : 'No reports pending',
+                  severity: pendingReportCount > 0
+                      ? OnyxSeverity.info
+                      : OnyxSeverity.success,
+                ),
+                const SizedBox(height: 8),
+                _statusSummaryBar(
+                  verifiedReportCount: verifiedReportCount,
+                  pendingReportCount: pendingReportCount,
+                  failedReportCount: failedReportCount,
+                ),
                 const SizedBox(height: 8),
                 _overviewGrid(),
-                const SizedBox(height: 8),
-                const OnyxPageHeader(
-                  title: 'Reports Command Hub',
-                  subtitle:
-                      'Deterministic reporting, replay verification, and export readiness for client-facing intelligence packs.',
-                ),
                 const SizedBox(height: 8),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -462,7 +481,11 @@ class ReportsPage extends StatelessWidget {
     );
   }
 
-  Widget _statusSummaryBar() {
+  Widget _statusSummaryBar({
+    required int verifiedReportCount,
+    required int pendingReportCount,
+    required int failedReportCount,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -487,17 +510,17 @@ class ReportsPage extends StatelessWidget {
           ),
           _statusPill(
             icon: Icons.check_circle_outline,
-            label: '2 Verified',
+            label: '$verifiedReportCount Verified',
             accent: const Color(0xFF34D399),
           ),
           _statusPill(
             icon: Icons.schedule,
-            label: '1 Pending',
+            label: '$pendingReportCount Pending',
             accent: const Color(0xFFF6C067),
           ),
           _statusPill(
             icon: Icons.error_outline,
-            label: '1 Failed',
+            label: '$failedReportCount Failed',
             accent: const Color(0xFFF87171),
           ),
           _statusPill(

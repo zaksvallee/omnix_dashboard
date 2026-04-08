@@ -13,7 +13,6 @@ import '../domain/projection/operations_health_projection.dart';
 import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
-import 'theme/onyx_design_tokens.dart';
 
 // Fallback response scores used when averageResponseMinutes has not yet been
 // sampled (e.g. a new site or a very recent shift start).
@@ -97,26 +96,24 @@ class _SitesPageState extends State<SitesPage> {
         _SiteLaneFilter.watch,
       );
       final anyAlert = criticalCount > 0 || atRiskCount > 0;
+      final sitePostureSummary = allSites.isEmpty
+          ? 'Posture nominal'
+          : anyAlert
+          ? '$atRiskCount sites need posture review'
+          : 'All sites monitored';
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           OnyxPageHeader(
-            icon: Icons.domain,
-            iconColor: OnyxDesignTokens.statusInfo,
+            icon: Icons.location_on_rounded,
+            iconColor: Theme.of(context).colorScheme.primary,
             title: 'Sites & Deployment',
-            subtitle:
-                'Site management, watch posture, and operational readiness',
+            subtitle: 'Site coverage and posture.',
           ),
           const SizedBox(height: 10),
           OnyxStatusBanner(
-            message: anyAlert
-                ? '$criticalCount CRITICAL · $atRiskCount AT-RISK'
-                : 'ALL SITES SECURE',
-            severity: criticalCount > 0
-                ? OnyxSeverity.critical
-                : atRiskCount > 0
-                ? OnyxSeverity.warning
-                : OnyxSeverity.success,
+            message: sitePostureSummary,
+            severity: anyAlert ? OnyxSeverity.warning : OnyxSeverity.info,
           ),
           const SizedBox(height: 10),
           _heroHeader(

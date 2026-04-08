@@ -13,6 +13,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
@@ -1008,6 +1009,8 @@ class _DispatchPageState extends State<DispatchPage> {
       );
     }
 
+    final totalActiveAlarms = activeDispatches + pendingDispatches;
+
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1063,24 +1066,40 @@ class _DispatchPageState extends State<DispatchPage> {
             padding: contentPadding,
             maxWidth: surfaceMaxWidth,
             lockToViewport: desktopOverview ? false : boundedDesktopSurface,
-            header: desktopOverview
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _alarmAttentionStrip(
-                        totalActiveAlarms: activeDispatches + pendingDispatches,
-                        pendingDispatches: pendingDispatches,
-                        dispatchedDispatches: activeDispatches,
-                      ),
-                      if ((widget.guardRosterSignalHeadline ?? '')
-                          .trim()
-                          .isNotEmpty) ...[
-                        const SizedBox(height: 3.0),
-                        _guardRosterSignalBanner(),
-                      ],
+            header: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const OnyxPageHeader(
+                  title: 'Dispatch Board',
+                  subtitle: 'Live alarm monitoring.',
+                  icon: Icons.notifications_active_rounded,
+                  iconColor: Colors.red,
+                ),
+                const SizedBox(height: 8),
+                OnyxStatusBanner(
+                  message: totalActiveAlarms > 0
+                      ? '$totalActiveAlarms active alarms'
+                      : 'No active alarms',
+                  severity: totalActiveAlarms > 0
+                      ? OnyxSeverity.critical
+                      : OnyxSeverity.success,
+                ),
+                const SizedBox(height: 8),
+                if (desktopOverview) ...[
+                  _alarmAttentionStrip(
+                    totalActiveAlarms: totalActiveAlarms,
+                    pendingDispatches: pendingDispatches,
+                    dispatchedDispatches: activeDispatches,
+                  ),
+                  if ((widget.guardRosterSignalHeadline ?? '').trim().isNotEmpty)
+                    ...[
+                      const SizedBox(height: 3.0),
+                      _guardRosterSignalBanner(),
                     ],
-                  )
-                : _header(workspaceBanner: workspaceStatusBanner),
+                ] else
+                  _header(workspaceBanner: workspaceStatusBanner),
+              ],
+            ),
             body: desktopOverview
                 ? _desktopAlarmOverview(
                     selectedDispatch: selectedOverviewDispatch,

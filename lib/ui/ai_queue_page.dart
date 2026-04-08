@@ -17,6 +17,7 @@ import '../domain/events/execution_completed.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/incident_closed.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -36,6 +37,7 @@ class _AiQueueAction {
   final String actionType;
   final String description;
   final int timeUntilExecutionSeconds;
+  final int initialExecutionSeconds;
   final _AiActionStatus status;
   final Map<String, String> metadata;
 
@@ -47,6 +49,7 @@ class _AiQueueAction {
     required this.actionType,
     required this.description,
     required this.timeUntilExecutionSeconds,
+    required this.initialExecutionSeconds,
     required this.status,
     required this.metadata,
   });
@@ -59,6 +62,7 @@ class _AiQueueAction {
     String? actionType,
     String? description,
     int? timeUntilExecutionSeconds,
+    int? initialExecutionSeconds,
     _AiActionStatus? status,
     Map<String, String>? metadata,
   }) {
@@ -71,6 +75,8 @@ class _AiQueueAction {
       description: description ?? this.description,
       timeUntilExecutionSeconds:
           timeUntilExecutionSeconds ?? this.timeUntilExecutionSeconds,
+      initialExecutionSeconds:
+          initialExecutionSeconds ?? this.initialExecutionSeconds,
       status: status ?? this.status,
       metadata: metadata ?? this.metadata,
     );
@@ -217,7 +223,6 @@ class _AIQueuePageState extends State<AIQueuePage> {
   _AiQueueWorkspaceView _workspaceView = _AiQueueWorkspaceView.runbook;
   String? _selectedFocusId;
   _AiQueueCommandReceipt _commandReceipt = _defaultCommandReceipt;
-  bool _desktopWorkspaceActive = false;
   bool _showDetailedWorkspace = false;
   final Set<String> _dismissedCctvAlertIds = <String>{};
   final Set<String> _dispatchedCctvAlertIds = <String>{};
@@ -256,6 +261,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
       _stats = _buildDailyStats(widget.events);
       _cachedMoShadowSites = _computeMoShadowSites();
       _selectedFocusId = null;
+      _dismissedCctvAlertIds.clear();
+      _dispatchedCctvAlertIds.clear();
+      _selectedCctvAlertId = null;
+      _selectedCctvFeedId = null;
     }
     final routeSelectionActive =
         widget.focusIncidentReference.trim().isNotEmpty ||
@@ -326,11 +335,6 @@ class _AIQueuePageState extends State<AIQueuePage> {
           final useEmbeddedPanels =
               constraints.maxWidth >= 1240 && allowEmbeddedPanelScroll(context);
           final useWideLayout = constraints.maxWidth >= 1180;
-          if (_desktopWorkspaceActive != useWideLayout) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) setState(() => _desktopWorkspaceActive = useWideLayout);
-            });
-          }
           final workspace = _automationWorkspace(
             activeAction: activeAction,
             queuedActions: queuedActions,
@@ -604,25 +608,20 @@ class _AIQueuePageState extends State<AIQueuePage> {
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildCctvAttentionStrip(alertCount: alerts.length),
-              const SizedBox(height: 18),
-              Text(
-                'CCTV Monitoring',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFFF6FBFF),
-                  fontSize: 34,
-                  fontWeight: FontWeight.w700,
-                  height: 0.92,
-                ),
+              OnyxPageHeader(
+                title: 'CCTV Monitoring',
+                subtitle: 'AI-assisted video surveillance.',
+                icon: Icons.videocam_rounded,
+                iconColor: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(height: 4),
-              Text(
-                'AI-powered video surveillance and alerts',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF92A7C4),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+              const SizedBox(height: 10),
+              OnyxStatusBanner(
+                message: alerts.isNotEmpty
+                    ? '${alerts.length} AI alerts'
+                    : 'No AI alerts',
+                severity: alerts.isNotEmpty
+                    ? OnyxSeverity.warning
+                    : OnyxSeverity.success,
               ),
               if (showPinnedCommandReceipt) ...[
                 const SizedBox(height: 18),
@@ -661,52 +660,6 @@ class _AIQueuePageState extends State<AIQueuePage> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildCctvAttentionStrip({required int alertCount}) {
-    final hasAlerts = alertCount > 0;
-    final accent = hasAlerts
-        ? const Color(0xFFF59E0B)
-        : const Color(0xFF34D399);
-    final background = hasAlerts
-        ? const Color(0xFF5B1A12)
-        : const Color(0xFF173C2D);
-    final border = hasAlerts
-        ? const Color(0xFF7C2418)
-        : const Color(0xFF24573F);
-    final label = hasAlerts
-        ? '${alertCount.toString()} ${alertCount == 1 ? 'AI ALERT' : 'AI ALERTS'}'
-        : 'SYSTEMS NOMINAL';
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: background,
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            hasAlerts ? Icons.videocam_rounded : Icons.verified_rounded,
-            color: accent,
-            size: 18,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.inter(
-                color: const Color(0xFFF6FBFF),
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -3451,6 +3404,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
       _commandReceipt = receipt;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
       widget.onConsumeAgentReturnIncidentReference?.call(ref);
     });
   }
@@ -3539,7 +3495,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
         : action.timeUntilExecutionSeconds <= 20
         ? const Color(0xFFF59E0B)
         : const Color(0xFF22D3EE);
-    final progress = (action.timeUntilExecutionSeconds / 30).clamp(0.0, 1.0);
+    final progress = (action.timeUntilExecutionSeconds /
+            action.initialExecutionSeconds.clamp(1, 1 << 20))
+        .clamp(0.0, 1.0);
     final paused = action.status == _AiActionStatus.paused;
     final promotionPressureSummary = _promotionPressureSummary(action.metadata);
     final promotionExecutionSummary = _promotionExecutionSummary(
@@ -5107,6 +5065,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
     if (!mounted || _queuePaused) {
       return;
     }
+    if (_activeAction == null) {
+      return;
+    }
     setState(() {
       _actions = _actions.map((action) {
         if (action.status != _AiActionStatus.executing) {
@@ -5130,6 +5091,10 @@ class _AIQueuePageState extends State<AIQueuePage> {
           .toSet();
       if (expiredActionIds.isNotEmpty) {
         _actions.removeWhere((action) => expiredActionIds.contains(action.id));
+        if (_selectedFocusId != null &&
+            expiredActionIds.contains(_selectedFocusId)) {
+          _selectedFocusId = null;
+        }
       }
       _ensureSingleExecuting();
     });
@@ -5138,6 +5103,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
   void _cancelAction(String actionId) {
     setState(() {
       _actions.removeWhere((action) => action.id == actionId);
+      if (_selectedFocusId == actionId) {
+        _selectedFocusId = null;
+      }
       _queuePaused = false;
       _ensureSingleExecuting();
     });
@@ -5146,6 +5114,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
   void _approveAction(String actionId) {
     setState(() {
       _actions.removeWhere((action) => action.id == actionId);
+      if (_selectedFocusId == actionId) {
+        _selectedFocusId = null;
+      }
       _queuePaused = false;
       _ensureSingleExecuting();
     });
@@ -5157,7 +5128,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     String? detail,
     Color accent = const Color(0xFF8FD1FF),
   }) {
-    if (_desktopWorkspaceActive) {
+    if (_usesDesktopWorkspace(context)) {
       setState(() {
         _commandReceipt = _AiQueueCommandReceipt(
           label: label,
@@ -5190,6 +5161,13 @@ class _AIQueuePageState extends State<AIQueuePage> {
         duration: const Duration(seconds: 2),
       ),
     );
+  }
+
+  bool _usesDesktopWorkspace(BuildContext context) {
+    if (isHandsetLayout(context)) {
+      return false;
+    }
+    return MediaQuery.sizeOf(context).width >= 1180;
   }
 
   void _togglePause(String actionId) {
@@ -5406,6 +5384,19 @@ class _AIQueuePageState extends State<AIQueuePage> {
     required List<_AiQueueFocusItem> laneItems,
     required List<_AiQueueFocusItem> allItems,
   }) {
+    final selectedFocusId = _selectedFocusId;
+    if (selectedFocusId != null &&
+        selectedFocusId.isNotEmpty &&
+        !allItems.any((item) => item.id == selectedFocusId)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _selectedFocusId != selectedFocusId) {
+          return;
+        }
+        setState(() {
+          _selectedFocusId = null;
+        });
+      });
+    }
     for (final item in laneItems) {
       if (item.id == _selectedFocusId) {
         return item;
@@ -5538,6 +5529,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               actionType: plan.actionType,
               description: plan.description,
               timeUntilExecutionSeconds: plan.countdownSeconds,
+              initialExecutionSeconds: plan.countdownSeconds,
               status: entry.key == 0
                   ? _AiActionStatus.executing
                   : _AiActionStatus.pending,
@@ -5570,6 +5562,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           actionType: 'AUTO-DISPATCH',
           description: 'Dispatch reaction officer Echo-3 to site.',
           timeUntilExecutionSeconds: 27,
+          initialExecutionSeconds: 27,
           status: _AiActionStatus.executing,
           metadata: {'officer': 'Echo-3', 'distance': '2.4km', 'eta': '4m 12s'},
         ),
@@ -5581,6 +5574,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           actionType: 'VOIP CLIENT CALL',
           description: 'Initiate safe-word verification call.',
           timeUntilExecutionSeconds: 45,
+          initialExecutionSeconds: 45,
           status: _AiActionStatus.pending,
           metadata: {'phone': '+27 82 555 6789'},
         ),
@@ -5593,6 +5587,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
           description:
               'Request ${widget.videoOpsLabel} stream from perimeter cameras.',
           timeUntilExecutionSeconds: 72,
+          initialExecutionSeconds: 72,
           status: _AiActionStatus.pending,
           metadata: {},
         ),
@@ -5631,6 +5626,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               ? 'Request perimeter and gate camera activation.'
               : 'Queue visual verification capture for AI review.',
           timeUntilExecutionSeconds: 27 + (index * 18),
+          initialExecutionSeconds: 27 + (index * 18),
           status: index == 0
               ? _AiActionStatus.executing
               : _AiActionStatus.pending,

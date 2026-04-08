@@ -13,7 +13,6 @@ import 'client_comms_queue_board.dart';
 import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
-import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
 
 class ClientsAgentDraftHandoff {
@@ -67,6 +66,7 @@ class ClientsLiveFollowUpNotice {
   final String id;
   final String author;
   final String body;
+  final String room;
   final DateTime occurredAtUtc;
   final bool urgent;
   final String suggestedReplyDraft;
@@ -75,6 +75,7 @@ class ClientsLiveFollowUpNotice {
     required this.id,
     required this.author,
     required this.body,
+    this.room = '',
     required this.occurredAtUtc,
     this.urgent = false,
     this.suggestedReplyDraft = '',
@@ -672,19 +673,18 @@ class _ClientsPageState extends State<ClientsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 OnyxPageHeader(
-                  icon: Icons.business_center,
-                  iconColor: OnyxDesignTokens.statusInfo,
+                  icon: Icons.groups_rounded,
+                  iconColor: Theme.of(context).colorScheme.primary,
                   title: 'Client Communications',
-                  subtitle:
-                      'Lane management and client notification status',
+                  subtitle: 'Client accounts and activity.',
                 ),
                 const SizedBox(height: 10),
                 OnyxStatusBanner(
                   message: pendingAsks > 0
-                      ? '$pendingAsks PENDING MESSAGES'
-                      : 'ALL LANES CLEAR',
+                      ? '$pendingAsks pending messages'
+                      : 'No pending messages',
                   severity: pendingAsks > 0
-                      ? OnyxSeverity.warning
+                      ? OnyxSeverity.info
                       : OnyxSeverity.success,
                 ),
                 const SizedBox(height: 10),
@@ -3472,6 +3472,9 @@ class _ClientsPageState extends State<ClientsPage> {
         : handoff.incidentReference.trim();
     final clientId = handoff.clientId.trim();
     final siteId = handoff.siteId.trim();
+    final roomLabel = handoff.room.trim().isEmpty
+        ? 'the scoped client lane'
+        : handoff.room.trim();
     return ClientCommsQueueItem(
       id: handoff.id,
       clientName: _humanizeName(clientId, prefix: 'CLIENT-'),
@@ -3481,7 +3484,7 @@ class _ClientsPageState extends State<ClientsPage> {
       severity: handoff.severity,
       generatedAtLabel: _utc(handoff.createdAtUtc),
       context:
-          'Agent handoff ready for ${handoff.room} from ${handoff.sourceRouteLabel}. Review and send from the scoped client thread.',
+          'Agent handoff ready for $roomLabel from ${handoff.sourceRouteLabel}. Review and send from the scoped client thread.',
       draftMessage: handoff.draftText.trim(),
     );
   }
@@ -3524,7 +3527,7 @@ class _ClientsPageState extends State<ClientsPage> {
             : notice.id.trim(),
         clientId: selectedClientId,
         siteId: selectedSiteId,
-        room: _lastOpenedRoom,
+        room: _preferredFollowUpRoom(notice),
         incidentReference: '',
         draftText: draftText,
         originalDraftText: draftText,
@@ -3565,6 +3568,32 @@ class _ClientsPageState extends State<ClientsPage> {
         });
       }
     }
+  }
+
+  String _preferredFollowUpRoom(ClientsLiveFollowUpNotice notice) {
+    final noticeRoom = notice.room.trim();
+    if (noticeRoom.isNotEmpty) {
+      return noticeRoom;
+    }
+    final lastOpenedRoom = _lastOpenedRoom.trim();
+    if (lastOpenedRoom.isNotEmpty) {
+      return lastOpenedRoom;
+    }
+    final author = notice.author.trim();
+    if (_isKnownClientRoom(author)) {
+      return author;
+    }
+    return '';
+  }
+
+  bool _isKnownClientRoom(String value) {
+    switch (value.trim()) {
+      case 'Residents':
+      case 'Trustees':
+      case 'Security Desk':
+        return true;
+    }
+    return false;
   }
 
   _ClientSiteModel _withAgentDraftHandoffScopes(_ClientSiteModel model) {

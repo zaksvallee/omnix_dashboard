@@ -35,6 +35,7 @@ import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'theme/onyx_design_tokens.dart';
 import 'onyx_surface.dart';
@@ -982,6 +983,9 @@ class _GovernancePageState extends State<GovernancePage> {
         )
         .length;
     final operationalFeedLabel = _operationalFeedStatusLabel();
+    final postureStatus = _operationalFeeds.anyLiveFeed
+        ? 'Operational posture live'
+        : 'Posture nominal';
 
     return OnyxPageScaffold(
       child: LayoutBuilder(
@@ -1011,10 +1015,27 @@ class _GovernancePageState extends State<GovernancePage> {
             maxWidth: surfaceMaxWidth,
             spacing: 5,
             lockToViewport: useEmbeddedPanels,
-            header: _heroHeader(
-              report: report,
-              complianceCritical: complianceCritical,
-              operationalFeedLabel: operationalFeedLabel,
+            header: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const OnyxPageHeader(
+                  title: 'Governance War Room',
+                  subtitle: 'Compliance and governance posture.',
+                  icon: Icons.verified_rounded,
+                  iconColor: Color(0xFF60A5FA),
+                ),
+                const SizedBox(height: 8),
+                OnyxStatusBanner(
+                  message: postureStatus,
+                  severity: OnyxSeverity.info,
+                ),
+                const SizedBox(height: 8),
+                _heroHeader(
+                  report: report,
+                  complianceCritical: complianceCritical,
+                  operationalFeedLabel: operationalFeedLabel,
+                ),
+              ],
             ),
             body: useDesktopWorkspace
                 ? _governanceDesktopWorkspace(

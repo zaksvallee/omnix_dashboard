@@ -17,6 +17,7 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -196,6 +197,14 @@ class _LedgerPageState extends State<LedgerPage> {
           );
           final mergeWorkspaceBannerIntoHero =
               !useScrollFallback && viewport.maxWidth >= 900;
+          final scopeRows = filteredRows.isNotEmpty ? filteredRows : reviewRows;
+          final chainIntegrityIssueCount = scopeRows
+              .where((row) => row.needsAttention)
+              .length;
+          final chainIntact = chainIntegrityIssueCount == 0;
+          final chainIntegrityMessage = chainIntact
+              ? 'Chain intact'
+              : '$chainIntegrityIssueCount chain integrity issues need review';
 
           Widget buildSurfaceBody({required bool embedScroll}) {
             final workspaceSection = LayoutBuilder(
@@ -278,19 +287,38 @@ class _LedgerPageState extends State<LedgerPage> {
             maxWidth: surfaceMaxWidth,
             lockToViewport: boundedDesktopSurface,
             spacing: 8,
-            header: _heroHeader(
-              context,
-              workspaceBanner: mergeWorkspaceBannerIntoHero
-                  ? _workspaceStatusBanner(
-                      context,
-                      reviewRows: reviewRows,
-                      filteredRows: filteredRows,
-                      selected: selected,
-                      relatedRows: relatedRows,
-                      sourceLabel: sourceLabel,
-                      shellless: true,
-                    )
-                  : null,
+            header: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                OnyxPageHeader(
+                  title: 'Audit Ledger',
+                  subtitle: 'Audit ledger and records.',
+                  icon: Icons.receipt_long_rounded,
+                  iconColor: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 8),
+                OnyxStatusBanner(
+                  message: chainIntegrityMessage,
+                  severity: chainIntact
+                      ? OnyxSeverity.success
+                      : OnyxSeverity.critical,
+                ),
+                const SizedBox(height: 8),
+                _heroHeader(
+                  context,
+                  workspaceBanner: mergeWorkspaceBannerIntoHero
+                      ? _workspaceStatusBanner(
+                          context,
+                          reviewRows: reviewRows,
+                          filteredRows: filteredRows,
+                          selected: selected,
+                          relatedRows: relatedRows,
+                          sourceLabel: sourceLabel,
+                          shellless: true,
+                        )
+                      : null,
+                ),
+              ],
             ),
             body: buildSurfaceBody(embedScroll: boundedDesktopSurface),
           );

@@ -642,12 +642,26 @@ class _GuardsPageState extends State<GuardsPage> {
     final filteredGuards = _filteredGuards();
     final selectedGuard = _selectedGuard(filteredGuards);
     final effectiveGuards = _effectiveGuards;
+    final totalGuards = effectiveGuards.length;
     final onDutyCount = effectiveGuards
         .where((g) => g.status == _GuardStatus.onDuty)
         .length;
     final syncIssues = effectiveGuards
         .where((g) => g.hasSyncIssue)
         .length;
+    final allDeployed = totalGuards > 0 && onDutyCount == totalGuards;
+    final workforceSummary = syncIssues > 0
+        ? '$syncIssues workforce gaps need review'
+        : totalGuards == 0
+        ? 'No guard workforce data'
+        : allDeployed
+        ? 'All $totalGuards guards deployed'
+        : '$onDutyCount of $totalGuards guards deployed';
+    final workforceSeverity = syncIssues > 0
+        ? OnyxSeverity.warning
+        : allDeployed
+        ? OnyxSeverity.success
+        : OnyxSeverity.info;
 
     return OnyxPageScaffold(
       child: LayoutBuilder(
@@ -674,20 +688,15 @@ class _GuardsPageState extends State<GuardsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     OnyxPageHeader(
-                      icon: Icons.people,
-                      iconColor: const Color(0xFFEA580C),
+                      icon: Icons.shield_rounded,
+                      iconColor: Theme.of(context).colorScheme.primary,
                       title: 'Guards & Workforce',
-                      subtitle:
-                          'Roster management, shift tracking, and operational readiness',
+                      subtitle: 'Guard workforce status.',
                     ),
                     const SizedBox(height: 10),
                     OnyxStatusBanner(
-                      message: syncIssues > 0
-                          ? '$syncIssues SYNC ISSUES'
-                          : '$onDutyCount ON DUTY · $onDutyCount ACTIVE SHIFTS',
-                      severity: syncIssues > 0
-                          ? OnyxSeverity.warning
-                          : OnyxSeverity.success,
+                      message: workforceSummary,
+                      severity: workforceSeverity,
                     ),
                     const SizedBox(height: 10),
                     _pageHeader(context),

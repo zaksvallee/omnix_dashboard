@@ -31,6 +31,7 @@ import '../domain/events/listener_alarm_advisory_recorded.dart';
 import '../domain/events/listener_alarm_feed_cycle_recorded.dart';
 import '../domain/events/listener_alarm_parity_cycle_recorded.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_camera_bridge_actions.dart';
 import 'onyx_camera_bridge_shell_panel.dart';
@@ -1344,6 +1345,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
   final GlobalKey _systemOpsPollCommandKey = GlobalKey();
   final GlobalKey _systemInfoCardKey = GlobalKey();
   final GlobalKey _systemCameraBridgePanelKey = GlobalKey();
+  final GlobalKey _clientCommsAuditPanelScrollKey = GlobalKey();
   final GlobalKey _partnerScorecardSummaryCardKey = GlobalKey();
   final GlobalKey _globalReadinessSummaryCardKey = GlobalKey();
 
@@ -1522,7 +1524,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       name: 'Demo Site',
       code: 'SITE-DEMO',
       clientId: 'CLIENT-DEMO',
-      address: '11 Eastwood Street, Reuven, Johannesburg, 2091',
+      address: '14 Operations Way, Midrand, Johannesburg, 1685',
       lat: -26.2041,
       lng: 28.0473,
       contactPerson: 'Operations Desk',
@@ -1569,8 +1571,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
       contactEmail: 'lisa.a@blueridge.co.za',
       contactPhone: '+27 11 888 0002',
       slaTier: 'gold',
-      contractStart: '2024-03-01',
-      contractEnd: '2025-02-28',
+      contractStart: '2026-03-01',
+      contractEnd: '2027-02-28',
       sites: 1,
       status: _AdminStatus.active,
     ),
@@ -1785,6 +1787,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ? constraints.maxWidth * 0.94
               : 1520.0;
           final entityTotal = _guards.length + _sites.length + _clients.length;
+          final bridgeHealthLabel = widget.telegramBridgeHealthLabel.trim();
+          final systemStatus = bridgeHealthLabel.isEmpty
+              ? 'System nominal'
+              : 'System status: $bridgeHealthLabel';
           return OnyxViewportWorkspaceLayout(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
             maxWidth: surfaceMaxWidth,
@@ -1792,6 +1798,18 @@ class _AdministrationPageState extends State<AdministrationPage> {
             header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const OnyxPageHeader(
+                  title: 'Administration',
+                  subtitle: 'System configuration and admin.',
+                  icon: Icons.settings_rounded,
+                  iconColor: Colors.grey,
+                ),
+                const SizedBox(height: 8),
+                OnyxStatusBanner(
+                  message: systemStatus,
+                  severity: OnyxSeverity.info,
+                ),
+                const SizedBox(height: 8),
                 _adminHeroHeader(
                   workspaceBanner: useDesktopWorkspace
                       ? _adminWorkspaceStatusBanner(
@@ -3008,6 +3026,36 @@ class _AdministrationPageState extends State<AdministrationPage> {
       detail: detail,
       accent: accent,
     );
+  }
+
+  void _focusClientCommsAuditQueue() {
+    if (_activeSystemSection != _AdminSystemSection.aiCommunications) {
+      setState(() {
+        _activeSystemSection = _AdminSystemSection.aiCommunications;
+      });
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final targetContext = _clientCommsAuditPanelScrollKey.currentContext;
+      if (targetContext != null) {
+        Scrollable.ensureVisible(
+          targetContext,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: 0.08,
+        );
+      }
+      _handleAdminFeedback(
+        feedbackContext: context,
+        message: 'Focused client comms audit queue.',
+        sourceLabel: 'AI DRAFT QUEUE',
+        detail:
+            'Pending client comms drafts stay pinned in the audit panel so review can continue without hunting through admin surfaces.',
+        accent: const Color(0xFF00D4FF),
+      );
+    });
   }
 
   Widget _adminHeaderChip({
@@ -5217,9 +5265,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           trailing: OutlinedButton(
             onPressed: widget.telegramAiPendingDrafts.isEmpty
                 ? null
-                : () => _focusAdminSystemSection(
-                      _AdminSystemSection.aiCommunications,
-                    ),
+                : _focusClientCommsAuditQueue,
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF00D4FF),
               side: const BorderSide(color: Color(0xFF245B72)),
@@ -6459,6 +6505,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Widget _systemCameraBridgePanel() {
     final presentation = _cameraBridgePresentation;
+    final stagingLabel = (widget.onyxAgentCameraBridgeStagingLabel ?? '')
+        .trim();
+    final stagingDetail = (widget.onyxAgentCameraBridgeStagingDetail ?? '')
+        .trim();
     return KeyedSubtree(
       key: _systemCameraBridgePanelKey,
       child: OnyxCameraBridgeShellPanel(
@@ -6470,8 +6520,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
         stagingIndicatorKey: const ValueKey(
           'admin-system-camera-staging-indicator',
         ),
-        stagingIndicatorLabel: widget.onyxAgentCameraBridgeStagingLabel,
-        stagingIndicatorDetail: widget.onyxAgentCameraBridgeStagingDetail,
+        stagingIndicatorLabel: stagingLabel.isNotEmpty
+            ? stagingLabel
+            : 'Camera control in staging mode',
+        stagingIndicatorDetail: stagingDetail.isNotEmpty
+            ? stagingDetail
+            : 'Execution remains operator-gated while the local bridge is validated for approved ONYX camera packets.',
         summaryPanelKey: const ValueKey('admin-system-camera-bridge-next-move'),
         healthCardKey: const ValueKey(
           'admin-system-camera-bridge-health-result',
@@ -13129,7 +13183,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             scope:
                 'Desk ${_telegramWiringScopeLabel(checklist.clientScopeClientId, checklist.clientScopeSiteId)}',
             hint:
-                'This is the live client/site room. If Vallee should answer as a site desk, bind this group to the exact desk scope.',
+                'This is the live client/site room. If the site desk should answer here, bind this group to the exact desk scope.',
             examples: const <String>[
               'show dispatches today',
               'show incidents last night',
@@ -15845,18 +15899,20 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
   Widget _clientCommsAuditPanel() {
     final audits = widget.clientCommsAuditViews;
-    return Container(
+    return KeyedSubtree(
       key: _adminClientCommsAuditPanelKey,
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: _adminDialogBorderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Container(
+        key: _clientCommsAuditPanelScrollKey,
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: _adminDialogBorderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           Row(
             children: [
               const Icon(
@@ -16391,7 +16447,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 ),
               );
             }),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -25919,8 +25976,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                 cameraUsername: cameraUsernameController.text
                                     .trim(),
                                 cameraPassword: cameraPasswordController.text,
-                                cameraBearerToken:
-                                    cameraBearerTokenController.text.trim(),
+                                cameraBearerToken: cameraBearerTokenController
+                                    .text
+                                    .trim(),
                                 status: selectedStatus,
                               ),
                             );
@@ -25985,10 +26043,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
           'physical_address': resolvedUpdated.address,
           'latitude': resolvedUpdated.lat,
           'longitude': resolvedUpdated.lng,
-          'geofence_radius_meters':
-              resolvedUpdated.geofenceRadiusMeters.toDouble(),
+          'geofence_radius_meters': resolvedUpdated.geofenceRadiusMeters
+              .toDouble(),
           'metadata': _siteMetadataWithCameraControl(
-            baseMetadata: existingMetadata?.cast<String, dynamic>() ??
+            baseMetadata:
+                existingMetadata?.cast<String, dynamic>() ??
                 const <String, dynamic>{},
             credentials: cameraAuthConfig,
           ),
@@ -28838,7 +28897,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
     String defaultContactName = 'Alicia van der Merwe';
     String defaultEmail = 'alicia@sovereignridge.co.za';
     String defaultPhone = '+27 82 700 1122';
-    String defaultTelegramChatId = '';
+    String defaultTelegramChatId = 'demo-client-estate';
     String defaultTelegramThreadId = '';
     switch (scenario) {
       case 'industrial_campus':
@@ -28850,7 +28909,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
         defaultContactName = 'Mandla Dube';
         defaultEmail = 'operations@atlascampus.co.za';
         defaultPhone = '+27 82 900 4431';
-        defaultTelegramChatId = '';
+        defaultTelegramChatId = 'demo-client-industrial';
         break;
       case 'retail_centre':
         defaultIdPrefix = 'DEMO-CLT-R';
@@ -28861,7 +28920,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
         defaultContactName = 'Centre Management Desk';
         defaultEmail = 'ops@harborpointmall.co.za';
         defaultPhone = '+27 83 455 8891';
-        defaultTelegramChatId = '';
+        defaultTelegramChatId = 'demo-client-retail';
         break;
       case 'estate_hoa':
       default:
@@ -28973,13 +29032,6 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
   String _resolvedClientPreviewReference() {
     final clientId = _clientIdController.text.trim().toUpperCase();
     if (clientId.isNotEmpty) return clientId;
-    final legalToken = _legalNameController.text
-        .trim()
-        .toUpperCase()
-        .replaceAll(RegExp(r'[^A-Z0-9]+'), '-')
-        .replaceAll(RegExp(r'-+'), '-')
-        .replaceAll(RegExp(r'^-|-$'), '');
-    if (legalToken.isNotEmpty) return 'CLIENT-$legalToken';
     return '';
   }
 
@@ -29669,7 +29721,6 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   ),
                 ),
                 FilledButton.icon(
-                  key: clientOnboardingDemoReadyButtonKey,
                   onPressed: () async {
                     final launchMessage = _launchDemoFlow();
                     await Clipboard.setData(
@@ -29692,6 +29743,7 @@ class _ClientOnboardingDialogState extends State<_ClientOnboardingDialog>
                   ),
                 ),
                 FilledButton.icon(
+                  key: clientOnboardingDemoReadyButtonKey,
                   onPressed: () =>
                       _showOnboardingSnackBar(context, _runDemoReady()),
                   icon: Icon(_demoReadyButtonIcon, size: 16),
@@ -31663,14 +31715,8 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
   String _resolvedPreviewReference() {
     final siteId = _siteIdController.text.trim().toUpperCase();
     if (siteId.isNotEmpty) return siteId;
-    final suggestedSiteId = _generateSiteIdFromName(_siteNameController.text);
-    if (suggestedSiteId.isNotEmpty) return suggestedSiteId;
     final siteCode = _siteCodeController.text.trim().toUpperCase();
     if (siteCode.isNotEmpty) return 'SITE-$siteCode';
-    final hasCoords =
-        double.tryParse(_latController.text.trim()) != null &&
-        double.tryParse(_lngController.text.trim()) != null;
-    if (hasCoords) return 'SITE-TACTICAL-PREVIEW';
     return '';
   }
 
@@ -31708,7 +31754,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
     if (focusReference.isEmpty) {
       _showOnboardingSnackBar(
         context,
-        'Add site identity or coordinates before opening Tactical.',
+        'Apply site identity before opening Tactical.',
       );
       return;
     }
@@ -31734,7 +31780,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
     if (focusReference.isEmpty) {
       _showOnboardingSnackBar(
         context,
-        'Add site identity or coordinates before opening Operations.',
+        'Apply site identity before opening Operations.',
       );
       return;
     }
@@ -35300,7 +35346,6 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   ),
                 ),
                 FilledButton.icon(
-                  key: siteOnboardingDemoReadyButtonKey,
                   onPressed: () async {
                     final launchMessage = _launchDemoFlow();
                     await Clipboard.setData(
@@ -35323,6 +35368,7 @@ class _SiteOnboardingDialogState extends State<_SiteOnboardingDialog>
                   ),
                 ),
                 FilledButton.icon(
+                  key: siteOnboardingDemoReadyButtonKey,
                   onPressed: () =>
                       _showOnboardingSnackBar(context, _runDemoReady()),
                   icon: Icon(_demoReadyButtonIcon, size: 16),
@@ -36420,7 +36466,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     String defaultCode = 'DEMO-EMP-$stamp';
     String defaultFullName = 'Kagiso';
     String defaultSurname = 'Molefe';
-    String defaultId = '';
+    String defaultId = 'PASS-DEMO-REACTION';
     DateTime defaultDob = DateTime(1988, 8, 8);
     String defaultPsira = 'PSI-DEMO-$stamp';
     String defaultGrade = 'B';
@@ -36442,7 +36488,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
         defaultCode = 'DEMO-EMP-G$stamp';
         defaultFullName = 'Lerato';
         defaultSurname = 'Nkosi';
-        defaultId = '';
+        defaultId = 'PASS-DEMO-GUARD';
         defaultDob = DateTime(1992, 5, 15);
         defaultPsira = 'PSI-DEMO-G$stamp';
         defaultGrade = 'C';
@@ -36460,7 +36506,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
         defaultCode = 'DEMO-EMP-C$stamp';
         defaultFullName = 'Anele';
         defaultSurname = 'Jacobs';
-        defaultId = '';
+        defaultId = 'PASS-DEMO-CONTROLLER';
         defaultDob = DateTime(1990, 3, 3);
         defaultPsira = '';
         defaultGrade = 'C';
@@ -36601,14 +36647,6 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
     if (assignedSiteId.isNotEmpty) return assignedSiteId;
     final employeeCode = _employeeCodeController.text.trim().toUpperCase();
     if (employeeCode.isNotEmpty) return employeeCode;
-    final fullNameToken =
-        '${_fullNameController.text.trim()} ${_surnameController.text.trim()}'
-            .trim()
-            .toUpperCase()
-            .replaceAll(RegExp(r'[^A-Z0-9]+'), '-')
-            .replaceAll(RegExp(r'-+'), '-')
-            .replaceAll(RegExp(r'^-|-$'), '');
-    if (fullNameToken.isNotEmpty) return 'EMP-$fullNameToken';
     return '';
   }
 
@@ -37398,12 +37436,12 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
   String _suggestedEmployeeIdentityNumber() {
     switch (_selectedEmployeeScenario) {
       case 'static_guard':
-        return '';
+        return 'PASS-DEMO-GUARD';
       case 'controller':
-        return '';
+        return 'PASS-DEMO-CONTROLLER';
       case 'reaction_officer':
       default:
-        return '';
+        return 'PASS-DEMO-REACTION';
     }
   }
 
@@ -37748,14 +37786,10 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 icon: Icons.person_pin_rounded,
                 label: 'Identity Pack',
                 value: '$suggestedFullName $suggestedSurname',
-                hint:
-                    _fullNameController.text.trim() == suggestedFullName &&
-                        _surnameController.text.trim() == suggestedSurname
+                hint: identityAligned
                     ? 'Current identity pack is aligned.'
                     : 'Tap to stage name and ID details from the active scenario.',
-                active:
-                    _fullNameController.text.trim() == suggestedFullName &&
-                    _surnameController.text.trim() == suggestedSurname,
+                active: identityAligned,
                 onTap: () => setState(() {
                   _fullNameController.text = suggestedFullName;
                   _surnameController.text = suggestedSurname;
@@ -37764,14 +37798,8 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                 activeLabel: 'LIVE',
                 idleLabel: 'PACK',
                 microLabel: 'NEXT',
-                microValue:
-                    _fullNameController.text.trim() == suggestedFullName &&
-                        _surnameController.text.trim() == suggestedSurname
-                    ? 'Proof live'
-                    : 'Seed proof',
-                microColor:
-                    _fullNameController.text.trim() == suggestedFullName &&
-                        _surnameController.text.trim() == suggestedSurname
+                microValue: identityAligned ? 'Proof live' : 'Seed proof',
+                microColor: identityAligned
                     ? const Color(0xFF8FD1FF)
                     : const Color(0xFFF1B872),
               ),
@@ -39564,7 +39592,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           _employeeCodeController.text = 'DEMO-EMP-G$stamp';
           _fullNameController.text = 'Lerato';
           _surnameController.text = 'Nkosi';
-          _idNumberController.text = '';
+          _idNumberController.text = 'PASS-DEMO-GUARD';
           _role = 'guard';
           _dob = DateTime(1992, 5, 15);
           _psiraNumberController.text = 'PSI-DEMO-G$stamp';
@@ -39584,7 +39612,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           _employeeCodeController.text = 'DEMO-EMP-C$stamp';
           _fullNameController.text = 'Anele';
           _surnameController.text = 'Jacobs';
-          _idNumberController.text = '';
+          _idNumberController.text = 'PASS-DEMO-CONTROLLER';
           _role = 'controller';
           _dob = DateTime(1990, 3, 3);
           _psiraNumberController.text = '';
@@ -39605,7 +39633,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
           _employeeCodeController.text = 'DEMO-EMP-$stamp';
           _fullNameController.text = 'Kagiso';
           _surnameController.text = 'Molefe';
-          _idNumberController.text = '';
+          _idNumberController.text = 'PASS-DEMO-REACTION';
           _role = 'reaction_officer';
           _dob = DateTime(1988, 8, 8);
           _psiraNumberController.text = 'PSI-DEMO-$stamp';
@@ -39931,7 +39959,6 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   ),
                 ),
                 FilledButton.icon(
-                  key: employeeOnboardingDemoReadyButtonKey,
                   onPressed: () async {
                     final launchMessage = _launchDemoFlow();
                     await Clipboard.setData(
@@ -39954,6 +39981,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                   ),
                 ),
                 FilledButton.icon(
+                  key: employeeOnboardingDemoReadyButtonKey,
                   onPressed: () =>
                       _showOnboardingSnackBar(context, _runDemoReady()),
                   icon: Icon(_demoReadyButtonIcon, size: 16),

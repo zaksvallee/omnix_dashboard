@@ -19,6 +19,7 @@ import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import '../application/report_entry_context.dart';
+import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -135,45 +136,58 @@ class _EventsPageState extends State<EventsPage> {
                 : 1540.0;
             final mergeWorkspaceBannerIntoHero =
                 boundedDesktopSurface && !handsetLayout;
+            final chainIntegrityIssueCount = visibleRows
+                .where(
+                  (row) =>
+                      row.event is ExecutionDenied ||
+                      (row.event is ExecutionCompleted &&
+                          !(row.event as ExecutionCompleted).success),
+                )
+                .length;
+            final chainIntact = chainIntegrityIssueCount == 0;
+            final chainIntegrityMessage = chainIntact
+                ? 'Chain intact'
+                : '$chainIntegrityIssueCount chain integrity issues need review';
 
-            final hero = _heroHeader(
-              context,
-              totalCount: forensicRows.length,
-              filteredCount: laneFiltered.length,
-              selectedCount: selected == null ? 0 : 1,
-              laneLabel: _laneFilter.label,
-              workspaceBanner: mergeWorkspaceBannerIntoHero
-                  ? _workspaceStatusBanner(
-                      context,
-                      filteredRows: filtered,
-                      visibleRows: visibleRows,
-                      selected: selected,
-                      relatedRows: relatedRows,
-                      shellless: true,
-                    )
-                  : null,
+            final hero = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                OnyxPageHeader(
+                  title: 'Events Scope',
+                  subtitle: 'Event security and chain integrity.',
+                  icon: Icons.event_note_rounded,
+                  iconColor: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: _spaceSm),
+                OnyxStatusBanner(
+                  message: chainIntegrityMessage,
+                  severity: chainIntact
+                      ? OnyxSeverity.success
+                      : OnyxSeverity.critical,
+                ),
+                const SizedBox(height: _spaceSm),
+                _heroHeader(
+                  context,
+                  totalCount: forensicRows.length,
+                  filteredCount: laneFiltered.length,
+                  selectedCount: selected == null ? 0 : 1,
+                  laneLabel: _laneFilter.label,
+                  workspaceBanner: mergeWorkspaceBannerIntoHero
+                      ? _workspaceStatusBanner(
+                          context,
+                          filteredRows: filtered,
+                          visibleRows: visibleRows,
+                          selected: selected,
+                          relatedRows: relatedRows,
+                          shellless: true,
+                        )
+                      : null,
+                ),
+              ],
             );
 
             Widget buildSurfaceBody({required bool expandedPanels}) {
               final content = <Widget>[
-                if (!boundedDesktopSurface) ...[
-                  const OnyxPageHeader(
-                    title: 'Events Scope',
-                    subtitle:
-                        'A lane-driven command workspace for forensic review, evidence checks, and event-chain tracing.',
-                  ),
-                  const SizedBox(height: _spaceSm),
-                ] else ...[
-                  Text(
-                    'Events Scope',
-                    style: GoogleFonts.inter(
-                      color: _eventsTitleColor,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                ],
                 if (!handsetLayout && !mergeWorkspaceBannerIntoHero) ...[
                   _workspaceStatusBanner(
                     context,
