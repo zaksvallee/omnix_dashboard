@@ -740,6 +740,251 @@ void main() {
       expect(postBody, contains('$encRes=1920x1080'));
     });
   });
+
+  group('UniviewOnyxAgentCameraWorker', () {
+    OnyxAgentCameraExecutionRequest univiewRequest({
+      String target = '192.168.1.95',
+      String mainStreamLabel = 'H.265 2560x1440 @ 18 fps / 3072 kbps',
+    }) {
+      return OnyxAgentCameraExecutionRequest(
+        packetId: 'CAM-PKT-903',
+        target: target,
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        scopeLabel: 'CLIENT-001 • SITE-SANDTON',
+        incidentReference: 'INC-CTRL-45',
+        sourceRouteLabel: 'AI Queue',
+        approvedAtUtc: DateTime.utc(2026, 3, 30, 9, 0),
+        executionPacket: OnyxAgentCameraExecutionPacket(
+          packetId: 'CAM-PKT-903',
+          target: target,
+          vendorKey: 'uniview',
+          vendorLabel: 'Uniview',
+          profileKey: 'alarm_verification',
+          profileLabel: 'Alarm Verification',
+          onvifProfileToken: 'onyx-uniview-alarm-verification',
+          mainStreamLabel: mainStreamLabel,
+          subStreamLabel: 'H.264 704x480 @ 10 fps / 512 kbps',
+          recorderTarget: 'alarm_review_nvr',
+          rollbackExportLabel: 'rollback-CAM-PKT-903-192-168-1-95.json',
+          credentialHandling: 'Keep device credentials local.',
+          changePlan: const <String>['Apply the approved profile.'],
+          verificationPlan: const <String>['Confirm live view.'],
+          rollbackPlan: const <String>['Restore the previous profile.'],
+        ),
+      );
+    }
+
+    const univiewCreds = DvrHttpAuthConfig(
+      mode: DvrHttpAuthMode.digest,
+      username: 'admin',
+      password: 'secret',
+    );
+
+    OnyxAgentCameraBridgeReceiver univiewReceiverWith(http.Client client) {
+      return OnyxAgentCameraBridgeReceiver(
+        workers: const <OnyxAgentCameraVendorWorker>[],
+        httpClient: client,
+        resolveCredentials: (_, _) => univiewCreds,
+      );
+    }
+
+    test('confirms a Uniview change after device verification and read-back',
+        () async {
+      String? putBody;
+      final client = MockClient((request) async {
+        if (request.url.path == '/LAPI/V1.0/System/DeviceInfo') {
+          return http.Response(_univiewDeviceInfo, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'GET') {
+          return http.Response(_univiewMainstreamConfig, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'PUT') {
+          putBody = request.body;
+          return http.Response(_univiewWriteOk, 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await univiewReceiverWith(client).execute(univiewRequest());
+
+      expect(outcome.success, isTrue);
+      expect(outcome.providerLabel, 'local:camera-worker:uniview');
+      expect(outcome.detail, contains('Uniview Camera Worker'));
+      expect(outcome.detail, contains('Mainstream'));
+      expect(outcome.remoteExecutionId, contains('worker-uniview-mainstream'));
+      expect(putBody, contains('2560*1440'));
+      expect(putBody, contains('"FrameRate":18'));
+    });
+
+    test('returns staging outcome when credentials are not configured',
+        () async {
+      const worker = UniviewOnyxAgentCameraWorker(
+        credentials: DvrHttpAuthConfig(mode: DvrHttpAuthMode.none),
+      );
+      final outcome = await worker.execute(univiewRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.providerLabel, 'local:camera-worker:uniview');
+      expect(outcome.detail, contains('staging mode'));
+    });
+
+    test('returns failure when device info endpoint is unreachable', () async {
+      final client = MockClient((request) async {
+        throw http.ClientException('connection refused', request.url);
+      });
+
+      final outcome = await univiewReceiverWith(client).execute(univiewRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('failed before the change could be confirmed'));
+    });
+
+    test('returns failure when DeviceInfo returns non-200', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/LAPI/V1.0/System/DeviceInfo') {
+          return http.Response('', 401);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await univiewReceiverWith(client).execute(univiewRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('device verification failed'));
+      expect(outcome.detail, contains('HTTP 401'));
+    });
+
+    test('returns failure when channel discovery finds no VideoEncodeParam',
+        () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/LAPI/V1.0/System/DeviceInfo') {
+          return http.Response(_univiewDeviceInfo, 200);
+        }
+        if (request.url.path ==
+            '/LAPI/V1.0/Channels/0/Media/Video/Mainstream') {
+          return http.Response('{"Response":{"StatusCode":1,"StatusString":"Not found"}}', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await univiewReceiverWith(client).execute(univiewRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('no readable Mainstream channel'));
+    });
+
+    test('returns failure when PUT config write is rejected', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/LAPI/V1.0/System/DeviceInfo') {
+          return http.Response(_univiewDeviceInfo, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'GET') {
+          return http.Response(_univiewMainstreamConfig, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'PUT') {
+          return http.Response('', 403);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await univiewReceiverWith(client).execute(univiewRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('rejected the Mainstream configuration update'));
+      expect(outcome.detail, contains('HTTP 403'));
+    });
+
+    test('returns failure when PUT response does not confirm success', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/LAPI/V1.0/System/DeviceInfo') {
+          return http.Response(_univiewDeviceInfo, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'GET') {
+          return http.Response(_univiewMainstreamConfig, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'PUT') {
+          return http.Response(
+            '{"Response":{"StatusCode":5,"StatusString":"PermissionDenied"}}',
+            200,
+          );
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await univiewReceiverWith(client).execute(univiewRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('did not confirm the Mainstream update'));
+    });
+
+    test('returns failure when read-back does not confirm the change', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/LAPI/V1.0/System/DeviceInfo') {
+          return http.Response(_univiewDeviceInfo, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'GET') {
+          // Return stale values on both discovery and read-back.
+          return http.Response(_univiewMainstreamConfigStale, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'PUT') {
+          return http.Response(_univiewWriteOk, 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await univiewReceiverWith(client).execute(univiewRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('did not confirm Alarm Verification'));
+      expect(outcome.detail, contains('VideoEncodeParam.Resolution'));
+    });
+
+    test('falls back to default preset when mainStreamLabel is unparseable',
+        () async {
+      String? putBody;
+      final client = MockClient((request) async {
+        if (request.url.path == '/LAPI/V1.0/System/DeviceInfo') {
+          return http.Response(_univiewDeviceInfo, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'GET') {
+          return http.Response(_univiewMainstreamConfigDefault, 200);
+        }
+        if (request.url.path ==
+                '/LAPI/V1.0/Channels/0/Media/Video/Mainstream' &&
+            request.method == 'PUT') {
+          putBody = request.body;
+          return http.Response(_univiewWriteOk, 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await univiewReceiverWith(client).execute(
+        univiewRequest(mainStreamLabel: 'no resolution here'),
+      );
+
+      expect(outcome.success, isTrue);
+      expect(putBody, contains('1920*1080'));
+    });
+  });
 }
 
 const String _channelListXml = '''
@@ -825,3 +1070,19 @@ root.Image.I0.Resolution=1920x1080
 root.Image.I0.FPS=15
 root.Image.I0.Compression=h265
 ''';
+
+// ─── Uniview fixtures ─────────────────────────────────────────────────────────
+
+const String _univiewDeviceInfo = '{"Response":{"StatusCode":0,"StatusString":"OK","DeviceInfo":{"DeviceType":"IPC"}}}';
+
+// Verified response — values match 2560*1440@18fps/3072kbps preset.
+const String _univiewMainstreamConfig = '{"Response":{"StatusCode":0,"StatusString":"OK","VideoEncodeParam":{"Resolution":"2560*1440","FrameRate":18,"BitRate":3072,"EncodeType":"H.265"}}}';
+
+// Stale response — old values, will not match 2560*1440@18fps.
+const String _univiewMainstreamConfigStale = '{"Response":{"StatusCode":0,"StatusString":"OK","VideoEncodeParam":{"Resolution":"1280*720","FrameRate":12,"BitRate":1024,"EncodeType":"H.264"}}}';
+
+// Default response — values match 1920*1080@15fps/2048kbps fallback preset.
+const String _univiewMainstreamConfigDefault = '{"Response":{"StatusCode":0,"StatusString":"OK","VideoEncodeParam":{"Resolution":"1920*1080","FrameRate":15,"BitRate":2048,"EncodeType":"H.265"}}}';
+
+// Successful PUT response.
+const String _univiewWriteOk = '{"Response":{"StatusCode":0,"StatusString":"OK"}}';

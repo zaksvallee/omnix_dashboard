@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
@@ -852,15 +853,198 @@ class UniviewOnyxAgentCameraWorker extends _CredentialReadyOnyxAgentCameraWorker
     OnyxAgentCameraExecutionRequest request,
   ) async {
     final packet = request.executionPacket;
-    // TODO(zaks): Implement Uniview vendor API writes once the ONYX camera
-    // worker contract includes the exact encoder payload Uniview accepts.
-    return stagingOutcome(
+    if (stagingMode) {
+      return stagingOutcome(
+        request,
+        detail:
+            'Camera control in staging mode. Configure Uniview credentials for ${request.scopeLabel} before approving live camera changes.',
+        recommendedNextStep:
+            'Add the site camera credentials, then retry the approved packet after verifying the target device path.',
+      );
+    }
+    final client = httpClient;
+    if (client == null) {
+      return _univiewFailure(
+        request,
+        detail: 'The Uniview HTTP client is not wired for this runtime.',
+        recommendedNextStep:
+            'Restore the embedded camera bridge runtime before attempting a live Uniview write.',
+      );
+    }
+
+    final targetBaseUri = _deviceBaseUri(request.target);
+    if (targetBaseUri == null) {
+      return _univiewFailure(
+        request,
+        detail:
+            'The target "${request.target}" is not a valid Uniview host or URL.',
+        recommendedNextStep:
+            'Restage the packet with a valid camera host or full device URL before retrying the live change.',
+      );
+    }
+
+    try {
+      // Step 1 — Verify device is reachable.
+      final deviceInfoUri = targetBaseUri.replace(
+        path: '/LAPI/V1.0/System/DeviceInfo',
+      );
+      final deviceInfoResponse = await credentials.get(
+        client,
+        deviceInfoUri,
+        headers: _univiewAuthHeaders(),
+      );
+      if (!_isSuccess(deviceInfoResponse.statusCode) ||
+          deviceInfoResponse.body.trim().isEmpty) {
+        return _univiewHttpFailure(
+          request,
+          response: deviceInfoResponse,
+          detail:
+              'Uniview device verification failed at /LAPI/V1.0/System/DeviceInfo.',
+        );
+      }
+
+      // Step 2 — Channel discovery: confirm Mainstream video params exist.
+      final streamUri = targetBaseUri.replace(
+        path: '/LAPI/V1.0/Channels/0/Media/Video/Mainstream',
+      );
+      final discoverResponse = await credentials.get(
+        client,
+        streamUri,
+        headers: _univiewAuthHeaders(),
+      );
+      if (!_isSuccess(discoverResponse.statusCode)) {
+        return _univiewHttpFailure(
+          request,
+          response: discoverResponse,
+          detail:
+              'Uniview channel discovery failed at /LAPI/V1.0/Channels/0/Media/Video/Mainstream.',
+        );
+      }
+      if (!_univiewChannelExists(discoverResponse.body)) {
+        return _univiewFailure(
+          request,
+          detail:
+              'Uniview returned no readable Mainstream channel for ${request.target}.',
+          recommendedNextStep:
+              'Confirm the device exposes /LAPI/V1.0/Channels/0/Media/Video/Mainstream and restage the change against the correct host.',
+        );
+      }
+
+      // Step 3 — Read current config (same response from step 2).
+      final currentConfig = discoverResponse.body;
+
+      // Step 4 — Write preset via JSON PUT.
+      final preset = _desiredUniviewPreset(packet.mainStreamLabel);
+      final putBody = _buildUniviewPayload(preset);
+      final writeResponse = await http.Response.fromStream(
+        await credentials.send(
+          client,
+          'PUT',
+          streamUri,
+          headers: _univiewAuthHeaders(),
+          body: putBody,
+        ),
+      );
+      if (!_isSuccess(writeResponse.statusCode)) {
+        return _univiewHttpFailure(
+          request,
+          response: writeResponse,
+          detail:
+              'Uniview rejected the Mainstream configuration update.',
+        );
+      }
+      if (!_univiewWriteAccepted(writeResponse.body)) {
+        return _univiewFailure(
+          request,
+          detail:
+              'Uniview did not confirm the Mainstream update. Response: ${_collapsed(writeResponse.body)}.',
+          recommendedNextStep:
+              'Inspect the device response, confirm the channel index and parameter names are supported on this firmware, and retry.',
+        );
+      }
+
+      // Step 5 — Read-back verification.
+      final verifyResponse = await credentials.get(
+        client,
+        streamUri,
+        headers: _univiewAuthHeaders(),
+      );
+      if (!_isSuccess(verifyResponse.statusCode)) {
+        return _univiewHttpFailure(
+          request,
+          response: verifyResponse,
+          detail:
+              'Uniview did not return a readable confirmation for Mainstream after the update.',
+        );
+      }
+      final mismatches = _verifyUniviewConfig(verifyResponse.body, preset);
+      if (mismatches.isNotEmpty) {
+        return _univiewFailure(
+          request,
+          detail:
+              'Uniview Mainstream did not confirm ${packet.profileLabel}. Read-back mismatches: ${mismatches.join(', ')}.',
+          recommendedNextStep:
+              'Keep the incident open, inspect the live device settings, and retry only after confirming which fields the device accepts.',
+        );
+      }
+
+      // currentConfig baseline captured — reserved for future diff logging.
+      assert(currentConfig.isNotEmpty);
+      return OnyxAgentCameraExecutionOutcome(
+        success: true,
+        providerLabel: 'local:camera-worker:uniview',
+        detail:
+            '$workerLabel confirmed ${packet.profileLabel} on Mainstream after device verification, channel discovery, live write, and read-back validation.',
+        recommendedNextStep:
+            'Confirm live view, analytics overlays, and ${packet.recorderTarget} ingest before closing the packet. Keep ${packet.rollbackExportLabel} attached for rollback.',
+        remoteExecutionId: 'worker-uniview-mainstream-${request.packetId}',
+        recordedAtUtc: DateTime.now().toUtc(),
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Uniview camera control failed.',
+        name: 'OnyxUniviewCameraWorker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return _univiewFailure(
+        request,
+        detail:
+            'Uniview camera control failed before the change could be confirmed: ${error.toString().trim().isEmpty ? error.runtimeType : error.toString().trim()}.',
+        recommendedNextStep:
+            'Confirm the target is reachable on the LAN, validate credentials, and retry only after the device path responds cleanly.',
+      );
+    }
+  }
+
+  OnyxAgentCameraExecutionOutcome _univiewHttpFailure(
+    OnyxAgentCameraExecutionRequest request, {
+    required http.Response response,
+    required String detail,
+  }) {
+    final responseDetail = response.body.trim().isEmpty
+        ? 'No response body returned.'
+        : _collapsed(response.body);
+    return _univiewFailure(
       request,
-      detail: stagingMode
-          ? 'Camera control in staging mode. Uniview credentials are not configured for ${request.scopeLabel}.'
-          : '$workerLabel is credential-ready, but Uniview vendor API writes are still staged in this release.',
+      detail: '$detail HTTP ${response.statusCode}. $responseDetail',
       recommendedNextStep:
-          'Validate the feed manually, keep ${packet.rollbackExportLabel} attached, and use the Uniview console until the vendor worker is implemented.',
+          'Confirm device credentials and channel permissions, then retry the packet after the Uniview endpoint responds cleanly.',
+    );
+  }
+
+  OnyxAgentCameraExecutionOutcome _univiewFailure(
+    OnyxAgentCameraExecutionRequest request, {
+    required String detail,
+    required String recommendedNextStep,
+  }) {
+    return OnyxAgentCameraExecutionOutcome(
+      success: false,
+      providerLabel: 'local:camera-worker:uniview',
+      detail: detail,
+      recommendedNextStep: recommendedNextStep,
+      remoteExecutionId: 'worker-uniview-${request.packetId}',
+      recordedAtUtc: DateTime.now().toUtc(),
     );
   }
 }
@@ -1161,6 +1345,127 @@ List<String> _verifyAxisConfig(String body, _AxisPreset preset) {
       mismatches.add('$key=$actual (expected $expected)');
     }
   });
+  return mismatches;
+}
+
+// ─── Uniview helpers ──────────────────────────────────────────────────────────
+
+/// Returns the JSON headers required for all Uniview LAPI requests.
+/// Auth is handled by [DvrHttpAuthConfig]; these headers declare the payload
+/// and acceptance types only.
+Map<String, String> _univiewAuthHeaders() {
+  return const <String, String>{
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  };
+}
+
+bool _univiewChannelExists(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is! Map<String, dynamic>) return false;
+    final response = decoded['Response'] as Map<String, dynamic>?;
+    final statusCode = response?['StatusCode'];
+    if (statusCode != null && statusCode != 0) return false;
+    final params =
+        response?['VideoEncodeParam'] ?? decoded['VideoEncodeParam'];
+    return params != null;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Returns true when the Uniview LAPI PUT response signals success.
+/// LAPI returns a JSON envelope with `StatusCode=0` on success.
+bool _univiewWriteAccepted(String body) {
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is! Map<String, dynamic>) return false;
+    final response = decoded['Response'] as Map<String, dynamic>?;
+    final statusCode = response?['StatusCode'];
+    return statusCode == null || statusCode == 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+class _UniviewPreset {
+  /// Resolution in Uniview wire format, e.g. '2560*1440' (uses `*` separator).
+  final String resolution;
+  final int fps;
+  final int bitrate; // kbps
+
+  const _UniviewPreset({
+    required this.resolution,
+    required this.fps,
+    required this.bitrate,
+  });
+}
+
+_UniviewPreset _desiredUniviewPreset(String mainStreamLabel) {
+  final match = RegExp(
+    r'(\d+)x(\d+)\s*@\s*(\d+)\s*fps\s*/\s*(\d+)\s*kbps',
+    caseSensitive: false,
+  ).firstMatch(mainStreamLabel);
+  if (match == null) {
+    return const _UniviewPreset(
+      resolution: '1920*1080',
+      fps: 15,
+      bitrate: 2048,
+    );
+  }
+  return _UniviewPreset(
+    resolution: '${match.group(1)!.trim()}*${match.group(2)!.trim()}',
+    fps: int.tryParse(match.group(3)!.trim()) ?? 15,
+    bitrate: int.tryParse(match.group(4)!.trim()) ?? 2048,
+  );
+}
+
+/// Builds the JSON body for the Uniview LAPI PUT Mainstream request.
+String _buildUniviewPayload(_UniviewPreset preset) {
+  return jsonEncode(<String, dynamic>{
+    'VideoEncodeParam': <String, dynamic>{
+      'Resolution': preset.resolution,
+      'FrameRate': preset.fps,
+      'BitRate': preset.bitrate,
+    },
+  });
+}
+
+/// Verifies that the Uniview LAPI GET Mainstream response contains the
+/// expected preset values. Returns a list of mismatch descriptions
+/// (empty = all confirmed).
+List<String> _verifyUniviewConfig(String body, _UniviewPreset preset) {
+  final mismatches = <String>[];
+  try {
+    final decoded = jsonDecode(body);
+    if (decoded is! Map<String, dynamic>) {
+      mismatches.add('VideoEncodeParam=unreadable (unexpected JSON shape)');
+      return mismatches;
+    }
+    final response = decoded['Response'] as Map<String, dynamic>?;
+    final params = (response?['VideoEncodeParam'] ??
+        decoded['VideoEncodeParam']) as Map<String, dynamic>?;
+    if (params == null) {
+      mismatches
+          .add('VideoEncodeParam=missing (expected ${preset.resolution})');
+      return mismatches;
+    }
+    final resolution = params['Resolution']?.toString() ?? '';
+    if (resolution != preset.resolution) {
+      mismatches.add(
+        'VideoEncodeParam.Resolution=$resolution (expected ${preset.resolution})',
+      );
+    }
+    final fpsActual = params['FrameRate']?.toString() ?? '';
+    if (fpsActual != preset.fps.toString()) {
+      mismatches.add(
+        'VideoEncodeParam.FrameRate=$fpsActual (expected ${preset.fps})',
+      );
+    }
+  } catch (_) {
+    mismatches.add('VideoEncodeParam=unreadable (JSON parse failed)');
+  }
   return mismatches;
 }
 
