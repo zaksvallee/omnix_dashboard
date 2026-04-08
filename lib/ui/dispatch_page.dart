@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -7676,47 +7677,50 @@ class _DispatchPageState extends State<DispatchPage> {
           ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
 
     if (decisions.isEmpty) {
-      return const [
-        _DispatchItem(
-          id: 'DSP-2441',
-          site: 'North Residential Cluster',
-          type: 'Priority response',
-          priority: _DispatchPriority.p1Critical,
-          status: _DispatchStatus.enRoute,
-          officer: 'RO-441 (K. Dlamini)',
-          dispatchTime: '22:14',
-          eta: '4 min',
-          distance: '2.3 km',
-        ),
-        _DispatchItem(
-          id: 'DSP-2442',
-          site: 'Central Access Gate',
-          type: 'Emergency assist',
-          priority: _DispatchPriority.p1Critical,
-          status: _DispatchStatus.onSite,
-          officer: 'RO-442 (J. van Wyk)',
-          dispatchTime: '22:08',
-          distance: '0 km',
-        ),
-        _DispatchItem(
-          id: 'DSP-2439',
-          site: 'East Patrol Sector',
-          type: 'Alarm review',
-          priority: _DispatchPriority.p2High,
-          status: _DispatchStatus.cleared,
-          officer: 'RO-443 (T. Nkosi)',
-          dispatchTime: '21:45',
-        ),
-        _DispatchItem(
-          id: 'DSP-2438',
-          site: 'Midrand Operations Park',
-          type: 'Perimeter check',
-          priority: _DispatchPriority.p2High,
-          status: _DispatchStatus.pending,
-          officer: 'Unassigned',
-          dispatchTime: '21:38',
-        ),
-      ];
+      if (kDebugMode) {
+        return const [
+          _DispatchItem(
+            id: 'DSP-2441',
+            site: 'North Residential Cluster',
+            type: 'Priority response',
+            priority: _DispatchPriority.p1Critical,
+            status: _DispatchStatus.enRoute,
+            officer: 'RO-441 (K. Dlamini)',
+            dispatchTime: '22:14',
+            eta: '4 min',
+            distance: '2.3 km',
+          ),
+          _DispatchItem(
+            id: 'DSP-2442',
+            site: 'Central Access Gate',
+            type: 'Emergency assist',
+            priority: _DispatchPriority.p1Critical,
+            status: _DispatchStatus.onSite,
+            officer: 'RO-442 (J. van Wyk)',
+            dispatchTime: '22:08',
+            distance: '0 km',
+          ),
+          _DispatchItem(
+            id: 'DSP-2439',
+            site: 'East Patrol Sector',
+            type: 'Alarm review',
+            priority: _DispatchPriority.p2High,
+            status: _DispatchStatus.cleared,
+            officer: 'RO-443 (T. Nkosi)',
+            dispatchTime: '21:45',
+          ),
+          _DispatchItem(
+            id: 'DSP-2438',
+            site: 'Midrand Operations Park',
+            type: 'Perimeter check',
+            priority: _DispatchPriority.p2High,
+            status: _DispatchStatus.pending,
+            officer: 'Unassigned',
+            dispatchTime: '21:38',
+          ),
+        ];
+      }
+      return const [];
     }
 
     final arrivedByDispatchId = {
