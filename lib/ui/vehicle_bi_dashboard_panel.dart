@@ -23,6 +23,12 @@ class VehicleBiDashboardPanel extends StatelessWidget {
     final hourlyEntries = throughput.hourlyBreakdown.entries.toList(
       growable: false,
     )..sort((left, right) => left.key.compareTo(right.key));
+    final peakHourLabel = throughput.peakHourLabel.trim();
+    final showPeakHourSummary =
+        peakHourLabel.isNotEmpty &&
+        peakHourLabel.toLowerCase() != 'none' &&
+        throughput.peakHourVisitCount > 0;
+    final exceptionVisits = throughput.exceptionVisits;
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF8FBFF),
@@ -78,16 +84,41 @@ class VehicleBiDashboardPanel extends StatelessWidget {
                   detail: '${throughput.repeatVehicles} repeat vehicles',
                   accent: const Color(0xFFF59E0B),
                 ),
+                _VehicleBiMetricCard(
+                  key: const ValueKey('vehicle-bi-exception-visits-card'),
+                  label: 'Exception visits',
+                  value: '${exceptionVisits.length}',
+                  detail: exceptionVisits.isEmpty
+                      ? 'No flagged visits'
+                      : '${throughput.loiteringVisitCount} loitering • ${throughput.suspiciousShortVisitCount} short stay',
+                  accent: const Color(0xFFEF4444),
+                ),
               ],
             ),
             const SizedBox(height: 20),
             _VehicleBiSectionCard(
               title: 'Hourly bar chart',
-              child: hourlyEntries.isEmpty
-                  ? _VehicleBiEmptyState(
-                      message: 'No hourly vehicle traffic recorded.',
-                    )
-                  : _VehicleBiHourlyChart(entries: hourlyEntries),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showPeakHourSummary) ...[
+                    _VehicleBiPeakHourSummary(
+                      peakHourLabel: peakHourLabel,
+                      peakHourVisitCount: throughput.peakHourVisitCount,
+                    ),
+                    const SizedBox(height: 14),
+                  ],
+                  hourlyEntries.isEmpty
+                      ? _VehicleBiEmptyState(
+                          message: 'No hourly vehicle traffic recorded.',
+                        )
+                      : _VehicleBiHourlyChart(
+                          entries: hourlyEntries,
+                          peakHourLabel: peakHourLabel,
+                          peakHourVisitCount: throughput.peakHourVisitCount,
+                        ),
+                ],
+              ),
             ),
             const SizedBox(height: 16),
             _VehicleBiSectionCard(
@@ -97,6 +128,15 @@ class VehicleBiDashboardPanel extends StatelessWidget {
                 serviceCount: throughput.serviceCount,
                 exitCount: throughput.exitCount,
               ),
+            ),
+            const SizedBox(height: 16),
+            _VehicleBiSectionCard(
+              title: 'Exception visits',
+              child: exceptionVisits.isEmpty
+                  ? _VehicleBiEmptyState(
+                      message: 'No exception visits flagged for this shift.',
+                    )
+                  : _VehicleBiExceptionList(visits: exceptionVisits),
             ),
           ],
         ),
@@ -232,8 +272,14 @@ class _VehicleBiEmptyState extends StatelessWidget {
 
 class _VehicleBiHourlyChart extends StatelessWidget {
   final List<MapEntry<int, int>> entries;
+  final String peakHourLabel;
+  final int peakHourVisitCount;
 
-  const _VehicleBiHourlyChart({required this.entries});
+  const _VehicleBiHourlyChart({
+    required this.entries,
+    this.peakHourLabel = '',
+    this.peakHourVisitCount = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -241,56 +287,299 @@ class _VehicleBiHourlyChart extends StatelessWidget {
       1,
       entries.map((entry) => entry.value).fold<int>(0, math.max),
     );
+    final resolvedPeakHourLabel = peakHourLabel.trim();
+    final annotatePeakHour =
+        resolvedPeakHourLabel.isNotEmpty &&
+        resolvedPeakHourLabel.toLowerCase() != 'none' &&
+        peakHourVisitCount > 0;
+    final chartHeight = annotatePeakHour ? 184.0 : 168.0;
+    final maxBarHeight = annotatePeakHour ? 92.0 : 108.0;
     return SizedBox(
-      height: 168,
+      height: chartHeight,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           for (final entry in entries)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${entry.value}',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF51677D),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      key: ValueKey('vehicle-bi-hour-bar-${entry.key}'),
-                      height: 108 * (entry.value / maxValue),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: const LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Color(0xFF0EA5E9),
-                            Color(0xFF8FD1FF),
-                          ],
+            Builder(
+              builder: (context) {
+                final entryHourRange = _vehicleBiHourRangeLabel(entry.key);
+                final isPeakHour =
+                    annotatePeakHour && entryHourRange == resolvedPeakHourLabel;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (isPeakHour) ...[
+                          Container(
+                            key: ValueKey('vehicle-bi-peak-badge-${entry.key}'),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDBEAFE),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: const Color(0xFF60A5FA),
+                              ),
+                            ),
+                            child: Text(
+                              'Peak',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF1D4ED8),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        Text(
+                          '${entry.value}',
+                          style: GoogleFonts.inter(
+                            color: isPeakHour
+                                ? const Color(0xFF1D4ED8)
+                                : const Color(0xFF51677D),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 8),
+                        Container(
+                          key: ValueKey('vehicle-bi-hour-bar-${entry.key}'),
+                          height: maxBarHeight * (entry.value / maxValue),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            border: isPeakHour
+                                ? Border.all(
+                                    color: const Color(0xFF1D4ED8),
+                                    width: 2,
+                                  )
+                                : null,
+                            boxShadow: isPeakHour
+                                ? const [
+                                    BoxShadow(
+                                      color: Color(0x261D4ED8),
+                                      blurRadius: 12,
+                                      offset: Offset(0, 6),
+                                    ),
+                                  ]
+                                : null,
+                            gradient: const LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [
+                                Color(0xFF0EA5E9),
+                                Color(0xFF8FD1FF),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${entry.key.toString().padLeft(2, '0')}:00',
+                          style: GoogleFonts.inter(
+                            color: isPeakHour
+                                ? const Color(0xFF1D4ED8)
+                                : const Color(0xFF74879B),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${entry.key.toString().padLeft(2, '0')}:00',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF74879B),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _VehicleBiPeakHourSummary extends StatelessWidget {
+  final String peakHourLabel;
+  final int peakHourVisitCount;
+
+  const _VehicleBiPeakHourSummary({
+    required this.peakHourLabel,
+    required this.peakHourVisitCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('vehicle-bi-peak-hour-summary'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F8FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.insights_rounded, color: Color(0xFF2563EB), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Peak hour: $peakHourLabel • $peakHourVisitCount visit${peakHourVisitCount == 1 ? '' : 's'}',
+              style: GoogleFonts.inter(
+                color: const Color(0xFF1E3A8A),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VehicleBiExceptionList extends StatelessWidget {
+  final List<SovereignReportVehicleVisitException> visits;
+
+  const _VehicleBiExceptionList({required this.visits});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (int index = 0; index < visits.length; index++) ...[
+          if (index > 0) const SizedBox(height: 12),
+          _VehicleBiExceptionCard(exception: visits[index]),
+        ],
+      ],
+    );
+  }
+}
+
+class _VehicleBiExceptionCard extends StatelessWidget {
+  final SovereignReportVehicleVisitException exception;
+
+  const _VehicleBiExceptionCard({required this.exception});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = _vehicleBiExceptionAccent(exception.statusLabel);
+    final reviewedLabel = exception.operatorReviewedAtUtc == null
+        ? 'Awaiting review'
+        : 'Reviewed ${_vehicleBiUtcLabel(exception.operatorReviewedAtUtc!)}';
+    final workflowSummary = exception.workflowSummary.trim().isEmpty
+        ? 'Workflow summary unavailable.'
+        : exception.workflowSummary.trim();
+    return Container(
+      key: ValueKey('vehicle-bi-exception-visit-${exception.primaryEventId}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FBFF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD7E2EE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  exception.vehicleLabel,
+                  style: GoogleFonts.inter(
+                    color: const Color(0xFF182638),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: accent.withValues(alpha: 0.32)),
+                ),
+                child: Text(
+                  exception.statusLabel,
+                  style: GoogleFonts.inter(
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            exception.reasonLabel,
+            style: GoogleFonts.inter(
+              color: const Color(0xFF334155),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${exception.dwellMinutes.toStringAsFixed(0)} min dwell • $workflowSummary',
+            style: GoogleFonts.inter(
+              color: const Color(0xFF51677D),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _VehicleBiDetailChip(
+                label: reviewedLabel,
+                accent: accent,
+              ),
+              if (exception.zoneLabels.isNotEmpty)
+                _VehicleBiDetailChip(
+                  label: exception.zoneLabels.join(' • '),
+                  accent: const Color(0xFF0EA5E9),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VehicleBiDetailChip extends StatelessWidget {
+  final String label;
+  final Color accent;
+
+  const _VehicleBiDetailChip({required this.label, required this.accent});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          color: accent,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -347,6 +636,32 @@ class _VehicleBiFunnel extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+String _vehicleBiHourRangeLabel(int hour) {
+  final start = hour.toString().padLeft(2, '0');
+  final end = ((hour + 1) % 24).toString().padLeft(2, '0');
+  return '$start:00-$end:00';
+}
+
+String _vehicleBiUtcLabel(DateTime value) {
+  final utc = value.toUtc();
+  final hour = utc.hour.toString().padLeft(2, '0');
+  final minute = utc.minute.toString().padLeft(2, '0');
+  return '$hour:$minute UTC';
+}
+
+Color _vehicleBiExceptionAccent(String statusLabel) {
+  switch (statusLabel.trim().toUpperCase()) {
+    case 'RESOLVED':
+    case 'CLEARED':
+      return const Color(0xFF10B981);
+    case 'WATCH':
+    case 'PENDING':
+      return const Color(0xFFF59E0B);
+    default:
+      return const Color(0xFFEF4444);
   }
 }
 

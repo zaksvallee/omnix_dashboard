@@ -11891,7 +11891,9 @@ class _GovernancePageState extends State<GovernancePage> {
             const SizedBox(height: 8),
             Expanded(
               child: VehicleBiDashboardPanel(
-                throughput: report.vehicleThroughput,
+                throughput: report.vehicleThroughput.copyWith(
+                  exceptionVisits: report.vehicleExceptionVisits,
+                ),
                 scopeLabel: '${report.reportDate} • ${report.vehiclePeakHourLabel}',
               ),
             ),

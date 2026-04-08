@@ -1986,7 +1986,7 @@ void main() {
         pdpExpired: 0,
         totalBlocked: 0,
       ),
-      vehicleThroughput: const SovereignReportVehicleThroughput(
+      vehicleThroughput: SovereignReportVehicleThroughput(
         totalVisits: 24,
         entryCount: 24,
         serviceCount: 18,
@@ -2006,6 +2006,21 @@ void main() {
         summaryLine:
             'Visits 24 • Entry 24 • Completed 16 • Active 6 • Incomplete 2 • Unique 20 • Repeat 5',
         hourlyBreakdown: <int, int>{8: 4, 9: 7, 10: 8, 11: 5},
+        exceptionVisits: [
+          SovereignReportVehicleVisitException(
+            clientId: 'CLIENT-1',
+            siteId: 'SITE-42',
+            vehicleLabel: 'GP 87421',
+            statusLabel: 'WATCH',
+            reasonLabel: 'After-hours loitering',
+            workflowSummary: 'ENTRY -> EXIT LANE (WATCH)',
+            primaryEventId: 'INT-GOV-BI-1',
+            startedAtUtc: DateTime.utc(2026, 3, 10, 10, 2),
+            lastSeenAtUtc: DateTime.utc(2026, 3, 10, 10, 28),
+            dwellMinutes: 26,
+            zoneLabels: <String>['Delivery Bay', 'Exit Lane'],
+          ),
+        ],
       ),
     );
 
@@ -2034,7 +2049,10 @@ void main() {
     expect(find.text('VEHICLE BI DASHBOARD'), findsOneWidget);
     expect(find.text('Vehicle BI dashboard'), findsOneWidget);
     expect(find.text('25.0%'), findsOneWidget);
+    expect(find.text('Peak hour: 10:00-11:00 • 8 visits'), findsOneWidget);
+    expect(find.text('After-hours loitering'), findsOneWidget);
     expect(find.byKey(const ValueKey('vehicle-bi-hour-bar-10')), findsOneWidget);
+    expect(find.byKey(const ValueKey('vehicle-bi-peak-badge-10')), findsOneWidget);
     expect(find.byKey(const ValueKey('vehicle-bi-funnel-service')), findsOneWidget);
   });
 
