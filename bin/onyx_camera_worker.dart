@@ -13,18 +13,20 @@
 //   ONYX_HIK_PASSWORD             Camera password — REQUIRED, no default
 //   ONYX_HIK_KNOWN_FAULT_CHANNELS Comma-separated fault channel IDs (default: 11)
 //   ONYX_SUPABASE_URL             Supabase project URL
-//   ONYX_SUPABASE_ANON_KEY        Supabase anon key
-//   ONYX_SUPABASE_SERVICE_KEY     Supabase service key (bypasses RLS — preferred)
+//   ONYX_SUPABASE_SERVICE_KEY     Supabase service role key (bypasses RLS — preferred)
+//   SUPABASE_ANON_KEY             Supabase anon key (fallback if service key absent)
 //   ONYX_CLIENT_ID                Client ID (default: CLIENT-MS-VALLEE)
 //   ONYX_SITE_ID                  Site ID (default: SITE-MS-VALLEE-RESIDENCE)
 
 import 'dart:io';
 
+import 'package:supabase/supabase.dart';
+
 import 'package:omnix_dashboard/application/site_awareness/onyx_hik_isapi_stream_awareness_service.dart';
 import 'package:omnix_dashboard/application/site_awareness/onyx_site_awareness_repository.dart';
 import 'package:omnix_dashboard/application/site_awareness/onyx_site_awareness_snapshot.dart';
 
-// Config read from dart-define at compile time (safe for non-secrets).
+// Non-secret config baked in at compile time via dart-define.
 const String _defaultHost = String.fromEnvironment(
   'ONYX_HIK_HOST',
   defaultValue: '192.168.0.117',
@@ -49,13 +51,6 @@ const String _defaultSiteId = String.fromEnvironment(
   'ONYX_SITE_ID',
   defaultValue: 'SITE-MS-VALLEE-RESIDENCE',
 );
-const String _supabaseUrl = String.fromEnvironment('ONYX_SUPABASE_URL');
-const String _supabaseAnonKey = String.fromEnvironment(
-  'ONYX_SUPABASE_ANON_KEY',
-);
-const String _supabaseServiceKey = String.fromEnvironment(
-  'ONYX_SUPABASE_SERVICE_KEY',
-);
 
 Future<void> main() async {
   // Password must come from the runtime environment — never compiled in.
@@ -71,9 +66,8 @@ Future<void> main() async {
   }
 
   final host = Platform.environment['ONYX_HIK_HOST'] ?? _defaultHost;
-  final port = int.tryParse(
-        Platform.environment['ONYX_HIK_PORT'] ?? '',
-      ) ??
+  final port =
+      int.tryParse(Platform.environment['ONYX_HIK_PORT'] ?? '') ??
       _defaultPort;
   final username =
       Platform.environment['ONYX_HIK_USERNAME'] ?? _defaultUsername;
@@ -90,26 +84,31 @@ Future<void> main() async {
       .where((s) => s.isNotEmpty)
       .toList(growable: false);
 
-  final supabaseUrl =
-      Platform.environment['ONYX_SUPABASE_URL'] ?? _supabaseUrl;
-  final supabaseAnonKey =
-      Platform.environment['ONYX_SUPABASE_ANON_KEY'] ?? _supabaseAnonKey;
-  final supabaseServiceKey =
-      Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? _supabaseServiceKey;
+  // Build Supabase client using pure Dart package (no Flutter dependency).
+  // Service key is preferred — it bypasses RLS for server-side writes.
+  final supabaseUrl = Platform.environment['ONYX_SUPABASE_URL'] ?? '';
+  final serviceKey = Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '';
+  final anonKey = Platform.environment['SUPABASE_ANON_KEY'] ?? '';
+  final supabaseKey = serviceKey.isNotEmpty ? serviceKey : anonKey;
+
+  OnyxSiteAwarenessRepository? repository;
+  if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
+    final supabaseClient = SupabaseClient(supabaseUrl, supabaseKey);
+    repository = OnyxSiteAwarenessRepository(supabaseClient);
+    stdout.writeln(
+      '[ONYX] Supabase: $supabaseUrl '
+      '(${serviceKey.isNotEmpty ? 'service key' : 'anon key'})',
+    );
+  } else {
+    stdout.writeln(
+      '[ONYX] Supabase: not configured — snapshot persistence disabled.',
+    );
+  }
 
   stdout.writeln('[ONYX] Camera worker starting.');
   stdout.writeln('[ONYX] Target: $host:$port  user=$username');
   stdout.writeln('[ONYX] Scope:  client=$clientId  site=$siteId');
   stdout.writeln('[ONYX] Fault channels: ${knownFaultChannels.join(', ')}');
-  stdout.writeln(
-    '[ONYX] Supabase: ${supabaseUrl.isNotEmpty ? supabaseUrl : '(not configured — persistence disabled)'}',
-  );
-
-  final repository = OnyxSiteAwarenessRepository(
-    supabaseUrl: supabaseUrl,
-    anonKey: supabaseAnonKey,
-    serviceKey: supabaseServiceKey,
-  );
 
   final service = OnyxHikIsapiStreamAwarenessService(
     host: host,
@@ -120,7 +119,7 @@ Future<void> main() async {
     repository: repository,
   );
 
-  // Subscribe to snapshots before starting so no events are missed.
+  // Subscribe before starting so no events are missed.
   final subscription = service.snapshots.listen(
     (snapshot) {
       try {
@@ -150,7 +149,7 @@ Future<void> main() async {
     exit(0);
   });
 
-  // Keep the process alive — the service runs its own connection loop.
+  // Keep the process alive — the service owns its own connection/retry loop.
   await Future<Never>.delayed(const Duration(days: 365 * 100));
 }
 
@@ -180,8 +179,7 @@ void _printSnapshot(OnyxSiteAwarenessSnapshot snapshot) {
     channelParts.add('CH$channelId: $statusLabel$faultTag');
   }
 
-  final perimeterLabel =
-      snapshot.perimeterClear ? 'clear' : 'BREACHED';
+  final perimeterLabel = snapshot.perimeterClear ? 'clear' : 'BREACHED';
   final d = snapshot.detections;
   final detectLabel =
       'humans:${d.humanCount} vehicles:${d.vehicleCount} animals:${d.animalCount}';
