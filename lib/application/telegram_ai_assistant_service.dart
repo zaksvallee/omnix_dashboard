@@ -84,6 +84,7 @@ abstract class TelegramAiAssistantService {
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    String? siteAwarenessContext,
   });
 }
 
@@ -108,6 +109,7 @@ class UnconfiguredTelegramAiAssistantService
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    String? siteAwarenessContext,
   }) async {
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
     return TelegramAiDraftReply(
@@ -162,6 +164,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    String? siteAwarenessContext,
   }) async {
     final cleaned = messageText.trim();
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
@@ -220,6 +223,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
                         learnedReplyStyleTags: learnedReplyStyleTags,
                         recentConversationTurns: recentConversationTurns,
                         cameraHealthFactPacket: cameraHealthFactPacket,
+                        siteAwarenessContext: siteAwarenessContext,
                       ),
                     },
                   ],
@@ -368,6 +372,7 @@ class OnyxFirstTelegramAiAssistantService
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    String? siteAwarenessContext,
   }) async {
     final cleaned = messageText.trim();
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
@@ -399,6 +404,7 @@ class OnyxFirstTelegramAiAssistantService
       learnedReplyStyleTags: learnedReplyStyleTags,
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessContext: siteAwarenessContext,
     );
     final contextSummary = _telegramAssistantOnyxContextSummary(
       audience: audience,
@@ -461,6 +467,7 @@ class OnyxFirstTelegramAiAssistantService
           learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
           cameraHealthFactPacket: cameraHealthFactPacket,
+          siteAwarenessContext: siteAwarenessContext,
         );
       } catch (error, stackTrace) {
         developer.log(
@@ -521,6 +528,7 @@ class OnyxFirstTelegramAiAssistantService
       learnedReplyStyleTags: learnedReplyStyleTags,
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessContext: siteAwarenessContext,
     );
   }
 }
@@ -537,6 +545,7 @@ String _telegramAssistantSystemPrompt({
   List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
   ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  String? siteAwarenessContext,
 }) {
   final recentContext = _recentConversationContextSnippet(
     recentConversationTurns,
@@ -572,6 +581,7 @@ String _telegramAssistantSystemPrompt({
           '4) If context is missing, ask for one clarifying detail only.\n'
           '5) Plain text only. No markdown tables, bullets, or internal secrets.\n'
           '$cameraHealthSnippet'
+          '${siteAwarenessContext != null && siteAwarenessContext.trim().isNotEmpty ? 'Site awareness snapshot:\n$siteAwarenessContext\n' : ''}'
           'Recent lane context:\n'
           '$recentContext';
     case TelegramAiAudience.client:
@@ -644,6 +654,9 @@ String _telegramAssistantSystemPrompt({
           'Learned strong reply examples:\n$learnedExamplesSnippet\nThese worked well in this lane before.',
         if (cameraHealthSnippet.isNotEmpty)
           'INTERNAL STATUS FACTS (do not quote raw labels or internal jargon verbatim):\n$cameraHealthSnippet',
+        if (siteAwarenessContext != null &&
+            siteAwarenessContext.trim().isNotEmpty)
+          'SITE AWARENESS (live camera/sensor snapshot — use to inform replies, do not quote raw labels verbatim):\n$siteAwarenessContext',
       ];
       final additionalContext = additionalContextBlocks.join('\n\n');
       return 'You are ONYX, an AI-powered security intelligence system. You communicate directly with property owners and clients on behalf of their security monitoring service.\n\n'
@@ -949,6 +962,7 @@ String _telegramAssistantOnyxPrompt({
   List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
   ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  String? siteAwarenessContext,
 }) {
   final sharedPrompt = _telegramAssistantSystemPrompt(
     audience: audience,
@@ -962,6 +976,7 @@ String _telegramAssistantOnyxPrompt({
     learnedReplyStyleTags: learnedReplyStyleTags,
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessContext: siteAwarenessContext,
   );
   final audienceLabel = audience == TelegramAiAudience.admin
       ? 'admin'

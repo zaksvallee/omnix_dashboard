@@ -14868,6 +14868,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       siteId: siteId,
       selectedExamples: aiContext.preferredReplyExamples,
     );
+    String? siteAwarenessContext;
+    if (widget.supabaseReady) {
+      try {
+        final rows = await Supabase.instance.client
+            .from('site_awareness_snapshots')
+            .select()
+            .eq('site_id', siteId)
+            .limit(1);
+        if (rows.isNotEmpty) {
+          siteAwarenessContext = _formatSiteAwarenessSnapshot(rows.first);
+        }
+      } catch (_) {}
+    }
     final aiDraft = await _telegramAiAssistant.draftReply(
       audience: TelegramAiAudience.client,
       messageText: update.text,
@@ -14883,6 +14896,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       learnedReplyStyleTags: aiContext.learnedReplyStyleTags,
       recentConversationTurns: aiContext.recentConversationTurns,
       cameraHealthFactPacket: aiContext.cameraHealthFactPacket,
+      siteAwarenessContext: siteAwarenessContext,
     );
     if (_telegramAiApprovalRequired && canNotifyAdmin) {
       final pending = _TelegramAiPendingDraft(
@@ -35625,4 +35639,58 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
   }
+}
+
+/// Formats a raw `site_awareness_snapshots` row into a compact text block
+/// suitable for injection into the Telegram AI system prompt.
+String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
+  final snapshotAt = row['snapshot_at'] as String? ?? '';
+  final perimeterClear = row['perimeter_clear'];
+  final knownFaults = row['known_faults'];
+  final detections = row['detections'];
+
+  final lines = <String>[];
+  if (snapshotAt.isNotEmpty) {
+    lines.add('snapshot_at: $snapshotAt');
+  }
+  lines.add(
+    'perimeter: ${perimeterClear == true ? 'clear' : 'BREACHED'}',
+  );
+
+  if (detections is Map) {
+    final humans = detections['human_count'] ?? detections['humanCount'] ?? 0;
+    final vehicles =
+        detections['vehicle_count'] ?? detections['vehicleCount'] ?? 0;
+    final animals =
+        detections['animal_count'] ?? detections['animalCount'] ?? 0;
+    lines.add(
+      'detections: humans=$humans vehicles=$vehicles animals=$animals',
+    );
+  }
+
+  if (knownFaults is List && knownFaults.isNotEmpty) {
+    lines.add('known_faults: ${knownFaults.join(', ')}');
+  }
+
+  final channels = row['channels'];
+  if (channels is Map) {
+    final channelLines = <String>[];
+    final sortedKeys = channels.keys.toList(growable: false)
+      ..sort((a, b) => a.toString().compareTo(b.toString()));
+    for (final key in sortedKeys) {
+      final ch = channels[key];
+      if (ch is Map) {
+        final status = ch['status'] ?? 'unknown';
+        final lastEvent = ch['last_event_type'] ?? ch['lastEventType'];
+        final isFault = ch['is_fault'] ?? ch['isFault'] ?? false;
+        final label = lastEvent != null ? '$status ($lastEvent)' : '$status';
+        channelLines.add('CH$key: $label${isFault == true ? ' [fault]' : ''}');
+      }
+    }
+    if (channelLines.isNotEmpty) {
+      lines.add('channels: ${channelLines.join(' | ')}');
+    }
+  }
+
+  return lines.join('\n');
 }
