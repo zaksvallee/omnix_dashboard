@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-08 17:02
-- **Last commit:** feat: ONVIF bridge — discovery, streams, snapshots, PTZ, presets (easy_onvif)
-- **Commit hash:** 2054128
+- **Date:** 2026-04-08 17:40
+- **Last commit:** feat: Dahua camera worker — CGI param API implementation
+- **Commit hash:** 74d0b84
 
 ## Completed (this sprint)
 - [x] Command Center grid polish — layout, sizing, icon, border radius (e23e65a, c1ae4c1)
@@ -28,21 +28,22 @@
 - [x] Telegram assistant P1 — error handling, waterfall fallback, await fix (09e2791)
 - [x] Dispatch mock cleanup — gated behind kDebugMode, proper empty states (12a1cd4)
 - [x] ONVIF bridge — discovery, streams, snapshots, PTZ, presets via easy_onvif (2054128)
-- [x] Agent routing — onyxAgentRoutingTierFor() wired by intent to onyx_agent_page.dart
+- [x] P1 Route labels — already correct in HEAD, no change needed
+- [x] P2 Agent routing — intent-driven default already wired (_resolvePreferredBrainProvider), confirmed
+- [x] Dahua camera worker — CGI param API, 8 tests (feat: Dahua...)
+- [x] Axis camera worker — VAPIX v3, tests (feat: Axis...)
 - [x] Governance badge color — locked to 0xFF60A5FA (resolves P1 audit flag)
 
 ## In progress
-- Nothing in progress. All queued items complete.
+- [ ] Uniview camera worker (Claude Code running)
 
 ## Priority queue (next session)
-- P1: Route naming cleanup — aiQueue labeled 'CCTV', dispatches labeled 'ALARMS'
-- P2: Agent routing UI — intent-based default with operator toggle override
-- P3: Vendor camera TODOs — Dahua, Axis, Uniview writes in onyx_agent_camera_bridge_receiver.dart
-- P4: dispatch_performance_projection.dart — per-contract value, move to client config
+- P1: Uniview camera worker (in flight — Claude Code)
+- P2: dispatch_performance_projection.dart — per-contract value to client config (deferred, contract model not ready)
+- P3: onyx_agent_camera_bridge_receiver.dart Dahua/Axis/Uniview — integration test with real hardware when available
 
 ## Blocked / needs decision
-- [ ] Agent routing UI — wire onyxAgentRoutingTierFor() with operator toggle as override. Insertion point: onyx_agent_page.dart lines 5302–5461. Product decision: intent-driven default or operator-first?
-- [ ] Route naming cleanup — aiQueue='CCTV', dispatches='ALARMS' — cosmetic, defer to post-demo
+- [ ] dispatch_performance_projection.dart — per-contract value, waiting on contract model
 
 ## Audit reports
 - Latest: /claude_review/ — check most recent file
