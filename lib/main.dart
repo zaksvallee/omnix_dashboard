@@ -810,7 +810,17 @@ void main() async {
     );
   }
 
-  runApp(OnyxApp(supabaseReady: supabaseReady));
+  runApp(OnyxApp(
+    supabaseReady: supabaseReady,
+    initialClientLaneClientIdOverride: const String.fromEnvironment(
+      'ONYX_CLIENT_ID',
+      defaultValue: '',
+    ),
+    initialClientLaneSiteIdOverride: const String.fromEnvironment(
+      'ONYX_SITE_ID',
+      defaultValue: '',
+    ),
+  ));
 }
 
 class OnyxApp extends StatefulWidget {
@@ -1294,6 +1304,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   );
   static const _onyxAgentLocalModelEnv = String.fromEnvironment(
     'ONYX_AGENT_LOCAL_MODEL',
+    defaultValue: 'mistral:7b-instruct-q5_K_M',
   );
   static const _onyxAgentLocalEndpointEnv = String.fromEnvironment(
     'ONYX_AGENT_LOCAL_ENDPOINT',
@@ -1423,9 +1434,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final TelegramAiAssistantService _telegramAiAssistant =
       widget.telegramAiAssistantServiceOverride ?? _buildTelegramAiAssistant();
   late final OnyxTelegramOperationalCommandService
-  _onyxTelegramOperationalCommandService = OnyxTelegramOperationalCommandService(
-    now: widget.onyxTelegramOperationalNowOverride ?? DateTime.now,
-  );
+  _onyxTelegramOperationalCommandService =
+      OnyxTelegramOperationalCommandService(
+        now: widget.onyxTelegramOperationalNowOverride ?? DateTime.now,
+      );
   late final MonitoringWatchVisionReviewService _monitoringWatchVisionReview =
       _buildMonitoringWatchVisionReview();
   late final MonitoringYoloDetectionService _monitoringYoloDetection =
@@ -7434,10 +7446,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     String? autoRunKey,
   }) async {
     final nowUtc = DateTime.now().toUtc();
+    final vehicleVisitRepository = _supabaseInitialized
+        ? SupabaseVehicleVisitRepository(client: Supabase.instance.client)
+        : null;
     final service = MorningSovereignReportService(
-      vehicleVisitRepository: SupabaseVehicleVisitRepository(
-        client: Supabase.instance.client,
-      ),
+      vehicleVisitRepository: vehicleVisitRepository,
     );
     final report = _mergeMorningSovereignReportVehicleReviews(
       service.generate(
@@ -7494,6 +7507,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'auto_generated': automated,
       },
     );
+  }
+
+  bool get _supabaseInitialized {
+    try {
+      return Supabase.instance.isInitialized;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _autoSendMorningSiteActivityDigests() async {
@@ -13226,10 +13247,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   String _cameraWorkerVendorKeyForScope(String clientId, String siteId) {
-    final provider = (_dvrScopeForClientSite(clientId, siteId)?.provider ??
-            _dvrProviderEnv)
-        .trim()
-        .toLowerCase();
+    final provider =
+        (_dvrScopeForClientSite(clientId, siteId)?.provider ?? _dvrProviderEnv)
+            .trim()
+            .toLowerCase();
     if (provider.contains('hik')) {
       return 'hikvision';
     }
@@ -18830,15 +18851,23 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   bool _shouldMirrorCriticalTelegramClientReplyToControl(String body) {
-    final normalized = body.trim().toLowerCase();
+    final normalized = body
+        .trim()
+        .toLowerCase()
+        .replaceAll('’', "'")
+        .replaceAll('`', "'");
     if (normalized.isEmpty) {
       return false;
     }
     const commitmentSignals = <String>[
       'i will update you here',
+      "i'll update you here",
       'i will send the next confirmed step',
       'i will share the next confirmed step',
+      "i'll share the next confirmed step",
       'i can prioritise ',
+      'i will prioritise ',
+      "i'll prioritise ",
       'we are checking ',
       'we are actively checking ',
       'we are treating ',
@@ -29440,15 +29469,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (!mounted || _tacticalGuardPositionScopeKey != scopeKey) {
         return;
       }
-      final scopedSites = snapshot.sites.where((site) {
-        if (site.clientId.trim() != clientId.trim()) {
-          return false;
-        }
-        if (siteId.trim().isEmpty) {
-          return true;
-        }
-        return site.id.trim() == siteId.trim();
-      }).toList(growable: false);
+      final scopedSites = snapshot.sites
+          .where((site) {
+            if (site.clientId.trim() != clientId.trim()) {
+              return false;
+            }
+            if (siteId.trim().isEmpty) {
+              return true;
+            }
+            return site.id.trim() == siteId.trim();
+          })
+          .toList(growable: false);
       setState(() {
         _tacticalSiteMarkers = scopedSites;
       });
@@ -33416,6 +33447,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       id: 'live-follow-up-${latest.occurredAt.microsecondsSinceEpoch}',
       author: latest.author,
       body: latest.body,
+      room: latest.roomKey.trim().isEmpty
+          ? latest.viewerRole.trim().toLowerCase() ==
+                    ClientAppViewerRole.control.name
+                ? 'Security Desk'
+                : 'Residents'
+          : latest.roomKey.trim(),
       occurredAtUtc: latest.occurredAt.toUtc(),
       urgent: true,
       suggestedReplyDraft: suggestedReplyDraft,
