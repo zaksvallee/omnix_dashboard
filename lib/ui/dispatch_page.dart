@@ -1069,13 +1069,6 @@ class _DispatchPageState extends State<DispatchPage> {
             header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const OnyxPageHeader(
-                  title: 'Dispatch Board',
-                  subtitle: 'Live alarm monitoring.',
-                  icon: Icons.notifications_active_rounded,
-                  iconColor: Colors.red,
-                ),
-                const SizedBox(height: 8),
                 OnyxStatusBanner(
                   message: totalActiveAlarms > 0
                       ? '$totalActiveAlarms active alarms'

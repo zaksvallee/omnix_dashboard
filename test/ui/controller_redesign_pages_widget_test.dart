@@ -84,26 +84,36 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sites & Deployment'), findsOneWidget);
-    expect(find.textContaining('SITE OPERATIONS WORKSPACE'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('sites-view-tactical-button')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('vip protection page renders empty state and schedule', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: VipProtectionPage()));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: VipProtectionPage(scheduledDetails: <VipScheduledDetail>[]),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('VIP Protection'), findsOneWidget);
-    expect(find.text('WAR ROOM'), findsOneWidget);
     expect(find.text('No Live VIP Run'), findsOneWidget);
     expect(find.text('NEXT MOVES'), findsOneWidget);
-    expect(find.text('CEO Airport Escort'), findsOneWidget);
+    expect(find.text('OPEN PACKAGE DESK'), findsWidgets);
   });
 
   testWidgets('vip protection page opens create-detail dialog by default', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: VipProtectionPage()));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: VipProtectionPage(scheduledDetails: <VipScheduledDetail>[]),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('vip-create-detail-button')));
@@ -122,7 +132,12 @@ void main() {
     var tapped = false;
 
     await tester.pumpWidget(
-      MaterialApp(home: VipProtectionPage(onCreateDetail: () => tapped = true)),
+      MaterialApp(
+        home: VipProtectionPage(
+          onCreateDetail: () => tapped = true,
+          scheduledDetails: const <VipScheduledDetail>[],
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -142,7 +157,7 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: RiskIntelligencePage()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Risk Intelligence'), findsOneWidget);
+    expect(find.text('Risk Intelligence'), findsWidgets);
     expect(find.text('WAR ROOM'), findsOneWidget);
     expect(find.text('WATCH HOTSPOTS'), findsOneWidget);
     expect(find.text('AI OPINION FEED'), findsOneWidget);

@@ -1800,13 +1800,6 @@ class _AdministrationPageState extends State<AdministrationPage> {
             header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const OnyxPageHeader(
-                  title: 'Administration',
-                  subtitle: 'System configuration and admin.',
-                  icon: Icons.settings_rounded,
-                  iconColor: Colors.grey,
-                ),
-                const SizedBox(height: 8),
                 OnyxStatusBanner(
                   message: systemStatus,
                   severity: OnyxSeverity.info,
