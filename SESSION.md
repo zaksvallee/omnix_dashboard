@@ -9,9 +9,10 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-08 17:40
-- **Last commit:** feat: Dahua camera worker — CGI param API implementation
-- **Commit hash:** 74d0b84
+- **Date:** 2026-04-08 17:56
+- **Last commit:** feat: Axis camera worker — VAPIX v3 implementation
+- **Commit hash:** e83c545
+
 
 ## Completed (this sprint)
 - [x] Command Center grid polish — layout, sizing, icon, border radius (e23e65a, c1ae4c1)
