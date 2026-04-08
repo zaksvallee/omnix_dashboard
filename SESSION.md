@@ -9,36 +9,40 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-08 15:52
-- **Last commit:** feat: wire OnyxStatusBanner + OnyxPageHeader across all 13 pages
-- **Commit hash:** e17122f
+- **Date:** 2026-04-08 17:02
+- **Last commit:** feat: ONVIF bridge — discovery, streams, snapshots, PTZ, presets (easy_onvif)
+- **Commit hash:** 2054128
 
 ## Completed (this sprint)
-- [x] Command Center grid polish — layout, sizing, icon, border radius
-- [x] ai_queue_page — shadow sites rebuild, desktopWorkspace layout, selectedFocusId clear
-- [x] Local brain upgrade — ONYX system prompt, smart routing matrix (OnyxAgentRoutingTier)
-- [x] Governance badge color — locked to 0xFF60A5FA (resolves P1 audit flag)
-- [x] P0 demo polish — hardcoded data, fake strings, stale dates, HikConnect defaults
+- [x] Command Center grid polish — layout, sizing, icon, border radius (e23e65a, c1ae4c1)
+- [x] ai_queue_page — shadow sites rebuild, desktopWorkspace layout, selectedFocusId clear (03a0ce4)
+- [x] Local brain upgrade — ONYX system prompt, smart routing matrix (5328538)
+- [x] events_page state mutation + DateTime fix, clients_page hardcoded room (638a6b2)
+- [x] SESSION.md + post-commit hook + three-model workflow established (43a37cc)
 - [x] OnyxStatusBanner + OnyxPageHeader wired across all 13 pages (9748ec6)
-- [x] Agent routing — onyxAgentRoutingTierFor() wired to onyx_agent_page.dart
-- [x] Route label mismatch documented — aiQueue='CCTV', dispatches='ALARMS' (cleanup deferred)
-- [x] JUMP TO QUEUE wired to /ai-queue via onOpenAiQueue callback (e17122f)
+- [x] Duplicate OnyxPageHeader titles fixed — test suite restored to green (095bf92)
+- [x] JUMP TO QUEUE wired to /ai-queue + _generateReport try/finally (e17122f)
+- [x] P0 demo polish — hardcoded data, fake strings, stale dates, HikConnect defaults (4624d76)
+- [x] Tactical map P1 — stable FlutterMap key, GlobalKeys to State, DateTime.now() (4e7a831)
+- [x] BI demo — exceptionVisits panel, peak hour annotation, pharmacy fixture (a4d805a)
+- [x] Telegram assistant P1 — error handling, waterfall fallback, await fix (09e2791)
+- [x] Dispatch mock cleanup — gated behind kDebugMode, proper empty states (12a1cd4)
+- [x] ONVIF bridge — discovery, streams, snapshots, PTZ, presets via easy_onvif (2054128)
+- [x] Agent routing — onyxAgentRoutingTierFor() wired by intent to onyx_agent_page.dart
+- [x] Governance badge color — locked to 0xFF60A5FA (resolves P1 audit flag)
 
 ## In progress
-- [ ] JUMP TO QUEUE wire + _generateReport try/finally (in flight)
+- Nothing in progress. All queued items complete.
 
-## Priority queue (next to action)
-- P0: JUMP TO QUEUE wire + _generateReport (in flight)
-- P1: 226 failing tests — CLIENT-MS-VALLEE IDs + prompt wording
-- P2: Tactical map P1 fixes
-- P3: BI demo fixes
-- P4: Dispatch mock cleanup
-- P5: Telegram assistant P1
-- P6: Camera ONVIF implementation
+## Priority queue (next session)
+- P1: Route naming cleanup — aiQueue labeled 'CCTV', dispatches labeled 'ALARMS'
+- P2: Agent routing UI — intent-based default with operator toggle override
+- P3: Vendor camera TODOs — Dahua, Axis, Uniview writes in onyx_agent_camera_bridge_receiver.dart
+- P4: dispatch_performance_projection.dart — per-contract value, move to client config
 
 ## Blocked / needs decision
-- [ ] Agent routing — wire onyxAgentRoutingTierFor() as intent-based default with operator toggle as override. Requires UI decision on toggle behaviour. Insertion point: onyx_agent_page.dart lines 5302–5461.
-- [ ] Route naming cleanup — aiQueue route labeled 'CCTV', dispatches labeled 'ALARMS' — cosmetic, defer to post-demo
+- [ ] Agent routing UI — wire onyxAgentRoutingTierFor() with operator toggle as override. Insertion point: onyx_agent_page.dart lines 5302–5461. Product decision: intent-driven default or operator-first?
+- [ ] Route naming cleanup — aiQueue='CCTV', dispatches='ALARMS' — cosmetic, defer to post-demo
 
 ## Audit reports
 - Latest: /claude_review/ — check most recent file
@@ -50,6 +54,13 @@
 - Theme: lib/ui/onyx_surface.dart (OnyxPageHeader lives here)
 - Status banner: lib/ui/components/onyx_status_banner.dart
 - AI queue: lib/ui/ai_queue_page.dart
+
+## Health check — 2026-04-08
+- dart analyze: 0 errors · 0 warnings · 0 hints
+- Test suite: 2935 passed · 0 failed (was 2926 at session start, +9 today)
+- Commits today: 15
+- Remaining TODOs in lib/: 4 (all pre-existing, scoped vendor/model items)
+- Unguarded mock data in UI layer: 0
 
 ## Model roles
 - Claude (claude.ai): spec · decisions · verification · SESSION.md authoring
