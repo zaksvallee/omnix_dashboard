@@ -112,6 +112,7 @@ extension _OnyxRouteSystemBuilders on _OnyxAppState {
       onOpenGovernance: _openGovernanceFromAdmin,
       onOpenGovernanceForScope: _openGovernanceForScope,
       onOpenGovernanceForPartnerScope: _openGovernanceForPartnerScope,
+      onOpenAiQueue: _openAiQueueFromAdmin,
       onOpenDispatches: _openDispatchesFromAdmin,
       onOpenDispatchesForScope: _openDispatchesForScope,
       onOpenClientView: _openClientViewFromAdmin,

@@ -894,6 +894,7 @@ class AdministrationPage extends StatefulWidget {
   final void Function(String clientId, String siteId)? onOpenGovernanceForScope;
   final void Function(String clientId, String siteId, String partnerLabel)?
   onOpenGovernanceForPartnerScope;
+  final VoidCallback? onOpenAiQueue;
   final VoidCallback? onOpenDispatches;
   final VoidCallback? onOpenClientView;
   final void Function(String clientId, String siteId)? onOpenClientViewForScope;
@@ -1149,6 +1150,7 @@ class AdministrationPage extends StatefulWidget {
     this.onOpenGovernance,
     this.onOpenGovernanceForScope,
     this.onOpenGovernanceForPartnerScope,
+    this.onOpenAiQueue,
     this.onOpenDispatches,
     this.onOpenClientView,
     this.onOpenClientViewForScope,
@@ -3028,6 +3030,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     );
   }
 
+  // ignore: unused_element
   void _focusClientCommsAuditQueue() {
     if (_activeSystemSection != _AdminSystemSection.aiCommunications) {
       setState(() {
@@ -5263,9 +5266,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           icon: Icons.chat_bubble_outline_rounded,
           accent: const Color(0xFF00D4FF),
           trailing: OutlinedButton(
-            onPressed: widget.telegramAiPendingDrafts.isEmpty
-                ? null
-                : _focusClientCommsAuditQueue,
+            onPressed: widget.onOpenAiQueue,
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF00D4FF),
               side: const BorderSide(color: Color(0xFF245B72)),
