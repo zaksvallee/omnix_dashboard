@@ -503,6 +503,243 @@ void main() {
       expect(postBody, contains('$encWidth=1920'));
     });
   });
+
+  group('AxisOnyxAgentCameraWorker', () {
+    OnyxAgentCameraExecutionRequest axisRequest({
+      String target = '192.168.1.90',
+      String mainStreamLabel = 'H.265 2560x1440 @ 18 fps / 3072 kbps',
+    }) {
+      return OnyxAgentCameraExecutionRequest(
+        packetId: 'CAM-PKT-902',
+        target: target,
+        clientId: 'CLIENT-001',
+        siteId: 'SITE-SANDTON',
+        scopeLabel: 'CLIENT-001 • SITE-SANDTON',
+        incidentReference: 'INC-CTRL-44',
+        sourceRouteLabel: 'AI Queue',
+        approvedAtUtc: DateTime.utc(2026, 3, 29, 9, 0),
+        executionPacket: OnyxAgentCameraExecutionPacket(
+          packetId: 'CAM-PKT-902',
+          target: target,
+          vendorKey: 'axis',
+          vendorLabel: 'Axis',
+          profileKey: 'alarm_verification',
+          profileLabel: 'Alarm Verification',
+          onvifProfileToken: 'onyx-axis-alarm-verification',
+          mainStreamLabel: mainStreamLabel,
+          subStreamLabel: 'H.264 704x480 @ 10 fps / 512 kbps',
+          recorderTarget: 'alarm_review_nvr',
+          rollbackExportLabel: 'rollback-CAM-PKT-902-192-168-1-90.json',
+          credentialHandling: 'Keep device credentials local.',
+          changePlan: const <String>['Apply the approved profile.'],
+          verificationPlan: const <String>['Confirm live view.'],
+          rollbackPlan: const <String>['Restore the previous profile.'],
+        ),
+      );
+    }
+
+    const axisCreds = DvrHttpAuthConfig(
+      mode: DvrHttpAuthMode.digest,
+      username: 'admin',
+      password: 'secret',
+    );
+
+    OnyxAgentCameraBridgeReceiver axisReceiverWith(http.Client client) {
+      return OnyxAgentCameraBridgeReceiver(
+        workers: const <OnyxAgentCameraVendorWorker>[],
+        httpClient: client,
+        resolveCredentials: (_, _) => axisCreds,
+      );
+    }
+
+    test('confirms an Axis change after device verification and read-back',
+        () async {
+      String? postBody;
+      final client = MockClient((request) async {
+        if (request.url.path == '/axis-cgi/basicdeviceinfo.cgi') {
+          return http.Response(
+            '{"apiVersion":"1.0","data":{"propertyList":{"ProdNbr":"P3245-V"}}}',
+            200,
+          );
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'GET') {
+          return http.Response(_axisParamConfig, 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'POST') {
+          postBody = request.body;
+          return http.Response('OK', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await axisReceiverWith(client).execute(axisRequest());
+
+      expect(outcome.success, isTrue);
+      expect(outcome.providerLabel, 'local:camera-worker:axis');
+      expect(outcome.detail, contains('Axis Camera Worker'));
+      expect(outcome.detail, contains('Image.I0'));
+      expect(outcome.remoteExecutionId, contains('worker-axis-image0'));
+      final encRes = Uri.encodeQueryComponent('Image.I0.Resolution');
+      final encFps = Uri.encodeQueryComponent('Image.I0.FPS');
+      expect(postBody, contains('action=update'));
+      expect(postBody, contains('$encRes=2560x1440'));
+      expect(postBody, contains('$encFps=18'));
+    });
+
+    test('returns staging outcome when credentials are not configured',
+        () async {
+      const worker = AxisOnyxAgentCameraWorker(
+        credentials: DvrHttpAuthConfig(mode: DvrHttpAuthMode.none),
+      );
+      final outcome = await worker.execute(axisRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.providerLabel, 'local:camera-worker:axis');
+      expect(outcome.detail, contains('staging mode'));
+    });
+
+    test('returns failure when device info endpoint is unreachable', () async {
+      final client = MockClient((request) async {
+        throw http.ClientException('connection refused', request.url);
+      });
+
+      final outcome = await axisReceiverWith(client).execute(axisRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('failed before the change could be confirmed'));
+    });
+
+    test('returns failure when basicdeviceinfo returns non-200', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/axis-cgi/basicdeviceinfo.cgi') {
+          return http.Response('', 401);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await axisReceiverWith(client).execute(axisRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('device verification failed'));
+      expect(outcome.detail, contains('HTTP 401'));
+    });
+
+    test('returns failure when channel discovery finds no Image.I0', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/axis-cgi/basicdeviceinfo.cgi') {
+          return http.Response('{"data":{}}', 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'GET') {
+          return http.Response('Error=No such group', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await axisReceiverWith(client).execute(axisRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('no writable Image.I0 channel'));
+    });
+
+    test('returns failure when POST write is rejected with non-200', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/axis-cgi/basicdeviceinfo.cgi') {
+          return http.Response('{"data":{}}', 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'GET') {
+          return http.Response(_axisParamConfig, 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'POST') {
+          return http.Response('Access denied', 403);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await axisReceiverWith(client).execute(axisRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('rejected the Image.I0 configuration update'));
+      expect(outcome.detail, contains('HTTP 403'));
+    });
+
+    test('returns failure when POST response is not OK', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/axis-cgi/basicdeviceinfo.cgi') {
+          return http.Response('{"data":{}}', 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'GET') {
+          return http.Response(_axisParamConfig, 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'POST') {
+          return http.Response('Error=unsupported param', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await axisReceiverWith(client).execute(axisRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('did not return OK'));
+    });
+
+    test('returns failure when read-back does not confirm the change', () async {
+      final client = MockClient((request) async {
+        if (request.url.path == '/axis-cgi/basicdeviceinfo.cgi') {
+          return http.Response('{"data":{}}', 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'GET') {
+          return http.Response(_axisParamConfigStale, 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'POST') {
+          return http.Response('OK', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await axisReceiverWith(client).execute(axisRequest());
+
+      expect(outcome.success, isFalse);
+      expect(outcome.detail, contains('did not confirm Alarm Verification'));
+      expect(outcome.detail, contains('Image.I0.Resolution'));
+    });
+
+    test('falls back to default preset when mainStreamLabel is unparseable',
+        () async {
+      String? postBody;
+      final client = MockClient((request) async {
+        if (request.url.path == '/axis-cgi/basicdeviceinfo.cgi') {
+          return http.Response('{"data":{}}', 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'GET') {
+          return http.Response(_axisParamConfigDefault, 200);
+        }
+        if (request.url.path == '/axis-cgi/param.cgi' &&
+            request.method == 'POST') {
+          postBody = request.body;
+          return http.Response('OK', 200);
+        }
+        return http.Response('not found', 404);
+      });
+
+      final outcome = await axisReceiverWith(client).execute(
+        axisRequest(mainStreamLabel: 'no resolution here'),
+      );
+
+      final encRes = Uri.encodeQueryComponent('Image.I0.Resolution');
+      expect(outcome.success, isTrue);
+      expect(postBody, contains('$encRes=1920x1080'));
+    });
+  });
 }
 
 const String _channelListXml = '''
@@ -564,4 +801,27 @@ table.Encode[0].MainFormat[0].Video.Height=1080
 table.Encode[0].MainFormat[0].Video.FPS=15
 table.Encode[0].MainFormat[0].Video.BitRate=2048
 table.Encode[0].MainFormat[0].Video.Compression=H.265
+''';
+
+// ─── Axis fixtures ────────────────────────────────────────────────────────────
+
+// Verified response — values match the 2560x1440@18fps preset.
+const String _axisParamConfig = '''
+root.Image.I0.Resolution=2560x1440
+root.Image.I0.FPS=18
+root.Image.I0.Compression=h265
+''';
+
+// Stale response — old values, will not match 2560x1440@18fps.
+const String _axisParamConfigStale = '''
+root.Image.I0.Resolution=1280x720
+root.Image.I0.FPS=12
+root.Image.I0.Compression=h264
+''';
+
+// Default response — values match 1920x1080@15fps fallback preset.
+const String _axisParamConfigDefault = '''
+root.Image.I0.Resolution=1920x1080
+root.Image.I0.FPS=15
+root.Image.I0.Compression=h265
 ''';

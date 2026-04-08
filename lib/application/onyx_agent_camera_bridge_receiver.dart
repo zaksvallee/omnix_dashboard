@@ -642,15 +642,195 @@ class AxisOnyxAgentCameraWorker extends _CredentialReadyOnyxAgentCameraWorker {
     OnyxAgentCameraExecutionRequest request,
   ) async {
     final packet = request.executionPacket;
-    // TODO(zaks): Implement Axis vendor API writes once the ONYX camera worker
-    // contract includes the exact stream-group payload needed for Axis devices.
-    return stagingOutcome(
+    if (stagingMode) {
+      return stagingOutcome(
+        request,
+        detail:
+            'Camera control in staging mode. Configure Axis digest credentials for ${request.scopeLabel} before approving live camera changes.',
+        recommendedNextStep:
+            'Add the site camera credentials, then retry the approved packet after verifying the target device path.',
+      );
+    }
+    final client = httpClient;
+    if (client == null) {
+      return _axisFailure(
+        request,
+        detail: 'The Axis HTTP client is not wired for this runtime.',
+        recommendedNextStep:
+            'Restore the embedded camera bridge runtime before attempting a live Axis write.',
+      );
+    }
+
+    final targetBaseUri = _deviceBaseUri(request.target);
+    if (targetBaseUri == null) {
+      return _axisFailure(
+        request,
+        detail:
+            'The target "${request.target}" is not a valid Axis host or URL.',
+        recommendedNextStep:
+            'Restage the packet with a valid camera host or full device URL before retrying the live change.',
+      );
+    }
+
+    try {
+      // Step 1 — Verify device is reachable.
+      final deviceInfoUri = targetBaseUri.replace(
+        path: '/axis-cgi/basicdeviceinfo.cgi',
+      );
+      final deviceInfoResponse = await credentials.get(
+        client,
+        deviceInfoUri,
+        headers: const <String, String>{
+          'Accept': 'application/json',
+        },
+      );
+      if (!_isSuccess(deviceInfoResponse.statusCode) ||
+          deviceInfoResponse.body.trim().isEmpty) {
+        return _axisHttpFailure(
+          request,
+          response: deviceInfoResponse,
+          detail:
+              'Axis device verification failed at /axis-cgi/basicdeviceinfo.cgi.',
+        );
+      }
+
+      // Step 2 — Channel discovery: confirm Image.I0 exists.
+      final paramUri = targetBaseUri.replace(
+        path: '/axis-cgi/param.cgi',
+        query: 'action=list&group=Image.I0',
+      );
+      final discoverResponse = await credentials.get(client, paramUri);
+      if (!_isSuccess(discoverResponse.statusCode)) {
+        return _axisHttpFailure(
+          request,
+          response: discoverResponse,
+          detail:
+              'Axis channel discovery failed at /axis-cgi/param.cgi for Image.I0.',
+        );
+      }
+      if (!_axisChannelExists(discoverResponse.body)) {
+        return _axisFailure(
+          request,
+          detail:
+              'Axis returned no writable Image.I0 channel for ${request.target}.',
+          recommendedNextStep:
+              'Confirm the device exposes Image.I0 via param.cgi and restage the change against the correct host.',
+        );
+      }
+
+      // Step 3 — Read current config (same endpoint, already have it from step 2).
+      final currentConfig = discoverResponse.body;
+
+      // Step 4 — Write preset via form-encoded POST.
+      final preset = _desiredAxisPreset(packet.mainStreamLabel);
+      final paramBody = _buildAxisParams(preset);
+      final writeUri = targetBaseUri.replace(path: '/axis-cgi/param.cgi');
+      final postResponse = await http.Response.fromStream(
+        await credentials.send(
+          client,
+          'POST',
+          writeUri,
+          headers: const <String, String>{
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: paramBody,
+        ),
+      );
+      if (!_isSuccess(postResponse.statusCode)) {
+        return _axisHttpFailure(
+          request,
+          response: postResponse,
+          detail: 'Axis rejected the Image.I0 configuration update.',
+        );
+      }
+      if (!_axisWriteAccepted(postResponse.body)) {
+        return _axisFailure(
+          request,
+          detail:
+              'Axis did not return OK for the Image.I0 update. Response: ${_collapsed(postResponse.body)}.',
+          recommendedNextStep:
+              'Inspect the device response, confirm the parameter names are supported on this firmware, and retry.',
+        );
+      }
+
+      // Step 5 — Read-back verification.
+      final verifyResponse = await credentials.get(client, paramUri);
+      if (!_isSuccess(verifyResponse.statusCode)) {
+        return _axisHttpFailure(
+          request,
+          response: verifyResponse,
+          detail:
+              'Axis did not return a readable confirmation for Image.I0 after the update.',
+        );
+      }
+      final mismatches = _verifyAxisConfig(verifyResponse.body, preset);
+      if (mismatches.isNotEmpty) {
+        return _axisFailure(
+          request,
+          detail:
+              'Axis Image.I0 did not confirm ${packet.profileLabel}. Read-back mismatches: ${mismatches.join(', ')}.',
+          recommendedNextStep:
+              'Keep the incident open, inspect the live device settings, and retry only after confirming which fields the device accepts.',
+        );
+      }
+
+      // currentConfig baseline captured — reserved for future diff logging.
+      assert(currentConfig.isNotEmpty);
+      return OnyxAgentCameraExecutionOutcome(
+        success: true,
+        providerLabel: 'local:camera-worker:axis',
+        detail:
+            '$workerLabel confirmed ${packet.profileLabel} on Image.I0 after device verification, channel discovery, live write, and read-back validation.',
+        recommendedNextStep:
+            'Confirm live view, analytics overlays, and ${packet.recorderTarget} ingest before closing the packet. Keep ${packet.rollbackExportLabel} attached for rollback.',
+        remoteExecutionId: 'worker-axis-image0-${request.packetId}',
+        recordedAtUtc: DateTime.now().toUtc(),
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Axis camera control failed.',
+        name: 'OnyxAxisCameraWorker',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return _axisFailure(
+        request,
+        detail:
+            'Axis camera control failed before the change could be confirmed: ${error.toString().trim().isEmpty ? error.runtimeType : error.toString().trim()}.',
+        recommendedNextStep:
+            'Confirm the target is reachable on the LAN, validate credentials, and retry only after the device path responds cleanly.',
+      );
+    }
+  }
+
+  OnyxAgentCameraExecutionOutcome _axisHttpFailure(
+    OnyxAgentCameraExecutionRequest request, {
+    required http.Response response,
+    required String detail,
+  }) {
+    final responseDetail = response.body.trim().isEmpty
+        ? 'No response body returned.'
+        : _collapsed(response.body);
+    return _axisFailure(
       request,
-      detail: stagingMode
-          ? 'Camera control in staging mode. Axis credentials are not configured for ${request.scopeLabel}.'
-          : '$workerLabel is credential-ready, but Axis vendor API writes are still staged in this release.',
+      detail: '$detail HTTP ${response.statusCode}. $responseDetail',
       recommendedNextStep:
-          'Validate the feed manually, keep ${packet.rollbackExportLabel} attached, and use the Axis console until the vendor worker is implemented.',
+          'Confirm device credentials and channel permissions, then retry the packet after the Axis endpoint responds cleanly.',
+    );
+  }
+
+  OnyxAgentCameraExecutionOutcome _axisFailure(
+    OnyxAgentCameraExecutionRequest request, {
+    required String detail,
+    required String recommendedNextStep,
+  }) {
+    return OnyxAgentCameraExecutionOutcome(
+      success: false,
+      providerLabel: 'local:camera-worker:axis',
+      detail: detail,
+      recommendedNextStep: recommendedNextStep,
+      remoteExecutionId: 'worker-axis-${request.packetId}',
+      recordedAtUtc: DateTime.now().toUtc(),
     );
   }
 }
@@ -898,6 +1078,81 @@ List<String> _verifyDahuaConfig(String body, _DahuaPreset preset) {
     final escapedKey = RegExp.escape(key);
     final match = RegExp(
       r'(?:^|\n)\s*(?:table\.)?' + escapedKey + r'\s*=\s*([^\r\n]+)',
+      caseSensitive: false,
+      multiLine: true,
+    ).firstMatch(body);
+    final actual = match?.group(1)?.trim() ?? '';
+    if (actual != expected) {
+      mismatches.add('$key=$actual (expected $expected)');
+    }
+  });
+  return mismatches;
+}
+
+// ─── Axis helpers ─────────────────────────────────────────────────────────────
+
+bool _axisChannelExists(String body) {
+  return body.trim().isNotEmpty &&
+      body.toLowerCase().contains('image.i0') &&
+      !body.toLowerCase().startsWith('error');
+}
+
+/// Returns true when the Axis param.cgi POST response signals success.
+/// VAPIX returns the plain text string "OK" (case-insensitive) on success.
+bool _axisWriteAccepted(String body) {
+  return body.trim().toLowerCase() == 'ok';
+}
+
+class _AxisPreset {
+  final String resolution; // e.g. '1920x1080'
+  final String fps;        // e.g. '15'
+
+  const _AxisPreset({required this.resolution, required this.fps});
+}
+
+_AxisPreset _desiredAxisPreset(String mainStreamLabel) {
+  final match = RegExp(
+    r'(\d+)x(\d+)\s*@\s*(\d+)\s*fps',
+    caseSensitive: false,
+  ).firstMatch(mainStreamLabel);
+  if (match == null) {
+    return const _AxisPreset(resolution: '1920x1080', fps: '15');
+  }
+  return _AxisPreset(
+    resolution: '${match.group(1)!.trim()}x${match.group(2)!.trim()}',
+    fps: match.group(3)!.trim(),
+  );
+}
+
+/// Builds an `application/x-www-form-urlencoded` body for Axis VAPIX
+/// param.cgi update targeting Image.I0.
+String _buildAxisParams(_AxisPreset preset) {
+  final params = <String, String>{
+    'action': 'update',
+    'Image.I0.Resolution': preset.resolution,
+    'Image.I0.FPS': preset.fps,
+  };
+  return params.entries
+      .map(
+        (e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}',
+      )
+      .join('&');
+}
+
+/// Verifies that the Axis param.cgi list response contains the expected
+/// preset values. Returns a list of mismatch descriptions (empty = confirmed).
+/// Response lines look like: root.Image.I0.Resolution=1920x1080
+List<String> _verifyAxisConfig(String body, _AxisPreset preset) {
+  final mismatches = <String>[];
+  final fields = <String, String>{
+    'Image.I0.Resolution': preset.resolution,
+    'Image.I0.FPS': preset.fps,
+  };
+  fields.forEach((key, expected) {
+    final escapedKey = RegExp.escape(key);
+    final match = RegExp(
+      r'(?:^|\n)\s*(?:root\.)?' + escapedKey + r'\s*=\s*([^\r\n]+)',
       caseSensitive: false,
       multiLine: true,
     ).firstMatch(body);
