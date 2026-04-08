@@ -150,7 +150,7 @@ Future<void> main() async {
   });
 
   // Keep the process alive — the service owns its own connection/retry loop.
-  await Future<Never>.delayed(const Duration(days: 365 * 100));
+  await Future<void>.delayed(const Duration(days: 36500));
 }
 
 /// Prints a one-line summary of [snapshot] to stdout.
