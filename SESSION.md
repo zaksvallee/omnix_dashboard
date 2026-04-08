@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-08 21:56
-- **Last commit:** fix: status quick action — read live site awareness from Supabase instead of hardcoded response
-- **Commit hash:** 7020f14
+- **Date:** 2026-04-08 23:27
+- **Last commit:** fix: site awareness query — use service key directly, bypass anon key 401
+- **Commit hash:** a9ce286
 
 
 ## Completed (this sprint)
@@ -34,12 +34,18 @@
 - [x] Dahua camera worker — CGI param API, 8 tests (feat: Dahua...)
 - [x] Axis camera worker — VAPIX v3, tests (feat: Axis...)
 - [x] Governance badge color — locked to 0xFF60A5FA (resolves P1 audit flag)
+- [x] Telegram MS Valee Residence — diagnosed and fixed (RLS, chat ID, boot grace period, stale reports)
+- [x] Hikvision ISAPI event stream — live, human detection working on CH5/CH16
+- [x] Site awareness service — Hikvision ISAPI stream, snapshot model, Supabase repository
+- [x] Camera worker CLI — standalone dart process, launch script
+- [x] Vendor cameras — Dahua, Axis, Uniview workers implemented
+- [x] ONVIF bridge — discovery, streams, snapshots, PTZ, presets
 
 ## In progress
-- [ ] Uniview camera worker (Claude Code running)
+- [ ] Site awareness → Telegram pipeline — camera worker running, snapshots not persisting due to invalid service role key in config
 
 ## Priority queue (next session)
-- P1: Uniview camera worker (in flight — Claude Code)
+- P0: Fix ONYX_SUPABASE_SERVICE_KEY in config/onyx.local.json — get correct service_role key from Supabase dashboard → Project Settings → API → service_role secret. Then restart camera worker + Flutter app. Pipeline will be live immediately after.
 - P2: dispatch_performance_projection.dart — per-contract value to client config (deferred, contract model not ready)
 - P3: onyx_agent_camera_bridge_receiver.dart Dahua/Axis/Uniview — integration test with real hardware when available
 
