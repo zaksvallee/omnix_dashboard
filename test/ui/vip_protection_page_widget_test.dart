@@ -3,6 +3,32 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:omnix_dashboard/ui/vip_protection_page.dart';
 
+const _scheduledDetail = VipScheduledDetail(
+  title: 'Executive Escort',
+  subtitle: 'HQ -> Operations Hub',
+  badgeLabel: 'LIVE',
+  badgeBackground: Color(0x1A22D3EE),
+  badgeForeground: Color(0xFF7DDCFF),
+  badgeBorder: Color(0x5522D3EE),
+  facts: <VipDetailFact>[
+    VipDetailFact(
+      icon: Icons.schedule_rounded,
+      title: 'Time window',
+      label: '09:00 - 11:00',
+    ),
+    VipDetailFact(
+      icon: Icons.groups_rounded,
+      title: 'Detail team',
+      label: '2 Officers',
+    ),
+    VipDetailFact(
+      icon: Icons.place_outlined,
+      title: 'Route plan',
+      label: '18km route',
+    ),
+  ],
+);
+
 void main() {
   testWidgets('vip protection page opens create detail dialog', (tester) async {
     await tester.pumpWidget(
@@ -67,14 +93,20 @@ void main() {
   });
 
   testWidgets('vip schedule cards open their review dialog', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: VipProtectionPage()));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: VipProtectionPage(
+          scheduledDetails: <VipScheduledDetail>[_scheduledDetail],
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
+      find.byKey(const ValueKey('vip-schedule-executive-escort')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
+      find.byKey(const ValueKey('vip-schedule-executive-escort')),
     );
     await tester.pumpAndSettle();
 
@@ -85,14 +117,14 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('vip-schedule-detail-dialog')),
-        matching: find.text('CEO Airport Escort'),
+        matching: find.text('Executive Escort'),
       ),
       findsOneWidget,
     );
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('vip-schedule-detail-dialog')),
-        matching: find.text('45km route'),
+        matching: find.text('18km route'),
       ),
       findsOneWidget,
     );
@@ -115,6 +147,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: VipProtectionPage(
+            scheduledDetails: const <VipScheduledDetail>[_scheduledDetail],
             onReviewScheduledDetail: (detail) {
               reviewed = detail;
             },
@@ -124,15 +157,15 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.ensureVisible(
-        find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
+        find.byKey(const ValueKey('vip-schedule-executive-escort')),
       );
       await tester.tap(
-        find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
+        find.byKey(const ValueKey('vip-schedule-executive-escort')),
       );
       await tester.pumpAndSettle();
 
       expect(reviewed, isNotNull);
-      expect(reviewed!.title, 'CEO Airport Escort');
+      expect(reviewed!.title, 'Executive Escort');
       expect(
         find.byKey(const ValueKey('vip-schedule-detail-dialog')),
         findsNothing,
@@ -161,7 +194,13 @@ void main() {
   testWidgets(
     'vip protection page hides board-clear empty state when scheduled details exist',
     (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: VipProtectionPage()));
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: VipProtectionPage(
+            scheduledDetails: <VipScheduledDetail>[_scheduledDetail],
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('vip-empty-state')), findsNothing);
@@ -172,17 +211,23 @@ void main() {
   testWidgets('vip schedule dialog uses detail badge label and fact titles', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: VipProtectionPage()));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: VipProtectionPage(
+          scheduledDetails: <VipScheduledDetail>[_scheduledDetail],
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('YOU NEXT'), findsNothing);
-    expect(find.text('TOMORROW'), findsAtLeastNWidgets(2));
+    expect(find.text('LIVE'), findsOneWidget);
 
     await tester.ensureVisible(
-      find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
+      find.byKey(const ValueKey('vip-schedule-executive-escort')),
     );
     await tester.tap(
-      find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
+      find.byKey(const ValueKey('vip-schedule-executive-escort')),
     );
     await tester.pumpAndSettle();
 

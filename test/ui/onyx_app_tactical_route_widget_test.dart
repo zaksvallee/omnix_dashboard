@@ -129,9 +129,9 @@ void main() {
         initialRouteOverride: OnyxRoute.tactical,
         dvrScopeConfigsOverride: [
           DvrScopeConfig(
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
             provider: 'monitor_only_dvr',
             eventsUri: Uri.parse('https://edge.example.com/events'),
             authMode: 'bearer',
@@ -147,9 +147,9 @@ void main() {
             version: 1,
             occurredAt: _tacticalScenarioOccurredAtUtc(10),
             dispatchId: 'DSP-TRACK-77',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
           ),
           IntelligenceReceived(
             eventId: 'intel-track-hero',
@@ -164,9 +164,9 @@ void main() {
             headline: 'Track handoff route',
             summary:
                 'Tactical command should escalate the active scoped incident into Agent.',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
             canonicalHash: 'canon-track-hero',
           ),
         ],
@@ -191,11 +191,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -217,9 +217,9 @@ void main() {
         initialRouteOverride: OnyxRoute.tactical,
         dvrScopeConfigsOverride: [
           DvrScopeConfig(
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
             provider: 'monitor_only_dvr',
             eventsUri: Uri.parse('https://edge.example.com/events'),
             authMode: 'bearer',
@@ -235,9 +235,9 @@ void main() {
             version: 1,
             occurredAt: _tacticalScenarioOccurredAtUtc(10),
             dispatchId: 'DSP-TRACK-66',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
           ),
           IntelligenceReceived(
             eventId: 'intel-track-dispatch-map',
@@ -252,9 +252,9 @@ void main() {
             headline: 'Track dispatch map route',
             summary:
                 'Detailed tactical map focus should hand the scoped incident into dispatches.',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
             canonicalHash: 'canon-track-dispatch-map',
           ),
         ],
@@ -292,9 +292,9 @@ void main() {
         initialRouteOverride: OnyxRoute.tactical,
         dvrScopeConfigsOverride: [
           DvrScopeConfig(
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
             provider: 'monitor_only_dvr',
             eventsUri: Uri.parse('https://edge.example.com/events'),
             authMode: 'bearer',
@@ -310,9 +310,9 @@ void main() {
             version: 1,
             occurredAt: _tacticalScenarioOccurredAtUtc(12),
             dispatchId: 'DSP-TRACK-88',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
           ),
           IntelligenceReceived(
             eventId: 'intel-track-resume',
@@ -327,9 +327,9 @@ void main() {
             headline: 'Track resume route',
             summary:
                 'The Agent header should resume the same tactical incident.',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
             canonicalHash: 'canon-track-resume',
           ),
         ],
@@ -353,11 +353,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -397,9 +397,9 @@ void main() {
         initialRouteOverride: OnyxRoute.tactical,
         dvrScopeConfigsOverride: [
           DvrScopeConfig(
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
             provider: 'monitor_only_dvr',
             eventsUri: Uri.parse('https://edge.example.com/events'),
             authMode: 'bearer',
@@ -415,9 +415,9 @@ void main() {
             version: 1,
             occurredAt: _tacticalScenarioOccurredAtUtc(15),
             dispatchId: 'DSP-TRACK-90',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
           ),
           IntelligenceReceived(
             eventId: 'intel-track-return',
@@ -432,9 +432,9 @@ void main() {
             headline: 'Track return route',
             summary:
                 'Agent should return the controller to the same tactical focus.',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            siteId: 'SITE-DEMO',
             canonicalHash: 'canon-track-return',
           ),
         ],
@@ -465,11 +465,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -521,11 +521,11 @@ void main() {
       tester
           .widget<TacticalPage>(find.byType(TacticalPage))
           .initialScopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<TacticalPage>(find.byType(TacticalPage)).initialScopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
   });
 
@@ -546,17 +546,18 @@ void main() {
 
       await openDetailedWorkspaceIfVisible(tester);
 
+      final focusedDrilldown = find.byKey(
+        const ValueKey('tactical-fleet-focus-open-drilldown'),
+      );
       await tester.scrollUntilVisible(
-        find.text('Focused watch action: Limited watch coverage'),
+        focusedDrilldown,
         500,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Focused watch action: Limited watch coverage'),
-        findsOneWidget,
-      );
+      expect(focusedDrilldown, findsOneWidget);
+      expect(find.text('Limited watch coverage'), findsWidgets);
     },
   );
 
@@ -581,25 +582,23 @@ void main() {
 
     await openDetailedWorkspaceIfVisible(tester);
 
+    final focusedDrilldown = find.byKey(
+      const ValueKey('tactical-fleet-focus-open-drilldown'),
+    );
     await tester.scrollUntilVisible(
-      find.text('Focused watch action: Limited watch coverage'),
+      focusedDrilldown,
       500,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Focused watch action: Limited watch coverage'),
-      findsOneWidget,
-    );
+    expect(focusedDrilldown, findsOneWidget);
+    expect(find.text('Limited watch coverage'), findsWidgets);
 
-    await tester.tap(find.text('Clear'));
+    await tester.tap(find.byKey(const ValueKey('tactical-fleet-summary-clear')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Focused watch action: Limited watch coverage'),
-      findsNothing,
-    );
+    expect(focusedDrilldown, findsNothing);
 
     await pumpValleeWatchDrilldownRouteApp(
       tester,
@@ -610,7 +609,7 @@ void main() {
     await openDetailedWorkspaceIfVisible(tester);
 
     expect(
-      find.text('Focused watch action: Limited watch coverage'),
+      find.byKey(const ValueKey('tactical-fleet-focus-open-drilldown')),
       findsNothing,
     );
   });
@@ -639,17 +638,18 @@ void main() {
 
       await openDetailedWorkspaceIfVisible(tester);
 
+      final focusedDrilldown = find.byKey(
+        const ValueKey('tactical-fleet-focus-open-drilldown'),
+      );
       await tester.scrollUntilVisible(
-        find.text('Focused watch action: Limited watch coverage'),
+        focusedDrilldown,
         500,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Focused watch action: Limited watch coverage'),
-        findsOneWidget,
-      );
+      expect(focusedDrilldown, findsOneWidget);
+      expect(find.text('Limited watch coverage'), findsWidgets);
 
       final alertsChip = find.byKey(
         const ValueKey('tactical-fleet-summary-tile-alerts'),
@@ -663,7 +663,8 @@ void main() {
       await tester.tap(alertsButton);
       await tester.pumpAndSettle();
 
-      expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
+      expect(focusedDrilldown, findsOneWidget);
+      expect(find.text('Alert actions'), findsWidgets);
 
       await pumpValleeWatchDrilldownRouteApp(
         tester,
@@ -674,17 +675,14 @@ void main() {
       await openDetailedWorkspaceIfVisible(tester);
 
       await tester.scrollUntilVisible(
-        find.text('Focused watch action: Alert actions'),
+        focusedDrilldown,
         500,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
-      expect(
-        find.text('Focused watch action: Limited watch coverage'),
-        findsNothing,
-      );
+      expect(focusedDrilldown, findsOneWidget);
+      expect(find.text('Alert actions'), findsWidgets);
     },
   );
 }

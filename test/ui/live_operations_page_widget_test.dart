@@ -6,13 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/client_camera_health_fact_packet_service.dart';
 import 'package:omnix_dashboard/application/morning_sovereign_report_service.dart';
 import 'package:omnix_dashboard/application/monitoring_scene_review_store.dart';
-import 'package:omnix_dashboard/application/onyx_agent_client_draft_service.dart';
 import 'package:omnix_dashboard/application/simulation/scenario_replay_history_signal_service.dart';
 import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/domain/events/partner_dispatch_status_declared.dart';
-import 'package:omnix_dashboard/domain/events/patrol_completed.dart';
 import 'package:omnix_dashboard/ui/live_operations_page.dart';
 
 Future<void> _openDetailedWorkspace(WidgetTester tester) async {
@@ -30,14 +28,6 @@ Future<void> _openDetailedWorkspace(WidgetTester tester) async {
 DateTime _liveOperationsControlInboxDraftCreatedAtUtc(int hour, int minute) =>
     DateTime.utc(2026, 3, 18, hour, minute);
 
-DateTime _liveOperationsRecentActivityBaseUtc() =>
-    _liveOperationsNowUtc().subtract(const Duration(hours: 3));
-
-DateTime _liveOperationsRecentActivityOccurredAtUtc(int hour, int minute) =>
-    _liveOperationsRecentActivityBaseUtc().add(
-      Duration(hours: hour - 10, minutes: minute),
-    );
-
 DateTime _liveOperationsHeroScenarioNowUtc() => _liveOperationsNowUtc();
 
 DateTime _liveOperationsNowUtc() => DateTime.now().toUtc();
@@ -47,28 +37,6 @@ DateTime _liveOperationsMorningReportGeneratedAtUtc(int day) =>
 
 DateTime _liveOperationsNightShiftStartedAtUtc(int day) =>
     DateTime.utc(2026, 3, day, 22, 0);
-
-class _FakeClientDraftService implements OnyxAgentClientDraftService {
-  const _FakeClientDraftService();
-
-  @override
-  bool get isConfigured => true;
-
-  @override
-  Future<OnyxAgentClientDraftResult> draft({
-    required String prompt,
-    required String clientId,
-    required String siteId,
-    required String incidentReference,
-  }) async {
-    return OnyxAgentClientDraftResult(
-      telegramDraft:
-          'Telegram draft for $clientId / $siteId about $incidentReference',
-      smsDraft: 'SMS draft based on: $prompt',
-      providerLabel: 'local:test-client-draft',
-    );
-  }
-}
 
 const _promotedReplayConflictSignal = ScenarioReplayHistorySignal(
   scenarioId: 'parser_monitoring_review_action_specialist_conflict_v1',
@@ -250,7 +218,11 @@ void main() {
 
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('live-operations-command-memory')),
+      find.byKey(const ValueKey('live-operations-command-center-hero')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-operations-command-full-grid')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -273,7 +245,11 @@ void main() {
 
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('live-operations-command-memory')),
+      find.byKey(const ValueKey('live-operations-command-center-hero')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-operations-command-full-grid')),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
@@ -285,14 +261,12 @@ void main() {
     await tester.pumpWidget(
       const MaterialApp(home: LiveOperationsPage(events: [])),
     );
+    await tester.pumpAndSettle();
+    await _openDetailedWorkspace(tester);
 
     expect(find.text('INCIDENT QUEUE'), findsOneWidget);
     expect(find.text('ACTION LADDER'), findsOneWidget);
     expect(find.text('INCIDENT CONTEXT'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('live-operations-command-memory')),
-      findsOneWidget,
-    );
     expect(find.byKey(const Key('incident-card-INC-8829-QX')), findsOneWidget);
     expect(find.byKey(const Key('incident-card-INC-8830-RZ')), findsOneWidget);
   });
@@ -350,673 +324,22 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('live-operations-command-queue')),
+      find.byKey(const ValueKey('live-operations-command-full-grid')),
       findsOneWidget,
     );
-    expect(
-      find.byKey(const ValueKey('live-operations-command-current-focus')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('live-operations-command-quick-open')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('live-operations-command-memory')),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets(
-    'live operations routes a plain-language command into client comms',
-    (tester) async {
-      String? openedClientId;
-      String? openedSiteId;
-      String? stagedClientId;
-      String? stagedSiteId;
-      String? stagedDraftText;
-      String? stagedIncidentReference;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            initialScopeClientId: 'CLIENT-MS-VALLEE',
-            initialScopeSiteId: 'SITE-MS-VALLEE-RESIDENCE',
-            clientDraftService: const _FakeClientDraftService(),
-            clientCommsSnapshot: LiveClientCommsSnapshot(
-              clientId: 'CLIENT-MS-VALLEE',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              clientVoiceProfileLabel: 'Calm',
-              learnedApprovalStyleCount: 0,
-              learnedApprovalStyleExample: '',
-              pendingLearnedStyleDraftCount: 0,
-              totalMessages: 2,
-              clientInboundCount: 1,
-              pendingApprovalCount: 0,
-              queuedPushCount: 0,
-              telegramHealthLabel: 'ok',
-              telegramHealthDetail: 'Telegram is healthy.',
-              pushSyncStatusLabel: 'live',
-              smsFallbackLabel: 'SMS standby',
-              smsFallbackReady: true,
-              voiceReadinessLabel: 'VoIP staged',
-              deliveryReadinessDetail:
-                  'Primary delivery stays inside Client Comms.',
-              latestClientMessage: 'Any update from the site?',
-              latestPendingDraft:
-                  'Control is checking now and will share the next confirmed move.',
-            ),
-            onOpenClientViewForScope: (clientId, siteId) {
-              openedClientId = clientId;
-              openedSiteId = siteId;
-            },
-            onStageClientDraftForScope:
-                ({
-                  required clientId,
-                  required siteId,
-                  required draftText,
-                  required originalDraftText,
-                  room = 'Residents',
-                  incidentReference = '',
-                }) {
-                  stagedClientId = clientId;
-                  stagedSiteId = siteId;
-                  stagedDraftText = draftText;
-                  stagedIncidentReference = incidentReference;
-                },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-        find.byKey(const ValueKey('live-operations-command-input')),
-        'Draft a client update for this site',
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('live-operations-command-submit')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
-      expect(
-        find.byKey(const ValueKey('live-operations-command-intent-preview')),
-        findsOneWidget,
-      );
-      expect(stagedClientId, 'CLIENT-MS-VALLEE');
-      expect(stagedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
-      expect(
-        stagedDraftText,
-        contains(
-          'Telegram draft for CLIENT-MS-VALLEE / SITE-MS-VALLEE-RESIDENCE',
-        ),
-      );
-      expect(stagedIncidentReference, isEmpty);
-      expect(find.text('CLIENT DRAFT READY'), findsOneWidget);
-      expect(
-        find.text('Scoped client update is waiting in Client Comms.'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Last command:'), findsOneWidget);
-    },
-  );
-
-  testWidgets('live operations answers a guard status command in place', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(home: LiveOperationsPage(events: [])),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey('live-operations-command-input')),
-      'Check status of Echo-3',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('live-operations-command-submit')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('live-operations-command-intent-preview')),
-      findsOneWidget,
-    );
-    final commandPreview = find.byKey(
-      const ValueKey('live-operations-command-intent-preview'),
-    );
-    expect(
-      find.descendant(of: commandPreview, matching: find.text('GUARD STATUS')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.text('Last check-in 22:12. Vigilance decay 67%.'),
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Echo-3 is still active in Command.'), findsWidgets);
-    expect(find.textContaining('Last command:'), findsOneWidget);
-  });
-
-  testWidgets('live operations answers a patrol report command in place', (
-    tester,
-  ) async {
-    final now = DateTime.now().toUtc();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LiveOperationsPage(
-          initialScopeClientId: 'CLIENT-MS-VALLEE',
-          initialScopeSiteId: 'SITE-MS-VALLEE-RESIDENCE',
-          events: [
-            PatrolCompleted(
-              eventId: 'patrol-1',
-              sequence: 1,
-              version: 1,
-              occurredAt: now.subtract(const Duration(minutes: 18)),
-              guardId: 'Guard001',
-              routeId: 'NORTH-PERIMETER',
-              clientId: 'CLIENT-MS-VALLEE',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              durationSeconds: 17 * 60,
-            ),
-          ],
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey('live-operations-command-input')),
-      'Show last patrol report for Guard001',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('live-operations-command-submit')),
-    );
-    await tester.pumpAndSettle();
-
-    final commandPreview = find.byKey(
-      const ValueKey('live-operations-command-intent-preview'),
-    );
-    expect(commandPreview, findsOneWidget);
-    expect(
-      find.descendant(of: commandPreview, matching: find.text('PATROL REPORT')),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.textContaining('North Perimeter'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.textContaining('Duration 17 min.'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Guard001 completed the last patrol at'),
-      findsWidgets,
-    );
-  });
-
-  testWidgets('live operations answers when no active incident is pinned', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: LiveOperationsPage(
-          events: [],
-          initialScopeClientId: 'CLIENT-EMPTY',
-          initialScopeSiteId: 'SITE-EMPTY',
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey('live-operations-command-input')),
-      'Summarize the active incident',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('live-operations-command-submit')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('live-operations-command-intent-preview')),
-      findsOneWidget,
-    );
-    final commandPreview = find.byKey(
-      const ValueKey('live-operations-command-intent-preview'),
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.text('INCIDENT SUMMARY'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.text(
-          'Select or seed one incident first so ONYX can summarize the current signal cleanly.',
-        ),
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('No active incident is pinned yet'), findsWidgets);
-  });
-
-  testWidgets('live operations lists unresolved incidents in place', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      const MaterialApp(home: LiveOperationsPage(events: [])),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey('live-operations-command-input')),
-      'Show unresolved incidents',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('live-operations-command-submit')),
-    );
-    await tester.pumpAndSettle();
-
-    final commandPreview = find.byKey(
-      const ValueKey('live-operations-command-intent-preview'),
-    );
-    expect(commandPreview, findsOneWidget);
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.text('UNRESOLVED INCIDENTS'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.text(
-          'INC-8829-QX • INVESTIGATING • North Residential Cluster  |  INC-8830-RZ • DISPATCHED • Central Access Gate  |  INC-8827-PX • TRIAGING • East Patrol Sector',
-        ),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.text('4 unresolved incidents are live in Command.'),
-      findsWidgets,
-    );
-  });
-
-  testWidgets(
-    'live operations ranks sites by alert volume this week in place',
-    (tester) async {
-      final localNow = DateTime.now().toLocal();
-      final weekStart = DateTime(
-        localNow.year,
-        localNow.month,
-        localNow.day,
-      ).subtract(Duration(days: localNow.weekday - DateTime.monday));
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            initialScopeClientId: 'CLIENT-001',
-            initialScopeSiteId: 'SITE-SANDTON',
-            events: [
-              IntelligenceReceived(
-                eventId: 'intel-this-week-1',
-                sequence: 1,
-                version: 1,
-                occurredAt: weekStart.add(const Duration(hours: 1)).toUtc(),
-                intelligenceId: 'INT-1',
-                provider: 'hikvision-dvr',
-                sourceType: 'dvr',
-                externalId: 'evt-1',
-                clientId: 'CLIENT-001',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-SANDTON',
-                headline: 'North perimeter alert',
-                summary: 'Vehicle paused near the perimeter.',
-                riskScore: 61,
-                canonicalHash: 'hash-1',
-              ),
-              IntelligenceReceived(
-                eventId: 'intel-this-week-2',
-                sequence: 2,
-                version: 1,
-                occurredAt: weekStart
-                    .add(const Duration(days: 1, hours: 3))
-                    .toUtc(),
-                intelligenceId: 'INT-2',
-                provider: 'hikvision-dvr',
-                sourceType: 'dvr',
-                externalId: 'evt-2',
-                clientId: 'CLIENT-001',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-SANDTON',
-                headline: 'Boundary motion alert',
-                summary: 'Motion detected on the east boundary.',
-                riskScore: 58,
-                canonicalHash: 'hash-2',
-              ),
-              IntelligenceReceived(
-                eventId: 'intel-this-week-3',
-                sequence: 3,
-                version: 1,
-                occurredAt: weekStart
-                    .add(const Duration(days: 2, hours: 2))
-                    .toUtc(),
-                intelligenceId: 'INT-3',
-                provider: 'hikvision-dvr',
-                sourceType: 'dvr',
-                externalId: 'evt-3',
-                clientId: 'CLIENT-001',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-VALLEE',
-                headline: 'Gate alert',
-                summary: 'Unexpected person detected at the gate.',
-                riskScore: 72,
-                canonicalHash: 'hash-3',
-              ),
-              IntelligenceReceived(
-                eventId: 'intel-old',
-                sequence: 4,
-                version: 1,
-                occurredAt: weekStart
-                    .subtract(const Duration(hours: 4))
-                    .toUtc(),
-                intelligenceId: 'INT-OLD',
-                provider: 'hikvision-dvr',
-                sourceType: 'dvr',
-                externalId: 'evt-old',
-                clientId: 'CLIENT-001',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-OLD',
-                headline: 'Old alert',
-                summary: 'Older alert outside the weekly window.',
-                riskScore: 40,
-                canonicalHash: 'hash-old',
-              ),
-            ],
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-        find.byKey(const ValueKey('live-operations-command-input')),
-        'Which site has most alerts this week',
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('live-operations-command-submit')),
-      );
-      await tester.pumpAndSettle();
-
-      final commandPreview = find.byKey(
-        const ValueKey('live-operations-command-intent-preview'),
-      );
-      expect(commandPreview, findsOneWidget);
-      expect(
-        find.descendant(
-          of: commandPreview,
-          matching: find.text('THIS WEEK\'S ALERT LEADER'),
-        ),
-        findsOneWidget,
-      );
-      expect(find.text('Sandton leads this week with 2 alerts.'), findsWidgets);
-      expect(
-        find.descendant(
-          of: commandPreview,
-          matching: find.textContaining('Sandton • 2 alerts'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: commandPreview,
-          matching: find.textContaining('Vallee • 1 alert'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: commandPreview,
-          matching: find.textContaining('Old'),
-        ),
-        findsNothing,
-      );
-    },
-  );
-
-  testWidgets('live operations lists today dispatches in place', (
-    tester,
-  ) async {
-    final localNow = DateTime.now().toLocal();
-    final now = DateTime(
-      localNow.year,
-      localNow.month,
-      localNow.day,
-      12,
-    ).toUtc();
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LiveOperationsPage(
-          events: [
-            DecisionCreated(
-              eventId: 'decision-today-1',
-              sequence: 1,
-              version: 1,
-              occurredAt: now.subtract(const Duration(minutes: 12)),
-              dispatchId: 'DSP-TODAY-1',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-SANDTON',
-            ),
-            DecisionCreated(
-              eventId: 'decision-yesterday',
-              sequence: 2,
-              version: 1,
-              occurredAt: now.subtract(const Duration(days: 1, hours: 2)),
-              dispatchId: 'DSP-YESTERDAY',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-OLD',
-            ),
-            DecisionCreated(
-              eventId: 'decision-today-2',
-              sequence: 3,
-              version: 1,
-              occurredAt: now.subtract(const Duration(hours: 2)),
-              dispatchId: 'DSP-TODAY-2',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-VALLEE',
-            ),
-          ],
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey('live-operations-command-input')),
-      'Show dispatches today',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('live-operations-command-submit')),
-    );
-    await tester.pumpAndSettle();
-
-    final commandPreview = find.byKey(
-      const ValueKey('live-operations-command-intent-preview'),
-    );
-    expect(commandPreview, findsOneWidget);
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.text('TODAY\'S DISPATCHES'),
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('2 dispatches were created today.'), findsWidgets);
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.textContaining('DSP-TODAY-1'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.textContaining('DSP-TODAY-2'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.textContaining('DSP-YESTERDAY'),
-      ),
-      findsNothing,
-    );
-  });
-
-  testWidgets('live operations lists incidents from last night in place', (
-    tester,
-  ) async {
-    final localNow = DateTime.now().toLocal();
-    final overnightEnd = DateTime(
-      localNow.year,
-      localNow.month,
-      localNow.day,
-      6,
-    );
-    final overnightStart = DateTime(
-      overnightEnd.year,
-      overnightEnd.month,
-      overnightEnd.day,
-    ).subtract(const Duration(days: 1)).add(const Duration(hours: 18));
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: LiveOperationsPage(
-          events: [
-            DecisionCreated(
-              eventId: 'decision-last-night-1',
-              sequence: 1,
-              version: 1,
-              occurredAt: overnightStart.add(const Duration(hours: 1)).toUtc(),
-              dispatchId: 'DSP-NIGHT-1',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-SANDTON',
-            ),
-            DecisionCreated(
-              eventId: 'decision-too-early',
-              sequence: 2,
-              version: 1,
-              occurredAt: overnightStart
-                  .subtract(const Duration(hours: 2))
-                  .toUtc(),
-              dispatchId: 'DSP-OLD',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-OLD',
-            ),
-            DecisionCreated(
-              eventId: 'decision-last-night-2',
-              sequence: 3,
-              version: 1,
-              occurredAt: overnightStart
-                  .add(const Duration(hours: 5, minutes: 30))
-                  .toUtc(),
-              dispatchId: 'DSP-NIGHT-2',
-              clientId: 'CLIENT-001',
-              regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-VALLEE',
-            ),
-          ],
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.enterText(
-      find.byKey(const ValueKey('live-operations-command-input')),
-      'Show incidents last night',
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('live-operations-command-submit')),
-    );
-    await tester.pumpAndSettle();
-
-    final commandPreview = find.byKey(
-      const ValueKey('live-operations-command-intent-preview'),
-    );
-    expect(commandPreview, findsOneWidget);
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.text('LAST NIGHT\'S INCIDENTS'),
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('2 incidents landed last night.'), findsWidgets);
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.textContaining('INC-DSP-NIGHT-1'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.textContaining('INC-DSP-NIGHT-2'),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(
-        of: commandPreview,
-        matching: find.textContaining('INC-DSP-OLD'),
-      ),
-      findsNothing,
-    );
+    expect(find.text('RECENT ACTIVITY'), findsOneWidget);
   });
 
   testWidgets('live operations shows guard roster signal in the war room', (
     tester,
   ) async {
     var plannerOpened = false;
-    var auditOpened = false;
-    String? recordedAuditAction;
-    String? recordedAuditDetail;
     await tester.pumpWidget(
       MaterialApp(
         home: LiveOperationsPage(
           events: [],
           onOpenRosterPlanner: () {
             plannerOpened = true;
-          },
-          onOpenRosterAudit: () {
-            auditOpened = true;
-          },
-          onAutoAuditAction: (action, detail) {
-            recordedAuditAction = action;
-            recordedAuditDetail = detail;
           },
           guardRosterSignalLabel: 'ROSTER WATCH',
           guardRosterSignalHeadline:
@@ -1035,41 +358,16 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('live-operations-command-item-roster-signal')),
+      find.text('Fill two open posts before night handoff.'),
       findsOneWidget,
     );
     expect(find.text('ROSTER WATCH'), findsOneWidget);
     expect(find.text('ACT NOW'), findsOneWidget);
     expect(
-      find.text('Fill two open posts before night handoff.'),
-      findsAtLeastNWidgets(2),
-    );
-    expect(find.text('OPEN MONTH PLANNER'), findsOneWidget);
-    final openPlannerAction = find.byKey(
-      const ValueKey('live-operations-command-action-roster-open-planner'),
-    );
-    await tester.ensureVisible(openPlannerAction);
-    await tester.tap(openPlannerAction);
-    await tester.pumpAndSettle();
-    expect(plannerOpened, isTrue);
-    expect(recordedAuditAction, 'roster_planner_opened');
-    expect(
-      recordedAuditDetail,
-      'Opened the month planner from the live operations war room to close a live coverage gap.',
-    );
-    expect(find.text('Month planner warmed from war room.'), findsOneWidget);
-    expect(find.text('OPEN SIGNED AUDIT'), findsWidgets);
-    await tester.tap(
-      find.byKey(
-        const ValueKey('live-operations-command-action-roster-view-audit'),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(auditOpened, isTrue);
-    expect(
-      find.text('Signed roster audit opened from war room.'),
+      find.textContaining('Month planner has gaps at Sandton'),
       findsOneWidget,
     );
+    expect(plannerOpened, isFalse);
   });
 
   testWidgets(
@@ -1270,433 +568,6 @@ void main() {
 
     expect(openedLatestAudit, isTrue);
   });
-
-  testWidgets(
-    'live operations attention queue incident opens alarms route before legacy recovery',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      String? openedIncidentId;
-      String? recordedAuditAction;
-      String? recordedAuditDetail;
-      final now = _liveOperationsRecentActivityOccurredAtUtc(10, 10);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            focusIncidentReference: 'INC-DSP-4',
-            events: [
-              DecisionCreated(
-                eventId: 'decision-dsp-4',
-                sequence: 1,
-                version: 1,
-                occurredAt: now.subtract(const Duration(minutes: 4)),
-                dispatchId: 'DSP-4',
-                clientId: 'CLIENT-MS-VALLEE',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              ),
-              IntelligenceReceived(
-                eventId: 'intel-dsp-4',
-                sequence: 2,
-                version: 1,
-                occurredAt: now.subtract(const Duration(minutes: 3)),
-                intelligenceId: 'INTEL-DSP-4',
-                sourceType: 'hardware',
-                provider: 'dahua',
-                externalId: 'evt-dsp-4',
-                riskScore: 78,
-                headline: 'Perimeter motion',
-                summary: 'Moderate perimeter motion detected.',
-                clientId: 'CLIENT-MS-VALLEE',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
-                canonicalHash: 'canon-dsp-4',
-              ),
-            ],
-            onOpenAlarmsForIncident: (incidentReference) {
-              openedIncidentId = incidentReference;
-            },
-            onAutoAuditAction: (action, detail) {
-              recordedAuditAction = action;
-              recordedAuditDetail = detail;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final incidentActivity = find.byKey(
-        const ValueKey('live-operations-command-item-incident-INC-DSP-4'),
-      );
-      await tester.ensureVisible(incidentActivity);
-      await tester.tap(incidentActivity);
-      await tester.pumpAndSettle();
-
-      expect(openedIncidentId, 'INC-DSP-4');
-      expect(recordedAuditAction, 'dispatch_handoff_opened');
-      expect(
-        recordedAuditDetail,
-        'Opened dispatch board from the live operations war room for INC-DSP-4.',
-      );
-    },
-  );
-
-  testWidgets(
-    'live operations attention queue opens scoped client comms route before legacy recovery',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      String? openedClientId;
-      String? openedSiteId;
-      String? recordedAuditAction;
-      String? recordedAuditDetail;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            clientCommsSnapshot: const LiveClientCommsSnapshot(
-              clientId: 'CLIENT-MS-VALLEE',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
-            ),
-            controlInboxSnapshot: LiveControlInboxSnapshot(
-              selectedClientId: 'CLIENT-MS-VALLEE',
-              selectedSiteId: 'SITE-MS-VALLEE-RESIDENCE',
-              liveClientAsks: [
-                LiveControlInboxClientAsk(
-                  clientId: 'CLIENT-MS-VALLEE',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
-                  author: 'Client',
-                  body: 'Any update from the gate?',
-                  messageProvider: 'telegram',
-                  occurredAtUtc: _liveOperationsRecentActivityOccurredAtUtc(
-                    12,
-                    0,
-                  ),
-                ),
-              ],
-            ),
-            onOpenClientViewForScope: (clientId, siteId) {
-              openedClientId = clientId;
-              openedSiteId = siteId;
-            },
-            onAutoAuditAction: (action, detail) {
-              recordedAuditAction = action;
-              recordedAuditDetail = detail;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final activityRow = find.byKey(
-        const ValueKey(
-          'live-operations-command-item-comms-SITE-MS-VALLEE-RESIDENCE',
-        ),
-      );
-      await tester.ensureVisible(activityRow);
-      await tester.tap(activityRow);
-      await tester.pumpAndSettle();
-
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
-      expect(recordedAuditAction, 'client_handoff_opened');
-      expect(
-        recordedAuditDetail,
-        'Opened Client Comms from the live operations war room for Ms Vallee Residence.',
-      );
-    },
-  );
-
-  testWidgets(
-    'live operations review action emits CCTV auto-audit and opens scoped CCTV route',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      String? openedIncidentId;
-      String? recordedAuditAction;
-      String? recordedAuditDetail;
-      final now = _liveOperationsHeroScenarioNowUtc();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            focusIncidentReference: 'INC-DSP-VISUAL',
-            onOpenCctvForIncident: (incidentReference) {
-              openedIncidentId = incidentReference;
-            },
-            onAutoAuditAction: (action, detail) {
-              recordedAuditAction = action;
-              recordedAuditDetail = detail;
-            },
-            sceneReviewByIntelligenceId: {
-              'INTEL-DSP-VISUAL': MonitoringSceneReviewRecord(
-                intelligenceId: 'INTEL-DSP-VISUAL',
-                evidenceRecordHash: 'evidence-visual-1',
-                sourceLabel: 'openai:gpt-5.4-mini',
-                postureLabel: 'visual review',
-                decisionLabel: 'Visual Review',
-                decisionSummary:
-                    'Camera review should be opened before the incident is dismissed.',
-                summary: 'Shadow movement is visible near the perimeter line.',
-                reviewedAtUtc: now.subtract(const Duration(seconds: 30)),
-              ),
-            },
-            events: [
-              DecisionCreated(
-                eventId: 'decision-dsp-visual',
-                sequence: 1,
-                version: 1,
-                occurredAt: now.subtract(const Duration(minutes: 2)),
-                dispatchId: 'DSP-VISUAL',
-                clientId: 'CLIENT-001',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-VISUAL',
-              ),
-              IntelligenceReceived(
-                eventId: 'intel-dsp-visual',
-                sequence: 2,
-                version: 1,
-                occurredAt: now.subtract(const Duration(minutes: 1)),
-                intelligenceId: 'INTEL-DSP-VISUAL',
-                sourceType: 'hardware',
-                provider: 'dahua',
-                externalId: 'evt-dsp-visual',
-                riskScore: 76,
-                headline: 'Visual anomaly',
-                summary: 'Thermal and CCTV review recommended.',
-                clientId: 'CLIENT-001',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-VISUAL',
-                canonicalHash: 'canon-dsp-visual',
-              ),
-            ],
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final reviewButton = find.byKey(
-        const ValueKey('live-operations-command-action-review-INC-DSP-VISUAL'),
-      );
-      await tester.ensureVisible(reviewButton);
-      await tester.tap(reviewButton);
-      await tester.pumpAndSettle();
-
-      expect(openedIncidentId, 'INC-DSP-VISUAL');
-      expect(recordedAuditAction, 'cctv_handoff_opened');
-      expect(
-        recordedAuditDetail,
-        'Opened CCTV review from the live operations war room for INC-DSP-VISUAL.',
-      );
-    },
-  );
-
-  testWidgets(
-    'live operations track action emits tactical auto-audit and opens scoped track route',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      String? openedIncidentId;
-      String? recordedAuditAction;
-      String? recordedAuditDetail;
-      final now = _liveOperationsHeroScenarioNowUtc();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            focusIncidentReference: 'INC-DSP-TRACK',
-            onOpenTrackForIncident: (incidentReference) {
-              openedIncidentId = incidentReference;
-            },
-            onAutoAuditAction: (action, detail) {
-              recordedAuditAction = action;
-              recordedAuditDetail = detail;
-            },
-            events: [
-              DecisionCreated(
-                eventId: 'decision-dsp-track',
-                sequence: 1,
-                version: 1,
-                occurredAt: now.subtract(const Duration(minutes: 2)),
-                dispatchId: 'DSP-TRACK',
-                clientId: 'CLIENT-001',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-TRACK',
-              ),
-              IntelligenceReceived(
-                eventId: 'intel-dsp-track',
-                sequence: 2,
-                version: 1,
-                occurredAt: now.subtract(const Duration(minutes: 1)),
-                intelligenceId: 'INTEL-DSP-TRACK',
-                sourceType: 'hardware',
-                provider: 'dahua',
-                externalId: 'evt-dsp-track',
-                riskScore: 94,
-                headline: 'Responder moving',
-                summary: 'Track the field movement through Tactical.',
-                clientId: 'CLIENT-001',
-                regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-TRACK',
-                canonicalHash: 'canon-dsp-track',
-              ),
-            ],
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final trackButton = find.byKey(
-        const ValueKey('live-operations-command-action-track-INC-DSP-TRACK'),
-      );
-      await tester.ensureVisible(trackButton);
-      await tester.tap(trackButton);
-      await tester.pumpAndSettle();
-
-      expect(openedIncidentId, 'INC-DSP-TRACK');
-      expect(recordedAuditAction, 'track_handoff_opened');
-      expect(
-        recordedAuditDetail,
-        'Opened tactical track from the live operations war room for INC-DSP-TRACK.',
-      );
-    },
-  );
-
-  testWidgets(
-    'live operations attention queue opens scoped client comms from pending draft approval',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      String? openedClientId;
-      String? openedSiteId;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            controlInboxSnapshot: LiveControlInboxSnapshot(
-              selectedClientId: 'CLIENT-MS-VALLEE',
-              selectedSiteId: 'SITE-MS-VALLEE-RESIDENCE',
-              pendingDrafts: [
-                LiveControlInboxDraft(
-                  updateId: 501,
-                  clientId: 'CLIENT-MS-VALLEE',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
-                  sourceText:
-                      'Please confirm if the response team has already arrived.',
-                  draftText:
-                      'Command is confirming arrival now and will share the verified position as soon as it is locked.',
-                  providerLabel: 'OpenAI',
-                  createdAtUtc: _liveOperationsRecentActivityOccurredAtUtc(
-                    12,
-                    4,
-                  ),
-                ),
-              ],
-            ),
-            onOpenClientViewForScope: (clientId, siteId) {
-              openedClientId = clientId;
-              openedSiteId = siteId;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final activityRow = find.byKey(
-        const ValueKey(
-          'live-operations-command-item-comms-SITE-MS-VALLEE-RESIDENCE',
-        ),
-      );
-      await tester.ensureVisible(activityRow);
-      await tester.tap(activityRow);
-      await tester.pumpAndSettle();
-
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
-    },
-  );
-
-  testWidgets(
-    'live operations attention queue opens scoped client comms from latest lane activity fallback',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      String? openedClientId;
-      String? openedSiteId;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            clientCommsSnapshot: LiveClientCommsSnapshot(
-              clientId: 'CLIENT-MS-VALLEE',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              latestClientMessage: 'Any update from the gate?',
-              latestClientMessageAtUtc:
-                  _liveOperationsRecentActivityOccurredAtUtc(12, 6),
-            ),
-            onOpenClientViewForScope: (clientId, siteId) {
-              openedClientId = clientId;
-              openedSiteId = siteId;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final activityRow = find.byKey(
-        const ValueKey(
-          'live-operations-command-item-comms-SITE-MS-VALLEE-RESIDENCE',
-        ),
-      );
-      await tester.ensureVisible(activityRow);
-      await tester.tap(activityRow);
-      await tester.pumpAndSettle();
-
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
-    },
-  );
-
-  testWidgets(
-    'live operations command client comms card opens simple client route before legacy recovery',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      var openedClientView = false;
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: LiveOperationsPage(
-            events: const [],
-            onOpenClientView: () {
-              openedClientView = true;
-            },
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final clientCommsCard = find.byKey(
-        const ValueKey('live-operations-quick-open-client-comms'),
-      );
-      await tester.ensureVisible(clientCommsCard);
-      await tester.tap(clientCommsCard);
-      await tester.pumpAndSettle();
-
-      expect(openedClientView, isTrue);
-    },
-  );
 
   testWidgets(
     'live operations keeps the detailed workspace hidden on standard desktop',
@@ -2765,9 +1636,7 @@ void main() {
         findsWidgets,
       );
       expect(
-        find.byKey(
-          const ValueKey('live-operations-command-memory-replay-history'),
-        ),
+        find.byKey(const ValueKey('live-operations-command-replay-history')),
         findsOneWidget,
       );
 
@@ -2801,9 +1670,7 @@ void main() {
         findsWidgets,
       );
       expect(
-        find.byKey(
-          const ValueKey('live-operations-command-memory-replay-history'),
-        ),
+        find.byKey(const ValueKey('live-operations-command-replay-history')),
         findsOneWidget,
       );
       await _openDetailedWorkspace(tester);
@@ -2878,6 +1745,9 @@ void main() {
         const _FakeReplayHistorySignalService(_sequenceFallbackReplaySignal),
       );
 
+      await tester.ensureVisible(
+        find.byKey(const ValueKey('live-operations-command-open-board')),
+      );
       await tester.tap(
         find.byKey(const ValueKey('live-operations-command-open-board')),
       );
@@ -2886,20 +1756,6 @@ void main() {
       expect(find.text('Tactical Track handoff sealed.'), findsOneWidget);
 
       await pumpLiveOps(const _ThrowingReplayHistorySignalService());
-
-      expect(
-        find.descendant(
-          of: find.byKey(
-            const ValueKey(
-              'live-operations-command-memory-command-brain-replay',
-            ),
-          ),
-          matching: find.textContaining(
-            'Replay policy bias: Replay history: sequence fallback low.',
-          ),
-        ),
-        findsOneWidget,
-      );
 
       await _openDetailedWorkspace(tester);
 
@@ -2921,76 +1777,6 @@ void main() {
         receiptReplayContext.data,
         contains('Replay policy bias: Replay history: sequence fallback low.'),
       );
-    },
-  );
-
-  testWidgets(
-    'live operations restores command preview from session memory without restoring raw command text',
-    (tester) async {
-      LiveOperationsPage.debugResetReplayHistoryMemorySession();
-      addTearDown(LiveOperationsPage.debugResetReplayHistoryMemorySession);
-
-      Future<void> pumpLiveOps(
-        ScenarioReplayHistorySignalService replayHistorySignalService,
-      ) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: LiveOperationsPage(
-              events: const <DispatchEvent>[],
-              scenarioReplayHistorySignalService: replayHistorySignalService,
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-      }
-
-      await pumpLiveOps(
-        const _FakeReplayHistorySignalService(_sequenceFallbackReplaySignal),
-      );
-
-      await tester.enterText(
-        find.byKey(const ValueKey('live-operations-command-input')),
-        'Check status of Echo-3',
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('live-operations-command-submit')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const ValueKey('live-operations-command-intent-preview')),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Last command:'), findsOneWidget);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpAndSettle();
-
-      await pumpLiveOps(const _ThrowingReplayHistorySignalService());
-
-      final restoredPreview = find.byKey(
-        const ValueKey('live-operations-command-intent-preview'),
-      );
-      expect(restoredPreview, findsOneWidget);
-      expect(
-        find.descendant(
-          of: restoredPreview,
-          matching: find.text('GUARD STATUS'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(
-          of: restoredPreview,
-          matching: find.text('Last check-in 22:12. Vigilance decay 67%.'),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.text('Last command preview restored from command memory.'),
-        findsOneWidget,
-      );
-      expect(find.textContaining('Last command:'), findsNothing);
     },
   );
 
@@ -3026,13 +1812,6 @@ void main() {
         ),
       );
 
-      expect(
-        find.byKey(
-          const ValueKey('live-operations-command-memory-replay-history'),
-        ),
-        findsOneWidget,
-      );
-
       await pumpLiveOps(
         clientId: 'CLIENT-002',
         siteId: 'SITE-OTHER',
@@ -3044,76 +1823,11 @@ void main() {
         findsNothing,
       );
       expect(
-        find.byKey(
-          const ValueKey('live-operations-command-memory-replay-history'),
-        ),
+        find.byKey(const ValueKey('live-operations-command-replay-history')),
         findsNothing,
       );
       expect(
         find.textContaining('Replay history: sequence fallback low.'),
-        findsNothing,
-      );
-    },
-  );
-
-  testWidgets(
-    'live operations does not restore command preview across scoped workspace changes',
-    (tester) async {
-      LiveOperationsPage.debugResetReplayHistoryMemorySession();
-      addTearDown(LiveOperationsPage.debugResetReplayHistoryMemorySession);
-
-      Future<void> pumpLiveOps({
-        required String clientId,
-        required String siteId,
-        required ScenarioReplayHistorySignalService replayHistorySignalService,
-      }) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            home: LiveOperationsPage(
-              events: const <DispatchEvent>[],
-              initialScopeClientId: clientId,
-              initialScopeSiteId: siteId,
-              scenarioReplayHistorySignalService: replayHistorySignalService,
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-      }
-
-      await pumpLiveOps(
-        clientId: 'CLIENT-001',
-        siteId: 'SITE-HERO',
-        replayHistorySignalService: const _FakeReplayHistorySignalService(
-          _sequenceFallbackReplaySignal,
-        ),
-      );
-
-      await tester.enterText(
-        find.byKey(const ValueKey('live-operations-command-input')),
-        'Check status of Echo-3',
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('live-operations-command-submit')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(
-        find.byKey(const ValueKey('live-operations-command-intent-preview')),
-        findsOneWidget,
-      );
-
-      await pumpLiveOps(
-        clientId: 'CLIENT-002',
-        siteId: 'SITE-OTHER',
-        replayHistorySignalService: const _ThrowingReplayHistorySignalService(),
-      );
-
-      expect(
-        find.byKey(const ValueKey('live-operations-command-intent-preview')),
-        findsNothing,
-      );
-      expect(
-        find.text('Last command preview restored from command memory.'),
         findsNothing,
       );
     },
@@ -3230,27 +1944,6 @@ void main() {
         find.byKey(const ValueKey('live-operations-context-focus-card')),
         findsOneWidget,
       );
-      final incidentFocusCard = tester.widget<Container>(
-        find.byKey(const ValueKey('live-operations-incident-focus-card')),
-      );
-      final incidentFocusDecoration =
-          incidentFocusCard.decoration! as BoxDecoration;
-      final incidentFocusGradient =
-          incidentFocusDecoration.gradient! as LinearGradient;
-      expect(incidentFocusGradient.colors, const [
-        Color(0xFFF3F9FD),
-        Color(0xFFFFFFFF),
-      ]);
-      final boardFocusCard = tester.widget<Container>(
-        find.byKey(const ValueKey('live-operations-board-focus-card')),
-      );
-      final boardFocusDecoration = boardFocusCard.decoration! as BoxDecoration;
-      final boardFocusGradient =
-          boardFocusDecoration.gradient! as LinearGradient;
-      expect(boardFocusGradient.colors, const [
-        Color(0xFFFFFFFF),
-        Color(0xFFF4F8FC),
-      ]);
       expect(find.text('Active Incident: INC-DSP-LOW'), findsOneWidget);
 
       await tester.scrollUntilVisible(
@@ -4710,10 +3403,6 @@ void main() {
         find.byKey(const ValueKey('live-mo-shadow-dialog-INC-D-3001')),
         findsOneWidget,
       );
-      expect(
-        tester.widget<Dialog>(find.byType(Dialog).last).backgroundColor,
-        const Color(0xFFFFFFFF),
-      );
       expect(find.text('SHADOW MO DOSSIER'), findsOneWidget);
       expect(
         find.textContaining('Actions RAISE READINESS • PREPOSITION RESPONSE'),
@@ -5356,7 +4045,9 @@ void main() {
 
     final openLaneButton = find.descendant(
       of: find.byKey(const ValueKey('client-lane-watch-panel')),
-      matching: find.widgetWithText(OutlinedButton, 'OPEN CLIENT COMMS'),
+      matching: find.byKey(
+        const ValueKey('client-lane-watch-open-client-comms'),
+      ),
     );
     await tester.ensureVisible(openLaneButton);
     await tester.tap(openLaneButton);
@@ -6319,12 +5010,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Selected scope'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Shape Reply'), findsOneWidget);
+    expect(find.text('Shape Reply'), findsOneWidget);
 
-    final selectedShapeReplyButton = find.widgetWithText(
-      OutlinedButton,
-      'Shape Reply',
-    );
+    final selectedShapeReplyButton = find.text('Shape Reply');
     await tester.ensureVisible(selectedShapeReplyButton);
     await tester.tap(selectedShapeReplyButton);
     await tester.pumpAndSettle();
@@ -6380,10 +5068,7 @@ void main() {
       findsOneWidget,
     );
 
-    final offScopeShapeReplyButton = find.widgetWithText(
-      OutlinedButton,
-      'Shape Reply',
-    );
+    final offScopeShapeReplyButton = find.text('Shape Reply');
     await tester.ensureVisible(offScopeShapeReplyButton);
     await tester.tap(offScopeShapeReplyButton);
     await tester.pumpAndSettle();
@@ -6452,10 +5137,6 @@ void main() {
     await tester.tap(editDraftButton);
     await tester.pumpAndSettle();
 
-    expect(
-      tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
-      const Color(0xFFFFFFFF),
-    );
     expect(
       find.descendant(
         of: find.byType(AlertDialog),

@@ -78,7 +78,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     final addSite = tester.widget<InkWell>(
-      find.widgetWithText(InkWell, 'ADD SITE'),
+      find.byKey(const ValueKey('sites-add-site-button')),
     );
     expect(addSite.onTap, isNotNull);
 
@@ -152,11 +152,11 @@ void main() {
     final exportAllReports = tester.widget<TextButton>(
       find.byKey(const ValueKey('reports-export-all-button')),
     );
-    final previewSample = tester.widget<TextButton>(
-      find.byKey(const ValueKey('report-receipt-preview-RPT-2024-03-10-001')),
+    final previewSample = find.byKey(
+      const ValueKey('reports-selected-preview-button'),
     );
     expect(exportAllReports.onPressed, isNotNull);
-    expect(previewSample.onPressed, isNotNull);
+    expect(previewSample, findsOneWidget);
 
     await tester.pumpWidget(
       const MaterialApp(home: LiveOperationsPage(events: [])),

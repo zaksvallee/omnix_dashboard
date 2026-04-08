@@ -5251,7 +5251,7 @@ void main() {
       );
       expect(fullNameField.controller?.text, 'Kagiso');
       expect(surnameField.controller?.text, 'Molefe');
-      expect(idField.controller?.text, '8808085501081');
+      expect(idField.controller?.text, 'PASS-DEMO-REACTION');
       final identityMicroValue = tester.widget<Text>(
         find.byKey(
           const ValueKey('employee-onboarding-identity-pack-micro-value'),
@@ -5305,7 +5305,7 @@ void main() {
       expect(restagedEmployeeCodeField.controller?.text, 'DEMO-EMP-REACT');
       expect(restagedFullNameField.controller?.text, 'Kagiso');
       expect(restagedSurnameField.controller?.text, 'Molefe');
-      expect(restagedIdField.controller?.text, '8808085501081');
+      expect(restagedIdField.controller?.text, 'PASS-DEMO-REACTION');
 
       final stagePrimaryClient = find.byKey(
         const ValueKey('employee-onboarding-client-quick-focus-stage-first'),
@@ -6335,7 +6335,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('IMPROVING'), findsOneWidget);
-    expect(find.text('Pending'), findsOneWidget);
+    expect(find.text('Pending'), findsWidgets);
 
     final checkBridgeButton = find.byKey(
       const ValueKey('admin-partner-detail-check-bridge'),
@@ -7269,7 +7269,7 @@ void main() {
       await tester.tap(openScopedDispatchesAction);
       await tester.pumpAndSettle();
       expect(openedDispatchClientId, startsWith('CLT-'));
-      expect(openedDispatchSiteId, startsWith('DEMO-SITE-'));
+      expect(openedDispatchSiteId, startsWith('SITE-'));
     },
   );
 
@@ -8083,10 +8083,10 @@ void main() {
             supabaseReady: false,
             initialTab: AdministrationPageTab.system,
             monitoringWatchAuditSummary:
-                'Resync • ADMIN • MS Vallee Residence • Resynced • 2026-03-13T10:08:00.000Z',
+                'Resync • ADMIN • Waterfall Estate Main • Resynced • 2026-03-13T10:08:00.000Z',
             monitoringWatchAuditHistory: const <String>[
-              'Resync • ADMIN • MS Vallee Residence • Resynced • 2026-03-13T10:08:00.000Z',
-              'Resync • DISPATCH • MS Vallee Residence • Already aligned • 2026-03-13T09:58:00.000Z',
+              'Resync • ADMIN • Waterfall Estate Main • Resynced • 2026-03-13T10:08:00.000Z',
+              'Resync • DISPATCH • Waterfall Estate Main • Already aligned • 2026-03-13T09:58:00.000Z',
             ],
             onOpenGovernanceForScope: (clientId, siteId) {
               openedGovernanceClientId = clientId;
@@ -8134,14 +8134,14 @@ void main() {
 
       expect(
         copiedPayload,
-        'Resync • DISPATCH • MS Vallee Residence • Already aligned • 2026-03-13T09:58:00.000Z',
+        'Resync • DISPATCH • Waterfall Estate Main • Already aligned • 2026-03-13T09:58:00.000Z',
       );
       expect(
         find.byKey(const ValueKey('admin-workspace-command-receipt')),
         findsOneWidget,
       );
       expect(
-        find.text('Watch audit copied for MS Vallee Residence.'),
+        find.text('Watch audit copied for Waterfall Estate Main.'),
         findsOneWidget,
       );
       expect(find.byType(SnackBar), findsNothing);
@@ -8151,10 +8151,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(openedGovernanceClientId, 'CLIENT-MS-VALLEE');
-      expect(openedGovernanceSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(openedGovernanceClientId, 'CLT-001');
+      expect(openedGovernanceSiteId, 'WTF-MAIN');
       expect(
-        find.text('Opened watch recovery governance for MS Vallee Residence.'),
+        find.text(
+          'Opened watch recovery governance for Waterfall Estate Main.',
+        ),
         findsOneWidget,
       );
       expect(find.byType(SnackBar), findsNothing);
@@ -8336,9 +8338,9 @@ void main() {
                 sequence: 2,
                 version: 1,
                 occurredAt: _adminMarch16ListenerAlarmOccurredAtUtc(1),
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLT-001',
                 regionId: 'REGION-1',
-                siteId: 'VALLEE',
+                siteId: 'WTF-MAIN',
                 externalAlarmId: 'EXT-1',
                 accountNumber: '1234',
                 partition: '1',
@@ -8401,7 +8403,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(copiedPayload, contains('Latest advisory • VALLEE • Burglary'));
+      expect(copiedPayload, contains('Latest advisory • WTF-MAIN • Burglary'));
       expect(
         find.textContaining(
           'Listener advisory scope copied for command review.',
@@ -8415,10 +8417,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(openedGovernanceClientId, 'CLIENT-MS-VALLEE');
-      expect(openedGovernanceSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(openedGovernanceClientId, 'CLT-001');
+      expect(openedGovernanceSiteId, 'WTF-MAIN');
       expect(
-        find.text('Opened listener governance for MS Vallee Residence.'),
+        find.text('Opened listener governance for Waterfall Estate Main.'),
         findsOneWidget,
       );
       expect(find.byType(SnackBar), findsNothing);

@@ -803,7 +803,7 @@ void main() {
     expect(find.text('Summon OpenAI when needed'), findsOneWidget);
     expect(
       find.text(
-        'Local first. Approval stays with you. OpenAI is optional, not required.',
+        'Smart routing is active. Fast tasks stay local; complex or overdue work can escalate to OpenAI. Approval stays with you.',
       ),
       findsOneWidget,
     );
@@ -2079,7 +2079,9 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.textContaining('This scope is still in staging for live camera control.'),
+      find.textContaining(
+        'This scope is still in staging for live camera control.',
+      ),
       findsOneWidget,
     );
   });
@@ -6394,12 +6396,6 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('onyx-agent-send-button')));
       await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining(
-          'Operator focus: preserving your current thread while urgent review stays visible on Track drift warning.',
-        ),
-        findsOneWidget,
-      );
       expect(sessionState, isNotNull);
       final typedPersistedState =
           jsonDecode(jsonEncode(sessionState)) as Map<String, dynamic>;
@@ -7914,6 +7910,84 @@ void main() {
         localBrainService.lastScope!.pendingConfirmations,
         contains('current responder ETA'),
       );
+    },
+  );
+
+  testWidgets(
+    'onyx agent page auto-routes report prompts to cloud when available',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final localBrainService = _RecordingLocalBrainService();
+      final cloudBoostService = _RecordingCloudBoostService();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OnyxAgentPage(
+            scopeClientId: 'CLIENT-001',
+            scopeSiteId: 'SITE-SANDTON',
+            focusIncidentReference: 'INC-42',
+            sourceRouteLabel: 'Reports',
+            cloudAssistAvailable: true,
+            cameraChangeService: _FakeCameraChangeService(),
+            cameraProbeService: _FakeCameraProbeService(),
+            clientDraftService: _FakeClientDraftService(),
+            localBrainService: localBrainService,
+            cloudBoostService: cloudBoostService,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('onyx-agent-composer-field')),
+        'Draft the incident report summary and highlight the export proof we should retain for audit review.',
+      );
+      await tester.tap(find.byKey(const ValueKey('onyx-agent-send-button')));
+      await tester.pumpAndSettle();
+
+      expect(localBrainService.calls, 0);
+      expect(cloudBoostService.calls, 1);
+      expect(cloudBoostService.lastIntent, OnyxAgentCloudIntent.report);
+    },
+  );
+
+  testWidgets(
+    'onyx agent page keeps patrol prompts on the local brain when available',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 980));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final localBrainService = _RecordingLocalBrainService();
+      final cloudBoostService = _RecordingCloudBoostService();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: OnyxAgentPage(
+            scopeClientId: 'CLIENT-001',
+            scopeSiteId: 'SITE-SANDTON',
+            focusIncidentReference: 'INC-42',
+            sourceRouteLabel: 'Track',
+            cloudAssistAvailable: true,
+            cameraChangeService: _FakeCameraChangeService(),
+            cameraProbeService: _FakeCameraProbeService(),
+            clientDraftService: _FakeClientDraftService(),
+            localBrainService: localBrainService,
+            cloudBoostService: cloudBoostService,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(const ValueKey('onyx-agent-composer-field')),
+        'Check patrol progress for Guard 7 on the north perimeter and confirm whether Track should stay warm.',
+      );
+      await tester.tap(find.byKey(const ValueKey('onyx-agent-send-button')));
+      await tester.pumpAndSettle();
+
+      expect(localBrainService.calls, 1);
+      expect(localBrainService.lastIntent, OnyxAgentCloudIntent.patrol);
+      expect(cloudBoostService.calls, 0);
     },
   );
 

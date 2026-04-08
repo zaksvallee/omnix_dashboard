@@ -34,13 +34,13 @@ void main() {
       tester
           .widget<GovernancePage>(find.byType(GovernancePage))
           .initialScopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester
           .widget<GovernancePage>(find.byType(GovernancePage))
           .initialScopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
   });
 
@@ -67,7 +67,7 @@ void main() {
         tester
             .widget<SovereignLedgerPage>(find.byType(SovereignLedgerPage))
             .clientId,
-        'CLIENT-MS-VALLEE',
+        'CLIENT-DEMO',
       );
       expect(
         tester
@@ -178,8 +178,8 @@ void main() {
         initialRouteOverride: OnyxRoute.ledger,
         initialPinnedLedgerAuditEntryOverride: SovereignLedgerPinnedAuditEntry(
           auditId: 'DSP-AUDIT-REPORT-1',
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           recordCode: 'OB-AUDIT',
           title: 'Reports workspace opened for DSP-4.',
           description:

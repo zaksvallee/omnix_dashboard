@@ -6,8 +6,8 @@ class HikConnectEnvSeedFormatter {
   String formatEnvBlock({
     required HikConnectCameraBootstrapSnapshot snapshot,
     required String apiBaseUrl,
-    String appKey = 'replace-me',
-    String appSecret = 'replace-me',
+    String appKey = '',
+    String appSecret = '',
     String areaId = '-1',
     bool includeSubArea = true,
     List<int> alarmEventTypes = const <int>[0, 1, 100657],

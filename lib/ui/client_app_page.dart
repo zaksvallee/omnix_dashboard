@@ -1054,33 +1054,58 @@ class _ClientAppPageState extends State<ClientAppPage> {
 
   Widget _viewerRoleChip(ClientAppViewerRole role) {
     final selected = role == _viewerRole;
-    return OutlinedButton(
-      onPressed: () => _setViewerRole(role),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: selected ? _clientTitleColor : _clientBodyColor,
-        backgroundColor: selected
-            ? _clientSelectedPanelColor
-            : _clientPanelColor,
-        side: BorderSide(
-          color: selected ? _clientStrongBorderColor : _clientBorderColor,
+    final roleLabel = role.displayLabelForLocale(widget.locale);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: ValueKey(
+            'client-viewer-role-chip-${role.name}-${widget.locale.name}-${_phoneLayout ? 'phone' : 'desk'}',
+          ),
+          onTap: () => _setViewerRole(role),
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: selected ? _clientSelectedPanelColor : _clientPanelColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected
+                    ? _clientStrongBorderColor
+                    : _clientBorderColor,
+              ),
+              boxShadow: selected
+                  ? const [
+                      BoxShadow(
+                        color: Color(0x0A000000),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: _phoneLayout ? 44 : 36),
+              child: Padding(
+                padding: _phoneLayout
+                    ? const EdgeInsets.symmetric(horizontal: 14, vertical: 11)
+                    : const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                child: Text(
+                  roleLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                  style: TextStyle(
+                    color: selected ? _clientTitleColor : _clientBodyColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
-        minimumSize: Size(0, _phoneLayout ? 44 : 36),
-        padding: _phoneLayout
-            ? const EdgeInsets.symmetric(horizontal: 14, vertical: 11)
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        tapTargetSize: _phoneLayout
-            ? MaterialTapTargetSize.padded
-            : MaterialTapTargetSize.shrinkWrap,
-        visualDensity: _phoneLayout
-            ? VisualDensity.standard
-            : VisualDensity.compact,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        elevation: selected ? 2 : 0,
-        shadowColor: const Color(0x0A000000),
-      ),
-      child: Text(
-        role.displayLabelForLocale(widget.locale),
-        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
       ),
     );
   }

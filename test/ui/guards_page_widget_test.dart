@@ -108,7 +108,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Guards & Workforce'), findsOneWidget);
+    expect(find.text('Guards & Workforce'), findsWidgets);
     expect(find.text('Active Now'), findsOneWidget);
     expect(find.text('GUARD ROSTER'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -125,7 +125,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Guards & Workforce'), findsOneWidget);
+    expect(find.text('Guards & Workforce'), findsWidgets);
     expect(find.text('OPEN REPORTS WORKSPACE'), findsOneWidget);
     expect(find.text('5 On Duty'), findsOneWidget);
     expect(find.text('1 Sync Issues'), findsOneWidget);

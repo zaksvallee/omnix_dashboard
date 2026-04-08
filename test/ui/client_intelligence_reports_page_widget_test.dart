@@ -92,8 +92,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(openedEventsScope, isNotNull);
-    expect(openedEventsScope!['eventIds'], <String>['RPT-2024-03-10-001']);
-    expect(openedEventsScope!['selectedEventId'], 'RPT-2024-03-10-001');
+    expect(openedEventsScope!['eventIds'], <String>['RPT-2026-04-07-001']);
+    expect(openedEventsScope!['selectedEventId'], 'RPT-2026-04-07-001');
   });
 
   testWidgets('client reports workspace shell routes command strip actions', (
@@ -304,7 +304,7 @@ void main() {
     expect(clipboardText, contains('"context"'));
     expect(clipboardText, contains('"receipts"'));
     expect(clipboardText, contains('"key": "all"'));
-    expect(clipboardText, contains('"eventId": "RPT-2024-03-10-001"'));
+    expect(clipboardText, contains('"eventId": "RPT-2026-04-07-001"'));
     expect(clipboardText, contains('"reportSchemaVersion": 1'));
     expect(clipboardText, contains('"sceneReviewIncluded": false'));
   });
@@ -4109,7 +4109,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final previewButton = find.byKey(
-      const ValueKey('report-receipt-preview-RPT-2024-03-10-001'),
+      const ValueKey('report-receipt-preview-RPT-2026-04-07-001'),
     );
     await tester.ensureVisible(previewButton);
     await tester.tap(previewButton);
@@ -4123,7 +4123,7 @@ void main() {
     );
 
     final downloadButton = find.byKey(
-      const ValueKey('report-receipt-download-RPT-2024-03-10-001'),
+      const ValueKey('report-receipt-download-RPT-2026-04-07-001'),
     );
     await tester.ensureVisible(downloadButton);
     await tester.tap(downloadButton);
@@ -4131,7 +4131,7 @@ void main() {
 
     expect(
       find.textContaining(
-        'Sample receipt metadata copied for command review: RPT-2024-03-10-001.',
+        'Sample receipt metadata copied for command review: RPT-2026-04-07-001.',
       ),
       findsWidgets,
     );
@@ -4143,7 +4143,7 @@ void main() {
     expect(clipboardText, contains('"context"'));
     expect(clipboardText, contains('"receipts"'));
     expect(clipboardText, contains('"key": "all"'));
-    expect(clipboardText, contains('"eventId": "RPT-2024-03-10-001"'));
+    expect(clipboardText, contains('"eventId": "RPT-2026-04-07-001"'));
     expect(clipboardText, contains('"reportSchemaVersion": 1'));
     expect(clipboardText, contains('"sceneReviewIncluded": false'));
   });
@@ -4814,7 +4814,7 @@ void main() {
       await tester.pumpAndSettle();
 
       shellState.value = shellState.value.copyWith(
-        selectedReceiptEventId: 'RPT-2024-03-10-001',
+        selectedReceiptEventId: 'RPT-2026-04-07-001',
       );
       await tester.pumpAndSettle();
 
@@ -5076,11 +5076,11 @@ void main() {
     await tester.pumpAndSettle();
 
     shellState.value = shellState.value.copyWith(
-      previewReceiptEventId: 'RPT-2024-03-10-001',
+      previewReceiptEventId: 'RPT-2026-04-07-001',
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Preview target: RPT-2024-03-10-001'), findsOneWidget);
+    expect(find.text('Preview target: RPT-2026-04-07-001'), findsOneWidget);
     expect(find.text('OPEN PREVIEW TARGET'), findsWidgets);
     expect(
       find.byKey(const ValueKey('reports-preview-target-open')),
@@ -5112,7 +5112,7 @@ void main() {
     await tester.pumpAndSettle();
 
     shellState.value = shellState.value.copyWith(
-      previewReceiptEventId: 'RPT-2024-03-10-001',
+      previewReceiptEventId: 'RPT-2026-04-07-001',
       previewSurface: ReportPreviewSurface.dock,
     );
     await tester.pumpAndSettle();
@@ -5209,7 +5209,7 @@ void main() {
     await tester.pumpAndSettle();
 
     shellState.value = shellState.value.copyWith(
-      previewReceiptEventId: 'RPT-2024-03-10-001',
+      previewReceiptEventId: 'RPT-2026-04-07-001',
     );
     await tester.pumpAndSettle();
 
@@ -5221,7 +5221,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(changedState?.previewReceiptEventId, isNull);
-    expect(find.text('Preview target: RPT-2024-03-10-001'), findsNothing);
+    expect(find.text('Preview target: RPT-2026-04-07-001'), findsNothing);
   });
 
   testWidgets(
@@ -6606,7 +6606,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('report-receipt-preview-RPT-2024-03-10-001')),
+        find.byKey(const ValueKey('report-receipt-preview-RPT-2026-04-07-001')),
         findsNothing,
       );
       expect(

@@ -3,6 +3,7 @@ part of '../main.dart';
 extension _OnyxRouteOperationsBuilders on _OnyxAppState {
   Widget _buildVipRoute() => VipProtectionPage(
     onCreateDetail: _openVipPackageBuilderFromRoute,
+    scheduledDetails: const <VipScheduledDetail>[],
     onReviewScheduledDetail: _openVipPackageReviewFromRoute,
     latestAutoAuditReceipt: _latestVipAutoAuditReceipt,
     onOpenLatestAudit: _latestVipAuditLedgerEntry == null
@@ -36,9 +37,7 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
       onViewAreaIntel: _openEventsForRiskIntelAreaFromRoute,
       onViewRecentIntel: _openEventsForRiskIntelItemFromRoute,
       areas: areas,
-      recentItems: recentItems.isEmpty
-          ? RiskIntelligencePage.defaultRecentItems
-          : recentItems,
+      recentItems: recentItems,
       latestAutoAuditReceipt: _latestRiskIntelAutoAuditReceipt,
       onOpenLatestAudit: _latestRiskIntelAuditLedgerEntry == null
           ? null

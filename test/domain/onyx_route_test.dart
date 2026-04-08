@@ -248,7 +248,7 @@ final Map<OnyxRoute, ({
   ),
   OnyxRoute.governance: (
     kind: OnyxRouteShellBadgeKind.complianceIssues,
-    color: Color(0xFFF59E0B),
+    color: Color(0xFF60A5FA),
   ),
 };
 

@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-08 17:56
-- **Last commit:** feat: Axis camera worker — VAPIX v3 implementation
-- **Commit hash:** e83c545
+- **Date:** 2026-04-08 21:56
+- **Last commit:** fix: status quick action — read live site awareness from Supabase instead of hardcoded response
+- **Commit hash:** 7020f14
 
 
 ## Completed (this sprint)

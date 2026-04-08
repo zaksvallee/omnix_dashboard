@@ -49,7 +49,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('live-operations-command-current-focus')),
+      find.byKey(const ValueKey('live-operations-command-full-grid')),
       findsOneWidget,
     );
   });

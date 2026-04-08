@@ -362,34 +362,36 @@ class _ClientIntelligenceReportsPageState
   Future<void> _generateReport() async {
     setState(() => _isGenerating = true);
     try {
-    final generated = await _service.generatePdfReport(
-      clientId: widget.selectedClient,
-      siteId: widget.selectedSite,
-      nowUtc: _reportGenerationNowUtc(),
-      brandingConfiguration: _currentBrandingConfiguration,
-      sectionConfiguration: _currentSectionConfiguration,
-      investigationContextKey: _entryContext?.storageValue ?? '',
-    );
-    final replayMatches = await _service.verifyReportHash(
-      generated.receiptEvent,
-    );
-    await _loadReceipts();
-    if (!mounted) {
-      return;
-    }
-    focusReportReceiptWorkspace(generated.receiptEvent.eventId);
-    if (!mounted) {
-      return;
-    }
-    presentReportPreviewRequest(
-      ReportPreviewRequest(
-        bundle: generated.bundle,
-        initialPdfBytes: generated.pdfBytes,
-        receiptEvent: generated.receiptEvent,
-        replayMatches: replayMatches,
-        entryContext: _effectiveEntryContextForReceipt(generated.receiptEvent),
-      ),
-    );
+      final generated = await _service.generatePdfReport(
+        clientId: widget.selectedClient,
+        siteId: widget.selectedSite,
+        nowUtc: _reportGenerationNowUtc(),
+        brandingConfiguration: _currentBrandingConfiguration,
+        sectionConfiguration: _currentSectionConfiguration,
+        investigationContextKey: _entryContext?.storageValue ?? '',
+      );
+      final replayMatches = await _service.verifyReportHash(
+        generated.receiptEvent,
+      );
+      await _loadReceipts();
+      if (!mounted) {
+        return;
+      }
+      focusReportReceiptWorkspace(generated.receiptEvent.eventId);
+      if (!mounted) {
+        return;
+      }
+      presentReportPreviewRequest(
+        ReportPreviewRequest(
+          bundle: generated.bundle,
+          initialPdfBytes: generated.pdfBytes,
+          receiptEvent: generated.receiptEvent,
+          replayMatches: replayMatches,
+          entryContext: _effectiveEntryContextForReceipt(
+            generated.receiptEvent,
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
@@ -10918,10 +10920,7 @@ class _ClientIntelligenceReportsPageState
       activeSectionConfiguration: _currentSectionConfiguration.toJson(),
       entryContext: _effectiveEntryContextForReceipt(row.event),
     );
-    await _exportCoordinator.copyJson(
-      payload,
-      label: 'reports.copy_receipt',
-    );
+    await _exportCoordinator.copyJson(payload, label: 'reports.copy_receipt');
     _showReceiptActionFeedback(
       '${_receiptExportFeedbackPrefix(row.event)} copied for command review: ${row.event.eventId}.',
     );
@@ -11021,11 +11020,7 @@ class _ClientIntelligenceReportsPageState
   }
 
   String _humanizeClient(String clientId) {
-    final normalized = clientId.replaceAll('_', '-').toUpperCase();
-    if (normalized == 'CLIENT-001') {
-      return 'Sandton Estate HOA';
-    }
-    return normalized;
+    return clientId.replaceAll('_', '-').toUpperCase();
   }
 
   String _humanizeSite(String siteId) {
@@ -11083,18 +11078,19 @@ class _ClientIntelligenceReportsPageState
     return '$yy-$mm-$dd';
   }
 
-  List<_ReceiptRow> get _sampleReceipts => kDebugMode ? _debugSampleReceipts : const [];
+  List<_ReceiptRow> get _sampleReceipts =>
+      kDebugMode ? _debugSampleReceipts : const [];
 
   List<_ReceiptRow> get _debugSampleReceipts => [
     _ReceiptRow(
       event: ReportGenerated(
-        eventId: 'RPT-2024-03-10-001',
+        eventId: 'RPT-2026-04-07-001',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2024, 3, 10, 22, 15),
-        clientId: 'Sandton Estate HOA',
-        siteId: 'Sandton Estate North',
-        month: '2024-03',
+        occurredAt: DateTime.utc(2026, 4, 7, 22, 15),
+        clientId: 'CLIENT-DEMO',
+        siteId: 'SITE-DEMO',
+        month: '2026-04',
         contentHash: 'sample',
         pdfHash: 'sample',
         eventRangeStart: 1,
@@ -11114,13 +11110,13 @@ class _ClientIntelligenceReportsPageState
     ),
     _ReceiptRow(
       event: ReportGenerated(
-        eventId: 'RPT-2024-03-10-002',
+        eventId: 'RPT-2026-04-07-002',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2024, 3, 10, 22, 10),
-        clientId: 'Waterfall Security Board',
-        siteId: 'Waterfall Estate Main',
-        month: '2024-03',
+        occurredAt: DateTime.utc(2026, 4, 7, 22, 10),
+        clientId: 'CLIENT-ALPHA',
+        siteId: 'SITE-NORTH',
+        month: '2026-04',
         contentHash: 'sample',
         pdfHash: 'sample',
         eventRangeStart: 1,
@@ -11140,13 +11136,13 @@ class _ClientIntelligenceReportsPageState
     ),
     _ReceiptRow(
       event: ReportGenerated(
-        eventId: 'RPT-2024-03-09-002',
+        eventId: 'RPT-2026-04-06-002',
         sequence: 0,
         version: 1,
-        occurredAt: DateTime.utc(2024, 3, 9, 23, 40),
-        clientId: 'Midrand Industrial Trust',
-        siteId: 'Midrand Industrial Park',
-        month: '2024-03',
+        occurredAt: DateTime.utc(2026, 4, 6, 23, 40),
+        clientId: 'CLIENT-BETA',
+        siteId: 'SITE-WEST',
+        month: '2026-04',
         contentHash: 'sample',
         pdfHash: 'sample',
         eventRangeStart: 1,

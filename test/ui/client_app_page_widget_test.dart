@@ -1837,12 +1837,11 @@ void main() {
     );
     expect(find.text('Control team notified for Desk Ops'), findsWidgets);
 
-    tester
-        .widget<OutlinedButton>(
-          find.widgetWithText(OutlinedButton, 'Resident View'),
-        )
-        .onPressed!
-        .call();
+    final residentViewChip = find.ancestor(
+      of: find.text('Resident View'),
+      matching: find.byType(InkWell),
+    );
+    tester.widget<InkWell>(residentViewChip.first).onTap!.call();
     await tester.pump();
 
     expect(

@@ -1,6 +1,5 @@
 // lib/domain/authority/onyx_route.dart
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 enum OnyxRouteSection {
@@ -164,9 +163,7 @@ enum OnyxRoute {
     Icons.summarize_rounded,
     OnyxRouteSection.evidence,
     'REPORTS',
-    kDebugMode
-        ? 'Demonstrate export and report proof.'
-        : 'Review export proof and generated reports.',
+    'Review export proof and generated reports.',
   ),
   admin(
     '/admin',
@@ -174,9 +171,7 @@ enum OnyxRoute {
     Icons.settings_rounded,
     OnyxRouteSection.system,
     'ADMIN',
-    kDebugMode
-        ? 'Demo seeding and runtime controls.'
-        : 'Manage runtime controls and system settings.',
+    'Manage runtime controls and system settings.',
   );
 
   final String path;

@@ -1029,7 +1029,7 @@ void main() {
       find.byKey(const ValueKey('events-partner-milestone-cancelled')),
       findsOneWidget,
     );
-    expect(find.text('Pending'), findsOneWidget);
+    expect(find.text('Pending'), findsWidgets);
     expect(find.text('IMPROVING • 2d • STRONG'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('events-partner-trend-reason')),
@@ -2115,6 +2115,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(openedLedgerEventId, 'READY-SCOPE-MISSING');
   });
+
+  testWidgets(
+    'events review focused fallback uses neutral demo scope when unresolved',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1440, 1100));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: EventsReviewPage(
+            events: <DispatchEvent>[],
+            initialSelectedEventId: 'READY-SCOPE-MISSING',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Requested evidence READY-SCOPE-MISSING was rebuilt in-page so triage can continue while live ingest catches up.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('"clientId": "CLIENT-DEMO"'), findsOneWidget);
+      expect(find.textContaining('"siteId": "SITE-DEMO"'), findsOneWidget);
+      expect(find.textContaining('"regionId": "REGION-DEMO"'), findsOneWidget);
+      expect(find.textContaining('DEMO-CLT'), findsNothing);
+      expect(find.textContaining('DEMO-SITE'), findsNothing);
+    },
+  );
 
   testWidgets('events review shows dedicated synthetic investigation banner', (
     tester,

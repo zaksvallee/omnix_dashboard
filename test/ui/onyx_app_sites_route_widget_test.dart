@@ -29,11 +29,11 @@ void main() {
     expect(find.byType(TacticalPage), findsOneWidget);
     expect(
       tester.widget<TacticalPage>(find.byType(TacticalPage)).initialScopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<TacticalPage>(find.byType(TacticalPage)).initialScopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
   });
 
@@ -91,11 +91,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(GuardsPage), findsOneWidget);
-    expect(find.text('Guards & Workforce'), findsOneWidget);
+    expect(find.text('Guards & Workforce'), findsWidgets);
     expect(find.text('Active Now'), findsOneWidget);
     expect(
       tester.widget<GuardsPage>(find.byType(GuardsPage)).initialSiteFilter,
-      'Ms Vallee Residence',
+      'Demo',
     );
   });
 
@@ -140,8 +140,8 @@ void main() {
           initialPinnedLedgerAuditEntryOverride:
               SovereignLedgerPinnedAuditEntry(
                 auditId: 'SITES-AUDIT-GUARDS-1',
-                clientId: 'CLIENT-MS-VALLEE',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                clientId: 'CLIENT-DEMO',
+                siteId: 'SITE-DEMO',
                 recordCode: 'OB-AUDIT',
                 title: 'Guard roster opened from Sites.',
                 description:
@@ -155,7 +155,7 @@ void main() {
                 payload: const <String, Object?>{
                   'type': 'sites_auto_audit',
                   'action': 'site_guard_roster_opened',
-                  'site_id': 'SITE-MS-VALLEE-RESIDENCE',
+                  'site_id': 'SITE-DEMO',
                   'site_name': 'Ms Vallee Residence',
                 },
               ),

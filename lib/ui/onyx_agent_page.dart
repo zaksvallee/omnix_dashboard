@@ -148,6 +148,8 @@ enum _PlannerBacklogReviewStatus { acknowledged, muted, fixed }
 
 enum _AgentMessageKind { user, agent, tool }
 
+enum _AgentBrainProvider { local, cloud, none }
+
 class _AgentPersona {
   final String id;
   final String label;
@@ -1006,6 +1008,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     var shouldEmitResolvedRestoreState = false;
 
     void apply() {
+      _cachedPlannerConflictReport = null;
       _suppressedRestoreStaleFollowUpThreadId = null;
       if (restored != null) {
         _threads = restored.threads;
@@ -1509,11 +1512,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _preferCloudBoost && _cloudBoostAvailable
-                          ? 'Local first. OpenAI is available if you want a deeper second pass. Approval stays with you.'
-                          : _localBrainConfigured
-                          ? 'Local first. Approval stays with you. OpenAI is optional, not required.'
-                          : 'Local heuristics stay first. Approval stays with you. OpenAI remains optional.',
+                      _brainStatusSummaryText(),
                       style: GoogleFonts.inter(
                         color: const Color(0xFF556B80),
                         fontSize: 11.4,
@@ -5248,6 +5247,16 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                 ),
           );
     final structuredRecommendation = structuredDecision?.toRecommendation();
+    final brainScope = _brainScopeForThreadMemory(
+      threadMemory,
+      plannerConflictReport: plannerConflictReport,
+    );
+    final brainIntent = _cloudIntentForPrompt(prompt);
+    final preferredBrainProvider = _resolvePreferredBrainProvider(
+      prompt: prompt,
+      scope: brainScope,
+      intent: brainIntent,
+    );
     final nextStructuredThreadTitle = _selectedThread.messages.length <= 1
         ? _threadTitleFromPrompt(prompt)
         : _selectedThread.title;
@@ -5264,7 +5273,10 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             plannerConflictReport: plannerConflictReport,
           );
     final responses = structuredRecommendation == null
-        ? _responsesForPrompt(prompt)
+        ? _responsesForPrompt(
+            prompt,
+            preferredBrainProvider: preferredBrainProvider,
+          )
         : _responsesForStructuredRecommendation(
             structuredRecommendation,
             decision: structuredDecision,
@@ -5286,8 +5298,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       );
     });
     if (structuredRecommendation != null) {
-      if (_preferCloudBoost &&
-          _cloudBoostAvailable &&
+      if (preferredBrainProvider == _AgentBrainProvider.cloud &&
           structuredMemory != null &&
           structuredWorkItem != null &&
           structuredDecision != null) {
@@ -5302,16 +5313,13 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       }
       return;
     }
-    if (!_preferCloudBoost && _localBrainConfigured) {
+    if (preferredBrainProvider == _AgentBrainProvider.local) {
       OnyxAgentCloudBoostResponse? localResponse;
       try {
         localResponse = await _runLocalBrainSynthesis(
           prompt: prompt,
-          scope: _brainScopeForThreadMemory(
-            threadMemory,
-            plannerConflictReport: plannerConflictReport,
-          ),
-          intent: _cloudIntentForPrompt(prompt),
+          scope: brainScope,
+          intent: brainIntent,
           contextSummary: reasoningContext,
         );
       } catch (_) {
@@ -5330,9 +5338,30 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
         return;
       }
       if (localResponse == null) {
+        if (_shouldFallbackLocalBrainToCloud(brainIntent)) {
+          await _runCloudBoostForThread(
+            threadId: threadId,
+            prompt: prompt,
+            scope: brainScope,
+            intent: brainIntent,
+            contextSummary: reasoningContext,
+            plannerConflictReport: plannerConflictReport,
+          );
+        }
         return;
       }
       if (localResponse.isError) {
+        if (_shouldFallbackLocalBrainToCloud(brainIntent)) {
+          await _runCloudBoostForThread(
+            threadId: threadId,
+            prompt: prompt,
+            scope: brainScope,
+            intent: brainIntent,
+            contextSummary: reasoningContext,
+            plannerConflictReport: plannerConflictReport,
+          );
+          return;
+        }
         _appendToolMessage(
           headline: 'Local brain unavailable',
           body: _brainErrorMessageBody(
@@ -5363,19 +5392,34 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       });
       return;
     }
-    if (!_preferCloudBoost || !_cloudBoostAvailable) {
+    if (preferredBrainProvider != _AgentBrainProvider.cloud) {
       return;
     }
+    await _runCloudBoostForThread(
+      threadId: threadId,
+      prompt: prompt,
+      scope: brainScope,
+      intent: brainIntent,
+      contextSummary: reasoningContext,
+      plannerConflictReport: plannerConflictReport,
+    );
+  }
+
+  Future<void> _runCloudBoostForThread({
+    required String threadId,
+    required String prompt,
+    required OnyxAgentCloudScope scope,
+    required OnyxAgentCloudIntent intent,
+    required String contextSummary,
+    required _PlannerConflictReport plannerConflictReport,
+  }) async {
     OnyxAgentCloudBoostResponse? cloudResponse;
     try {
       cloudResponse = await _runCloudBoost(
         prompt: prompt,
-        scope: _brainScopeForThreadMemory(
-          threadMemory,
-          plannerConflictReport: plannerConflictReport,
-        ),
-        intent: _cloudIntentForPrompt(prompt),
-        contextSummary: reasoningContext,
+        scope: scope,
+        intent: intent,
+        contextSummary: contextSummary,
       );
     } catch (_) {
       if (!mounted) {
@@ -5476,24 +5520,19 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     }
   }
 
-  List<_AgentMessage> _responsesForPrompt(String prompt) {
+  List<_AgentMessage> _responsesForPrompt(
+    String prompt, {
+    required _AgentBrainProvider preferredBrainProvider,
+  }) {
     final normalized = prompt.toLowerCase();
     final ips = _extractIpv4Targets(prompt);
     final scope = _scopeLabel();
     final recoveryScope = _cameraRecoveryScopeLabel();
     final incident = widget.focusIncidentReference.trim();
     final cameraRecovery = _looksLikeCameraRecoveryPrompt(normalized);
-    final cloudLine = widget.cloudAssistAvailable
-        ? (_cloudBoostConfigured
-              ? (_preferCloudBoost
-                    ? 'OpenAI has been summoned for this thread, but execution stays local and approval-gated.'
-                    : _localBrainConfigured
-                    ? 'The offline model is handling this request first, with OpenAI available only if you explicitly summon it.'
-                    : 'Cloud boost is available for this login, but I am keeping this request local-first.')
-              : 'This login can use OpenAI boost once a runtime key is configured. I am staying local-first for now.')
-        : _localBrainConfigured
-        ? 'This login is locked to local mode, so the offline model and local ONYX tools stay inside the app.'
-        : 'This login is locked to local-first mode, so reasoning and tools stay inside ONYX.';
+    final cloudLine = _brainRoutingNarrativeForPrompt(
+      preferredBrainProvider: preferredBrainProvider,
+    );
 
     if (_looksLikeCameraPrompt(normalized, ips)) {
       final bridgeStatusLine = widget.cameraBridgeStatus.isLive
@@ -5924,6 +5963,76 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
         ],
       ),
     ];
+  }
+
+  String _brainStatusSummaryText() {
+    if (_preferCloudBoost && _cloudBoostAvailable) {
+      return 'OpenAI is pinned for this thread. Approval stays with you.';
+    }
+    if (_localBrainConfigured && _cloudBoostAvailable) {
+      return 'Smart routing is active. Fast tasks stay local; complex or overdue work can escalate to OpenAI. Approval stays with you.';
+    }
+    if (_localBrainConfigured) {
+      return 'Local first. Approval stays with you. OpenAI is optional, not required.';
+    }
+    if (_cloudBoostAvailable) {
+      return 'Cloud reasoning is available for deeper passes. Approval stays with you.';
+    }
+    return 'Local heuristics stay first. Approval stays with you. OpenAI remains optional.';
+  }
+
+  String _brainRoutingNarrativeForPrompt({
+    required _AgentBrainProvider preferredBrainProvider,
+  }) {
+    if (_preferCloudBoost && _cloudBoostAvailable) {
+      return 'OpenAI is pinned for this thread, but execution stays local and approval-gated.';
+    }
+    return switch (preferredBrainProvider) {
+      _AgentBrainProvider.cloud when _cloudBoostAvailable =>
+        'Smart routing escalated this request to OpenAI for a deeper advisory while execution stays local and approval-gated.',
+      _AgentBrainProvider.local when _localBrainConfigured =>
+        _cloudBoostAvailable
+            ? 'Smart routing kept this request on the offline model first, with OpenAI still available if the thread needs a deeper second pass.'
+            : 'This login is locked to local mode, so the offline model and local ONYX tools stay inside the app.',
+      _AgentBrainProvider.cloud =>
+        'Cloud routing is preferred for this request, but the advisory will stay local until a cloud provider is available.',
+      _AgentBrainProvider.none =>
+        'This login is locked to local-first mode, so reasoning and tools stay inside ONYX.',
+      _AgentBrainProvider.local =>
+        'This login is locked to local-first mode, so reasoning and tools stay inside ONYX.',
+    };
+  }
+
+  _AgentBrainProvider _resolvePreferredBrainProvider({
+    required String prompt,
+    required OnyxAgentCloudScope scope,
+    required OnyxAgentCloudIntent intent,
+  }) {
+    if (_preferCloudBoost && _cloudBoostAvailable) {
+      return _AgentBrainProvider.cloud;
+    }
+    final preferredTier = onyxAgentSmartRoutingTierFor(
+      intent: intent,
+      prompt: prompt,
+      pendingFollowUpAgeMinutes: scope.pendingFollowUpAgeMinutes,
+    );
+    return switch (preferredTier) {
+      OnyxAgentRoutingTier.cloud when _cloudBoostAvailable =>
+        _AgentBrainProvider.cloud,
+      OnyxAgentRoutingTier.cloud when _localBrainConfigured =>
+        _AgentBrainProvider.local,
+      OnyxAgentRoutingTier.local when _localBrainConfigured =>
+        _AgentBrainProvider.local,
+      OnyxAgentRoutingTier.local when _cloudBoostAvailable =>
+        _AgentBrainProvider.cloud,
+      _ => _AgentBrainProvider.none,
+    };
+  }
+
+  bool _shouldFallbackLocalBrainToCloud(OnyxAgentCloudIntent intent) {
+    return !_preferCloudBoost &&
+        _cloudBoostAvailable &&
+        intent == OnyxAgentCloudIntent.general;
   }
 
   OnyxWorkItem? _structuredWorkItemForPrompt(

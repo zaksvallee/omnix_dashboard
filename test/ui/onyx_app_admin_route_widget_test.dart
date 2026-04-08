@@ -185,8 +185,7 @@ class _ThrowingAdminTelegramAiAssistantStub
   }
 }
 
-class _FlakyAdminTelegramAiAssistantStub
-    implements TelegramAiAssistantService {
+class _FlakyAdminTelegramAiAssistantStub implements TelegramAiAssistantService {
   _FlakyAdminTelegramAiAssistantStub();
 
   int failuresBeforeSuccess = 1;
@@ -254,8 +253,8 @@ void main() {
   Future<void> seedScopedAdminTelegramRuntime() async {
     await saveTelegramAdminRuntimeState({
       'allowed_user_ids_override': <int>[77],
-      'target_client_override': 'CLIENT-MS-VALLEE',
-      'target_site_override': 'SITE-MS-VALLEE-RESIDENCE',
+      'target_client_override': 'CLIENT-DEMO',
+      'target_site_override': 'SITE-DEMO',
     });
   }
 
@@ -629,8 +628,8 @@ void main() {
       await prepareAdminRouteTest(tester);
       await saveTelegramAdminRuntimeState({
         'allowed_user_ids_override': <int>[77],
-        'target_client_override': 'CLIENT-MS-VALLEE',
-        'target_site_override': 'SITE-MS-VALLEE-RESIDENCE',
+        'target_client_override': 'CLIENT-DEMO',
+        'target_site_override': 'SITE-DEMO',
         'poll_interval_override_seconds': 1,
       });
       final bridge = _PollingTelegramBridgeStub(<TelegramBridgeInboundMessage>[
@@ -678,8 +677,8 @@ void main() {
       await prepareAdminRouteTest(tester);
       await saveTelegramAdminRuntimeState({
         'allowed_user_ids_override': <int>[77],
-        'target_client_override': 'CLIENT-MS-VALLEE',
-        'target_site_override': 'SITE-MS-VALLEE-RESIDENCE',
+        'target_client_override': 'CLIENT-DEMO',
+        'target_site_override': 'SITE-DEMO',
         'poll_interval_override_seconds': 1,
       });
       final bridge = _PollingTelegramBridgeStub(<TelegramBridgeInboundMessage>[
@@ -709,7 +708,8 @@ void main() {
           telegramBridgeServiceOverride: bridge,
           telegramAdminChatIdOverride: 'test-admin-chat',
           telegramAiAssistantEnabledOverride: true,
-          telegramAiAssistantServiceOverride: _FlakyAdminTelegramAiAssistantStub(),
+          telegramAiAssistantServiceOverride:
+              _FlakyAdminTelegramAiAssistantStub(),
         ),
       );
       await tester.pump();
@@ -721,14 +721,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       final transcript = telegramTranscriptFromMessages(bridge.sentMessages);
-      expect(
-        RegExp('ONYX BRIEF').allMatches(transcript).length,
-        1,
-      );
-      expect(
-        RegExp('Recovered AI reply\\.').allMatches(transcript).length,
-        1,
-      );
+      expect(RegExp('ONYX BRIEF').allMatches(transcript).length, 1);
+      expect(RegExp('Recovered AI reply\\.').allMatches(transcript).length, 1);
       expect(bridge.requestedOffsets, contains(701));
     },
   );
@@ -739,8 +733,8 @@ void main() {
       await prepareAdminRouteTest(tester);
       await saveTelegramAdminRuntimeState({
         'allowed_user_ids_override': <int>[77],
-        'target_client_override': 'CLIENT-MS-VALLEE',
-        'target_site_override': 'SITE-MS-VALLEE-RESIDENCE',
+        'target_client_override': 'CLIENT-DEMO',
+        'target_site_override': 'SITE-DEMO',
         'poll_interval_override_seconds': 1,
       });
       final bridge = _PollingTelegramBridgeStub(<TelegramBridgeInboundMessage>[
@@ -822,7 +816,14 @@ void main() {
     'onyx app keeps admin onboarding prompts, state, and incident reads deterministic across follow-ups and restart',
     (tester) async {
       final initialPromptCases =
-          <({String prompt, int updateId, List<String> expected, List<String> forbidden})>[
+          <
+            ({
+              String prompt,
+              int updateId,
+              List<String> expected,
+              List<String> forbidden,
+            })
+          >[
             (
               prompt: 'Client onboarding. Akhalawayas Robertsham',
               updateId: 4406,
@@ -921,14 +922,26 @@ void main() {
           expect(sentTranscript, contains(text), reason: scenario.prompt);
         }
         for (final text in scenario.forbidden) {
-          expect(sentTranscript, isNot(contains(text)), reason: scenario.prompt);
+          expect(
+            sentTranscript,
+            isNot(contains(text)),
+            reason: scenario.prompt,
+          );
         }
       }
 
       final progressionCases =
-          <({String prompt, int updateId, List<String> expected, List<String> forbidden})>[
+          <
+            ({
+              String prompt,
+              int updateId,
+              List<String> expected,
+              List<String> forbidden,
+            })
+          >[
             (
-              prompt: 'Create new client Akhalawayas Robertsham, Robertsham Estate',
+              prompt:
+                  'Create new client Akhalawayas Robertsham, Robertsham Estate',
               updateId: 44075,
               expected: const <String>[
                 'Client: Akhalawayas Robertsham',
@@ -1019,7 +1032,11 @@ void main() {
           expect(sentTranscript, contains(text), reason: scenario.prompt);
         }
         for (final text in scenario.forbidden) {
-          expect(sentTranscript, isNot(contains(text)), reason: scenario.prompt);
+          expect(
+            sentTranscript,
+            isNot(contains(text)),
+            reason: scenario.prompt,
+          );
         }
       }
 
@@ -1079,7 +1096,14 @@ void main() {
       );
 
       final continuationCases =
-          <({List<String> prompts, int firstUpdateId, List<String> expected, List<String> forbidden})>[
+          <
+            ({
+              List<String> prompts,
+              int firstUpdateId,
+              List<String> expected,
+              List<String> forbidden,
+            })
+          >[
             (
               prompts: const <String>[
                 'Create new client Akhalawayas Robertsham',
@@ -1162,7 +1186,7 @@ void main() {
                 'Do we have police activity tonight?',
               ],
               firstUpdateId: 440521,
-              expectedHeading: "Tonight's incidents for MS Vallee Residence:",
+              expectedHeading: "Tonight's incidents for Demo:",
               expectedToken: 'DSP-ADMIN-URGENT-TONIGHT',
               unexpectedToken: 'DSP-ADMIN-URGENT-OLD',
               forbiddenTranscriptSnippets: const <String>[],
@@ -1176,19 +1200,21 @@ void main() {
                   version: 1,
                   occurredAt: latestInWindow.toUtc(),
                   dispatchId: 'DSP-ADMIN-URGENT-TONIGHT',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
                 DecisionCreated(
                   eventId: 'admin-telegram-urgent-mixed-tonight-old',
                   sequence: 2,
                   version: 1,
-                  occurredAt: start.subtract(const Duration(minutes: 12)).toUtc(),
+                  occurredAt: start
+                      .subtract(const Duration(minutes: 12))
+                      .toUtc(),
                   dispatchId: 'DSP-ADMIN-URGENT-OLD',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
               ],
             ),
@@ -1198,7 +1224,7 @@ void main() {
                 'Do we have police activity',
               ],
               firstUpdateId: 440531,
-              expectedHeading: 'Unresolved incidents in MS Vallee Residence:',
+              expectedHeading: 'Unresolved incidents in Demo:',
               expectedToken: 'INC-DSP-ADMIN-URGENT-UNRESOLVED',
               unexpectedToken: null,
               forbiddenTranscriptSnippets: const <String>[],
@@ -1212,9 +1238,9 @@ void main() {
                   version: 1,
                   occurredAt: now.subtract(const Duration(minutes: 6)),
                   dispatchId: 'DSP-ADMIN-URGENT-UNRESOLVED',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
               ],
             ),
@@ -1224,7 +1250,7 @@ void main() {
                 'Breaches across all sites?',
               ],
               firstUpdateId: 440541,
-              expectedHeading: 'Unresolved incidents in CLIENT-MS-VALLEE:',
+              expectedHeading: 'Unresolved incidents in CLIENT-DEMO:',
               expectedToken: 'INC-DSP-ADMIN-ALL-URGENT-1',
               unexpectedToken: null,
               forbiddenTranscriptSnippets: const <String>[
@@ -1240,9 +1266,9 @@ void main() {
                   version: 1,
                   occurredAt: now.subtract(const Duration(minutes: 7)),
                   dispatchId: 'DSP-ADMIN-ALL-URGENT-1',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
                 DecisionCreated(
                   eventId: 'admin-telegram-urgent-all-sites-unresolved-b',
@@ -1250,7 +1276,7 @@ void main() {
                   version: 1,
                   occurredAt: now.subtract(const Duration(minutes: 5)),
                   dispatchId: 'DSP-ADMIN-ALL-URGENT-2',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
                   siteId: 'SITE-SANDTON-ESTATE',
                 ),
@@ -1274,7 +1300,7 @@ void main() {
               firstUpdateId: 440551,
               expectedHeading:
                   "This week's alert leader: Sandton Estate (2 alerts)",
-              expectedToken: 'Ms Vallee Residence • 1 alert',
+              expectedToken: 'Demo • 1 alert',
               unexpectedToken: null,
               forbiddenTranscriptSnippets: const <String>[],
               extraExpected: const <String>[],
@@ -1292,7 +1318,7 @@ void main() {
                   provider: 'hikvision-dvr',
                   sourceType: 'dvr',
                   externalId: 'evt-admin-urgent-all-1',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
                   siteId: 'SITE-SANDTON-ESTATE',
                   headline: 'Boundary alert',
@@ -1311,7 +1337,7 @@ void main() {
                   provider: 'hikvision-dvr',
                   sourceType: 'dvr',
                   externalId: 'evt-admin-urgent-all-2',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
                   siteId: 'SITE-SANDTON-ESTATE',
                   headline: 'Gate alert',
@@ -1330,9 +1356,9 @@ void main() {
                   provider: 'hikvision-dvr',
                   sourceType: 'dvr',
                   externalId: 'evt-admin-urgent-all-3',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                   headline: 'Driveway alert',
                   summary: 'Vehicle detected near the driveway.',
                   riskScore: 58,
@@ -1362,7 +1388,7 @@ void main() {
                 'show unresolved incidents in all sites',
               ],
               firstUpdateId: 440872,
-              expectedHeading: 'Unresolved incidents in CLIENT-MS-VALLEE:',
+              expectedHeading: 'Unresolved incidents in CLIENT-DEMO:',
               expectedToken: 'DSP-ALL-1',
               unexpectedToken: null,
               forbiddenTranscriptSnippets: const <String>[],
@@ -1376,9 +1402,9 @@ void main() {
                   version: 1,
                   occurredAt: DateTime.utc(2026, 3, 29, 10, 3),
                   dispatchId: 'DSP-ALL-1',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
                 DecisionCreated(
                   eventId: 'admin-telegram-all-sites-unresolved-b',
@@ -1386,7 +1412,7 @@ void main() {
                   version: 1,
                   occurredAt: DateTime.utc(2026, 3, 29, 10, 8),
                   dispatchId: 'DSP-ALL-2',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
                   siteId: 'SITE-ROBERTSHAM-ESTATE',
                 ),
@@ -1421,18 +1447,20 @@ void main() {
       ];
 
       final expandedCases =
-          <({
-            List<String> prompts,
-            int firstUpdateId,
-            String expectedHeading,
-            String expectedToken,
-            String? unexpectedToken,
-            List<String> forbiddenTranscriptSnippets,
-            List<String> extraExpected,
-            List<DispatchEvent> events,
-            bool expectOnboardingIntake,
-            bool expectHeadingAfterOnboarding,
-          })>[
+          <
+            ({
+              List<String> prompts,
+              int firstUpdateId,
+              String expectedHeading,
+              String expectedToken,
+              String? unexpectedToken,
+              List<String> forbiddenTranscriptSnippets,
+              List<String> extraExpected,
+              List<DispatchEvent> events,
+              bool expectOnboardingIntake,
+              bool expectHeadingAfterOnboarding,
+            })
+          >[
             ...urgentReadCases,
             cases.first,
             for (final scenario in weeklyCases)
@@ -1444,7 +1472,7 @@ void main() {
                 firstUpdateId: scenario.firstUpdateId,
                 expectedHeading:
                     "This week's alert leader: Sandton Estate (2 alerts)",
-                expectedToken: 'Ms Vallee Residence • 1 alert',
+                expectedToken: 'Demo • 1 alert',
                 unexpectedToken: null,
                 forbiddenTranscriptSnippets: const <String>[
                   'ONYX ONBOARDING PENDING',
@@ -1463,17 +1491,19 @@ void main() {
                     occurredAt: latestSafe
                         .subtract(const Duration(minutes: 3))
                         .toUtc(),
-                    intelligenceId: 'INT-ONBOARD-ALL-1-${scenario.firstUpdateId}',
+                    intelligenceId:
+                        'INT-ONBOARD-ALL-1-${scenario.firstUpdateId}',
                     provider: 'hikvision-dvr',
                     sourceType: 'dvr',
                     externalId: 'evt-onboard-all-1-${scenario.firstUpdateId}',
-                    clientId: 'CLIENT-MS-VALLEE',
+                    clientId: 'CLIENT-DEMO',
                     regionId: 'REGION-GAUTENG',
                     siteId: 'SITE-SANDTON-ESTATE',
                     headline: 'Boundary alert',
                     summary: 'Boundary alert detected.',
                     riskScore: 62,
-                    canonicalHash: 'onboard-all-hash-1-${scenario.firstUpdateId}',
+                    canonicalHash:
+                        'onboard-all-hash-1-${scenario.firstUpdateId}',
                   ),
                   IntelligenceReceived(
                     eventId:
@@ -1483,17 +1513,19 @@ void main() {
                     occurredAt: latestSafe
                         .subtract(const Duration(minutes: 2))
                         .toUtc(),
-                    intelligenceId: 'INT-ONBOARD-ALL-2-${scenario.firstUpdateId}',
+                    intelligenceId:
+                        'INT-ONBOARD-ALL-2-${scenario.firstUpdateId}',
                     provider: 'hikvision-dvr',
                     sourceType: 'dvr',
                     externalId: 'evt-onboard-all-2-${scenario.firstUpdateId}',
-                    clientId: 'CLIENT-MS-VALLEE',
+                    clientId: 'CLIENT-DEMO',
                     regionId: 'REGION-GAUTENG',
                     siteId: 'SITE-SANDTON-ESTATE',
                     headline: 'Gate alert',
                     summary: 'Unexpected person detected.',
                     riskScore: 70,
-                    canonicalHash: 'onboard-all-hash-2-${scenario.firstUpdateId}',
+                    canonicalHash:
+                        'onboard-all-hash-2-${scenario.firstUpdateId}',
                   ),
                   IntelligenceReceived(
                     eventId:
@@ -1503,17 +1535,19 @@ void main() {
                     occurredAt: latestSafe
                         .subtract(const Duration(minutes: 1))
                         .toUtc(),
-                    intelligenceId: 'INT-ONBOARD-ALL-3-${scenario.firstUpdateId}',
+                    intelligenceId:
+                        'INT-ONBOARD-ALL-3-${scenario.firstUpdateId}',
                     provider: 'hikvision-dvr',
                     sourceType: 'dvr',
                     externalId: 'evt-onboard-all-3-${scenario.firstUpdateId}',
-                    clientId: 'CLIENT-MS-VALLEE',
+                    clientId: 'CLIENT-DEMO',
                     regionId: 'REGION-GAUTENG',
-                    siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                    siteId: 'SITE-DEMO',
                     headline: 'Driveway alert',
                     summary: 'Vehicle detected near the driveway.',
                     riskScore: 58,
-                    canonicalHash: 'onboard-all-hash-3-${scenario.firstUpdateId}',
+                    canonicalHash:
+                        'onboard-all-hash-3-${scenario.firstUpdateId}',
                   ),
                 ],
               ),
@@ -1523,7 +1557,7 @@ void main() {
                 'Do we have police activity tonight?',
               ],
               firstUpdateId: 440873,
-              expectedHeading: "Tonight's incidents for MS Vallee Residence:",
+              expectedHeading: "Tonight's incidents for Demo:",
               expectedToken: 'DSP-ONBOARD-TONIGHT',
               unexpectedToken: 'DSP-ONBOARD-OLD',
               forbiddenTranscriptSnippets: const <String>[
@@ -1541,19 +1575,21 @@ void main() {
                   version: 1,
                   occurredAt: latestInWindow.toUtc(),
                   dispatchId: 'DSP-ONBOARD-TONIGHT',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
                 DecisionCreated(
                   eventId: 'admin-telegram-mixed-tonight-old',
                   sequence: 2,
                   version: 1,
-                  occurredAt: start.subtract(const Duration(minutes: 12)).toUtc(),
+                  occurredAt: start
+                      .subtract(const Duration(minutes: 12))
+                      .toUtc(),
                   dispatchId: 'DSP-ONBOARD-OLD',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
               ],
             ),
@@ -1563,7 +1599,7 @@ void main() {
                 'What changed across all sites tonight?',
               ],
               firstUpdateId: 440874,
-              expectedHeading: "Tonight's incidents for CLIENT-MS-VALLEE:",
+              expectedHeading: "Tonight's incidents for CLIENT-DEMO:",
               expectedToken: 'DSP-ONBOARD-ALL-TONIGHT-1',
               unexpectedToken: 'DSP-ONBOARD-ALL-TONIGHT-OLD',
               forbiddenTranscriptSnippets: const <String>[
@@ -1581,9 +1617,9 @@ void main() {
                   version: 1,
                   occurredAt: latestInWindow.toUtc(),
                   dispatchId: 'DSP-ONBOARD-ALL-TONIGHT-1',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
                 DecisionCreated(
                   eventId: 'admin-telegram-all-sites-tonight-b',
@@ -1593,7 +1629,7 @@ void main() {
                       .subtract(const Duration(minutes: 5))
                       .toUtc(),
                   dispatchId: 'DSP-ONBOARD-ALL-TONIGHT-2',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
                   siteId: 'SITE-SANDTON-ESTATE',
                 ),
@@ -1601,9 +1637,11 @@ void main() {
                   eventId: 'admin-telegram-all-sites-tonight-old',
                   sequence: 3,
                   version: 1,
-                  occurredAt: start.subtract(const Duration(minutes: 9)).toUtc(),
+                  occurredAt: start
+                      .subtract(const Duration(minutes: 9))
+                      .toUtc(),
                   dispatchId: 'DSP-ONBOARD-ALL-TONIGHT-OLD',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
                   siteId: 'SITE-SANDTON-ESTATE',
                 ),
@@ -1615,7 +1653,7 @@ void main() {
                 'Any medical incidents here',
               ],
               firstUpdateId: 440874,
-              expectedHeading: 'Unresolved incidents in MS Vallee Residence:',
+              expectedHeading: 'Unresolved incidents in Demo:',
               expectedToken: 'INC-DSP-ONBOARD-UNRESOLVED',
               unexpectedToken: null,
               forbiddenTranscriptSnippets: const <String>[
@@ -1633,9 +1671,9 @@ void main() {
                   version: 1,
                   occurredAt: now.subtract(const Duration(minutes: 6)),
                   dispatchId: 'DSP-ONBOARD-UNRESOLVED',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
               ],
             ),
@@ -1683,17 +1721,19 @@ void main() {
       const syncSummary =
           'Telegram onboarding synced locally: CLIENT-AKHALAWAYAS-ROBERTSHAM / SITE-ROBERTSHAM-ESTATE.';
       final cases =
-          <({
-            ValueKey<String> appKey,
-            AdministrationPageTab initialAdminTab,
-            int createUpdateId,
-            int approveUpdateId,
-            List<String> expectedTranscriptTexts,
-            String? expectedExactText,
-            String? expectedContainingText,
-            String? expectedKey,
-            List<String> extraContainingTexts,
-          })>[
+          <
+            ({
+              ValueKey<String> appKey,
+              AdministrationPageTab initialAdminTab,
+              int createUpdateId,
+              int approveUpdateId,
+              List<String> expectedTranscriptTexts,
+              String? expectedExactText,
+              String? expectedContainingText,
+              String? expectedKey,
+              List<String> extraContainingTexts,
+            })
+          >[
             (
               appKey: const ValueKey(
                 'admin-telegram-onboarding-directory-reflect-app',
@@ -1782,16 +1822,20 @@ void main() {
       }
 
       final followupCases =
-          <({
-            ValueKey<String> appKey,
-            int createUpdateId,
-            int approveUpdateId,
-            String buttonKey,
-            String expectedTitle,
-            String expectedRecoveryText,
-            List<String> expectedSeedKeys,
-            List<({String label, String value})> expectedFields,
-          })>[
+          <
+            ({
+              ValueKey<String> appKey,
+              int createUpdateId,
+              int approveUpdateId,
+              String buttonKey,
+              String expectedNextMoveKey,
+              String? expectedNextMoveLabel,
+              String expectedTitle,
+              String expectedRecoveryText,
+              List<String> expectedSeedKeys,
+              List<({String label, String value})> expectedFields,
+            })
+          >[
             (
               appKey: const ValueKey(
                 'admin-telegram-onboarding-followup-open-client-app',
@@ -1799,6 +1843,8 @@ void main() {
               createUpdateId: 44097,
               approveUpdateId: 44098,
               buttonKey: 'admin-system-telegram-onboarding-open-client',
+              expectedNextMoveKey: 'client-onboarding-next-move',
+              expectedNextMoveLabel: 'VERIFY TELEGRAM INTAKE',
               expectedTitle: 'New Client Onboarding',
               expectedRecoveryText:
                   'Telegram-approved client intake is staged and recoverable.',
@@ -1813,14 +1859,8 @@ void main() {
                   label: 'Client ID (e.g. CLIENT-001)',
                   value: 'CLIENT-AKHALAWAYAS-ROBERTSHAM',
                 ),
-                (
-                  label: 'Legal Entity Name',
-                  value: 'Akhalawayas Robertsham',
-                ),
-                (
-                  label: 'Primary Contact Name',
-                  value: 'John Smith',
-                ),
+                (label: 'Legal Entity Name', value: 'Akhalawayas Robertsham'),
+                (label: 'Primary Contact Name', value: 'John Smith'),
               ],
             ),
             (
@@ -1830,9 +1870,11 @@ void main() {
               createUpdateId: 44099,
               approveUpdateId: 44100,
               buttonKey: 'admin-system-telegram-onboarding-open-site',
+              expectedNextMoveKey: 'site-onboarding-next-move',
+              expectedNextMoveLabel: null,
               expectedTitle: 'New Site Onboarding',
               expectedRecoveryText:
-                  'Telegram-approved site intake is staged and recoverable.',
+                  'Telegram-approved site intake is staged for deployment review.',
               expectedSeedKeys: const <String>[
                 'site-onboarding-command-deck',
                 'site-onboarding-telegram-seed-shell',
@@ -1846,14 +1888,8 @@ void main() {
                   label: 'Site ID (e.g. SITE-SANDTON)',
                   value: 'SITE-ROBERTSHAM-ESTATE',
                 ),
-                (
-                  label: 'Site Name',
-                  value: 'Robertsham Estate',
-                ),
-                (
-                  label: 'Physical Address',
-                  value: 'Robertsham Estate',
-                ),
+                (label: 'Site Name', value: 'Robertsham Estate'),
+                (label: 'Physical Address', value: 'Robertsham Estate'),
               ],
             ),
           ];
@@ -1874,17 +1910,28 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text(scenario.expectedTitle), findsOneWidget);
-        expect(find.text(scenario.expectedRecoveryText), findsOneWidget);
-        expect(find.text('VERIFY TELEGRAM INTAKE'), findsOneWidget);
+        if (scenario.expectedTitle == 'New Site Onboarding') {
+          expect(
+            find.textContaining('Telegram-approved site intake is'),
+            findsOneWidget,
+          );
+        } else {
+          expect(find.text(scenario.expectedRecoveryText), findsOneWidget);
+        }
+        expect(
+          find.byKey(ValueKey(scenario.expectedNextMoveKey)),
+          findsOneWidget,
+        );
+        if (scenario.expectedNextMoveLabel case final nextMoveLabel?) {
+          expect(find.text(nextMoveLabel), findsOneWidget);
+        }
         for (final key in scenario.expectedSeedKeys) {
           expect(find.byKey(ValueKey(key)), findsOneWidget);
         }
         for (final field in scenario.expectedFields) {
           expect(
             tester
-                .widget<TextField>(
-                  find.widgetWithText(TextField, field.label),
-                )
+                .widget<TextField>(find.widgetWithText(TextField, field.label))
                 .controller!
                 .text,
             field.value,
@@ -1893,15 +1940,17 @@ void main() {
       }
 
       final restartCases =
-          <({
-            ValueKey<String> firstAppKey,
-            ValueKey<String> secondAppKey,
-            int createUpdateId,
-            int approveUpdateId,
-            String buttonKey,
-            String expectedTitle,
-            List<({String label, String value})> expectedFields,
-          })>[
+          <
+            ({
+              ValueKey<String> firstAppKey,
+              ValueKey<String> secondAppKey,
+              int createUpdateId,
+              int approveUpdateId,
+              String buttonKey,
+              String expectedTitle,
+              List<({String label, String value})> expectedFields,
+            })
+          >[
             (
               firstAppKey: const ValueKey(
                 'admin-telegram-onboarding-restart-prefill-first-app',
@@ -1918,10 +1967,7 @@ void main() {
                   label: 'Client ID (e.g. CLIENT-001)',
                   value: 'CLIENT-AKHALAWAYAS-ROBERTSHAM',
                 ),
-                (
-                  label: 'Legal Entity Name',
-                  value: 'Akhalawayas Robertsham',
-                ),
+                (label: 'Legal Entity Name', value: 'Akhalawayas Robertsham'),
               ],
             ),
             (
@@ -1940,14 +1986,8 @@ void main() {
                   label: 'Site ID (e.g. SITE-SANDTON)',
                   value: 'SITE-ROBERTSHAM-ESTATE',
                 ),
-                (
-                  label: 'Site Name',
-                  value: 'Robertsham Estate',
-                ),
-                (
-                  label: 'Physical Address',
-                  value: 'Robertsham Estate',
-                ),
+                (label: 'Site Name', value: 'Robertsham Estate'),
+                (label: 'Physical Address', value: 'Robertsham Estate'),
               ],
             ),
           ];
@@ -1972,9 +2012,7 @@ void main() {
         for (final field in scenario.expectedFields) {
           expect(
             tester
-                .widget<TextField>(
-                  find.widgetWithText(TextField, field.label),
-                )
+                .widget<TextField>(find.widgetWithText(TextField, field.label))
                 .controller!
                 .text,
             field.value,
@@ -2098,26 +2136,30 @@ void main() {
         'SITE-ROBERTSHAM-ESTATE',
       );
 
-      for (final scenario in const <({
-        ValueKey<String> appKey,
-        int approveUpdateId,
-        int createUpdateId,
-        String seedControlKey,
-      })>[
-        (
-          appKey: ValueKey('admin-telegram-onboarding-vendor-validate-app'),
-          createUpdateId: 44117,
-          approveUpdateId: 44118,
-          seedControlKey:
-              'admin-system-camera-bridge-telegram-seed-copy-vendor',
-        ),
-        (
-          appKey: ValueKey('admin-telegram-onboarding-cctv-poll-app'),
-          createUpdateId: 44119,
-          approveUpdateId: 44120,
-          seedControlKey: 'admin-system-camera-bridge-telegram-seed-poll-cctv',
-        ),
-      ]) {
+      for (final scenario
+          in const <
+            ({
+              ValueKey<String> appKey,
+              int approveUpdateId,
+              int createUpdateId,
+              String seedControlKey,
+            })
+          >[
+            (
+              appKey: ValueKey('admin-telegram-onboarding-vendor-validate-app'),
+              createUpdateId: 44117,
+              approveUpdateId: 44118,
+              seedControlKey:
+                  'admin-system-camera-bridge-telegram-seed-copy-vendor',
+            ),
+            (
+              appKey: ValueKey('admin-telegram-onboarding-cctv-poll-app'),
+              createUpdateId: 44119,
+              approveUpdateId: 44120,
+              seedControlKey:
+                  'admin-system-camera-bridge-telegram-seed-poll-cctv',
+            ),
+          ]) {
         await openCameraBridgeFromApprovedTelegramOnboarding(
           tester,
           appKey: scenario.appKey,
@@ -2129,7 +2171,9 @@ void main() {
         );
 
         expect(
-          find.byKey(const ValueKey('admin-system-camera-bridge-telegram-seed')),
+          find.byKey(
+            const ValueKey('admin-system-camera-bridge-telegram-seed'),
+          ),
           findsOneWidget,
         );
         expect(find.byKey(ValueKey(scenario.seedControlKey)), findsOneWidget);
@@ -2141,14 +2185,16 @@ void main() {
       }
 
       final bridgeCases =
-          <({
-            ValueKey<String>? firstAppKey,
-            ValueKey<String>? secondAppKey,
-            int? createUpdateId,
-            int? approveUpdateId,
-            Map<String, Object?>? savedProgress,
-            String statusKey,
-          })>[
+          <
+            ({
+              ValueKey<String>? firstAppKey,
+              ValueKey<String>? secondAppKey,
+              int? createUpdateId,
+              int? approveUpdateId,
+              Map<String, Object?>? savedProgress,
+              String statusKey,
+            })
+          >[
             (
               firstAppKey: const ValueKey(
                 'admin-telegram-bridge-runbook-progress-first-app',
@@ -2159,7 +2205,8 @@ void main() {
               createUpdateId: 44111,
               approveUpdateId: 44112,
               savedProgress: null,
-              statusKey: 'admin-system-camera-bridge-telegram-runbook-ops-status',
+              statusKey:
+                  'admin-system-camera-bridge-telegram-runbook-ops-status',
             ),
             (
               firstAppKey: null,
@@ -2167,7 +2214,8 @@ void main() {
               createUpdateId: null,
               approveUpdateId: null,
               savedProgress: <String, Object?>{'cctv_polled': true},
-              statusKey: 'admin-system-camera-bridge-telegram-runbook-poll-status',
+              statusKey:
+                  'admin-system-camera-bridge-telegram-runbook-poll-status',
             ),
             (
               firstAppKey: null,
@@ -2316,7 +2364,7 @@ void main() {
           (
             prompt: 'Do we have police activity tonight?',
             expected: const <String>[
-              "Tonight's incidents for MS Vallee Residence:",
+              "Tonight's incidents for Demo:",
               'DSP-AMIXED-TONIGHT',
             ],
             forbidden: const <String>['DSP-AMIXED-OLD'],
@@ -2330,9 +2378,9 @@ void main() {
                 version: 1,
                 occurredAt: latestInWindow.toUtc(),
                 dispatchId: 'DSP-AMIXED-TONIGHT',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-telegram-mixed-tonight-old',
@@ -2340,16 +2388,16 @@ void main() {
                 version: 1,
                 occurredAt: start.subtract(const Duration(minutes: 12)).toUtc(),
                 dispatchId: 'DSP-AMIXED-OLD',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
             ],
           ),
           (
             prompt: 'Police activity at MS Vallee tonight?',
             expected: const <String>[
-              "Tonight's incidents for MS Vallee Residence:",
+              "Tonight's incidents for Demo:",
               'DSP-AMIXED-SCOPED-TONIGHT',
             ],
             forbidden: const <String>['DSP-AMIXED-SCOPED-OLD'],
@@ -2363,9 +2411,9 @@ void main() {
                 version: 1,
                 occurredAt: latestInWindow.toUtc(),
                 dispatchId: 'DSP-AMIXED-SCOPED-TONIGHT',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-telegram-mixed-scoped-tonight-old',
@@ -2373,16 +2421,16 @@ void main() {
                 version: 1,
                 occurredAt: start.subtract(const Duration(minutes: 8)).toUtc(),
                 dispatchId: 'DSP-AMIXED-SCOPED-OLD',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
             ],
           ),
           (
             prompt: 'Do we have police activity',
             expected: const <String>[
-              'Unresolved incidents in MS Vallee Residence:',
+              'Unresolved incidents in Demo:',
               'INC-DSP-AMIXED-UNRESOLVED',
             ],
             forbidden: const <String>[],
@@ -2396,17 +2444,15 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 6)),
                 dispatchId: 'DSP-AMIXED-UNRESOLVED',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
             ],
           ),
           (
             prompt: 'Check tonights breaches',
-            expected: const <String>[
-              'No incidents landed tonight in MS Vallee Residence.',
-            ],
+            expected: const <String>['No incidents landed tonight in Demo.'],
             forbidden: const <String>[],
             updateId: 44104,
             sentAtUtc: null,
@@ -2416,7 +2462,7 @@ void main() {
           (
             prompt: 'Check tonights breaches',
             expected: const <String>[
-              "Tonight's incidents for MS Vallee Residence:",
+              "Tonight's incidents for Demo:",
               'DSP-551',
             ],
             forbidden: const <String>['DSP-OLD'],
@@ -2430,9 +2476,9 @@ void main() {
                 version: 1,
                 occurredAt: latestInWindow.toUtc(),
                 dispatchId: 'DSP-551',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-telegram-tonight-old',
@@ -2440,9 +2486,9 @@ void main() {
                 version: 1,
                 occurredAt: start.subtract(const Duration(minutes: 12)).toUtc(),
                 dispatchId: 'DSP-OLD',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
             ],
           ),
@@ -2457,11 +2503,7 @@ void main() {
           ),
           (
             prompt: 'show all sites',
-            expected: const <String>[
-              'ONYX SITES',
-              'Ms Vallee Residence',
-              'Robertsham Estate',
-            ],
+            expected: const <String>['ONYX SITES', 'Demo', 'Robertsham Estate'],
             forbidden: const <String>['I could not route that request yet.'],
             updateId: 44011,
             sentAtUtc: now,
@@ -2473,9 +2515,9 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 9)),
                 dispatchId: 'DSP-SITES-1',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-telegram-sites-2',
@@ -2483,7 +2525,7 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 6)),
                 dispatchId: 'DSP-SITES-2',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
                 siteId: 'SITE-ROBERTSHAM-ESTATE',
               ),
@@ -2492,7 +2534,7 @@ void main() {
           (
             prompt: 'Show dispatches today',
             expected: const <String>[
-              'Today\'s dispatches for MS Vallee Residence:',
+              'Today\'s dispatches for Demo:',
               'DSP-401',
             ],
             forbidden: const <String>[],
@@ -2506,9 +2548,9 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 9)),
                 dispatchId: 'DSP-401',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
             ],
           ),
@@ -2516,7 +2558,7 @@ void main() {
             prompt: 'Which site has most alerts this week',
             expected: const <String>[
               "This week's alert leader: Sandton Estate (2 alerts)",
-              'Ms Vallee Residence • 1 alert',
+              'Demo • 1 alert',
             ],
             forbidden: const <String>[],
             updateId: 4402,
@@ -2527,12 +2569,14 @@ void main() {
                 eventId: 'admin-intel-1',
                 sequence: 1,
                 version: 1,
-                occurredAt: latestSafe.subtract(const Duration(minutes: 3)).toUtc(),
+                occurredAt: latestSafe
+                    .subtract(const Duration(minutes: 3))
+                    .toUtc(),
                 intelligenceId: 'INT-ADMIN-1',
                 provider: 'hikvision-dvr',
                 sourceType: 'dvr',
                 externalId: 'evt-admin-1',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
                 siteId: 'SITE-SANDTON-ESTATE',
                 headline: 'Boundary alert',
@@ -2544,12 +2588,14 @@ void main() {
                 eventId: 'admin-intel-2',
                 sequence: 2,
                 version: 1,
-                occurredAt: latestSafe.subtract(const Duration(minutes: 2)).toUtc(),
+                occurredAt: latestSafe
+                    .subtract(const Duration(minutes: 2))
+                    .toUtc(),
                 intelligenceId: 'INT-ADMIN-2',
                 provider: 'hikvision-dvr',
                 sourceType: 'dvr',
                 externalId: 'evt-admin-2',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
                 siteId: 'SITE-SANDTON-ESTATE',
                 headline: 'Gate alert',
@@ -2561,14 +2607,16 @@ void main() {
                 eventId: 'admin-intel-3',
                 sequence: 3,
                 version: 1,
-                occurredAt: latestSafe.subtract(const Duration(minutes: 1)).toUtc(),
+                occurredAt: latestSafe
+                    .subtract(const Duration(minutes: 1))
+                    .toUtc(),
                 intelligenceId: 'INT-ADMIN-3',
                 provider: 'hikvision-dvr',
                 sourceType: 'dvr',
                 externalId: 'evt-admin-3',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
                 headline: 'Driveway alert',
                 summary: 'Vehicle detected near the driveway.',
                 riskScore: 58,
@@ -2590,7 +2638,7 @@ void main() {
               prompt: scenario.prompt,
               expected: const <String>[
                 "This week's alert leader: Sandton Estate (2 alerts)",
-                'Ms Vallee Residence • 1 alert',
+                'Demo • 1 alert',
               ],
               forbidden: const <String>['Robertsham Estate'],
               updateId: scenario.updateId,
@@ -2608,7 +2656,7 @@ void main() {
                   provider: 'hikvision-dvr',
                   sourceType: 'dvr',
                   externalId: 'evt-admin-all-1-${scenario.updateId}',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
                   siteId: 'SITE-SANDTON-ESTATE',
                   headline: 'Boundary alert',
@@ -2627,7 +2675,7 @@ void main() {
                   provider: 'hikvision-dvr',
                   sourceType: 'dvr',
                   externalId: 'evt-admin-all-2-${scenario.updateId}',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
                   siteId: 'SITE-SANDTON-ESTATE',
                   headline: 'Gate alert',
@@ -2646,9 +2694,9 @@ void main() {
                   provider: 'hikvision-dvr',
                   sourceType: 'dvr',
                   externalId: 'evt-admin-all-3-${scenario.updateId}',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                   headline: 'Driveway alert',
                   summary: 'Vehicle detected near the driveway.',
                   riskScore: 58,
@@ -2679,7 +2727,7 @@ void main() {
           (
             prompt: 'Show unresolved incidents',
             expected: const <String>[
-              'Unresolved incidents in MS Vallee Residence:',
+              'Unresolved incidents in Demo:',
               'INC-DSP-702',
             ],
             forbidden: const <String>['INC-DSP-701', 'INC-DSP-703'],
@@ -2693,9 +2741,9 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 18)),
                 dispatchId: 'DSP-701',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-unresolved-2',
@@ -2703,9 +2751,9 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 11)),
                 dispatchId: 'DSP-702',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               IncidentClosed(
                 eventId: 'admin-unresolved-closed-1',
@@ -2714,9 +2762,9 @@ void main() {
                 occurredAt: now.subtract(const Duration(minutes: 6)),
                 dispatchId: 'DSP-701',
                 resolutionType: 'all_clear',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-unresolved-other-site',
@@ -2724,7 +2772,7 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 4)),
                 dispatchId: 'DSP-703',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
                 siteId: 'SITE-SANDTON-ESTATE',
               ),
@@ -2733,7 +2781,7 @@ void main() {
           (
             prompt: 'Dispatches across all sites today?',
             expected: const <String>[
-              'Today\'s dispatches for CLIENT-MS-VALLEE:',
+              'Today\'s dispatches for CLIENT-DEMO:',
               'DSP-ALL-DISPATCH-1',
               'DSP-ALL-DISPATCH-2',
             ],
@@ -2748,9 +2796,9 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 9)),
                 dispatchId: 'DSP-ALL-DISPATCH-1',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-all-sites-dispatch-b',
@@ -2758,7 +2806,7 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 5)),
                 dispatchId: 'DSP-ALL-DISPATCH-2',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
                 siteId: 'SITE-SANDTON-ESTATE',
               ),
@@ -2777,7 +2825,7 @@ void main() {
           (
             prompt: 'Breaches across all sites?',
             expected: const <String>[
-              'Unresolved incidents in CLIENT-MS-VALLEE:',
+              'Unresolved incidents in CLIENT-DEMO:',
               'INC-DSP-ALL-SCOPE-2',
             ],
             forbidden: const <String>[
@@ -2794,9 +2842,9 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 7)),
                 dispatchId: 'DSP-ALL-SCOPE-1',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-all-sites-unresolved-b',
@@ -2804,7 +2852,7 @@ void main() {
                 version: 1,
                 occurredAt: now.subtract(const Duration(minutes: 5)),
                 dispatchId: 'DSP-ALL-SCOPE-2',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
                 siteId: 'SITE-SANDTON-ESTATE',
               ),
@@ -2825,16 +2873,16 @@ void main() {
                 occurredAt: now.subtract(const Duration(minutes: 2)),
                 dispatchId: 'DSP-ALL-SCOPE-1',
                 resolutionType: 'all_clear',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
             ],
           ),
           (
             prompt: 'Police activity across Vallee sites tonight?',
             expected: const <String>[
-              "Tonight's incidents for CLIENT-MS-VALLEE:",
+              "Tonight's incidents for CLIENT-DEMO:",
               'DSP-ALL-TONIGHT-1',
               'DSP-ALL-TONIGHT-2',
             ],
@@ -2852,9 +2900,9 @@ void main() {
                 version: 1,
                 occurredAt: latestInWindow.toUtc(),
                 dispatchId: 'DSP-ALL-TONIGHT-1',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                siteId: 'SITE-DEMO',
               ),
               DecisionCreated(
                 eventId: 'admin-all-sites-tonight-b',
@@ -2864,7 +2912,7 @@ void main() {
                     .subtract(const Duration(minutes: 6))
                     .toUtc(),
                 dispatchId: 'DSP-ALL-TONIGHT-2',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
                 siteId: 'SITE-SANDTON-ESTATE',
               ),
@@ -2874,7 +2922,7 @@ void main() {
                 version: 1,
                 occurredAt: start.subtract(const Duration(minutes: 8)).toUtc(),
                 dispatchId: 'DSP-ALL-TONIGHT-OLD',
-                clientId: 'CLIENT-MS-VALLEE',
+                clientId: 'CLIENT-DEMO',
                 regionId: 'REGION-GAUTENG',
                 siteId: 'SITE-SANDTON-ESTATE',
               ),
@@ -2901,7 +2949,7 @@ void main() {
             (
               prompt: scenario.prompt,
               expected: <String>[
-                'Unresolved incidents in MS Vallee Residence:',
+                'Unresolved incidents in Demo:',
                 'INC-DSP-ABREACH-${scenario.updateId}',
               ],
               forbidden: const <String>[],
@@ -2915,9 +2963,9 @@ void main() {
                   version: 1,
                   occurredAt: now.subtract(const Duration(minutes: 8)),
                   dispatchId: 'DSP-ABREACH-${scenario.updateId}',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
                 DecisionCreated(
                   eventId: 'admin-telegram-breach-closed-${scenario.updateId}',
@@ -2925,9 +2973,9 @@ void main() {
                   version: 1,
                   occurredAt: now.subtract(const Duration(minutes: 16)),
                   dispatchId: 'DSP-ABREACH-CLOSED-${scenario.updateId}',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
                 IncidentClosed(
                   eventId: 'admin-telegram-breach-close-${scenario.updateId}',
@@ -2936,12 +2984,12 @@ void main() {
                   occurredAt: now.subtract(const Duration(minutes: 5)),
                   dispatchId: 'DSP-ABREACH-CLOSED-${scenario.updateId}',
                   resolutionType: 'all_clear',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              ),
-            ],
-          ),
+                  siteId: 'SITE-DEMO',
+                ),
+              ],
+            ),
           for (final scenario in <({String prompt, int updateId})>[
             (prompt: 'Fire status', updateId: 44041),
             (prompt: 'Medical status', updateId: 44042),
@@ -2956,7 +3004,7 @@ void main() {
             (
               prompt: scenario.prompt,
               expected: <String>[
-                'Unresolved incidents in MS Vallee Residence:',
+                'Unresolved incidents in Demo:',
                 'INC-DSP-AEMERGENCY-${scenario.updateId}',
               ],
               forbidden: const <String>[],
@@ -2970,9 +3018,9 @@ void main() {
                   version: 1,
                   occurredAt: now.subtract(const Duration(minutes: 7)),
                   dispatchId: 'DSP-AEMERGENCY-${scenario.updateId}',
-                  clientId: 'CLIENT-MS-VALLEE',
+                  clientId: 'CLIENT-DEMO',
                   regionId: 'REGION-GAUTENG',
-                  siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  siteId: 'SITE-DEMO',
                 ),
               ],
             ),
@@ -3036,8 +3084,8 @@ void main() {
     await prepareAdminRouteTest(tester);
     await saveTelegramAdminRuntimeState({
       'allowed_user_ids_override': <int>[77],
-      'target_client_override': 'CLIENT-MS-VALLEE',
-      'target_site_override': 'SITE-MS-VALLEE-RESIDENCE',
+      'target_client_override': 'CLIENT-DEMO',
+      'target_site_override': 'SITE-DEMO',
     });
 
     await pumpAdminRouteApp(
@@ -3056,16 +3104,11 @@ void main() {
     expect(find.text('Telegram Prompt Catalog'), findsOneWidget);
     expect(find.text('Recent Live Telegram Asks'), findsOneWidget);
     expect(
-      find.textContaining(
-        'Admin is currently borrowing the current client group',
-      ),
+      find.textContaining('Run /whoami in the ONYX group'),
       findsOneWidget,
     );
     expect(find.textContaining('test-vallee-chat'), findsWidgets);
-    expect(
-      find.textContaining('ONYX_TELEGRAM_ADMIN_CHAT_ID=test-vallee-chat'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('ONYX_TELEGRAM_ADMIN_CHAT_ID='), findsOneWidget);
     expect(
       find.textContaining('ONYX_TELEGRAM_CHAT_ID=test-vallee-chat'),
       findsOneWidget,
@@ -3079,10 +3122,7 @@ void main() {
     );
     expect(find.text('which site has most alerts this week'), findsOneWidget);
     expect(find.text('check status of Guard001'), findsWidgets);
-    expect(
-      find.text('Target CLIENT-MS-VALLEE / SITE-MS-VALLEE-RESIDENCE'),
-      findsOneWidget,
-    );
+    expect(find.text('Target CLIENT-DEMO / SITE-DEMO'), findsOneWidget);
 
     copiedPayload = null;
     await prepareAdminRouteTest(tester);
@@ -3140,17 +3180,19 @@ void main() {
     expect(exported['camera_bridge_health_validation_summary'], isNull);
 
     final restoredReceiptCases =
-        <({
-          String appKey,
-          DateTime checkedAtUtc,
-          String expectedOperatorId,
-          String expectedReceiptState,
-          String expectedShellState,
-          String expectedShellSummary,
-          String expectedValidationText,
-          bool expectedCurrent,
-          bool expectedStale,
-        })>[
+        <
+          ({
+            String appKey,
+            DateTime checkedAtUtc,
+            String expectedOperatorId,
+            String expectedReceiptState,
+            String expectedShellState,
+            String expectedShellSummary,
+            String expectedValidationText,
+            bool expectedCurrent,
+            bool expectedStale,
+          })
+        >[
           (
             appKey: 'admin-export-current-bridge-health-app',
             checkedAtUtc: _freshCameraBridgeCheckedAtUtc(),
@@ -3213,7 +3255,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(copiedPayload, isNotNull);
-      final restoredExported = jsonDecode(copiedPayload!) as Map<String, dynamic>;
+      final restoredExported =
+          jsonDecode(copiedPayload!) as Map<String, dynamic>;
       expect(
         restoredExported['camera_bridge_shell_state'],
         scenario.expectedShellState,
@@ -3263,9 +3306,7 @@ void main() {
     );
     await openAdminSystemAnchor(tester, 'System Information');
 
-    final importButton = find.byKey(
-      const ValueKey('admin-import-csv-button'),
-    );
+    final importButton = find.byKey(const ValueKey('admin-import-csv-button'));
     await tester.ensureVisible(importButton);
     await tester.tap(importButton);
     await tester.pumpAndSettle();
@@ -3274,160 +3315,156 @@ void main() {
     expect(find.text('Target'), findsOneWidget);
     expect(find.text('Import'), findsWidgets);
 
-      await prepareAdminRouteTest(tester);
-      await saveTelegramAdminRuntimeState({
-        'camera_bridge_health_snapshot': <String, Object?>{
-          'requested_endpoint': 'http://127.0.0.1:11634',
-          'health_endpoint': 'http://127.0.0.1:11634/health',
-          'reported_endpoint': 'http://10.0.0.44:11634',
-          'reachable': true,
-          'running': true,
-          'status_code': 200,
-          'status_label': 'Healthy',
-          'detail':
-              'GET /health succeeded and the bridge reported packet ingress ready. Bridge reported bind http://10.0.0.44:11634 while ONYX probed http://127.0.0.1:11634.',
-          'execute_path': '/execute',
-          'checked_at_utc': _freshCameraBridgeCheckedAtUtc().toIso8601String(),
-          'operator_id': 'OPS-CHARLIE',
-        },
-      });
+    await prepareAdminRouteTest(tester);
+    await saveTelegramAdminRuntimeState({
+      'camera_bridge_health_snapshot': <String, Object?>{
+        'requested_endpoint': 'http://127.0.0.1:11634',
+        'health_endpoint': 'http://127.0.0.1:11634/health',
+        'reported_endpoint': 'http://10.0.0.44:11634',
+        'reachable': true,
+        'running': true,
+        'status_code': 200,
+        'status_label': 'Healthy',
+        'detail':
+            'GET /health succeeded and the bridge reported packet ingress ready. Bridge reported bind http://10.0.0.44:11634 while ONYX probed http://127.0.0.1:11634.',
+        'execute_path': '/execute',
+        'checked_at_utc': _freshCameraBridgeCheckedAtUtc().toIso8601String(),
+        'operator_id': 'OPS-CHARLIE',
+      },
+    });
 
-      await pumpAdminRouteApp(
-        tester,
-        key: const ValueKey('admin-bridge-health-restore-app'),
-        initialAdminTab: AdministrationPageTab.system,
-      );
-      await openAdminSystemAnchor(tester, 'LOCAL CAMERA BRIDGE');
+    await pumpAdminRouteApp(
+      tester,
+      key: const ValueKey('admin-bridge-health-restore-app'),
+      initialAdminTab: AdministrationPageTab.system,
+    );
+    await openAdminSystemAnchor(tester, 'LOCAL CAMERA BRIDGE');
 
-      expect(
-        find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
-        findsOneWidget,
-      );
-      expect(find.text('HEALTHY'), findsOneWidget);
-      expect(find.textContaining('Validated by: OPS-CHARLIE'), findsOneWidget);
-      expect(
-        find.textContaining('Endpoint mismatch: Detected'),
-        findsOneWidget,
-      );
-      expect(find.text('Bind mismatch'), findsOneWidget);
-      expect(
-        find.textContaining(
-          'Reconcile http://127.0.0.1:11634 vs http://10.0.0.44:11634 before giving this listener to LAN workers.',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('Probed bind: http://127.0.0.1:11634'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('Reported bind: http://10.0.0.44:11634'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('POST http://10.0.0.44:11634/execute'),
-        findsWidgets,
-      );
-      expect(
-        find.textContaining('GET http://127.0.0.1:11634/health'),
-        findsOneWidget,
-      );
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsOneWidget,
+    );
+    expect(find.text('HEALTHY'), findsOneWidget);
+    expect(find.textContaining('Validated by: OPS-CHARLIE'), findsOneWidget);
+    expect(find.textContaining('Endpoint mismatch: Detected'), findsOneWidget);
+    expect(find.text('Bind mismatch'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'Reconcile http://127.0.0.1:11634 vs http://10.0.0.44:11634 before giving this listener to LAN workers.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Probed bind: http://127.0.0.1:11634'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Reported bind: http://10.0.0.44:11634'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('POST http://10.0.0.44:11634/execute'),
+      findsWidgets,
+    );
+    expect(
+      find.textContaining('GET http://127.0.0.1:11634/health'),
+      findsOneWidget,
+    );
 
-      await prepareAdminRouteTest(tester);
-      await saveTelegramAdminRuntimeState({
-        'camera_bridge_health_snapshot': <String, Object?>{
-          'requested_endpoint': 'http://127.0.0.1:11634',
-          'health_endpoint': 'http://127.0.0.1:11634/health',
-          'reported_endpoint': 'http://127.0.0.1:11634',
-          'reachable': true,
-          'running': true,
-          'status_code': 200,
-          'status_label': 'Healthy',
-          'detail':
-              'GET /health succeeded and the bridge reported packet ingress ready.',
-          'execute_path': '/execute',
-          'checked_at_utc': _freshCameraBridgeCheckedAtUtc().toIso8601String(),
-          'operator_id': 'OPS-DELTA',
-        },
-      });
+    await prepareAdminRouteTest(tester);
+    await saveTelegramAdminRuntimeState({
+      'camera_bridge_health_snapshot': <String, Object?>{
+        'requested_endpoint': 'http://127.0.0.1:11634',
+        'health_endpoint': 'http://127.0.0.1:11634/health',
+        'reported_endpoint': 'http://127.0.0.1:11634',
+        'reachable': true,
+        'running': true,
+        'status_code': 200,
+        'status_label': 'Healthy',
+        'detail':
+            'GET /health succeeded and the bridge reported packet ingress ready.',
+        'execute_path': '/execute',
+        'checked_at_utc': _freshCameraBridgeCheckedAtUtc().toIso8601String(),
+        'operator_id': 'OPS-DELTA',
+      },
+    });
 
-      await pumpAdminRouteApp(
-        tester,
-        key: const ValueKey('admin-bridge-health-clear-app'),
-        initialAdminTab: AdministrationPageTab.system,
-      );
-      await openAdminSystemAnchor(tester, 'LOCAL CAMERA BRIDGE');
+    await pumpAdminRouteApp(
+      tester,
+      key: const ValueKey('admin-bridge-health-clear-app'),
+      initialAdminTab: AdministrationPageTab.system,
+    );
+    await openAdminSystemAnchor(tester, 'LOCAL CAMERA BRIDGE');
 
-      expect(
-        find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
-        findsOneWidget,
-      );
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsOneWidget,
+    );
 
-      await tester.tap(
-        find.byKey(const ValueKey('admin-system-camera-bridge-clear-health')),
-      );
-      await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('admin-system-camera-bridge-clear-health')),
+    );
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
-        findsNothing,
-      );
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsNothing,
+    );
 
-      await pumpAdminRouteApp(
-        tester,
-        key: const ValueKey('admin-bridge-health-clear-restart-app'),
-        initialAdminTab: AdministrationPageTab.system,
-      );
-      await openAdminSystemAnchor(tester, 'LOCAL CAMERA BRIDGE');
+    await pumpAdminRouteApp(
+      tester,
+      key: const ValueKey('admin-bridge-health-clear-restart-app'),
+      initialAdminTab: AdministrationPageTab.system,
+    );
+    await openAdminSystemAnchor(tester, 'LOCAL CAMERA BRIDGE');
 
-      expect(
-        find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
-        findsNothing,
-      );
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsNothing,
+    );
 
-      const bridgeService = _RouteFakeCameraBridgeHealthService();
-      final bridgeStatus = OnyxAgentCameraBridgeStatus(
-        enabled: true,
-        running: true,
-        authRequired: true,
-        endpoint: Uri(scheme: 'http', host: '127.0.0.1', port: 11634),
-        statusLabel: 'Live',
-        detail:
-            'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
-      );
+    const bridgeService = _RouteFakeCameraBridgeHealthService();
+    final bridgeStatus = OnyxAgentCameraBridgeStatus(
+      enabled: true,
+      running: true,
+      authRequired: true,
+      endpoint: Uri(scheme: 'http', host: '127.0.0.1', port: 11634),
+      statusLabel: 'Live',
+      detail:
+          'Listening locally for approved camera execution packets and health probes through the embedded ONYX bridge.',
+    );
 
-      await prepareAdminRouteTest(tester);
+    await prepareAdminRouteTest(tester);
 
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('admin-bridge-override-validate-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.admin,
-          initialAdminTabOverride: AdministrationPageTab.system,
-          onyxAgentCameraBridgeStatusOverride: bridgeStatus,
-          onyxAgentCameraBridgeHealthServiceOverride: bridgeService,
-        ),
-      );
-      await tester.pumpAndSettle();
-      await openAdminSystemAnchor(tester, 'LOCAL CAMERA BRIDGE');
+    await tester.pumpWidget(
+      OnyxApp(
+        key: const ValueKey('admin-bridge-override-validate-app'),
+        supabaseReady: false,
+        initialRouteOverride: OnyxRoute.admin,
+        initialAdminTabOverride: AdministrationPageTab.system,
+        onyxAgentCameraBridgeStatusOverride: bridgeStatus,
+        onyxAgentCameraBridgeHealthServiceOverride: bridgeService,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await openAdminSystemAnchor(tester, 'LOCAL CAMERA BRIDGE');
 
-      final validateButton = find.byKey(
-        const ValueKey('admin-system-camera-bridge-validate'),
-      );
-      expect(validateButton, findsOneWidget);
-      await tester.ensureVisible(validateButton);
-      await tester.tap(validateButton);
-      await tester.pumpAndSettle();
+    final validateButton = find.byKey(
+      const ValueKey('admin-system-camera-bridge-validate'),
+    );
+    expect(validateButton, findsOneWidget);
+    await tester.ensureVisible(validateButton);
+    await tester.tap(validateButton);
+    await tester.pumpAndSettle();
 
-      expect(
-        find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
-        findsOneWidget,
-      );
-      expect(find.text('HEALTHY'), findsOneWidget);
-      expect(find.text('Camera bridge health check complete.'), findsOneWidget);
-      expect(find.textContaining('Validated by: OPERATOR-01'), findsOneWidget);
-    },
-  );
+    expect(
+      find.byKey(const ValueKey('admin-system-camera-bridge-health-result')),
+      findsOneWidget,
+    );
+    expect(find.text('HEALTHY'), findsOneWidget);
+    expect(find.text('Camera bridge health check complete.'), findsOneWidget);
+    expect(find.textContaining('Validated by: OPERATOR-01'), findsOneWidget);
+  });
 
   testWidgets(
     'onyx app keeps guard voip history visible in admin audit across scopes',
@@ -3513,7 +3550,7 @@ void main() {
       Future<void> openClientDemoSuccessDialog({
         required Key appKey,
         void Function(String clientId, String siteId, String room)?
-            onClientLaneRouteOpened,
+        onClientLaneRouteOpened,
       }) async {
         await tester.pumpWidget(
           OnyxApp(
@@ -3566,7 +3603,7 @@ void main() {
               find.byType(ClientIntelligenceReportsPage),
             )
             .selectedSite,
-        'SITE-MS-VALLEE-RESIDENCE',
+        'SITE-DEMO',
       );
 
       await openClientDemoSuccessDialog(
@@ -3687,7 +3724,7 @@ void main() {
       );
       expect(
         tester.widget<DispatchPage>(find.byType(DispatchPage)).siteId,
-        startsWith('DEMO-SITE-'),
+        startsWith('SITE-'),
       );
 
       await openSiteDemoSuccessDialog(
@@ -3707,8 +3744,10 @@ void main() {
         startsWith('CLT-'),
       );
       expect(
-        tester.widget<TacticalPage>(find.byType(TacticalPage)).initialScopeSiteId,
-        startsWith('DEMO-SITE-'),
+        tester
+            .widget<TacticalPage>(find.byType(TacticalPage))
+            .initialScopeSiteId,
+        startsWith('SITE-'),
       );
 
       await openSiteDemoSuccessDialog(
@@ -3731,7 +3770,7 @@ void main() {
         tester
             .widget<LiveOperationsPage>(find.byType(LiveOperationsPage))
             .initialScopeSiteId,
-        startsWith('DEMO-SITE-'),
+        startsWith('SITE-'),
       );
 
       Future<void> openEmployeeDemoSuccessDialog({required Key appKey}) async {
@@ -3777,7 +3816,9 @@ void main() {
         'CLT-001',
       );
       expect(
-        tester.widget<TacticalPage>(find.byType(TacticalPage)).initialScopeSiteId,
+        tester
+            .widget<TacticalPage>(find.byType(TacticalPage))
+            .initialScopeSiteId,
         'WTF-MAIN',
       );
 
@@ -3880,7 +3921,7 @@ void main() {
       String? openedRoom;
 
       Future<void> expectOpenedOffScopeClientComms() async {
-        expect(openedClientId, 'CLIENT-MS-VALLEE');
+        expect(openedClientId, 'CLIENT-DEMO');
         expect(openedSiteId, 'WTF-MAIN');
         expect(openedRoom, isEmpty);
         expect(find.textContaining('Client Communications'), findsOneWidget);
@@ -3915,7 +3956,7 @@ void main() {
       await openAdminSystemAnchor(tester, 'LATEST CLIENT ASK');
       final askOpenClientCommsButton = find.byKey(
         adminClientCommsAuditOpenClientCommsButtonKey(
-          'CLIENT-MS-VALLEE',
+          'CLIENT-DEMO',
           'WTF-MAIN',
         ),
       );
@@ -3933,7 +3974,7 @@ void main() {
         telegramPendingDraftEntry(
           inboundUpdateId: 44,
           messageThreadId: 90,
-          clientId: 'CLIENT-MS-VALLEE',
+          clientId: 'CLIENT-DEMO',
           siteId: 'WTF-MAIN',
           sourceText:
               'Please confirm whether the Waterfall desk is monitoring this thread yet.',
@@ -3982,7 +4023,7 @@ void main() {
       await openAdminSystemAnchor(tester, 'LATEST PUSH DETAIL');
       final pushOpenClientCommsButton = find.byKey(
         adminClientCommsAuditOpenClientCommsButtonKey(
-          'CLIENT-MS-VALLEE',
+          'CLIENT-DEMO',
           'WTF-MAIN',
         ),
       );
@@ -3996,7 +4037,7 @@ void main() {
       await pumpClientControlSourceApp(
         tester,
         key: const ValueKey('admin-offscope-lane-reply-clients-app'),
-        clientId: 'CLIENT-MS-VALLEE',
+        clientId: 'CLIENT-DEMO',
         siteId: 'WTF-MAIN',
       );
 
@@ -4079,39 +4120,43 @@ void main() {
     (tester) async {
       await prepareAdminRouteTest(tester);
 
-      for (final scenario in const <({
-        ValueKey<String> appKey,
-        int inboundUpdateId,
-        int messageThreadId,
-        String siteId,
-        String sourceText,
-        String draftText,
-      })>[
-        (
-          appKey: ValueKey('admin-pending-draft-app'),
-          inboundUpdateId: 42,
-          messageThreadId: 88,
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
-          sourceText: 'Can you please tell me what is happening at the house?',
-          draftText:
-              'We are checking the latest position now and will send the next confirmed update shortly.',
-        ),
-        (
-          appKey: ValueKey('admin-off-scope-pending-draft-app'),
-          inboundUpdateId: 43,
-          messageThreadId: 89,
-          siteId: 'WTF-MAIN',
-          sourceText:
-              'Can you confirm whether the Waterfall team is already on site?',
-          draftText:
-              'We are checking the latest Waterfall position now and will send the next confirmed update shortly.',
-        ),
-      ]) {
+      for (final scenario
+          in const <
+            ({
+              ValueKey<String> appKey,
+              int inboundUpdateId,
+              int messageThreadId,
+              String siteId,
+              String sourceText,
+              String draftText,
+            })
+          >[
+            (
+              appKey: ValueKey('admin-pending-draft-app'),
+              inboundUpdateId: 42,
+              messageThreadId: 88,
+              siteId: 'SITE-DEMO',
+              sourceText:
+                  'Can you please tell me what is happening at the house?',
+              draftText:
+                  'We are checking the latest position now and will send the next confirmed update shortly.',
+            ),
+            (
+              appKey: ValueKey('admin-off-scope-pending-draft-app'),
+              inboundUpdateId: 43,
+              messageThreadId: 89,
+              siteId: 'WTF-MAIN',
+              sourceText:
+                  'Can you confirm whether the Waterfall team is already on site?',
+              draftText:
+                  'We are checking the latest Waterfall position now and will send the next confirmed update shortly.',
+            ),
+          ]) {
         await savePendingTelegramDrafts([
           telegramPendingDraftEntry(
             inboundUpdateId: scenario.inboundUpdateId,
             messageThreadId: scenario.messageThreadId,
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             siteId: scenario.siteId,
             sourceText: scenario.sourceText,
             originalDraftText: scenario.draftText,
@@ -4120,18 +4165,13 @@ void main() {
           ),
         ]);
 
-        await pumpAdminRouteApp(
-          tester,
-          key: scenario.appKey,
-        );
+        await pumpAdminRouteApp(tester, key: scenario.appKey);
         await openAdminPendingDraftReview(tester);
 
         expect(find.byKey(adminTelegramAiAssistantPanelKey), findsOneWidget);
         expect(
           find.byKey(
-            adminPendingDraftOpenClientCommsButtonKey(
-              scenario.inboundUpdateId,
-            ),
+            adminPendingDraftOpenClientCommsButtonKey(scenario.inboundUpdateId),
           ),
           findsOneWidget,
         );
@@ -4139,59 +4179,62 @@ void main() {
         expect(find.textContaining(scenario.draftText), findsOneWidget);
       }
 
-      for (final scenario in const <({
-        bool approved,
-        bool fromLiveOperations,
-        int inboundUpdateId,
-        String draftText,
-        String restartAppKey,
-        String sourceAppKey,
-      })>[
-        (
-          sourceAppKey: 'admin-reject-draft-app',
-          restartAppKey: 'admin-reject-draft-restart-app',
-          fromLiveOperations: false,
-          approved: false,
-          inboundUpdateId: 77,
-          draftText:
-              'We are checking the latest patrol position now and will send the next verified update shortly.',
-        ),
-        (
-          sourceAppKey: 'admin-live-ops-reject-source-app',
-          restartAppKey: 'admin-live-ops-reject-restart-app',
-          fromLiveOperations: true,
-          approved: false,
-          inboundUpdateId: 903,
-          draftText:
-              'We are checking the latest patrol position now and will send the next verified update shortly.',
-        ),
-        (
-          sourceAppKey: 'admin-approve-draft-app',
-          restartAppKey: 'admin-approve-draft-restart-app',
-          fromLiveOperations: false,
-          approved: true,
-          inboundUpdateId: 91,
-          draftText:
-              'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
-        ),
-        (
-          sourceAppKey: 'admin-live-ops-approve-source-app',
-          restartAppKey: 'admin-live-ops-approve-restart-app',
-          fromLiveOperations: true,
-          approved: true,
-          inboundUpdateId: 905,
-          draftText:
-              'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
-        ),
-      ]) {
+      for (final scenario
+          in const <
+            ({
+              bool approved,
+              bool fromLiveOperations,
+              int inboundUpdateId,
+              String draftText,
+              String restartAppKey,
+              String sourceAppKey,
+            })
+          >[
+            (
+              sourceAppKey: 'admin-reject-draft-app',
+              restartAppKey: 'admin-reject-draft-restart-app',
+              fromLiveOperations: false,
+              approved: false,
+              inboundUpdateId: 77,
+              draftText:
+                  'We are checking the latest patrol position now and will send the next verified update shortly.',
+            ),
+            (
+              sourceAppKey: 'admin-live-ops-reject-source-app',
+              restartAppKey: 'admin-live-ops-reject-restart-app',
+              fromLiveOperations: true,
+              approved: false,
+              inboundUpdateId: 903,
+              draftText:
+                  'We are checking the latest patrol position now and will send the next verified update shortly.',
+            ),
+            (
+              sourceAppKey: 'admin-approve-draft-app',
+              restartAppKey: 'admin-approve-draft-restart-app',
+              fromLiveOperations: false,
+              approved: true,
+              inboundUpdateId: 91,
+              draftText:
+                  'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
+            ),
+            (
+              sourceAppKey: 'admin-live-ops-approve-source-app',
+              restartAppKey: 'admin-live-ops-approve-restart-app',
+              fromLiveOperations: true,
+              approved: true,
+              inboundUpdateId: 905,
+              draftText:
+                  'Control is checking the latest patrol position now and will share the next confirmed step shortly.',
+            ),
+          ]) {
         await prepareAdminRouteTest(tester);
 
         await savePendingTelegramDrafts([
           telegramPendingDraftEntry(
             inboundUpdateId: scenario.inboundUpdateId,
             messageThreadId: 88,
-            clientId: 'CLIENT-MS-VALLEE',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            clientId: 'CLIENT-DEMO',
+            siteId: 'SITE-DEMO',
             sourceText: 'Please update me on the patrol position.',
             originalDraftText:
                 'We are checking the latest patrol position now and will send the next verified update shortly.',
@@ -4208,26 +4251,23 @@ void main() {
           await pumpLiveOperationsSourceApp(
             tester,
             key: ValueKey(scenario.sourceAppKey),
-            telegramBridgeServiceOverride:
-                scenario.approved
-                    ? const _SuccessfulTelegramBridgeStub()
-                    : null,
+            telegramBridgeServiceOverride: scenario.approved
+                ? const _SuccessfulTelegramBridgeStub()
+                : null,
           );
           expect(find.text('Pending ONYX Draft'), findsOneWidget);
-          final actionButton =
-              scenario.approved
-                  ? find.widgetWithText(FilledButton, 'Approve + Send').first
-                  : find.widgetWithText(OutlinedButton, 'Reject').first;
+          final actionButton = scenario.approved
+              ? find.widgetWithText(FilledButton, 'Approve + Send').first
+              : find.widgetWithText(OutlinedButton, 'Reject').first;
           await tester.ensureVisible(actionButton);
           await tester.tap(actionButton);
         } else {
           await pumpAdminRouteApp(
             tester,
             key: ValueKey(scenario.sourceAppKey),
-            telegramBridgeServiceOverride:
-                scenario.approved
-                    ? const _SuccessfulTelegramBridgeStub()
-                    : null,
+            telegramBridgeServiceOverride: scenario.approved
+                ? const _SuccessfulTelegramBridgeStub()
+                : null,
           );
           await openAdminPendingDraftReview(tester);
           await tester.tap(
@@ -4402,25 +4442,27 @@ void main() {
       expect(find.textContaining(secondStyle), findsWidgets);
 
       final cases =
-          <({
-            String approvedDraftText,
-            String auditAppKey,
-            String clientAppKey,
-            String clientId,
-            bool directRestore,
-            List<Map<String, Object?>> directRestoreEntries,
-            List<String> expectedExtraTexts,
-            List<DispatchEvent> initialStoreEventsOverride,
-            String siteId,
-          })>[
+          <
+            ({
+              String approvedDraftText,
+              String auditAppKey,
+              String clientAppKey,
+              String clientId,
+              bool directRestore,
+              List<Map<String, Object?>> directRestoreEntries,
+              List<String> expectedExtraTexts,
+              List<DispatchEvent> initialStoreEventsOverride,
+              String siteId,
+            })
+          >[
             (
               clientAppKey: 'admin-cross-surface-learn-clients-app',
               auditAppKey: 'admin-cross-surface-learn-admin-app',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               directRestore: false,
               directRestoreEntries: const <Map<String, Object?>>[],
               expectedExtraTexts: const <String>[],
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              siteId: 'SITE-DEMO',
               initialStoreEventsOverride: const <DispatchEvent>[],
               approvedDraftText:
                   'Control is checking the dispatch response for Resident Feed now and will share the next confirmed step shortly.',
@@ -4428,7 +4470,7 @@ void main() {
             (
               clientAppKey: 'admin-learned-style-app',
               auditAppKey: '',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               directRestore: true,
               directRestoreEntries: <Map<String, Object?>>[
                 learnedApprovalEntry(
@@ -4441,7 +4483,7 @@ void main() {
                 'Warm reassurance',
                 'Approved 1x',
               ],
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              siteId: 'SITE-DEMO',
               initialStoreEventsOverride: const <DispatchEvent>[],
               approvedDraftText:
                   'Control is checking the latest position now and will share the next confirmed step shortly.',
@@ -4449,7 +4491,7 @@ void main() {
             (
               clientAppKey: 'admin-offscope-cross-surface-learn-clients-app',
               auditAppKey: 'admin-offscope-cross-surface-learn-admin-app',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               directRestore: false,
               directRestoreEntries: const <Map<String, Object?>>[],
               expectedExtraTexts: const <String>[],
@@ -4593,52 +4635,55 @@ void main() {
       );
       expect(find.text('Hide tip'), findsOneWidget);
 
-      for (final scenario in const <({
-        String adminAppKey,
-        String clientAppKey,
-        bool directRestore,
-        bool fromLiveOperations,
-        String tapLabel,
-        bool seedPinnedVoice,
-        bool shouldShowPinnedVoice,
-      })>[
-        (
-          clientAppKey: 'admin-cross-surface-voice-clients-app',
-          adminAppKey: 'admin-cross-surface-voice-admin-app',
-          directRestore: false,
-          fromLiveOperations: false,
-          tapLabel: 'Reassuring',
-          seedPinnedVoice: false,
-          shouldShowPinnedVoice: true,
-        ),
-        (
-          clientAppKey: 'admin-cross-surface-clear-voice-clients-app',
-          adminAppKey: 'admin-cross-surface-clear-voice-admin-app',
-          directRestore: false,
-          fromLiveOperations: false,
-          tapLabel: 'Auto',
-          seedPinnedVoice: true,
-          shouldShowPinnedVoice: false,
-        ),
-        (
-          clientAppKey: 'admin-live-ops-voice-source-app',
-          adminAppKey: 'admin-live-ops-voice-restart-app',
-          directRestore: false,
-          fromLiveOperations: true,
-          tapLabel: 'Reassuring',
-          seedPinnedVoice: false,
-          shouldShowPinnedVoice: true,
-        ),
-        (
-          clientAppKey: 'admin-voice-app',
-          adminAppKey: '',
-          directRestore: true,
-          fromLiveOperations: false,
-          tapLabel: '',
-          seedPinnedVoice: true,
-          shouldShowPinnedVoice: true,
-        ),
-      ]) {
+      for (final scenario
+          in const <
+            ({
+              String adminAppKey,
+              String clientAppKey,
+              bool directRestore,
+              bool fromLiveOperations,
+              String tapLabel,
+              bool seedPinnedVoice,
+              bool shouldShowPinnedVoice,
+            })
+          >[
+            (
+              clientAppKey: 'admin-cross-surface-voice-clients-app',
+              adminAppKey: 'admin-cross-surface-voice-admin-app',
+              directRestore: false,
+              fromLiveOperations: false,
+              tapLabel: 'Reassuring',
+              seedPinnedVoice: false,
+              shouldShowPinnedVoice: true,
+            ),
+            (
+              clientAppKey: 'admin-cross-surface-clear-voice-clients-app',
+              adminAppKey: 'admin-cross-surface-clear-voice-admin-app',
+              directRestore: false,
+              fromLiveOperations: false,
+              tapLabel: 'Auto',
+              seedPinnedVoice: true,
+              shouldShowPinnedVoice: false,
+            ),
+            (
+              clientAppKey: 'admin-live-ops-voice-source-app',
+              adminAppKey: 'admin-live-ops-voice-restart-app',
+              directRestore: false,
+              fromLiveOperations: true,
+              tapLabel: 'Reassuring',
+              seedPinnedVoice: false,
+              shouldShowPinnedVoice: true,
+            ),
+            (
+              clientAppKey: 'admin-voice-app',
+              adminAppKey: '',
+              directRestore: true,
+              fromLiveOperations: false,
+              tapLabel: '',
+              seedPinnedVoice: true,
+              shouldShowPinnedVoice: true,
+            ),
+          ]) {
         if (scenario.directRestore) {
           SharedPreferences.setMockInitialValues({});
           await tester.binding.setSurfaceSize(const Size(1680, 1100));
@@ -4672,10 +4717,9 @@ void main() {
             );
           }
 
-          final voiceControl =
-              scenario.fromLiveOperations
-                  ? find.widgetWithText(OutlinedButton, scenario.tapLabel)
-                  : find.widgetWithText(ChoiceChip, scenario.tapLabel);
+          final voiceControl = scenario.fromLiveOperations
+              ? find.widgetWithText(OutlinedButton, scenario.tapLabel)
+              : find.widgetWithText(ChoiceChip, scenario.tapLabel);
           await tester.ensureVisible(voiceControl.first);
           await tester.tap(voiceControl.first);
           await tester.pumpAndSettle();
@@ -4701,22 +4745,21 @@ void main() {
         }
       }
 
-      for (final scenario in const <({
-        String adminAppKey,
-        bool fromLiveOperations,
-        String sourceAppKey,
-      })>[
-        (
-          sourceAppKey: 'admin-cross-surface-clear-learned-clients-app',
-          adminAppKey: 'admin-cross-surface-clear-learned-admin-app',
-          fromLiveOperations: false,
-        ),
-        (
-          sourceAppKey: 'admin-live-ops-clear-learned-source-app',
-          adminAppKey: 'admin-live-ops-clear-learned-restart-app',
-          fromLiveOperations: true,
-        ),
-      ]) {
+      for (final scenario
+          in const <
+            ({String adminAppKey, bool fromLiveOperations, String sourceAppKey})
+          >[
+            (
+              sourceAppKey: 'admin-cross-surface-clear-learned-clients-app',
+              adminAppKey: 'admin-cross-surface-clear-learned-admin-app',
+              fromLiveOperations: false,
+            ),
+            (
+              sourceAppKey: 'admin-live-ops-clear-learned-source-app',
+              adminAppKey: 'admin-live-ops-clear-learned-restart-app',
+              fromLiveOperations: true,
+            ),
+          ]) {
         await prepareAdminRouteTest(tester);
 
         await saveLegacyLearnedApprovalStyles(const <String>[
@@ -4754,8 +4797,6 @@ void main() {
       }
     },
   );
-
-
 }
 
 DecisionCreated _waterfallDispatchDecision({
@@ -4768,7 +4809,7 @@ DecisionCreated _waterfallDispatchDecision({
     version: 1,
     occurredAt: occurredAt,
     dispatchId: dispatchId,
-    clientId: 'CLIENT-MS-VALLEE',
+    clientId: 'CLIENT-DEMO',
     regionId: 'REGION-GAUTENG',
     siteId: 'WTF-MAIN',
   );

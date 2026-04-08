@@ -44,6 +44,22 @@ OnyxAgentRoutingTier onyxAgentRoutingTierFor(OnyxAgentCloudIntent intent) {
   };
 }
 
+/// Applies the ONYX smart-routing overrides on top of the base intent tier.
+///
+/// Long prompts and materially overdue follow-ups are escalated to cloud when
+/// the caller has cloud capacity available; otherwise callers can still fall
+/// back to local at execution time.
+OnyxAgentRoutingTier onyxAgentSmartRoutingTierFor({
+  required OnyxAgentCloudIntent intent,
+  required String prompt,
+  int pendingFollowUpAgeMinutes = 0,
+}) {
+  if (prompt.trim().length > 400 || pendingFollowUpAgeMinutes > 60) {
+    return OnyxAgentRoutingTier.cloud;
+  }
+  return onyxAgentRoutingTierFor(intent);
+}
+
 class OnyxAgentCloudScope {
   final String clientId;
   final String siteId;

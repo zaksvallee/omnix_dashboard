@@ -286,6 +286,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       scopedEvents: scopedBaseEvents,
       allEvents: widget.events,
     );
+    final focusedFallbackRegionId = _focusedFallbackRegionId(
+      scopedEvents: scopedBaseEvents,
+      allEvents: widget.events,
+    );
     final hasFocusedFallback =
         requestedSelectedId.isNotEmpty &&
         !widget.events.any((event) => event.eventId == requestedSelectedId);
@@ -296,6 +300,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       baseEvents: widget.events,
       focusedEventId: requestedSelectedId,
       fallbackScope: focusedFallbackScope,
+      fallbackRegionId: focusedFallbackRegionId,
     );
     final timeline = [...timelineSource]
       ..sort((a, b) => b.sequence.compareTo(a.sequence));
@@ -2568,6 +2573,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required List<DispatchEvent> baseEvents,
     required String focusedEventId,
     ({String clientId, String siteId})? fallbackScope,
+    String? fallbackRegionId,
   }) {
     if (focusedEventId.trim().isEmpty ||
         baseEvents.any((event) => event.eventId == focusedEventId)) {
@@ -2589,9 +2595,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         version: 2,
         occurredAt: DateTime.now().toUtc(),
         summary: _focusedFallbackSummary(fallbackScope),
-        clientId: fallbackScope?.clientId ?? 'DEMO-CLT',
-        regionId: 'REGION-GAUTENG',
-        siteId: fallbackScope?.siteId ?? 'DEMO-SITE',
+        clientId: fallbackScope?.clientId ?? 'CLIENT-DEMO',
+        regionId: _normalizedFocusedFallbackRegionId(fallbackRegionId),
+        siteId: fallbackScope?.siteId ?? 'SITE-DEMO',
       ),
       ...baseEvents,
     ];
@@ -2606,6 +2612,37 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       return scopedSummary;
     }
     return _governanceScopeForEvents(allEvents);
+  }
+
+  String? _focusedFallbackRegionId({
+    required List<DispatchEvent> scopedEvents,
+    required List<DispatchEvent> allEvents,
+  }) {
+    final scopedRegionId = _singleRegionIdForEvents(scopedEvents);
+    if (scopedRegionId != null) {
+      return scopedRegionId;
+    }
+    return _singleRegionIdForEvents(allEvents);
+  }
+
+  String? _singleRegionIdForEvents(List<DispatchEvent> events) {
+    final regionIds = events
+        .map(_eventRegionId)
+        .where((value) => value.trim().isNotEmpty)
+        .map((value) => value.trim())
+        .toSet();
+    if (regionIds.length != 1) {
+      return null;
+    }
+    return regionIds.first;
+  }
+
+  String _normalizedFocusedFallbackRegionId(String? regionId) {
+    final normalized = regionId?.trim() ?? '';
+    if (normalized.isNotEmpty) {
+      return normalized;
+    }
+    return 'REGION-DEMO';
   }
 
   String _focusedFallbackSummary(({String clientId, String siteId})? scope) {

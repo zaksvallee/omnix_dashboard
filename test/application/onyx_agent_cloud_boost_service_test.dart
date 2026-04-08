@@ -8,6 +8,31 @@ import 'package:omnix_dashboard/application/onyx_agent_cloud_boost_service.dart'
 import 'package:omnix_dashboard/domain/authority/onyx_task_protocol.dart';
 
 void main() {
+  test('smart routing escalates long or overdue prompts to cloud', () {
+    expect(
+      onyxAgentSmartRoutingTierFor(
+        intent: OnyxAgentCloudIntent.general,
+        prompt: 'status?',
+      ),
+      OnyxAgentRoutingTier.local,
+    );
+    expect(
+      onyxAgentSmartRoutingTierFor(
+        intent: OnyxAgentCloudIntent.patrol,
+        prompt: List<String>.filled(90, 'overwatch').join(' '),
+      ),
+      OnyxAgentRoutingTier.cloud,
+    );
+    expect(
+      onyxAgentSmartRoutingTierFor(
+        intent: OnyxAgentCloudIntent.camera,
+        prompt: 'check the feed',
+        pendingFollowUpAgeMinutes: 61,
+      ),
+      OnyxAgentRoutingTier.cloud,
+    );
+  });
+
   test('unconfigured cloud boost returns null', () async {
     const service = UnconfiguredOnyxAgentCloudBoostService();
 

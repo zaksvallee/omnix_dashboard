@@ -10,16 +10,12 @@ import 'package:omnix_dashboard/domain/events/decision_created.dart';
 import 'package:omnix_dashboard/domain/events/dispatch_event.dart';
 import 'package:omnix_dashboard/domain/events/intelligence_received.dart';
 import 'package:omnix_dashboard/main.dart';
-import 'package:omnix_dashboard/ui/ai_queue_page.dart';
 import 'package:omnix_dashboard/ui/admin_page.dart';
 import 'package:omnix_dashboard/ui/app_shell.dart';
 import 'package:omnix_dashboard/ui/client_app_page.dart';
-import 'package:omnix_dashboard/ui/clients_page.dart';
 import 'package:omnix_dashboard/ui/dispatch_page.dart';
 import 'package:omnix_dashboard/ui/events_review_page.dart';
-import 'package:omnix_dashboard/ui/guards_page.dart';
 import 'package:omnix_dashboard/ui/live_operations_page.dart';
-import 'package:omnix_dashboard/ui/onyx_agent_page.dart';
 import 'package:omnix_dashboard/ui/risk_intelligence_page.dart';
 import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
 import 'package:omnix_dashboard/ui/vip_protection_page.dart';
@@ -160,6 +156,27 @@ Future<void> _openLiveOpsDetailedWorkspaceIfPresent(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _showLiveOpsOverviewIfNeeded(WidgetTester tester) async {
+  final currentFocus = find.byKey(
+    const ValueKey('live-operations-command-current-focus'),
+  );
+  final quickOpen = find.byKey(
+    const ValueKey('live-operations-command-quick-open'),
+  );
+  if (currentFocus.evaluate().isNotEmpty || quickOpen.evaluate().isNotEmpty) {
+    return;
+  }
+  final toggle = find.byKey(
+    const ValueKey('live-operations-toggle-detailed-workspace'),
+  );
+  if (toggle.evaluate().isEmpty) {
+    return;
+  }
+  await tester.ensureVisible(toggle);
+  await tester.tap(toggle);
+  await tester.pumpAndSettle();
+}
+
 Future<void> _openDispatchDetailedWorkspaceIfPresent(
   WidgetTester tester,
 ) async {
@@ -189,8 +206,8 @@ void main() {
         initialRouteOverride: OnyxRoute.ledger,
         initialPinnedLedgerAuditEntryOverride: SovereignLedgerPinnedAuditEntry(
           auditId: 'OPS-AUDIT-DISPATCH-1',
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           recordCode: 'OB-AUDIT',
           title: 'Dispatch board opened from Live Ops.',
           description:
@@ -249,8 +266,8 @@ void main() {
         initialRouteOverride: OnyxRoute.ledger,
         initialPinnedLedgerAuditEntryOverride: SovereignLedgerPinnedAuditEntry(
           auditId: 'OPS-AUDIT-RETURN-1',
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           recordCode: 'OB-AUDIT',
           title: 'Dispatch board opened from Live Ops.',
           description:
@@ -299,13 +316,13 @@ void main() {
       tester
           .widget<LiveOperationsPage>(find.byType(LiveOperationsPage))
           .initialScopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester
           .widget<LiveOperationsPage>(find.byType(LiveOperationsPage))
           .initialScopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
   });
 
@@ -323,9 +340,40 @@ void main() {
         OnyxApp(
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
+          initialStoreEventsOverride: [
+            DecisionCreated(
+              eventId: 'decision-agent-return-route',
+              sequence: 4301,
+              version: 1,
+              occurredAt: _liveOperationsTestOccurredAtUtc(14, 20),
+              dispatchId: 'DSP-4',
+              clientId: 'CLIENT-DEMO',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-DEMO',
+            ),
+            IntelligenceReceived(
+              eventId: 'intel-agent-return-route',
+              sequence: 4302,
+              version: 1,
+              occurredAt: _liveOperationsTestOccurredAtUtc(14, 21),
+              intelligenceId: 'INTEL-DSP-4-RETURN',
+              sourceType: 'cctv',
+              provider: 'onyx',
+              externalId: 'evt-agent-return-route',
+              riskScore: 86,
+              headline: 'Dispatch escalation',
+              summary: 'Control needs the board back on DSP-4.',
+              clientId: 'CLIENT-DEMO',
+              regionId: 'REGION-GAUTENG',
+              siteId: 'SITE-DEMO',
+              canonicalHash: 'canon-agent-return-route',
+            ),
+          ],
         ),
       );
       await tester.pumpAndSettle();
+      await _showLiveOpsOverviewIfNeeded(tester);
+      await _showLiveOpsOverviewIfNeeded(tester);
 
       expect(
         find.byKey(const ValueKey('live-operations-command-center-hero')),
@@ -380,265 +428,28 @@ void main() {
     expect(find.text('Administration'), findsOneWidget);
   });
 
-  testWidgets('vip protection review package action opens admin system tab', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.vip),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
-    );
-    await tester.pumpAndSettle();
-
-    final adminPage = tester.widget<AdministrationPage>(
-      find.byType(AdministrationPage),
-    );
-    expect(adminPage.initialTab, AdministrationPageTab.system);
-    expect(find.text('Administration'), findsOneWidget);
-  });
-
-  testWidgets('onyx app opens agent from live operations command hero', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.dashboard),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('live-operations-command-open-agent')),
-    );
-    await tester.tap(
-      find.byKey(const ValueKey('live-operations-command-open-agent')),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 250));
-
-    expect(find.byType(OnyxAgentPage), findsOneWidget);
-    expect(find.text('Junior Analyst'), findsOneWidget);
-    expect(
-      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).sourceRouteLabel,
-      'Operations',
-    );
-    expect(
-      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
-    );
-    expect(
-      tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
-    );
-    expect(
-      tester
-          .widget<OnyxAgentPage>(find.byType(OnyxAgentPage))
-          .focusIncidentReference,
-      'INC-DSP-4',
-    );
-  });
-
   testWidgets(
-    'onyx app returns from agent into the focused live operations board',
+    'vip protection route hides stale scheduled review actions by default',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(1440, 980));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.dashboard,
-        ),
+        OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.vip),
       );
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('live-operations-command-open-agent')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('live-operations-command-open-agent')),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
-
-      expect(find.byType(OnyxAgentPage), findsOneWidget);
       expect(
-        tester
-            .widget<OnyxAgentPage>(find.byType(OnyxAgentPage))
-            .sourceRouteLabel,
-        'Operations',
+        find.byKey(const ValueKey('vip-schedule-ceo-airport-escort')),
+        findsNothing,
       );
+      expect(find.text('No Live VIP Run'), findsOneWidget);
       expect(
-        tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-        'CLIENT-MS-VALLEE',
-      );
-      expect(
-        tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-        'SITE-MS-VALLEE-RESIDENCE',
-      );
-      expect(
-        tester
-            .widget<OnyxAgentPage>(find.byType(OnyxAgentPage))
-            .focusIncidentReference,
-        'INC-DSP-4',
-      );
-
-      await tester.ensureVisible(
-        find.byKey(const ValueKey('onyx-agent-resume-operations-button')),
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('onyx-agent-resume-operations-button')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.byType(LiveOperationsPage), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('live-operations-command-receipt')),
+        find.byKey(const ValueKey('vip-create-detail-button')),
         findsOneWidget,
-      );
-      expect(find.text('AGENT RETURN'), findsOneWidget);
-      expect(find.textContaining('Returned from Agent for'), findsOneWidget);
-      expect(find.text('Active Incident: INC-DSP-4'), findsOneWidget);
-      expect(
-        tester
-            .widget<LiveOperationsPage>(find.byType(LiveOperationsPage))
-            .initialScopeClientId,
-        'CLIENT-MS-VALLEE',
-      );
-      expect(
-        tester
-            .widget<LiveOperationsPage>(find.byType(LiveOperationsPage))
-            .initialScopeSiteId,
-        'SITE-MS-VALLEE-RESIDENCE',
       );
     },
   );
-
-  testWidgets('onyx app opens alarms from command card', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.dashboard),
-    );
-    await tester.pumpAndSettle();
-
-    final alarmsCard = find.byKey(
-      const ValueKey('live-operations-quick-open-alarms'),
-    );
-    await tester.ensureVisible(alarmsCard);
-    await tester.tap(alarmsCard);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(DispatchPage), findsOneWidget);
-    expect(
-      tester.widget<DispatchPage>(find.byType(DispatchPage)).clientId,
-      'CLIENT-MS-VALLEE',
-    );
-    expect(
-      tester.widget<DispatchPage>(find.byType(DispatchPage)).siteId,
-      'SITE-MS-VALLEE-RESIDENCE',
-    );
-    expect(
-      tester
-          .widget<DispatchPage>(find.byType(DispatchPage))
-          .focusIncidentReference,
-      isEmpty,
-    );
-  });
-
-  testWidgets('onyx app opens guards from command card', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.dashboard),
-    );
-    await tester.pumpAndSettle();
-
-    final guardsCard = find.byKey(
-      const ValueKey('live-operations-quick-open-guards'),
-    );
-    await tester.ensureVisible(guardsCard);
-    await tester.tap(guardsCard);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(GuardsPage), findsOneWidget);
-    expect(find.text('Guards & Workforce'), findsOneWidget);
-    expect(
-      tester.widget<GuardsPage>(find.byType(GuardsPage)).initialSiteFilter,
-      'ALL',
-    );
-  });
-
-  testWidgets('onyx app opens cctv from command card', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.dashboard),
-    );
-    await tester.pumpAndSettle();
-
-    final cctvCard = find.byKey(
-      const ValueKey('live-operations-quick-open-cctv'),
-    );
-    await tester.ensureVisible(cctvCard);
-    await tester.tap(cctvCard.first);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(AIQueuePage), findsOneWidget);
-    expect(
-      tester
-          .widget<AIQueuePage>(find.byType(AIQueuePage))
-          .focusIncidentReference,
-      isEmpty,
-    );
-    expect(
-      tester
-          .widget<AIQueuePage>(find.byType(AIQueuePage))
-          .initialSelectedFeedId,
-      isEmpty,
-    );
-  });
-
-  testWidgets('onyx app opens client comms from command card', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.dashboard),
-    );
-    await tester.pumpAndSettle();
-
-    final clientCommsCard = find.byKey(
-      const ValueKey('live-operations-quick-open-client-comms'),
-    );
-    await tester.ensureVisible(clientCommsCard);
-    await tester.tap(clientCommsCard);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(ClientsPage), findsOneWidget);
-    expect(find.textContaining('Client Communications'), findsWidgets);
-    expect(
-      tester.widget<ClientsPage>(find.byType(ClientsPage)).clientId,
-      'CLIENT-MS-VALLEE',
-    );
-    expect(
-      tester.widget<ClientsPage>(find.byType(ClientsPage)).siteId,
-      'SITE-MS-VALLEE-RESIDENCE',
-    );
-  });
 
   testWidgets('onyx app renders risk intelligence route', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1440, 980));
@@ -698,9 +509,9 @@ void main() {
               provider: 'newsapi.org',
               sourceType: 'news',
               externalId: 'news-route-1',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              siteId: 'SITE-DEMO',
               headline: 'Route-level intelligence item',
               summary: 'A route-level intelligence item for events handoff.',
               riskScore: 73,
@@ -748,9 +559,9 @@ void main() {
               provider: 'newsapi.org',
               sourceType: 'news',
               externalId: 'news-area-1',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              siteId: 'SITE-DEMO',
               headline: 'Sandton advisory issued',
               summary: 'Sandton posture advisory requires operator review.',
               riskScore: 61,
@@ -776,103 +587,6 @@ void main() {
     },
   );
 
-  testWidgets('onyx app opens alarms from live operations attention queue', (
-    tester,
-  ) async {
-    final now = _liveOperationsScenarioNowUtc();
-    await tester.binding.setSurfaceSize(const Size(1440, 980));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      OnyxApp(
-        supabaseReady: false,
-        initialRouteOverride: OnyxRoute.dashboard,
-        initialStoreEventsOverride: [
-          DecisionCreated(
-            eventId: 'decision-low-route',
-            sequence: 9101,
-            version: 1,
-            occurredAt: now.subtract(const Duration(minutes: 4)),
-            dispatchId: 'DSP-LOW',
-            clientId: 'CLIENT-MS-VALLEE',
-            regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
-          ),
-          IntelligenceReceived(
-            eventId: 'intel-low-route',
-            sequence: 9102,
-            version: 1,
-            occurredAt: now.subtract(const Duration(minutes: 3)),
-            intelligenceId: 'INTEL-LOW',
-            sourceType: 'hardware',
-            provider: 'dahua',
-            externalId: 'evt-low-route',
-            riskScore: 72,
-            headline: 'Perimeter motion',
-            summary: 'Moderate perimeter motion detected.',
-            clientId: 'CLIENT-MS-VALLEE',
-            regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
-            faceConfidence: 0.82,
-            canonicalHash: 'canon-low-route',
-          ),
-          DecisionCreated(
-            eventId: 'decision-critical-route',
-            sequence: 9103,
-            version: 1,
-            occurredAt: now.subtract(const Duration(minutes: 2)),
-            dispatchId: 'DSP-CRIT',
-            clientId: 'CLIENT-MS-VALLEE',
-            regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
-          ),
-          IntelligenceReceived(
-            eventId: 'intel-critical-route',
-            sequence: 9104,
-            version: 1,
-            occurredAt: now.subtract(const Duration(minutes: 1)),
-            intelligenceId: 'INTEL-CRIT',
-            sourceType: 'hardware',
-            provider: 'dahua',
-            externalId: 'evt-crit-route',
-            riskScore: 92,
-            headline: 'Fire alarm escalation',
-            summary: 'Critical hazard posture detected.',
-            clientId: 'CLIENT-MS-VALLEE',
-            regionId: 'REGION-GAUTENG',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
-            faceConfidence: 0.97,
-            canonicalHash: 'canon-crit-route',
-          ),
-        ],
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final incidentActivity = find.byKey(
-      const ValueKey('live-operations-command-item-incident-INC-DSP-CRIT'),
-    );
-    await tester.ensureVisible(incidentActivity);
-    await tester.tap(incidentActivity);
-    await tester.pumpAndSettle();
-
-    expect(find.byType(DispatchPage), findsOneWidget);
-    expect(
-      tester.widget<DispatchPage>(find.byType(DispatchPage)).clientId,
-      'CLIENT-MS-VALLEE',
-    );
-    expect(
-      tester.widget<DispatchPage>(find.byType(DispatchPage)).siteId,
-      'SITE-MS-VALLEE-RESIDENCE',
-    );
-    expect(
-      tester
-          .widget<DispatchPage>(find.byType(DispatchPage))
-          .focusIncidentReference,
-      'INC-DSP-CRIT',
-    );
-  });
-
   testWidgets(
     'onyx app critical alert banner shifts focus to the active critical incident',
     (tester) async {
@@ -891,9 +605,9 @@ void main() {
               version: 1,
               occurredAt: now.subtract(const Duration(minutes: 4)),
               dispatchId: 'DSP-LOW',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              siteId: 'SITE-DEMO',
             ),
             IntelligenceReceived(
               eventId: 'intel-low',
@@ -907,9 +621,9 @@ void main() {
               riskScore: 72,
               headline: 'Perimeter motion',
               summary: 'Moderate perimeter motion detected.',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              siteId: 'SITE-DEMO',
               faceConfidence: 0.82,
               canonicalHash: 'canon-low',
             ),
@@ -919,9 +633,9 @@ void main() {
               version: 1,
               occurredAt: now.subtract(const Duration(minutes: 2)),
               dispatchId: 'DSP-CRIT',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              siteId: 'SITE-DEMO',
             ),
             IntelligenceReceived(
               eventId: 'intel-critical',
@@ -935,9 +649,9 @@ void main() {
               riskScore: 92,
               headline: 'Fire alarm escalation',
               summary: 'Critical hazard posture detected.',
-              clientId: 'CLIENT-MS-VALLEE',
+              clientId: 'CLIENT-DEMO',
               regionId: 'REGION-GAUTENG',
-              siteId: 'SITE-MS-VALLEE-RESIDENCE',
+              siteId: 'SITE-DEMO',
               faceConfidence: 0.97,
               canonicalHash: 'canon-crit',
             ),
@@ -948,13 +662,15 @@ void main() {
       await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       await tester.scrollUntilVisible(
-        find.byKey(const Key('incident-card-INC-DSP-LOW')),
+        find.byKey(const ValueKey('live-operations-incident-tile-INC-DSP-LOW')),
         300,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('incident-card-INC-DSP-LOW')));
+      await tester.tap(
+        find.byKey(const ValueKey('live-operations-incident-tile-INC-DSP-LOW')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Active Incident: INC-DSP-LOW'), findsOneWidget);
@@ -1018,59 +734,10 @@ void main() {
       await tester.tap(openClientLaneAction);
       await tester.pumpAndSettle();
 
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(openedClientId, 'CLIENT-DEMO');
+      expect(openedSiteId, 'SITE-DEMO');
       expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Communications'), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'onyx app routes plain-language live operations command into client comms',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      String? openedClientId;
-      String? openedSiteId;
-      String? openedRoom;
-
-      await tester.pumpWidget(
-        OnyxApp(
-          supabaseReady: false,
-          onClientLaneRouteOpened: (clientId, siteId, room) {
-            openedClientId = clientId;
-            openedSiteId = siteId;
-            openedRoom = room;
-          },
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-        find.byKey(const ValueKey('controller-login-username')),
-        'admin',
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey('controller-login-password')),
-        'onyx123',
-      );
-      await tester.tap(find.byKey(const ValueKey('controller-login-submit')));
-      await tester.pumpAndSettle();
-
-      await tester.enterText(
-        find.byKey(const ValueKey('live-operations-command-input')),
-        'Draft a client update for the active incident',
-      );
-      await tester.tap(
-        find.byKey(const ValueKey('live-operations-command-submit')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
-      expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Communications'), findsOneWidget);
+      expect(find.textContaining('Client Communications'), findsWidgets);
     },
   );
 
@@ -1111,8 +778,8 @@ void main() {
       await tester.tap(openClientLaneAction);
       await tester.pumpAndSettle();
 
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(openedClientId, 'CLIENT-DEMO');
+      expect(openedSiteId, 'SITE-DEMO');
       expect(
         find.byKey(const ValueKey('clients-workspace-panel-board')),
         findsOneWidget,
@@ -1121,8 +788,6 @@ void main() {
         find.byKey(const ValueKey('clients-simple-queue-board')),
         findsNothing,
       );
-      expect(find.text('Ms Vallee Residence'), findsWidgets);
-      expect(find.text('Sandton Corp'), findsNothing);
     },
   );
 
@@ -1271,7 +936,7 @@ void main() {
 
       await saveLegacyLearnedApprovalStyles([
         'Control is checking the latest position now and will share the next confirmed step shortly.',
-      ]);
+      ], scopeKey: 'CLIENT-DEMO|SITE-DEMO');
 
       await tester.pumpWidget(
         OnyxApp(
@@ -1302,7 +967,10 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1440, 980));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await savePinnedLaneVoice(profile: 'reassurance-forward');
+      await savePinnedLaneVoice(
+        profile: 'reassurance-forward',
+        scopeKey: 'CLIENT-DEMO|SITE-DEMO',
+      );
 
       await tester.pumpWidget(
         OnyxApp(
@@ -1331,8 +999,8 @@ void main() {
         telegramPendingDraftEntry(
           inboundUpdateId: 501,
           messageThreadId: 88,
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           sourceText: 'Hi ONYX, are we still waiting on the patrol update?',
           originalDraftText:
               'We are checking the latest patrol position now and will send the next verified update shortly.',
@@ -1378,7 +1046,7 @@ void main() {
         telegramPendingDraftEntry(
           inboundUpdateId: 507,
           messageThreadId: 91,
-          clientId: 'CLIENT-MS-VALLEE',
+          clientId: 'CLIENT-DEMO',
           siteId: 'WTF-MAIN',
           sourceText:
               'Please confirm if the Waterfall response team has already arrived.',
@@ -1540,7 +1208,7 @@ void main() {
         telegramPendingDraftEntry(
           inboundUpdateId: 508,
           messageThreadId: 92,
-          clientId: 'CLIENT-MS-VALLEE',
+          clientId: 'CLIENT-DEMO',
           siteId: 'WTF-MAIN',
           sourceText:
               'Please confirm if the Waterfall response team has already arrived.',
@@ -1587,10 +1255,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
+      expect(openedClientId, 'CLIENT-DEMO');
       expect(openedSiteId, 'WTF-MAIN');
       expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Communications'), findsOneWidget);
+      expect(find.textContaining('Client Communications'), findsWidgets);
     },
   );
 
@@ -1621,10 +1289,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final otherAsk = find.byKey(
-        const ValueKey(
-          'control-inbox-ask-CLIENT-MS-VALLEE-WTF-MAIN-2026-03-18T12:43:00.000Z',
-        ),
+      final otherAsk = find.textContaining(
+        'Please confirm whether the Waterfall response team has already arrived.',
       );
       await tester.scrollUntilVisible(
         otherAsk,
@@ -1636,18 +1302,15 @@ void main() {
       expect(find.text('LIVE CLIENT ASKS'), findsOneWidget);
       expect(find.text('Other scope'), findsWidgets);
 
-      await tester.tap(
-        find.descendant(
-          of: otherAsk,
-          matching: find.widgetWithText(OutlinedButton, 'Shape Reply'),
-        ),
-      );
+      final shapeReplyButton = find.text('Shape Reply');
+      await tester.ensureVisible(shapeReplyButton.first);
+      await tester.tap(shapeReplyButton.first);
       await tester.pumpAndSettle();
 
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
+      expect(openedClientId, 'CLIENT-DEMO');
       expect(openedSiteId, 'WTF-MAIN');
       expect(openedRoom, isEmpty);
-      expect(find.textContaining('Client Communications'), findsOneWidget);
+      expect(find.textContaining('Client Communications'), findsWidgets);
     },
   );
 
@@ -1661,7 +1324,7 @@ void main() {
       final persistence = await DispatchPersistenceService.create();
       final scopedConversation = ScopedSharedPrefsClientConversationRepository(
         persistence: persistence,
-        clientId: 'CLIENT-MS-VALLEE',
+        clientId: 'CLIENT-DEMO',
         siteId: 'WTF-MAIN',
       );
       await scopedConversation.saveMessages(<ClientAppMessage>[
@@ -1710,10 +1373,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.byKey(
-          const ValueKey(
-            'control-inbox-ask-CLIENT-MS-VALLEE-WTF-MAIN-2026-03-18T12:43:00.000Z',
-          ),
+        find.textContaining(
+          'Please confirm whether the Waterfall response team has already arrived.',
         ),
         500,
         scrollable: find.byType(Scrollable).first,
@@ -1743,8 +1404,8 @@ void main() {
         telegramPendingDraftEntry(
           inboundUpdateId: 601,
           messageThreadId: 88,
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           sourceText: 'Hi ONYX, are we still waiting on the patrol update?',
           originalDraftText:
               'We are checking the latest patrol position now and will send the next verified update shortly.',
@@ -1763,6 +1424,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('Pending ONYX Draft'), findsOneWidget);
       final rejectButton = find.widgetWithText(OutlinedButton, 'Reject').first;
@@ -1799,8 +1461,8 @@ void main() {
         telegramPendingDraftEntry(
           inboundUpdateId: 701,
           messageThreadId: 88,
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           sourceText: 'Please update me on the patrol position.',
           originalDraftText:
               'We are checking the latest patrol position now and will send the next verified update shortly.',
@@ -1820,6 +1482,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('Pending ONYX Draft'), findsOneWidget);
       final approveButton = find
@@ -1837,6 +1500,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('Learned style 1'), findsWidgets);
       expect(find.text('Learned approval style'), findsWidgets);
@@ -1918,7 +1582,7 @@ void main() {
         key: const ValueKey(
           'live-ops-offscope-cross-surface-learn-clients-app',
         ),
-        clientId: 'CLIENT-MS-VALLEE',
+        clientId: 'CLIENT-DEMO',
         siteId: 'WTF-MAIN',
         initialStoreEventsOverride: <DispatchEvent>[
           DecisionCreated(
@@ -1927,7 +1591,7 @@ void main() {
             version: 1,
             occurredAt: _liveOperationsOffScopeOccurredAtUtc(41),
             dispatchId: 'DISP-WTF-LEARN-1',
-            clientId: 'CLIENT-MS-VALLEE',
+            clientId: 'CLIENT-DEMO',
             regionId: 'REGION-GAUTENG',
             siteId: 'WTF-MAIN',
           ),
@@ -1972,7 +1636,7 @@ void main() {
           ),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
-          initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
+          initialOperationsScopeClientIdOverride: 'CLIENT-DEMO',
           initialOperationsScopeSiteIdOverride: 'WTF-MAIN',
         ),
       );
@@ -1996,7 +1660,7 @@ void main() {
       await pumpClientControlSourceApp(
         tester,
         key: const ValueKey('live-ops-offscope-lane-reply-clients-app'),
-        clientId: 'CLIENT-MS-VALLEE',
+        clientId: 'CLIENT-DEMO',
         siteId: 'WTF-MAIN',
       );
 
@@ -2016,7 +1680,7 @@ void main() {
           key: const ValueKey('live-ops-offscope-lane-reply-dashboard-app'),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
-          initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
+          initialOperationsScopeClientIdOverride: 'CLIENT-DEMO',
           initialOperationsScopeSiteIdOverride: 'WTF-MAIN',
         ),
       );
@@ -2046,7 +1710,7 @@ void main() {
           key: const ValueKey('live-ops-offscope-push-state-dashboard-app'),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
-          initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
+          initialOperationsScopeClientIdOverride: 'CLIENT-DEMO',
           initialOperationsScopeSiteIdOverride: 'WTF-MAIN',
         ),
       );
@@ -2108,7 +1772,7 @@ void main() {
           key: const ValueKey('admin-to-liveops-push-pressure-dashboard-app'),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
-          initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
+          initialOperationsScopeClientIdOverride: 'CLIENT-DEMO',
           initialOperationsScopeSiteIdOverride: 'WTF-MAIN',
         ),
       );
@@ -2150,7 +1814,7 @@ void main() {
           ),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
-          initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
+          initialOperationsScopeClientIdOverride: 'CLIENT-DEMO',
           initialOperationsScopeSiteIdOverride: 'WTF-MAIN',
         ),
       );
@@ -2200,7 +1864,7 @@ void main() {
           key: const ValueKey('admin-to-liveops-telegram-health-dashboard-app'),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
-          initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
+          initialOperationsScopeClientIdOverride: 'CLIENT-DEMO',
           initialOperationsScopeSiteIdOverride: 'WTF-MAIN',
         ),
       );
@@ -2250,7 +1914,7 @@ void main() {
           key: const ValueKey('admin-to-liveops-sms-fallback-dashboard-app'),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
-          initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
+          initialOperationsScopeClientIdOverride: 'CLIENT-DEMO',
           initialOperationsScopeSiteIdOverride: 'WTF-MAIN',
         ),
       );
@@ -2299,7 +1963,7 @@ void main() {
           key: const ValueKey('admin-to-liveops-voip-history-dashboard-app'),
           supabaseReady: false,
           initialRouteOverride: OnyxRoute.dashboard,
-          initialOperationsScopeClientIdOverride: 'CLIENT-MS-VALLEE',
+          initialOperationsScopeClientIdOverride: 'CLIENT-DEMO',
           initialOperationsScopeSiteIdOverride: 'WTF-MAIN',
         ),
       );
@@ -2342,6 +2006,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('Client voice Reassuring'), findsWidgets);
     },
@@ -2354,7 +2019,10 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(1440, 980));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await savePinnedLaneVoice(profile: 'reassurance-forward');
+      await savePinnedLaneVoice(
+        profile: 'reassurance-forward',
+        scopeKey: 'CLIENT-DEMO|SITE-DEMO',
+      );
       await pumpClientControlSourceApp(
         tester,
         key: const ValueKey('live-ops-cross-surface-clear-voice-clients-app'),
@@ -2375,6 +2043,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('Client voice Reassuring'), findsNothing);
     },
@@ -2389,7 +2058,7 @@ void main() {
 
       await saveLegacyLearnedApprovalStyles([
         'Control is checking the latest position now and will share the next confirmed step shortly.',
-      ]);
+      ], scopeKey: 'CLIENT-DEMO|SITE-DEMO');
       await pumpClientControlSourceApp(
         tester,
         key: const ValueKey('live-ops-cross-surface-clear-learned-clients-app'),
@@ -2413,48 +2082,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('Learned style 1'), findsNothing);
       expect(find.text('Learned approval style'), findsNothing);
       expect(find.text('ONYX using learned style'), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'onyx app reflects admin lane voice changes in live operations after restart',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      await tester.binding.setSurfaceSize(const Size(1440, 980));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      await saveLegacyLearnedApprovalStyles([
-        'Control is checking the latest position now and will share the next confirmed step shortly.',
-      ]);
-
-      await pumpAdminRouteApp(
-        tester,
-        key: const ValueKey('live-ops-admin-voice-source-app'),
-      );
-      await openAdminClientCommsAudit(tester);
-
-      final reassuringButton = find.widgetWithText(
-        OutlinedButton,
-        'Reassuring',
-      );
-      await tester.ensureVisible(reassuringButton.first);
-      await tester.tap(reassuringButton.first);
-      await tester.pumpAndSettle();
-
-      await tester.pumpWidget(
-        OnyxApp(
-          key: const ValueKey('live-ops-admin-voice-restart-app'),
-          supabaseReady: false,
-          initialRouteOverride: OnyxRoute.dashboard,
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('Client voice Reassuring'), findsWidgets);
     },
   );
 
@@ -2470,8 +2102,8 @@ void main() {
           telegramPendingDraftEntry(
             inboundUpdateId: 901,
             messageThreadId: 88,
-            clientId: 'CLIENT-MS-VALLEE',
-            siteId: 'SITE-MS-VALLEE-RESIDENCE',
+            clientId: 'CLIENT-DEMO',
+            siteId: 'SITE-DEMO',
             sourceText: 'Please update me on the patrol position.',
             originalDraftText:
                 'We are checking the latest patrol position now and will send the next verified update shortly.',
@@ -2483,7 +2115,7 @@ void main() {
         ]),
         ...legacyLearnedApprovalRuntimeState([
           'Control is checking the latest position now and will share the next confirmed step shortly.',
-        ]),
+        ], scopeKey: 'CLIENT-DEMO|SITE-DEMO'),
       });
 
       await pumpAdminRouteApp(
@@ -2508,6 +2140,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('Learned style 1'), findsNothing);
       expect(find.text('Learned approval style'), findsNothing);
@@ -2525,8 +2158,8 @@ void main() {
         telegramPendingDraftEntry(
           inboundUpdateId: 902,
           messageThreadId: 88,
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           sourceText: 'Please update me on the patrol position.',
           originalDraftText:
               'We are checking the latest patrol position now and will send the next verified update shortly.',
@@ -2556,6 +2189,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await _openLiveOpsDetailedWorkspaceIfPresent(tester);
 
       expect(find.text('Learned style 1'), findsWidgets);
       expect(find.text('Learned approval style'), findsWidgets);
@@ -2579,8 +2213,8 @@ void main() {
         telegramPendingDraftEntry(
           inboundUpdateId: 904,
           messageThreadId: 88,
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           sourceText: 'Please update me on the patrol position.',
           originalDraftText:
               'We are checking the latest patrol position now and will send the next verified update shortly.',

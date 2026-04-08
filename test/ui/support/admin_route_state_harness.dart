@@ -15,7 +15,7 @@ waterfallScopedConversation() async {
   final persistence = await DispatchPersistenceService.create();
   return ScopedSharedPrefsClientConversationRepository(
     persistence: persistence,
-    clientId: 'CLIENT-MS-VALLEE',
+    clientId: 'CLIENT-DEMO',
     siteId: 'WTF-MAIN',
   );
 }
@@ -39,8 +39,8 @@ Future<void> seedDefaultValleeQueuedDelivery({
       title: title,
       body: body,
       occurredAt: occurredAtUtc,
-      clientId: 'CLIENT-MS-VALLEE',
-      siteId: 'SITE-MS-VALLEE-RESIDENCE',
+      clientId: 'CLIENT-DEMO',
+      siteId: 'SITE-DEMO',
       targetChannel: ClientAppAcknowledgementChannel.client,
       deliveryProvider: ClientPushDeliveryProvider.inApp,
       priority: true,
@@ -65,7 +65,7 @@ Future<void> seedWaterfallQueuedDelivery({
       title: title,
       body: body,
       occurredAt: occurredAtUtc,
-      clientId: 'CLIENT-MS-VALLEE',
+      clientId: 'CLIENT-DEMO',
       siteId: 'WTF-MAIN',
       targetChannel: ClientAppAcknowledgementChannel.client,
       deliveryProvider: ClientPushDeliveryProvider.inApp,
@@ -99,7 +99,7 @@ Future<void> seedWaterfallPushPressure({
       title: 'Waterfall delivery check',
       body: 'Queued client update for the Waterfall lane.',
       occurredAt: queuedAtUtc,
-      clientId: 'CLIENT-MS-VALLEE',
+      clientId: 'CLIENT-DEMO',
       siteId: 'WTF-MAIN',
       targetChannel: ClientAppAcknowledgementChannel.client,
       deliveryProvider: ClientPushDeliveryProvider.inApp,
@@ -277,7 +277,7 @@ Future<void> seedWaterfallScopedVoipFailurePushSync({
               ),
             ],
     ),
-    clientId: 'CLIENT-MS-VALLEE',
+    clientId: 'CLIENT-DEMO',
     siteId: 'WTF-MAIN',
   );
 }
@@ -333,7 +333,7 @@ Future<void> _saveDefaultValleePushSyncState({
 
 Map<String, Object?> learnedApprovalRuntimeState(
   List<Map<String, Object?>> entries, {
-  String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
+  String scopeKey = 'CLIENT-DEMO|SITE-DEMO',
 }) {
   return {
     'ai_approved_rewrite_examples_by_scope': {scopeKey: entries},
@@ -357,7 +357,7 @@ Map<String, Object?> learnedApprovalEntry({
 
 Future<void> saveLearnedApprovalStyles(
   List<Map<String, Object?>> entries, {
-  String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
+  String scopeKey = 'CLIENT-DEMO|SITE-DEMO',
 }) async {
   await saveTelegramAdminRuntimeState(
     learnedApprovalRuntimeState(entries, scopeKey: scopeKey),
@@ -366,7 +366,7 @@ Future<void> saveLearnedApprovalStyles(
 
 Map<String, Object?> pinnedLaneVoiceRuntimeState({
   required String profile,
-  String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
+  String scopeKey = 'CLIENT-DEMO|SITE-DEMO',
 }) {
   return {
     'ai_client_profile_overrides': {scopeKey: profile},
@@ -375,7 +375,7 @@ Map<String, Object?> pinnedLaneVoiceRuntimeState({
 
 Future<void> savePinnedLaneVoice({
   required String profile,
-  String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
+  String scopeKey = 'CLIENT-DEMO|SITE-DEMO',
 }) async {
   await saveTelegramAdminRuntimeState(
     pinnedLaneVoiceRuntimeState(profile: profile, scopeKey: scopeKey),
@@ -384,7 +384,7 @@ Future<void> savePinnedLaneVoice({
 
 Map<String, Object?> legacyLearnedApprovalRuntimeState(
   List<String> entries, {
-  String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
+  String scopeKey = 'CLIENT-DEMO|SITE-DEMO',
 }) {
   return {
     'ai_approved_rewrite_examples_by_scope': {scopeKey: entries},
@@ -393,7 +393,7 @@ Map<String, Object?> legacyLearnedApprovalRuntimeState(
 
 Future<void> saveLegacyLearnedApprovalStyles(
   List<String> entries, {
-  String scopeKey = 'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE',
+  String scopeKey = 'CLIENT-DEMO|SITE-DEMO',
 }) async {
   await saveTelegramAdminRuntimeState(
     legacyLearnedApprovalRuntimeState(entries, scopeKey: scopeKey),

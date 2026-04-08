@@ -391,7 +391,7 @@ class TelegramClientQuickActionService {
     required _QuickActionTonePack tonePack,
   }) {
     final lead = monitoringUnavailable
-        ? 'Remote monitoring is not active for this site right now. Camera worker may be offline. Message here for manual follow-up.'
+        ? 'Remote monitoring is not active for this site right now. Camera worker may be offline.'
         : monitoringLimited
         ? '${site.siteName} is under watch, but remote visibility is limited right now.'
         : active

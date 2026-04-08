@@ -177,7 +177,7 @@ class OllamaOnyxAgentLocalBrainService implements OnyxAgentLocalBrainService {
         '5) If an outstanding follow-up is unresolved or overdue, keep it warm unless a human-safety signal outranks it.\n'
         '6) If operator focus is preserved, respect it and avoid moving the desk recommendation unless safety clearly requires it.\n'
         '7) Echo primary_pressure from context when present using one of planner maintenance, overdue follow-up, unresolved follow-up, operator focus hold, or active signal watch.\n'
-        '8) If a planner maintenance priority is in context, surface it as the first context_highlights item when it materially affects the next step.';
+        '8) If operational context includes a planner maintenance priority, echo that pressure as a short first context_highlights item when it materially affects the next step.';
   }
 }
 

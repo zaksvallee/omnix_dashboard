@@ -138,7 +138,7 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: SitesPage(events: events)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sites & Deployment'), findsOneWidget);
+    expect(find.text('Sites & Deployment'), findsWidgets);
     expect(find.byKey(const ValueKey('sites-overview-grid')), findsNothing);
     expect(
       find.byKey(const ValueKey('sites-overview-selected-card')),

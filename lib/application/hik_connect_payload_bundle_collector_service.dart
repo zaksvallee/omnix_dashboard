@@ -51,8 +51,7 @@ class HikConnectPayloadBundleCollectorService {
       clientId: clientId,
       regionId: regionId,
       siteId: siteId,
-      apiBaseUrl:
-          api.config.baseUri?.toString() ?? 'https://api.hik-connect.example.com',
+      apiBaseUrl: api.config.baseUri?.toString() ?? '',
     );
 
     final cameraPath =

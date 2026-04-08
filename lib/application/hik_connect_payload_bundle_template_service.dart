@@ -25,7 +25,7 @@ class HikConnectPayloadBundleTemplateService {
     String clientId = 'CLIENT-REPLACE-ME',
     String regionId = 'REGION-REPLACE-ME',
     String siteId = 'SITE-REPLACE-ME',
-    String apiBaseUrl = 'https://api.hik-connect.example.com',
+    String apiBaseUrl = '',
   }) async {
     final directory = Directory(directoryPath.trim());
     final createdDirectory = !directory.existsSync();

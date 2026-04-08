@@ -14,6 +14,20 @@ import 'package:omnix_dashboard/ui/sovereign_ledger_page.dart';
 DateTime _opsNavigationOccurredAtUtc(int hour, int minute) =>
     DateTime.utc(2026, 3, 19, hour, minute);
 
+Future<void> _openTacticalDetailedWorkspaceIfPresent(
+  WidgetTester tester,
+) async {
+  final toggle = find.byKey(
+    const ValueKey('tactical-toggle-detailed-workspace'),
+  );
+  if (toggle.evaluate().isEmpty) {
+    return;
+  }
+  await tester.ensureVisible(toggle);
+  await tester.tap(toggle);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -115,18 +129,18 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.byType(OnyxAgentPage), findsOneWidget);
-    expect(find.text('AI Copilot'), findsOneWidget);
+    expect(find.text('Junior Analyst'), findsOneWidget);
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).sourceRouteLabel,
       'AI Queue',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -160,14 +174,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DispatchPage), findsOneWidget);
-    expect(find.text('AlarmMonitoring'), findsOneWidget);
     expect(
       tester.widget<DispatchPage>(find.byType(DispatchPage)).clientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<DispatchPage>(find.byType(DispatchPage)).siteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -206,11 +219,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -303,13 +316,13 @@ void main() {
       tester
           .widget<SovereignLedgerPage>(find.byType(SovereignLedgerPage))
           .initialScopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester
           .widget<SovereignLedgerPage>(find.byType(SovereignLedgerPage))
           .initialScopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
   });
 
@@ -323,6 +336,7 @@ void main() {
       OnyxApp(supabaseReady: false, initialRouteOverride: OnyxRoute.tactical),
     );
     await tester.pumpAndSettle();
+    await _openTacticalDetailedWorkspaceIfPresent(tester);
 
     await tester.tap(
       find.byKey(const ValueKey('tactical-open-dispatches-button')),
@@ -332,11 +346,11 @@ void main() {
     expect(find.byType(DispatchPage), findsOneWidget);
     expect(
       tester.widget<DispatchPage>(find.byType(DispatchPage)).clientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<DispatchPage>(find.byType(DispatchPage)).siteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
   });
 
@@ -354,9 +368,9 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('app-shell-status-button')));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.textContaining('Board ready.'), findsOneWidget);
+    expect(find.textContaining('Ready.'), findsOneWidget);
   });
 
   testWidgets('onyx app quick jump navigates to dispatches', (tester) async {

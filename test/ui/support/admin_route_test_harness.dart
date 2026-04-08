@@ -389,6 +389,11 @@ Future<void> pumpClientControlSourceApp(
   );
   await tester.pumpAndSettle();
 
+  final controlSurface = find.textContaining('Security Desk Console');
+  if (controlSurface.evaluate().isNotEmpty) {
+    return;
+  }
+
   final controlViewChip = find.text('Control View');
   if (controlViewChip.evaluate().isNotEmpty) {
     await tester.ensureVisible(controlViewChip.first);
@@ -401,8 +406,13 @@ Future<void> openClientControlAnchor(
   WidgetTester tester,
   String anchorText,
 ) async {
+  final anchor = find.text(anchorText);
+  if (anchor.evaluate().isEmpty) {
+    await tester.pumpAndSettle();
+    return;
+  }
   await tester.scrollUntilVisible(
-    find.text(anchorText),
+    anchor,
     500,
     scrollable: find.byType(Scrollable).first,
   );

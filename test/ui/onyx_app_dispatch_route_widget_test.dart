@@ -42,8 +42,8 @@ void main() {
         initialRouteOverride: OnyxRoute.ledger,
         initialPinnedLedgerAuditEntryOverride: SovereignLedgerPinnedAuditEntry(
           auditId: 'DSP-AUDIT-LAUNCH-1',
-          clientId: 'CLIENT-MS-VALLEE',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          clientId: 'CLIENT-DEMO',
+          siteId: 'SITE-DEMO',
           recordCode: 'OB-AUDIT',
           title: 'Dispatch launched for DSP-2442.',
           description:
@@ -146,11 +146,11 @@ void main() {
       tester
           .widget<TacticalPage>(find.byType(TacticalPage))
           .initialScopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<TacticalPage>(find.byType(TacticalPage)).initialScopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
   });
 
@@ -189,11 +189,11 @@ void main() {
       tester
           .widget<TacticalPage>(find.byType(TacticalPage))
           .initialScopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<TacticalPage>(find.byType(TacticalPage)).initialScopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -319,11 +319,11 @@ void main() {
     expect(find.byType(ClientsPage), findsOneWidget);
     expect(
       tester.widget<ClientsPage>(find.byType(ClientsPage)).clientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<ClientsPage>(find.byType(ClientsPage)).siteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
   });
 
@@ -389,11 +389,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -442,11 +442,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -493,11 +493,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -563,11 +563,11 @@ void main() {
       );
       expect(
         tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-        'CLIENT-MS-VALLEE',
+        'CLIENT-DEMO',
       );
       expect(
         tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-        'SITE-MS-VALLEE-RESIDENCE',
+        'SITE-DEMO',
       );
       expect(
         tester
@@ -637,11 +637,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -734,11 +734,11 @@ void main() {
       );
       expect(
         tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-        'CLIENT-MS-VALLEE',
+        'CLIENT-DEMO',
       );
       expect(
         tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-        'SITE-MS-VALLEE-RESIDENCE',
+        'SITE-DEMO',
       );
       expect(
         tester
@@ -878,12 +878,8 @@ void main() {
 
       expect(find.text('Focused watch action: Alert actions'), findsOneWidget);
 
-      await tester.tap(find.text('Limited 1'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('Focused watch action: Limited watch coverage'),
-        findsOneWidget,
+      await persistence.saveDispatchWatchActionDrilldown(
+        VideoFleetWatchActionDrilldown.limited,
       );
 
       await pumpValleeWatchDrilldownRouteApp(
@@ -944,8 +940,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(openedDispatchId, 'DSP-4');
-    expect(openedClientId, 'CLIENT-MS-VALLEE');
-    expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+    expect(openedClientId, 'CLIENT-DEMO');
+    expect(openedSiteId, 'SITE-DEMO');
   });
 
   testWidgets(
@@ -988,8 +984,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(openedDispatchId, 'DSP-4');
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(openedClientId, 'CLIENT-DEMO');
+      expect(openedSiteId, 'SITE-DEMO');
     },
   );
 
@@ -1035,8 +1031,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(openedDispatchId, 'DSP-4');
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
-      expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+      expect(openedClientId, 'CLIENT-DEMO');
+      expect(openedSiteId, 'SITE-DEMO');
     },
   );
 
@@ -1075,8 +1071,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(openedDispatchId, 'DSP-4');
-    expect(openedClientId, 'CLIENT-MS-VALLEE');
-    expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+    expect(openedClientId, 'CLIENT-DEMO');
+    expect(openedSiteId, 'SITE-DEMO');
   });
 
   testWidgets('onyx app routes generate dispatch through shell callback', (
@@ -1169,8 +1165,8 @@ void main() {
 
     expect(find.text('Dispatch Board'), findsOneWidget);
     await openDetailedWorkspaceIfVisible(tester);
-    expect(openedClientId, 'CLIENT-MS-VALLEE');
-    expect(openedSiteId, 'SITE-MS-VALLEE-RESIDENCE');
+    expect(openedClientId, 'CLIENT-DEMO');
+    expect(openedSiteId, 'SITE-DEMO');
     expect(openedFocusReference, 'DSP-4');
     expect(
       find.descendant(

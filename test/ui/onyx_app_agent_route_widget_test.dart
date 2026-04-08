@@ -12,7 +12,7 @@ import 'package:omnix_dashboard/ui/onyx_agent_page.dart';
 import 'support/admin_route_state_harness.dart';
 
 const _agentRouteScopeKey =
-    'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none';
+    'dashboard|CLIENT-DEMO|SITE-DEMO|none';
 
 DateTime _agentRouteNowUtc() =>
     DateTime.parse('2026-03-31T08:32:00.000Z').toUtc();
@@ -81,11 +81,11 @@ void main() {
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeClientId,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester.widget<OnyxAgentPage>(find.byType(OnyxAgentPage)).scopeSiteId,
-      'SITE-MS-VALLEE-RESIDENCE',
+      'SITE-DEMO',
     );
     expect(
       tester
@@ -309,7 +309,7 @@ void main() {
     (tester) async {
       final persistedState = <String, Object?>{
         'sessions_by_scope': <String, Object?>{
-          'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none':
+          'dashboard|CLIENT-DEMO|SITE-DEMO|none':
               <String, Object?>{
                 'version': 1,
                 'thread_counter': 1,
@@ -406,7 +406,7 @@ void main() {
     (tester) async {
       final persistedState = <String, Object?>{
         'sessions_by_scope': <String, Object?>{
-          'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none': <String, Object?>{
+          'dashboard|CLIENT-DEMO|SITE-DEMO|none': <String, Object?>{
             'version': 2,
             'thread_counter': 2,
             'selected_thread_id': 'thread-2',
@@ -583,7 +583,7 @@ void main() {
   ) async {
     final persistedState = <String, Object?>{
       'sessions_by_scope': <String, Object?>{
-        'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none':
+        'dashboard|CLIENT-DEMO|SITE-DEMO|none':
             <String, Object?>{
               'version': 3,
               'thread_counter': 1,
@@ -711,7 +711,7 @@ void main() {
     (tester) async {
       final persistedState = <String, Object?>{
         'sessions_by_scope': <String, Object?>{
-          'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none':
+          'dashboard|CLIENT-DEMO|SITE-DEMO|none':
               <String, Object?>{
                 'version': 4,
                 'thread_counter': 1,
@@ -829,7 +829,7 @@ void main() {
     (tester) async {
       final persistedState = <String, Object?>{
         'sessions_by_scope': <String, Object?>{
-          'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none':
+          'dashboard|CLIENT-DEMO|SITE-DEMO|none':
               <String, Object?>{
                 'version': 5,
                 'thread_counter': 1,
@@ -954,7 +954,7 @@ void main() {
     final reviewQueuedAt = reactivatedAt.add(const Duration(minutes: 3));
     final persistedState = <String, Object?>{
       'sessions_by_scope': <String, Object?>{
-        'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none':
+        'dashboard|CLIENT-DEMO|SITE-DEMO|none':
             <String, Object?>{
               'version': 7,
               'thread_counter': 1,
@@ -1143,7 +1143,7 @@ void main() {
     final reviewCompletedAt = reviewQueuedAt.add(const Duration(minutes: 4));
     final persistedState = <String, Object?>{
       'sessions_by_scope': <String, Object?>{
-        'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none':
+        'dashboard|CLIENT-DEMO|SITE-DEMO|none':
             <String, Object?>{
               'version': 7,
               'thread_counter': 1,
@@ -1279,7 +1279,7 @@ void main() {
     final reviewReopenedAt = reviewCompletedAt.add(const Duration(minutes: 6));
     final persistedState = <String, Object?>{
       'sessions_by_scope': <String, Object?>{
-        'dashboard|CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE|none':
+        'dashboard|CLIENT-DEMO|SITE-DEMO|none':
             <String, Object?>{
               'version': 7,
               'thread_counter': 1,

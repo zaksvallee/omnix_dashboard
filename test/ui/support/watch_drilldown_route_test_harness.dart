@@ -15,7 +15,7 @@ Future<void> seedValleeLimitedWatchRuntime({
   int alertCount = 0,
 }) async {
   await persistence.saveMonitoringWatchRuntimeState({
-    'CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE': <String, Object?>{
+    'CLIENT-DEMO|SITE-DEMO': <String, Object?>{
       'started_at_utc': _valleeLimitedWatchStartedAtUtc().toIso8601String(),
       'monitoring_available': false,
       'monitoring_availability_detail': 'One remote camera feed is stale.',
@@ -36,9 +36,9 @@ Future<void> pumpValleeWatchDrilldownRouteApp(
       initialRouteOverride: route,
       monitoringShiftScopeConfigsOverride: const [
         MonitoringShiftScopeConfig(
-          clientId: 'CLIENT-MS-VALLEE',
+          clientId: 'CLIENT-DEMO',
           regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          siteId: 'SITE-DEMO',
           schedule: MonitoringShiftSchedule(
             enabled: true,
             startHour: 18,
@@ -50,9 +50,9 @@ Future<void> pumpValleeWatchDrilldownRouteApp(
       ],
       dvrScopeConfigsOverride: [
         DvrScopeConfig(
-          clientId: 'CLIENT-MS-VALLEE',
+          clientId: 'CLIENT-DEMO',
           regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+          siteId: 'SITE-DEMO',
           provider: 'monitor_only_dvr',
           eventsUri: Uri.parse('https://edge.example.com/events'),
           authMode: 'bearer',

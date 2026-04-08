@@ -100,7 +100,7 @@ class MonitoringYoloSemanticProbeScheduler {
           objectConfidence: null,
           headline: 'Semantic watch probe on ${camera.cameraLabel}',
           summary:
-              'Semantic watch probe sampled ${camera.cameraLabel}${hotspot == null ? '' : ' near $hotspot'} for person, vehicle, bag, animal, or threat activity.',
+              'Semantic watch probe sampled ${camera.cameraLabel}${hotspot == null ? '' : ' near $hotspot'} for person, vehicle, or animal activity.',
           riskScore: _riskScoreFor(camera),
           occurredAtUtc: nowUtc,
           snapshotUrl: camera.snapshotUri.toString(),

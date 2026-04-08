@@ -423,8 +423,7 @@ String? _currentSiteViewClarifierReply({
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
 }) {
   final packet = cameraHealthFactPacket;
-  if (packet == null ||
-      !asksForTelegramClientBroadStatusOrCurrentSiteView(normalizedMessage)) {
+  if (packet == null || !_asksForCurrentSiteView(normalizedMessage)) {
     return null;
   }
   final joinedContext = recentConversationTurns
@@ -438,25 +437,65 @@ String? _currentSiteViewClarifierReply({
   final effectiveIssueStatus = _effectiveLiveSiteIssueStatus(packet);
   if (effectiveIssueStatus == ClientLiveSiteIssueStatus.activeSignals) {
     final hotspot = packet.continuousVisualHotspotLabel ?? scope.siteReference;
-    return 'There is activity around $hotspot right now. It could still be routine, but I am checking it now.';
+    return 'I am seeing live activity around $hotspot right now. ${_activeSceneChangeBoundary(packet)}';
   }
   if (effectiveIssueStatus == ClientLiveSiteIssueStatus.recentSignals) {
-    return 'Something was picked up at ${scope.siteReference} recently. It could be nothing, but I am checking the latest signals now.';
+    return '${_recentMovementSignalsLead(packet: packet, scope: scope)} That means recent activity was picked up on site, but I still cannot confirm from the current view who or what is moving right now.';
   }
   final downCameraLabel = _recentThreadDownCameraLabel(recentConversationTurns);
   final recentUnusableCurrentImage = _recentThreadShowsUnusableCurrentImage(
     recentConversationTurns,
   );
   if (recentUnusableCurrentImage) {
-    return 'Remote monitoring is limited right now, so I do not want to overstate what I can see from here. $nextStepQuestion';
+    return 'I do not have a usable current image to share right now. I do not want to overstate what is visible from here.';
   }
   if (effectiveIssueStatus == ClientLiveSiteIssueStatus.noConfirmedIssue &&
       packet.hasContinuousVisualCoverage) {
-    return 'Based on what I can see, there are no active alerts at ${scope.siteReference}. Monitoring looks normal right now. $nextStepQuestion';
+    return 'I am not seeing active movement on site at ${scope.siteReference} right now. That does not by itself prove the site is clear, but nothing in the current signals confirms an issue on site.';
   }
   if (downCameraLabel != null &&
       packet.status == ClientCameraHealthStatus.live) {
     return '$downCameraLabel is down, so remote monitoring is limited right now. I still have some coverage at ${scope.siteReference}. $nextStepQuestion';
+  }
+  if (packet.status == ClientCameraHealthStatus.live) {
+    return 'I am not seeing active movement on site at ${scope.siteReference} right now. That does not by itself prove the site is clear, but nothing in the current signals confirms an issue on site.';
+  }
+  if (packet.status == ClientCameraHealthStatus.limited) {
+    return 'I do not have a confirmed active issue on site at ${scope.siteReference} from the current signals I can see right now. ${_siteVisibilityBoundary(packet: packet, scope: scope)}';
+  }
+  return 'I do not have a confirmed active issue on site at ${scope.siteReference} from the current signals I can see right now. ${_siteVisibilityBoundary(packet: packet, scope: scope)}';
+}
+
+String? _packetGroundedBroadStatusReply({
+  required String normalizedMessage,
+  required _TelegramAiScopeProfile scope,
+  required List<String> recentConversationTurns,
+  required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+}) {
+  final packet = cameraHealthFactPacket;
+  if (packet == null || !asksForTelegramClientBroadStatusCheck(normalizedMessage)) {
+    return null;
+  }
+  final joinedContext = recentConversationTurns
+      .map((value) => value.trim().toLowerCase())
+      .where((value) => value.isNotEmpty)
+      .join('\n');
+  final guardOnSite = _hasExplicitCurrentOnSitePresence(joinedContext);
+  final nextStepQuestion = guardOnSite
+      ? 'Want me to check anything specific?'
+      : 'Want me to flag your guard for a check?';
+  final effectiveIssueStatus = _effectiveLiveSiteIssueStatus(packet);
+
+  if (effectiveIssueStatus == ClientLiveSiteIssueStatus.activeSignals) {
+    final hotspot = packet.continuousVisualHotspotLabel ?? scope.siteReference;
+    return 'I am seeing live activity around $hotspot right now. ${_activeSceneChangeBoundary(packet)}';
+  }
+  if (effectiveIssueStatus == ClientLiveSiteIssueStatus.recentSignals) {
+    return '${_recentSiteIssueSignalsLead(packet: packet, scope: scope)} That means a recent site signal was picked up, but I do not yet have a confirmed active issue from the current view alone.';
+  }
+  if (_containsAny(normalizedMessage, const ['site okay', 'site is okay']) &&
+      packet.hasContinuousVisualCoverage) {
+    return 'I am not seeing active movement on site at ${scope.siteReference} right now. That does not by itself prove the site is clear, but nothing in the current signals confirms an issue on site.';
   }
   if (packet.status == ClientCameraHealthStatus.live) {
     return 'Based on what I can see, there are no active alerts at ${scope.siteReference}. Monitoring looks normal right now. $nextStepQuestion';

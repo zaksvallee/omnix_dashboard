@@ -6,19 +6,29 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../application/monitoring_scene_review_store.dart';
 import '../../application/report_generation_service.dart';
-import '../../application/report_output_mode.dart';
 import '../../application/report_entry_context.dart';
+import '../../application/report_output_mode.dart';
+import '../../application/report_preview_request.dart';
+import '../../application/report_preview_surface.dart';
 import '../../application/report_receipt_export_payload.dart';
 import '../../application/report_receipt_history_copy.dart';
 import '../../application/report_receipt_history_lookup.dart';
 import '../../application/report_receipt_history_presenter.dart';
 import '../../application/report_receipt_scene_review_presenter.dart';
-import '../../application/report_shell_binding.dart';
-import '../../application/report_preview_surface.dart';
-import '../../application/report_preview_request.dart';
 import '../../application/report_receipt_scene_filter.dart';
+import '../../application/report_shell_binding.dart';
 import '../../application/report_shell_state.dart';
+import '../../domain/crm/reporting/report_branding_configuration.dart';
+import '../../domain/crm/reporting/report_section_configuration.dart';
+import '../../domain/events/decision_created.dart';
+import '../../domain/events/execution_completed.dart';
+import '../../domain/events/execution_denied.dart';
+import '../../domain/events/guard_checked_in.dart';
+import '../../domain/events/intelligence_received.dart';
+import '../../domain/events/incident_closed.dart';
+import '../../domain/events/patrol_completed.dart';
 import '../../domain/events/report_generated.dart';
+import '../../domain/events/response_arrived.dart';
 import '../../domain/store/in_memory_event_store.dart';
 import '../../ui/onyx_surface.dart';
 import 'report_preview_dock_card.dart';
@@ -71,6 +81,55 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
     sceneReviewByIntelligenceId: widget.sceneReviewByIntelligenceId,
   );
 
+  DateTime _reportGenerationNowUtc() {
+    DateTime? latestOccurredAtUtc;
+    for (final event in widget.store.allEvents()) {
+      final occurredAtUtc = switch (event) {
+        GuardCheckedIn value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        PatrolCompleted value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        DecisionCreated value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        ResponseArrived value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        IncidentClosed value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        IntelligenceReceived value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        ExecutionCompleted value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        ExecutionDenied value
+            when value.clientId == widget.selectedClient &&
+                value.siteId == widget.selectedSite =>
+          value.occurredAt.toUtc(),
+        _ => null,
+      };
+      if (occurredAtUtc == null) {
+        continue;
+      }
+      if (latestOccurredAtUtc == null ||
+          occurredAtUtc.isAfter(latestOccurredAtUtc)) {
+        latestOccurredAtUtc = occurredAtUtc;
+      }
+    }
+    return latestOccurredAtUtc ?? DateTime.now().toUtc();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -89,32 +148,38 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
 
   Future<void> _generatePreview() async {
     setState(() => _isGenerating = true);
-    final now = DateTime.now().toUtc();
+    try {
+      final generated = await _service.generatePdfReport(
+        clientId: widget.selectedClient,
+        siteId: widget.selectedSite,
+        nowUtc: _reportGenerationNowUtc(),
+        brandingConfiguration: _currentBrandingConfiguration,
+        sectionConfiguration: _currentSectionConfiguration,
+        investigationContextKey: _entryContext?.storageValue ?? '',
+      );
+      final replayMatches = await _service.verifyReportHash(
+        generated.receiptEvent,
+      );
 
-    final generated = await _service.generatePdfReport(
-      clientId: widget.selectedClient,
-      siteId: widget.selectedSite,
-      nowUtc: now,
-    );
-    final replayMatches = await _service.verifyReportHash(
-      generated.receiptEvent,
-    );
+      await _refreshHistory();
+      if (!mounted) return;
 
-    await _refreshHistory();
-    if (!mounted) return;
-
-    focusReportReceiptWorkspace(generated.receiptEvent.eventId);
-    setState(() => _isGenerating = false);
-    if (!mounted) return;
-    presentReportPreviewRequest(
-      ReportPreviewRequest(
-        bundle: generated.bundle,
-        initialPdfBytes: generated.pdfBytes,
-        receiptEvent: generated.receiptEvent,
-        replayMatches: replayMatches,
-        entryContext: _entryContext,
-      ),
-    );
+      focusReportReceiptWorkspace(generated.receiptEvent.eventId);
+      if (!mounted) return;
+      presentReportPreviewRequest(
+        ReportPreviewRequest(
+          bundle: generated.bundle,
+          initialPdfBytes: generated.pdfBytes,
+          receiptEvent: generated.receiptEvent,
+          replayMatches: replayMatches,
+          entryContext: _entryContext,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isGenerating = false);
+      }
+    }
   }
 
   Future<void> _refreshHistory() async {
@@ -1424,6 +1489,56 @@ class _ReportTestHarnessPageState extends State<ReportTestHarnessPage>
 
   bool get _isGovernanceEntryContext =>
       _entryContext == ReportEntryContext.governanceBrandingDrift;
+
+  ReportSectionConfiguration get _currentSectionConfiguration =>
+      ReportSectionConfiguration(
+        includeTimeline: _shellBinding.includeTimeline,
+        includeDispatchSummary: _shellBinding.includeDispatchSummary,
+        includeCheckpointCompliance:
+            _shellBinding.includeCheckpointCompliance,
+        includeAiDecisionLog: _shellBinding.includeAiDecisionLog,
+        includeGuardMetrics: _shellBinding.includeGuardMetrics,
+      );
+
+  ReportBrandingConfiguration get _defaultBrandingConfiguration =>
+      _hasPartnerScopeFocus
+      ? ReportBrandingConfiguration(
+          primaryLabel: _partnerScopePartnerLabel!,
+          endorsementLine: 'Powered by ONYX',
+          sourceLabel: _partnerScopePartnerLabel!,
+        )
+      : const ReportBrandingConfiguration();
+
+  ReportBrandingConfiguration get _currentBrandingConfiguration {
+    final defaults = _defaultBrandingConfiguration;
+    if (!defaults.isConfigured) {
+      return defaults;
+    }
+    return ReportBrandingConfiguration(
+      primaryLabel: _brandingPrimaryLabelOverride ?? defaults.primaryLabel,
+      endorsementLine:
+          _brandingEndorsementLineOverride ?? defaults.endorsementLine,
+      sourceLabel: defaults.sourceLabel,
+      usesOverride: _hasBrandingOverride,
+    );
+  }
+
+  bool get _hasPartnerScopeFocus =>
+      _shellBinding.partnerScopeClientId != null &&
+      _shellBinding.partnerScopeSiteId != null &&
+      _partnerScopePartnerLabel != null;
+
+  String? get _partnerScopePartnerLabel => _shellBinding.partnerScopePartnerLabel;
+
+  String? get _brandingPrimaryLabelOverride =>
+      _shellBinding.brandingPrimaryLabelOverride;
+
+  String? get _brandingEndorsementLineOverride =>
+      _shellBinding.brandingEndorsementLineOverride;
+
+  bool get _hasBrandingOverride =>
+      (_brandingPrimaryLabelOverride?.isNotEmpty ?? false) ||
+      (_brandingEndorsementLineOverride?.isNotEmpty ?? false);
 
   String get _pageTitle => _isGovernanceEntryContext
       ? 'Governance Receipt Handoff'

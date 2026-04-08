@@ -47,13 +47,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(openedClientId, 'CLIENT-MS-VALLEE');
+      expect(openedClientId, 'CLIENT-DEMO');
       expect(openedSiteId, isNotEmpty);
       expect(openedRoom, isEmpty);
       expect(find.byType(ClientsPage), findsOneWidget);
       expect(
         tester.widget<ClientsPage>(find.byType(ClientsPage)).clientId,
-        'CLIENT-MS-VALLEE',
+        'CLIENT-DEMO',
       );
       expect(
         tester.widget<ClientsPage>(find.byType(ClientsPage)).siteId,
@@ -92,11 +92,11 @@ void main() {
     final scopeKeys = await persistence.readClientConversationScopeKeys();
     final scopedPushSyncState = await persistence
         .readScopedClientAppPushSyncState(
-          clientId: 'CLIENT-MS-VALLEE',
+          clientId: 'CLIENT-DEMO',
           siteId: 'WTF-MAIN',
         );
 
-    expect(scopeKeys, contains('CLIENT-MS-VALLEE|WTF-MAIN'));
+    expect(scopeKeys, contains('CLIENT-DEMO|WTF-MAIN'));
     expect(scopedPushSyncState.history, isNotEmpty);
     expect(scopedPushSyncState.history.first.status, 'voip-failed');
     expect(
@@ -124,7 +124,7 @@ void main() {
             find.byType(ClientIntelligenceReportsPage),
           )
           .selectedClient,
-      'CLIENT-MS-VALLEE',
+      'CLIENT-DEMO',
     );
     expect(
       tester
@@ -195,7 +195,10 @@ void main() {
       adminPage.initialCommandDetail,
       'Build the next month, place shifts, and lock the board before coverage slips.',
     );
-    expect(find.byKey(const ValueKey('admin-guard-planner-dialog')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('admin-guard-planner-dialog')),
+      findsOneWidget,
+    );
     expect(find.text('Create Month Planner'), findsOneWidget);
   });
 }

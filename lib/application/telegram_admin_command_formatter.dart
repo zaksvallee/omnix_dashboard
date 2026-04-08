@@ -274,7 +274,7 @@ class TelegramAdminCommandFormatter {
               '${readinessFocusSummary.isEmpty ? '' : '• <b>Focus:</b> ${_escapeHtml(readinessFocusSummary)}\n'}'
               '${readinessEchoSummary.isEmpty ? '' : '• <b>Postural echo:</b> ${_escapeHtml(readinessEchoSummary)}\n'}'
               '${readinessTopIntentSummary.isEmpty ? '' : '• <b>Top intent:</b> ${_escapeHtml(readinessTopIntentSummary)}\n'}'
-              '${readinessHazardSummary.isEmpty ? '' : '• <b>Hazard scope:</b> ${_escapeHtml(readinessHazardSummary)}\n'}'
+              '${readinessHazardSummary.isEmpty ? '' : '• <b>Hazard lane:</b> ${_escapeHtml(readinessHazardSummary)}\n'}'
               '${readinessShadowBiasSummary.isEmpty ? '' : '• <b>Shadow bias:</b> ${_escapeHtml(readinessShadowBiasSummary)}\n'}'
               '${readinessShadowSummary.isEmpty ? '' : '• <b>Shadow intelligence:</b> ${_escapeHtml(readinessShadowSummary)}\n'}'
               '${readinessShadowStatusSummary.isEmpty ? '' : '• <b>Shadow status:</b> ${_escapeHtml(readinessShadowStatusSummary)}\n'}'

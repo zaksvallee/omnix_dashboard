@@ -41,8 +41,8 @@ class HikConnectPreflightRunnerService {
     required String siteId,
     required String apiBaseUrl,
     String provider = 'hik_connect_openapi',
-    String appKey = 'replace-me',
-    String appSecret = 'replace-me',
+    String appKey = '',
+    String appSecret = '',
     String areaId = '-1',
     bool includeSubArea = true,
     List<int> alarmEventTypes = const <int>[0, 1, 100657],
@@ -89,9 +89,7 @@ class HikConnectPreflightRunnerService {
       const loader = HikConnectAlarmPayloadLoader();
       const service = HikConnectAlarmSmokeService();
       final batch = await loader.loadBatchFromFile(alarmPayloadPath);
-      final baseUri =
-          Uri.tryParse(apiBaseUrl) ??
-          Uri.parse('https://api.hik-connect.example.com');
+      final baseUri = Uri.tryParse(apiBaseUrl.trim()) ?? Uri();
       alarm = service.evaluateBatch(
         batch,
         baseUri: baseUri,

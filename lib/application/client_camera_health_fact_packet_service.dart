@@ -907,12 +907,17 @@ class ClientCameraHealthFactPacket {
         .trim();
   }
 
+  String _cameraFactValue(String? value) {
+    final normalized = (value ?? '').trim();
+    return normalized.isEmpty ? 'unknown' : normalized;
+  }
+
   String get operatorSummary =>
       'camera_status=${status.wireValue} • '
       'camera_reason=${reason.wireValue} • '
       'camera_path=${path.wireValue} • '
       'local_proxy_status=$scopedLocalProxyStatusLabel • '
-      'local_proxy_upstream_status=${(localProxyUpstreamStreamStatus ?? 'unknown').trim().isEmpty ? 'unknown' : localProxyUpstreamStreamStatus!.trim()} • '
+      'local_proxy_upstream_status=${_cameraFactValue(localProxyUpstreamStreamStatus)} • '
       'local_proxy_upstream_connected=${localProxyUpstreamStreamConnected == true ? 'true' : 'false'} • '
       'local_proxy_buffered_alerts=${localProxyBufferedAlertCount ?? 0} • '
       'local_proxy_last_alert_utc=${_utcLabel(localProxyLastAlertAtUtc)} • '
@@ -944,7 +949,7 @@ class ClientCameraHealthFactPacket {
       '- camera_reason: ${reason.wireValue}',
       '- camera_path: ${path.wireValue}',
       '- local_proxy_status: $scopedLocalProxyStatusLabel',
-      '- local_proxy_upstream_status: ${(localProxyUpstreamStreamStatus ?? 'unknown').trim().isEmpty ? 'unknown' : localProxyUpstreamStreamStatus!.trim()}',
+      '- local_proxy_upstream_status: ${_cameraFactValue(localProxyUpstreamStreamStatus)}',
       '- local_proxy_upstream_connected: ${localProxyUpstreamStreamConnected == true ? 'true' : 'false'}',
       '- local_proxy_buffered_alert_count: ${localProxyBufferedAlertCount ?? 0}',
       '- local_proxy_last_alert_utc: ${_utcLabel(localProxyLastAlertAtUtc)}',
