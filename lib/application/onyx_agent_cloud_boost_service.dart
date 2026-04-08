@@ -17,6 +17,33 @@ enum OnyxAgentCloudIntent {
   general,
 }
 
+/// Routing tier for a given intent.
+///
+/// [local] — handled by the on-device Ollama model (fast, offline-safe):
+///   general Q&A, summaries, short classifications, patrol checks, telemetry.
+///
+/// [cloud] — routed to the cloud provider (OpenAI / Claude) when available:
+///   report generation, complex correlation, multi-step dispatch reasoning.
+enum OnyxAgentRoutingTier { local, cloud }
+
+/// Returns the preferred inference tier for a given [intent].
+/// Callers may still fall back to local if the cloud service is unconfigured.
+OnyxAgentRoutingTier onyxAgentRoutingTierFor(OnyxAgentCloudIntent intent) {
+  return switch (intent) {
+    // Fast, low-context tasks — well-suited to local inference.
+    OnyxAgentCloudIntent.general => OnyxAgentRoutingTier.local,
+    OnyxAgentCloudIntent.telemetry => OnyxAgentRoutingTier.local,
+    OnyxAgentCloudIntent.patrol => OnyxAgentRoutingTier.local,
+    OnyxAgentCloudIntent.camera => OnyxAgentRoutingTier.local,
+    // High-complexity tasks — prefer cloud for quality and context window.
+    OnyxAgentCloudIntent.report => OnyxAgentRoutingTier.cloud,
+    OnyxAgentCloudIntent.correlation => OnyxAgentRoutingTier.cloud,
+    OnyxAgentCloudIntent.dispatch => OnyxAgentRoutingTier.cloud,
+    OnyxAgentCloudIntent.client => OnyxAgentRoutingTier.cloud,
+    OnyxAgentCloudIntent.admin => OnyxAgentRoutingTier.cloud,
+  };
+}
+
 class OnyxAgentCloudScope {
   final String clientId;
   final String siteId;
@@ -288,7 +315,7 @@ class OpenAiOnyxAgentCloudBoostService implements OnyxAgentCloudBoostService {
             body: jsonEncode({
               'model': model.trim(),
               'temperature': 0.2,
-              'max_output_tokens': 280,
+              'max_output_tokens': 512,
               'input': [
                 {
                   'role': 'system',
@@ -391,7 +418,9 @@ class OpenAiOnyxAgentCloudBoostService implements OnyxAgentCloudBoostService {
     final route = scope.sourceRouteLabel.trim().isEmpty
         ? 'Command'
         : scope.sourceRouteLabel.trim();
-    return 'You are the ONYX controller main brain assisting a live operator.\n'
+    return 'You are ONYX Intelligence, an AI assistant embedded in a private security and intelligence operations platform. '
+        'You assist operators, guards, and analysts with operational decisions, threat assessment, incident logging, and client management. '
+        'Be direct, precise, and professional. Never fabricate data. If uncertain, say so.\n'
         'Route origin: $route.\n'
         'Internal scope: client=$clientId site=$siteId incident=$incident.\n'
         'Intent lane: ${intent.name}.\n'
@@ -912,7 +941,13 @@ OnyxAgentBrainAdvisory? _tryParseBrainAdvisory(String rawText) {
         narrative: narrative,
       ),
     );
-  } catch (_) {
+  } catch (error, stackTrace) {
+    developer.log(
+      'Unable to parse ONYX brain advisory payload.',
+      name: 'OnyxAgentCloudBoostService',
+      error: error,
+      stackTrace: stackTrace,
+    );
     return null;
   }
 }
