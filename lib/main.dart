@@ -17714,30 +17714,56 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       clientId: target.clientId,
       siteId: siteId,
     );
-    final responseText = _telegramClientQuickActionService.buildResponse(
-      action: action,
-      site: _monitoringSiteProfileFor(
-        clientId: target.clientId,
-        siteId: siteId,
-      ),
-      schedule: _monitoringScheduleForScope(target.clientId, siteId),
-      cameraHealthFactPacket: cameraHealthFactPacket,
-      runtime:
-          _monitoringWatchByScope[_monitoringScopeKey(target.clientId, siteId)],
-      nowLocal: nowLocal,
-      fallbackReviewedEvents: fieldActivity?.count ?? 0,
-      fallbackActivitySource:
-          recentSiteSignal?.source ?? fieldActivity?.latestSource,
-      fallbackActivitySummary: recentSiteSignal?.summary.isEmpty == false
-          ? recentSiteSignal?.summary
-          : fieldActivity?.latestSummary,
-      fallbackNarrativeSummary: recentSiteNarrative?.narrative,
-      fallbackAssessmentLabel: fallbackAssessmentLabel,
-      fallbackPostureLabel: fieldActivity?.postureLabel,
-      fallbackReviewedAtLocal:
-          recentSiteSignal?.occurredAtLocal ??
-          fieldActivity?.latestOccurredAtLocal,
-    );
+    // For status action, try to enrich with live site awareness data.
+    String? siteAwarenessStatusOverride;
+    if (action == TelegramClientQuickAction.status && widget.supabaseReady) {
+      try {
+        final rows = await Supabase.instance.client
+            .from('site_awareness_snapshots')
+            .select()
+            .eq('site_id', siteId)
+            .limit(1);
+        if (rows.isNotEmpty) {
+          final row = rows.first;
+          final snapshotAtStr = row['snapshot_at'] as String?;
+          if (snapshotAtStr != null) {
+            final snapshotAt = DateTime.tryParse(snapshotAtStr)?.toUtc();
+            if (snapshotAt != null &&
+                nowUtc.difference(snapshotAt) < const Duration(minutes: 10)) {
+              siteAwarenessStatusOverride = _buildSiteAwarenessStatusReply(row);
+            }
+          }
+        }
+      } catch (_) {}
+    }
+    final responseText =
+        siteAwarenessStatusOverride ??
+        _telegramClientQuickActionService.buildResponse(
+          action: action,
+          site: _monitoringSiteProfileFor(
+            clientId: target.clientId,
+            siteId: siteId,
+          ),
+          schedule: _monitoringScheduleForScope(target.clientId, siteId),
+          cameraHealthFactPacket: cameraHealthFactPacket,
+          runtime: _monitoringWatchByScope[_monitoringScopeKey(
+            target.clientId,
+            siteId,
+          )],
+          nowLocal: nowLocal,
+          fallbackReviewedEvents: fieldActivity?.count ?? 0,
+          fallbackActivitySource:
+              recentSiteSignal?.source ?? fieldActivity?.latestSource,
+          fallbackActivitySummary: recentSiteSignal?.summary.isEmpty == false
+              ? recentSiteSignal?.summary
+              : fieldActivity?.latestSummary,
+          fallbackNarrativeSummary: recentSiteNarrative?.narrative,
+          fallbackAssessmentLabel: fallbackAssessmentLabel,
+          fallbackPostureLabel: fieldActivity?.postureLabel,
+          fallbackReviewedAtLocal:
+              recentSiteSignal?.occurredAtLocal ??
+              fieldActivity?.latestOccurredAtLocal,
+        );
     final occurredAtUtc = nowUtc;
     final delivered = await _sendTelegramMessageWithChunks(
       messageKeyPrefix: 'tg-client-quick-${action.name}-${update.updateId}',
@@ -35693,4 +35719,46 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
   }
 
   return lines.join('\n');
+}
+
+/// Builds a concise client-facing status reply from a fresh
+/// `site_awareness_snapshots` row (verified < 10 min old by caller).
+String _buildSiteAwarenessStatusReply(Map<String, dynamic> row) {
+  final perimeterClear = row['perimeter_clear'];
+  final detections = row['detections'];
+  final activeAlerts = row['active_alerts'];
+  final knownFaults = row['known_faults'];
+
+  // Detection summary.
+  String detectionSummary = '';
+  if (detections is Map) {
+    final humans = detections['human_count'] ?? detections['humanCount'] ?? 0;
+    final vehicles =
+        detections['vehicle_count'] ?? detections['vehicleCount'] ?? 0;
+    final animals =
+        detections['animal_count'] ?? detections['animalCount'] ?? 0;
+    detectionSummary =
+        'Humans: $humans, vehicles: $vehicles, animals: $animals.';
+  }
+
+  // Known fault channels line.
+  String faultLine = '';
+  if (knownFaults is List && knownFaults.isNotEmpty) {
+    final labels = knownFaults.map((f) => 'CH$f').join(', ');
+    faultLine = ' $labels offline — known fault.';
+  }
+
+  if (perimeterClear == true) {
+    final parts = <String>['Perimeter clear.'];
+    if (detectionSummary.isNotEmpty) parts.add(detectionSummary);
+    if (faultLine.isNotEmpty) parts.add(faultLine.trim());
+    return parts.join(' ');
+  } else {
+    final alertCount = activeAlerts is List ? activeAlerts.length : 0;
+    final parts = <String>['⚠️ Perimeter breached.'];
+    if (detectionSummary.isNotEmpty) parts.add(detectionSummary);
+    parts.add('$alertCount active ${alertCount == 1 ? 'alert' : 'alerts'}.');
+    if (faultLine.isNotEmpty) parts.add(faultLine.trim());
+    return parts.join(' ');
+  }
 }
