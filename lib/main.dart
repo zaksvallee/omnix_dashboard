@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -1844,6 +1845,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   int? _telegramAdminLastUpdateId;
   Set<int> _telegramAdminHandledOutOfOrderUpdateIds = <int>{};
   bool _telegramAdminPollInFlight = false;
+  bool _telegramAiBootGracePeriodComplete = false;
   bool _telegramAdminOffsetBootstrapped = false;
   DateTime? _telegramAdminOffsetBootstrappedAtUtc;
   DateTime? _telegramAdminLastCommandAtUtc;
@@ -14191,6 +14193,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         limit: 40,
       );
       if (updates.isEmpty) {
+        if (!_telegramAiBootGracePeriodComplete) {
+          _telegramAiBootGracePeriodComplete = true;
+          developer.log(
+            'ONYX: boot grace period complete — no queued updates',
+            name: 'TelegramBoot',
+          );
+        }
+        return;
+      }
+      if (!_telegramAiBootGracePeriodComplete) {
+        _telegramAiBootGracePeriodComplete = true;
+        final maxUpdateId = updates
+            .map((u) => u.updateId)
+            .reduce(math.max);
+        _telegramAdminLastUpdateId = maxUpdateId;
+        await _persistTelegramAdminRuntimeState();
+        developer.log(
+          'ONYX: boot grace period complete — ${updates.length} queued updates skipped',
+          name: 'TelegramBoot',
+        );
         return;
       }
       await _seedTelegramAdminUpdateTracking(updates);
@@ -23948,6 +23970,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     List<ClientAppMessage> messages, {
     int maxRows = 6,
   }) {
+    final nowUtc = DateTime.now().toUtc();
+    const communityReportSignals = <String>[
+      'community reports',
+      'suspicious vehicle scouting',
+      'latest verified activity near',
+      'latest confirmed report was',
+    ];
     final turns = <String>[];
     for (final entry in messages) {
       final body = _singleLine(entry.body, maxLength: 140).trim();
@@ -23957,6 +23986,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (_isOnyxClientConversationMessage(entry) &&
           !_isTrustedTelegramAiFactMessage(entry)) {
         continue;
+      }
+      // Stale community report filter: omit silently if > 2 hours old.
+      final bodyLower = body.toLowerCase();
+      final isCommunityReport = communityReportSignals.any(
+        (signal) => bodyLower.contains(signal),
+      );
+      if (isCommunityReport) {
+        final ageMinutes = nowUtc
+            .difference(entry.occurredAt.toUtc())
+            .inMinutes;
+        if (ageMinutes > 120) {
+          continue;
+        }
       }
       final statusLabel = entry.incidentStatusLabel.trim();
       final providerLabel = entry.messageProvider.trim();
