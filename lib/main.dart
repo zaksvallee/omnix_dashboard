@@ -14891,17 +14891,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       selectedExamples: aiContext.preferredReplyExamples,
     );
     String? siteAwarenessContext;
-    if (widget.supabaseReady) {
-      try {
-        final rows = await Supabase.instance.client
-            .from('site_awareness_snapshots')
-            .select()
-            .eq('site_id', siteId)
-            .limit(1);
-        if (rows.isNotEmpty) {
-          siteAwarenessContext = _formatSiteAwarenessSnapshot(rows.first);
+    {
+      const saUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+      const saKey = String.fromEnvironment(
+        'ONYX_SUPABASE_SERVICE_KEY',
+        defaultValue: '',
+      );
+      if (saUrl.isNotEmpty && saKey.isNotEmpty) {
+        final saClient = SupabaseClient(saUrl, saKey);
+        try {
+          final rows = await saClient
+              .from('site_awareness_snapshots')
+              .select()
+              .eq('site_id', siteId)
+              .limit(1);
+          if (rows.isNotEmpty) {
+            siteAwarenessContext = _formatSiteAwarenessSnapshot(rows.first);
+          }
+        } catch (_) {} finally {
+          saClient.dispose();
         }
-      } catch (_) {}
+      }
     }
     final aiDraft = await _telegramAiAssistant.draftReply(
       audience: TelegramAiAudience.client,
@@ -17738,41 +17748,36 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
     // For status action, try to enrich with live site awareness data.
     String? siteAwarenessStatusOverride;
-    if (action == TelegramClientQuickAction.status && widget.supabaseReady) {
-      try {
-        final rows = await Supabase.instance.client
-            .from('site_awareness_snapshots')
-            .select()
-            .eq('site_id', siteId)
-            .limit(1);
-        debugPrint(
-          'ONYX_SA_DEBUG: querying site_id=$siteId '
-          'result=${rows.length} rows',
-        );
-        if (rows.isNotEmpty) {
-          final row = rows.first;
-          final snapshotAtStr = row['snapshot_at'] as String?;
-          debugPrint(
-            'ONYX_SA_DEBUG: snapshot_at=$snapshotAtStr '
-            'nowUtc=$nowUtc',
-          );
-          if (snapshotAtStr != null) {
-            final snapshotAt = DateTime.tryParse(snapshotAtStr)?.toUtc();
-            if (snapshotAt != null &&
-                nowUtc.difference(snapshotAt) < const Duration(minutes: 10)) {
-              siteAwarenessStatusOverride = _buildSiteAwarenessStatusReply(row);
-              debugPrint(
-                'ONYX_SA_DEBUG: override built — ${siteAwarenessStatusOverride.substring(0, siteAwarenessStatusOverride.length.clamp(0, 80))}',
-              );
-            } else {
-              debugPrint(
-                'ONYX_SA_DEBUG: snapshot too old or unparseable — skipping override',
-              );
+    if (action == TelegramClientQuickAction.status) {
+      const saUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+      const saKey = String.fromEnvironment(
+        'ONYX_SUPABASE_SERVICE_KEY',
+        defaultValue: '',
+      );
+      if (saUrl.isNotEmpty && saKey.isNotEmpty) {
+        final saClient = SupabaseClient(saUrl, saKey);
+        try {
+          final rows = await saClient
+              .from('site_awareness_snapshots')
+              .select()
+              .eq('site_id', siteId)
+              .limit(1);
+          if (rows.isNotEmpty) {
+            final row = rows.first;
+            final snapshotAtStr = row['snapshot_at'] as String?;
+            if (snapshotAtStr != null) {
+              final snapshotAt = DateTime.tryParse(snapshotAtStr)?.toUtc();
+              if (snapshotAt != null &&
+                  nowUtc.difference(snapshotAt) <
+                      const Duration(minutes: 10)) {
+                siteAwarenessStatusOverride =
+                    _buildSiteAwarenessStatusReply(row);
+              }
             }
           }
+        } catch (_) {} finally {
+          saClient.dispose();
         }
-      } catch (error, stackTrace) {
-        debugPrint('ONYX_SA_DEBUG: query failed — $error\n$stackTrace');
       }
     }
     final responseText =
