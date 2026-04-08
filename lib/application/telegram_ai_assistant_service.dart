@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:http/http.dart' as http;
 
@@ -308,7 +309,13 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
         providerLabel: 'openai:${model.trim()}',
         usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
       );
-    } catch (_) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'Telegram AI assistant request failed.',
+        name: 'TelegramAiAssistantService',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return TelegramAiDraftReply(
         text: _fallbackReply(
           audience: audience,
@@ -404,73 +411,100 @@ class OnyxFirstTelegramAiAssistantService
     );
 
     if (onyxCloudBoost.isConfigured) {
-      final cloudResponse = await onyxCloudBoost.boost(
-        prompt: prompt,
-        scope: onyxScope,
-        intent: _onyxIntentForTelegramAudience(audience),
-        contextSummary: contextSummary,
-      );
-      final cloudDraft = _telegramDraftReplyFromOnyxResponse(
-        response: cloudResponse,
-        providerPrefix: 'onyx-cloud',
-        audience: audience,
-        messageText: cleaned,
-        scope: scope,
-        deliveryMode: deliveryMode,
-        clientProfileSignals: clientProfileSignals,
-        preferredReplyExamples: preferredReplyExamples,
-        preferredReplyStyleTags: preferredReplyStyleTags,
-        learnedReplyExamples: learnedReplyExamples,
-        learnedReplyStyleTags: learnedReplyStyleTags,
-        recentConversationTurns: recentConversationTurns,
-        cameraHealthFactPacket: cameraHealthFactPacket,
-      );
-      if (cloudDraft != null) {
-        return cloudDraft;
+      try {
+        final cloudResponse = await onyxCloudBoost.boost(
+          prompt: prompt,
+          scope: onyxScope,
+          intent: _onyxIntentForTelegramAudience(audience),
+          contextSummary: contextSummary,
+        );
+        final cloudDraft = _telegramDraftReplyFromOnyxResponse(
+          response: cloudResponse,
+          providerPrefix: 'onyx-cloud',
+          audience: audience,
+          messageText: cleaned,
+          scope: scope,
+          deliveryMode: deliveryMode,
+          clientProfileSignals: clientProfileSignals,
+          preferredReplyExamples: preferredReplyExamples,
+          preferredReplyStyleTags: preferredReplyStyleTags,
+          learnedReplyExamples: learnedReplyExamples,
+          learnedReplyStyleTags: learnedReplyStyleTags,
+          recentConversationTurns: recentConversationTurns,
+          cameraHealthFactPacket: cameraHealthFactPacket,
+        );
+        if (cloudDraft != null) {
+          return cloudDraft;
+        }
+      } catch (error, stackTrace) {
+        developer.log(
+          'Telegram AI cloud tier failed — falling through to next tier.',
+          name: 'OnyxFirstTelegramAiAssistantService',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
 
     if (directProvider.isConfigured) {
-      return directProvider.draftReply(
-        audience: audience,
-        messageText: cleaned,
-        clientId: clientId,
-        siteId: siteId,
-        deliveryMode: deliveryMode,
-        clientProfileSignals: clientProfileSignals,
-        preferredReplyExamples: preferredReplyExamples,
-        preferredReplyStyleTags: preferredReplyStyleTags,
-        learnedReplyExamples: learnedReplyExamples,
-        learnedReplyStyleTags: learnedReplyStyleTags,
-        recentConversationTurns: recentConversationTurns,
-        cameraHealthFactPacket: cameraHealthFactPacket,
-      );
+      try {
+        return await directProvider.draftReply(
+          audience: audience,
+          messageText: cleaned,
+          clientId: clientId,
+          siteId: siteId,
+          deliveryMode: deliveryMode,
+          clientProfileSignals: clientProfileSignals,
+          preferredReplyExamples: preferredReplyExamples,
+          preferredReplyStyleTags: preferredReplyStyleTags,
+          learnedReplyExamples: learnedReplyExamples,
+          learnedReplyStyleTags: learnedReplyStyleTags,
+          recentConversationTurns: recentConversationTurns,
+          cameraHealthFactPacket: cameraHealthFactPacket,
+        );
+      } catch (error, stackTrace) {
+        developer.log(
+          'Telegram AI direct provider tier failed — falling through to next tier.',
+          name: 'OnyxFirstTelegramAiAssistantService',
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
     }
 
     if (onyxLocalBrain.isConfigured) {
-      final localResponse = await onyxLocalBrain.synthesize(
-        prompt: prompt,
-        scope: onyxScope,
-        intent: _onyxIntentForTelegramAudience(audience),
-        contextSummary: contextSummary,
-      );
-      final localDraft = _telegramDraftReplyFromOnyxResponse(
-        response: localResponse,
-        providerPrefix: 'onyx-local',
-        audience: audience,
-        messageText: cleaned,
-        scope: scope,
-        deliveryMode: deliveryMode,
-        clientProfileSignals: clientProfileSignals,
-        preferredReplyExamples: preferredReplyExamples,
-        preferredReplyStyleTags: preferredReplyStyleTags,
-        learnedReplyExamples: learnedReplyExamples,
-        learnedReplyStyleTags: learnedReplyStyleTags,
-        recentConversationTurns: recentConversationTurns,
-        cameraHealthFactPacket: cameraHealthFactPacket,
-      );
-      if (localDraft != null) {
-        return localDraft;
+      try {
+        final localResponse = await onyxLocalBrain.synthesize(
+          prompt: prompt,
+          scope: onyxScope,
+          intent: _onyxIntentForTelegramAudience(audience),
+          contextSummary: contextSummary,
+        );
+        final localDraft = _telegramDraftReplyFromOnyxResponse(
+          response: localResponse,
+          providerPrefix: 'onyx-local',
+          audience: audience,
+          messageText: cleaned,
+          scope: scope,
+          deliveryMode: deliveryMode,
+          clientProfileSignals: clientProfileSignals,
+          preferredReplyExamples: preferredReplyExamples,
+          preferredReplyStyleTags: preferredReplyStyleTags,
+          learnedReplyExamples: learnedReplyExamples,
+          learnedReplyStyleTags: learnedReplyStyleTags,
+          recentConversationTurns: recentConversationTurns,
+          cameraHealthFactPacket: cameraHealthFactPacket,
+        );
+        if (localDraft != null) {
+          return localDraft;
+        }
+      } catch (error, stackTrace) {
+        developer.log(
+          'Telegram AI local brain tier failed — falling through to fallback.',
+          name: 'OnyxFirstTelegramAiAssistantService',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
     }
 
@@ -541,16 +575,73 @@ String _telegramAssistantSystemPrompt({
           'Recent lane context:\n'
           '$recentContext';
     case TelegramAiAudience.client:
+      final normalizedMessage = _normalizeReplyHeuristicText(messageText);
+      final tonePack = _clientTonePackFor(scope);
+      final clientProfile = _clientProfileFromSignalsAndTags(
+        clientProfileSignals: clientProfileSignals,
+        preferredReplyStyleTags: preferredReplyStyleTags,
+        learnedReplyStyleTags: learnedReplyStyleTags,
+      );
+      final laneStage = _resolveClientLaneStage(
+        normalizedMessage: normalizedMessage,
+        recentConversationTurns: recentConversationTurns,
+      );
+      final intent = _resolveClientReplyIntent(
+        normalizedMessage,
+        recentConversationTurns,
+      );
+      final laneGuidance = <String?>[
+        if (_isEscalatedLaneContext(
+          normalizedMessage: normalizedMessage,
+          recentConversationTurns: recentConversationTurns,
+        ))
+          '- This lane is already escalated/high-priority.',
+        if (_isPressuredLaneContext(
+          normalizedMessage: normalizedMessage,
+          recentConversationTurns: recentConversationTurns,
+        ))
+          '- This lane has repeated anxious follow-ups. Keep the reply steady and grounding.',
+        if (laneStage == _ClientLaneStage.responderOnSite)
+          '- Security is already on site, so answer as already on site and not ETA.',
+        if (deliveryMode == TelegramAiDeliveryMode.approvalDraft)
+          '- This reply is being drafted for operator approval.',
+        switch (clientProfile) {
+          _ClientProfile.conciseUpdates =>
+            '- Client prefers short operational updates.',
+          _ClientProfile.formalOperations =>
+            '- Client prefers formal operations language.',
+          _ClientProfile.reassuranceForward =>
+            '- Client responds well to warm reassurance when pressure rises.',
+          _ClientProfile.validationHeavy =>
+            '- Client values concrete validation over generic reassurance.',
+          _ClientProfile.standard => null,
+        },
+        switch (tonePack) {
+          _ClientTonePack.residential =>
+            '- Treat this as a residential/private-community lane.',
+          _ClientTonePack.enterprise =>
+            '- Treat this as a corporate/enterprise site.',
+          _ClientTonePack.standard => null,
+        },
+        if (intent == _ClientReplyIntent.visual &&
+            tonePack == _ClientTonePack.residential)
+          '- This is a camera/daylight validation reply. Be protective and clear.',
+        if (intent == _ClientReplyIntent.access &&
+            tonePack == _ClientTonePack.enterprise)
+          '- This is an access control reply. Focus on operational next steps.',
+      ].whereType<String>().toList(growable: false);
       final additionalContextBlocks = <String>[
         'RECENT THREAD CONTEXT:\n$recentContext',
+        if (laneGuidance.isNotEmpty)
+          'LANE GUIDANCE:\n${laneGuidance.join('\n')}',
         if (preferredStyleTagsSnippet != null)
-          'PREFERRED STYLE CUES:\n$preferredStyleTagsSnippet',
+          'Preferred style cues for this lane right now:\n$preferredStyleTagsSnippet\nUse these to nudge the tone without copying them word-for-word.',
         if (preferredExamplesSnippet != null)
-          'APPROVED REPLY EXAMPLES:\n$preferredExamplesSnippet',
+          'Preferred approved reply examples:\n$preferredExamplesSnippet',
         if (learnedStyleTagsSnippet != null)
-          'LEARNED STYLE CUES:\n$learnedStyleTagsSnippet',
+          'Learned lane style tags:\n$learnedStyleTagsSnippet\nUse these to nudge the tone when they still fit.',
         if (learnedExamplesSnippet != null)
-          'LEARNED REPLY EXAMPLES:\n$learnedExamplesSnippet',
+          'Learned strong reply examples:\n$learnedExamplesSnippet\nThese worked well in this lane before.',
         if (cameraHealthSnippet.isNotEmpty)
           'INTERNAL STATUS FACTS (do not quote raw labels or internal jargon verbatim):\n$cameraHealthSnippet',
       ];
@@ -1088,6 +1179,15 @@ String _fallbackReply({
   );
   if (currentSiteViewClarifier != null) {
     return currentSiteViewClarifier;
+  }
+  final broadStatusClarifier = _packetGroundedBroadStatusReply(
+    normalizedMessage: normalized,
+    scope: scope,
+    recentConversationTurns: recentConversationTurns,
+    cameraHealthFactPacket: cameraHealthFactPacket,
+  );
+  if (broadStatusClarifier != null) {
+    return broadStatusClarifier;
   }
   final siteIssueStatusClarifier = _siteIssueStatusClarifierReply(
     normalizedMessage: normalized,
