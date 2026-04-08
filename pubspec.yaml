@@ -25,6 +25,7 @@ dependencies:
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
   easy_onvif: ^3.0.0
+  xml: ^6.6.1
 
 dev_dependencies:
   flutter_test:
