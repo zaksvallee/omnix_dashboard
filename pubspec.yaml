@@ -24,12 +24,14 @@ dependencies:
   web: ^1.1.1
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
+  easy_onvif: ^3.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
   shared_preferences_platform_interface: ^2.4.1
+  loggy: ^2.0.3
 
 flutter:
   uses-material-design: true
