@@ -4,6 +4,7 @@ String? _cameraStatusClarifierReply({
   required String normalizedMessage,
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final asksCameraCheck = _containsAny(normalizedMessage, const [
     'did you check cameras',
@@ -42,6 +43,13 @@ String? _cameraStatusClarifierReply({
       !(telemetrySummaryVisible && noOpenIncident)) {
     return null;
   }
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.clientMonitoringSummary(
+      siteReference: scope.siteReference,
+      nextStepQuestion:
+          'If you want, I can check anything specific from the latest monitoring view.',
+    );
+  }
   if (remoteMonitoringOffline) {
     return 'I do not have live camera confirmation for ${scope.siteReference} right now, so I cannot call it all clear from a camera check. If you want, I can arrange a manual follow-up and update you here with the next confirmed step.';
   }
@@ -52,6 +60,7 @@ String? _cameraConnectionClarifierReply({
   required String normalizedMessage,
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final asksWhyNoCameras = _asksWhyNoLiveCameraAccess(normalizedMessage);
   final asksForUrgentCameraRepair = _containsAny(normalizedMessage, const [
@@ -98,6 +107,12 @@ String? _cameraConnectionClarifierReply({
   if (!remoteMonitoringOffline) {
     return null;
   }
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.clientMonitoringSummary(
+      siteReference: scope.siteReference,
+      nextStepQuestion: 'Want me to check anything specific?',
+    );
+  }
   if (asksWhyNoCameras) {
     return 'I cannot see live cameras for ${scope.siteReference} right now because the monitoring connection is offline. I will update you here as soon as live camera access is confirmed again.';
   }
@@ -117,6 +132,7 @@ String? _cameraHealthFactPacketReply({
   required bool escalatedLane,
   required bool pressuredLane,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
   if (packet == null) {
@@ -246,6 +262,25 @@ String? _cameraHealthFactPacketReply({
     return 'Yes. If ONYX receives a confirmed alert for ${scope.siteReference}, we will message you here right away.';
   }
 
+  if (siteAwarenessSummary != null) {
+    if (assertsLiveVisualAccess) {
+      return 'Yes. ${siteAwarenessSummary.clientMonitoringSummary(siteReference: scope.siteReference)}';
+    }
+    if (asksWhyNoCameras ||
+        asksIfConnectionIsFixed ||
+        asksAboutRestoration ||
+        asksCameraCheck ||
+        camerasDown) {
+      return siteAwarenessSummary.clientMonitoringSummary(
+        siteReference: scope.siteReference,
+        nextStepQuestion: visualClosing,
+      );
+    }
+    if (asksBaselineSweep) {
+      return 'Yes. ${siteAwarenessSummary.clientMonitoringSummary(siteReference: scope.siteReference, nextStepQuestion: visualClosing)}';
+    }
+  }
+
   if (asksBaselineSweep) {
     if (packet.status == ClientCameraHealthStatus.live) {
       return 'Yes. I can do a quick camera check and send you the confirmed result here.';
@@ -334,6 +369,7 @@ String? _cameraOfflineSignalClarifierReply({
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final mentionsOfflineCamera =
       normalizedMessage.contains('camera') &&
@@ -373,6 +409,13 @@ String? _cameraOfflineSignalClarifierReply({
   ]);
   if (!usesLegacyRecorderBridge && !mentionsRecorderSignal) {
     return null;
+  }
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.clientMonitoringSummary(
+      siteReference: scope.siteReference,
+      extraDetail:
+          'The latest signal was still captured through the live site-awareness snapshot pipeline.',
+    );
   }
   return 'A signal can still be logged from the recorder even if Camera 11 is not giving us a usable live picture right now. For ${scope.siteReference}, that update came from recorder telemetry, not a clean current view from Camera 11.';
 }

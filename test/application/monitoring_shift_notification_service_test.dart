@@ -9,17 +9,49 @@ void main() {
     clientName: 'Muhammed Vallee',
   );
 
+  String localTimeLabel(DateTime value) {
+    final local = value.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String localDateLabel(DateTime value) {
+    const months = <int, String>{
+      1: 'Jan',
+      2: 'Feb',
+      3: 'Mar',
+      4: 'Apr',
+      5: 'May',
+      6: 'Jun',
+      7: 'Jul',
+      8: 'Aug',
+      9: 'Sep',
+      10: 'Oct',
+      11: 'Nov',
+      12: 'Dec',
+    };
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = months[local.month] ?? 'Jan';
+    return '$day $month ${local.year}';
+  }
+
   test('formats premium shift-start message for residential monitoring', () {
+    final startedAt = DateTime.utc(2026, 3, 13, 18, 0);
     final message = service.formatShiftStart(
       site: site,
       window: MonitoringShiftWindow(
-        startedAt: DateTime.utc(2026, 3, 13, 18, 0),
+        startedAt: startedAt,
         endsAt: DateTime.utc(2026, 3, 14, 6, 0),
       ),
     );
 
     expect(message, contains('🛡️ ONYX Control'));
-    expect(message, contains('MS Vallee Residence | 18:00'));
+    expect(
+      message,
+      contains('MS Vallee Residence | ${localTimeLabel(startedAt)}'),
+    );
     expect(message, contains('Good evening, Muhammed.'));
     expect(
       message,
@@ -32,16 +64,20 @@ void main() {
   });
 
   test('formats evidence-safe incident message with camera specificity', () {
+    final occurredAt = DateTime.utc(2026, 3, 13, 23, 14);
     final message = service.formatIncident(
       site: site,
       incident: MonitoringIncidentUpdate(
-        occurredAt: DateTime.utc(2026, 3, 13, 23, 14),
+        occurredAt: occurredAt,
         cameraLabel: 'Camera 1',
         objectLabel: 'vehicle',
       ),
     );
 
-    expect(message, contains('MS Vallee Residence | 23:14'));
+    expect(
+      message,
+      contains('MS Vallee Residence | ${localTimeLabel(occurredAt)}'),
+    );
     expect(
       message,
       contains(
@@ -170,13 +206,12 @@ void main() {
   });
 
   test('formats shift-end sitrep with executive summary structure', () {
+    final startedAt = DateTime.utc(2026, 3, 13, 18, 0);
+    final endedAt = DateTime.utc(2026, 3, 14, 6, 0);
     final message = service.formatShiftSitrep(
       site: site,
       summary: MonitoringShiftSummary(
-        window: MonitoringShiftWindow(
-          startedAt: DateTime.utc(2026, 3, 13, 18, 0),
-          endsAt: DateTime.utc(2026, 3, 14, 6, 0),
-        ),
+        window: MonitoringShiftWindow(startedAt: startedAt, endsAt: endedAt),
         reviewedEvents: 2,
         primaryActivitySource: 'Camera 1',
         dispatchCount: 0,
@@ -196,7 +231,12 @@ void main() {
     );
 
     expect(message, contains('🛡️ ONYX Shift Sitrep'));
-    expect(message, contains('MS Vallee Residence\n13 Mar 2026 | 18:00-06:00'));
+    expect(
+      message,
+      contains(
+        'MS Vallee Residence\n${localDateLabel(startedAt)} | ${localTimeLabel(startedAt)}-${localTimeLabel(endedAt)}',
+      ),
+    );
     expect(message, contains('Good morning, Muhammed.'));
     expect(message, contains('Executive summary:'));
     expect(message, contains('- Activity alerts reviewed: 2'));
@@ -229,7 +269,12 @@ void main() {
       ),
     );
     expect(message, contains('ONYX is now transitioning to standby.'));
-    expect(message, contains('Next monitoring window begins at 18:00.'));
+    expect(
+      message,
+      contains(
+        'Next monitoring window begins at ${localTimeLabel(startedAt)}.',
+      ),
+    );
   });
 
   test('formats escalation-candidate update with urgent review wording', () {

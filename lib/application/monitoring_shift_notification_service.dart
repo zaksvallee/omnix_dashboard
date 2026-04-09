@@ -412,17 +412,17 @@ class MonitoringShiftNotificationService {
   }
 
   String _dateLabel(DateTime value) {
-    final utc = value.toUtc();
-    final day = utc.day.toString().padLeft(2, '0');
-    final month = _monthShortLabel(utc.month);
-    final year = utc.year.toString();
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = _monthShortLabel(local.month);
+    final year = local.year.toString();
     return '$day $month $year';
   }
 
   String _timeLabel(DateTime value) {
-    final utc = value.toUtc();
-    final hour = utc.hour.toString().padLeft(2, '0');
-    final minute = utc.minute.toString().padLeft(2, '0');
+    final local = value.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
   }
 

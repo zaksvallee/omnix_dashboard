@@ -102,9 +102,8 @@ List<String> _clientAreaTerms(String area) {
 bool _hasRecentActivityLead(String transcript, String area) {
   final areaTerms = _clientAreaTerms(area);
   return areaTerms.any(
-        (term) => transcript.contains(
-          'The latest verified activity near $term was',
-        ),
+        (term) =>
+            transcript.contains('The latest verified activity near $term was'),
       ) ||
       areaTerms.any(
         (term) => transcript.contains(
@@ -116,7 +115,9 @@ bool _hasRecentActivityLead(String transcript, String area) {
 }
 
 bool _hasVisualGap(String transcript, String area) {
-  return transcript.contains('I do not have live visual confirmation right now.') ||
+  return transcript.contains(
+        'I do not have live visual confirmation right now.',
+      ) ||
       _clientAreaTerms(area).any(
         (term) => transcript.contains(
           'I do not have live visual confirmation on $term',
@@ -138,9 +139,7 @@ bool _hasSettledSignalLead(String transcript, String area) {
 
 bool _hasGenericAreaAmbiguity(String transcript) {
   return transcript.contains('I’m not fully certain which area you') ||
-      transcript.contains(
-        'If you tell me which gate, entrance, or camera',
-      );
+      transcript.contains('If you tell me which gate, entrance, or camera');
 }
 
 bool _matchesAreaAwareLead(
@@ -154,8 +153,12 @@ bool _matchesAreaAwareLead(
   if (expectedLead.contains('A response arrival tied to')) {
     return transcript.contains('Yes. A response arrival was logged at ');
   }
-  if (expectedLead.contains('I do not have a confirmed response arrival tied to')) {
-    return transcript.contains('I do not have a confirmed response arrival yet.');
+  if (expectedLead.contains(
+    'I do not have a confirmed response arrival tied to',
+  )) {
+    return transcript.contains(
+      'I do not have a confirmed response arrival yet.',
+    );
   }
   if (expectedLead.contains('I do not have a confirmed guard check tied to')) {
     return transcript.contains('I do not have a confirmed guard check yet.');
@@ -202,9 +205,9 @@ Matcher _matchesLegacyAmbiguityOrEnumeratedAreaFallback({
   required List<String> areas,
 }) {
   return predicate<String>((transcript) {
-    final hasLegacy = legacyPattern.hasMatch(transcript) &&
-        (legacyFollowUps.isEmpty ||
-            legacyFollowUps.any(transcript.contains));
+    final hasLegacy =
+        legacyPattern.hasMatch(transcript) &&
+        (legacyFollowUps.isEmpty || legacyFollowUps.any(transcript.contains));
     return hasLegacy || _hasEnumeratedAreaFallback(transcript, areas);
   }, 'matches legacy ambiguity copy or enumerated area fallback');
 }
@@ -544,6 +547,7 @@ class _ScriptedTelegramAiAssistantStub implements TelegramAiAssistantService {
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
     String? siteAwarenessContext,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
     final normalized = messageText.trim().toLowerCase();
     if (audience == TelegramAiAudience.client &&
@@ -596,6 +600,7 @@ class _DraftRefiningTelegramAiAssistantStub
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
     String? siteAwarenessContext,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
     final normalized = messageText.trim().toLowerCase();
     if (audience == TelegramAiAudience.client &&
@@ -2630,9 +2635,7 @@ void main() {
         );
 
         expect(
-          find.text(
-            'Security Desk Console — CLIENT-DEMO / SITE-DEMO',
-          ),
+          find.text('Security Desk Console — CLIENT-DEMO / SITE-DEMO'),
           findsOneWidget,
         );
         final controlBridge = _RecordingTelegramBridgeStub();
@@ -3506,8 +3509,7 @@ void main() {
             ],
             updateId: 90146,
             events: sameGateIncidentEvents,
-            expectedLead:
-                'The latest confirmed alert points to Gate again.',
+            expectedLead: 'The latest confirmed alert points to Gate again.',
             expectedFollowUp: 'Response is still active.',
             expectedVisualArea: 'Gate',
           ),
@@ -6376,9 +6378,7 @@ void main() {
           predicate<String>(
             (value) =>
                 value.contains(expectedFollowUp) ||
-                (expectedFollowUp.contains(
-                      'recent intrusion signals around',
-                    ) &&
+                (expectedFollowUp.contains('recent intrusion signals around') &&
                     value.contains(
                       'The current operational picture still shows that issue under review.',
                     )) ||
@@ -7727,328 +7727,331 @@ void main() {
     }
   });
 
-  testWidgets('onyx app keeps the directional and landmark context matrix stable', (
-    tester,
-  ) async {
-    final now = _clientsMatrixNowUtc();
-    final localNow = _clientsScenarioLocalNow();
-    final localEarlierTonight = localNow.hour >= 18
-        ? DateTime(localNow.year, localNow.month, localNow.day, 21, 14)
-        : DateTime(
-            localNow.year,
-            localNow.month,
-            localNow.day,
-            21,
-            14,
-          ).subtract(const Duration(days: 1));
+  testWidgets(
+    'onyx app keeps the directional and landmark context matrix stable',
+    (tester) async {
+      final now = _clientsMatrixNowUtc();
+      final localNow = _clientsScenarioLocalNow();
+      final localEarlierTonight = localNow.hour >= 18
+          ? DateTime(localNow.year, localNow.month, localNow.day, 21, 14)
+          : DateTime(
+              localNow.year,
+              localNow.month,
+              localNow.day,
+              21,
+              14,
+            ).subtract(const Duration(days: 1));
 
-    List<DispatchEvent> verificationHistory({
-      required String prefix,
-      required String zone,
-      required String headline,
-      required String summary,
-      required int riskScore,
-      Duration offset = const Duration(minutes: 10),
-    }) {
-      return <DispatchEvent>[
-        IntelligenceReceived(
-          eventId: '$prefix-intel-1',
-          sequence: 1,
-          version: 1,
-          occurredAt: now.subtract(offset),
-          intelligenceId: 'INT-${prefix.toUpperCase()}-1',
-          provider: 'hikvision-dvr',
-          sourceType: 'dvr',
-          externalId: 'evt-$prefix-1',
-          clientId: 'CLIENT-DEMO',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-DEMO',
-          zone: zone,
-          headline: headline,
-          summary: summary,
-          riskScore: riskScore,
-          canonicalHash: 'hash-$prefix-1',
-        ),
-      ];
-    }
-
-    List<DispatchEvent> activeIncidentHistory({
-      required String prefix,
-      required DateTime occurredAt,
-      required String zone,
-      required String headline,
-      required String summary,
-      required int riskScore,
-    }) {
-      return <DispatchEvent>[
-        IntelligenceReceived(
-          eventId: '$prefix-intel-1',
-          sequence: 1,
-          version: 1,
-          occurredAt: occurredAt,
-          intelligenceId: 'INT-${prefix.toUpperCase()}-1',
-          provider: 'hikvision-dvr',
-          sourceType: 'dvr',
-          externalId: 'evt-$prefix-1',
-          clientId: 'CLIENT-DEMO',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-DEMO',
-          zone: zone,
-          headline: headline,
-          summary: summary,
-          riskScore: riskScore,
-          canonicalHash: 'hash-$prefix-1',
-        ),
-        DecisionCreated(
-          eventId: '$prefix-decision-1',
-          sequence: 2,
-          version: 1,
-          occurredAt: occurredAt.add(const Duration(minutes: 2)),
-          dispatchId: 'DSP-${prefix.toUpperCase()}-1',
-          clientId: 'CLIENT-DEMO',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-DEMO',
-        ),
-      ];
-    }
-
-    List<DispatchEvent> settledIncidentHistory({
-      required String prefix,
-      required String zone,
-      required String headline,
-      required String summary,
-      required int riskScore,
-    }) {
-      return <DispatchEvent>[
-        IntelligenceReceived(
-          eventId: '$prefix-intel-1',
-          sequence: 1,
-          version: 1,
-          occurredAt: now.subtract(const Duration(minutes: 18)),
-          intelligenceId: 'INT-${prefix.toUpperCase()}-1',
-          provider: 'hikvision-dvr',
-          sourceType: 'dvr',
-          externalId: 'evt-$prefix-1',
-          clientId: 'CLIENT-DEMO',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-DEMO',
-          zone: zone,
-          headline: headline,
-          summary: summary,
-          riskScore: riskScore,
-          canonicalHash: 'hash-$prefix-1',
-        ),
-        DecisionCreated(
-          eventId: '$prefix-decision-1',
-          sequence: 2,
-          version: 1,
-          occurredAt: now.subtract(const Duration(minutes: 16)),
-          dispatchId: 'DSP-${prefix.toUpperCase()}-1',
-          clientId: 'CLIENT-DEMO',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-DEMO',
-        ),
-        IncidentClosed(
-          eventId: '$prefix-closed-1',
-          sequence: 3,
-          version: 1,
-          occurredAt: now.subtract(const Duration(minutes: 4)),
-          dispatchId: 'DSP-${prefix.toUpperCase()}-1',
-          resolutionType: 'all_clear',
-          clientId: 'CLIENT-DEMO',
-          regionId: 'REGION-GAUTENG',
-          siteId: 'SITE-DEMO',
-        ),
-      ];
-    }
-
-    final cases =
-        <
-          ({
-            List<String> prompts,
-            List<DispatchEvent> events,
-            int updateId,
-            String expectedLead,
-            String? expectedDetail,
-            String expectedArea,
-          })
-        >[
-          (
-            prompts: const <String>[
-              'was tht alrm serious',
-              'was that the back one from earlier tonight?',
-            ],
-            events: activeIncidentHistory(
-              prefix: 'route-directional-back-one-earlier-tonight',
-              occurredAt: localEarlierTonight.toUtc(),
-              zone: 'Back Entrance',
-              headline: 'Back entrance motion alert',
-              summary:
-                  'Repeated movement triggered review at the back entrance.',
-              riskScore: 76,
-            ),
-            updateId: 91087,
-            expectedLead: 'recorded at 21:14',
-            expectedDetail: 'Response is still active.',
-            expectedArea: 'Back Entrance',
-          ),
-          (
-            prompts: const <String>[
-              'pls check front gate',
-              'pls check the driveway',
-              'check the one by the driveway',
-            ],
-            events: verificationHistory(
-              prefix: 'route-directional-driveway-landmark',
-              zone: 'Driveway',
-              headline: 'Driveway motion alert',
-              summary: 'Vehicle movement triggered a review on the driveway.',
-              riskScore: 58,
-            ),
-            updateId: 91088,
-            expectedLead: 'The latest verified activity near Driveway was',
-            expectedDetail: null,
-            expectedArea: 'Driveway',
-          ),
-          (
-            prompts: const <String>['check the driveway side'],
-            events: verificationHistory(
-              prefix: 'route-directional-driveway-side',
-              zone: 'Driveway',
-              headline: 'Driveway motion alert',
-              summary: 'Vehicle movement triggered a review on the driveway.',
-              riskScore: 57,
-              offset: const Duration(minutes: 12),
-            ),
-            updateId: 91089,
-            expectedLead: 'The latest verified activity near Driveway was',
-            expectedDetail: null,
-            expectedArea: 'Driveway',
-          ),
-          (
-            prompts: const <String>[
-              'was tht alrm serious',
-              'was that the other entrance from before?',
-            ],
-            events: activeIncidentHistory(
-              prefix: 'route-directional-other-entrance',
-              occurredAt: now.subtract(const Duration(minutes: 18)),
-              zone: 'Back Entrance',
-              headline: 'Back entrance motion alert',
-              summary:
-                  'Repeated movement triggered review at the back entrance.',
-              riskScore: 74,
-            ),
-            updateId: 91090,
-            expectedLead:
-                'The latest confirmed alert points to Back Entrance again.',
-            expectedDetail: 'Response is still active.',
-            expectedArea: 'Back Entrance',
-          ),
-          (
-            prompts: const <String>[
-              'pls check front gate',
-              'pls check back entrance',
-              'check the one by the entrance',
-            ],
-            events: verificationHistory(
-              prefix: 'route-directional-entrance-proximity',
-              zone: 'Back Entrance',
-              headline: 'Back entrance motion alert',
-              summary:
-                  'Repeated movement triggered review at the back entrance.',
-              riskScore: 65,
-              offset: const Duration(minutes: 13),
-            ),
-            updateId: 91091,
-            expectedLead: 'The latest verified activity near Back Entrance was',
-            expectedDetail: null,
-            expectedArea: 'Back Entrance',
-          ),
-          (
-            prompts: const <String>[
-              'was tht alrm serious',
-              'did the perimeter side settle down?',
-            ],
-            events: settledIncidentHistory(
-              prefix: 'route-directional-perimeter-side-settled',
-              zone: 'Perimeter',
-              headline: 'Perimeter movement alert',
-              summary: 'Movement along the outer perimeter triggered review.',
-              riskScore: 63,
-            ),
-            updateId: 91092,
-            expectedLead: 'The earlier Perimeter signal has settled.',
-            expectedDetail:
-                'It was reviewed properly and is not sitting as an active incident now.',
-            expectedArea: 'Perimeter',
-          ),
-          (
-            prompts: const <String>[
-              'pls check front gate',
-              'pls check back entrance',
-              'check the one near the back',
-            ],
-            events: verificationHistory(
-              prefix: 'route-directional-back-proximity',
-              zone: 'Back Entrance',
-              headline: 'Back entrance motion alert',
-              summary:
-                  'Repeated movement triggered review at the back entrance.',
-              riskScore: 68,
-              offset: const Duration(minutes: 18),
-            ),
-            updateId: 91093,
-            expectedLead: 'The latest verified activity near Back Entrance was',
-            expectedDetail:
-                'Repeated movement triggered review at the back entrance at',
-            expectedArea: 'Back Entrance',
+      List<DispatchEvent> verificationHistory({
+        required String prefix,
+        required String zone,
+        required String headline,
+        required String summary,
+        required int riskScore,
+        Duration offset = const Duration(minutes: 10),
+      }) {
+        return <DispatchEvent>[
+          IntelligenceReceived(
+            eventId: '$prefix-intel-1',
+            sequence: 1,
+            version: 1,
+            occurredAt: now.subtract(offset),
+            intelligenceId: 'INT-${prefix.toUpperCase()}-1',
+            provider: 'hikvision-dvr',
+            sourceType: 'dvr',
+            externalId: 'evt-$prefix-1',
+            clientId: 'CLIENT-DEMO',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-DEMO',
+            zone: zone,
+            headline: headline,
+            summary: summary,
+            riskScore: riskScore,
+            canonicalHash: 'hash-$prefix-1',
           ),
         ];
+      }
 
-    for (var index = 0; index < cases.length; index += 1) {
-      final scenario = cases[index];
-      final transcript = await sendClientTelegramConversationThroughRoute(
-        tester,
-        appKey: ValueKey(
-          'clients-telegram-directional-landmark-matrix-app-$index',
-        ),
-        prompts: scenario.prompts,
-        firstUpdateId: scenario.updateId,
-        initialStoreEventsOverride: scenario.events,
-      );
-
-      expect(
-        transcript,
-        predicate<String>(
-          (value) => _matchesAreaAwareLead(
-            value,
-            expectedLead: scenario.expectedLead,
-            area: scenario.expectedArea,
+      List<DispatchEvent> activeIncidentHistory({
+        required String prefix,
+        required DateTime occurredAt,
+        required String zone,
+        required String headline,
+        required String summary,
+        required int riskScore,
+      }) {
+        return <DispatchEvent>[
+          IntelligenceReceived(
+            eventId: '$prefix-intel-1',
+            sequence: 1,
+            version: 1,
+            occurredAt: occurredAt,
+            intelligenceId: 'INT-${prefix.toUpperCase()}-1',
+            provider: 'hikvision-dvr',
+            sourceType: 'dvr',
+            externalId: 'evt-$prefix-1',
+            clientId: 'CLIENT-DEMO',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-DEMO',
+            zone: zone,
+            headline: headline,
+            summary: summary,
+            riskScore: riskScore,
+            canonicalHash: 'hash-$prefix-1',
           ),
-          'contains the expected directional or landmark lead',
-        ),
-        reason: scenario.prompts.last,
-      );
-      if (scenario.expectedDetail case final expectedDetail?) {
+          DecisionCreated(
+            eventId: '$prefix-decision-1',
+            sequence: 2,
+            version: 1,
+            occurredAt: occurredAt.add(const Duration(minutes: 2)),
+            dispatchId: 'DSP-${prefix.toUpperCase()}-1',
+            clientId: 'CLIENT-DEMO',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-DEMO',
+          ),
+        ];
+      }
+
+      List<DispatchEvent> settledIncidentHistory({
+        required String prefix,
+        required String zone,
+        required String headline,
+        required String summary,
+        required int riskScore,
+      }) {
+        return <DispatchEvent>[
+          IntelligenceReceived(
+            eventId: '$prefix-intel-1',
+            sequence: 1,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 18)),
+            intelligenceId: 'INT-${prefix.toUpperCase()}-1',
+            provider: 'hikvision-dvr',
+            sourceType: 'dvr',
+            externalId: 'evt-$prefix-1',
+            clientId: 'CLIENT-DEMO',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-DEMO',
+            zone: zone,
+            headline: headline,
+            summary: summary,
+            riskScore: riskScore,
+            canonicalHash: 'hash-$prefix-1',
+          ),
+          DecisionCreated(
+            eventId: '$prefix-decision-1',
+            sequence: 2,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 16)),
+            dispatchId: 'DSP-${prefix.toUpperCase()}-1',
+            clientId: 'CLIENT-DEMO',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-DEMO',
+          ),
+          IncidentClosed(
+            eventId: '$prefix-closed-1',
+            sequence: 3,
+            version: 1,
+            occurredAt: now.subtract(const Duration(minutes: 4)),
+            dispatchId: 'DSP-${prefix.toUpperCase()}-1',
+            resolutionType: 'all_clear',
+            clientId: 'CLIENT-DEMO',
+            regionId: 'REGION-GAUTENG',
+            siteId: 'SITE-DEMO',
+          ),
+        ];
+      }
+
+      final cases =
+          <
+            ({
+              List<String> prompts,
+              List<DispatchEvent> events,
+              int updateId,
+              String expectedLead,
+              String? expectedDetail,
+              String expectedArea,
+            })
+          >[
+            (
+              prompts: const <String>[
+                'was tht alrm serious',
+                'was that the back one from earlier tonight?',
+              ],
+              events: activeIncidentHistory(
+                prefix: 'route-directional-back-one-earlier-tonight',
+                occurredAt: localEarlierTonight.toUtc(),
+                zone: 'Back Entrance',
+                headline: 'Back entrance motion alert',
+                summary:
+                    'Repeated movement triggered review at the back entrance.',
+                riskScore: 76,
+              ),
+              updateId: 91087,
+              expectedLead: 'recorded at 21:14',
+              expectedDetail: 'Response is still active.',
+              expectedArea: 'Back Entrance',
+            ),
+            (
+              prompts: const <String>[
+                'pls check front gate',
+                'pls check the driveway',
+                'check the one by the driveway',
+              ],
+              events: verificationHistory(
+                prefix: 'route-directional-driveway-landmark',
+                zone: 'Driveway',
+                headline: 'Driveway motion alert',
+                summary: 'Vehicle movement triggered a review on the driveway.',
+                riskScore: 58,
+              ),
+              updateId: 91088,
+              expectedLead: 'The latest verified activity near Driveway was',
+              expectedDetail: null,
+              expectedArea: 'Driveway',
+            ),
+            (
+              prompts: const <String>['check the driveway side'],
+              events: verificationHistory(
+                prefix: 'route-directional-driveway-side',
+                zone: 'Driveway',
+                headline: 'Driveway motion alert',
+                summary: 'Vehicle movement triggered a review on the driveway.',
+                riskScore: 57,
+                offset: const Duration(minutes: 12),
+              ),
+              updateId: 91089,
+              expectedLead: 'The latest verified activity near Driveway was',
+              expectedDetail: null,
+              expectedArea: 'Driveway',
+            ),
+            (
+              prompts: const <String>[
+                'was tht alrm serious',
+                'was that the other entrance from before?',
+              ],
+              events: activeIncidentHistory(
+                prefix: 'route-directional-other-entrance',
+                occurredAt: now.subtract(const Duration(minutes: 18)),
+                zone: 'Back Entrance',
+                headline: 'Back entrance motion alert',
+                summary:
+                    'Repeated movement triggered review at the back entrance.',
+                riskScore: 74,
+              ),
+              updateId: 91090,
+              expectedLead:
+                  'The latest confirmed alert points to Back Entrance again.',
+              expectedDetail: 'Response is still active.',
+              expectedArea: 'Back Entrance',
+            ),
+            (
+              prompts: const <String>[
+                'pls check front gate',
+                'pls check back entrance',
+                'check the one by the entrance',
+              ],
+              events: verificationHistory(
+                prefix: 'route-directional-entrance-proximity',
+                zone: 'Back Entrance',
+                headline: 'Back entrance motion alert',
+                summary:
+                    'Repeated movement triggered review at the back entrance.',
+                riskScore: 65,
+                offset: const Duration(minutes: 13),
+              ),
+              updateId: 91091,
+              expectedLead:
+                  'The latest verified activity near Back Entrance was',
+              expectedDetail: null,
+              expectedArea: 'Back Entrance',
+            ),
+            (
+              prompts: const <String>[
+                'was tht alrm serious',
+                'did the perimeter side settle down?',
+              ],
+              events: settledIncidentHistory(
+                prefix: 'route-directional-perimeter-side-settled',
+                zone: 'Perimeter',
+                headline: 'Perimeter movement alert',
+                summary: 'Movement along the outer perimeter triggered review.',
+                riskScore: 63,
+              ),
+              updateId: 91092,
+              expectedLead: 'The earlier Perimeter signal has settled.',
+              expectedDetail:
+                  'It was reviewed properly and is not sitting as an active incident now.',
+              expectedArea: 'Perimeter',
+            ),
+            (
+              prompts: const <String>[
+                'pls check front gate',
+                'pls check back entrance',
+                'check the one near the back',
+              ],
+              events: verificationHistory(
+                prefix: 'route-directional-back-proximity',
+                zone: 'Back Entrance',
+                headline: 'Back entrance motion alert',
+                summary:
+                    'Repeated movement triggered review at the back entrance.',
+                riskScore: 68,
+                offset: const Duration(minutes: 18),
+              ),
+              updateId: 91093,
+              expectedLead:
+                  'The latest verified activity near Back Entrance was',
+              expectedDetail:
+                  'Repeated movement triggered review at the back entrance at',
+              expectedArea: 'Back Entrance',
+            ),
+          ];
+
+      for (var index = 0; index < cases.length; index += 1) {
+        final scenario = cases[index];
+        final transcript = await sendClientTelegramConversationThroughRoute(
+          tester,
+          appKey: ValueKey(
+            'clients-telegram-directional-landmark-matrix-app-$index',
+          ),
+          prompts: scenario.prompts,
+          firstUpdateId: scenario.updateId,
+          initialStoreEventsOverride: scenario.events,
+        );
+
         expect(
           transcript,
-          contains(expectedDetail),
+          predicate<String>(
+            (value) => _matchesAreaAwareLead(
+              value,
+              expectedLead: scenario.expectedLead,
+              area: scenario.expectedArea,
+            ),
+            'contains the expected directional or landmark lead',
+          ),
+          reason: scenario.prompts.last,
+        );
+        if (scenario.expectedDetail case final expectedDetail?) {
+          expect(
+            transcript,
+            contains(expectedDetail),
+            reason: scenario.prompts.last,
+          );
+        }
+        expect(
+          transcript,
+          contains('I do not have live visual confirmation'),
+          reason: scenario.prompts.last,
+        );
+        expect(
+          transcript,
+          isNot(contains('Unsupported command')),
           reason: scenario.prompts.last,
         );
       }
-      expect(
-        transcript,
-        contains('I do not have live visual confirmation'),
-        reason: scenario.prompts.last,
-      );
-      expect(
-        transcript,
-        isNot(contains('Unsupported command')),
-        reason: scenario.prompts.last,
-      );
-    }
-  });
+    },
+  );
 
   testWidgets('onyx app keeps the directional and landmark ambiguity matrix stable', (
     tester,
@@ -8200,10 +8203,11 @@ void main() {
           areas: switch (index) {
             0 => const <String>['Front Entrance', 'Back Entrance'],
             1 || 2 || 3 => const <String>['Front Gate', 'Back Gate'],
-            _ => scenario.prompts[0].contains('front gate') &&
-                    scenario.prompts[1].contains('back entrance')
-                ? const <String>['Front Gate', 'Back Entrance']
-                : const <String>['Front Gate', 'Back Gate'],
+            _ =>
+              scenario.prompts[0].contains('front gate') &&
+                      scenario.prompts[1].contains('back entrance')
+                  ? const <String>['Front Gate', 'Back Entrance']
+                  : const <String>['Front Gate', 'Back Gate'],
           },
         ),
         reason: scenario.prompts.last,
@@ -8357,9 +8361,7 @@ void main() {
               updateId: 9003,
               sentAtUtc: _clientsQuickActionSentAtUtc(22, 35),
               chatType: 'private',
-              expected: const <String>[
-                'No unresolved incidents in Demo.',
-              ],
+              expected: const <String>['No unresolved incidents in Demo.'],
               forbidden: const <String>[],
             ),
             for (final scenario in <({String prompt, int updateId})>[
@@ -9345,8 +9347,7 @@ void main() {
               seedKind: 'scopedState',
               appKey: const ValueKey('clients-off-scope-state-app'),
               expectedExactTexts: const <String>[],
-              expectedContainedTexts: <String>[
-              ],
+              expectedContainedTexts: <String>[],
             ),
             (
               seedKind: 'queueState',
@@ -9455,10 +9456,7 @@ void main() {
       );
       await _openClientsDetailedWorkspaceIfPresent(tester);
 
-      expect(
-        find.textContaining('Backend Probe: idle'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Backend Probe: idle'), findsOneWidget);
     },
   );
 
@@ -9784,9 +9782,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text(
-          'Client Ops App — CLIENT-DEMO / SITE-DEMO',
-        ),
+        find.text('Client Ops App — CLIENT-DEMO / SITE-DEMO'),
         findsNothing,
       );
 
@@ -9980,9 +9976,7 @@ void main() {
             );
 
             expect(
-              find.text(
-                'Security Desk Console — CLIENT-DEMO / SITE-DEMO',
-              ),
+              find.text('Security Desk Console — CLIENT-DEMO / SITE-DEMO'),
               findsOneWidget,
             );
             break;
@@ -9998,9 +9992,7 @@ void main() {
             await tester.pumpAndSettle();
 
             expect(
-              find.text(
-                'Client Ops App — CLIENT-DEMO / SITE-DEMO',
-              ),
+              find.text('Client Ops App — CLIENT-DEMO / SITE-DEMO'),
               findsOneWidget,
             );
             break;
@@ -10016,9 +10008,7 @@ void main() {
             await tester.pumpAndSettle();
 
             expect(
-              find.text(
-                'Client Ops App — CLIENT-DEMO / SITE-DEMO',
-              ),
+              find.text('Client Ops App — CLIENT-DEMO / SITE-DEMO'),
               findsOneWidget,
             );
             break;
@@ -10341,9 +10331,7 @@ void main() {
           );
 
           expect(
-            find.text(
-              'Security Desk Console — CLIENT-DEMO / SITE-DEMO',
-            ),
+            find.text('Security Desk Console — CLIENT-DEMO / SITE-DEMO'),
             findsOneWidget,
           );
           expect(find.text('Learned approval style'), findsNothing);
@@ -10456,9 +10444,7 @@ void main() {
 
       expect(
         sentTranscript,
-        contains(
-          'Remote monitoring is unavailable at Site Demo right now.',
-        ),
+        contains('Remote monitoring is unavailable at Site Demo right now.'),
       );
       expect(sentTranscript, contains('manual follow-up'));
     },
@@ -10517,9 +10503,7 @@ void main() {
 
       expect(
         sentTranscript,
-        contains(
-          'Remote monitoring is unavailable at Site Demo right now.',
-        ),
+        contains('Remote monitoring is unavailable at Site Demo right now.'),
       );
       expect(
         sentTranscript,

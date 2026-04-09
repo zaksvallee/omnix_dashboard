@@ -67,7 +67,7 @@ class TelegramBridgeResolver {
     return TelegramBridgeTarget(
       chatId: fallbackChatId,
       threadId: resolvedTelegramClientThreadId(),
-      label: 'env-fallback',
+      label: 'Telegram',
     );
   }
 

@@ -23,10 +23,8 @@ void main() {
       return TelegramBridgeResolver(
         readManagedTelegramEndpointRecordsForScope:
             readManagedTelegramEndpointRecordsForScope ??
-            ({
-              required String clientId,
-              required String siteId,
-            }) async => const <ClientTelegramEndpointRecord>[],
+            ({required String clientId, required String siteId}) async =>
+                const <ClientTelegramEndpointRecord>[],
         isPartnerEndpointLabel: (label) =>
             label.trim().toUpperCase().startsWith('PARTNER'),
         normalizePartnerEndpointLabel: (label) {
@@ -54,25 +52,23 @@ void main() {
     test('resolves client targets from managed endpoint records', () async {
       final resolver = buildResolver(
         readManagedTelegramEndpointRecordsForScope:
-            ({
-              required String clientId,
-              required String siteId,
-            }) async => const <ClientTelegramEndpointRecord>[
-              ClientTelegramEndpointRecord(
-                endpointId: 'endpoint-client',
-                displayLabel: 'Client Lane',
-                chatId: 'client-managed-chat',
-                threadId: 11,
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              ),
-              ClientTelegramEndpointRecord(
-                endpointId: 'endpoint-partner',
-                displayLabel: 'PARTNER • Response',
-                chatId: 'partner-chat',
-                threadId: 12,
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              ),
-            ],
+            ({required String clientId, required String siteId}) async =>
+                const <ClientTelegramEndpointRecord>[
+                  ClientTelegramEndpointRecord(
+                    endpointId: 'endpoint-client',
+                    displayLabel: 'Client Lane',
+                    chatId: 'client-managed-chat',
+                    threadId: 11,
+                    siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  ),
+                  ClientTelegramEndpointRecord(
+                    endpointId: 'endpoint-partner',
+                    displayLabel: 'PARTNER • Response',
+                    chatId: 'partner-chat',
+                    threadId: 12,
+                    siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                  ),
+                ],
       );
 
       final targets = await resolver.resolveClientTargets(
@@ -86,61 +82,61 @@ void main() {
       expect(targets.single.label, 'Client Lane');
     });
 
-    test('falls back to configured client env target when directory lookup fails',
-        () async {
-      final resolver = buildResolver(
-        readManagedTelegramEndpointRecordsForScope:
-            ({
-              required String clientId,
-              required String siteId,
-            }) => Future<List<ClientTelegramEndpointRecord>>.error(
-              StateError('lookup failed'),
-            ),
-        clientFallbackChatId: 'client-env-chat',
-        clientFallbackThreadId: 17,
-      );
+    test(
+      'falls back to configured client env target when directory lookup fails',
+      () async {
+        final resolver = buildResolver(
+          readManagedTelegramEndpointRecordsForScope:
+              ({required String clientId, required String siteId}) =>
+                  Future<List<ClientTelegramEndpointRecord>>.error(
+                    StateError('lookup failed'),
+                  ),
+          clientFallbackChatId: 'client-env-chat',
+          clientFallbackThreadId: 17,
+        );
 
-      final targets = await resolver.resolveClientTargets(
-        clientId: 'CLIENT-MS-VALLEE',
-        siteId: 'SITE-MS-VALLEE-RESIDENCE',
-      );
+        final targets = await resolver.resolveClientTargets(
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        );
 
-      expect(targets, hasLength(1));
-      expect(targets.single.chatId, 'client-env-chat');
-      expect(targets.single.threadId, 17);
-      expect(targets.single.label, 'env-fallback');
-    });
+        expect(targets, hasLength(1));
+        expect(targets.single.chatId, 'client-env-chat');
+        expect(targets.single.threadId, 17);
+        expect(targets.single.label, 'Telegram');
+      },
+    );
 
-    test('falls back to normalized partner env target when no partner lane exists',
-        () async {
-      final resolver = buildResolver(
-        readManagedTelegramEndpointRecordsForScope:
-            ({
-              required String clientId,
-              required String siteId,
-            }) async => const <ClientTelegramEndpointRecord>[
-              ClientTelegramEndpointRecord(
-                endpointId: 'endpoint-client',
-                displayLabel: 'Client Lane',
-                chatId: 'client-chat',
-                threadId: 3,
-                siteId: 'SITE-MS-VALLEE-RESIDENCE',
-              ),
-            ],
-        telegramPartnerLabelEnv: 'Field Response',
-        partnerFallbackChatId: 'partner-env-chat',
-        partnerFallbackThreadId: 19,
-      );
+    test(
+      'falls back to normalized partner env target when no partner lane exists',
+      () async {
+        final resolver = buildResolver(
+          readManagedTelegramEndpointRecordsForScope:
+              ({required String clientId, required String siteId}) async =>
+                  const <ClientTelegramEndpointRecord>[
+                    ClientTelegramEndpointRecord(
+                      endpointId: 'endpoint-client',
+                      displayLabel: 'Client Lane',
+                      chatId: 'client-chat',
+                      threadId: 3,
+                      siteId: 'SITE-MS-VALLEE-RESIDENCE',
+                    ),
+                  ],
+          telegramPartnerLabelEnv: 'Field Response',
+          partnerFallbackChatId: 'partner-env-chat',
+          partnerFallbackThreadId: 19,
+        );
 
-      final targets = await resolver.resolvePartnerTargets(
-        clientId: 'CLIENT-MS-VALLEE',
-        siteId: 'SITE-MS-VALLEE-RESIDENCE',
-      );
+        final targets = await resolver.resolvePartnerTargets(
+          clientId: 'CLIENT-MS-VALLEE',
+          siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        );
 
-      expect(targets, hasLength(1));
-      expect(targets.single.chatId, 'partner-env-chat');
-      expect(targets.single.threadId, 19);
-      expect(targets.single.label, 'PARTNER • Field Response');
-    });
+        expect(targets, hasLength(1));
+        expect(targets.single.chatId, 'partner-env-chat');
+        expect(targets.single.threadId, 19);
+        expect(targets.single.label, 'PARTNER • Field Response');
+      },
+    );
   });
 }

@@ -69,6 +69,105 @@ class _TelegramAiClientPromptContext {
   });
 }
 
+class TelegramAiSiteAwarenessSummary {
+  final DateTime observedAtUtc;
+  final bool perimeterClear;
+  final int humanCount;
+  final int vehicleCount;
+  final int animalCount;
+  final int motionCount;
+  final int activeAlertCount;
+  final List<String> knownFaultChannels;
+
+  const TelegramAiSiteAwarenessSummary({
+    required this.observedAtUtc,
+    required this.perimeterClear,
+    required this.humanCount,
+    required this.vehicleCount,
+    required this.animalCount,
+    required this.motionCount,
+    required this.activeAlertCount,
+    this.knownFaultChannels = const <String>[],
+  });
+
+  String get watchStatusPromptValue => perimeterClear
+      ? 'active from fresh live site snapshot'
+      : 'active from fresh live site snapshot with a perimeter alert';
+
+  String get cameraStatusPromptValue {
+    if (knownFaultChannels.isEmpty) {
+      return 'active from fresh live site snapshot';
+    }
+    return 'active from fresh live site snapshot with ${_channelFaultPromptLabel()}';
+  }
+
+  String get activeIncidentsPromptValue {
+    if (activeAlertCount > 0 || !perimeterClear) {
+      return '$activeAlertCount active - live site snapshot shows ${perimeterClear ? 'alerts on site' : 'a perimeter alert'}';
+    }
+    return '0 active - live site snapshot shows perimeter clear';
+  }
+
+  String get lastActivityPromptValue =>
+      '${observedAtUtc.toUtc().toIso8601String()} - live site snapshot: ${_perimeterPromptLabel()}, ${_countLabel(humanCount, 'person')}, ${_countLabel(vehicleCount, 'vehicle')}, ${_countLabel(animalCount, 'animal')}';
+
+  String get contextSummary =>
+      '${_perimeterPromptLabel()}, ${_countLabel(humanCount, 'person')}, ${_countLabel(vehicleCount, 'vehicle')}, ${_countLabel(animalCount, 'animal')}, ${_countLabel(activeAlertCount, 'active alert')}, ${knownFaultChannels.isEmpty ? 'all reporting channels healthy' : _channelFaultPromptLabel()}';
+
+  String clientMonitoringSummary({
+    required String siteReference,
+    String? extraDetail,
+    String? nextStepQuestion,
+  }) {
+    final normalizedSiteReference = siteReference.trim().isEmpty
+        ? 'the site'
+        : siteReference.trim();
+    final parts = <String>[
+      'Monitoring active.',
+      perimeterClear
+          ? 'Perimeter clear at $normalizedSiteReference.'
+          : 'Perimeter alert active at $normalizedSiteReference.',
+      'Latest snapshot shows ${_countLabel(humanCount, 'person')}, ${_countLabel(vehicleCount, 'vehicle')}, ${_countLabel(animalCount, 'animal')}, and ${_countLabel(activeAlertCount, 'active alert')}.',
+      knownFaultChannels.isEmpty
+          ? 'Channel status: all reporting channels healthy.'
+          : 'Channel status: ${_channelFaultSentence()}.',
+      if (extraDetail != null && extraDetail.trim().isNotEmpty)
+        extraDetail.trim(),
+      if (nextStepQuestion != null && nextStepQuestion.trim().isNotEmpty)
+        nextStepQuestion.trim(),
+    ];
+    return parts.join(' ');
+  }
+
+  String _perimeterPromptLabel() =>
+      perimeterClear ? 'perimeter clear' : 'perimeter alert active';
+
+  String _channelFaultPromptLabel() {
+    final labels = knownFaultChannels
+        .map((value) => 'Channel $value')
+        .join(', ');
+    final noun = knownFaultChannels.length == 1
+        ? 'known fault on'
+        : 'known faults on';
+    return '$noun $labels';
+  }
+
+  String _channelFaultSentence() {
+    final labels = knownFaultChannels
+        .map((value) => 'Channel $value')
+        .join(', ');
+    return knownFaultChannels.length == 1
+        ? 'known fault on $labels'
+        : 'known faults on $labels';
+  }
+
+  static String _countLabel(int count, String singular) {
+    final plural = singular == 'person' ? 'people' : '${singular}s';
+    final noun = count == 1 ? singular : plural;
+    return '$count $noun';
+  }
+}
+
 abstract class TelegramAiAssistantService {
   bool get isConfigured;
 
@@ -86,6 +185,7 @@ abstract class TelegramAiAssistantService {
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
     String? siteAwarenessContext,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   });
 }
 
@@ -111,6 +211,7 @@ class UnconfiguredTelegramAiAssistantService
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
     String? siteAwarenessContext,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
     return TelegramAiDraftReply(
@@ -125,6 +226,7 @@ class UnconfiguredTelegramAiAssistantService
         learnedReplyStyleTags: learnedReplyStyleTags,
         recentConversationTurns: recentConversationTurns,
         cameraHealthFactPacket: cameraHealthFactPacket,
+        siteAwarenessSummary: siteAwarenessSummary,
       ),
       usedFallback: true,
       providerLabel: 'fallback',
@@ -166,6 +268,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
     String? siteAwarenessContext,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
     final cleaned = messageText.trim();
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
@@ -188,6 +291,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
           learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
           cameraHealthFactPacket: cameraHealthFactPacket,
+          siteAwarenessSummary: siteAwarenessSummary,
         ),
         usedFallback: true,
         usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -225,6 +329,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
                         recentConversationTurns: recentConversationTurns,
                         cameraHealthFactPacket: cameraHealthFactPacket,
                         siteAwarenessContext: siteAwarenessContext,
+                        siteAwarenessSummary: siteAwarenessSummary,
                       ),
                     },
                   ],
@@ -252,6 +357,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
             cameraHealthFactPacket: cameraHealthFactPacket,
+            siteAwarenessSummary: siteAwarenessSummary,
           ),
           usedFallback: true,
           usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -272,6 +378,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
             cameraHealthFactPacket: cameraHealthFactPacket,
+            siteAwarenessSummary: siteAwarenessSummary,
           ),
           usedFallback: true,
           usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -290,6 +397,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
         learnedReplyStyleTags: learnedReplyStyleTags,
         recentConversationTurns: recentConversationTurns,
         cameraHealthFactPacket: cameraHealthFactPacket,
+        siteAwarenessSummary: siteAwarenessSummary,
       );
       if (polished.trim().isEmpty) {
         return TelegramAiDraftReply(
@@ -304,6 +412,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
             learnedReplyStyleTags: learnedReplyStyleTags,
             recentConversationTurns: recentConversationTurns,
             cameraHealthFactPacket: cameraHealthFactPacket,
+            siteAwarenessSummary: siteAwarenessSummary,
           ),
           usedFallback: true,
           usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -333,6 +442,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
           learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
           cameraHealthFactPacket: cameraHealthFactPacket,
+          siteAwarenessSummary: siteAwarenessSummary,
         ),
         usedFallback: true,
         usedLearnedApprovalStyle: learnedReplyExamples.isNotEmpty,
@@ -374,6 +484,7 @@ class OnyxFirstTelegramAiAssistantService
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
     String? siteAwarenessContext,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
     final cleaned = messageText.trim();
     final scope = _scopeProfileFor(clientId: clientId, siteId: siteId);
@@ -406,6 +517,7 @@ class OnyxFirstTelegramAiAssistantService
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
       siteAwarenessContext: siteAwarenessContext,
+      siteAwarenessSummary: siteAwarenessSummary,
     );
     final contextSummary = _telegramAssistantOnyxContextSummary(
       audience: audience,
@@ -415,6 +527,7 @@ class OnyxFirstTelegramAiAssistantService
       preferredReplyStyleTags: preferredReplyStyleTags,
       learnedReplyStyleTags: learnedReplyStyleTags,
       cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
     );
 
     if (onyxCloudBoost.isConfigured) {
@@ -441,6 +554,7 @@ class OnyxFirstTelegramAiAssistantService
           learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
           cameraHealthFactPacket: cameraHealthFactPacket,
+          siteAwarenessSummary: siteAwarenessSummary,
         );
         if (cloudDraft != null) {
           return cloudDraft;
@@ -472,6 +586,7 @@ class OnyxFirstTelegramAiAssistantService
               recentConversationTurns: recentConversationTurns,
               cameraHealthFactPacket: cameraHealthFactPacket,
               siteAwarenessContext: siteAwarenessContext,
+              siteAwarenessSummary: siteAwarenessSummary,
             )
             .timeout(const Duration(seconds: 5));
       } catch (error, stackTrace) {
@@ -508,6 +623,7 @@ class OnyxFirstTelegramAiAssistantService
           learnedReplyStyleTags: learnedReplyStyleTags,
           recentConversationTurns: recentConversationTurns,
           cameraHealthFactPacket: cameraHealthFactPacket,
+          siteAwarenessSummary: siteAwarenessSummary,
         );
         if (localDraft != null) {
           return localDraft;
@@ -536,6 +652,7 @@ class OnyxFirstTelegramAiAssistantService
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
       siteAwarenessContext: siteAwarenessContext,
+      siteAwarenessSummary: siteAwarenessSummary,
     );
   }
 }
@@ -553,6 +670,7 @@ String _telegramAssistantSystemPrompt({
   List<String> recentConversationTurns = const <String>[],
   ClientCameraHealthFactPacket? cameraHealthFactPacket,
   String? siteAwarenessContext,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final recentContext = _recentConversationContextSnippet(
     recentConversationTurns,
@@ -569,11 +687,13 @@ String _telegramAssistantSystemPrompt({
   final learnedStyleTagsSnippet = _replyStyleTagsSnippet(learnedReplyStyleTags);
   final cameraHealthSnippet = _cameraHealthPromptSnippet(
     cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   final clientPromptContext = _telegramAiClientPromptContext(
     scope: scope,
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   switch (audience) {
     case TelegramAiAudience.admin:
@@ -685,25 +805,28 @@ String _telegramAssistantSystemPrompt({
           '${includeGuardContext ? '- Guard on site: ${clientPromptContext.guardOnSite}\n- Last guard check-in: ${clientPromptContext.lastGuardCheckin}\n' : ''}\n'
           'COMMUNICATION RULES:\n'
           '1. Never say "I cannot" - say what you CAN do\n'
-          '2. Never say "camera visibility unavailable" - say "remote monitoring is limited right now"\n'
+          '2. If verified live site-awareness facts are present, treat them as the authoritative monitoring status. A fresh site snapshot means monitoring is active even if the browser camera bridge is degraded.\n'
           '3. Never promise dispatch without confirmation\n'
           '4. Never claim certainty you do not have\n'
           '5. Always end with a clear next step\n'
-          '6. If asked about cameras and they are offline:\n'
+          '6. Only say "remote monitoring is limited right now" when there is no fresh live site snapshot.\n'
+          '7. If asked about cameras and there is no fresh live site snapshot:\n'
           '   "I don\'t have live visual right now but I\'m monitoring all signals. What would you like me to check?"\n'
-          '7. If asked if everything is fine and you do not have full visibility:\n'
+          '8. If asked for current status and verified live site-awareness facts are present:\n'
+          '   "Monitoring active. Perimeter clear. Latest snapshot shows 1 person, 0 vehicles, 0 animals, 0 active alerts, and Channel 11 as a known fault. Want me to check anything specific?"\n'
+          '9. If asked if everything is fine and you do not have full visibility:\n'
           '   "Based on what I can see, there are no active alerts. My visual monitoring is limited right now - want me to arrange a manual follow-up?"\n'
-          '8. Keep responses under 3 sentences unless the situation requires more detail\n'
-          '9. Never use technical jargon (no "DVR", "RTSP", "API" etc.)\n'
-          '10. Match the client\'s energy - if they are worried, be more detailed. If casual, be brief.\n'
-          '11. When verified live site-awareness facts are present, ground the reply in those facts first. If the user asks for status, say the current perimeter state, people count, alert state, and any channel faults in plain language before offering a next step.\n\n'
+          '10. Keep responses under 3 sentences unless the situation requires more detail\n'
+          '11. Never use technical jargon (no "DVR", "RTSP", "API" etc.)\n'
+          '12. Match the client\'s energy - if they are worried, be more detailed. If casual, be brief.\n'
+          '13. When verified live site-awareness facts are present, ground the reply in those facts first. If the user asks for status, say the current perimeter state, people count, alert state, and any channel faults in plain language before offering a next step.\n\n'
           'TONE EXAMPLES:\n\n'
           'Bad: "Camera visibility unavailable at [CLIENT_NAME] right now."\n\n'
           'Good: "I don\'t have full visual right now but I\'m watching all alarm signals. Everything looks quiet. Anything specific you\'d like me to check?"\n\n'
           'Bad: "I do not see a confirmed issue at [CLIENT_NAME] right now."\n\n'
           'Good: "Nothing flagged right now. Last activity was [X] - looked routine. What\'s on your mind?"\n\n'
           'Bad: "Remote monitoring is unavailable."\n\n'
-          'Good: "My camera link is temporarily limited but alarm monitoring is fully active. Want me to arrange a manual follow-up?"\n\n'
+          'Good: "Monitoring active. Perimeter clear. Latest snapshot shows 1 person on site, no active alerts, and all reporting channels healthy. Want me to check anything specific?"\n\n'
           'INCIDENT RESPONSE TONE:\n'
           '- Confirmed threat: Direct, clear, action-focused\n'
           '  "There\'s activity at your North Gate. Control has been alerted. I\'m watching it now."\n'
@@ -726,12 +849,16 @@ String _telegramAssistantSystemPrompt({
 }
 
 String _cameraHealthPromptSnippet(
-  ClientCameraHealthFactPacket? cameraHealthFactPacket,
-) {
+  ClientCameraHealthFactPacket? cameraHealthFactPacket, {
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
+}) {
   if (cameraHealthFactPacket == null) {
     return '';
   }
-  return 'Structured camera health facts. Treat these as source-of-truth for camera-access claims, restoration claims, and next-step wording. Do not contradict them.\n'
+  final preamble = siteAwarenessSummary == null
+      ? 'Structured camera health facts. Treat these as source-of-truth for camera-access claims, restoration claims, and next-step wording. Do not contradict them.'
+      : 'Structured browser camera-health facts. These explain the local bridge state, but the fresh live site snapshot overrides them for whether monitoring is active.';
+  return '$preamble\n'
       '${cameraHealthFactPacket.toPromptBlock()}\n';
 }
 
@@ -739,6 +866,7 @@ _TelegramAiClientPromptContext _telegramAiClientPromptContext({
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final joinedContext = recentConversationTurns
       .map((value) => value.trim().toLowerCase())
@@ -747,15 +875,23 @@ _TelegramAiClientPromptContext _telegramAiClientPromptContext({
   return _TelegramAiClientPromptContext(
     clientName: _promptValueOrUnknown(scope.clientLabel),
     siteName: _promptValueOrUnknown(scope.siteReference),
-    watchStatus: _telegramAiWatchStatusPromptValue(cameraHealthFactPacket),
-    cameraStatus: _telegramAiCameraStatusPromptValue(cameraHealthFactPacket),
+    watchStatus: _telegramAiWatchStatusPromptValue(
+      cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
+    ),
+    cameraStatus: _telegramAiCameraStatusPromptValue(
+      cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
+    ),
     activeIncidents: _telegramAiActiveIncidentsPromptValue(
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
     ),
     lastActivity: _telegramAiLastActivityPromptValue(
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
     ),
     guardOnSite: _telegramAiGuardOnSitePromptValue(joinedContext),
     lastGuardCheckin: _telegramAiLastGuardCheckinPromptValue(
@@ -770,8 +906,12 @@ String _promptValueOrUnknown(String? value) {
 }
 
 String _telegramAiWatchStatusPromptValue(
-  ClientCameraHealthFactPacket? cameraHealthFactPacket,
-) {
+  ClientCameraHealthFactPacket? cameraHealthFactPacket, {
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
+}) {
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.watchStatusPromptValue;
+  }
   final packet = cameraHealthFactPacket;
   if (packet == null) {
     return 'unknown';
@@ -798,8 +938,12 @@ String _telegramAiWatchStatusPromptValue(
 }
 
 String _telegramAiCameraStatusPromptValue(
-  ClientCameraHealthFactPacket? cameraHealthFactPacket,
-) {
+  ClientCameraHealthFactPacket? cameraHealthFactPacket, {
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
+}) {
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.cameraStatusPromptValue;
+  }
   final packet = cameraHealthFactPacket;
   if (packet == null) {
     return 'unknown';
@@ -814,7 +958,11 @@ String _telegramAiCameraStatusPromptValue(
 String _telegramAiActiveIncidentsPromptValue({
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.activeIncidentsPromptValue;
+  }
   final threadCount = _telegramAiOpenIncidentCount(recentConversationTurns);
   final packet = cameraHealthFactPacket;
   if (packet != null) {
@@ -848,7 +996,11 @@ String _telegramAiActiveIncidentsPromptValue({
 String _telegramAiLastActivityPromptValue({
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.lastActivityPromptValue;
+  }
   final packet = cameraHealthFactPacket;
   if (packet != null) {
     final activityLabel =
@@ -973,6 +1125,7 @@ String _telegramAssistantOnyxPrompt({
   List<String> recentConversationTurns = const <String>[],
   ClientCameraHealthFactPacket? cameraHealthFactPacket,
   String? siteAwarenessContext,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final sharedPrompt = _telegramAssistantSystemPrompt(
     audience: audience,
@@ -987,6 +1140,7 @@ String _telegramAssistantOnyxPrompt({
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
     siteAwarenessContext: siteAwarenessContext,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   final audienceLabel = audience == TelegramAiAudience.admin
       ? 'admin'
@@ -1006,6 +1160,7 @@ String _telegramAssistantOnyxContextSummary({
   required List<String> preferredReplyStyleTags,
   required List<String> learnedReplyStyleTags,
   ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final normalizedMessage = _normalizeReplyHeuristicText(messageText);
   final laneStage = _resolveClientLaneStage(
@@ -1027,6 +1182,8 @@ String _telegramAssistantOnyxContextSummary({
       'learned_style_tags=${learnedReplyStyleTags.join(', ')}',
     if (cameraHealthFactPacket != null)
       'camera_health=${cameraHealthFactPacket.operatorSummary}',
+    if (siteAwarenessSummary != null)
+      'site_awareness=${siteAwarenessSummary.contextSummary}',
     if (recentConversationTurns.isNotEmpty)
       'recent_turns=${recentConversationTurns.take(4).join(' | ')}',
   ];
@@ -1047,6 +1204,7 @@ TelegramAiDraftReply? _telegramDraftReplyFromOnyxResponse({
   List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
   ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   if (response?.isError == true) {
     return null;
@@ -1072,6 +1230,7 @@ TelegramAiDraftReply? _telegramDraftReplyFromOnyxResponse({
     learnedReplyStyleTags: learnedReplyStyleTags,
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   ).trim();
   if (polished.isEmpty) {
     return null;
@@ -1094,6 +1253,7 @@ String _fallbackReply({
   List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
   ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final approvalContext = _approvalDraftPromptContext(
     messageText,
@@ -1147,6 +1307,7 @@ String _fallbackReply({
     escalatedLane: escalatedLane,
     pressuredLane: pressuredLane,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   if (cameraHealthReply != null) {
     return cameraHealthReply;
@@ -1156,6 +1317,7 @@ String _fallbackReply({
         normalizedMessage: normalized,
         scope: scope,
         cameraHealthFactPacket: cameraHealthFactPacket,
+        siteAwarenessSummary: siteAwarenessSummary,
       );
   if (semanticMovementIdentificationReply != null) {
     return semanticMovementIdentificationReply;
@@ -1183,6 +1345,7 @@ String _fallbackReply({
     scope: scope,
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   if (siteMovementStatusClarifier != null) {
     return siteMovementStatusClarifier;
@@ -1201,6 +1364,7 @@ String _fallbackReply({
     scope: scope,
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   if (currentSiteViewClarifier != null) {
     return currentSiteViewClarifier;
@@ -1210,6 +1374,7 @@ String _fallbackReply({
     scope: scope,
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   if (broadStatusClarifier != null) {
     return broadStatusClarifier;
@@ -1219,6 +1384,7 @@ String _fallbackReply({
     scope: scope,
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   if (siteIssueStatusClarifier != null) {
     return siteIssueStatusClarifier;
@@ -1328,6 +1494,7 @@ String _fallbackReply({
     scope: scope,
     recentConversationTurns: recentConversationTurns,
     cameraHealthFactPacket: cameraHealthFactPacket,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   if (cameraOfflineSignalClarifier != null) {
     return cameraOfflineSignalClarifier;
@@ -1371,6 +1538,7 @@ String _fallbackReply({
     normalizedMessage: normalized,
     scope: scope,
     recentConversationTurns: recentConversationTurns,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   if (cameraConnectionReply != null) {
     return cameraConnectionReply;
@@ -1392,6 +1560,7 @@ String _fallbackReply({
     normalizedMessage: normalized,
     scope: scope,
     recentConversationTurns: recentConversationTurns,
+    siteAwarenessSummary: siteAwarenessSummary,
   );
   if (cameraStatusClarifier != null) {
     return cameraStatusClarifier;
@@ -1547,6 +1716,7 @@ String _polishReply({
   List<String> learnedReplyStyleTags = const <String>[],
   List<String> recentConversationTurns = const <String>[],
   ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final normalized = text
       .replaceAll(RegExp(r'\r\n?'), '\n')
@@ -1567,6 +1737,32 @@ String _polishReply({
   cleaned = cleaned.replaceAll(RegExp(r'\(\s*/?\s*\)'), '');
   cleaned = cleaned.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
   if (audience == TelegramAiAudience.client &&
+      siteAwarenessSummary != null &&
+      _containsAny(cleaned.toLowerCase(), const [
+        'monitoring is limited',
+        'remote monitoring is limited',
+        'do not have live visual',
+        'camera visibility is limited',
+        'camera visibility unavailable',
+        'remote monitoring is unavailable',
+        'camera bridge is offline',
+        'camera link is temporarily limited',
+      ])) {
+    return _fallbackReply(
+      audience: audience,
+      messageText: messageText,
+      scope: scope,
+      deliveryMode: deliveryMode,
+      clientProfileSignals: clientProfileSignals,
+      preferredReplyExamples: preferredReplyExamples,
+      preferredReplyStyleTags: preferredReplyStyleTags,
+      learnedReplyStyleTags: learnedReplyStyleTags,
+      recentConversationTurns: recentConversationTurns,
+      cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
+    );
+  }
+  if (audience == TelegramAiAudience.client &&
       deliveryMode == TelegramAiDeliveryMode.telegramLive &&
       _shouldForceTruthGroundedClientFallback(
         messageText: messageText,
@@ -1583,6 +1779,7 @@ String _polishReply({
       learnedReplyStyleTags: learnedReplyStyleTags,
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
     );
   }
   if (_looksMechanicalClientReply(cleaned)) {
@@ -1597,6 +1794,7 @@ String _polishReply({
       learnedReplyStyleTags: learnedReplyStyleTags,
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
     );
   }
   cleaned = _dedupeClientReplySentences(cleaned);
@@ -1618,6 +1816,7 @@ String _polishReply({
       learnedReplyStyleTags: learnedReplyStyleTags,
       recentConversationTurns: recentConversationTurns,
       cameraHealthFactPacket: cameraHealthFactPacket,
+      siteAwarenessSummary: siteAwarenessSummary,
     );
   }
   final normalizedDrift = _normalizeClientReplyDrift(

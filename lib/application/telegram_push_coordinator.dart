@@ -50,7 +50,8 @@ class TelegramPushCoordinator {
   final String Function(ClientAppPushDeliveryItem item) messageBodyForItem;
   final Map<String, Object?>? Function(ClientAppPushDeliveryItem item)
   replyMarkupForItem;
-  final bool Function(ClientAppPushDeliveryItem item) isFreshExternalPushCandidate;
+  final bool Function(ClientAppPushDeliveryItem item)
+  isFreshExternalPushCandidate;
   final bool Function(String raw) isBlockedReason;
   final DateTime Function() nowUtc;
 
@@ -124,7 +125,8 @@ class TelegramPushCoordinator {
     final targetCache = <String, List<TelegramBridgeTarget>>{};
     final deliveredMessageKeysCache = <String, Set<String>>{};
     final skippedNoTargetContexts = <String>{};
-    final skippedNoTargetItemsByBridgeKey = <String, ClientAppPushDeliveryItem>{};
+    final skippedNoTargetItemsByBridgeKey =
+        <String, ClientAppPushDeliveryItem>{};
     final outbound = <TelegramBridgeMessage>[];
     final outboundItemsByMessageKey = <String, ClientAppPushDeliveryItem>{};
     final outboundScopeByMessageKey = <String, String>{};
@@ -169,7 +171,7 @@ class TelegramPushCoordinator {
             messageKey: messageKey,
             chatId: target.chatId,
             messageThreadId: target.threadId,
-            text: '${messageBodyForItem(item)}\nEndpoint: ${target.label}',
+            text: messageBodyForItem(item),
             replyMarkup: replyMarkupForItem(item),
           ),
         );
@@ -192,8 +194,9 @@ class TelegramPushCoordinator {
         attemptStatus: 'telegram-skipped',
         attemptFailureReason: noTargetLabel,
         attemptQueueSize: candidates.length,
-        smsFallbackCandidates: skippedNoTargetItemsByBridgeKey.values
-            .toList(growable: false),
+        smsFallbackCandidates: skippedNoTargetItemsByBridgeKey.values.toList(
+          growable: false,
+        ),
         smsFallbackReason: 'telegram target failure',
       );
     }
@@ -212,9 +215,9 @@ class TelegramPushCoordinator {
         attemptStatus: 'telegram-failed',
         attemptFailureReason: error.toString(),
         attemptQueueSize: outbound.length,
-        smsFallbackCandidates: outboundItemsByMessageKey.values
-            .toSet()
-            .toList(growable: false),
+        smsFallbackCandidates: outboundItemsByMessageKey.values.toSet().toList(
+          growable: false,
+        ),
         smsFallbackReason: 'telegram transport failure',
       );
     }
@@ -285,7 +288,9 @@ class TelegramPushCoordinator {
       if (scopeKey == null || scopeKey.trim().isEmpty) {
         continue;
       }
-      sentKeysByScope.putIfAbsent(scopeKey, () => <String>[]).add(normalizedKey);
+      sentKeysByScope
+          .putIfAbsent(scopeKey, () => <String>[])
+          .add(normalizedKey);
     }
     if (sentKeysByScope.isEmpty) {
       return const <String, List<String>>{};

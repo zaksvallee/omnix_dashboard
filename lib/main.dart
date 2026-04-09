@@ -118,6 +118,7 @@ import 'application/telegram_client_approval_service.dart';
 import 'application/telegram_client_quick_action_audit_formatter.dart';
 import 'application/telegram_client_prompt_signals.dart';
 import 'application/telegram_client_quick_action_service.dart';
+import 'application/telegram_poll_tab_lock.dart';
 import 'application/telegram_bridge_delivery_memory.dart';
 import 'application/telegram_bridge_resolver.dart';
 import 'application/telegram_push_coordinator.dart';
@@ -1861,6 +1862,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool _telegramAdminPollInFlight = false;
   bool _telegramAiBootGracePeriodComplete = false;
   bool _telegramAdminOffsetBootstrapped = false;
+  bool _telegramPollingLockAcquisitionInFlight = false;
+  bool _telegramPollingPrimaryTab = false;
   DateTime? _telegramAdminOffsetBootstrappedAtUtc;
   DateTime? _telegramAdminLastCommandAtUtc;
   String? _telegramAdminLastCommandSummary;
@@ -1962,6 +1965,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final TelegramPushCoordinator _telegramPushCoordinator;
   late final TelegramPushSyncCoordinator _telegramPushSyncCoordinator;
   late final ClientBackendProbeCoordinator _clientBackendProbeCoordinator;
+  late final TelegramPollingTabLock _telegramPollingTabLock;
   List<String> _guardSyncAvailableFacadeIds = const [];
   String? _guardSyncSelectedFacadeId;
   int _guardOpsPendingEvents = 0;
@@ -3146,6 +3150,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       unawaited(_hydrateTemporaryIdentityApprovalsFromSupabase());
     }
     WidgetsBinding.instance.addObserver(this);
+    _telegramPollingTabLock = TelegramPollingTabLock(
+      onPrimaryLost: _handleTelegramPollingPrimaryLost,
+      onPrimaryAvailable: _handleTelegramPollingPrimaryAvailable,
+    );
     _telegramBridgeHealthLabel = _telegramBridge.isConfigured
         ? 'configured'
         : 'disabled';
@@ -3386,6 +3394,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _tacticalGuardPositionsDebounceTimer?.cancel();
     _offlineIncidentSpoolSyncTimer?.cancel();
     _telegramAdminPollTimer?.cancel();
+    _telegramPollingTabLock.dispose();
     _monitoringWatchScheduleTimer?.cancel();
     _monitoringContinuousVisualWatchTimer?.cancel();
     _telegramDemoScriptTimer?.cancel();
@@ -3434,6 +3443,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         if (!_keepTelegramPollingWhenBackgrounded) {
           _telegramAdminPollTimer?.cancel();
           _telegramAdminPollTimer = null;
+          _telegramPollingTabLock.release();
+          _telegramPollingPrimaryTab = false;
         }
       }
       return;
@@ -13983,8 +13994,35 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   void _startTelegramAdminControlLoop() {
-    if (!_telegramInboundRouterEnabled || _telegramAdminPollTimer != null) {
+    if (!_telegramInboundRouterEnabled ||
+        _telegramAdminPollTimer != null ||
+        _telegramPollingLockAcquisitionInFlight) {
       return;
+    }
+    unawaited(_ensureTelegramPollingPrimaryTab());
+  }
+
+  Future<void> _ensureTelegramPollingPrimaryTab() async {
+    if (!_telegramInboundRouterEnabled ||
+        _telegramAdminPollTimer != null ||
+        _telegramPollingLockAcquisitionInFlight) {
+      return;
+    }
+    _telegramPollingLockAcquisitionInFlight = true;
+    try {
+      final isPrimary = await _telegramPollingTabLock.ensurePrimary();
+      _telegramPollingPrimaryTab = isPrimary;
+      if (!_telegramInboundRouterEnabled || _telegramAdminPollTimer != null) {
+        return;
+      }
+      if (!isPrimary) {
+        debugPrint(
+          'ONYX Telegram admin loop skipped in secondary browser tab.',
+        );
+        return;
+      }
+    } finally {
+      _telegramPollingLockAcquisitionInFlight = false;
     }
     debugPrint(
       'ONYX Telegram admin loop start: '
@@ -13992,6 +14030,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'admin=${_telegramAdminControlEnabled ? 'on' : 'off'} '
       'ai=${_telegramAiAssistantEnabled ? 'on' : 'off'} '
       'chat=${_resolvedTelegramAdminChatId().isEmpty ? 'unset' : _resolvedTelegramAdminChatId()} '
+      'tab=${_telegramPollingPrimaryTab ? 'primary' : 'secondary'} '
       'bridge=${_telegramBridge.isConfigured ? 'configured' : 'disabled'}',
     );
     _scheduleNextTelegramAdminPoll(1);
@@ -13999,7 +14038,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   void _scheduleNextTelegramAdminPoll(int delaySeconds) {
     _telegramAdminPollTimer?.cancel();
-    if (!_telegramInboundRouterEnabled) {
+    if (!_telegramInboundRouterEnabled || !_telegramPollingPrimaryTab) {
       _telegramAdminPollTimer = null;
       return;
     }
@@ -14206,7 +14245,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   Future<void> _pollTelegramAdminCommandsOnce() async {
-    if (!_telegramInboundRouterEnabled || _telegramAdminPollInFlight) {
+    if (!_telegramInboundRouterEnabled ||
+        _telegramAdminPollInFlight ||
+        !_telegramPollingPrimaryTab) {
       return;
     }
     _telegramAdminPollInFlight = true;
@@ -14305,6 +14346,29 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _normalizedTelegramAdminPollIntervalSeconds,
       );
     }
+  }
+
+  void _handleTelegramPollingPrimaryLost() {
+    _telegramAdminPollTimer?.cancel();
+    _telegramAdminPollTimer = null;
+    _telegramPollingPrimaryTab = false;
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _telegramBridgeHealthDetail =
+          'Telegram polling moved to another browser tab.';
+      _telegramBridgeHealthUpdatedAtUtc = DateTime.now().toUtc();
+    });
+  }
+
+  void _handleTelegramPollingPrimaryAvailable() {
+    if (!_telegramInboundRouterEnabled ||
+        _telegramAdminPollTimer != null ||
+        _telegramPollingLockAcquisitionInFlight) {
+      return;
+    }
+    unawaited(_ensureTelegramPollingPrimaryTab());
   }
 
   void _recordTelegramInboundUpdateFailure({
@@ -14951,6 +15015,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       selectedExamples: aiContext.preferredReplyExamples,
     );
     String? siteAwarenessContext;
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary;
     final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
       siteId: siteId,
     );
@@ -14960,6 +15025,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _telegramFlowNowUtc(),
         )) {
       siteAwarenessContext = _formatSiteAwarenessSnapshot(siteAwarenessRow);
+      siteAwarenessSummary = _telegramAiSiteAwarenessSummaryFromRow(
+        siteAwarenessRow,
+      );
     }
     TelegramAiDraftReply aiDraft;
     try {
@@ -14980,6 +15048,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             recentConversationTurns: aiContext.recentConversationTurns,
             cameraHealthFactPacket: aiContext.cameraHealthFactPacket,
             siteAwarenessContext: siteAwarenessContext,
+            siteAwarenessSummary: siteAwarenessSummary,
           )
           .timeout(const Duration(seconds: 5));
     } on TimeoutException {
@@ -35953,6 +36022,45 @@ int _siteAwarenessDetectionCount(
       0;
 }
 
+TelegramAiSiteAwarenessSummary? _telegramAiSiteAwarenessSummaryFromRow(
+  Map<String, dynamic> row,
+) {
+  final observedAtUtc = _siteAwarenessObservedAtUtc(row);
+  if (observedAtUtc == null) {
+    return null;
+  }
+  final knownFaults = row['known_faults'];
+  final knownFaultLabels = knownFaults is List
+      ? knownFaults
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false)
+      : const <String>[];
+  final activeAlerts = row['active_alerts'];
+  return TelegramAiSiteAwarenessSummary(
+    observedAtUtc: observedAtUtc,
+    perimeterClear: row['perimeter_clear'] == true,
+    humanCount: _siteAwarenessDetectionCount(row, 'human_count', 'humanCount'),
+    vehicleCount: _siteAwarenessDetectionCount(
+      row,
+      'vehicle_count',
+      'vehicleCount',
+    ),
+    animalCount: _siteAwarenessDetectionCount(
+      row,
+      'animal_count',
+      'animalCount',
+    ),
+    motionCount: _siteAwarenessDetectionCount(
+      row,
+      'motion_count',
+      'motionCount',
+    ),
+    activeAlertCount: activeAlerts is List ? activeAlerts.length : 0,
+    knownFaultChannels: knownFaultLabels,
+  );
+}
+
 Map<String, Object?>? _siteAwarenessAsObjectMap(Object? value) {
   if (value is! Map) {
     return null;
@@ -36106,6 +36214,10 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
 /// Builds a concise client-facing status reply from a fresh
 /// `site_awareness_snapshots` row (verified < 10 min old by caller).
 String _buildSiteAwarenessStatusReply(Map<String, dynamic> row) {
+  final summary = _telegramAiSiteAwarenessSummaryFromRow(row);
+  if (summary != null) {
+    return summary.clientMonitoringSummary(siteReference: 'the site');
+  }
   final perimeterClear = row['perimeter_clear'];
   final activeAlerts = row['active_alerts'];
   final knownFaults = row['known_faults'];
@@ -36135,13 +36247,11 @@ String _buildSiteAwarenessStatusReply(Map<String, dynamic> row) {
   if (perimeterClear == true) {
     final parts = <String>[];
     if (humans > 0) {
-      // Humans inside property = residents, not a breach.
-      final label = humans == 1 ? 'resident' : 'residents';
       parts.add(
-        'All clear. $humans $label detected on site. No perimeter breach.',
+        'Monitoring active. Perimeter clear. $humans people detected on site. No perimeter breach.',
       );
     } else {
-      parts.add('Perimeter clear.');
+      parts.add('Monitoring active. Perimeter clear.');
       if (detectionSummary.isNotEmpty) parts.add(detectionSummary);
     }
     if (faultLine.isNotEmpty) parts.add(faultLine);

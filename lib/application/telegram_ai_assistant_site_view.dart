@@ -60,6 +60,7 @@ String? _semanticMovementIdentificationReply({
   required String normalizedMessage,
   required _TelegramAiScopeProfile scope,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
   if (packet == null ||
@@ -84,7 +85,7 @@ String? _semanticMovementIdentificationReply({
   if (packet.hasContinuousVisualCoverage) {
     return 'I am not seeing confirmed person or vehicle activity on site at ${scope.siteReference} right now.';
   }
-  return 'I do not have confirmed person or vehicle activity on site at ${scope.siteReference} right now. ${_movementVisibilityBoundary(packet: packet, scope: scope)}';
+  return 'I do not have confirmed person or vehicle activity on site at ${scope.siteReference} right now. ${_movementVisibilityBoundary(packet: packet, scope: scope, siteAwarenessSummary: siteAwarenessSummary)}';
 }
 
 String? _continuousVisualWatchMovementReply({
@@ -198,7 +199,15 @@ String _recentSiteIssueSignalsLead({
 String _movementVisibilityBoundary({
   required ClientCameraHealthFactPacket packet,
   required _TelegramAiScopeProfile scope,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.clientMonitoringSummary(
+      siteReference: scope.siteReference,
+      extraDetail:
+          'I do not have a more specific movement confirmation beyond that snapshot right now.',
+    );
+  }
   if (packet.status == ClientCameraHealthStatus.live) {
     if (packet.path == ClientCameraHealthPath.legacyLocalProxy ||
         packet.reason == ClientCameraHealthReason.legacyProxyActive) {
@@ -215,7 +224,15 @@ String _movementVisibilityBoundary({
 String _siteVisibilityBoundary({
   required ClientCameraHealthFactPacket packet,
   required _TelegramAiScopeProfile scope,
+  TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.clientMonitoringSummary(
+      siteReference: scope.siteReference,
+      extraDetail:
+          'That is the latest verified monitoring view I can confirm right now.',
+    );
+  }
   if (packet.status == ClientCameraHealthStatus.live) {
     if (packet.path == ClientCameraHealthPath.legacyLocalProxy ||
         packet.reason == ClientCameraHealthReason.legacyProxyActive) {
@@ -254,6 +271,7 @@ String? _siteMovementStatusClarifierReply({
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
   if (packet == null || !_asksForCurrentFrameMovementCheck(normalizedMessage)) {
@@ -274,6 +292,13 @@ String? _siteMovementStatusClarifierReply({
   if (packet.liveSiteMovementStatus ==
       ClientLiveSiteMovementStatus.recentSignals) {
     return '${_recentMovementSignalsLead(packet: packet, scope: scope)} That means activity was picked up on site, but I still cannot confirm from the current view who or what is moving right now.';
+  }
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.clientMonitoringSummary(
+      siteReference: scope.siteReference,
+      extraDetail:
+          'I do not have a more specific movement confirmation beyond that snapshot right now.',
+    );
   }
   if (packet.hasContinuousVisualCoverage) {
     return 'I am not seeing active movement on site at ${scope.siteReference} right now. That does not by itself prove the site is clear, and I do not have a fresh movement confirmation to share right now.';
@@ -297,7 +322,7 @@ String? _siteMovementStatusClarifierReply({
     }
     return 'We currently have visual confirmation at ${scope.siteReference}, but I do not have a fresh movement confirmation to share right now.';
   }
-  return 'I do not have confirmed movement on site at ${scope.siteReference} from the current signals I can see right now. ${_movementVisibilityBoundary(packet: packet, scope: scope)}';
+  return 'I do not have confirmed movement on site at ${scope.siteReference} from the current signals I can see right now. ${_movementVisibilityBoundary(packet: packet, scope: scope, siteAwarenessSummary: siteAwarenessSummary)}';
 }
 
 String? _siteIssueStatusClarifierReply({
@@ -305,6 +330,7 @@ String? _siteIssueStatusClarifierReply({
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
   if (packet == null || !_asksForCurrentSiteIssueCheck(normalizedMessage)) {
@@ -329,12 +355,17 @@ String? _siteIssueStatusClarifierReply({
     case ClientLiveSiteIssueStatus.recentSignals:
       return '${_recentSiteIssueSignalsLead(packet: packet, scope: scope)} That means a recent site signal was picked up, but I do not yet have a confirmed active issue from the current view alone.';
     case ClientLiveSiteIssueStatus.noConfirmedIssue:
+      if (siteAwarenessSummary != null) {
+        return siteAwarenessSummary.clientMonitoringSummary(
+          siteReference: scope.siteReference,
+        );
+      }
       if (packet.hasContinuousVisualCoverage) {
         return 'I am not seeing active movement on site at ${scope.siteReference} right now. That does not by itself prove the site is clear, but nothing in the current signals confirms an active issue on site.';
       }
-      return 'I do not have a confirmed active issue on site at ${scope.siteReference} from the current signals I can see right now. ${_siteVisibilityBoundary(packet: packet, scope: scope)}';
+      return 'I do not have a confirmed active issue on site at ${scope.siteReference} from the current signals I can see right now. ${_siteVisibilityBoundary(packet: packet, scope: scope, siteAwarenessSummary: siteAwarenessSummary)}';
     case ClientLiveSiteIssueStatus.unknown:
-      return 'I do not have a confirmed active issue on site at ${scope.siteReference} from the current signals I can see right now. ${_siteVisibilityBoundary(packet: packet, scope: scope)}';
+      return 'I do not have a confirmed active issue on site at ${scope.siteReference} from the current signals I can see right now. ${_siteVisibilityBoundary(packet: packet, scope: scope, siteAwarenessSummary: siteAwarenessSummary)}';
   }
 }
 
@@ -421,6 +452,7 @@ String? _currentSiteViewClarifierReply({
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
   if (packet == null || !_asksForCurrentSiteView(normalizedMessage)) {
@@ -441,6 +473,12 @@ String? _currentSiteViewClarifierReply({
   }
   if (effectiveIssueStatus == ClientLiveSiteIssueStatus.recentSignals) {
     return '${_recentMovementSignalsLead(packet: packet, scope: scope)} That means recent activity was picked up on site, but I still cannot confirm from the current view who or what is moving right now.';
+  }
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.clientMonitoringSummary(
+      siteReference: scope.siteReference,
+      nextStepQuestion: nextStepQuestion,
+    );
   }
   final downCameraLabel = _recentThreadDownCameraLabel(recentConversationTurns);
   final recentUnusableCurrentImage = _recentThreadShowsUnusableCurrentImage(
@@ -471,6 +509,7 @@ String? _packetGroundedBroadStatusReply({
   required _TelegramAiScopeProfile scope,
   required List<String> recentConversationTurns,
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
+  required TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
 }) {
   final packet = cameraHealthFactPacket;
   if (packet == null ||
@@ -493,6 +532,12 @@ String? _packetGroundedBroadStatusReply({
   }
   if (effectiveIssueStatus == ClientLiveSiteIssueStatus.recentSignals) {
     return '${_recentSiteIssueSignalsLead(packet: packet, scope: scope)} That means a recent site signal was picked up, but I do not yet have a confirmed active issue from the current view alone.';
+  }
+  if (siteAwarenessSummary != null) {
+    return siteAwarenessSummary.clientMonitoringSummary(
+      siteReference: scope.siteReference,
+      nextStepQuestion: nextStepQuestion,
+    );
   }
   if (_containsAny(normalizedMessage, const ['site okay', 'site is okay']) &&
       packet.hasContinuousVisualCoverage) {

@@ -3067,6 +3067,68 @@ void main() {
   );
 
   test(
+    'openai assistant uses fresh site awareness as the authoritative monitoring status during a bridge outage',
+    () async {
+      final client = MockClient((request) async {
+        return http.Response(
+          jsonEncode({
+            'output_text':
+                'Based on what I can see, there are no active alerts at MS Vallee Residence. My visual monitoring is limited right now. Want me to arrange a manual follow-up?',
+          }),
+          200,
+        );
+      });
+      final service = OpenAiTelegramAiAssistantService(
+        client: client,
+        apiKey: 'sk-test',
+        model: 'gpt-5.4',
+      );
+      final packet = _cameraHealthFactPacket(
+        status: ClientCameraHealthStatus.offline,
+        reason: ClientCameraHealthReason.bridgeOffline,
+        path: ClientCameraHealthPath.legacyLocalProxy,
+        safeClientExplanation:
+            'Live camera access at MS Vallee Residence is currently unavailable because the local camera bridge is offline.',
+      );
+
+      final draft = await service.draftReply(
+        audience: TelegramAiAudience.client,
+        messageText: 'hows everything',
+        clientId: 'CLIENT-MS-VALLEE',
+        siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        recentConversationTurns: const [
+          'ONYX AI: Live camera access at MS Vallee Residence is currently unavailable because the local camera bridge is offline.',
+        ],
+        cameraHealthFactPacket: packet,
+        siteAwarenessContext: const [
+          '- Snapshot time (UTC): 2026-04-09T15:47:00.000Z',
+          '- Perimeter status: clear',
+          '- People detected in latest snapshot: 1',
+          '- Vehicles detected in latest snapshot: 0',
+          '- Animals detected in latest snapshot: 0',
+          '- Active alerts in latest snapshot: 0',
+          '- Known fault channels: none',
+        ].join('\n'),
+        siteAwarenessSummary: TelegramAiSiteAwarenessSummary(
+          observedAtUtc: DateTime.parse('2026-04-09T15:47:00Z'),
+          perimeterClear: true,
+          humanCount: 1,
+          vehicleCount: 0,
+          animalCount: 0,
+          motionCount: 0,
+          activeAlertCount: 0,
+        ),
+      );
+
+      expect(
+        draft.text,
+        'Monitoring active. Perimeter clear at MS Vallee Residence. Latest snapshot shows 1 person, 0 vehicles, 0 animals, and 0 active alerts. Channel status: all reporting channels healthy. Want me to arrange a manual follow-up?',
+      );
+      expect(draft.text, isNot(contains('limited right now')));
+    },
+  );
+
+  test(
     'openai assistant rejects camera-only reassurance wording for broad status checks during a bridge outage',
     () async {
       final client = MockClient((request) async {
