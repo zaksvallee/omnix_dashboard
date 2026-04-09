@@ -4,8 +4,69 @@ import 'package:supabase/supabase.dart';
 
 import 'onyx_site_awareness_snapshot.dart';
 
+class OnyxSiteOccupancyConfig {
+  final String siteId;
+  final int expectedOccupancy;
+  final String occupancyLabel;
+  final String siteType;
+  final int resetHour;
+
+  const OnyxSiteOccupancyConfig({
+    required this.siteId,
+    required this.expectedOccupancy,
+    required this.occupancyLabel,
+    required this.siteType,
+    required this.resetHour,
+  });
+
+  factory OnyxSiteOccupancyConfig.fromRow(Map<String, dynamic> row) {
+    return OnyxSiteOccupancyConfig(
+      siteId: (row['site_id'] as String? ?? '').trim(),
+      expectedOccupancy: _siteOccupancyInt(row['expected_occupancy']) ?? 0,
+      occupancyLabel: (row['occupancy_label'] as String? ?? 'people').trim(),
+      siteType:
+          (row['site_type'] as String? ?? 'private_residence').trim(),
+      resetHour: _siteOccupancyInt(row['reset_hour']) ?? 3,
+    );
+  }
+}
+
+class OnyxSiteOccupancySession {
+  final String siteId;
+  final String sessionDate;
+  final int peakDetected;
+  final DateTime? lastDetectionAt;
+  final List<String> channelsWithDetections;
+
+  const OnyxSiteOccupancySession({
+    required this.siteId,
+    required this.sessionDate,
+    required this.peakDetected,
+    required this.lastDetectionAt,
+    required this.channelsWithDetections,
+  });
+
+  factory OnyxSiteOccupancySession.fromRow(Map<String, dynamic> row) {
+    final rawChannels = row['channels_with_detections'];
+    return OnyxSiteOccupancySession(
+      siteId: (row['site_id'] as String? ?? '').trim(),
+      sessionDate: (row['session_date'] as String? ?? '').trim(),
+      peakDetected: _siteOccupancyInt(row['peak_detected']) ?? 0,
+      lastDetectionAt: _siteOccupancyDate(row['last_detection_at']),
+      channelsWithDetections: rawChannels is List
+          ? rawChannels
+                .map((value) => value.toString().trim())
+                .where((value) => value.isNotEmpty)
+                .toList(growable: false)
+          : const <String>[],
+    );
+  }
+}
+
 class OnyxSiteAwarenessRepository {
   final SupabaseClient _client;
+  final Map<String, OnyxSiteOccupancyConfig?> _occupancyConfigCache =
+      <String, OnyxSiteOccupancyConfig?>{};
 
   OnyxSiteAwarenessRepository(SupabaseClient client) : _client = client;
 
@@ -36,4 +97,145 @@ class OnyxSiteAwarenessRepository {
       rethrow;
     }
   }
+
+  Future<OnyxSiteOccupancyConfig?> readOccupancyConfig(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return null;
+    }
+    if (_occupancyConfigCache.containsKey(normalizedSiteId)) {
+      return _occupancyConfigCache[normalizedSiteId];
+    }
+    try {
+      final rows = await _client
+          .from('site_occupancy_config')
+          .select(
+            'site_id,expected_occupancy,occupancy_label,site_type,reset_hour',
+          )
+          .eq('site_id', normalizedSiteId)
+          .limit(1);
+      final config = rows.isEmpty
+          ? null
+          : OnyxSiteOccupancyConfig.fromRow(
+              Map<String, dynamic>.from(rows.first as Map),
+            );
+      _occupancyConfigCache[normalizedSiteId] = config;
+      return config;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read occupancy config for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return null;
+    }
+  }
+
+  Future<void> recordHumanDetection({
+    required String siteId,
+    required String channelId,
+    required DateTime detectedAt,
+  }) async {
+    final normalizedSiteId = siteId.trim();
+    final normalizedChannelId = channelId.trim();
+    if (normalizedSiteId.isEmpty || normalizedChannelId.isEmpty) {
+      return;
+    }
+    try {
+      final config = await readOccupancyConfig(normalizedSiteId);
+      final sessionDate = _siteOccupancySessionDateValue(
+        detectedAt.toLocal(),
+        resetHour: config?.resetHour ?? 3,
+      );
+      final existing = await _readOccupancySession(
+        siteId: normalizedSiteId,
+        sessionDate: sessionDate,
+      );
+      final updatedChannels = <String>{
+        ...?existing?.channelsWithDetections,
+        normalizedChannelId,
+      }.toList(growable: false)
+        ..sort();
+      final peakDetected = updatedChannels.length > (existing?.peakDetected ?? 0)
+          ? updatedChannels.length
+          : (existing?.peakDetected ?? 0);
+      await _client.from('site_occupancy_sessions').upsert(<String, Object?>{
+        'site_id': normalizedSiteId,
+        'session_date': sessionDate,
+        'peak_detected': peakDetected,
+        'last_detection_at': detectedAt.toUtc().toIso8601String(),
+        'channels_with_detections': updatedChannels,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'site_id,session_date');
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to record occupancy signal for $normalizedSiteId channel $normalizedChannelId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      rethrow;
+    }
+  }
+
+  Future<OnyxSiteOccupancySession?> _readOccupancySession({
+    required String siteId,
+    required String sessionDate,
+  }) async {
+    final rows = await _client
+        .from('site_occupancy_sessions')
+        .select(
+          'site_id,session_date,peak_detected,last_detection_at,channels_with_detections',
+        )
+        .eq('site_id', siteId)
+        .eq('session_date', sessionDate)
+        .limit(1);
+    if (rows.isEmpty) {
+      return null;
+    }
+    return OnyxSiteOccupancySession.fromRow(
+      Map<String, dynamic>.from(rows.first as Map),
+    );
+  }
+}
+
+String _siteOccupancySessionDateValue(
+  DateTime detectedAtLocal, {
+  int resetHour = 3,
+}) {
+  final normalizedResetHour = resetHour.clamp(0, 23);
+  final dayStart = DateTime(
+    detectedAtLocal.year,
+    detectedAtLocal.month,
+    detectedAtLocal.day,
+    normalizedResetHour,
+  );
+  final sessionLocalDate = detectedAtLocal.isBefore(dayStart)
+      ? dayStart.subtract(const Duration(days: 1))
+      : dayStart;
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${sessionLocalDate.year.toString().padLeft(4, '0')}-${two(sessionLocalDate.month)}-${two(sessionLocalDate.day)}';
+}
+
+int? _siteOccupancyInt(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
+  return null;
+}
+
+DateTime? _siteOccupancyDate(Object? value) {
+  if (value is! String || value.trim().isEmpty) {
+    return null;
+  }
+  return DateTime.tryParse(value)?.toUtc();
 }

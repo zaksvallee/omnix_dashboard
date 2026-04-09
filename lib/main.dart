@@ -15123,7 +15123,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           .timeout(const Duration(seconds: 5));
     } on TimeoutException {
       final fallbackText = siteAwarenessRow != null
-          ? _buildSiteAwarenessStatusReply(siteAwarenessRow)
+          ? await _telegramLiveStatusReply(
+              clientId: target.clientId,
+              siteId: siteId,
+            )
           : 'Your message has been received. Our team will follow up shortly.';
       aiDraft = TelegramAiDraftReply(
         text: fallbackText,
@@ -15925,6 +15928,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final siteAwarenessSummary = freshSiteAwareness
         ? _telegramAiSiteAwarenessSummaryFromRow(siteAwarenessRow)
         : null;
+    Map<String, dynamic>? occupancyConfigRow;
+    Map<String, dynamic>? occupancySessionRow;
+    if (siteAwarenessSummary != null) {
+      occupancyConfigRow = await _readSiteOccupancyConfigRow(siteId: siteId);
+      if (occupancyConfigRow != null) {
+        occupancySessionRow = await _readSiteOccupancySessionRow(
+          siteId: siteId,
+          nowLocal: _telegramFlowNowLocal(),
+          resetHour: _siteOccupancyResetHour(occupancyConfigRow),
+        );
+      }
+    }
     final dispatches = _telegramCommandDispatchSummariesForScope(
       clientId: clientId,
       siteId: siteId,
@@ -15948,12 +15963,40 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add(
         'Perimeter: ${siteAwarenessSummary.perimeterClear ? 'Clear' : 'Alert active'}',
       );
-      lines.add(
-        'On site: ${_telegramCommandPresenceSummaryLine(siteAwarenessSummary)}',
-      );
-      lines.add(
-        'Active alerts: ${siteAwarenessSummary.activeAlertCount == 0 ? 'None' : siteAwarenessSummary.activeAlertCount}',
-      );
+      final isPrivateResidence =
+          _isPrivateResidenceOccupancyConfig(occupancyConfigRow) &&
+          _siteOccupancyExpectedOccupancy(occupancyConfigRow) > 0;
+      if (isPrivateResidence) {
+        final expectedOccupancy = _siteOccupancyExpectedOccupancy(
+          occupancyConfigRow,
+        );
+        final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
+        final occupancyPeak = _siteOccupancyPeakDetected(occupancySessionRow);
+        final detectedToday = siteAwarenessSummary.humanCount > occupancyPeak
+            ? siteAwarenessSummary.humanCount
+            : occupancyPeak;
+        lines.add(
+          'Occupancy: $detectedToday of $expectedOccupancy $occupancyLabel detected today',
+        );
+        if (detectedToday < expectedOccupancy) {
+          lines.add('Expected on site: $expectedOccupancy $occupancyLabel');
+        }
+        final lastMovementAtUtc =
+            _siteOccupancyLastDetectionAtUtc(occupancySessionRow) ??
+            (detectedToday > 0 ? siteAwarenessSummary.observedAtUtc : null);
+        if (lastMovementAtUtc != null) {
+          lines.add(
+            'Last movement: ${_telegramCommandLocalTimeLabel(lastMovementAtUtc)}',
+          );
+        }
+      } else {
+        lines.add(
+          'On site: ${_telegramCommandPresenceSummaryLine(siteAwarenessSummary)}',
+        );
+      }
+      if (siteAwarenessSummary.activeAlertCount > 0) {
+        lines.add('Active alerts: ${siteAwarenessSummary.activeAlertCount}');
+      }
       lines.add(
         'Last update: ${_telegramCommandRelativeAgeLabel(siteAwarenessSummary.observedAtUtc)}',
       );
@@ -18978,8 +19021,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       if (siteAwarenessRow != null &&
           _isSiteAwarenessSnapshotFresh(siteAwarenessRow, nowUtc)) {
-        siteAwarenessStatusOverride = _buildSiteAwarenessStatusReply(
-          siteAwarenessRow,
+        siteAwarenessStatusOverride = await _telegramLiveStatusReply(
+          clientId: target.clientId,
+          siteId: siteId,
         );
       }
     }
@@ -37151,6 +37195,95 @@ String? _siteAwarenessSummaryString(Object? value) {
   return trimmed.isEmpty ? null : trimmed;
 }
 
+Future<Map<String, dynamic>?> _readSiteOccupancyConfigRow({
+  required String siteId,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return null;
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('site_occupancy_config')
+        .select(
+          'site_id,expected_occupancy,occupancy_label,site_type,reset_hour',
+        )
+        .eq('site_id', siteId.trim())
+        .limit(1);
+    if (rows.isEmpty) {
+      return null;
+    }
+    return Map<String, dynamic>.from(rows.first as Map);
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<Map<String, dynamic>?> _readSiteOccupancySessionRow({
+  required String siteId,
+  required DateTime nowLocal,
+  int resetHour = 3,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return null;
+  }
+  try {
+    final sessionDate = _siteOccupancySessionDateValue(
+      nowLocal,
+      resetHour: resetHour,
+    );
+    final rows = await Supabase.instance.client
+        .from('site_occupancy_sessions')
+        .select(
+          'site_id,session_date,peak_detected,last_detection_at,channels_with_detections,updated_at',
+        )
+        .eq('site_id', siteId.trim())
+        .eq('session_date', sessionDate)
+        .limit(1);
+    if (rows.isEmpty) {
+      return null;
+    }
+    return Map<String, dynamic>.from(rows.first as Map);
+  } catch (_) {
+    return null;
+  }
+}
+
+String _siteOccupancySessionDateValue(DateTime observedAtLocal, {int resetHour = 3}) {
+  final normalizedResetHour = resetHour.clamp(0, 23);
+  final dayStart = DateTime(
+    observedAtLocal.year,
+    observedAtLocal.month,
+    observedAtLocal.day,
+    normalizedResetHour,
+  );
+  final sessionLocalDate = observedAtLocal.isBefore(dayStart)
+      ? dayStart.subtract(const Duration(days: 1))
+      : dayStart;
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${sessionLocalDate.year.toString().padLeft(4, '0')}-${two(sessionLocalDate.month)}-${two(sessionLocalDate.day)}';
+}
+
+int _siteOccupancyExpectedOccupancy(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryInt(row?['expected_occupancy']) ?? 0;
+
+int _siteOccupancyResetHour(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryInt(row?['reset_hour']) ?? 3;
+
+String _siteOccupancyLabel(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryString(row?['occupancy_label']) ?? 'people';
+
+String _siteOccupancySiteType(Map<String, dynamic>? row) =>
+    (_siteAwarenessSummaryString(row?['site_type']) ?? '').toLowerCase();
+
+bool _isPrivateResidenceOccupancyConfig(Map<String, dynamic>? row) =>
+    _siteOccupancySiteType(row) == 'private_residence';
+
+int _siteOccupancyPeakDetected(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryInt(row?['peak_detected']) ?? 0;
+
+DateTime? _siteOccupancyLastDetectionAtUtc(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryDate(row?['last_detection_at']);
+
 String _siteAwarenessHumanizedLabel(Object? value) {
   final raw = value?.toString().trim() ?? '';
   if (raw.isEmpty) {
@@ -37262,59 +37395,4 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
   }
 
   return lines.join('\n');
-}
-
-/// Builds a concise client-facing status reply from a fresh
-/// `site_awareness_snapshots` row (verified < 10 min old by caller).
-String _buildSiteAwarenessStatusReply(Map<String, dynamic> row) {
-  final summary = _telegramAiSiteAwarenessSummaryFromRow(row);
-  if (summary != null) {
-    return summary.clientMonitoringSummary(siteReference: 'the site');
-  }
-  final perimeterClear = row['perimeter_clear'];
-  final activeAlerts = row['active_alerts'];
-  final knownFaults = row['known_faults'];
-
-  // Detection counts.
-  final humans = _siteAwarenessDetectionCount(row, 'human_count', 'humanCount');
-  final vehicles = _siteAwarenessDetectionCount(
-    row,
-    'vehicle_count',
-    'vehicleCount',
-  );
-  final animals = _siteAwarenessDetectionCount(
-    row,
-    'animal_count',
-    'animalCount',
-  );
-  final detectionSummary =
-      'Humans: $humans, vehicles: $vehicles, animals: $animals.';
-
-  // Known fault channels line.
-  String faultLine = '';
-  if (knownFaults is List && knownFaults.isNotEmpty) {
-    final labels = knownFaults.map((f) => 'CH$f').join(', ');
-    faultLine = '$labels offline — known fault.';
-  }
-
-  if (perimeterClear == true) {
-    final parts = <String>[];
-    if (humans > 0) {
-      parts.add(
-        'Monitoring active. Perimeter clear. $humans people detected on site. No perimeter breach.',
-      );
-    } else {
-      parts.add('Monitoring active. Perimeter clear.');
-      if (detectionSummary.isNotEmpty) parts.add(detectionSummary);
-    }
-    if (faultLine.isNotEmpty) parts.add(faultLine);
-    return parts.join(' ');
-  } else {
-    final alertCount = activeAlerts is List ? activeAlerts.length : 0;
-    final parts = <String>['⚠️ Perimeter breached.'];
-    if (detectionSummary.isNotEmpty) parts.add(detectionSummary);
-    parts.add('$alertCount active ${alertCount == 1 ? 'alert' : 'alerts'}.');
-    if (faultLine.isNotEmpty) parts.add(faultLine.trim());
-    return parts.join(' ');
-  }
 }

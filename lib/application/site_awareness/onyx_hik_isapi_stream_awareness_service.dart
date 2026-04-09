@@ -234,30 +234,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         final extraction = _extractAlertXml(buffer);
         buffer = extraction.remainder;
         for (final payload in extraction.payloads) {
-          try {
-            final event = OnyxSiteAwarenessEvent.fromAlertXml(
-              payload,
-              knownFaultChannels: knownFaultChannels.toSet(),
-              clock: _clock,
-            );
-            final projector = _projector;
-            if (projector == null) {
-              continue;
-            }
-            final snapshot = projector.ingest(event);
-            _latestSnapshot = snapshot;
-            if (event.shouldPublishImmediately) {
-              _emitSnapshot(snapshot);
-            }
-          } catch (error, stackTrace) {
-            developer.log(
-              'Failed to parse Hikvision EventNotificationAlert payload.',
-              name: 'OnyxHikIsapiStream',
-              error: error,
-              stackTrace: stackTrace,
-              level: 1000,
-            );
-          }
+          _ingestAlertPayload(
+            payload,
+            errorLabel: 'Failed to parse Hikvision EventNotificationAlert payload.',
+          );
         }
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -277,30 +257,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         _isConnected = false;
         final extraction = _extractAlertXml(buffer);
         for (final payload in extraction.payloads) {
-          try {
-            final event = OnyxSiteAwarenessEvent.fromAlertXml(
-              payload,
-              knownFaultChannels: knownFaultChannels.toSet(),
-              clock: _clock,
-            );
-            final projector = _projector;
-            if (projector == null) {
-              continue;
-            }
-            final snapshot = projector.ingest(event);
-            _latestSnapshot = snapshot;
-            if (event.shouldPublishImmediately) {
-              _emitSnapshot(snapshot);
-            }
-          } catch (error, stackTrace) {
-            developer.log(
-              'Failed to parse trailing Hikvision alert payload.',
-              name: 'OnyxHikIsapiStream',
-              error: error,
-              stackTrace: stackTrace,
-              level: 1000,
-            );
-          }
+          _ingestAlertPayload(
+            payload,
+            errorLabel: 'Failed to parse trailing Hikvision alert payload.',
+          );
         }
         if (!completer.isCompleted) {
           completer.complete();
@@ -311,6 +271,41 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     await completer.future;
     if (generation == _generation) {
       _streamSubscription = null;
+    }
+  }
+
+  void _ingestAlertPayload(String payload, {required String errorLabel}) {
+    try {
+      final event = OnyxSiteAwarenessEvent.fromAlertXml(
+        payload,
+        knownFaultChannels: knownFaultChannels.toSet(),
+        clock: _clock,
+      );
+      _ingestEvent(event);
+    } catch (error, stackTrace) {
+      developer.log(
+        errorLabel,
+        name: 'OnyxHikIsapiStream',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
+  }
+
+  void _ingestEvent(OnyxSiteAwarenessEvent event) {
+    final projector = _projector;
+    if (projector == null) {
+      return;
+    }
+    final snapshot = projector.ingest(event);
+    _latestSnapshot = snapshot;
+    final repository = _repository;
+    if (repository != null && event.eventType == OnyxEventType.humanDetected) {
+      unawaited(_persistOccupancy(repository, event));
+    }
+    if (event.shouldPublishImmediately) {
+      _emitSnapshot(snapshot);
     }
   }
 
@@ -353,6 +348,27 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     } catch (error, stackTrace) {
       developer.log(
         'Failed to persist site awareness snapshot.',
+        name: 'OnyxHikIsapiStream',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
+  }
+
+  Future<void> _persistOccupancy(
+    OnyxSiteAwarenessRepository repository,
+    OnyxSiteAwarenessEvent event,
+  ) async {
+    try {
+      await repository.recordHumanDetection(
+        siteId: _siteId,
+        channelId: event.channelId,
+        detectedAt: event.detectedAt,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to persist site occupancy session.',
         name: 'OnyxHikIsapiStream',
         error: error,
         stackTrace: stackTrace,
