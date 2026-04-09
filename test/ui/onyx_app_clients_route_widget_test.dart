@@ -543,6 +543,7 @@ class _ScriptedTelegramAiAssistantStub implements TelegramAiAssistantService {
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    String? siteAwarenessContext,
   }) async {
     final normalized = messageText.trim().toLowerCase();
     if (audience == TelegramAiAudience.client &&
@@ -594,6 +595,7 @@ class _DraftRefiningTelegramAiAssistantStub
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    String? siteAwarenessContext,
   }) async {
     final normalized = messageText.trim().toLowerCase();
     if (audience == TelegramAiAudience.client &&

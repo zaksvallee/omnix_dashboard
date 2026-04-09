@@ -180,6 +180,7 @@ class _ThrowingAdminTelegramAiAssistantStub
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    String? siteAwarenessContext,
   }) async {
     throw StateError('admin ai draft failed');
   }
@@ -207,6 +208,7 @@ class _FlakyAdminTelegramAiAssistantStub implements TelegramAiAssistantService {
     List<String> learnedReplyStyleTags = const <String>[],
     List<String> recentConversationTurns = const <String>[],
     ClientCameraHealthFactPacket? cameraHealthFactPacket,
+    String? siteAwarenessContext,
   }) async {
     if (audience == TelegramAiAudience.admin &&
         messageText.trim().toLowerCase() == 'hello onyx' &&
