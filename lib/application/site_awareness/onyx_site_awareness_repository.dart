@@ -10,6 +10,7 @@ class OnyxSiteOccupancyConfig {
   final String occupancyLabel;
   final String siteType;
   final int resetHour;
+  final bool hasGuard;
 
   const OnyxSiteOccupancyConfig({
     required this.siteId,
@@ -17,6 +18,7 @@ class OnyxSiteOccupancyConfig {
     required this.occupancyLabel,
     required this.siteType,
     required this.resetHour,
+    required this.hasGuard,
   });
 
   factory OnyxSiteOccupancyConfig.fromRow(Map<String, dynamic> row) {
@@ -27,6 +29,7 @@ class OnyxSiteOccupancyConfig {
       siteType:
           (row['site_type'] as String? ?? 'private_residence').trim(),
       resetHour: _siteOccupancyInt(row['reset_hour']) ?? 3,
+      hasGuard: _siteOccupancyBool(row['has_guard']) ?? false,
     );
   }
 }
@@ -107,10 +110,10 @@ class OnyxSiteAwarenessRepository {
       return _occupancyConfigCache[normalizedSiteId];
     }
     try {
-      final rows = await _client
+        final rows = await _client
           .from('site_occupancy_config')
           .select(
-            'site_id,expected_occupancy,occupancy_label,site_type,reset_hour',
+            'site_id,expected_occupancy,occupancy_label,site_type,reset_hour,has_guard',
           )
           .eq('site_id', normalizedSiteId)
           .limit(1);
@@ -238,4 +241,28 @@ DateTime? _siteOccupancyDate(Object? value) {
     return null;
   }
   return DateTime.tryParse(value)?.toUtc();
+}
+
+bool? _siteOccupancyBool(Object? value) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    if (value == 1) {
+      return true;
+    }
+    if (value == 0) {
+      return false;
+    }
+  }
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+      return true;
+    }
+    if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+      return false;
+    }
+  }
+  return null;
 }

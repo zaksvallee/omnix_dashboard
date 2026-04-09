@@ -16155,6 +16155,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String clientId,
     required String siteId,
   }) async {
+    final occupancyConfigRow = await _readSiteOccupancyConfigRow(siteId: siteId);
+    if (occupancyConfigRow != null && !_siteOccupancyHasGuard(occupancyConfigRow)) {
+      return 'No guard is assigned to this site.\nONYX is monitoring via cameras only.';
+    }
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
     final repository = await _guardSyncRepositoryForScope(
       clientId: clientId,
@@ -16188,7 +16192,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         patrols.isNotEmpty ||
         checkIns.isNotEmpty;
     if (!hasGuardCoverage) {
-      return 'Guard status: $siteLabel\n• No guard unit is configured for this site right now.';
+      return 'No guard is assigned to this site.\nONYX is monitoring via cameras only.';
     }
     final latestPatrol = patrols.isEmpty ? null : patrols.first;
     final latestCheckIn = checkIns.isEmpty ? null : checkIns.first;
@@ -37205,7 +37209,7 @@ Future<Map<String, dynamic>?> _readSiteOccupancyConfigRow({
     final rows = await Supabase.instance.client
         .from('site_occupancy_config')
         .select(
-          'site_id,expected_occupancy,occupancy_label,site_type,reset_hour',
+          'site_id,expected_occupancy,occupancy_label,site_type,reset_hour,has_guard',
         )
         .eq('site_id', siteId.trim())
         .limit(1);
@@ -37278,11 +37282,38 @@ String _siteOccupancySiteType(Map<String, dynamic>? row) =>
 bool _isPrivateResidenceOccupancyConfig(Map<String, dynamic>? row) =>
     _siteOccupancySiteType(row) == 'private_residence';
 
+bool _siteOccupancyHasGuard(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryBool(row?['has_guard']) ?? false;
+
 int _siteOccupancyPeakDetected(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryInt(row?['peak_detected']) ?? 0;
 
 DateTime? _siteOccupancyLastDetectionAtUtc(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryDate(row?['last_detection_at']);
+
+bool? _siteAwarenessSummaryBool(Object? value) {
+  if (value is bool) {
+    return value;
+  }
+  if (value is num) {
+    if (value == 1) {
+      return true;
+    }
+    if (value == 0) {
+      return false;
+    }
+  }
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+      return true;
+    }
+    if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+      return false;
+    }
+  }
+  return null;
+}
 
 String _siteAwarenessHumanizedLabel(Object? value) {
   final raw = value?.toString().trim() ?? '';

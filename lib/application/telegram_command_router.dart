@@ -22,6 +22,15 @@ class OnyxTelegramCommandRouter {
     'all good',
     'whats on site',
     "what's on site",
+    'how many people',
+    'how many',
+    'people on site',
+    'anyone on site',
+    'who is on site',
+    'occupancy',
+    'how many residents',
+    'anyone home',
+    'anyone there',
   };
 
   static const Set<String> _incidentTriggers = <String>{
@@ -47,7 +56,6 @@ class OnyxTelegramCommandRouter {
     'checkpoint',
     'guard on site',
     'missed patrol',
-    'on site',
   };
 
   static const Set<String> _reportTriggers = <String>{
@@ -100,17 +108,17 @@ class OnyxTelegramCommandRouter {
     if (_looksLikeDispatchQuery(normalized)) {
       return OnyxTelegramCommandType.dispatch;
     }
-    if (_looksLikeGuardQuery(normalized)) {
-      return OnyxTelegramCommandType.guard;
-    }
     if (_looksLikeIncidentQuery(normalized)) {
       return OnyxTelegramCommandType.incident;
     }
     if (_matchesAny(normalized, _reportTriggers)) {
       return OnyxTelegramCommandType.report;
     }
-    if (_matchesAny(normalized, _liveStatusTriggers)) {
+    if (_looksLikeLiveStatusQuery(normalized)) {
       return OnyxTelegramCommandType.liveStatus;
+    }
+    if (_looksLikeGuardQuery(normalized)) {
+      return OnyxTelegramCommandType.guard;
     }
     return OnyxTelegramCommandType.unknown;
   }
@@ -152,13 +160,27 @@ class OnyxTelegramCommandRouter {
   }
 
   bool _looksLikeGuardQuery(String normalized) {
-    if (normalized == 'on site') {
-      return true;
-    }
     if (normalized.contains('guard on site')) {
       return true;
     }
     return _matchesAny(normalized, _guardTriggers);
+  }
+
+  bool _looksLikeLiveStatusQuery(String normalized) {
+    if (_matchesAny(normalized, _liveStatusTriggers)) {
+      return true;
+    }
+    if (normalized == 'how many') {
+      return true;
+    }
+    return normalized.contains('how many') &&
+        (normalized.contains('people') ||
+            normalized.contains('resident') ||
+            normalized.contains('occupancy') ||
+            normalized.contains('anyone') ||
+            normalized.contains('home') ||
+            normalized.contains('there') ||
+            normalized.contains('on site'));
   }
 
   bool _looksLikeIncidentQuery(String normalized) {
