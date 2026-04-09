@@ -9,9 +9,24 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-09 19:32
-- **Last commit:** chore: make starts full stack — proxy + worker + app
-- **Commit hash:** 44e35da
+- **Date:** 2026-04-09 23:15
+- **Last commit:** fix: router — people count, gate sensors, yes/no handling
+- **Commit hash:** ce06301
+
+## Completed today (2026-04-09 night)
+- [x] Telegram command routing brain — 8 query types
+- [x] Camera-only occupancy tracking — site_occupancy_config + sessions
+- [x] Telegram proxy — CORS fix, single-tab dedup, BroadcastChannel lock
+- [x] Boot grace period — no longer drops live messages on restart
+- [x] Site awareness authoritative — fresh snapshot overrides browser bridge
+- [x] Response timeout — 5s cap on all AI calls
+- [x] Gate sensor handling — honest "camera only" response
+- [x] No fake guard data — guard queries check configuration first
+- [x] Double response fix — single Chrome tab polling
+- [x] Timezone fix — local time in monitoring messages
+- [x] Debug label removed — no more "Endpoint: env-fallback"
+- [x] make starts full stack — proxy + worker + Flutter automatically
+- [x] make stop, make status scripts
 
 
 ## Completed (this sprint)
@@ -43,17 +58,14 @@
 - [x] ONVIF bridge — discovery, streams, snapshots, PTZ, presets
 
 ## In progress
-- [ ] Detection reset + alert dedup + clear action + perimeter wording (Claude Code running)
+- [ ] Server-side AI processor planning — move Telegram AI off the browser path
 
 ## Priority queue (next session)
-- P0: Detection reset + alert dedup + clear action + perimeter wording (Claude Code running)
-- P1: Hikvision proxy — gate ServerSocket.bind behind Platform.isLinux/isMacOS check, suppress on web
-- P2: YOLO local detector — wire to camera snapshot feed when Ollama is running
-- P3: Telegram bot response quality — natural language tuning
-- P4: dispatch_performance_projection.dart — per-contract value to client config (deferred, contract model not ready)
-- P5: onyx_agent_camera_bridge_receiver.dart Dahua/Axis/Uniview — integration test with real hardware when available
-- Phase 2: Pattern + FR engine (post Hik-Connect)
-- Phase 3: Presence intelligence — three-state model
+- P0: Server-side AI processor — move Telegram AI to server
+- P1: Hik-Connect API — implement when credentials arrive
+- P2: Pattern + FR engine — Phase 2 post Hik-Connect
+- P3: Presence intelligence — three-state model
+- P4: Image/snapshot export via Telegram
 
 ## Blocked / needs decision
 - [ ] dispatch_performance_projection.dart — per-contract value, waiting on contract model
