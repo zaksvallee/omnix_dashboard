@@ -79,4 +79,13 @@ void main() {
       contains('Assessment: likely routine on-site team activity'),
     );
   });
+
+  test('clear action maps to alerts cleared audit label', () {
+    final preview = formatter.buildPreview(
+      action: TelegramClientQuickAction.clear,
+      responseText: 'Alerts cleared. Monitoring continues.',
+    );
+
+    expect(preview, 'alerts_cleared');
+  });
 }

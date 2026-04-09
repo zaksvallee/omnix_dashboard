@@ -21,6 +21,7 @@ class TelegramClientQuickActionAuditFormatter {
       TelegramClientQuickAction.cameraCheck => _fullStatusPreview(lines),
       TelegramClientQuickAction.nextStep => lines.take(10).join(' | '),
       TelegramClientQuickAction.status => lines.take(10).join(' | '),
+      TelegramClientQuickAction.clear => 'alerts_cleared',
     };
   }
 
