@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -14893,10 +14894,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     String? siteAwarenessContext;
     {
       const saUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-      const saKey = String.fromEnvironment(
-        'ONYX_SUPABASE_SERVICE_KEY',
-        defaultValue: '',
-      );
+      final saKey = kIsWeb
+          ? const String.fromEnvironment(
+              'ONYX_SUPABASE_SERVICE_KEY',
+              defaultValue: '',
+            )
+          : (const String.fromEnvironment(
+                    'ONYX_SUPABASE_SERVICE_KEY',
+                    defaultValue: '',
+                  ).isNotEmpty
+              ? const String.fromEnvironment(
+                  'ONYX_SUPABASE_SERVICE_KEY',
+                  defaultValue: '',
+                )
+              : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
       if (saUrl.isNotEmpty && saKey.isNotEmpty) {
         final saClient = SupabaseClient(saUrl, saKey);
         try {
@@ -17706,10 +17717,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     // Handle clear action early — needs Supabase write, no context building.
     if (action == TelegramClientQuickAction.clear) {
       const saUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-      const saKey = String.fromEnvironment(
-        'ONYX_SUPABASE_SERVICE_KEY',
-        defaultValue: '',
-      );
+      final saKey = kIsWeb
+          ? const String.fromEnvironment(
+              'ONYX_SUPABASE_SERVICE_KEY',
+              defaultValue: '',
+            )
+          : (const String.fromEnvironment(
+                    'ONYX_SUPABASE_SERVICE_KEY',
+                    defaultValue: '',
+                  ).isNotEmpty
+              ? const String.fromEnvironment(
+                  'ONYX_SUPABASE_SERVICE_KEY',
+                  defaultValue: '',
+                )
+              : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
       if (saUrl.isNotEmpty && saKey.isNotEmpty) {
         final saClient = SupabaseClient(saUrl, saKey);
         try {
@@ -17781,9 +17802,23 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     String? siteAwarenessStatusOverride;
     if (action == TelegramClientQuickAction.status) {
       const saUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-      const saKey = String.fromEnvironment(
-        'ONYX_SUPABASE_SERVICE_KEY',
-        defaultValue: '',
+      final saKey = kIsWeb
+          ? const String.fromEnvironment(
+              'ONYX_SUPABASE_SERVICE_KEY',
+              defaultValue: '',
+            )
+          : (const String.fromEnvironment(
+                    'ONYX_SUPABASE_SERVICE_KEY',
+                    defaultValue: '',
+                  ).isNotEmpty
+              ? const String.fromEnvironment(
+                  'ONYX_SUPABASE_SERVICE_KEY',
+                  defaultValue: '',
+                )
+              : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
+      developer.log(
+        'SA key length: ${saKey.length}',
+        name: 'SiteAwareness',
       );
       if (saUrl.isNotEmpty && saKey.isNotEmpty) {
         final saClient = SupabaseClient(saUrl, saKey);
@@ -17800,7 +17835,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               final snapshotAt = DateTime.tryParse(snapshotAtStr)?.toUtc();
               if (snapshotAt != null &&
                   nowUtc.difference(snapshotAt) <
-                      const Duration(minutes: 10)) {
+                      const Duration(minutes: 30)) {
                 siteAwarenessStatusOverride =
                     _buildSiteAwarenessStatusReply(row);
               }
