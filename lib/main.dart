@@ -14205,21 +14205,43 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         }
         return;
       }
+      var updatesToProcess = updates;
       if (!_telegramAiBootGracePeriodComplete) {
+        final appStartTime = DateTime.now().toUtc().subtract(
+          const Duration(seconds: 30),
+        );
+        final staleUpdates = <TelegramBridgeInboundMessage>[];
+        final freshUpdates = <TelegramBridgeInboundMessage>[];
+        for (final update in updates) {
+          final sentAtUtc = update.sentAtUtc?.toUtc();
+          if (sentAtUtc != null && sentAtUtc.isBefore(appStartTime)) {
+            staleUpdates.add(update);
+          } else {
+            freshUpdates.add(update);
+          }
+        }
+        await _seedTelegramAdminUpdateTracking(updates);
+        for (final staleUpdate in staleUpdates) {
+          await _markTelegramInboundUpdateProcessed(staleUpdate.updateId);
+        }
         _telegramAiBootGracePeriodComplete = true;
-        final maxUpdateId = updates.map((u) => u.updateId).reduce(math.max);
-        _telegramAdminLastUpdateId = maxUpdateId;
-        await _persistTelegramAdminRuntimeState();
         developer.log(
-          'ONYX: boot grace period complete — ${updates.length} queued updates skipped',
+          'ONYX: boot grace period complete — '
+          '${staleUpdates.length} stale queued updates skipped, '
+          '${freshUpdates.length} recent updates kept '
+          '(cutoff ${appStartTime.toIso8601String()})',
           name: 'TelegramBoot',
         );
-        return;
+        if (freshUpdates.isEmpty) {
+          return;
+        }
+        updatesToProcess = freshUpdates;
+      } else {
+        await _seedTelegramAdminUpdateTracking(updates);
       }
-      await _seedTelegramAdminUpdateTracking(updates);
       final adminChatId = _resolvedTelegramAdminChatId();
       final adminThreadId = _resolvedTelegramAdminThreadId();
-      for (final update in updates) {
+      for (final update in updatesToProcess) {
         if (_telegramInboundUpdateAlreadyProcessed(update.updateId)) {
           continue;
         }
@@ -33948,7 +33970,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             learnedReplyExamples: aiContext.learnedReplyExamples,
             learnedReplyStyleTags: aiContext.learnedReplyStyleTags,
             recentConversationTurns: <String>[
-              if (normalizedRoom.isNotEmpty) 'Active reply lane: $normalizedRoom',
+              if (normalizedRoom.isNotEmpty)
+                'Active reply lane: $normalizedRoom',
               if (normalizedDraftText.isNotEmpty)
                 'Current operator draft: ${_singleLine(normalizedDraftText, maxLength: 160)}',
               ...aiContext.recentConversationTurns,
@@ -33957,7 +33980,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           )
           .timeout(const Duration(seconds: 5));
     } on TimeoutException {
-      return normalizedDraftText.isEmpty ? latestClientAsk : normalizedDraftText;
+      return normalizedDraftText.isEmpty
+          ? latestClientAsk
+          : normalizedDraftText;
     }
     final assistedText = aiDraft.text.trim();
     if (assistedText.isNotEmpty) {
