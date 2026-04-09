@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-08 23:27
-- **Last commit:** fix: site awareness query — use service key directly, bypass anon key 401
-- **Commit hash:** a9ce286
+- **Date:** 2026-04-08 23:50
+- **Last commit:** chore: SESSION.md — end of session 2026-04-08 night
+- **Commit hash:** 620b5e0
 
 
 ## Completed (this sprint)
@@ -37,17 +37,21 @@
 - [x] Telegram MS Valee Residence — diagnosed and fixed (RLS, chat ID, boot grace period, stale reports)
 - [x] Hikvision ISAPI event stream — live, human detection working on CH5/CH16
 - [x] Site awareness service — Hikvision ISAPI stream, snapshot model, Supabase repository
+- [x] Site awareness → Telegram pipeline LIVE — humans:7 detected on CH4/CH16, Supabase writing, bot responding with live data (2026-04-09 morning)
 - [x] Camera worker CLI — standalone dart process, launch script
 - [x] Vendor cameras — Dahua, Axis, Uniview workers implemented
 - [x] ONVIF bridge — discovery, streams, snapshots, PTZ, presets
 
 ## In progress
-- [ ] Site awareness → Telegram pipeline — camera worker running, snapshots not persisting due to invalid service role key in config
+- [ ] Detection reset + alert dedup + clear action + perimeter wording (Claude Code running)
 
 ## Priority queue (next session)
-- P0: Fix ONYX_SUPABASE_SERVICE_KEY in config/onyx.local.json — get correct service_role key from Supabase dashboard → Project Settings → API → service_role secret. Then restart camera worker + Flutter app. Pipeline will be live immediately after.
-- P2: dispatch_performance_projection.dart — per-contract value to client config (deferred, contract model not ready)
-- P3: onyx_agent_camera_bridge_receiver.dart Dahua/Axis/Uniview — integration test with real hardware when available
+- P0: Detection reset + alert dedup + clear action + perimeter wording (Claude Code running)
+- P1: Hikvision proxy — gate ServerSocket.bind behind Platform.isLinux/isMacOS check, suppress on web
+- P2: YOLO local detector — wire to camera snapshot feed when Ollama is running
+- P3: Telegram bot response quality — natural language tuning
+- P4: dispatch_performance_projection.dart — per-contract value to client config (deferred, contract model not ready)
+- P5: onyx_agent_camera_bridge_receiver.dart Dahua/Axis/Uniview — integration test with real hardware when available
 
 ## Blocked / needs decision
 - [ ] dispatch_performance_projection.dart — per-contract value, waiting on contract model
