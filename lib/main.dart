@@ -91,6 +91,8 @@ import 'application/site_identity_registry_repository.dart';
 import 'application/monitoring_shift_scope_config.dart';
 import 'application/offline_incident_spool_service.dart';
 import 'application/openai_runtime_config.dart';
+import 'application/olarm/onyx_olarm_bridge_service.dart';
+import 'application/olarm/onyx_olarm_service.dart';
 import 'application/onyx_agent_camera_change_service.dart';
 import 'application/onyx_agent_camera_bridge_health_service.dart';
 import 'application/onyx_agent_camera_bridge_receiver.dart';
@@ -1127,6 +1129,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _dvrDeviceSerialNoEnv = String.fromEnvironment(
     'ONYX_DVR_DEVICE_SERIAL_NO',
   );
+  static const _olarmApiKeyEnv = String.fromEnvironment('ONYX_OLARM_API_KEY');
+  static const _olarmDeviceIdEnv = String.fromEnvironment(
+    'ONYX_OLARM_DEVICE_ID',
+  );
   static const _dvrAlarmEventTypesEnv = String.fromEnvironment(
     'ONYX_DVR_ALARM_EVENT_TYPES',
   );
@@ -1489,6 +1495,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   final http.Client _smsBridgeHttpClient = http.Client();
   final http.Client _telegramBridgeHttpClient = http.Client();
   final http.Client _telegramAiHttpClient = http.Client();
+  final http.Client _olarmHttpClient = http.Client();
   final http.Client _onyxAgentLocalHttpClient = http.Client();
   final http.Client _onyxAgentToolHttpClient = http.Client();
   final http.Client _monitoringVisionHttpClient = http.Client();
@@ -1509,6 +1516,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final VoipCallService _voipCallService = _buildVoipCallService();
   late final TelegramAiAssistantService _telegramAiAssistant =
       widget.telegramAiAssistantServiceOverride ?? _buildTelegramAiAssistant();
+  OnyxOlarmService? _olarmService;
+  StreamSubscription<OnyxOlarmEvent>? _olarmEventSubscription;
   static const OnyxTelegramCommandRouter _telegramCommandRouter =
       OnyxTelegramCommandRouter();
   late final OnyxTelegramOperationalCommandService
@@ -3324,6 +3333,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
     _startOnyxAgentCameraBridgeServerIfEnabled();
     _startLocalHikvisionDvrProxyIfConfigured();
+    _startOlarmBridgeIfConfigured();
     _syncMonitoringYoloHealthIfConfigured();
     _rebuildDispatchServices();
     _newsIntel = NewsIntelligenceService();
@@ -3446,6 +3456,155 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     stressService = IntakeStressService(store: store, service: service);
   }
 
+  bool get _olarmConfigured {
+    return _olarmApiKeyEnv.trim().isNotEmpty && _olarmDeviceIdEnv.trim().isNotEmpty;
+  }
+
+  void _startOlarmBridgeIfConfigured() {
+    if (!_olarmConfigured) {
+      return;
+    }
+    final service =
+        _olarmService ??
+        OnyxOlarmBridgeService(
+          apiKey: _olarmApiKeyEnv.trim(),
+          siteId: _selectedSite.trim(),
+          deviceId: _olarmDeviceIdEnv.trim(),
+          client: _olarmHttpClient,
+        );
+    _olarmService = service;
+    unawaited(_olarmEventSubscription?.cancel());
+    _olarmEventSubscription = service.events.listen((event) {
+      unawaited(_handleOlarmEvent(event));
+    });
+    unawaited(
+      service.connect().catchError((Object error, StackTrace stackTrace) {
+        developer.log(
+          'Failed to start Olarm bridge.',
+          name: 'OnyxOlarmBridge',
+          error: error,
+          stackTrace: stackTrace,
+          level: 1000,
+        );
+      }),
+    );
+  }
+
+  Future<void> _handleOlarmEvent(OnyxOlarmEvent event) async {
+    await _recordOlarmEventToSupabase(event);
+    await _pushOlarmAlarmEventToTelegram(event);
+  }
+
+  Future<void> _recordOlarmEventToSupabase(OnyxOlarmEvent event) async {
+    if (!widget.supabaseReady) {
+      return;
+    }
+    final normalized = _olarmNormalizedPayload(event.rawPayload);
+    try {
+      await Supabase.instance.client.from('site_alarm_events').insert(
+        <String, Object?>{
+          'site_id': _selectedSite,
+          'device_id': event.deviceId.trim(),
+          'event_type': event.eventType.name,
+          'zone_id': event.zoneId?.trim().isEmpty == true
+              ? null
+              : event.zoneId?.trim(),
+          'area_id': event.areaId?.trim().isEmpty == true
+              ? null
+              : event.areaId?.trim(),
+          'zone_name': normalized['zone_name'],
+          'area_name': normalized['area_name'],
+          'armed_state': normalized['armed_state'],
+          'occurred_at': event.occurredAt.toUtc().toIso8601String(),
+          'raw_payload': event.rawPayload,
+        },
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to persist Olarm alarm event for ${event.deviceId}.',
+        name: 'OnyxOlarmBridge',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
+  }
+
+  Future<void> _pushOlarmAlarmEventToTelegram(OnyxOlarmEvent event) async {
+    final text = _olarmTelegramAlertText(event);
+    if (text == null || text.trim().isEmpty) {
+      return;
+    }
+    final dispatch = await _telegramPushCoordinator.sendScopedAlert(
+      clientId: _selectedClient,
+      siteId: _selectedSite,
+      messageKeyPrefix:
+          'tg-olarm-${event.eventType.name}-${event.deviceId.trim().isEmpty ? 'device' : event.deviceId.trim()}-${event.occurredAt.microsecondsSinceEpoch}',
+      text: text,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _telegramBridgeHealthLabel = dispatch.healthLabel;
+      _telegramBridgeHealthDetail = dispatch.healthDetail;
+      _telegramBridgeHealthUpdatedAtUtc = _telegramFlowNowUtc();
+    });
+    if (dispatch.attemptStatus != 'telegram-ok') {
+      return;
+    }
+    await _appendTelegramConversationMessage(
+      clientId: _selectedClient,
+      siteId: _selectedSite,
+      author: 'ONYX Alarm',
+      body: text,
+      occurredAtUtc: event.occurredAt.toUtc(),
+      roomKey: 'Residents',
+      viewerRole: ClientAppViewerRole.client.name,
+      incidentStatusLabel: 'Alarm Event',
+      messageSource: 'telegram',
+      messageProvider: 'olarm_alarm',
+    );
+  }
+
+  Map<String, dynamic> _olarmNormalizedPayload(Map<String, dynamic> payload) {
+    final raw = payload['onyx_normalized'];
+    if (raw is Map) {
+      return Map<String, dynamic>.from(raw);
+    }
+    return const <String, dynamic>{};
+  }
+
+  String? _olarmTelegramAlertText(OnyxOlarmEvent event) {
+    final siteLabel = _deliverySiteLabelFor(
+      clientId: _selectedClient,
+      siteId: _selectedSite,
+    );
+    final normalized = _olarmNormalizedPayload(event.rawPayload);
+    final zoneName =
+        (normalized['zone_name'] ?? '').toString().trim().isNotEmpty
+        ? normalized['zone_name'].toString().trim()
+        : (event.zoneId?.trim().isNotEmpty == true
+              ? 'Zone ${event.zoneId!.trim()}'
+              : 'Alarm zone');
+    final areaName =
+        (normalized['area_name'] ?? '').toString().trim().isNotEmpty
+        ? normalized['area_name'].toString().trim()
+        : (event.areaId?.trim().isNotEmpty == true
+              ? 'Area ${event.areaId!.trim()}'
+              : 'Alarm area');
+    final isPerimeter = normalized['is_perimeter'] == true;
+    return switch (event.eventType) {
+      OnyxOlarmEventType.zoneOpen when isPerimeter =>
+        '⚠️ Alarm zone open: $zoneName at $siteLabel',
+      OnyxOlarmEventType.areaTriggered =>
+        '🚨 ALARM TRIGGERED: $areaName at $siteLabel',
+      OnyxOlarmEventType.areaArmed => '🔒 Site armed: $siteLabel',
+      OnyxOlarmEventType.areaDisarmed => '🔓 Site disarmed: $siteLabel',
+      _ => null,
+    };
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -3478,11 +3637,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _smsBridgeHttpClient.close();
     _telegramBridgeHttpClient.close();
     _telegramAiHttpClient.close();
+    _olarmHttpClient.close();
     _onyxAgentLocalHttpClient.close();
     _onyxAgentToolHttpClient.close();
     _voipBridgeHttpClient.close();
     _monitoringVisionHttpClient.close();
     _monitoringYoloHttpClient.close();
+    unawaited(_olarmEventSubscription?.cancel() ?? Future<void>.value());
+    unawaited(_olarmService?.disconnect() ?? Future<void>.value());
     _guardTelemetryAdapter.dispose();
     _newsIntel.dispose();
     final tacticalChannel = _tacticalGuardPositionsChannel;

@@ -272,6 +272,116 @@ class TelegramPushCoordinator {
     );
   }
 
+  Future<TelegramPushDispatchResult> sendScopedAlert({
+    required String clientId,
+    required String siteId,
+    required String messageKeyPrefix,
+    required String text,
+    Map<String, Object?>? replyMarkup,
+    String? parseMode,
+  }) async {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    final normalizedText = text.trim();
+    if (!telegramBridge.isConfigured) {
+      return TelegramPushDispatchResult(
+        noop: false,
+        healthLabel: 'disabled',
+        healthDetail: 'Telegram bridge disabled or missing bot token.',
+        fallbackToInApp: false,
+        occurredAtUtc: nowUtc(),
+        attemptStatus: 'telegram-disabled',
+        attemptQueueSize: 0,
+        smsFallbackCandidates: const <ClientAppPushDeliveryItem>[],
+      );
+    }
+    if (normalizedClientId.isEmpty ||
+        normalizedSiteId.isEmpty ||
+        normalizedText.isEmpty) {
+      return TelegramPushDispatchResult.noop();
+    }
+    final targets = await telegramBridgeResolver.resolveClientTargets(
+      clientId: normalizedClientId,
+      siteId: normalizedSiteId,
+    );
+    if (targets.isEmpty) {
+      return TelegramPushDispatchResult(
+        noop: false,
+        healthLabel: 'no-target',
+        healthDetail:
+            'No active Telegram endpoint for $normalizedClientId / $normalizedSiteId.',
+        fallbackToInApp: true,
+        occurredAtUtc: nowUtc(),
+        attemptStatus: 'telegram-skipped',
+        attemptQueueSize: 0,
+        smsFallbackCandidates: const <ClientAppPushDeliveryItem>[],
+      );
+    }
+    final outbound = <TelegramBridgeMessage>[
+      for (final target in targets)
+        TelegramBridgeMessage(
+          messageKey:
+              '$messageKeyPrefix:${target.chatId}:${target.threadId ?? ''}',
+          chatId: target.chatId,
+          messageThreadId: target.threadId,
+          text: normalizedText,
+          replyMarkup: replyMarkup,
+          parseMode: parseMode,
+        ),
+    ];
+    final sentAt = nowUtc();
+    TelegramBridgeSendResult result;
+    try {
+      result = await telegramBridge.sendMessages(messages: outbound);
+    } catch (error) {
+      return TelegramPushDispatchResult(
+        noop: false,
+        healthLabel: 'degraded',
+        healthDetail: error.toString(),
+        fallbackToInApp: false,
+        occurredAtUtc: sentAt,
+        attemptStatus: 'telegram-failed',
+        attemptFailureReason: error.toString(),
+        attemptQueueSize: outbound.length,
+        smsFallbackCandidates: const <ClientAppPushDeliveryItem>[],
+      );
+    }
+    if (result.failedCount == 0) {
+      return TelegramPushDispatchResult(
+        noop: false,
+        healthLabel: 'ok',
+        healthDetail: 'Last Telegram alert delivery succeeded.',
+        fallbackToInApp: false,
+        occurredAtUtc: sentAt,
+        attemptStatus: 'telegram-ok',
+        attemptQueueSize: outbound.length,
+        smsFallbackCandidates: const <ClientAppPushDeliveryItem>[],
+      );
+    }
+    final reasonValues = result.failureReasonsByMessageKey.values
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final blocked = reasonValues.any(isBlockedReason);
+    final reasonSuffix = reasonValues.isEmpty
+        ? ''
+        : ' Reasons: ${reasonValues.take(2).join(' | ')}';
+    final failureLabel =
+        'Telegram alert delivery failed for ${result.failedCount}/${outbound.length} message(s).$reasonSuffix';
+    return TelegramPushDispatchResult(
+      noop: false,
+      healthLabel: blocked ? 'blocked' : 'degraded',
+      healthDetail: failureLabel,
+      fallbackToInApp: blocked,
+      occurredAtUtc: sentAt,
+      attemptStatus: blocked ? 'telegram-blocked' : 'telegram-failed',
+      attemptFailureReason: failureLabel,
+      attemptQueueSize: outbound.length,
+      smsFallbackCandidates: const <ClientAppPushDeliveryItem>[],
+    );
+  }
+
   Map<String, List<String>> _mergeDeliveredMessageKeysByScope({
     required Iterable<String> sentMessageKeys,
     required Map<String, String> scopeByMessageKey,
