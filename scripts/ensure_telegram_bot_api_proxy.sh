@@ -6,6 +6,7 @@ cd "$ROOT_DIR"
 
 CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 LOG_FILE="${ONYX_TELEGRAM_PROXY_LOG_FILE:-tmp/onyx_telegram_proxy.log}"
+PID_FILE="${ONYX_TELEGRAM_PROXY_PID_FILE:-tmp/onyx_telegram_proxy.pid}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -15,6 +16,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --log-file)
       LOG_FILE="${2:-}"
+      shift 2
+      ;;
+    --pid-file)
+      PID_FILE="${2:-}"
       shift 2
       ;;
     --)
@@ -59,6 +64,24 @@ proxy_host="${proxy_host:-127.0.0.1}"
 proxy_port="${proxy_port:-11637}"
 proxy_url="http://${proxy_host}:${proxy_port}"
 
+running_pid() {
+  if [[ -f "$PID_FILE" ]]; then
+    local existing_pid
+    existing_pid="$(tr -d '[:space:]' <"$PID_FILE")"
+    if [[ -n "$existing_pid" ]] && kill -0 "$existing_pid" 2>/dev/null; then
+      printf '%s\n' "$existing_pid"
+      return 0
+    fi
+  fi
+  local matched_pid
+  matched_pid="$(pgrep -f "bin/onyx_telegram_bot_api_proxy.dart" | head -n 1 || true)"
+  if [[ -n "$matched_pid" ]]; then
+    printf '%s\n' "$matched_pid"
+    return 0
+  fi
+  return 1
+}
+
 healthcheck() {
   python3 - "$proxy_url/health" <<'PY'
 import json
@@ -77,14 +100,20 @@ PY
 }
 
 if healthcheck; then
+  mkdir -p "$(dirname "$PID_FILE")"
+  if existing_pid="$(running_pid)"; then
+    printf '%s\n' "$existing_pid" >"$PID_FILE"
+  fi
   echo "ONYX Telegram proxy already reachable on ${proxy_url}"
   exit 0
 fi
 
 mkdir -p "$(dirname "$LOG_FILE")"
+mkdir -p "$(dirname "$PID_FILE")"
 nohup dart run bin/onyx_telegram_bot_api_proxy.dart --config "$CONFIG_FILE" \
   >"$LOG_FILE" 2>&1 &
 proxy_pid=$!
+printf '%s\n' "$proxy_pid" >"$PID_FILE"
 
 for _ in $(seq 1 20); do
   sleep 0.5
@@ -98,6 +127,7 @@ for _ in $(seq 1 20); do
 done
 
 echo "FAIL: ONYX Telegram proxy failed to start on ${proxy_url}" >&2
+rm -f "$PID_FILE"
 if [[ -f "$LOG_FILE" ]]; then
   tail -n 40 "$LOG_FILE" >&2 || true
 fi

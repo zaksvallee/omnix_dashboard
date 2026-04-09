@@ -59,14 +59,56 @@ json_value_any() {
   printf '\n'
 }
 
+json_url_part() {
+  local key="$1"
+  local part="$2"
+  python3 - "$CONFIG_FILE" "$key" "$part" <<'PY'
+import json
+import sys
+from urllib.parse import urlparse
+
+path, key, part = sys.argv[1], sys.argv[2], sys.argv[3]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+raw = str(data.get(key, "") or "").strip()
+if not raw:
+    print("")
+    raise SystemExit(0)
+parsed = urlparse(raw)
+if part == "host":
+    print(parsed.hostname or "")
+elif part == "port":
+    print(parsed.port or "")
+else:
+    print("")
+PY
+}
+
+set_optional_env() {
+  local name="$1"
+  local value="${2:-}"
+  if [[ -n "$value" ]]; then
+    export "$name=$value"
+  else
+    unset "$name"
+  fi
+}
+
 export ONYX_SUPABASE_URL="$(json_value_any ONYX_SUPABASE_URL SUPABASE_URL)"
 export ONYX_SUPABASE_SERVICE_KEY="$(json_value_any ONYX_SUPABASE_SERVICE_KEY SUPABASE_SERVICE_KEY)"
 export SUPABASE_ANON_KEY="$(json_value_any SUPABASE_ANON_KEY ONYX_SUPABASE_ANON_KEY)"
-export ONYX_HIK_HOST="$(json_value_any ONYX_HIK_HOST)"
-export ONYX_HIK_PORT="$(json_value_any ONYX_HIK_PORT)"
-export ONYX_HIK_USERNAME="$(json_value_any ONYX_HIK_USERNAME)"
-export ONYX_HIK_KNOWN_FAULT_CHANNELS="$(json_value_any ONYX_HIK_KNOWN_FAULT_CHANNELS)"
-export ONYX_CLIENT_ID="$(json_value_any ONYX_CLIENT_ID)"
-export ONYX_SITE_ID="$(json_value_any ONYX_SITE_ID)"
+set_optional_env ONYX_HIK_HOST "$(json_value_any ONYX_HIK_HOST || true)"
+if [[ -z "${ONYX_HIK_HOST:-}" ]]; then
+  set_optional_env ONYX_HIK_HOST "$(json_url_part ONYX_DVR_PROXY_UPSTREAM_URL host || true)"
+fi
+set_optional_env ONYX_HIK_PORT "$(json_value_any ONYX_HIK_PORT || true)"
+if [[ -z "${ONYX_HIK_PORT:-}" ]]; then
+  set_optional_env ONYX_HIK_PORT "$(json_url_part ONYX_DVR_PROXY_UPSTREAM_URL port || true)"
+fi
+set_optional_env ONYX_HIK_USERNAME "$(json_value_any ONYX_HIK_USERNAME ONYX_DVR_PROXY_UPSTREAM_USERNAME || true)"
+set_optional_env ONYX_HIK_PASSWORD "${ONYX_HIK_PASSWORD:-$(json_value_any ONYX_HIK_PASSWORD ONYX_DVR_PROXY_UPSTREAM_PASSWORD ONYX_DVR_PASSWORD)}"
+set_optional_env ONYX_HIK_KNOWN_FAULT_CHANNELS "$(json_value_any ONYX_HIK_KNOWN_FAULT_CHANNELS || true)"
+set_optional_env ONYX_CLIENT_ID "$(json_value_any ONYX_CLIENT_ID || true)"
+set_optional_env ONYX_SITE_ID "$(json_value_any ONYX_SITE_ID || true)"
 
 exec dart run bin/onyx_camera_worker.dart "$@"

@@ -8,6 +8,7 @@ CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 DEVICE="${ONYX_FLUTTER_DEVICE:-chrome}"
 REQUIRE_SUPABASE=0
 LOG_FILE=""
+FLUTTER_PID_FILE="${ONYX_FLUTTER_PID_FILE:-tmp/onyx_flutter.pid}"
 
 usage() {
   cat <<'USAGE'
@@ -131,7 +132,11 @@ if [[ "$telegram_bridge_mode" == "PROXY" ]]; then
   ./scripts/ensure_telegram_bot_api_proxy.sh --config "$CONFIG_FILE"
 fi
 
+./scripts/ensure_camera_worker.sh --config "$CONFIG_FILE"
+
 echo "Launching ONYX..."
+mkdir -p "$(dirname "$FLUTTER_PID_FILE")"
+printf '%s\n' "$$" >"$FLUTTER_PID_FILE"
 if [[ -n "$LOG_FILE" ]]; then
   mkdir -p "$(dirname "$LOG_FILE")"
   : > "$LOG_FILE"
