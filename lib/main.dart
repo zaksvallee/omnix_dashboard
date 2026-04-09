@@ -35828,39 +35828,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 Future<Map<String, dynamic>?> _readLatestSiteAwarenessSnapshotRow({
   required String siteId,
 }) async {
-  const compiledSaUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: '',
-  );
-  const serviceKey = String.fromEnvironment(
-    'ONYX_SUPABASE_SERVICE_KEY',
-    defaultValue: '',
-  );
-  const anonKey = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
-  final saUrl = kIsWeb
-      ? compiledSaUrl
-      : (compiledSaUrl.isNotEmpty
-            ? compiledSaUrl
-            : (Platform.environment['SUPABASE_URL'] ??
-                  Platform.environment['ONYX_SUPABASE_URL'] ??
-                  ''));
-  final runtimeServiceKey = kIsWeb
-      ? serviceKey
-      : (serviceKey.isNotEmpty
-            ? serviceKey
-            : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
-  final runtimeAnonKey = kIsWeb
-      ? anonKey
-      : (Platform.environment['SUPABASE_ANON_KEY'] ?? anonKey);
-  final saKey = runtimeServiceKey.isNotEmpty
-      ? runtimeServiceKey
-      : runtimeAnonKey;
-  if (saUrl.isEmpty || saKey.isEmpty || siteId.trim().isEmpty) {
+  if (siteId.trim().isEmpty) {
     return null;
   }
-  final saClient = SupabaseClient(saUrl, saKey);
   try {
-    final rows = await saClient
+    final rows = await Supabase.instance.client
         .from('site_awareness_snapshots')
         .select(
           'site_id,snapshot_at,perimeter_clear,detections,known_faults,active_alerts,channels',
@@ -35874,8 +35846,6 @@ Future<Map<String, dynamic>?> _readLatestSiteAwarenessSnapshotRow({
     return Map<String, dynamic>.from(rows.first as Map);
   } catch (_) {
     return null;
-  } finally {
-    saClient.dispose();
   }
 }
 
