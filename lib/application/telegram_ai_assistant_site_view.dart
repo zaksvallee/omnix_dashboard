@@ -433,7 +433,7 @@ String? _currentSiteViewClarifierReply({
   final guardOnSite = _hasExplicitCurrentOnSitePresence(joinedContext);
   final nextStepQuestion = guardOnSite
       ? 'Want me to check anything specific?'
-      : 'Want me to flag your guard for a check?';
+      : 'Want me to arrange a manual follow-up?';
   final effectiveIssueStatus = _effectiveLiveSiteIssueStatus(packet);
   if (effectiveIssueStatus == ClientLiveSiteIssueStatus.activeSignals) {
     final hotspot = packet.continuousVisualHotspotLabel ?? scope.siteReference;
@@ -473,7 +473,8 @@ String? _packetGroundedBroadStatusReply({
   required ClientCameraHealthFactPacket? cameraHealthFactPacket,
 }) {
   final packet = cameraHealthFactPacket;
-  if (packet == null || !asksForTelegramClientBroadStatusCheck(normalizedMessage)) {
+  if (packet == null ||
+      !asksForTelegramClientBroadStatusCheck(normalizedMessage)) {
     return null;
   }
   final joinedContext = recentConversationTurns
@@ -483,7 +484,7 @@ String? _packetGroundedBroadStatusReply({
   final guardOnSite = _hasExplicitCurrentOnSitePresence(joinedContext);
   final nextStepQuestion = guardOnSite
       ? 'Want me to check anything specific?'
-      : 'Want me to flag your guard for a check?';
+      : 'Want me to arrange a manual follow-up?';
   final effectiveIssueStatus = _effectiveLiveSiteIssueStatus(packet);
 
   if (effectiveIssueStatus == ClientLiveSiteIssueStatus.activeSignals) {

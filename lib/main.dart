@@ -35982,12 +35982,40 @@ int? _siteAwarenessSummaryInt(Object? value) {
   return null;
 }
 
+String? _siteAwarenessSummaryString(Object? value) {
+  if (value is! String) {
+    return null;
+  }
+  final trimmed = value.trim();
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+String _siteAwarenessHumanizedLabel(Object? value) {
+  final raw = value?.toString().trim() ?? '';
+  if (raw.isEmpty) {
+    return 'unknown';
+  }
+  final spaced = raw
+      .replaceAllMapped(
+        RegExp(r'([a-z0-9])([A-Z])'),
+        (match) => '${match.group(1)} ${match.group(2)}',
+      )
+      .replaceAll(RegExp(r'[_\-]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim()
+      .toLowerCase();
+  return spaced.isEmpty ? 'unknown' : spaced;
+}
+
 /// Formats a raw `site_awareness_snapshots` row into a compact text block
 /// suitable for injection into the Telegram AI system prompt.
 String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
-  final snapshotAt = row['snapshot_at'] as String? ?? '';
+  final snapshotAt =
+      _siteAwarenessSummaryDate(row['snapshot_at'])?.toIso8601String() ??
+      (row['snapshot_at'] as String? ?? '');
   final perimeterClear = row['perimeter_clear'];
   final knownFaults = row['known_faults'];
+  final activeAlerts = row['active_alerts'];
   final humans = _siteAwarenessDetectionCount(row, 'human_count', 'humanCount');
   final vehicles = _siteAwarenessDetectionCount(
     row,
@@ -35999,38 +36027,76 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
     'animal_count',
     'animalCount',
   );
+  final motion = _siteAwarenessDetectionCount(
+    row,
+    'motion_count',
+    'motionCount',
+  );
+  final knownFaultLabels = knownFaults is List
+      ? knownFaults
+            .map((value) => value.toString().trim())
+            .where((value) => value.isNotEmpty)
+            .toList(growable: false)
+      : const <String>[];
+  final alertCount = activeAlerts is List ? activeAlerts.length : 0;
 
   final lines = <String>[];
   if (snapshotAt.isNotEmpty) {
-    lines.add('snapshot_at: $snapshotAt');
+    lines.add('- Snapshot time (UTC): $snapshotAt');
   }
-  lines.add('perimeter: ${perimeterClear == true ? 'clear' : 'BREACHED'}');
-
-  if (humans > 0 || vehicles > 0 || animals > 0 || row['detections'] is Map) {
-    lines.add('detections: humans=$humans vehicles=$vehicles animals=$animals');
-  }
-
-  if (knownFaults is List && knownFaults.isNotEmpty) {
-    lines.add('known_faults: ${knownFaults.join(', ')}');
-  }
+  lines.add(
+    '- Perimeter status: ${perimeterClear == true ? 'clear' : 'breach detected'}',
+  );
+  lines.add('- People detected in latest snapshot: $humans');
+  lines.add('- Vehicles detected in latest snapshot: $vehicles');
+  lines.add('- Animals detected in latest snapshot: $animals');
+  lines.add('- Motion indicators in latest snapshot: $motion');
+  lines.add('- Active alerts in latest snapshot: $alertCount');
+  lines.add(
+    '- Known fault channels: ${knownFaultLabels.isEmpty ? 'none' : knownFaultLabels.map((value) => 'Channel $value').join(', ')}',
+  );
 
   final channels = row['channels'];
   if (channels is Map) {
-    final channelLines = <String>[];
+    final channelLines = <String>['- Channel status:'];
     final sortedKeys = channels.keys.toList(growable: false)
       ..sort((a, b) => a.toString().compareTo(b.toString()));
     for (final key in sortedKeys) {
       final ch = channels[key];
       if (ch is Map) {
-        final status = ch['status'] ?? 'unknown';
-        final lastEvent = ch['last_event_type'] ?? ch['lastEventType'];
+        final status = _siteAwarenessHumanizedLabel(ch['status']);
+        final lastEvent = _siteAwarenessHumanizedLabel(
+          ch['last_event_type'] ?? ch['lastEventType'],
+        );
         final isFault = ch['is_fault'] ?? ch['isFault'] ?? false;
-        final label = lastEvent != null ? '$status ($lastEvent)' : '$status';
-        channelLines.add('CH$key: $label${isFault == true ? ' [fault]' : ''}');
+        final lastEventAt =
+            _siteAwarenessSummaryDate(
+              ch['last_event_at'] ?? ch['lastEventAt'],
+            )?.toIso8601String() ??
+            _siteAwarenessSummaryString(
+              ch['last_event_at'] ?? ch['lastEventAt'],
+            );
+        final details = <String>[status];
+        if (lastEvent != 'unknown') {
+          details.add('last event $lastEvent');
+        }
+        if (lastEventAt != null && lastEventAt.isNotEmpty) {
+          details.add('last event time $lastEventAt');
+        }
+        if (isFault == true) {
+          details.add('fault');
+        }
+        final faultReason = _siteAwarenessSummaryString(
+          ch['fault_reason'] ?? ch['faultReason'],
+        );
+        if (faultReason != null) {
+          details.add('fault reason $faultReason');
+        }
+        channelLines.add('  Channel $key: ${details.join('; ')}');
       }
     }
-    if (channelLines.isNotEmpty) {
-      lines.add('channels: ${channelLines.join(' | ')}');
+    if (channelLines.length > 1) {
+      lines.addAll(channelLines);
     }
   }
 

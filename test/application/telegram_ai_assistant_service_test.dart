@@ -666,9 +666,7 @@ void main() {
       final systemText = system['text'] as String;
       expect(
         systemText,
-        contains(
-          'You are ONYX, an AI-powered security intelligence system.',
-        ),
+        contains('You are ONYX, an AI-powered security intelligence system.'),
       );
       expect(systemText, contains('- Client: Morningstar'));
       expect(systemText, contains('- Site: North Gate'));
@@ -676,8 +674,8 @@ void main() {
       expect(systemText, contains('- Camera status: unknown'));
       expect(systemText, contains('- Active incidents: unknown'));
       expect(systemText, contains('- Last verified activity: unknown'));
-      expect(systemText, contains('- Guard on site: unknown'));
-      expect(systemText, contains('- Last guard check-in: unknown'));
+      expect(systemText, isNot(contains('- Guard on site:')));
+      expect(systemText, isNot(contains('- Last guard check-in:')));
       return http.Response(
         '{"id":"resp_1","output_text":"We are checking SITE-1 now and will send the next confirmed update as soon as it is in."}',
         200,
@@ -703,6 +701,59 @@ void main() {
       'We are checking now and will send the next confirmed update as soon as it is in.',
     );
     expect(draft.providerLabel, 'openai:gpt-4.1-mini');
+  });
+
+  test('openai assistant injects verified live site-awareness facts', () async {
+    final client = MockClient((request) async {
+      final body = jsonDecode(request.body) as Map<String, dynamic>;
+      final input = body['input'] as List<dynamic>;
+      final system =
+          ((input.first as Map<String, dynamic>)['content'] as List<dynamic>)
+                  .first
+              as Map<String, dynamic>;
+      final systemText = system['text'] as String;
+      expect(systemText, contains('VERIFIED LIVE SITE-AWARENESS FACTS'));
+      expect(
+        systemText,
+        contains('Use them directly for current-status replies.'),
+      );
+      expect(systemText, contains('- Perimeter status: clear'));
+      expect(systemText, contains('- People detected in latest snapshot: 0'));
+      expect(systemText, contains('Channel 11: video loss; fault'));
+      return http.Response(
+        '{"id":"resp_site_awareness","output_text":"Perimeter is clear. No people are showing in the latest snapshot. Channel 11 still has a known video loss fault."}',
+        200,
+      );
+    });
+    final service = OpenAiTelegramAiAssistantService(
+      client: client,
+      apiKey: 'sk-test',
+      model: 'gpt-4.1-mini',
+    );
+
+    final draft = await service.draftReply(
+      audience: TelegramAiAudience.client,
+      messageText: 'status update please',
+      clientId: 'CLIENT-MS-VALLEE',
+      siteId: 'SITE-MS-VALLEE-RESIDENCE',
+      siteAwarenessContext: const [
+        '- Snapshot time (UTC): 2026-04-09T07:51:04.666771Z',
+        '- Perimeter status: clear',
+        '- People detected in latest snapshot: 0',
+        '- Vehicles detected in latest snapshot: 0',
+        '- Animals detected in latest snapshot: 0',
+        '- Motion indicators in latest snapshot: 0',
+        '- Active alerts in latest snapshot: 0',
+        '- Known fault channels: Channel 11',
+        '- Channel status:',
+        '  Channel 11: video loss; fault',
+      ].join('\n'),
+    );
+
+    expect(
+      draft.text,
+      'Perimeter is clear. No people are showing in the latest snapshot. Channel 11 still has a known video loss fault.',
+    );
   });
 
   test('openai assistant adds urgency note for escalated client lane', () async {
@@ -3009,7 +3060,7 @@ void main() {
 
       expect(
         draft.text,
-        'Based on what I can see, there are no active alerts at MS Vallee Residence. I do not have live visual right now but I am monitoring all signals. Want me to flag your guard for a check?',
+        'Based on what I can see, there are no active alerts at MS Vallee Residence. I do not have live visual right now but I am monitoring all signals. Want me to arrange a manual follow-up?',
       );
       expect(draft.text, isNot(contains('working to restore')));
     },
@@ -3053,7 +3104,7 @@ void main() {
 
       expect(
         draft.text,
-        'Based on what I can see, there are no active alerts at MS Vallee Residence. I do not have live visual right now but I am monitoring all signals. Want me to flag your guard for a check?',
+        'Based on what I can see, there are no active alerts at MS Vallee Residence. I do not have live visual right now but I am monitoring all signals. Want me to arrange a manual follow-up?',
       );
       expect(
         draft.text,
@@ -3102,7 +3153,7 @@ void main() {
 
       expect(
         draft.text,
-        'Based on what I can see, there are no active alerts at MS Vallee Residence. Monitoring looks normal right now. Want me to flag your guard for a check?',
+        'Based on what I can see, there are no active alerts at MS Vallee Residence. Monitoring looks normal right now. Want me to arrange a manual follow-up?',
       );
       expect(draft.text, isNot(contains('Everything is stable')));
     },
@@ -3148,7 +3199,7 @@ void main() {
 
       expect(
         draft.text,
-        'Based on what I can see, there are no active alerts at MS Vallee Residence. My visual monitoring is limited right now. Want me to flag your guard for a check?',
+        'Based on what I can see, there are no active alerts at MS Vallee Residence. My visual monitoring is limited right now. Want me to arrange a manual follow-up?',
       );
       expect(draft.text, isNot(contains('I cannot')));
       expect(draft.text, isNot(contains('camera visibility unavailable')));
