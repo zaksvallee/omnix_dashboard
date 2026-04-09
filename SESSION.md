@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-09 22:41
-- **Last commit:** feat: Olarm alarm integration — REST + MQTT, zone events, Telegram alerts
-- **Commit hash:** 9da04c1
+- **Date:** 2026-04-09 23:48
+- **Last commit:** fix: ElevenLabs CORS — route TTS through local proxy
+- **Commit hash:** d4748ae
 
 ## Completed today (2026-04-09 night)
 - [x] Olarm integration scaffold — REST + MQTT, IDS/Paradox/DSC support, Telegram alerts (9da04c1)
@@ -24,6 +24,9 @@
 - [x] Gate sensor handling — honest camera-only response (ce06301)
 - [x] No fake guard data — guard queries check config first
 - [x] Double response fix — single Chrome tab polling (e7048e1)
+- [x] ElevenLabs voice integration — TTS via Telegram voice messages (ef16ab2)
+- [x] Client statement detection — natural acknowledgement (7252da5)
+- [x] ElevenLabs CORS proxy fix — local proxy route for browser-safe TTS (d4748ae)
 
 
 ## Completed (this sprint)
@@ -58,12 +61,9 @@
 - [ ] Server-side AI processor planning — move Telegram AI off the browser path
 
 ## Priority queue (next session)
-- P0: Fix 0 detections — camera worker staying connected
-- P1: Get Olarm device installed at MS Valee (IDS panel confirmed)
-- P2: Get Olarm API key from user.olarm.co/#/api
-- P3: Server-side AI processor — move Telegram AI to Hetzner
-- P4: Hik-Connect API — implement when credentials arrive
-- P5: ElevenLabs voice responses via Telegram
+- P0: Zone mapping — which cameras are indoor vs outdoor
+- P1: Olarm device installation at MS Valee (IDS panel)
+- P2: Server-side AI processor
 
 ## Next hardware to acquire
 - Olarm communicator for IDS panel (~R600-800)
