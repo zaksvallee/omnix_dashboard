@@ -15732,6 +15732,88 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _telegramCommandPerimeterLabel(bool clear) =>
       clear ? 'clear' : 'alert active';
 
+  String _telegramCommandHeaderLabel(
+    TelegramAiSiteAwarenessSummary summary,
+    String siteLabel,
+  ) {
+    final isAllClear = summary.perimeterClear && summary.activeAlertCount <= 0;
+    final emoji = isAllClear ? '🟢' : '🔴';
+    final label = isAllClear ? 'All clear' : 'Alert active';
+    return '$emoji $siteLabel — $label';
+  }
+
+  String _telegramCommandPresenceSummaryLine(
+    TelegramAiSiteAwarenessSummary summary,
+  ) {
+    final parts = <String>[
+      if (summary.humanCount > 0)
+        _telegramCommandCountLabel(summary.humanCount, 'person'),
+      if (summary.vehicleCount > 0)
+        _telegramCommandCountLabel(summary.vehicleCount, 'vehicle'),
+      if (summary.animalCount > 0)
+        _telegramCommandCountLabel(summary.animalCount, 'animal'),
+    ];
+    if (parts.isEmpty) {
+      return 'No people detected';
+    }
+    return '${parts.join(' • ')} detected';
+  }
+
+  String _telegramCommandRelativeAgeLabel(DateTime observedAtUtc) {
+    final difference = _telegramFlowNowUtc().difference(observedAtUtc).abs();
+    if (difference < const Duration(minutes: 1)) {
+      return 'just now';
+    }
+    if (difference < const Duration(hours: 1)) {
+      final minutes = difference.inMinutes;
+      return '$minutes ${minutes == 1 ? 'minute' : 'minutes'} ago';
+    }
+    if (difference < const Duration(days: 1)) {
+      final hours = difference.inHours;
+      return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
+    }
+    final days = difference.inDays;
+    return '$days ${days == 1 ? 'day' : 'days'} ago';
+  }
+
+  List<String> _telegramCommandKnownFaultLines(Map<String, dynamic> row) {
+    final channels = row['channels'];
+    final faultLines = <String>[];
+    if (channels is Map) {
+      final sortedKeys = channels.keys.toList(growable: false)
+        ..sort((left, right) => left.toString().compareTo(right.toString()));
+      for (final key in sortedKeys) {
+        final raw = channels[key];
+        if (raw is! Map) {
+          continue;
+        }
+        final isFault = raw['is_fault'] == true || raw['isFault'] == true;
+        if (!isFault) {
+          continue;
+        }
+        final status = _siteAwarenessHumanizedLabel(raw['status']);
+        final statusLabel = switch (status) {
+          'video loss' || 'offline' || 'fault' => 'Offline',
+          'online' => 'Online',
+          _ => _humanizeScopeLabel(status),
+        };
+        faultLines.add('Channel $key: $statusLabel (known fault)');
+      }
+    }
+    if (faultLines.isNotEmpty) {
+      return faultLines;
+    }
+    final knownFaults = row['known_faults'];
+    if (knownFaults is! List) {
+      return const <String>[];
+    }
+    return knownFaults
+        .map((value) => value.toString().trim())
+        .where((value) => value.isNotEmpty)
+        .map((value) => 'Channel $value: Offline (known fault)')
+        .toList(growable: false);
+  }
+
   String _telegramCommandChannelSummary(Map<String, dynamic> row) {
     final knownFaults = row['known_faults'];
     final knownFaultLabels = knownFaults is List
@@ -15859,27 +15941,38 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           siteId: siteId,
         );
 
-    final lines = <String>['Live status: $siteLabel'];
+    final lines = <String>[];
     if (siteAwarenessSummary != null) {
+      final freshSiteAwarenessRow = siteAwarenessRow!;
+      lines.add(_telegramCommandHeaderLabel(siteAwarenessSummary, siteLabel));
       lines.add(
-        '• Monitoring: active • perimeter ${_telegramCommandPerimeterLabel(siteAwarenessSummary.perimeterClear)}',
+        'Perimeter: ${siteAwarenessSummary.perimeterClear ? 'Clear' : 'Alert active'}',
       );
       lines.add(
-        '• Detections: ${_telegramCommandCountLabel(siteAwarenessSummary.humanCount, 'person')} • ${_telegramCommandCountLabel(siteAwarenessSummary.vehicleCount, 'vehicle')} • ${_telegramCommandCountLabel(siteAwarenessSummary.animalCount, 'animal')}',
+        'On site: ${_telegramCommandPresenceSummaryLine(siteAwarenessSummary)}',
       );
-      lines.add('• Active alerts: ${siteAwarenessSummary.activeAlertCount}');
+      lines.add(
+        'Active alerts: ${siteAwarenessSummary.activeAlertCount == 0 ? 'None' : siteAwarenessSummary.activeAlertCount}',
+      );
+      lines.add(
+        'Last update: ${_telegramCommandRelativeAgeLabel(siteAwarenessSummary.observedAtUtc)}',
+      );
+      lines.addAll(_telegramCommandKnownFaultLines(freshSiteAwarenessRow));
     } else {
+      lines.add('🟠 $siteLabel — Monitoring limited');
       lines.add(
-        '• Monitoring: no fresh site-awareness snapshot in the last 30 minutes',
+        'Monitoring: No fresh site-awareness snapshot in the last 30 minutes',
       );
+      if (latestEventAtUtc != null) {
+        lines.add(
+          'Last confirmed event: ${_telegramCommandLocalDateTimeLabel(latestEventAtUtc)}',
+        );
+      }
     }
-    lines.add('• Active incidents: ${activeDispatches.length}');
-    lines.add(
-      '• Last confirmed event: ${_telegramCommandLocalDateTimeLabel(latestEventAtUtc)}',
-    );
+    lines.add('Active incidents: ${activeDispatches.length}');
     if (latestDispatch != null) {
       lines.add(
-        '• Latest operational incident: ${latestDispatch.dispatchId} • ${latestDispatch.statusLabel}',
+        'Latest operational incident: ${latestDispatch.dispatchId} • ${latestDispatch.statusLabel}',
       );
     }
     return lines.join('\n');

@@ -3120,10 +3120,16 @@ void main() {
         ),
       );
 
+      expect(draft.text, contains('Monitoring active at MS Vallee Residence.'));
+      expect(draft.text, contains('Perimeter: Clear'));
+      expect(draft.text, contains('On site: 1 person detected'));
+      expect(draft.text, contains('Active alerts: None'));
+      expect(draft.text, contains('Last update: '));
       expect(
         draft.text,
-        'Monitoring active. Perimeter clear at MS Vallee Residence. Latest snapshot shows 1 person, 0 vehicles, 0 animals, and 0 active alerts. Channel status: all reporting channels healthy. Want me to arrange a manual follow-up?',
+        contains('Channel status: All reporting channels healthy'),
       );
+      expect(draft.text, contains('Want me to arrange a manual follow-up?'));
       expect(draft.text, isNot(contains('limited right now')));
     },
   );
@@ -4880,7 +4886,7 @@ void main() {
 
       expect(
         draft.text,
-        'I do not have confirmed movement on site at MS Vallee Residence from the current signals I can see right now. Live camera visibility is unavailable right now, so I cannot verify movement visually at this moment.',
+        'I do not have confirmed movement on site at MS Vallee Residence from the current signals I can see right now. There is no fresh live site snapshot right now, and live camera visibility is unavailable, so I cannot verify movement visually at this moment.',
       );
       expect(
         draft.text,

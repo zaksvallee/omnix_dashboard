@@ -216,9 +216,9 @@ String _movementVisibilityBoundary({
     return 'I do not have a fresh movement confirmation to share right now.';
   }
   if (packet.status == ClientCameraHealthStatus.limited) {
-    return 'Live camera visibility is limited right now, so I cannot verify movement visually at this moment.';
+    return 'There is no fresh live site snapshot right now, and live camera visibility is limited, so I cannot verify movement visually at this moment.';
   }
-  return 'Live camera visibility is unavailable right now, so I cannot verify movement visually at this moment.';
+  return 'There is no fresh live site snapshot right now, and live camera visibility is unavailable, so I cannot verify movement visually at this moment.';
 }
 
 String _siteVisibilityBoundary({
@@ -241,9 +241,9 @@ String _siteVisibilityBoundary({
     return 'I do not want to overstate the full picture beyond the signals I can verify right now.';
   }
   if (packet.status == ClientCameraHealthStatus.limited) {
-    return 'Live camera visibility is limited right now, so I cannot verify the whole site visually at this moment.';
+    return 'There is no fresh live site snapshot right now, and live camera visibility is limited, so I cannot verify the whole site visually at this moment.';
   }
-  return 'Live camera visibility is unavailable right now, so I cannot verify the whole site visually at this moment.';
+  return 'There is no fresh live site snapshot right now, and live camera visibility is unavailable, so I cannot verify the whole site visually at this moment.';
 }
 
 ClientLiveSiteIssueStatus _effectiveLiveSiteIssueStatus(

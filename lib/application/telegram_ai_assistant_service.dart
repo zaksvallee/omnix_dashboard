@@ -122,15 +122,17 @@ class TelegramAiSiteAwarenessSummary {
     final normalizedSiteReference = siteReference.trim().isEmpty
         ? 'the site'
         : siteReference.trim();
+    final onSiteLabel = _presenceSummaryLabel();
+    final channelLine = knownFaultChannels.isEmpty
+        ? 'Channel status: All reporting channels healthy'
+        : 'Channel status: ${_channelFaultStatusLine()}';
     final parts = <String>[
-      'Monitoring active.',
-      perimeterClear
-          ? 'Perimeter clear at $normalizedSiteReference.'
-          : 'Perimeter alert active at $normalizedSiteReference.',
-      'Latest snapshot shows ${_countLabel(humanCount, 'person')}, ${_countLabel(vehicleCount, 'vehicle')}, ${_countLabel(animalCount, 'animal')}, and ${_countLabel(activeAlertCount, 'active alert')}.',
-      knownFaultChannels.isEmpty
-          ? 'Channel status: all reporting channels healthy.'
-          : 'Channel status: ${_channelFaultSentence()}.',
+      'Monitoring active at $normalizedSiteReference.',
+      'Perimeter: ${perimeterClear ? 'Clear' : 'Alert active'}',
+      'On site: $onSiteLabel',
+      'Active alerts: ${activeAlertCount == 0 ? 'None' : _countLabel(activeAlertCount, 'active alert')}',
+      'Last update: ${_relativeAgeLabel()}',
+      channelLine,
       if (extraDetail != null && extraDetail.trim().isNotEmpty)
         extraDetail.trim(),
       if (nextStepQuestion != null && nextStepQuestion.trim().isNotEmpty)
@@ -152,13 +154,39 @@ class TelegramAiSiteAwarenessSummary {
     return '$noun $labels';
   }
 
-  String _channelFaultSentence() {
-    final labels = knownFaultChannels
-        .map((value) => 'Channel $value')
-        .join(', ');
-    return knownFaultChannels.length == 1
-        ? 'known fault on $labels'
-        : 'known faults on $labels';
+  String _channelFaultStatusLine() {
+    return knownFaultChannels
+        .map((value) => 'Channel $value offline (known fault)')
+        .join(' • ');
+  }
+
+  String _presenceSummaryLabel() {
+    final parts = <String>[
+      if (humanCount > 0) _countLabel(humanCount, 'person'),
+      if (vehicleCount > 0) _countLabel(vehicleCount, 'vehicle'),
+      if (animalCount > 0) _countLabel(animalCount, 'animal'),
+    ];
+    if (parts.isEmpty) {
+      return 'No people detected';
+    }
+    return '${parts.join(' • ')} detected';
+  }
+
+  String _relativeAgeLabel() {
+    final difference = DateTime.now().toUtc().difference(observedAtUtc).abs();
+    if (difference < const Duration(minutes: 1)) {
+      return 'just now';
+    }
+    if (difference < const Duration(hours: 1)) {
+      final minutes = difference.inMinutes;
+      return '$minutes ${minutes == 1 ? 'minute' : 'minutes'} ago';
+    }
+    if (difference < const Duration(days: 1)) {
+      final hours = difference.inHours;
+      return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
+    }
+    final days = difference.inDays;
+    return '$days ${days == 1 ? 'day' : 'days'} ago';
   }
 
   static String _countLabel(int count, String singular) {
@@ -813,7 +841,7 @@ String _telegramAssistantSystemPrompt({
           '7. If asked about cameras and there is no fresh live site snapshot:\n'
           '   "I don\'t have live visual right now but I\'m monitoring all signals. What would you like me to check?"\n'
           '8. If asked for current status and verified live site-awareness facts are present:\n'
-          '   "Monitoring active. Perimeter clear. Latest snapshot shows 1 person, 0 vehicles, 0 animals, 0 active alerts, and Channel 11 as a known fault. Want me to check anything specific?"\n'
+          '   "Monitoring active at MS Vallee Residence. Perimeter: Clear. On site: 1 person detected. Active alerts: None. Last update: 2 minutes ago. Channel status: Channel 11 offline (known fault). Want me to check anything specific?"\n'
           '9. If asked if everything is fine and you do not have full visibility:\n'
           '   "Based on what I can see, there are no active alerts. My visual monitoring is limited right now - want me to arrange a manual follow-up?"\n'
           '10. Keep responses under 3 sentences unless the situation requires more detail\n'
@@ -826,7 +854,7 @@ String _telegramAssistantSystemPrompt({
           'Bad: "I do not see a confirmed issue at [CLIENT_NAME] right now."\n\n'
           'Good: "Nothing flagged right now. Last activity was [X] - looked routine. What\'s on your mind?"\n\n'
           'Bad: "Remote monitoring is unavailable."\n\n'
-          'Good: "Monitoring active. Perimeter clear. Latest snapshot shows 1 person on site, no active alerts, and all reporting channels healthy. Want me to check anything specific?"\n\n'
+          'Good: "Monitoring active at MS Vallee Residence. Perimeter: Clear. On site: 1 person detected. Active alerts: None. Last update: 2 minutes ago. Channel status: All reporting channels healthy. Want me to check anything specific?"\n\n'
           'INCIDENT RESPONSE TONE:\n'
           '- Confirmed threat: Direct, clear, action-focused\n'
           '  "There\'s activity at your North Gate. Control has been alerted. I\'m watching it now."\n'
@@ -1741,10 +1769,13 @@ String _polishReply({
       _containsAny(cleaned.toLowerCase(), const [
         'monitoring is limited',
         'remote monitoring is limited',
+        'remote visual monitoring is limited',
         'do not have live visual',
         'camera visibility is limited',
         'camera visibility unavailable',
         'remote monitoring is unavailable',
+        'camera access issues',
+        'camera access issue',
         'camera bridge is offline',
         'camera link is temporarily limited',
       ])) {
