@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 import 'dvr_http_auth.dart';
@@ -99,6 +101,13 @@ class LocalHikvisionDvrProxyService {
 
   Future<void> start() async {
     if (_server != null) {
+      return;
+    }
+    if (kIsWeb) {
+      developer.log(
+        'Hikvision DVR proxy disabled on web — requires native runtime.',
+        name: 'OnyxHikProxy',
+      );
       return;
     }
     final resolvedHost = host.trim().isEmpty ? '127.0.0.1' : host.trim();
