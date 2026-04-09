@@ -61,7 +61,32 @@ void main() {
       },
     );
 
-    test('perimeterClear becomes false when a human detection is present', () {
+    test(
+      'perimeterClear stays true when only a human detection is present',
+      () {
+        final projector = OnyxSiteAwarenessProjector(
+          siteId: 'SITE-1',
+          clientId: 'CLIENT-1',
+          clock: () => DateTime.utc(2026, 4, 8, 12, 3),
+        );
+
+        final snapshot = projector.ingest(
+          OnyxSiteAwarenessEvent.fromAlertXml(
+            _alertXml(
+              channelId: '4',
+              eventType: 'VMD',
+              targetType: 'human',
+              dateTime: DateTime.utc(2026, 4, 8, 12, 3),
+            ),
+          ),
+        );
+
+        expect(snapshot.perimeterClear, isTrue);
+        expect(snapshot.activeAlerts, isEmpty);
+      },
+    );
+
+    test('perimeterClear becomes false when a breach event is present', () {
       final projector = OnyxSiteAwarenessProjector(
         siteId: 'SITE-1',
         clientId: 'CLIENT-1',
@@ -72,14 +97,14 @@ void main() {
         OnyxSiteAwarenessEvent.fromAlertXml(
           _alertXml(
             channelId: '4',
-            eventType: 'VMD',
-            targetType: 'human',
+            eventType: 'linedetection',
             dateTime: DateTime.utc(2026, 4, 8, 12, 3),
           ),
         ),
       );
 
       expect(snapshot.perimeterClear, isFalse);
+      expect(snapshot.activeAlerts, isNotEmpty);
     });
 
     test('detection counts increment correctly across event types', () {

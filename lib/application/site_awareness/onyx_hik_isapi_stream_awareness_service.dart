@@ -194,6 +194,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         } else {
           _isConnected = true;
           retryAttempt = 0;
+          final projector = _projector;
+          if (projector != null) {
+            _emitSnapshot(projector.snapshot());
+          }
           await _consumeAlertStream(response.stream, generation);
         }
       } catch (error, stackTrace) {
@@ -312,7 +316,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
 
   void _publishProjectedSnapshot() {
     final projector = _projector;
-    if (!_running || projector == null || _latestSnapshot == null) {
+    if (!_running || !_isConnected || projector == null) {
       return;
     }
     try {

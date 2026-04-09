@@ -248,7 +248,7 @@ class OnyxSiteAwarenessEvent {
     if (isKnownFaultChannel) {
       return false;
     }
-    return eventType != OnyxEventType.unknown;
+    return eventType == OnyxEventType.perimeterBreach;
   }
 
   bool get shouldPublishImmediately {
@@ -364,11 +364,10 @@ class OnyxSiteAwarenessProjector {
     final animalCount = animalChannels.length;
     final motionCount = motionChannels.length;
 
-    final hasRecentHumanOrVehicle = _recentEvents.any(
+    final hasRecentPerimeterBreach = _recentEvents.any(
       (event) =>
           !event.isKnownFaultChannel &&
-          (event.eventType == OnyxEventType.humanDetected ||
-              event.eventType == OnyxEventType.vehicleDetected),
+          event.eventType == OnyxEventType.perimeterBreach,
     );
 
     final sortedChannelIds = _channels.keys.toList(growable: false)..sort();
@@ -413,7 +412,7 @@ class OnyxSiteAwarenessProjector {
         motionCount: motionCount,
         lastUpdated: detectionLastUpdated,
       ),
-      perimeterClear: !hasRecentHumanOrVehicle,
+      perimeterClear: !hasRecentPerimeterBreach,
       knownFaults: knownFaults,
       activeAlerts: activeAlerts,
     );
@@ -702,7 +701,8 @@ class DvrHttpAuthConfig {
     final uriPath = uri.path.isEmpty
         ? '/'
         : uri.path + (uri.hasQuery ? '?${uri.query}' : '');
-    final qop = (attributes['qop'] ?? '')
+    final qop =
+        (attributes['qop'] ?? '')
             .split(',')
             .map((entry) => entry.trim())
             .contains('auth')
@@ -718,13 +718,12 @@ class DvrHttpAuthConfig {
         .toString()
         .substring(0, 16);
     final ha1 = md5.convert(utf8.encode('$user:$realm:$pass')).toString();
-    final ha2 =
-        md5.convert(utf8.encode('${method.toUpperCase()}:$uriPath')).toString();
+    final ha2 = md5
+        .convert(utf8.encode('${method.toUpperCase()}:$uriPath'))
+        .toString();
     final response = qop.isNotEmpty
         ? md5
-              .convert(
-                utf8.encode('$ha1:$nonce:$nc:$cnonce:$qop:$ha2'),
-              )
+              .convert(utf8.encode('$ha1:$nonce:$nc:$cnonce:$qop:$ha2'))
               .toString()
         : md5.convert(utf8.encode('$ha1:$nonce:$ha2')).toString();
 
@@ -985,6 +984,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         } else {
           _isConnected = true;
           retryAttempt = 0;
+          final projector = _projector;
+          if (projector != null) {
+            _emitSnapshot(projector.snapshot());
+          }
           await _consumeAlertStream(response.stream, generation);
         }
       } catch (error, stackTrace) {
@@ -1103,7 +1106,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
 
   void _publishProjectedSnapshot() {
     final projector = _projector;
-    if (!_running || projector == null || _latestSnapshot == null) {
+    if (!_running || !_isConnected || projector == null) {
       return;
     }
     try {
@@ -1184,10 +1187,7 @@ const String _defaultHost = String.fromEnvironment(
   'ONYX_HIK_HOST',
   defaultValue: '192.168.0.117',
 );
-const int _defaultPort = int.fromEnvironment(
-  'ONYX_HIK_PORT',
-  defaultValue: 80,
-);
+const int _defaultPort = int.fromEnvironment('ONYX_HIK_PORT', defaultValue: 80);
 const String _defaultUsername = String.fromEnvironment(
   'ONYX_HIK_USERNAME',
   defaultValue: 'admin',
@@ -1220,12 +1220,10 @@ Future<void> main() async {
 
   final host = Platform.environment['ONYX_HIK_HOST'] ?? _defaultHost;
   final port =
-      int.tryParse(Platform.environment['ONYX_HIK_PORT'] ?? '') ??
-      _defaultPort;
+      int.tryParse(Platform.environment['ONYX_HIK_PORT'] ?? '') ?? _defaultPort;
   final username =
       Platform.environment['ONYX_HIK_USERNAME'] ?? _defaultUsername;
-  final clientId =
-      Platform.environment['ONYX_CLIENT_ID'] ?? _defaultClientId;
+  final clientId = Platform.environment['ONYX_CLIENT_ID'] ?? _defaultClientId;
   final siteId = Platform.environment['ONYX_SITE_ID'] ?? _defaultSiteId;
 
   final rawFaultChannels =
@@ -1316,14 +1314,12 @@ void _printSnapshot(OnyxSiteAwarenessSnapshot snapshot) {
       '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
   final channelParts = <String>[];
-  final sortedChannels = snapshot.channels.keys.toList(growable: false)
-    ..sort();
+  final sortedChannels = snapshot.channels.keys.toList(growable: false)..sort();
   for (final channelId in sortedChannels) {
     final ch = snapshot.channels[channelId]!;
     final statusLabel = switch (ch.status) {
-      OnyxChannelStatusType.active => ch.lastEventType != null
-          ? _eventLabel(ch.lastEventType!)
-          : 'active',
+      OnyxChannelStatusType.active =>
+        ch.lastEventType != null ? _eventLabel(ch.lastEventType!) : 'active',
       OnyxChannelStatusType.idle => 'idle',
       OnyxChannelStatusType.videoloss => 'videoloss',
       OnyxChannelStatusType.unknown => 'unknown',

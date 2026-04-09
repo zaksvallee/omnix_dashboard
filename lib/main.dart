@@ -812,17 +812,19 @@ void main() async {
     );
   }
 
-  runApp(OnyxApp(
-    supabaseReady: supabaseReady,
-    initialClientLaneClientIdOverride: const String.fromEnvironment(
-      'ONYX_CLIENT_ID',
-      defaultValue: '',
+  runApp(
+    OnyxApp(
+      supabaseReady: supabaseReady,
+      initialClientLaneClientIdOverride: const String.fromEnvironment(
+        'ONYX_CLIENT_ID',
+        defaultValue: '',
+      ),
+      initialClientLaneSiteIdOverride: const String.fromEnvironment(
+        'ONYX_SITE_ID',
+        defaultValue: '',
+      ),
     ),
-    initialClientLaneSiteIdOverride: const String.fromEnvironment(
-      'ONYX_SITE_ID',
-      defaultValue: '',
-    ),
-  ));
+  );
 }
 
 class OnyxApp extends StatefulWidget {
@@ -14205,9 +14207,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       }
       if (!_telegramAiBootGracePeriodComplete) {
         _telegramAiBootGracePeriodComplete = true;
-        final maxUpdateId = updates
-            .map((u) => u.updateId)
-            .reduce(math.max);
+        final maxUpdateId = updates.map((u) => u.updateId).reduce(math.max);
         _telegramAdminLastUpdateId = maxUpdateId;
         await _persistTelegramAdminRuntimeState();
         developer.log(
@@ -14892,37 +14892,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       selectedExamples: aiContext.preferredReplyExamples,
     );
     String? siteAwarenessContext;
-    {
-      const saUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-      final saKey = kIsWeb
-          ? const String.fromEnvironment(
-              'ONYX_SUPABASE_SERVICE_KEY',
-              defaultValue: '',
-            )
-          : (const String.fromEnvironment(
-                    'ONYX_SUPABASE_SERVICE_KEY',
-                    defaultValue: '',
-                  ).isNotEmpty
-              ? const String.fromEnvironment(
-                  'ONYX_SUPABASE_SERVICE_KEY',
-                  defaultValue: '',
-                )
-              : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
-      if (saUrl.isNotEmpty && saKey.isNotEmpty) {
-        final saClient = SupabaseClient(saUrl, saKey);
-        try {
-          final rows = await saClient
-              .from('site_awareness_snapshots')
-              .select()
-              .eq('site_id', siteId)
-              .limit(1);
-          if (rows.isNotEmpty) {
-            siteAwarenessContext = _formatSiteAwarenessSnapshot(rows.first);
-          }
-        } catch (_) {} finally {
-          saClient.dispose();
-        }
-      }
+    final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
+      siteId: siteId,
+    );
+    if (siteAwarenessRow != null &&
+        _isSiteAwarenessSnapshotFresh(
+          siteAwarenessRow,
+          _telegramFlowNowUtc(),
+        )) {
+      siteAwarenessContext = _formatSiteAwarenessSnapshot(siteAwarenessRow);
     }
     final aiDraft = await _telegramAiAssistant.draftReply(
       audience: TelegramAiAudience.client,
@@ -17723,14 +17701,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               defaultValue: '',
             )
           : (const String.fromEnvironment(
-                    'ONYX_SUPABASE_SERVICE_KEY',
-                    defaultValue: '',
-                  ).isNotEmpty
-              ? const String.fromEnvironment(
                   'ONYX_SUPABASE_SERVICE_KEY',
                   defaultValue: '',
-                )
-              : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
+                ).isNotEmpty
+                ? const String.fromEnvironment(
+                    'ONYX_SUPABASE_SERVICE_KEY',
+                    defaultValue: '',
+                  )
+                : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
       if (saUrl.isNotEmpty && saKey.isNotEmpty) {
         final saClient = SupabaseClient(saUrl, saKey);
         try {
@@ -17738,7 +17716,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               .from('site_awareness_snapshots')
               .update(<String, dynamic>{'active_alerts': <dynamic>[]})
               .eq('site_id', siteId);
-        } catch (_) {} finally {
+        } catch (_) {
+        } finally {
           saClient.dispose();
         }
       }
@@ -17801,49 +17780,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     // For status action, try to enrich with live site awareness data.
     String? siteAwarenessStatusOverride;
     if (action == TelegramClientQuickAction.status) {
-      const saUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
-      final saKey = kIsWeb
-          ? const String.fromEnvironment(
-              'ONYX_SUPABASE_SERVICE_KEY',
-              defaultValue: '',
-            )
-          : (const String.fromEnvironment(
-                    'ONYX_SUPABASE_SERVICE_KEY',
-                    defaultValue: '',
-                  ).isNotEmpty
-              ? const String.fromEnvironment(
-                  'ONYX_SUPABASE_SERVICE_KEY',
-                  defaultValue: '',
-                )
-              : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
-      developer.log(
-        'SA key length: ${saKey.length}',
-        name: 'SiteAwareness',
+      final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
+        siteId: siteId,
       );
-      if (saUrl.isNotEmpty && saKey.isNotEmpty) {
-        final saClient = SupabaseClient(saUrl, saKey);
-        try {
-          final rows = await saClient
-              .from('site_awareness_snapshots')
-              .select()
-              .eq('site_id', siteId)
-              .limit(1);
-          if (rows.isNotEmpty) {
-            final row = rows.first;
-            final snapshotAtStr = row['snapshot_at'] as String?;
-            if (snapshotAtStr != null) {
-              final snapshotAt = DateTime.tryParse(snapshotAtStr)?.toUtc();
-              if (snapshotAt != null &&
-                  nowUtc.difference(snapshotAt) <
-                      const Duration(minutes: 30)) {
-                siteAwarenessStatusOverride =
-                    _buildSiteAwarenessStatusReply(row);
-              }
-            }
-          }
-        } catch (_) {} finally {
-          saClient.dispose();
-        }
+      if (siteAwarenessRow != null &&
+          _isSiteAwarenessSnapshotFresh(siteAwarenessRow, nowUtc)) {
+        siteAwarenessStatusOverride = _buildSiteAwarenessStatusReply(
+          siteAwarenessRow,
+        );
       }
     }
     final responseText =
@@ -17856,10 +17800,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ),
           schedule: _monitoringScheduleForScope(target.clientId, siteId),
           cameraHealthFactPacket: cameraHealthFactPacket,
-          runtime: _monitoringWatchByScope[_monitoringScopeKey(
-            target.clientId,
-            siteId,
-          )],
+          runtime:
+              _monitoringWatchByScope[_monitoringScopeKey(
+                target.clientId,
+                siteId,
+              )],
           nowLocal: nowLocal,
           fallbackReviewedEvents: fieldActivity?.count ?? 0,
           fallbackActivitySource:
@@ -23876,7 +23821,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final localRelayProbe = await _readLocalRelayProbeForScope(
       localVisualProbe,
     );
-    return _clientCameraHealthFactPacketService.build(
+    final nowUtc = _telegramFlowNowUtc();
+    final packet = _clientCameraHealthFactPacketService.build(
       clientId: normalizedClientId,
       siteId: normalizedSiteId,
       siteReference: siteProfile.siteName.trim().isEmpty
@@ -23894,7 +23840,43 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       localVisualProbe: localVisualProbe,
       localRelayProbe: localRelayProbe,
       continuousVisualWatch: _monitoringContinuousVisualByScope[scopeKey],
-      nowUtc: _telegramFlowNowUtc(),
+      nowUtc: nowUtc,
+    );
+    final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
+      siteId: normalizedSiteId,
+    );
+    if (siteAwarenessRow == null ||
+        !_isSiteAwarenessSnapshotFresh(siteAwarenessRow, nowUtc)) {
+      return packet;
+    }
+    final observedAtUtc = _siteAwarenessObservedAtUtc(siteAwarenessRow);
+    if (observedAtUtc == null) {
+      return packet;
+    }
+    return reconcileClientCameraHealthWithSiteAwareness(
+      packet: packet,
+      observedAtUtc: observedAtUtc,
+      perimeterClear: siteAwarenessRow['perimeter_clear'] == true,
+      humanCount: _siteAwarenessDetectionCount(
+        siteAwarenessRow,
+        'human_count',
+        'humanCount',
+      ),
+      vehicleCount: _siteAwarenessDetectionCount(
+        siteAwarenessRow,
+        'vehicle_count',
+        'vehicleCount',
+      ),
+      animalCount: _siteAwarenessDetectionCount(
+        siteAwarenessRow,
+        'animal_count',
+        'animalCount',
+      ),
+      motionCount: _siteAwarenessDetectionCount(
+        siteAwarenessRow,
+        'motion_count',
+        'motionCount',
+      ),
     );
   }
 
@@ -35797,31 +35779,170 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 }
 
+Future<Map<String, dynamic>?> _readLatestSiteAwarenessSnapshotRow({
+  required String siteId,
+}) async {
+  const compiledSaUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: '',
+  );
+  const serviceKey = String.fromEnvironment(
+    'ONYX_SUPABASE_SERVICE_KEY',
+    defaultValue: '',
+  );
+  const anonKey = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+  final saUrl = kIsWeb
+      ? compiledSaUrl
+      : (compiledSaUrl.isNotEmpty
+            ? compiledSaUrl
+            : (Platform.environment['SUPABASE_URL'] ??
+                  Platform.environment['ONYX_SUPABASE_URL'] ??
+                  ''));
+  final runtimeServiceKey = kIsWeb
+      ? serviceKey
+      : (serviceKey.isNotEmpty
+            ? serviceKey
+            : Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '');
+  final runtimeAnonKey = kIsWeb
+      ? anonKey
+      : (Platform.environment['SUPABASE_ANON_KEY'] ?? anonKey);
+  final saKey = runtimeServiceKey.isNotEmpty
+      ? runtimeServiceKey
+      : runtimeAnonKey;
+  if (saUrl.isEmpty || saKey.isEmpty || siteId.trim().isEmpty) {
+    return null;
+  }
+  final saClient = SupabaseClient(saUrl, saKey);
+  try {
+    final rows = await saClient
+        .from('site_awareness_snapshots')
+        .select(
+          'site_id,snapshot_at,perimeter_clear,detections,known_faults,active_alerts,channels',
+        )
+        .eq('site_id', siteId.trim())
+        .order('snapshot_at', ascending: false)
+        .limit(1);
+    if (rows.isEmpty) {
+      return null;
+    }
+    return Map<String, dynamic>.from(rows.first as Map);
+  } catch (_) {
+    return null;
+  } finally {
+    saClient.dispose();
+  }
+}
+
+bool _isSiteAwarenessSnapshotFresh(
+  Map<String, dynamic> row,
+  DateTime nowUtc, {
+  Duration freshnessWindow = const Duration(minutes: 10),
+}) {
+  final observedAtUtc = _siteAwarenessObservedAtUtc(row);
+  if (observedAtUtc == null) {
+    return false;
+  }
+  return nowUtc.toUtc().difference(observedAtUtc).abs() < freshnessWindow;
+}
+
+DateTime? _siteAwarenessObservedAtUtc(Map<String, dynamic> row) {
+  final timestamps = <DateTime>[
+    if (_siteAwarenessSummaryDate(row['snapshot_at']) != null)
+      _siteAwarenessSummaryDate(row['snapshot_at'])!,
+  ];
+  final detections = _siteAwarenessAsObjectMap(row['detections']);
+  final detectionUpdatedAtUtc = _siteAwarenessSummaryDate(
+    detections?['last_updated'],
+  );
+  if (detectionUpdatedAtUtc != null) {
+    timestamps.add(detectionUpdatedAtUtc);
+  }
+  final channels = _siteAwarenessAsObjectMap(row['channels']);
+  if (channels != null) {
+    for (final value in channels.values) {
+      final channel = _siteAwarenessAsObjectMap(value);
+      final channelLastEventAtUtc = _siteAwarenessSummaryDate(
+        channel?['last_event_at'] ?? channel?['lastEventAt'],
+      );
+      if (channelLastEventAtUtc != null) {
+        timestamps.add(channelLastEventAtUtc);
+      }
+    }
+  }
+  if (timestamps.isEmpty) {
+    return null;
+  }
+  timestamps.sort((a, b) => b.compareTo(a));
+  return timestamps.first;
+}
+
+int _siteAwarenessDetectionCount(
+  Map<String, dynamic> row,
+  String snakeCaseKey,
+  String camelCaseKey,
+) {
+  final detections = _siteAwarenessAsObjectMap(row['detections']);
+  return _siteAwarenessSummaryInt(
+        detections?[snakeCaseKey] ?? detections?[camelCaseKey],
+      ) ??
+      0;
+}
+
+Map<String, Object?>? _siteAwarenessAsObjectMap(Object? value) {
+  if (value is! Map) {
+    return null;
+  }
+  return value.map(
+    (key, entryValue) => MapEntry(key.toString(), entryValue as Object?),
+  );
+}
+
+DateTime? _siteAwarenessSummaryDate(Object? value) {
+  if (value is! String || value.trim().isEmpty) {
+    return null;
+  }
+  return DateTime.tryParse(value)?.toUtc();
+}
+
+int? _siteAwarenessSummaryInt(Object? value) {
+  if (value is int) {
+    return value;
+  }
+  if (value is num) {
+    return value.toInt();
+  }
+  if (value is String) {
+    return int.tryParse(value);
+  }
+  return null;
+}
+
 /// Formats a raw `site_awareness_snapshots` row into a compact text block
 /// suitable for injection into the Telegram AI system prompt.
 String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
   final snapshotAt = row['snapshot_at'] as String? ?? '';
   final perimeterClear = row['perimeter_clear'];
   final knownFaults = row['known_faults'];
-  final detections = row['detections'];
+  final humans = _siteAwarenessDetectionCount(row, 'human_count', 'humanCount');
+  final vehicles = _siteAwarenessDetectionCount(
+    row,
+    'vehicle_count',
+    'vehicleCount',
+  );
+  final animals = _siteAwarenessDetectionCount(
+    row,
+    'animal_count',
+    'animalCount',
+  );
 
   final lines = <String>[];
   if (snapshotAt.isNotEmpty) {
     lines.add('snapshot_at: $snapshotAt');
   }
-  lines.add(
-    'perimeter: ${perimeterClear == true ? 'clear' : 'BREACHED'}',
-  );
+  lines.add('perimeter: ${perimeterClear == true ? 'clear' : 'BREACHED'}');
 
-  if (detections is Map) {
-    final humans = detections['human_count'] ?? detections['humanCount'] ?? 0;
-    final vehicles =
-        detections['vehicle_count'] ?? detections['vehicleCount'] ?? 0;
-    final animals =
-        detections['animal_count'] ?? detections['animalCount'] ?? 0;
-    lines.add(
-      'detections: humans=$humans vehicles=$vehicles animals=$animals',
-    );
+  if (humans > 0 || vehicles > 0 || animals > 0 || row['detections'] is Map) {
+    lines.add('detections: humans=$humans vehicles=$vehicles animals=$animals');
   }
 
   if (knownFaults is List && knownFaults.isNotEmpty) {
@@ -35855,24 +35976,23 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
 /// `site_awareness_snapshots` row (verified < 10 min old by caller).
 String _buildSiteAwarenessStatusReply(Map<String, dynamic> row) {
   final perimeterClear = row['perimeter_clear'];
-  final detections = row['detections'];
   final activeAlerts = row['active_alerts'];
   final knownFaults = row['known_faults'];
 
   // Detection counts.
-  int humans = 0;
-  int vehicles = 0;
-  int animals = 0;
-  String detectionSummary = '';
-  if (detections is Map) {
-    humans = (detections['human_count'] ?? detections['humanCount'] ?? 0) as int;
-    vehicles =
-        (detections['vehicle_count'] ?? detections['vehicleCount'] ?? 0) as int;
-    animals =
-        (detections['animal_count'] ?? detections['animalCount'] ?? 0) as int;
-    detectionSummary =
-        'Humans: $humans, vehicles: $vehicles, animals: $animals.';
-  }
+  final humans = _siteAwarenessDetectionCount(row, 'human_count', 'humanCount');
+  final vehicles = _siteAwarenessDetectionCount(
+    row,
+    'vehicle_count',
+    'vehicleCount',
+  );
+  final animals = _siteAwarenessDetectionCount(
+    row,
+    'animal_count',
+    'animalCount',
+  );
+  final detectionSummary =
+      'Humans: $humans, vehicles: $vehicles, animals: $animals.';
 
   // Known fault channels line.
   String faultLine = '';
@@ -35886,7 +36006,9 @@ String _buildSiteAwarenessStatusReply(Map<String, dynamic> row) {
     if (humans > 0) {
       // Humans inside property = residents, not a breach.
       final label = humans == 1 ? 'resident' : 'residents';
-      parts.add('All clear. $humans $label detected on site. No perimeter breach.');
+      parts.add(
+        'All clear. $humans $label detected on site. No perimeter breach.',
+      );
     } else {
       parts.add('Perimeter clear.');
       if (detectionSummary.isNotEmpty) parts.add(detectionSummary);

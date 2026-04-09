@@ -203,6 +203,90 @@ void main() {
   );
 
   test(
+    'fresh site awareness upgrades an offline packet to limited monitoring',
+    () {
+      final nowUtc = DateTime.utc(2026, 4, 9, 8, 0);
+      final scope = DvrScopeConfig(
+        clientId: 'CLIENT-MS-VALLEE',
+        regionId: 'REGION-JHB',
+        siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        provider: 'hikvision_local',
+        eventsUri: Uri.parse(
+          'http://127.0.0.1:11635/ISAPI/Event/notification/alertStream',
+        ),
+        authMode: 'basic',
+        username: '',
+        password: '',
+        bearerToken: '',
+      );
+      final packet = service.build(
+        clientId: 'CLIENT-MS-VALLEE',
+        siteId: 'SITE-MS-VALLEE-RESIDENCE',
+        siteReference: 'MS Vallee Residence',
+        scope: scope,
+        localProxyHealth: LocalHikvisionDvrProxyHealthSnapshot(
+          healthEndpoint: Uri.parse('http://127.0.0.1:11635/health'),
+          reachable: false,
+          running: false,
+          lastError: 'Connection refused',
+        ),
+        nowUtc: nowUtc,
+      );
+
+      final reconciled = reconcileClientCameraHealthWithSiteAwareness(
+        packet: packet,
+        observedAtUtc: nowUtc.subtract(const Duration(minutes: 1)),
+        perimeterClear: true,
+        humanCount: 2,
+      );
+
+      expect(reconciled.status, ClientCameraHealthStatus.limited);
+      expect(reconciled.reason, ClientCameraHealthReason.legacyProxyActive);
+      expect(
+        reconciled.lastSuccessfulUpstreamProbeAtUtc,
+        nowUtc.subtract(const Duration(minutes: 1)),
+      );
+      expect(
+        reconciled.liveSiteMovementStatus,
+        ClientLiveSiteMovementStatus.active,
+      );
+      expect(
+        reconciled.liveSiteIssueStatus,
+        ClientLiveSiteIssueStatus.noConfirmedIssue,
+      );
+      expect(reconciled.recentMovementSignalCount, 2);
+      expect(reconciled.recentMovementObjectLabel, 'humans');
+      expect(
+        reconciled.safeClientExplanation,
+        contains('people on site with no perimeter breach'),
+      );
+    },
+  );
+
+  test('fresh site awareness preserves active perimeter alerts', () {
+    final nowUtc = DateTime.utc(2026, 4, 9, 8, 15);
+    final packet = service.build(
+      clientId: 'CLIENT-MS-VALLEE',
+      siteId: 'SITE-MS-VALLEE-RESIDENCE',
+      siteReference: 'MS Vallee Residence',
+      nowUtc: nowUtc,
+    );
+
+    final reconciled = reconcileClientCameraHealthWithSiteAwareness(
+      packet: packet,
+      observedAtUtc: nowUtc,
+      perimeterClear: false,
+    );
+
+    expect(
+      reconciled.liveSiteIssueStatus,
+      ClientLiveSiteIssueStatus.activeSignals,
+    );
+    expect(reconciled.recentIssueSignalLabel, 'active perimeter alert');
+    expect(reconciled.nextAction, contains('perimeter alert'));
+  });
+
+  test(
     'build does not mark the legacy localhost path offline when the relay is still live',
     () {
       final nowUtc = DateTime.utc(2026, 4, 4, 15, 42);

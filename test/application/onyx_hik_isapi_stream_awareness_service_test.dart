@@ -34,6 +34,38 @@ void main() {
       expect(client.requestCount, 1);
     });
 
+    test('publishes an initial heartbeat snapshot on start', () async {
+      final now = DateTime.utc(2026, 4, 8, 12, 0, 1);
+      final controller = StreamController<List<int>>();
+      final client = _FakeStreamClient((_, _) async {
+        return http.StreamedResponse(controller.stream, 200);
+      });
+      final service = OnyxHikIsapiStreamAwarenessService(
+        host: '192.168.0.117',
+        username: 'admin',
+        password: 'secret',
+        client: client,
+        publishInterval: const Duration(days: 1),
+        clock: () => now,
+      );
+      addTearDown(() async {
+        await service.stop();
+        await controller.close();
+      });
+
+      final snapshotFuture = service.snapshots.first.timeout(
+        const Duration(seconds: 2),
+      );
+      await service.start(siteId: 'SITE-1', clientId: 'CLIENT-1');
+
+      final snapshot = await snapshotFuture;
+
+      expect(snapshot.snapshotAt, now);
+      expect(snapshot.perimeterClear, isTrue);
+      expect(snapshot.detections.humanCount, 0);
+      expect(snapshot.activeAlerts, isEmpty);
+    });
+
     test('processes multipart stream correctly', () async {
       final now = DateTime.utc(2026, 4, 8, 12, 0, 2);
       final controller = StreamController<List<int>>();
@@ -55,9 +87,13 @@ void main() {
 
       await service.start(siteId: 'SITE-1', clientId: 'CLIENT-1');
       await _waitFor(() => service.isConnected);
-      final snapshotFuture = service.snapshots.first.timeout(
-        const Duration(seconds: 2),
-      );
+      final snapshotFuture = service.snapshots
+          .firstWhere(
+            (snapshot) =>
+                snapshot.detections.animalCount == 1 &&
+                snapshot.detections.motionCount == 1,
+          )
+          .timeout(const Duration(seconds: 2));
       controller.add(
         utf8.encode(
           _multipartPayload(<String>[
@@ -105,9 +141,9 @@ void main() {
 
       await service.start(siteId: 'SITE-1', clientId: 'CLIENT-1');
       await _waitFor(() => service.isConnected);
-      final snapshotFuture = service.snapshots.first.timeout(
-        const Duration(seconds: 2),
-      );
+      final snapshotFuture = service.snapshots
+          .firstWhere((snapshot) => snapshot.detections.motionCount == 1)
+          .timeout(const Duration(seconds: 2));
       controller.add(
         utf8.encode(
           _multipartPayload(<String>[
@@ -150,9 +186,9 @@ void main() {
 
       await service.start(siteId: 'SITE-1', clientId: 'CLIENT-1');
       await _waitFor(() => service.isConnected);
-      final snapshotFuture = service.snapshots.first.timeout(
-        const Duration(seconds: 2),
-      );
+      final snapshotFuture = service.snapshots
+          .firstWhere((snapshot) => snapshot.detections.humanCount == 1)
+          .timeout(const Duration(seconds: 2));
       controller.add(
         utf8.encode(
           _multipartPayload(<String>[
@@ -169,7 +205,8 @@ void main() {
       final snapshot = await snapshotFuture;
 
       expect(snapshot.detections.humanCount, 1);
-      expect(snapshot.perimeterClear, isFalse);
+      expect(snapshot.perimeterClear, isTrue);
+      expect(snapshot.activeAlerts, isEmpty);
     });
 
     test('retries on connection loss', () async {
@@ -226,9 +263,9 @@ void main() {
 
       await service.start(siteId: 'SITE-1', clientId: 'CLIENT-1');
       await _waitFor(() => service.isConnected);
-      final snapshotFuture = service.snapshots.first.timeout(
-        const Duration(seconds: 2),
-      );
+      final snapshotFuture = service.snapshots
+          .firstWhere((snapshot) => snapshot.knownFaults.contains('11'))
+          .timeout(const Duration(seconds: 2));
       controller.add(
         utf8.encode(
           _multipartPayload(<String>[

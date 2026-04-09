@@ -219,7 +219,7 @@ class OnyxSiteAwarenessEvent {
     if (isKnownFaultChannel) {
       return false;
     }
-    return eventType != OnyxEventType.unknown;
+    return eventType == OnyxEventType.perimeterBreach;
   }
 
   bool get shouldPublishImmediately {
@@ -335,11 +335,10 @@ class OnyxSiteAwarenessProjector {
     final animalCount = animalChannels.length;
     final motionCount = motionChannels.length;
 
-    final hasRecentHumanOrVehicle = _recentEvents.any(
+    final hasRecentPerimeterBreach = _recentEvents.any(
       (event) =>
           !event.isKnownFaultChannel &&
-          (event.eventType == OnyxEventType.humanDetected ||
-              event.eventType == OnyxEventType.vehicleDetected),
+          event.eventType == OnyxEventType.perimeterBreach,
     );
 
     final sortedChannelIds = _channels.keys.toList(growable: false)..sort();
@@ -384,7 +383,7 @@ class OnyxSiteAwarenessProjector {
         motionCount: motionCount,
         lastUpdated: detectionLastUpdated,
       ),
-      perimeterClear: !hasRecentHumanOrVehicle,
+      perimeterClear: !hasRecentPerimeterBreach,
       knownFaults: knownFaults,
       activeAlerts: activeAlerts,
     );

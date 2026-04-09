@@ -705,6 +705,123 @@ class ClientCameraHealthFactPacket {
     required this.safeClientExplanation,
   });
 
+  ClientCameraHealthFactPacket copyWith({
+    String? siteReference,
+    ClientCameraHealthStatus? status,
+    ClientCameraHealthReason? reason,
+    DateTime? lastSuccessfulVisualAtUtc,
+    DateTime? lastSuccessfulUpstreamProbeAtUtc,
+    ClientLiveSiteMovementStatus? liveSiteMovementStatus,
+    ClientLiveSiteIssueStatus? liveSiteIssueStatus,
+    DateTime? lastMovementSignalAtUtc,
+    int? recentMovementSignalCount,
+    String? recentMovementSignalLabel,
+    String? recentIssueSignalLabel,
+    String? recentMovementHotspotLabel,
+    String? recentMovementObjectLabel,
+    String? nextAction,
+    String? safeClientExplanation,
+  }) {
+    return ClientCameraHealthFactPacket(
+      clientId: clientId,
+      siteId: siteId,
+      siteReference: siteReference ?? this.siteReference,
+      status: status ?? this.status,
+      reason: reason ?? this.reason,
+      path: path,
+      lastSuccessfulVisualAtUtc:
+          lastSuccessfulVisualAtUtc ?? this.lastSuccessfulVisualAtUtc,
+      lastSuccessfulUpstreamProbeAtUtc:
+          lastSuccessfulUpstreamProbeAtUtc ??
+          this.lastSuccessfulUpstreamProbeAtUtc,
+      localProxyEndpoint: localProxyEndpoint,
+      localProxyUpstreamAlertStreamUri: localProxyUpstreamAlertStreamUri,
+      localProxyReachable: localProxyReachable,
+      localProxyRunning: localProxyRunning,
+      localProxyUpstreamStreamStatus: localProxyUpstreamStreamStatus,
+      localProxyUpstreamStreamConnected: localProxyUpstreamStreamConnected,
+      localProxyBufferedAlertCount: localProxyBufferedAlertCount,
+      localProxyLastAlertAtUtc: localProxyLastAlertAtUtc,
+      localProxyLastSuccessAtUtc: localProxyLastSuccessAtUtc,
+      localProxyLastError: localProxyLastError,
+      currentVisualSnapshotUri: currentVisualSnapshotUri,
+      currentVisualRelayStreamUri: currentVisualRelayStreamUri,
+      currentVisualRelayPlayerUri: currentVisualRelayPlayerUri,
+      currentVisualCameraId: currentVisualCameraId,
+      currentVisualVerifiedAtUtc: currentVisualVerifiedAtUtc,
+      currentVisualRelayCheckedAtUtc: currentVisualRelayCheckedAtUtc,
+      currentVisualRelayStatus: currentVisualRelayStatus,
+      currentVisualRelayLastFrameAtUtc: currentVisualRelayLastFrameAtUtc,
+      currentVisualRelayActiveClientCount: currentVisualRelayActiveClientCount,
+      currentVisualRelayLastError: currentVisualRelayLastError,
+      continuousVisualWatchStatus: continuousVisualWatchStatus,
+      continuousVisualWatchSummary: continuousVisualWatchSummary,
+      continuousVisualWatchLastSweepAtUtc: continuousVisualWatchLastSweepAtUtc,
+      continuousVisualWatchLastCandidateAtUtc:
+          continuousVisualWatchLastCandidateAtUtc,
+      continuousVisualWatchReachableCameraCount:
+          continuousVisualWatchReachableCameraCount,
+      continuousVisualWatchBaselineReadyCameraCount:
+          continuousVisualWatchBaselineReadyCameraCount,
+      continuousVisualWatchHotCameraId: continuousVisualWatchHotCameraId,
+      continuousVisualWatchHotCameraLabel: continuousVisualWatchHotCameraLabel,
+      continuousVisualWatchHotZoneLabel: continuousVisualWatchHotZoneLabel,
+      continuousVisualWatchHotAreaLabel: continuousVisualWatchHotAreaLabel,
+      continuousVisualWatchHotWatchRuleKey:
+          continuousVisualWatchHotWatchRuleKey,
+      continuousVisualWatchHotWatchPriorityLabel:
+          continuousVisualWatchHotWatchPriorityLabel,
+      continuousVisualWatchHotCameraChangeStreakCount:
+          continuousVisualWatchHotCameraChangeStreakCount,
+      continuousVisualWatchHotCameraChangeStage:
+          continuousVisualWatchHotCameraChangeStage,
+      continuousVisualWatchHotCameraChangeActiveSinceUtc:
+          continuousVisualWatchHotCameraChangeActiveSinceUtc,
+      continuousVisualWatchHotCameraSceneDeltaScore:
+          continuousVisualWatchHotCameraSceneDeltaScore,
+      continuousVisualWatchCorrelatedContextLabel:
+          continuousVisualWatchCorrelatedContextLabel,
+      continuousVisualWatchCorrelatedAreaLabel:
+          continuousVisualWatchCorrelatedAreaLabel,
+      continuousVisualWatchCorrelatedZoneLabel:
+          continuousVisualWatchCorrelatedZoneLabel,
+      continuousVisualWatchCorrelatedWatchRuleKey:
+          continuousVisualWatchCorrelatedWatchRuleKey,
+      continuousVisualWatchCorrelatedWatchPriorityLabel:
+          continuousVisualWatchCorrelatedWatchPriorityLabel,
+      continuousVisualWatchCorrelatedChangeStage:
+          continuousVisualWatchCorrelatedChangeStage,
+      continuousVisualWatchCorrelatedActiveSinceUtc:
+          continuousVisualWatchCorrelatedActiveSinceUtc,
+      continuousVisualWatchCorrelatedCameraCount:
+          continuousVisualWatchCorrelatedCameraCount,
+      continuousVisualWatchCorrelatedCameraLabels:
+          continuousVisualWatchCorrelatedCameraLabels,
+      continuousVisualWatchPostureKey: continuousVisualWatchPostureKey,
+      continuousVisualWatchPostureLabel: continuousVisualWatchPostureLabel,
+      continuousVisualWatchAttentionLabel: continuousVisualWatchAttentionLabel,
+      continuousVisualWatchSourceLabel: continuousVisualWatchSourceLabel,
+      liveSiteMovementStatus:
+          liveSiteMovementStatus ?? this.liveSiteMovementStatus,
+      liveSiteIssueStatus: liveSiteIssueStatus ?? this.liveSiteIssueStatus,
+      lastMovementSignalAtUtc:
+          lastMovementSignalAtUtc ?? this.lastMovementSignalAtUtc,
+      recentMovementSignalCount:
+          recentMovementSignalCount ?? this.recentMovementSignalCount,
+      recentMovementSignalLabel:
+          recentMovementSignalLabel ?? this.recentMovementSignalLabel,
+      recentIssueSignalLabel:
+          recentIssueSignalLabel ?? this.recentIssueSignalLabel,
+      recentMovementHotspotLabel:
+          recentMovementHotspotLabel ?? this.recentMovementHotspotLabel,
+      recentMovementObjectLabel:
+          recentMovementObjectLabel ?? this.recentMovementObjectLabel,
+      nextAction: nextAction ?? this.nextAction,
+      safeClientExplanation:
+          safeClientExplanation ?? this.safeClientExplanation,
+    );
+  }
+
   bool get hasLiveVisualAccess => status == ClientCameraHealthStatus.live;
 
   bool get hasScopedLocalProxyHealth => localProxyReachable != null;
@@ -1054,6 +1171,177 @@ class ClientCameraHealthFactPacket {
   static String _utcLabel(DateTime? value) {
     return value?.toUtc().toIso8601String() ?? 'unknown';
   }
+}
+
+ClientCameraHealthFactPacket reconcileClientCameraHealthWithSiteAwareness({
+  required ClientCameraHealthFactPacket packet,
+  required DateTime observedAtUtc,
+  required bool perimeterClear,
+  int humanCount = 0,
+  int vehicleCount = 0,
+  int animalCount = 0,
+  int motionCount = 0,
+}) {
+  final normalizedObservedAtUtc = observedAtUtc.toUtc();
+  final signalCount = humanCount + vehicleCount + animalCount + motionCount;
+  final movementObjectLabel = _siteAwarenessMovementObjectLabel(
+    humanCount: humanCount,
+    vehicleCount: vehicleCount,
+    animalCount: animalCount,
+    motionCount: motionCount,
+  );
+  final movementSignalLabel = _siteAwarenessMovementSignalLabel(
+    humanCount: humanCount,
+    vehicleCount: vehicleCount,
+    animalCount: animalCount,
+    motionCount: motionCount,
+  );
+  final liveSiteMovementStatus = signalCount > 0
+      ? ClientLiveSiteMovementStatus.active
+      : packet.hasRecentMovementSignals
+      ? packet.liveSiteMovementStatus
+      : ClientLiveSiteMovementStatus.noConfirmedMovement;
+  final liveSiteIssueStatus = perimeterClear
+      ? (packet.hasRecentSiteIssueSignals
+            ? packet.liveSiteIssueStatus
+            : ClientLiveSiteIssueStatus.noConfirmedIssue)
+      : ClientLiveSiteIssueStatus.activeSignals;
+  final nextStatus = packet.status == ClientCameraHealthStatus.offline
+      ? ClientCameraHealthStatus.limited
+      : packet.status;
+  final nextReason = nextStatus == ClientCameraHealthStatus.live
+      ? packet.reason
+      : packet.path == ClientCameraHealthPath.legacyLocalProxy
+      ? ClientCameraHealthReason.legacyProxyActive
+      : ClientCameraHealthReason.unknown;
+
+  return packet.copyWith(
+    status: nextStatus,
+    reason: nextReason,
+    lastSuccessfulUpstreamProbeAtUtc: _latestUtc(
+      packet.lastSuccessfulUpstreamProbeAtUtc,
+      normalizedObservedAtUtc,
+    ),
+    liveSiteMovementStatus: liveSiteMovementStatus,
+    liveSiteIssueStatus: liveSiteIssueStatus,
+    lastMovementSignalAtUtc: signalCount > 0
+        ? _latestUtc(packet.lastMovementSignalAtUtc, normalizedObservedAtUtc)
+        : packet.lastMovementSignalAtUtc,
+    recentMovementSignalCount: signalCount > packet.recentMovementSignalCount
+        ? signalCount
+        : packet.recentMovementSignalCount,
+    recentMovementSignalLabel:
+        movementSignalLabel ?? packet.recentMovementSignalLabel,
+    recentIssueSignalLabel: perimeterClear
+        ? packet.recentIssueSignalLabel
+        : 'active perimeter alert',
+    recentMovementObjectLabel:
+        movementObjectLabel ?? packet.recentMovementObjectLabel,
+    nextAction: _siteAwarenessNextAction(
+      siteReference: packet.siteReference,
+      perimeterClear: perimeterClear,
+    ),
+    safeClientExplanation: _siteAwarenessSafeClientExplanation(
+      siteReference: packet.siteReference,
+      perimeterClear: perimeterClear,
+      signalCount: signalCount,
+      humanCount: humanCount,
+    ),
+  );
+}
+
+DateTime? _latestUtc(DateTime? first, DateTime? second) {
+  final normalizedFirst = first?.toUtc();
+  final normalizedSecond = second?.toUtc();
+  if (normalizedFirst == null) {
+    return normalizedSecond;
+  }
+  if (normalizedSecond == null) {
+    return normalizedFirst;
+  }
+  return normalizedSecond.isAfter(normalizedFirst)
+      ? normalizedSecond
+      : normalizedFirst;
+}
+
+String? _siteAwarenessMovementObjectLabel({
+  required int humanCount,
+  required int vehicleCount,
+  required int animalCount,
+  required int motionCount,
+}) {
+  if (humanCount > 0) {
+    return humanCount == 1 ? 'human' : 'humans';
+  }
+  if (vehicleCount > 0) {
+    return vehicleCount == 1 ? 'vehicle' : 'vehicles';
+  }
+  if (animalCount > 0) {
+    return animalCount == 1 ? 'animal' : 'animals';
+  }
+  if (motionCount > 0) {
+    return 'movement';
+  }
+  return null;
+}
+
+String? _siteAwarenessMovementSignalLabel({
+  required int humanCount,
+  required int vehicleCount,
+  required int animalCount,
+  required int motionCount,
+}) {
+  final labels = <String>[];
+  if (humanCount > 0) {
+    labels.add('$humanCount human${humanCount == 1 ? '' : 's'}');
+  }
+  if (vehicleCount > 0) {
+    labels.add('$vehicleCount vehicle${vehicleCount == 1 ? '' : 's'}');
+  }
+  if (animalCount > 0) {
+    labels.add('$animalCount animal${animalCount == 1 ? '' : 's'}');
+  }
+  if (motionCount > 0) {
+    labels.add('$motionCount motion signal${motionCount == 1 ? '' : 's'}');
+  }
+  if (labels.isEmpty) {
+    return null;
+  }
+  return 'live site awareness: ${labels.join(', ')}';
+}
+
+String _siteAwarenessNextAction({
+  required String siteReference,
+  required bool perimeterClear,
+}) {
+  final resolvedSiteReference = siteReference.trim().isEmpty
+      ? 'the site'
+      : siteReference.trim();
+  if (!perimeterClear) {
+    return 'Keep the live site-awareness feed under watch at $resolvedSiteReference and confirm the clearest visual view while the perimeter alert is active.';
+  }
+  return 'Keep the live site-awareness feed under watch at $resolvedSiteReference and confirm the clearest visual view before promising direct camera confirmation.';
+}
+
+String _siteAwarenessSafeClientExplanation({
+  required String siteReference,
+  required bool perimeterClear,
+  required int signalCount,
+  required int humanCount,
+}) {
+  final resolvedSiteReference = siteReference.trim().isEmpty
+      ? 'the site'
+      : siteReference.trim();
+  if (!perimeterClear) {
+    return 'I have live site-awareness signals at $resolvedSiteReference right now, including an active perimeter alert, and I am verifying the clearest visual view.';
+  }
+  if (humanCount > 0) {
+    return 'I have live site-awareness signals at $resolvedSiteReference right now. The latest snapshot shows people on site with no perimeter breach.';
+  }
+  if (signalCount > 0) {
+    return 'I have live site-awareness signals at $resolvedSiteReference right now, and there are no active perimeter alerts in the latest snapshot.';
+  }
+  return 'I have live site-awareness signals at $resolvedSiteReference right now. There are no active alerts in the latest snapshot.';
 }
 
 class ClientCameraHealthFactPacketService {
