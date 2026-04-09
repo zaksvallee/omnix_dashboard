@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-09 18:34
-- **Last commit:** fix: double responses, wrong timezone, remove debug label
-- **Commit hash:** 9cae56d
+- **Date:** 2026-04-09 19:32
+- **Last commit:** chore: make starts full stack — proxy + worker + app
+- **Commit hash:** 44e35da
 
 
 ## Completed (this sprint)
