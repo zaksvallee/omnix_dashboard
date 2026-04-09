@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-08 23:50
-- **Last commit:** chore: SESSION.md — end of session 2026-04-08 night
-- **Commit hash:** 620b5e0
+- **Date:** 2026-04-09 18:34
+- **Last commit:** fix: double responses, wrong timezone, remove debug label
+- **Commit hash:** 9cae56d
 
 
 ## Completed (this sprint)
@@ -52,6 +52,8 @@
 - P3: Telegram bot response quality — natural language tuning
 - P4: dispatch_performance_projection.dart — per-contract value to client config (deferred, contract model not ready)
 - P5: onyx_agent_camera_bridge_receiver.dart Dahua/Axis/Uniview — integration test with real hardware when available
+- Phase 2: Pattern + FR engine (post Hik-Connect)
+- Phase 3: Presence intelligence — three-state model
 
 ## Blocked / needs decision
 - [ ] dispatch_performance_projection.dart — per-contract value, waiting on contract model

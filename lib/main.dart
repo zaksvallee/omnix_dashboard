@@ -118,6 +118,7 @@ import 'application/telegram_client_approval_service.dart';
 import 'application/telegram_client_quick_action_audit_formatter.dart';
 import 'application/telegram_client_prompt_signals.dart';
 import 'application/telegram_client_quick_action_service.dart';
+import 'application/telegram_command_router.dart';
 import 'application/telegram_poll_tab_lock.dart';
 import 'application/telegram_bridge_delivery_memory.dart';
 import 'application/telegram_bridge_resolver.dart';
@@ -348,6 +349,65 @@ class _ListenerAlarmAdvisoryDeliveryResult {
     required this.deliveredCount,
     required this.failedCount,
   });
+}
+
+class _TelegramCommandDispatchSummary {
+  _TelegramCommandDispatchSummary(this.dispatchId);
+
+  final String dispatchId;
+  DateTime? openedAtUtc;
+  DateTime? arrivedAtUtc;
+  String? responderLabel;
+  DateTime? closedAtUtc;
+  String? resolutionType;
+  DateTime? executionCompletedAtUtc;
+  DateTime? executionDeniedAtUtc;
+  String? executionDeniedReason;
+  DateTime? partnerUpdatedAtUtc;
+  String? partnerLabel;
+  PartnerDispatchStatus? partnerStatus;
+
+  DateTime? get lastEventAtUtc {
+    final timestamps = <DateTime>[
+      ?openedAtUtc,
+      ?arrivedAtUtc,
+      ?closedAtUtc,
+      ?executionCompletedAtUtc,
+      ?executionDeniedAtUtc,
+      ?partnerUpdatedAtUtc,
+    ]..sort((left, right) => right.compareTo(left));
+    return timestamps.isEmpty ? null : timestamps.first;
+  }
+
+  bool get isActive => closedAtUtc == null;
+
+  String get statusLabel {
+    if (closedAtUtc != null) {
+      return resolutionType?.trim().isNotEmpty == true
+          ? resolutionType!.trim()
+          : 'closed';
+    }
+    if (arrivedAtUtc != null) {
+      return 'on site';
+    }
+    if (partnerStatus != null &&
+        partnerStatus != PartnerDispatchStatus.unknown) {
+      return switch (partnerStatus!) {
+        PartnerDispatchStatus.accepted => 'accepted',
+        PartnerDispatchStatus.onSite => 'partner on site',
+        PartnerDispatchStatus.allClear => 'all clear',
+        PartnerDispatchStatus.cancelled => 'cancelled',
+        PartnerDispatchStatus.unknown => 'pending',
+      };
+    }
+    if (executionDeniedAtUtc != null) {
+      return 'denied';
+    }
+    if (executionCompletedAtUtc != null) {
+      return 'completed';
+    }
+    return 'dispatched';
+  }
 }
 
 class _ListenerAlarmCctvReviewResult {
@@ -1449,6 +1509,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final VoipCallService _voipCallService = _buildVoipCallService();
   late final TelegramAiAssistantService _telegramAiAssistant =
       widget.telegramAiAssistantServiceOverride ?? _buildTelegramAiAssistant();
+  static const OnyxTelegramCommandRouter _telegramCommandRouter =
+      OnyxTelegramCommandRouter();
   late final OnyxTelegramOperationalCommandService
   _onyxTelegramOperationalCommandService =
       OnyxTelegramOperationalCommandService(
@@ -14992,6 +15054,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (handledQuickAction) {
       return true;
     }
+    final handledStructuredCommand = await _handleTelegramStructuredCommand(
+      update: update,
+      target: target,
+      siteId: siteId,
+    );
+    if (handledStructuredCommand) {
+      return true;
+    }
     final handledOnyxCommand = await _handleTelegramOnyxOperationalCommand(
       update: update,
       target: target,
@@ -15292,6 +15362,896 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       update: update,
     );
     return true;
+  }
+
+  Future<bool> _handleTelegramStructuredCommand({
+    required TelegramBridgeInboundMessage update,
+    required _TelegramInboundClientTarget target,
+    required String siteId,
+  }) async {
+    final commandType = _telegramCommandRouter.classify(update.text);
+    if (commandType == OnyxTelegramCommandType.unknown) {
+      return false;
+    }
+    final responseText = await _telegramStructuredReplyForCommand(
+      commandType: commandType,
+      update: update,
+      target: target,
+      siteId: siteId,
+    );
+    final trimmedResponse = responseText.trim();
+    if (trimmedResponse.isEmpty) {
+      return false;
+    }
+    final providerLabel = 'command_router:${commandType.name}';
+    final nowUtc = _telegramFlowNowUtc();
+    final delivered = await _sendTelegramMessageWithChunks(
+      messageKeyPrefix:
+          'tg-client-router-${commandType.name}-${update.updateId}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      responseText: trimmedResponse,
+      failureContext: 'Client structured Telegram response',
+    );
+    _telegramAiLastHandledAtUtc = nowUtc;
+    _telegramAiLastHandledSummary =
+        '${target.clientId}/$siteId • ${commandType.name}/${delivered ? 'sent' : 'failed'}';
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'ONYX',
+      body: trimmedResponse,
+      occurredAtUtc: nowUtc,
+      roomKey: delivered ? 'Residents' : 'Security Desk',
+      viewerRole: delivered
+          ? ClientAppViewerRole.client.name
+          : ClientAppViewerRole.control.name,
+      incidentStatusLabel: delivered
+          ? _telegramStructuredStatusLabel(commandType)
+          : 'Structured Reply Failed',
+      messageSource: 'telegram',
+      messageProvider: providerLabel,
+    );
+    if (delivered) {
+      await _appendCriticalTelegramClientReplyControlMirror(
+        clientId: target.clientId,
+        siteId: siteId,
+        author: 'ONYX',
+        body: trimmedResponse,
+        occurredAtUtc: nowUtc,
+        messageProvider: providerLabel,
+      );
+    }
+    _recordTelegramRecentPrompt(
+      roomLabel: _deliverySiteLabelFor(
+        clientId: target.clientId,
+        siteId: siteId,
+      ),
+      scopeLabel: '${target.clientId} / $siteId',
+      prompt: update.text,
+      outcomeLabel: delivered ? commandType.name : '${commandType.name} failed',
+      handledAtUtc: nowUtc,
+    );
+    await _appendTelegramAiLedger(
+      clientId: target.clientId,
+      siteId: siteId,
+      lane: 'client',
+      action: delivered
+          ? 'router_${commandType.name}_sent'
+          : 'router_${commandType.name}_failed',
+      inboundText: update.text,
+      outboundText: trimmedResponse,
+      providerLabel: providerLabel,
+      update: update,
+    );
+    return true;
+  }
+
+  String _telegramStructuredStatusLabel(OnyxTelegramCommandType commandType) {
+    return switch (commandType) {
+      OnyxTelegramCommandType.liveStatus => 'Live Status Sent',
+      OnyxTelegramCommandType.incident => 'Incident Summary Sent',
+      OnyxTelegramCommandType.dispatch => 'Dispatch Summary Sent',
+      OnyxTelegramCommandType.guard => 'Guard Status Sent',
+      OnyxTelegramCommandType.report => 'Report Summary Sent',
+      OnyxTelegramCommandType.camera => 'Visual Status Sent',
+      OnyxTelegramCommandType.intelligence => 'Intelligence Summary Sent',
+      OnyxTelegramCommandType.actionRequest => 'Action Confirmation Sent',
+      OnyxTelegramCommandType.unknown => 'Structured Reply Sent',
+    };
+  }
+
+  Future<String> _telegramStructuredReplyForCommand({
+    required OnyxTelegramCommandType commandType,
+    required TelegramBridgeInboundMessage update,
+    required _TelegramInboundClientTarget target,
+    required String siteId,
+  }) async {
+    return switch (commandType) {
+      OnyxTelegramCommandType.liveStatus => _telegramLiveStatusReply(
+        clientId: target.clientId,
+        siteId: siteId,
+      ),
+      OnyxTelegramCommandType.incident => _telegramIncidentReply(
+        clientId: target.clientId,
+        siteId: siteId,
+        prompt: update.text,
+      ),
+      OnyxTelegramCommandType.dispatch => _telegramDispatchReply(
+        clientId: target.clientId,
+        siteId: siteId,
+        prompt: update.text,
+      ),
+      OnyxTelegramCommandType.guard => _telegramGuardReply(
+        clientId: target.clientId,
+        siteId: siteId,
+      ),
+      OnyxTelegramCommandType.report => _telegramReportReply(
+        clientId: target.clientId,
+        siteId: siteId,
+        prompt: update.text,
+      ),
+      OnyxTelegramCommandType.camera => _telegramCameraReply(
+        clientId: target.clientId,
+        siteId: siteId,
+      ),
+      OnyxTelegramCommandType.intelligence => _telegramIntelligenceReply(
+        clientId: target.clientId,
+        siteId: siteId,
+      ),
+      OnyxTelegramCommandType.actionRequest => _telegramActionRequestReply(
+        clientId: target.clientId,
+        siteId: siteId,
+        prompt: update.text,
+      ),
+      OnyxTelegramCommandType.unknown => Future<String>.value(''),
+    };
+  }
+
+  List<DispatchEvent> _telegramCommandScopedEvents({
+    required String clientId,
+    required String siteId,
+  }) {
+    final normalizedClientId = clientId.trim();
+    final normalizedSiteId = siteId.trim();
+    if (normalizedClientId.isEmpty || normalizedSiteId.isEmpty) {
+      return const <DispatchEvent>[];
+    }
+    final scoped =
+        store
+            .allEvents()
+            .where((event) {
+              return _telegramCommandEventClientId(event) ==
+                      normalizedClientId &&
+                  _telegramCommandEventSiteId(event) == normalizedSiteId;
+            })
+            .toList(growable: false)
+          ..sort(_compareDispatchEventsByOccurredAtThenSequence);
+    return scoped;
+  }
+
+  String _telegramCommandEventClientId(DispatchEvent event) {
+    return switch (event) {
+      DecisionCreated value => value.clientId.trim(),
+      ResponseArrived value => value.clientId.trim(),
+      PartnerDispatchStatusDeclared value => value.clientId.trim(),
+      GuardCheckedIn value => value.clientId.trim(),
+      ExecutionCompleted value => value.clientId.trim(),
+      ExecutionDenied value => value.clientId.trim(),
+      IntelligenceReceived value => value.clientId.trim(),
+      PatrolCompleted value => value.clientId.trim(),
+      IncidentClosed value => value.clientId.trim(),
+      ReportGenerated value => value.clientId.trim(),
+      _ => '',
+    };
+  }
+
+  String _telegramCommandEventSiteId(DispatchEvent event) {
+    return switch (event) {
+      DecisionCreated value => value.siteId.trim(),
+      ResponseArrived value => value.siteId.trim(),
+      PartnerDispatchStatusDeclared value => value.siteId.trim(),
+      GuardCheckedIn value => value.siteId.trim(),
+      ExecutionCompleted value => value.siteId.trim(),
+      ExecutionDenied value => value.siteId.trim(),
+      IntelligenceReceived value => value.siteId.trim(),
+      PatrolCompleted value => value.siteId.trim(),
+      IncidentClosed value => value.siteId.trim(),
+      ReportGenerated value => value.siteId.trim(),
+      _ => '',
+    };
+  }
+
+  List<_TelegramCommandDispatchSummary>
+  _telegramCommandDispatchSummariesForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final summaries = <String, _TelegramCommandDispatchSummary>{};
+    for (final event in _telegramCommandScopedEvents(
+      clientId: clientId,
+      siteId: siteId,
+    )) {
+      switch (event) {
+        case DecisionCreated value:
+          final dispatchId = value.dispatchId.trim();
+          if (dispatchId.isEmpty) {
+            break;
+          }
+          final summary = summaries.putIfAbsent(
+            dispatchId,
+            () => _TelegramCommandDispatchSummary(dispatchId),
+          );
+          final occurredAtUtc = value.occurredAt.toUtc();
+          if (summary.openedAtUtc == null ||
+              occurredAtUtc.isBefore(summary.openedAtUtc!)) {
+            summary.openedAtUtc = occurredAtUtc;
+          }
+          break;
+        case ResponseArrived value:
+          final dispatchId = value.dispatchId.trim();
+          if (dispatchId.isEmpty) {
+            break;
+          }
+          final summary = summaries.putIfAbsent(
+            dispatchId,
+            () => _TelegramCommandDispatchSummary(dispatchId),
+          );
+          final occurredAtUtc = value.occurredAt.toUtc();
+          if (summary.arrivedAtUtc == null ||
+              occurredAtUtc.isBefore(summary.arrivedAtUtc!)) {
+            summary.arrivedAtUtc = occurredAtUtc;
+            if (value.guardId.trim().isNotEmpty) {
+              summary.responderLabel = value.guardId.trim();
+            }
+          }
+          break;
+        case PartnerDispatchStatusDeclared value:
+          final dispatchId = value.dispatchId.trim();
+          if (dispatchId.isEmpty) {
+            break;
+          }
+          final summary = summaries.putIfAbsent(
+            dispatchId,
+            () => _TelegramCommandDispatchSummary(dispatchId),
+          );
+          final occurredAtUtc = value.occurredAt.toUtc();
+          if (summary.partnerUpdatedAtUtc == null ||
+              occurredAtUtc.isAfter(summary.partnerUpdatedAtUtc!)) {
+            summary.partnerUpdatedAtUtc = occurredAtUtc;
+            summary.partnerLabel = value.partnerLabel.trim();
+            summary.partnerStatus = value.status;
+          }
+          break;
+        case IncidentClosed value:
+          final dispatchId = value.dispatchId.trim();
+          if (dispatchId.isEmpty) {
+            break;
+          }
+          final summary = summaries.putIfAbsent(
+            dispatchId,
+            () => _TelegramCommandDispatchSummary(dispatchId),
+          );
+          final occurredAtUtc = value.occurredAt.toUtc();
+          if (summary.closedAtUtc == null ||
+              occurredAtUtc.isBefore(summary.closedAtUtc!)) {
+            summary.closedAtUtc = occurredAtUtc;
+            summary.resolutionType = value.resolutionType.trim();
+          }
+          break;
+        case ExecutionCompleted value:
+          final dispatchId = value.dispatchId.trim();
+          if (dispatchId.isEmpty) {
+            break;
+          }
+          final summary = summaries.putIfAbsent(
+            dispatchId,
+            () => _TelegramCommandDispatchSummary(dispatchId),
+          );
+          final occurredAtUtc = value.occurredAt.toUtc();
+          if (summary.executionCompletedAtUtc == null ||
+              occurredAtUtc.isAfter(summary.executionCompletedAtUtc!)) {
+            summary.executionCompletedAtUtc = occurredAtUtc;
+          }
+          break;
+        case ExecutionDenied value:
+          final dispatchId = value.dispatchId.trim();
+          if (dispatchId.isEmpty) {
+            break;
+          }
+          final summary = summaries.putIfAbsent(
+            dispatchId,
+            () => _TelegramCommandDispatchSummary(dispatchId),
+          );
+          final occurredAtUtc = value.occurredAt.toUtc();
+          if (summary.executionDeniedAtUtc == null ||
+              occurredAtUtc.isAfter(summary.executionDeniedAtUtc!)) {
+            summary.executionDeniedAtUtc = occurredAtUtc;
+            summary.executionDeniedReason = value.reason.trim();
+          }
+          break;
+        default:
+          break;
+      }
+    }
+    final values = summaries.values.toList(growable: false)
+      ..sort((left, right) {
+        final rightStamp = right.lastEventAtUtc ?? right.openedAtUtc;
+        final leftStamp = left.lastEventAtUtc ?? left.openedAtUtc;
+        if (rightStamp == null && leftStamp == null) {
+          return left.dispatchId.compareTo(right.dispatchId);
+        }
+        if (rightStamp == null) {
+          return -1;
+        }
+        if (leftStamp == null) {
+          return 1;
+        }
+        return rightStamp.compareTo(leftStamp);
+      });
+    return values;
+  }
+
+  DateTime? _telegramCommandLatestScopedEventAtUtc({
+    required String clientId,
+    required String siteId,
+  }) {
+    final scoped = _telegramCommandScopedEvents(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (scoped.isEmpty) {
+      return null;
+    }
+    return scoped.last.occurredAt.toUtc();
+  }
+
+  String _telegramCommandLocalDateTimeLabel(DateTime? instantUtc) {
+    if (instantUtc == null) {
+      return 'n/a';
+    }
+    final local = instantUtc.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${local.year.toString().padLeft(4, '0')}-${two(local.month)}-${two(local.day)} ${two(local.hour)}:${two(local.minute)}';
+  }
+
+  String _telegramCommandLocalTimeLabel(DateTime? instantUtc) {
+    if (instantUtc == null) {
+      return 'n/a';
+    }
+    final local = instantUtc.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(local.hour)}:${two(local.minute)}';
+  }
+
+  String _telegramCommandCountLabel(int count, String singular) {
+    final plural = singular == 'person' ? 'people' : '${singular}s';
+    return '$count ${count == 1 ? singular : plural}';
+  }
+
+  String _telegramCommandPerimeterLabel(bool clear) =>
+      clear ? 'clear' : 'alert active';
+
+  String _telegramCommandChannelSummary(Map<String, dynamic> row) {
+    final knownFaults = row['known_faults'];
+    final knownFaultLabels = knownFaults is List
+        ? knownFaults
+              .map((value) => value.toString().trim())
+              .where((value) => value.isNotEmpty)
+              .toList(growable: false)
+        : const <String>[];
+    final channels = row['channels'];
+    if (channels is! Map || channels.isEmpty) {
+      return knownFaultLabels.isEmpty
+          ? 'all reporting channels healthy'
+          : 'known fault on ${knownFaultLabels.map((value) => 'Channel $value').join(', ')}';
+    }
+    final sortedKeys = channels.keys.toList(growable: false)
+      ..sort((left, right) => left.toString().compareTo(right.toString()));
+    final parts = <String>[];
+    for (final key in sortedKeys.take(4)) {
+      final raw = channels[key];
+      if (raw is! Map) {
+        continue;
+      }
+      final status = _siteAwarenessHumanizedLabel(raw['status']);
+      final isFault = raw['is_fault'] == true || raw['isFault'] == true;
+      parts.add('Channel $key ${isFault ? 'fault' : status}');
+    }
+    if (parts.isEmpty) {
+      return knownFaultLabels.isEmpty
+          ? 'all reporting channels healthy'
+          : 'known fault on ${knownFaultLabels.map((value) => 'Channel $value').join(', ')}';
+    }
+    return parts.join(' • ');
+  }
+
+  String? _telegramCommandDispatchReferenceFromPrompt(String prompt) {
+    final match = RegExp(
+      r'\b(?:INC-|DISP-)[A-Z0-9-]+\b',
+      caseSensitive: false,
+    ).firstMatch(prompt);
+    if (match == null) {
+      return null;
+    }
+    final raw = (match.group(0) ?? '').trim().toUpperCase();
+    if (raw.startsWith('INC-')) {
+      return raw.substring(4);
+    }
+    return raw;
+  }
+
+  ({DateTime startLocal, DateTime endLocal, String label})
+  _telegramCommandIncidentWindowForPrompt(String prompt) {
+    final normalized = prompt.toLowerCase();
+    final nowLocal = _telegramFlowNowLocal();
+    final startOfToday = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    if (normalized.contains('last night')) {
+      return (
+        startLocal: startOfToday.subtract(const Duration(hours: 6)),
+        endLocal: startOfToday.add(const Duration(hours: 6)),
+        label: 'last night',
+      );
+    }
+    if (normalized.contains('yesterday')) {
+      return (
+        startLocal: startOfToday.subtract(const Duration(days: 1)),
+        endLocal: startOfToday,
+        label: 'yesterday',
+      );
+    }
+    if (normalized.contains('today')) {
+      return (
+        startLocal: startOfToday,
+        endLocal: startOfToday.add(const Duration(days: 1)),
+        label: 'today',
+      );
+    }
+    return (
+      startLocal: nowLocal.subtract(const Duration(hours: 24)),
+      endLocal: nowLocal,
+      label: 'the last 24 hours',
+    );
+  }
+
+  String _telegramGuardComplianceLabel(DateTime? lastPatrolUtc) {
+    if (lastPatrolUtc == null) {
+      return 'awaiting patrol signal';
+    }
+    final age = _telegramFlowNowUtc().difference(lastPatrolUtc.toUtc());
+    if (age <= const Duration(hours: 2)) {
+      return 'on schedule';
+    }
+    if (age <= const Duration(hours: 6)) {
+      return 'late';
+    }
+    return 'overdue';
+  }
+
+  Future<String> _telegramLiveStatusReply({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
+      siteId: siteId,
+    );
+    final nowUtc = _telegramFlowNowUtc();
+    final freshSiteAwareness =
+        siteAwarenessRow != null &&
+        _isSiteAwarenessSnapshotFresh(siteAwarenessRow, nowUtc);
+    final siteAwarenessSummary = freshSiteAwareness
+        ? _telegramAiSiteAwarenessSummaryFromRow(siteAwarenessRow)
+        : null;
+    final dispatches = _telegramCommandDispatchSummariesForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final activeDispatches = dispatches
+        .where((summary) => summary.isActive)
+        .toList(growable: false);
+    final latestDispatch = dispatches.isEmpty ? null : dispatches.first;
+    final latestEventAtUtc =
+        siteAwarenessSummary?.observedAtUtc ??
+        latestDispatch?.lastEventAtUtc ??
+        _telegramCommandLatestScopedEventAtUtc(
+          clientId: clientId,
+          siteId: siteId,
+        );
+
+    final lines = <String>['Live status: $siteLabel'];
+    if (siteAwarenessSummary != null) {
+      lines.add(
+        '• Monitoring: active • perimeter ${_telegramCommandPerimeterLabel(siteAwarenessSummary.perimeterClear)}',
+      );
+      lines.add(
+        '• Detections: ${_telegramCommandCountLabel(siteAwarenessSummary.humanCount, 'person')} • ${_telegramCommandCountLabel(siteAwarenessSummary.vehicleCount, 'vehicle')} • ${_telegramCommandCountLabel(siteAwarenessSummary.animalCount, 'animal')}',
+      );
+      lines.add('• Active alerts: ${siteAwarenessSummary.activeAlertCount}');
+    } else {
+      lines.add(
+        '• Monitoring: no fresh site-awareness snapshot in the last 30 minutes',
+      );
+    }
+    lines.add('• Active incidents: ${activeDispatches.length}');
+    lines.add(
+      '• Last confirmed event: ${_telegramCommandLocalDateTimeLabel(latestEventAtUtc)}',
+    );
+    if (latestDispatch != null) {
+      lines.add(
+        '• Latest operational incident: ${latestDispatch.dispatchId} • ${latestDispatch.statusLabel}',
+      );
+    }
+    return lines.join('\n');
+  }
+
+  Future<String> _telegramIncidentReply({
+    required String clientId,
+    required String siteId,
+    required String prompt,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final dispatches = _telegramCommandDispatchSummariesForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final dispatchReference = _telegramCommandDispatchReferenceFromPrompt(
+      prompt,
+    );
+    if (dispatchReference != null) {
+      for (final summary in dispatches) {
+        if (summary.dispatchId.trim().toUpperCase() != dispatchReference) {
+          continue;
+        }
+        return [
+          'Incident summary: $siteLabel',
+          '• Reference: ${summary.dispatchId}',
+          '• Opened: ${_telegramCommandLocalDateTimeLabel(summary.openedAtUtc)}',
+          '• Response: ${(summary.partnerLabel ?? summary.responderLabel ?? 'not yet assigned').trim()}',
+          '• Arrival: ${_telegramCommandLocalDateTimeLabel(summary.arrivedAtUtc)}',
+          '• Outcome: ${summary.closedAtUtc == null ? summary.statusLabel : '${summary.statusLabel} at ${_telegramCommandLocalDateTimeLabel(summary.closedAtUtc)}'}',
+        ].join('\n');
+      }
+    }
+
+    final window = _telegramCommandIncidentWindowForPrompt(prompt);
+    final filtered = dispatches
+        .where((summary) {
+          final openedAtUtc = summary.openedAtUtc;
+          if (openedAtUtc == null) {
+            return false;
+          }
+          final openedAtLocal = openedAtUtc.toLocal();
+          return !openedAtLocal.isBefore(window.startLocal) &&
+              openedAtLocal.isBefore(window.endLocal);
+        })
+        .toList(growable: false);
+    if (filtered.isEmpty) {
+      return 'Incident summary: $siteLabel\n• No incidents logged for ${window.label}.';
+    }
+    final lines = <String>[
+      'Incident summary: $siteLabel',
+      '• Window: ${window.label}',
+    ];
+    for (final summary in filtered.take(4)) {
+      final parts = <String>[
+        summary.dispatchId,
+        'opened ${_telegramCommandLocalTimeLabel(summary.openedAtUtc)}',
+      ];
+      final responder = (summary.partnerLabel ?? summary.responderLabel ?? '')
+          .trim();
+      if (responder.isNotEmpty) {
+        parts.add('response $responder');
+      }
+      if (summary.arrivedAtUtc != null) {
+        parts.add(
+          'arrived ${_telegramCommandLocalTimeLabel(summary.arrivedAtUtc)}',
+        );
+      }
+      if (summary.closedAtUtc != null) {
+        parts.add(
+          'outcome ${summary.statusLabel} at ${_telegramCommandLocalTimeLabel(summary.closedAtUtc)}',
+        );
+      } else {
+        parts.add('status ${summary.statusLabel}');
+      }
+      lines.add('• ${parts.join(' • ')}');
+    }
+    return lines.join('\n');
+  }
+
+  Future<String> _telegramDispatchReply({
+    required String clientId,
+    required String siteId,
+    required String prompt,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    var dispatches = _telegramCommandDispatchSummariesForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (prompt.toLowerCase().contains('today')) {
+      final todayStartLocal = DateTime(
+        _telegramFlowNowLocal().year,
+        _telegramFlowNowLocal().month,
+        _telegramFlowNowLocal().day,
+      );
+      final tomorrowStartLocal = todayStartLocal.add(const Duration(days: 1));
+      dispatches = dispatches
+          .where((summary) {
+            final openedAtUtc = summary.openedAtUtc;
+            if (openedAtUtc == null) {
+              return false;
+            }
+            final local = openedAtUtc.toLocal();
+            return !local.isBefore(todayStartLocal) &&
+                local.isBefore(tomorrowStartLocal);
+          })
+          .toList(growable: false);
+    }
+    if (dispatches.isEmpty) {
+      return 'Dispatch summary: $siteLabel\n• No dispatch records are attached to this site yet.';
+    }
+    final lines = <String>['Dispatch summary: $siteLabel'];
+    for (final summary in dispatches.take(4)) {
+      final responder =
+          (summary.partnerLabel ??
+                  summary.responderLabel ??
+                  'response team pending')
+              .trim();
+      final parts = <String>[
+        summary.dispatchId,
+        'dispatched ${_telegramCommandLocalTimeLabel(summary.openedAtUtc)}',
+        responder,
+        'status ${summary.statusLabel}',
+      ];
+      if (summary.arrivedAtUtc != null) {
+        parts.add(
+          'arrived ${_telegramCommandLocalTimeLabel(summary.arrivedAtUtc)}',
+        );
+      }
+      lines.add('• ${parts.join(' • ')}');
+    }
+    return lines.join('\n');
+  }
+
+  Future<String> _telegramGuardReply({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final repository = await _guardSyncRepositoryForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    List<GuardAssignment> assignments = const <GuardAssignment>[];
+    try {
+      assignments = await repository.readAssignments();
+    } catch (_) {
+      assignments = const <GuardAssignment>[];
+    }
+    final scopedAssignments = assignments
+        .where(
+          (assignment) =>
+              assignment.clientId.trim() == clientId.trim() &&
+              assignment.siteId.trim() == siteId.trim(),
+        )
+        .toList(growable: false);
+    final scopedEvents = _telegramCommandScopedEvents(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final patrols = scopedEvents.whereType<PatrolCompleted>().toList(
+      growable: false,
+    )..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+    final checkIns = scopedEvents.whereType<GuardCheckedIn>().toList(
+      growable: false,
+    )..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+    final hasGuardCoverage =
+        scopedAssignments.isNotEmpty ||
+        patrols.isNotEmpty ||
+        checkIns.isNotEmpty;
+    if (!hasGuardCoverage) {
+      return 'Guard status: $siteLabel\n• No guard unit is configured for this site right now.';
+    }
+    final latestPatrol = patrols.isEmpty ? null : patrols.first;
+    final latestCheckIn = checkIns.isEmpty ? null : checkIns.first;
+    final assignmentLabel = scopedAssignments.isEmpty
+        ? 'telemetry only'
+        : scopedAssignments
+              .take(3)
+              .map(
+                (assignment) =>
+                    '${assignment.guardId} (${assignment.status.name})',
+              )
+              .join(', ');
+    return [
+      'Guard status: $siteLabel',
+      '• Assigned guard coverage: $assignmentLabel',
+      '• Last patrol: ${latestPatrol == null ? 'no patrol log yet' : '${latestPatrol.guardId} on ${_humanizeScopeLabel(latestPatrol.routeId)} at ${_telegramCommandLocalDateTimeLabel(latestPatrol.occurredAt)}'}',
+      '• Last check-in: ${latestCheckIn == null ? 'none logged' : '${latestCheckIn.guardId} at ${_telegramCommandLocalDateTimeLabel(latestCheckIn.occurredAt)}'}',
+      '• Patrol compliance: ${_telegramGuardComplianceLabel(latestPatrol?.occurredAt)}',
+    ].join('\n');
+  }
+
+  Future<String> _telegramReportReply({
+    required String clientId,
+    required String siteId,
+    required String prompt,
+  }) async {
+    final normalizedPrompt = prompt.toLowerCase();
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    if (!normalizedPrompt.contains('weekly') &&
+        !normalizedPrompt.contains('monthly')) {
+      return _siteActivityTelegramSummaryForScope(
+        clientId: clientId,
+        siteId: siteId,
+      );
+    }
+    final history = _siteActivityHistoryPointsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final windowDays = normalizedPrompt.contains('monthly') ? 30 : 7;
+    final selected = history.take(windowDays).toList(growable: false);
+    if (selected.isEmpty) {
+      return '${normalizedPrompt.contains('monthly') ? 'Monthly' : 'Weekly'} summary: $siteLabel\n• No intelligence projection history is available yet.';
+    }
+    var totalSignals = 0;
+    var totalPeople = 0;
+    var totalVehicles = 0;
+    var totalUnknown = 0;
+    var totalFlagged = 0;
+    var totalLongPresence = 0;
+    for (final point in selected) {
+      totalSignals += point.snapshot.totalSignals;
+      totalPeople += point.snapshot.personSignals;
+      totalVehicles += point.snapshot.vehicleSignals;
+      totalUnknown +=
+          point.snapshot.unknownPersonSignals +
+          point.snapshot.unknownVehicleSignals;
+      totalFlagged += point.snapshot.flaggedIdentitySignals;
+      totalLongPresence += point.snapshot.longPresenceSignals;
+    }
+    final trend = _siteActivityTrendSnapshotFor(selected.first.snapshot);
+    return [
+      '${normalizedPrompt.contains('monthly') ? 'Monthly' : 'Weekly'} summary: $siteLabel',
+      '• Days covered: ${selected.length}',
+      '• Total signals: $totalSignals',
+      '• Movement mix: ${_telegramCommandCountLabel(totalPeople, 'person')} • ${_telegramCommandCountLabel(totalVehicles, 'vehicle')}',
+      '• Unknown / flagged: $totalUnknown unknown • $totalFlagged flagged',
+      '• Long presence markers: $totalLongPresence',
+      if (trend != null) '• Trend: ${trend.label} — ${trend.summary}',
+    ].join('\n');
+  }
+
+  Future<String> _telegramCameraReply({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
+      siteId: siteId,
+    );
+    final nowUtc = _telegramFlowNowUtc();
+    final siteAwarenessFresh =
+        siteAwarenessRow != null &&
+        _isSiteAwarenessSnapshotFresh(siteAwarenessRow, nowUtc);
+    final packet = await _cameraHealthFactPacketForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (!siteAwarenessFresh) {
+      return [
+        'Visual status: $siteLabel',
+        '• No fresh site-awareness snapshot is available in the last 30 minutes.',
+        '• Live visual: ${packet?.hasCurrentVisualConfirmation == true ? 'available' : 'unavailable in this chat right now'}',
+      ].join('\n');
+    }
+    final summary = _telegramAiSiteAwarenessSummaryFromRow(siteAwarenessRow);
+    if (summary == null) {
+      return 'Visual status: $siteLabel\n• Fresh snapshot exists but the summary payload is incomplete.';
+    }
+    return [
+      'Visual status: $siteLabel',
+      '• Snapshot time: ${_telegramCommandLocalDateTimeLabel(summary.observedAtUtc)}',
+      '• Perimeter: ${_telegramCommandPerimeterLabel(summary.perimeterClear)}',
+      '• Snapshot counts: ${_telegramCommandCountLabel(summary.humanCount, 'person')} • ${_telegramCommandCountLabel(summary.vehicleCount, 'vehicle')} • ${_telegramCommandCountLabel(summary.animalCount, 'animal')} • ${_telegramCommandCountLabel(summary.motionCount, 'motion indicator')}',
+      '• Active alerts: ${summary.activeAlertCount}',
+      '• Channel status: ${_telegramCommandChannelSummary(siteAwarenessRow)}',
+      '• Live visual: ${packet?.hasCurrentVisualConfirmation == true ? 'available' : 'snapshot grounding is available, but direct image or clip export is not available in this chat right now'}',
+    ].join('\n');
+  }
+
+  Future<String> _telegramIntelligenceReply({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final history = _siteActivityHistoryPointsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (history.isEmpty) {
+      final currentSnapshot = _siteActivityIntelligenceService.buildSnapshot(
+        events: _telegramCommandScopedEvents(
+          clientId: clientId,
+          siteId: siteId,
+        ),
+        clientId: clientId,
+        siteId: siteId,
+      );
+      return [
+        'Risk intelligence: $siteLabel',
+        '• Not enough history for a trend line yet.',
+        '• Current pattern: ${currentSnapshot.summaryLine}',
+      ].join('\n');
+    }
+    double pressureScore(SiteActivityIntelligenceSnapshot snapshot) {
+      return (snapshot.flaggedIdentitySignals * 3.0) +
+          snapshot.longPresenceSignals +
+          snapshot.guardInteractionSignals +
+          snapshot.unknownPersonSignals +
+          snapshot.unknownVehicleSignals;
+    }
+
+    final latest = history.first;
+    final baseline = history.skip(1).take(6).toList(growable: false);
+    final worst = history.reduce((best, current) {
+      return pressureScore(current.snapshot) > pressureScore(best.snapshot)
+          ? current
+          : best;
+    });
+    final baselineAverage = baseline.isEmpty
+        ? pressureScore(latest.snapshot)
+        : baseline
+                  .map((point) => pressureScore(point.snapshot))
+                  .reduce((left, right) => left + right) /
+              baseline.length;
+    final trend = _siteActivityTrendSnapshotFor(latest.snapshot);
+    String unusualLine;
+    if (latest.snapshot.flaggedIdentitySignals > 0) {
+      unusualLine =
+          '${latest.snapshot.flaggedIdentitySignals} flagged identity signals are driving the current risk posture.';
+    } else if (latest.snapshot.longPresenceSignals > 0) {
+      unusualLine =
+          '${latest.snapshot.longPresenceSignals} long-presence patterns stand out in the latest shift.';
+    } else if (latest.snapshot.guardInteractionSignals > 0) {
+      unusualLine =
+          '${latest.snapshot.guardInteractionSignals} guard-interaction signals are showing up in the latest shift.';
+    } else {
+      unusualLine =
+          'No unusual activity pattern is standing out above baseline right now.';
+    }
+    final currentPressure = pressureScore(latest.snapshot);
+    final driftLabel = currentPressure > baselineAverage + 1
+        ? 'getting worse'
+        : currentPressure < baselineAverage - 1
+        ? 'easing'
+        : 'holding close to baseline';
+    return [
+      'Risk intelligence: $siteLabel',
+      if (trend != null) '• Trend: ${trend.label} — ${trend.summary}',
+      '• Risk drift: $driftLabel',
+      '• Highest-pressure day: ${worst.reportDate} • ${worst.snapshot.totalSignals} signals • ${worst.snapshot.flaggedIdentitySignals} flagged • ${worst.snapshot.longPresenceSignals} long-presence',
+      '• Current pattern: ${latest.snapshot.summaryLine}',
+      '• Unusual marker: $unusualLine',
+    ].join('\n');
+  }
+
+  Future<String> _telegramActionRequestReply({
+    required String clientId,
+    required String siteId,
+    required String prompt,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final normalized = prompt.toLowerCase();
+    final actionLabel = normalized.contains('guard')
+        ? 'call the assigned guard unit'
+        : normalized.contains('escalate')
+        ? 'escalate the site for response'
+        : 'dispatch armed response';
+    return 'Action request: $siteLabel\n• This will $actionLabel.\n• Confirm before ONYX takes any action.';
   }
 
   Future<bool> _handleTelegramClientCurrentImageRequest({
