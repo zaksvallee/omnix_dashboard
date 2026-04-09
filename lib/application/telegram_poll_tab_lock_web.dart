@@ -6,6 +6,8 @@ import 'dart:math' as math;
 import 'package:web/web.dart' as web;
 
 class TelegramPollingTabLock {
+  static const int _tabIdRandomMax = 1000000;
+
   TelegramPollingTabLock({
     this.channelName = 'onyx_telegram_lock',
     this.onPrimaryLost,
@@ -24,7 +26,7 @@ class TelegramPollingTabLock {
   final Duration heartbeatTtl;
 
   final String _tabId =
-      '${DateTime.now().microsecondsSinceEpoch}-${math.Random().nextInt(1 << 32)}';
+      '${DateTime.now().microsecondsSinceEpoch}-${math.Random().nextInt(_tabIdRandomMax) + 1}';
 
   late final String _storageKey;
   web.BroadcastChannel? _broadcastChannel;
