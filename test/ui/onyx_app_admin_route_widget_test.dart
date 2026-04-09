@@ -79,6 +79,13 @@ class _SuccessfulTelegramBridgeStub implements TelegramBridgeService {
       },
     );
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class _RecordingTelegramBridgeStub implements TelegramBridgeService {
@@ -114,6 +121,13 @@ class _RecordingTelegramBridgeStub implements TelegramBridgeService {
       failed: const <TelegramBridgeMessage>[],
     );
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class _PollingTelegramBridgeStub implements TelegramBridgeService {
@@ -157,6 +171,13 @@ class _PollingTelegramBridgeStub implements TelegramBridgeService {
       failed: const <TelegramBridgeMessage>[],
     );
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class _ThrowingAdminTelegramAiAssistantStub

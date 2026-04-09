@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -248,6 +249,13 @@ class _ConfiguredTelegramBridgeStub implements TelegramBridgeService {
       },
     );
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class _DelayedFailingTelegramBridgeStub implements TelegramBridgeService {
@@ -287,6 +295,13 @@ class _DelayedFailingTelegramBridgeStub implements TelegramBridgeService {
       },
     );
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class _FailingMonitoringIdentityRulesStore
@@ -508,6 +523,13 @@ class _RecordingTelegramBridgeStub implements TelegramBridgeService {
       failed: const <TelegramBridgeMessage>[],
     );
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class _FixedLocalHikvisionDvrVisualProbeService

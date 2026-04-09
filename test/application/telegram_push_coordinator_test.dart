@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnix_dashboard/application/client_messaging_bridge_repository.dart';
 import 'package:omnix_dashboard/application/telegram_bridge_delivery_memory.dart';
@@ -42,89 +44,95 @@ void main() {
       expect(result.map((item) => item.messageKey).toList(), <String>['fresh']);
     });
 
-    test('skips already delivered telegram message keys unless resend is forced',
-        () async {
-      final bridge = _ConfiguredTelegramBridgeStub();
-      final coordinator = TelegramPushCoordinator(
-        telegramBridge: bridge,
-        telegramBridgeResolver: _resolver(
-          clientTargets: const <TelegramBridgeTarget>[
-            TelegramBridgeTarget(
-              chatId: 'client-chat',
-              threadId: 11,
-              label: 'Client Lane',
-            ),
+    test(
+      'skips already delivered telegram message keys unless resend is forced',
+      () async {
+        final bridge = _ConfiguredTelegramBridgeStub();
+        final coordinator = TelegramPushCoordinator(
+          telegramBridge: bridge,
+          telegramBridgeResolver: _resolver(
+            clientTargets: const <TelegramBridgeTarget>[
+              TelegramBridgeTarget(
+                chatId: 'client-chat',
+                threadId: 11,
+                label: 'Client Lane',
+              ),
+            ],
+          ),
+          deliveryMemory: const TelegramBridgeDeliveryMemory(),
+          messageBodyForItem: (item) => item.body,
+          replyMarkupForItem: (_) => null,
+          isFreshExternalPushCandidate: (_) => true,
+          isBlockedReason: (_) => false,
+          nowUtc: () => DateTime.utc(2026, 4, 6, 20, 1),
+        );
+
+        final item = _pushItem(messageKey: 'dispatch-created');
+        final deliveredKey = 'dispatch-created:telegram:client-chat:11';
+
+        final skipped = await coordinator.forwardPushQueueToTelegram(
+          candidates: <ClientAppPushDeliveryItem>[item],
+          allowPreviouslyDelivered: false,
+          defaultClientId: 'CLIENT-MS-VALLEE',
+          defaultSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+          scopeKeyFor: (clientId, siteId) => '$clientId|$siteId',
+          deliveredMessageKeysForScope: (_, _) => <String>{deliveredKey},
+        );
+
+        expect(skipped.noop, isTrue);
+        expect(bridge.sentMessages, isEmpty);
+
+        final resent = await coordinator.forwardPushQueueToTelegram(
+          candidates: <ClientAppPushDeliveryItem>[item],
+          allowPreviouslyDelivered: true,
+          defaultClientId: 'CLIENT-MS-VALLEE',
+          defaultSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+          scopeKeyFor: (clientId, siteId) => '$clientId|$siteId',
+          deliveredMessageKeysForScope: (_, _) => <String>{deliveredKey},
+        );
+
+        expect(resent.noop, isFalse);
+        expect(bridge.sentMessages, hasLength(1));
+        expect(bridge.sentMessages.single.messageKey, deliveredKey);
+      },
+    );
+
+    test(
+      'returns merged delivery memory and sms fallback on target failure',
+      () async {
+        final coordinator = TelegramPushCoordinator(
+          telegramBridge: _ConfiguredTelegramBridgeStub(),
+          telegramBridgeResolver: _resolver(
+            clientTargets: const <TelegramBridgeTarget>[],
+          ),
+          deliveryMemory: const TelegramBridgeDeliveryMemory(),
+          messageBodyForItem: (item) => item.body,
+          replyMarkupForItem: (_) => null,
+          isFreshExternalPushCandidate: (_) => true,
+          isBlockedReason: (_) => false,
+          nowUtc: () => DateTime.utc(2026, 4, 6, 20, 2),
+        );
+
+        final result = await coordinator.forwardPushQueueToTelegram(
+          candidates: <ClientAppPushDeliveryItem>[
+            _pushItem(messageKey: 'dispatch-created'),
           ],
-        ),
-        deliveryMemory: const TelegramBridgeDeliveryMemory(),
-        messageBodyForItem: (item) => item.body,
-        replyMarkupForItem: (_) => null,
-        isFreshExternalPushCandidate: (_) => true,
-        isBlockedReason: (_) => false,
-        nowUtc: () => DateTime.utc(2026, 4, 6, 20, 1),
-      );
+          allowPreviouslyDelivered: false,
+          defaultClientId: 'CLIENT-MS-VALLEE',
+          defaultSiteId: 'SITE-MS-VALLEE-RESIDENCE',
+          scopeKeyFor: (clientId, siteId) => '$clientId|$siteId',
+          deliveredMessageKeysForScope: (_, _) => <String>{},
+        );
 
-      final item = _pushItem(messageKey: 'dispatch-created');
-      final deliveredKey = 'dispatch-created:telegram:client-chat:11';
-
-      final skipped = await coordinator.forwardPushQueueToTelegram(
-        candidates: <ClientAppPushDeliveryItem>[item],
-        allowPreviouslyDelivered: false,
-        defaultClientId: 'CLIENT-MS-VALLEE',
-        defaultSiteId: 'SITE-MS-VALLEE-RESIDENCE',
-        scopeKeyFor: (clientId, siteId) => '$clientId|$siteId',
-        deliveredMessageKeysForScope: (_, _) => <String>{deliveredKey},
-      );
-
-      expect(skipped.noop, isTrue);
-      expect(bridge.sentMessages, isEmpty);
-
-      final resent = await coordinator.forwardPushQueueToTelegram(
-        candidates: <ClientAppPushDeliveryItem>[item],
-        allowPreviouslyDelivered: true,
-        defaultClientId: 'CLIENT-MS-VALLEE',
-        defaultSiteId: 'SITE-MS-VALLEE-RESIDENCE',
-        scopeKeyFor: (clientId, siteId) => '$clientId|$siteId',
-        deliveredMessageKeysForScope: (_, _) => <String>{deliveredKey},
-      );
-
-      expect(resent.noop, isFalse);
-      expect(bridge.sentMessages, hasLength(1));
-      expect(bridge.sentMessages.single.messageKey, deliveredKey);
-    });
-
-    test('returns merged delivery memory and sms fallback on target failure',
-        () async {
-      final coordinator = TelegramPushCoordinator(
-        telegramBridge: _ConfiguredTelegramBridgeStub(),
-        telegramBridgeResolver: _resolver(clientTargets: const <TelegramBridgeTarget>[]),
-        deliveryMemory: const TelegramBridgeDeliveryMemory(),
-        messageBodyForItem: (item) => item.body,
-        replyMarkupForItem: (_) => null,
-        isFreshExternalPushCandidate: (_) => true,
-        isBlockedReason: (_) => false,
-        nowUtc: () => DateTime.utc(2026, 4, 6, 20, 2),
-      );
-
-      final result = await coordinator.forwardPushQueueToTelegram(
-        candidates: <ClientAppPushDeliveryItem>[
-          _pushItem(messageKey: 'dispatch-created'),
-        ],
-        allowPreviouslyDelivered: false,
-        defaultClientId: 'CLIENT-MS-VALLEE',
-        defaultSiteId: 'SITE-MS-VALLEE-RESIDENCE',
-        scopeKeyFor: (clientId, siteId) => '$clientId|$siteId',
-        deliveredMessageKeysForScope: (_, _) => <String>{},
-      );
-
-      expect(result.noop, isFalse);
-      expect(result.healthLabel, 'no-target');
-      expect(result.smsFallbackReason, 'telegram target failure');
-      expect(
-        result.smsFallbackCandidates.map((item) => item.messageKey).toList(),
-        <String>['dispatch-created'],
-      );
-    });
+        expect(result.noop, isFalse);
+        expect(result.healthLabel, 'no-target');
+        expect(result.smsFallbackReason, 'telegram target failure');
+        expect(
+          result.smsFallbackCandidates.map((item) => item.messageKey).toList(),
+          <String>['dispatch-created'],
+        );
+      },
+    );
 
     test('records merged delivered keys after successful send', () async {
       final bridge = _ConfiguredTelegramBridgeStub();
@@ -160,11 +168,9 @@ void main() {
 
       expect(result.healthLabel, 'ok');
       expect(
-        result.deliveredMessageKeysByScope['CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE'],
-        <String>[
-          'dispatch-created:telegram:client-chat:11',
-          'older-key',
-        ],
+        result
+            .deliveredMessageKeysByScope['CLIENT-MS-VALLEE|SITE-MS-VALLEE-RESIDENCE'],
+        <String>['dispatch-created:telegram:client-chat:11', 'older-key'],
       );
     });
   });
@@ -230,6 +236,13 @@ class _ConfiguredTelegramBridgeStub implements TelegramBridgeService {
     sentMessages.addAll(messages);
     return TelegramBridgeSendResult(sent: messages, failed: const []);
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class _StubTelegramBridgeResolver extends TelegramBridgeResolver {

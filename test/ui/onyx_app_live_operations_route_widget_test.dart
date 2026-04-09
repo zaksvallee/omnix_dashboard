@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -76,6 +78,13 @@ class _ConfiguredTelegramBridgeStub implements TelegramBridgeService {
       },
     );
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class _SuccessfulTelegramBridgeStub implements TelegramBridgeService {
@@ -113,6 +122,13 @@ class _SuccessfulTelegramBridgeStub implements TelegramBridgeService {
       },
     );
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 Future<void> _openClientsDetailedWorkspaceIfPresent(WidgetTester tester) async {

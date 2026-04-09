@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -175,6 +176,40 @@ void main() {
     expect(result.sentCount, 1);
     expect(result.failedCount, 0);
     expect(result.telegramMessageIdsByMessageKey['m-photo'], 13);
+  });
+
+  test('http bridge sendVoice uploads mp3 bytes', () async {
+    late Uri requestUri;
+    late http.MultipartRequest multipart;
+    final client = MockClient.streaming((request, _) async {
+      requestUri = request.url;
+      expect(request, isA<http.MultipartRequest>());
+      multipart = request as http.MultipartRequest;
+      return http.StreamedResponse(
+        Stream<List<int>>.fromIterable([
+          utf8.encode('{"ok":true,"result":{"message_id":14}}'),
+        ]),
+        200,
+        headers: const {'content-type': 'application/json'},
+      );
+    });
+    final service = HttpTelegramBridgeService(
+      client: client,
+      botToken: 'token-123',
+    );
+
+    await service.sendVoiceMessage(
+      '-5247743742',
+      Uint8List.fromList(const <int>[7, 8, 9]),
+      messageThreadId: 22,
+    );
+
+    expect(requestUri.path, '/bottoken-123/sendVoice');
+    expect(multipart.fields['chat_id'], '-5247743742');
+    expect(multipart.fields['message_thread_id'], '22');
+    expect(multipart.files, hasLength(1));
+    expect(multipart.files.single.field, 'voice');
+    expect(multipart.files.single.filename, 'onyx-status.mp3');
   });
 
   test(

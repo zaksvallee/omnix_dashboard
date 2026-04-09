@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -94,6 +95,12 @@ abstract class TelegramBridgeService {
     required String callbackQueryId,
     String? text,
   });
+
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  });
 }
 
 class UnconfiguredTelegramBridgeService implements TelegramBridgeService {
@@ -132,6 +139,13 @@ class UnconfiguredTelegramBridgeService implements TelegramBridgeService {
   }) async {
     return false;
   }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {}
 }
 
 class HttpTelegramBridgeService implements TelegramBridgeService {
@@ -402,6 +416,43 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       return decoded is Map && decoded['ok'] == true;
     } catch (_) {
       return false;
+    }
+  }
+
+  @override
+  Future<void> sendVoiceMessage(
+    String chatId,
+    Uint8List audioBytes, {
+    int? messageThreadId,
+  }) async {
+    if (!isConfigured || chatId.trim().isEmpty || audioBytes.isEmpty) {
+      return;
+    }
+    try {
+      final endpoint = _buildEndpoint('sendVoice');
+      final request = http.MultipartRequest('POST', endpoint)
+        ..fields['chat_id'] = chatId.trim();
+      if (messageThreadId != null) {
+        request.fields['message_thread_id'] = '$messageThreadId';
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'voice',
+          audioBytes,
+          filename: 'onyx-status.mp3',
+        ),
+      );
+      final streamed = await client.send(request).timeout(requestTimeout);
+      final response = await http.Response.fromStream(streamed);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return;
+      }
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map || decoded['ok'] != true) {
+        return;
+      }
+    } catch (_) {
+      return;
     }
   }
 

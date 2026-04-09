@@ -103,6 +103,7 @@ import 'application/onyx_agent_cloud_boost_service.dart';
 import 'application/onyx_agent_client_draft_service.dart';
 import 'application/onyx_agent_local_brain_service.dart';
 import 'application/onyx_command_parser.dart';
+import 'application/onyx_elevenlabs_service.dart';
 import 'application/onyx_telegram_command_gateway.dart';
 import 'application/onyx_telegram_operational_command_service.dart';
 import 'application/ops_integration_profile.dart';
@@ -1133,6 +1134,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _olarmDeviceIdEnv = String.fromEnvironment(
     'ONYX_OLARM_DEVICE_ID',
   );
+  static const _elevenLabsApiKeyEnv = String.fromEnvironment(
+    'ONYX_ELEVENLABS_API_KEY',
+  );
+  static const _elevenLabsVoiceIdEnv = String.fromEnvironment(
+    'ONYX_ELEVENLABS_VOICE_ID',
+    defaultValue: kOnyxDefaultElevenLabsVoiceId,
+  );
   static const _dvrAlarmEventTypesEnv = String.fromEnvironment(
     'ONYX_DVR_ALARM_EVENT_TYPES',
   );
@@ -1495,6 +1503,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   final http.Client _smsBridgeHttpClient = http.Client();
   final http.Client _telegramBridgeHttpClient = http.Client();
   final http.Client _telegramAiHttpClient = http.Client();
+  final http.Client _elevenLabsHttpClient = http.Client();
   final http.Client _olarmHttpClient = http.Client();
   final http.Client _onyxAgentLocalHttpClient = http.Client();
   final http.Client _onyxAgentToolHttpClient = http.Client();
@@ -1513,6 +1522,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       widget.smsDeliveryServiceOverride ?? _buildSmsDeliveryService();
   late final TelegramBridgeService _telegramBridge =
       widget.telegramBridgeServiceOverride ?? _buildTelegramBridge();
+  late final OnyxElevenLabsService _elevenLabsService =
+      _buildElevenLabsService();
   late final VoipCallService _voipCallService = _buildVoipCallService();
   late final TelegramAiAssistantService _telegramAiAssistant =
       widget.telegramAiAssistantServiceOverride ?? _buildTelegramAiAssistant();
@@ -2639,6 +2650,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
+  OnyxElevenLabsService _buildElevenLabsService() {
+    final apiKey = _elevenLabsApiKeyEnv.trim();
+    if (apiKey.isEmpty) {
+      return const UnconfiguredOnyxElevenLabsService();
+    }
+    final voiceId = _elevenLabsVoiceIdEnv.trim().isEmpty
+        ? kOnyxDefaultElevenLabsVoiceId
+        : _elevenLabsVoiceIdEnv.trim();
+    return HttpOnyxElevenLabsService(
+      client: _elevenLabsHttpClient,
+      apiKey: apiKey,
+      voiceId: voiceId,
+    );
+  }
+
   Uri? _resolvedTelegramBridgeApiBaseUri() {
     final configuredProxyUrl = _telegramProxyUrlEnv.trim();
     if (configuredProxyUrl.isNotEmpty) {
@@ -3457,7 +3483,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   bool get _olarmConfigured {
-    return _olarmApiKeyEnv.trim().isNotEmpty && _olarmDeviceIdEnv.trim().isNotEmpty;
+    return _olarmApiKeyEnv.trim().isNotEmpty &&
+        _olarmDeviceIdEnv.trim().isNotEmpty;
   }
 
   void _startOlarmBridgeIfConfigured() {
@@ -3501,24 +3528,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final normalized = _olarmNormalizedPayload(event.rawPayload);
     try {
-      await Supabase.instance.client.from('site_alarm_events').insert(
-        <String, Object?>{
-          'site_id': _selectedSite,
-          'device_id': event.deviceId.trim(),
-          'event_type': event.eventType.name,
-          'zone_id': event.zoneId?.trim().isEmpty == true
-              ? null
-              : event.zoneId?.trim(),
-          'area_id': event.areaId?.trim().isEmpty == true
-              ? null
-              : event.areaId?.trim(),
-          'zone_name': normalized['zone_name'],
-          'area_name': normalized['area_name'],
-          'armed_state': normalized['armed_state'],
-          'occurred_at': event.occurredAt.toUtc().toIso8601String(),
-          'raw_payload': event.rawPayload,
-        },
-      );
+      await Supabase.instance.client
+          .from('site_alarm_events')
+          .insert(<String, Object?>{
+            'site_id': _selectedSite,
+            'device_id': event.deviceId.trim(),
+            'event_type': event.eventType.name,
+            'zone_id': event.zoneId?.trim().isEmpty == true
+                ? null
+                : event.zoneId?.trim(),
+            'area_id': event.areaId?.trim().isEmpty == true
+                ? null
+                : event.areaId?.trim(),
+            'zone_name': normalized['zone_name'],
+            'area_name': normalized['area_name'],
+            'armed_state': normalized['armed_state'],
+            'occurred_at': event.occurredAt.toUtc().toIso8601String(),
+            'raw_payload': event.rawPayload,
+          });
     } catch (error, stackTrace) {
       developer.log(
         'Failed to persist Olarm alarm event for ${event.deviceId}.',
@@ -3637,6 +3664,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _smsBridgeHttpClient.close();
     _telegramBridgeHttpClient.close();
     _telegramAiHttpClient.close();
+    _elevenLabsHttpClient.close();
     _olarmHttpClient.close();
     _onyxAgentLocalHttpClient.close();
     _onyxAgentToolHttpClient.close();
@@ -15558,6 +15586,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       responseText: trimmedResponse,
       failureContext: 'Client structured Telegram response',
     );
+    if (delivered && commandType == OnyxTelegramCommandType.liveStatus) {
+      await _maybeSendTelegramStatusVoiceMessage(
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        clientId: target.clientId,
+        siteId: siteId,
+        fallbackText: trimmedResponse,
+        sourceLabel: 'command_router',
+      );
+    }
     _telegramAiLastHandledAtUtc = nowUtc;
     _telegramAiLastHandledSummary =
         '${target.clientId}/$siteId • ${commandType.name}/${delivered ? 'sent' : 'failed'}';
@@ -15623,6 +15661,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxTelegramCommandType.camera => 'Visual Status Sent',
       OnyxTelegramCommandType.intelligence => 'Intelligence Summary Sent',
       OnyxTelegramCommandType.actionRequest => 'Action Confirmation Sent',
+      OnyxTelegramCommandType.clientStatement => 'Statement Acknowledged',
       OnyxTelegramCommandType.unknown => 'Structured Reply Sent',
     };
   }
@@ -15674,8 +15713,69 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         siteId: siteId,
         prompt: update.text,
       ),
+      OnyxTelegramCommandType.clientStatement => Future<String>.value(
+        _telegramClientStatementAcknowledgement(update.text),
+      ),
       OnyxTelegramCommandType.unknown => Future<String>.value(''),
     };
+  }
+
+  String _telegramClientStatementAcknowledgement(String rawText) {
+    final n = rawText.trim().toLowerCase();
+    // Visitor / arrival announcement
+    if (n.contains('visitor') ||
+        n.contains('coming') ||
+        n.contains('arriving') ||
+        n.contains('dropping by')) {
+      // Try to pull a time hint ("at 8pm", "tonight", "in an hour", etc.)
+      final timeHint = _extractTimeHint(n);
+      return timeHint != null
+          ? 'Noted. I\'ll flag any unrecognised arrivals $timeHint. '
+                'Let me know if you need anything specific.'
+          : 'Noted. I\'ll flag any unrecognised arrivals. '
+                'Let me know if you need anything specific.';
+    }
+    // Everyone / all residents home
+    if (n.contains('everyone') ||
+        n.contains('all home') ||
+        n.contains('all residents') ||
+        n.contains('everybody')) {
+      return 'Understood — all residents accounted for. Monitoring continues.';
+    }
+    // Identity context — "is my dad", "are my kids", "that was my partner"
+    if (n.contains(' is my ') ||
+        n.contains(' are my ') ||
+        n.contains(' is our ') ||
+        n.contains(' are our ') ||
+        n.contains('that was my') ||
+        n.contains('that was our')) {
+      return 'Got it, noted. Thanks for letting me know — '
+          'I\'ll keep that in mind. Let me know if you need anything.';
+    }
+    // Generic informational statement
+    return 'Noted. Thanks for the update — '
+        'I\'ll keep that in mind. Let me know if you need anything specific.';
+  }
+
+  /// Extracts a brief time reference from a statement, e.g. "at 8pm" or "tonight".
+  String? _extractTimeHint(String normalized) {
+    final atPattern = RegExp(r'\bat\s+\d+(?::\d+)?\s*(?:am|pm)?');
+    final match = atPattern.firstMatch(normalized);
+    if (match != null) {
+      return match.group(0)?.trim();
+    }
+    for (final hint in const <String>[
+      'tonight',
+      'this evening',
+      'this afternoon',
+      'this morning',
+      'later today',
+      'in an hour',
+      'shortly',
+    ]) {
+      if (normalized.contains(hint)) return hint;
+    }
+    return null;
   }
 
   List<DispatchEvent> _telegramCommandScopedEvents({
@@ -16222,6 +16322,141 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return lines.join('\n');
   }
 
+  Future<void> _maybeSendTelegramStatusVoiceMessage({
+    required String chatId,
+    required int? messageThreadId,
+    required String clientId,
+    required String siteId,
+    required String fallbackText,
+    required String sourceLabel,
+  }) async {
+    if (!_elevenLabsService.isConfigured || !_telegramBridge.isConfigured) {
+      return;
+    }
+    try {
+      final script = await _buildTelegramStatusVoiceScript(
+        clientId: clientId,
+        siteId: siteId,
+        fallbackText: fallbackText,
+      );
+      if (script == null || script.trim().isEmpty) {
+        return;
+      }
+      final audioBytes = await _elevenLabsService.synthesize(script);
+      if (audioBytes == null || audioBytes.isEmpty) {
+        return;
+      }
+      await _telegramBridge.sendVoiceMessage(
+        chatId,
+        audioBytes,
+        messageThreadId: messageThreadId,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Telegram status voice send failed for $sourceLabel',
+        name: 'OnyxTelegramVoice',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<String?> _buildTelegramStatusVoiceScript({
+    required String clientId,
+    required String siteId,
+    required String fallbackText,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final nowUtc = _telegramFlowNowUtc();
+    final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
+      siteId: siteId,
+    );
+    if (siteAwarenessRow != null &&
+        _isSiteAwarenessSnapshotFresh(siteAwarenessRow, nowUtc)) {
+      final siteAwarenessSummary = _telegramAiSiteAwarenessSummaryFromRow(
+        siteAwarenessRow,
+      )!;
+      Map<String, dynamic>? occupancyConfigRow =
+          await _readSiteOccupancyConfigRow(siteId: siteId);
+      Map<String, dynamic>? occupancySessionRow;
+      if (occupancyConfigRow != null) {
+        occupancySessionRow = await _readSiteOccupancySessionRow(
+          siteId: siteId,
+          nowLocal: _telegramFlowNowLocal(),
+          resetHour: _siteOccupancyResetHour(occupancyConfigRow),
+        );
+      }
+      final dispatches = _telegramCommandDispatchSummariesForScope(
+        clientId: clientId,
+        siteId: siteId,
+      );
+      final activeDispatchCount = dispatches
+          .where((summary) => summary.isActive)
+          .length;
+      final segments = <String>[
+        'ONYX Security.',
+        '$siteLabel.',
+        siteAwarenessSummary.perimeterClear
+            ? 'All clear.'
+            : 'Attention required.',
+        siteAwarenessSummary.perimeterClear
+            ? 'Perimeter secure.'
+            : 'Perimeter alert active.',
+      ];
+      final isPrivateResidence =
+          _isPrivateResidenceOccupancyConfig(occupancyConfigRow) &&
+          _siteOccupancyExpectedOccupancy(occupancyConfigRow) > 0;
+      if (isPrivateResidence) {
+        final expectedOccupancy = _siteOccupancyExpectedOccupancy(
+          occupancyConfigRow,
+        );
+        final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
+        final occupancyPeak = _siteOccupancyPeakDetected(occupancySessionRow);
+        final detectedToday = siteAwarenessSummary.humanCount > occupancyPeak
+            ? siteAwarenessSummary.humanCount
+            : occupancyPeak;
+        segments.add(
+          '$detectedToday of $expectedOccupancy $occupancyLabel detected today.',
+        );
+      } else if (siteAwarenessSummary.humanCount > 0) {
+        final peopleLabel = siteAwarenessSummary.humanCount == 1
+            ? 'person'
+            : 'people';
+        segments.add(
+          '${siteAwarenessSummary.humanCount} $peopleLabel on site.',
+        );
+      } else {
+        segments.add('No people detected on site.');
+      }
+      if (activeDispatchCount <= 0) {
+        segments.add('No active incidents.');
+      } else {
+        final incidentLabel = activeDispatchCount == 1
+            ? 'active incident'
+            : 'active incidents';
+        segments.add('$activeDispatchCount $incidentLabel.');
+      }
+      segments.add('Monitoring continues.');
+      return _normalizeTelegramStatusVoiceScript(segments.join(' '));
+    }
+    return _normalizeTelegramStatusVoiceScript(fallbackText);
+  }
+
+  String? _normalizeTelegramStatusVoiceScript(String value) {
+    final normalized = value
+        .replaceAll('\n', ' ')
+        .replaceAll(RegExp(r'[•*_]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    if (normalized.length <= 500) {
+      return normalized;
+    }
+    return normalized.substring(0, 500).trimRight();
+  }
+
   Future<String> _telegramIncidentReply({
     required String clientId,
     required String siteId,
@@ -16357,16 +16592,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteId,
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
-    final occupancyConfigRow = await _readSiteOccupancyConfigRow(siteId: siteId);
+    final occupancyConfigRow = await _readSiteOccupancyConfigRow(
+      siteId: siteId,
+    );
     final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
       siteId: siteId,
     );
     final siteAwarenessSummary =
         siteAwarenessRow != null &&
-            _isSiteAwarenessSnapshotFresh(siteAwarenessRow, _telegramFlowNowUtc())
+            _isSiteAwarenessSnapshotFresh(
+              siteAwarenessRow,
+              _telegramFlowNowUtc(),
+            )
         ? _telegramAiSiteAwarenessSummaryFromRow(siteAwarenessRow)
         : null;
-    if (occupancyConfigRow == null || !_siteOccupancyHasGateSensors(occupancyConfigRow)) {
+    if (occupancyConfigRow == null ||
+        !_siteOccupancyHasGateSensors(occupancyConfigRow)) {
       return [
         'No gate sensors are configured at $siteLabel.',
         'ONYX monitors via cameras only.',
@@ -16383,8 +16624,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String clientId,
     required String siteId,
   }) async {
-    final occupancyConfigRow = await _readSiteOccupancyConfigRow(siteId: siteId);
-    if (occupancyConfigRow != null && !_siteOccupancyHasGuard(occupancyConfigRow)) {
+    final occupancyConfigRow = await _readSiteOccupancyConfigRow(
+      siteId: siteId,
+    );
+    if (occupancyConfigRow != null &&
+        !_siteOccupancyHasGuard(occupancyConfigRow)) {
       return 'No guard is assigned to this site.\nONYX is monitoring via cameras only.';
     }
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
@@ -19297,6 +19541,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       failureContext: 'Client quick action response',
       replyMarkup: _telegramClientQuickActionService.replyKeyboardMarkup(),
     );
+    if (delivered && action == TelegramClientQuickAction.status) {
+      await _maybeSendTelegramStatusVoiceMessage(
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        clientId: target.clientId,
+        siteId: siteId,
+        fallbackText: responseText,
+        sourceLabel: 'quick_action',
+      );
+    }
     final responsePreview = _telegramQuickActionAuditPreview(
       action: action,
       responseText: responseText,
@@ -37480,7 +37734,10 @@ Future<Map<String, dynamic>?> _readSiteOccupancySessionRow({
   }
 }
 
-String _siteOccupancySessionDateValue(DateTime observedAtLocal, {int resetHour = 3}) {
+String _siteOccupancySessionDateValue(
+  DateTime observedAtLocal, {
+  int resetHour = 3,
+}) {
   final normalizedResetHour = resetHour.clamp(0, 23);
   final dayStart = DateTime(
     observedAtLocal.year,
