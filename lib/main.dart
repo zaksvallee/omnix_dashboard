@@ -2662,7 +2662,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       client: _elevenLabsHttpClient,
       apiKey: apiKey,
       voiceId: voiceId,
+      apiBaseUri: _resolvedElevenLabsProxyBaseUri(),
     );
+  }
+
+  Uri? _resolvedElevenLabsProxyBaseUri() {
+    final configuredProxyUrl = _telegramProxyUrlEnv.trim();
+    if (configuredProxyUrl.isNotEmpty) {
+      final parsed = Uri.tryParse(configuredProxyUrl);
+      if (parsed != null) {
+        return parsed.replace(path: '', queryParameters: null, fragment: null);
+      }
+    }
+    final host = _telegramProxyHostEnv.trim().isEmpty
+        ? '127.0.0.1'
+        : _telegramProxyHostEnv.trim();
+    return Uri(scheme: 'http', host: host, port: _telegramProxyPortEnv);
   }
 
   Uri? _resolvedTelegramBridgeApiBaseUri() {

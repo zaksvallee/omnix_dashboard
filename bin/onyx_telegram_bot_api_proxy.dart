@@ -6,6 +6,8 @@ const String _defaultHost = '127.0.0.1';
 const int _defaultPort = 11637;
 const String _healthPath = '/health';
 const String _telegramApiHost = 'api.telegram.org';
+const String _elevenLabsApiHost = 'api.elevenlabs.io';
+const String _elevenLabsProxyPathPrefix = '/elevenlabs/tts/';
 
 Future<void> main(List<String> args) async {
   final configPath = _readOption(args, '--config') ?? 'config/onyx.local.json';
@@ -21,6 +23,10 @@ Future<void> main(List<String> args) async {
     defaultValue: false,
   );
   final botToken = _readString(config, 'ONYX_TELEGRAM_BOT_TOKEN');
+  final elevenLabsApiKey = _readStringFromEnvOrConfig(
+    config,
+    'ONYX_ELEVENLABS_API_KEY',
+  );
   if (!bridgeEnabled || botToken.isEmpty) {
     stderr.writeln(
       '[ONYX] Telegram proxy disabled because bridge is off or bot token is missing.',
@@ -41,9 +47,14 @@ Future<void> main(List<String> args) async {
   stdout.writeln(
     '[ONYX] Forwarding bot API requests to https://$_telegramApiHost',
   );
+  if (elevenLabsApiKey.isNotEmpty) {
+    stdout.writeln(
+      '[ONYX] Forwarding ElevenLabs TTS requests to https://$_elevenLabsApiHost',
+    );
+  }
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
   await for (final request in server) {
-    unawaited(_handleRequest(request, client, botToken));
+    unawaited(_handleRequest(request, client, botToken, elevenLabsApiKey));
   }
 }
 
@@ -60,6 +71,7 @@ Future<void> _handleRequest(
   HttpRequest request,
   HttpClient client,
   String botToken,
+  String elevenLabsApiKey,
 ) async {
   try {
     if (request.method == 'OPTIONS') {
@@ -73,7 +85,12 @@ Future<void> _handleRequest(
         'status': 'ok',
         'upstream': 'https://$_telegramApiHost',
         'configured': true,
+        'elevenlabsConfigured': elevenLabsApiKey.isNotEmpty,
       });
+      return;
+    }
+    if (request.uri.path.startsWith(_elevenLabsProxyPathPrefix)) {
+      await _handleElevenLabsProxyRequest(request, client, elevenLabsApiKey);
       return;
     }
     final expectedPrefix = '/bot$botToken/';
@@ -134,6 +151,72 @@ Future<void> _handleRequest(
   }
 }
 
+Future<void> _handleElevenLabsProxyRequest(
+  HttpRequest request,
+  HttpClient client,
+  String elevenLabsApiKey,
+) async {
+  if (request.method != 'POST') {
+    await _writeJsonResponse(
+      request,
+      HttpStatus.methodNotAllowed,
+      <String, Object?>{
+        'ok': false,
+        'detail': 'ElevenLabs proxy only accepts POST requests.',
+      },
+    );
+    return;
+  }
+  if (elevenLabsApiKey.trim().isEmpty) {
+    await _writeJsonResponse(
+      request,
+      HttpStatus.serviceUnavailable,
+      <String, Object?>{
+        'ok': false,
+        'detail': 'ElevenLabs API key not configured in proxy.',
+      },
+    );
+    return;
+  }
+  final voiceId = request.uri.path
+      .substring(_elevenLabsProxyPathPrefix.length)
+      .trim();
+  if (voiceId.isEmpty) {
+    await _writeJsonResponse(request, HttpStatus.badRequest, <String, Object?>{
+      'ok': false,
+      'detail': 'Missing ElevenLabs voice ID.',
+    });
+    return;
+  }
+  stdout.writeln(
+    '[ONYX] ElevenLabs proxy ${request.method} '
+    '$_elevenLabsProxyPathPrefix<voice>',
+  );
+  final upstreamRequest = await client.openUrl(
+    request.method,
+    Uri(
+      scheme: 'https',
+      host: _elevenLabsApiHost,
+      path: '/v1/text-to-speech/$voiceId',
+      query: request.uri.hasQuery ? request.uri.query : null,
+    ),
+  );
+  _copyElevenLabsRequestHeaders(request.headers, upstreamRequest.headers);
+  upstreamRequest.headers.set('xi-api-key', elevenLabsApiKey.trim());
+  await for (final chunk in request) {
+    upstreamRequest.add(chunk);
+  }
+  final upstreamResponse = await upstreamRequest.close();
+  final response = request.response;
+  response.statusCode = upstreamResponse.statusCode;
+  _copyResponseHeaders(upstreamResponse.headers, response.headers);
+  _applyCors(response);
+  await for (final chunk in upstreamResponse) {
+    response.add(chunk);
+  }
+  await response.close();
+}
+
 void _copyRequestHeaders(HttpHeaders source, HttpHeaders target) {
   source.forEach((name, values) {
     final normalized = name.toLowerCase();
@@ -142,6 +225,23 @@ void _copyRequestHeaders(HttpHeaders source, HttpHeaders target) {
         normalized == HttpHeaders.refererHeader ||
         normalized == HttpHeaders.connectionHeader ||
         normalized == HttpHeaders.contentLengthHeader) {
+      return;
+    }
+    for (final value in values) {
+      target.add(name, value);
+    }
+  });
+}
+
+void _copyElevenLabsRequestHeaders(HttpHeaders source, HttpHeaders target) {
+  source.forEach((name, values) {
+    final normalized = name.toLowerCase();
+    if (normalized == HttpHeaders.hostHeader ||
+        normalized == 'origin' ||
+        normalized == HttpHeaders.refererHeader ||
+        normalized == HttpHeaders.connectionHeader ||
+        normalized == HttpHeaders.contentLengthHeader ||
+        normalized == 'xi-api-key') {
       return;
     }
     for (final value in values) {
@@ -231,6 +331,18 @@ String _readString(
   }
   final normalized = '$value'.trim();
   return normalized.isEmpty ? defaultValue : normalized;
+}
+
+String _readStringFromEnvOrConfig(
+  Map<String, Object?> config,
+  String key, {
+  String defaultValue = '',
+}) {
+  final envValue = Platform.environment[key]?.trim() ?? '';
+  if (envValue.isNotEmpty) {
+    return envValue;
+  }
+  return _readString(config, key, defaultValue: defaultValue);
 }
 
 int? _readInt(Map<String, Object?> config, String key) {
