@@ -8,6 +8,7 @@ enum OnyxTelegramCommandType {
   camera,
   intelligence,
   actionRequest,
+  clientStatement,
   unknown,
 }
 
@@ -103,6 +104,42 @@ class OnyxTelegramCommandRouter {
     'dispatch',
   };
 
+  // Phrases that identify possession/identity context ("is my dad", "are my kids").
+  static const Set<String> _identityPhrases = <String>{
+    'is my',
+    'are my',
+    'is our',
+    'are our',
+    'that was my',
+    'that was our',
+    'this is my',
+    'that is my',
+    'those are my',
+    'those are our',
+  };
+
+  // Prefixes that signal an informational statement rather than a question.
+  static const Set<String> _statementPrefixes = <String>{
+    'the ',
+    "that's ",
+    'thats ',
+    "it's ",
+    'its ',
+    'they ',
+    'he ',
+    'she ',
+    'we ',
+    'everyone ',
+    'everyone is',
+    'all ',
+    'i have ',
+    "i've ",
+    'there is ',
+    'there are ',
+    'there will ',
+    "there'll ",
+  };
+
   static const Set<String> _skipClassificationPhrases = <String>{
     'yes',
     'no',
@@ -122,6 +159,11 @@ class OnyxTelegramCommandRouter {
     }
     if (_shouldSkipClassification(normalized)) {
       return OnyxTelegramCommandType.unknown;
+    }
+    // Statement check runs first — before topic classifiers — so phrases like
+    // "the one person detected is my dad" don't leak into liveStatus/camera.
+    if (_looksLikeClientStatement(normalized)) {
+      return OnyxTelegramCommandType.clientStatement;
     }
 
     if (_looksLikeActionRequest(normalized)) {
@@ -252,6 +294,36 @@ class OnyxTelegramCommandRouter {
     return normalized.contains('what happened') ||
         normalized.contains('show incident') ||
         normalized.contains('incident history');
+  }
+
+  bool _looksLikeClientStatement(String normalized) {
+    // Never classify questions as statements.
+    if (normalized.contains('?')) return false;
+    const questionStarters = <String>[
+      'what ', 'when ', 'where ', 'who ', 'why ', 'how ',
+      'is ', 'are ', 'was ', 'were ', 'can ', 'could ',
+      'did ', 'does ', 'do ', 'will ', 'would ', 'should ',
+      'have ', 'has ', 'had ',
+    ];
+    for (final starter in questionStarters) {
+      if (normalized.startsWith(starter)) return false;
+    }
+    // Statement starters.
+    for (final prefix in _statementPrefixes) {
+      if (normalized.startsWith(prefix)) return true;
+    }
+    // Identity/possession mid-sentence.
+    if (_matchesAny(normalized, _identityPhrases)) return true;
+    // Visitor/schedule announcements ("coming at 8pm", "arriving tonight").
+    if ((normalized.contains('coming') ||
+            normalized.contains('arriving') ||
+            normalized.contains('visitor') ||
+            normalized.contains('dropping by')) &&
+        !normalized.startsWith('is ') &&
+        !normalized.startsWith('are ')) {
+      return true;
+    }
+    return false;
   }
 
   bool _matchesAny(String normalized, Set<String> phrases) {
