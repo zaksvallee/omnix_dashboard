@@ -272,15 +272,34 @@ class OnyxSiteAwarenessProjector {
           : null,
     );
     if (event.shouldRaiseAlert) {
-      _activeAlerts.add(
-        OnyxSiteAlert(
-          alertId: _uuidV4(_random),
+      // Dedup: if an unacknowledged alert for the same channel+eventType
+      // already exists within the window, update its timestamp instead of
+      // adding a second alert for the same trigger.
+      final dupIndex = _activeAlerts.indexWhere(
+        (alert) =>
+            !alert.isAcknowledged &&
+            alert.channelId == event.channelId &&
+            alert.eventType == event.eventType,
+      );
+      if (dupIndex >= 0) {
+        _activeAlerts[dupIndex] = OnyxSiteAlert(
+          alertId: _activeAlerts[dupIndex].alertId,
           channelId: event.channelId,
           eventType: event.eventType,
           detectedAt: event.detectedAt.toUtc(),
           isAcknowledged: false,
-        ),
-      );
+        );
+      } else {
+        _activeAlerts.add(
+          OnyxSiteAlert(
+            alertId: _uuidV4(_random),
+            channelId: event.channelId,
+            eventType: event.eventType,
+            detectedAt: event.detectedAt.toUtc(),
+            isAcknowledged: false,
+          ),
+        );
+      }
     }
     return snapshot(at: event.detectedAt);
   }
@@ -289,26 +308,32 @@ class OnyxSiteAwarenessProjector {
     final now = (at ?? clock()).toUtc();
     _prune(now);
 
-    var humanCount = 0;
-    var vehicleCount = 0;
-    var animalCount = 0;
-    var motionCount = 0;
+    // Count distinct channels that reported each detection type within the
+    // window — prevents one camera firing 20 VMD events from inflating counts.
+    final humanChannels = <String>{};
+    final vehicleChannels = <String>{};
+    final animalChannels = <String>{};
+    final motionChannels = <String>{};
     for (final event in _recentEvents) {
       switch (event.eventType) {
         case OnyxEventType.humanDetected:
-          humanCount += 1;
+          humanChannels.add(event.channelId);
         case OnyxEventType.vehicleDetected:
-          vehicleCount += 1;
+          vehicleChannels.add(event.channelId);
         case OnyxEventType.animalDetected:
-          animalCount += 1;
+          animalChannels.add(event.channelId);
         case OnyxEventType.motionDetected:
-          motionCount += 1;
+          motionChannels.add(event.channelId);
         case OnyxEventType.perimeterBreach:
         case OnyxEventType.videoloss:
         case OnyxEventType.unknown:
           break;
       }
     }
+    final humanCount = humanChannels.length;
+    final vehicleCount = vehicleChannels.length;
+    final animalCount = animalChannels.length;
+    final motionCount = motionChannels.length;
 
     final hasRecentHumanOrVehicle = _recentEvents.any(
       (event) =>
@@ -363,6 +388,21 @@ class OnyxSiteAwarenessProjector {
       knownFaults: knownFaults,
       activeAlerts: activeAlerts,
     );
+  }
+
+  /// Marks all active alerts as acknowledged and returns the updated snapshot.
+  /// Call this when an operator sends a "clear" command via Telegram.
+  OnyxSiteAwarenessSnapshot acknowledgeAllAlerts() {
+    for (var i = 0; i < _activeAlerts.length; i++) {
+      _activeAlerts[i] = OnyxSiteAlert(
+        alertId: _activeAlerts[i].alertId,
+        channelId: _activeAlerts[i].channelId,
+        eventType: _activeAlerts[i].eventType,
+        detectedAt: _activeAlerts[i].detectedAt,
+        isAcknowledged: true,
+      );
+    }
+    return snapshot();
   }
 
   void _prune(DateTime nowUtc) {

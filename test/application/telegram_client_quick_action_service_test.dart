@@ -413,7 +413,7 @@ void main() {
       expect(
         response,
         contains(
-          'Remote monitoring is unavailable at MS Vallee Residence right now.',
+          'Remote monitoring is not active for this site right now.',
         ),
       );
       expect(response, isNot(contains('remote visibility is limited')));
@@ -590,7 +590,7 @@ void main() {
 
       expect(
         response,
-        'Remote monitoring is unavailable at MS Vallee Residence right now. I do not have full remote visibility, and nothing here confirms an issue on site. Message here if you want a manual follow-up.',
+        'Remote monitoring is not active for this site right now. Camera worker may be offline. I do not have full remote visibility, and nothing here confirms an issue on site. Message here if you want a manual follow-up.',
       );
       expect(response, isNot(contains('Items reviewed:')));
       expect(response, isNot(contains('Current posture:')));

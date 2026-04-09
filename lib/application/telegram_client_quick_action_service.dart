@@ -10,6 +10,7 @@ enum TelegramClientQuickAction {
   sleepCheck,
   cameraCheck,
   nextStep,
+  clear,
 }
 
 enum _QuickActionTonePack { standard, residential, enterprise }
@@ -54,6 +55,12 @@ class TelegramClientQuickActionService {
         normalized == 'all in order' ||
         normalized == 'bedtime check') {
       return TelegramClientQuickAction.sleepCheck;
+    }
+    if (normalized == 'clear' ||
+        normalized == 'all clear' ||
+        normalized == 'clear alerts' ||
+        normalized == 'clear all') {
+      return TelegramClientQuickAction.clear;
     }
     return null;
   }
@@ -174,6 +181,12 @@ class TelegramClientQuickActionService {
         normalized == 'next step' ||
         normalized == 'what should i do now') {
       return TelegramClientQuickAction.nextStep;
+    }
+    if (normalized == 'clear' ||
+        normalized == 'all clear' ||
+        normalized == 'clear alerts' ||
+        normalized == 'clear all') {
+      return TelegramClientQuickAction.clear;
     }
     return null;
   }
@@ -366,6 +379,8 @@ class TelegramClientQuickActionService {
             '${latestDecision == null ? '' : _labeledSentence('Current decision', latestDecision)}'
             '${_labeledSentence('Summary', narrativeSummary)}'
             '${_nextStepLine(active: active, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited, unresolvedActions: unresolvedActions, tonePack: tonePack)}';
+      case TelegramClientQuickAction.clear:
+        return 'Alerts cleared. Monitoring continues.';
     }
   }
 

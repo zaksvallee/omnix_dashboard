@@ -17702,6 +17702,37 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (action == null) {
       return false;
     }
+
+    // Handle clear action early — needs Supabase write, no context building.
+    if (action == TelegramClientQuickAction.clear) {
+      const saUrl = String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+      const saKey = String.fromEnvironment(
+        'ONYX_SUPABASE_SERVICE_KEY',
+        defaultValue: '',
+      );
+      if (saUrl.isNotEmpty && saKey.isNotEmpty) {
+        final saClient = SupabaseClient(saUrl, saKey);
+        try {
+          await saClient
+              .from('site_awareness_snapshots')
+              .update(<String, dynamic>{'active_alerts': <dynamic>[]})
+              .eq('site_id', siteId);
+        } catch (_) {} finally {
+          saClient.dispose();
+        }
+      }
+      const clearReply = 'Alerts cleared. Monitoring continues.';
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-client-quick-clear-${update.updateId}',
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        responseText: clearReply,
+        failureContext: 'Client clear alerts response',
+        replyMarkup: _telegramClientQuickActionService.replyKeyboardMarkup(),
+      );
+      return true;
+    }
+
     final nowLocal = _telegramFlowNowLocal();
     final nowUtc = _telegramFlowNowUtc();
     final recentSignalWindowStartUtc = nowUtc.subtract(
@@ -35793,14 +35824,17 @@ String _buildSiteAwarenessStatusReply(Map<String, dynamic> row) {
   final activeAlerts = row['active_alerts'];
   final knownFaults = row['known_faults'];
 
-  // Detection summary.
+  // Detection counts.
+  int humans = 0;
+  int vehicles = 0;
+  int animals = 0;
   String detectionSummary = '';
   if (detections is Map) {
-    final humans = detections['human_count'] ?? detections['humanCount'] ?? 0;
-    final vehicles =
-        detections['vehicle_count'] ?? detections['vehicleCount'] ?? 0;
-    final animals =
-        detections['animal_count'] ?? detections['animalCount'] ?? 0;
+    humans = (detections['human_count'] ?? detections['humanCount'] ?? 0) as int;
+    vehicles =
+        (detections['vehicle_count'] ?? detections['vehicleCount'] ?? 0) as int;
+    animals =
+        (detections['animal_count'] ?? detections['animalCount'] ?? 0) as int;
     detectionSummary =
         'Humans: $humans, vehicles: $vehicles, animals: $animals.';
   }
@@ -35809,13 +35843,20 @@ String _buildSiteAwarenessStatusReply(Map<String, dynamic> row) {
   String faultLine = '';
   if (knownFaults is List && knownFaults.isNotEmpty) {
     final labels = knownFaults.map((f) => 'CH$f').join(', ');
-    faultLine = ' $labels offline — known fault.';
+    faultLine = '$labels offline — known fault.';
   }
 
   if (perimeterClear == true) {
-    final parts = <String>['Perimeter clear.'];
-    if (detectionSummary.isNotEmpty) parts.add(detectionSummary);
-    if (faultLine.isNotEmpty) parts.add(faultLine.trim());
+    final parts = <String>[];
+    if (humans > 0) {
+      // Humans inside property = residents, not a breach.
+      final label = humans == 1 ? 'resident' : 'residents';
+      parts.add('All clear. $humans $label detected on site. No perimeter breach.');
+    } else {
+      parts.add('Perimeter clear.');
+      if (detectionSummary.isNotEmpty) parts.add(detectionSummary);
+    }
+    if (faultLine.isNotEmpty) parts.add(faultLine);
     return parts.join(' ');
   } else {
     final alertCount = activeAlerts is List ? activeAlerts.length : 0;
