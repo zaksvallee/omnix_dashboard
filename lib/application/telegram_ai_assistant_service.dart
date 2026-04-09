@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 
@@ -144,7 +145,7 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     required this.apiKey,
     required this.model,
     Uri? endpoint,
-    this.requestTimeout = const Duration(seconds: 15),
+    this.requestTimeout = const Duration(seconds: 5),
   }) : endpoint = endpoint ?? Uri.parse('https://api.openai.com/v1/responses');
 
   @override
@@ -418,12 +419,14 @@ class OnyxFirstTelegramAiAssistantService
 
     if (onyxCloudBoost.isConfigured) {
       try {
-        final cloudResponse = await onyxCloudBoost.boost(
-          prompt: prompt,
-          scope: onyxScope,
-          intent: _onyxIntentForTelegramAudience(audience),
-          contextSummary: contextSummary,
-        );
+        final cloudResponse = await onyxCloudBoost
+            .boost(
+              prompt: prompt,
+              scope: onyxScope,
+              intent: _onyxIntentForTelegramAudience(audience),
+              contextSummary: contextSummary,
+            )
+            .timeout(const Duration(seconds: 5));
         final cloudDraft = _telegramDraftReplyFromOnyxResponse(
           response: cloudResponse,
           providerPrefix: 'onyx-cloud',
@@ -454,21 +457,23 @@ class OnyxFirstTelegramAiAssistantService
 
     if (directProvider.isConfigured) {
       try {
-        return await directProvider.draftReply(
-          audience: audience,
-          messageText: cleaned,
-          clientId: clientId,
-          siteId: siteId,
-          deliveryMode: deliveryMode,
-          clientProfileSignals: clientProfileSignals,
-          preferredReplyExamples: preferredReplyExamples,
-          preferredReplyStyleTags: preferredReplyStyleTags,
-          learnedReplyExamples: learnedReplyExamples,
-          learnedReplyStyleTags: learnedReplyStyleTags,
-          recentConversationTurns: recentConversationTurns,
-          cameraHealthFactPacket: cameraHealthFactPacket,
-          siteAwarenessContext: siteAwarenessContext,
-        );
+        return await directProvider
+            .draftReply(
+              audience: audience,
+              messageText: cleaned,
+              clientId: clientId,
+              siteId: siteId,
+              deliveryMode: deliveryMode,
+              clientProfileSignals: clientProfileSignals,
+              preferredReplyExamples: preferredReplyExamples,
+              preferredReplyStyleTags: preferredReplyStyleTags,
+              learnedReplyExamples: learnedReplyExamples,
+              learnedReplyStyleTags: learnedReplyStyleTags,
+              recentConversationTurns: recentConversationTurns,
+              cameraHealthFactPacket: cameraHealthFactPacket,
+              siteAwarenessContext: siteAwarenessContext,
+            )
+            .timeout(const Duration(seconds: 5));
       } catch (error, stackTrace) {
         developer.log(
           'Telegram AI direct provider tier failed — falling through to next tier.',
@@ -481,12 +486,14 @@ class OnyxFirstTelegramAiAssistantService
 
     if (onyxLocalBrain.isConfigured) {
       try {
-        final localResponse = await onyxLocalBrain.synthesize(
-          prompt: prompt,
-          scope: onyxScope,
-          intent: _onyxIntentForTelegramAudience(audience),
-          contextSummary: contextSummary,
-        );
+        final localResponse = await onyxLocalBrain
+            .synthesize(
+              prompt: prompt,
+              scope: onyxScope,
+              intent: _onyxIntentForTelegramAudience(audience),
+              contextSummary: contextSummary,
+            )
+            .timeout(const Duration(seconds: 5));
         final localDraft = _telegramDraftReplyFromOnyxResponse(
           response: localResponse,
           providerPrefix: 'onyx-local',

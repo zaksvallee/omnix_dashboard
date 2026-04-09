@@ -14526,18 +14526,29 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return true;
     }
-    final aiDraft = _telegramAiAssistant.isConfigured
-        ? await _telegramAiAssistant.draftReply(
-            audience: TelegramAiAudience.admin,
-            messageText: update.text,
-            clientId: _telegramAdminTargetClientId,
-            siteId: _telegramAdminTargetSiteId,
-          )
-        : TelegramAiDraftReply(
-            text: _telegramAdminConversationalFallback(update.text),
-            usedFallback: true,
-            providerLabel: 'local-router',
-          );
+    TelegramAiDraftReply aiDraft;
+    try {
+      aiDraft = _telegramAiAssistant.isConfigured
+          ? await _telegramAiAssistant
+                .draftReply(
+                  audience: TelegramAiAudience.admin,
+                  messageText: update.text,
+                  clientId: _telegramAdminTargetClientId,
+                  siteId: _telegramAdminTargetSiteId,
+                )
+                .timeout(const Duration(seconds: 5))
+          : TelegramAiDraftReply(
+              text: _telegramAdminConversationalFallback(update.text),
+              usedFallback: true,
+              providerLabel: 'local-router',
+            );
+    } on TimeoutException {
+      aiDraft = TelegramAiDraftReply(
+        text: _telegramAdminConversationalFallback(update.text),
+        usedFallback: true,
+        providerLabel: 'timeout-fallback',
+      );
+    }
     final delivered = await _sendTelegramAdminResponse(
       updateId: update.updateId,
       chatId: adminChatId,
@@ -14902,23 +14913,37 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         )) {
       siteAwarenessContext = _formatSiteAwarenessSnapshot(siteAwarenessRow);
     }
-    final aiDraft = await _telegramAiAssistant.draftReply(
-      audience: TelegramAiAudience.client,
-      messageText: update.text,
-      clientId: target.clientId,
-      siteId: siteId,
-      deliveryMode: _telegramAiApprovalRequired && canNotifyAdmin
-          ? TelegramAiDeliveryMode.approvalDraft
-          : TelegramAiDeliveryMode.telegramLive,
-      clientProfileSignals: aiContext.clientProfileSignals,
-      preferredReplyExamples: aiContext.preferredReplyExamples,
-      preferredReplyStyleTags: aiContext.preferredReplyStyleTags,
-      learnedReplyExamples: aiContext.learnedReplyExamples,
-      learnedReplyStyleTags: aiContext.learnedReplyStyleTags,
-      recentConversationTurns: aiContext.recentConversationTurns,
-      cameraHealthFactPacket: aiContext.cameraHealthFactPacket,
-      siteAwarenessContext: siteAwarenessContext,
-    );
+    TelegramAiDraftReply aiDraft;
+    try {
+      aiDraft = await _telegramAiAssistant
+          .draftReply(
+            audience: TelegramAiAudience.client,
+            messageText: update.text,
+            clientId: target.clientId,
+            siteId: siteId,
+            deliveryMode: _telegramAiApprovalRequired && canNotifyAdmin
+                ? TelegramAiDeliveryMode.approvalDraft
+                : TelegramAiDeliveryMode.telegramLive,
+            clientProfileSignals: aiContext.clientProfileSignals,
+            preferredReplyExamples: aiContext.preferredReplyExamples,
+            preferredReplyStyleTags: aiContext.preferredReplyStyleTags,
+            learnedReplyExamples: aiContext.learnedReplyExamples,
+            learnedReplyStyleTags: aiContext.learnedReplyStyleTags,
+            recentConversationTurns: aiContext.recentConversationTurns,
+            cameraHealthFactPacket: aiContext.cameraHealthFactPacket,
+            siteAwarenessContext: siteAwarenessContext,
+          )
+          .timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      final fallbackText = siteAwarenessRow != null
+          ? _buildSiteAwarenessStatusReply(siteAwarenessRow)
+          : 'Your message has been received. Our team will follow up shortly.';
+      aiDraft = TelegramAiDraftReply(
+        text: fallbackText,
+        usedFallback: true,
+        providerLabel: 'timeout-fallback',
+      );
+    }
     if (_telegramAiApprovalRequired && canNotifyAdmin) {
       final pending = _TelegramAiPendingDraft(
         inboundUpdateId: update.updateId,
@@ -24779,12 +24804,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'Critical alerts: $criticalSummary\n'
         'Recent target conversation context:\n'
         '$conversationContext';
-    final aiDraft = await _telegramAiAssistant.draftReply(
-      audience: TelegramAiAudience.admin,
-      messageText: groundedPrompt,
-      clientId: _telegramAdminTargetClientId,
-      siteId: _telegramAdminTargetSiteId,
-    );
+    TelegramAiDraftReply aiDraft;
+    try {
+      aiDraft = await _telegramAiAssistant
+          .draftReply(
+            audience: TelegramAiAudience.admin,
+            messageText: groundedPrompt,
+            clientId: _telegramAdminTargetClientId,
+            siteId: _telegramAdminTargetSiteId,
+          )
+          .timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      return 'ONYX ASK\nAI is taking too long to respond. Please try again shortly.';
+    }
     _telegramAiLastHandledAtUtc = DateTime.now().toUtc();
     _telegramAiLastHandledSummary = 'admin/ask • ${aiDraft.providerLabel}';
     await _appendTelegramAiLedger(
@@ -33673,25 +33705,32 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       messageText: latestClientAsk.isNotEmpty ? latestClientAsk : notice.body,
       limit: 10,
     );
-    final aiDraft = await _telegramAiAssistant.draftReply(
-      audience: TelegramAiAudience.client,
-      messageText: latestClientAsk.isNotEmpty
-          ? latestClientAsk
-          : 'Client requested a follow-up update for $siteReference.',
-      clientId: normalizedClientId,
-      siteId: normalizedSiteId,
-      deliveryMode: TelegramAiDeliveryMode.approvalDraft,
-      clientProfileSignals: aiContext.clientProfileSignals,
-      preferredReplyExamples: aiContext.preferredReplyExamples,
-      preferredReplyStyleTags: aiContext.preferredReplyStyleTags,
-      learnedReplyExamples: aiContext.learnedReplyExamples,
-      learnedReplyStyleTags: aiContext.learnedReplyStyleTags,
-      recentConversationTurns: <String>[
-        'Latest client follow-up already sent: ${_singleLine(notice.body, maxLength: 160)}',
-        ...aiContext.recentConversationTurns,
-      ],
-      cameraHealthFactPacket: aiContext.cameraHealthFactPacket,
-    );
+    TelegramAiDraftReply aiDraft;
+    try {
+      aiDraft = await _telegramAiAssistant
+          .draftReply(
+            audience: TelegramAiAudience.client,
+            messageText: latestClientAsk.isNotEmpty
+                ? latestClientAsk
+                : 'Client requested a follow-up update for $siteReference.',
+            clientId: normalizedClientId,
+            siteId: normalizedSiteId,
+            deliveryMode: TelegramAiDeliveryMode.approvalDraft,
+            clientProfileSignals: aiContext.clientProfileSignals,
+            preferredReplyExamples: aiContext.preferredReplyExamples,
+            preferredReplyStyleTags: aiContext.preferredReplyStyleTags,
+            learnedReplyExamples: aiContext.learnedReplyExamples,
+            learnedReplyStyleTags: aiContext.learnedReplyStyleTags,
+            recentConversationTurns: <String>[
+              'Latest client follow-up already sent: ${_singleLine(notice.body, maxLength: 160)}',
+              ...aiContext.recentConversationTurns,
+            ],
+            cameraHealthFactPacket: aiContext.cameraHealthFactPacket,
+          )
+          .timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      return fallbackDraft;
+    }
     final aiDraftText = aiDraft.text.trim();
     if (aiDraftText.isEmpty) {
       return fallbackDraft;
@@ -33894,25 +33933,32 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                     'Refine the operator draft into a calm, send-ready client reply. Preserve the confirmed facts and intended action from the draft unless the recent lane context clearly contradicts them. Do not switch to a different issue or offer a new action unless the client asked for it.'
               : latestClientAsk
         : 'Please refine this operator draft into a calm, send-ready client reply. Preserve the confirmed facts and intended action from the draft unless the recent lane context clearly contradicts them: ${_singleLine(normalizedDraftText, maxLength: 220)}';
-    final aiDraft = await _telegramAiAssistant.draftReply(
-      audience: TelegramAiAudience.client,
-      messageText: prompt,
-      clientId: normalizedClientId,
-      siteId: normalizedSiteId,
-      deliveryMode: TelegramAiDeliveryMode.approvalDraft,
-      clientProfileSignals: aiContext.clientProfileSignals,
-      preferredReplyExamples: aiContext.preferredReplyExamples,
-      preferredReplyStyleTags: aiContext.preferredReplyStyleTags,
-      learnedReplyExamples: aiContext.learnedReplyExamples,
-      learnedReplyStyleTags: aiContext.learnedReplyStyleTags,
-      recentConversationTurns: <String>[
-        if (normalizedRoom.isNotEmpty) 'Active reply lane: $normalizedRoom',
-        if (normalizedDraftText.isNotEmpty)
-          'Current operator draft: ${_singleLine(normalizedDraftText, maxLength: 160)}',
-        ...aiContext.recentConversationTurns,
-      ],
-      cameraHealthFactPacket: aiContext.cameraHealthFactPacket,
-    );
+    TelegramAiDraftReply aiDraft;
+    try {
+      aiDraft = await _telegramAiAssistant
+          .draftReply(
+            audience: TelegramAiAudience.client,
+            messageText: prompt,
+            clientId: normalizedClientId,
+            siteId: normalizedSiteId,
+            deliveryMode: TelegramAiDeliveryMode.approvalDraft,
+            clientProfileSignals: aiContext.clientProfileSignals,
+            preferredReplyExamples: aiContext.preferredReplyExamples,
+            preferredReplyStyleTags: aiContext.preferredReplyStyleTags,
+            learnedReplyExamples: aiContext.learnedReplyExamples,
+            learnedReplyStyleTags: aiContext.learnedReplyStyleTags,
+            recentConversationTurns: <String>[
+              if (normalizedRoom.isNotEmpty) 'Active reply lane: $normalizedRoom',
+              if (normalizedDraftText.isNotEmpty)
+                'Current operator draft: ${_singleLine(normalizedDraftText, maxLength: 160)}',
+              ...aiContext.recentConversationTurns,
+            ],
+            cameraHealthFactPacket: aiContext.cameraHealthFactPacket,
+          )
+          .timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      return normalizedDraftText.isEmpty ? latestClientAsk : normalizedDraftText;
+    }
     final assistedText = aiDraft.text.trim();
     if (assistedText.isNotEmpty) {
       return assistedText;
@@ -35836,7 +35882,7 @@ Future<Map<String, dynamic>?> _readLatestSiteAwarenessSnapshotRow({
 bool _isSiteAwarenessSnapshotFresh(
   Map<String, dynamic> row,
   DateTime nowUtc, {
-  Duration freshnessWindow = const Duration(minutes: 10),
+  Duration freshnessWindow = const Duration(minutes: 30),
 }) {
   final observedAtUtc = _siteAwarenessObservedAtUtc(row);
   if (observedAtUtc == null) {
