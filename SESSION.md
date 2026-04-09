@@ -9,24 +9,21 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-09 23:15
-- **Last commit:** fix: router — people count, gate sensors, yes/no handling
-- **Commit hash:** ce06301
+- **Date:** 2026-04-09 22:41
+- **Last commit:** feat: Olarm alarm integration — REST + MQTT, zone events, Telegram alerts
+- **Commit hash:** 9da04c1
 
 ## Completed today (2026-04-09 night)
-- [x] Telegram command routing brain — 8 query types
-- [x] Camera-only occupancy tracking — site_occupancy_config + sessions
-- [x] Telegram proxy — CORS fix, single-tab dedup, BroadcastChannel lock
-- [x] Boot grace period — no longer drops live messages on restart
-- [x] Site awareness authoritative — fresh snapshot overrides browser bridge
-- [x] Response timeout — 5s cap on all AI calls
-- [x] Gate sensor handling — honest "camera only" response
-- [x] No fake guard data — guard queries check configuration first
-- [x] Double response fix — single Chrome tab polling
-- [x] Timezone fix — local time in monitoring messages
-- [x] Debug label removed — no more "Endpoint: env-fallback"
-- [x] make starts full stack — proxy + worker + Flutter automatically
-- [x] make stop, make status scripts
+- [x] Olarm integration scaffold — REST + MQTT, IDS/Paradox/DSC support, Telegram alerts (9da04c1)
+- [x] Telegram command routing brain — 8 query types (bf2477c)
+- [x] Camera-only occupancy tracking — site_occupancy_config + sessions (778a8d3)
+- [x] Full stack automation — make starts proxy + worker + Flutter (44e35da)
+- [x] Boot grace period fix — no longer drops live messages (9bf10f7)
+- [x] Telegram proxy CORS fix — local proxy on port 11637 (9129b55)
+- [x] Site awareness authoritative — fresh snapshot overrides browser (9cae56d)
+- [x] Gate sensor handling — honest camera-only response (ce06301)
+- [x] No fake guard data — guard queries check config first
+- [x] Double response fix — single Chrome tab polling (e7048e1)
 
 
 ## Completed (this sprint)
@@ -61,11 +58,16 @@
 - [ ] Server-side AI processor planning — move Telegram AI off the browser path
 
 ## Priority queue (next session)
-- P0: Server-side AI processor — move Telegram AI to server
-- P1: Hik-Connect API — implement when credentials arrive
-- P2: Pattern + FR engine — Phase 2 post Hik-Connect
-- P3: Presence intelligence — three-state model
-- P4: Image/snapshot export via Telegram
+- P0: Fix 0 detections — camera worker staying connected
+- P1: Get Olarm device installed at MS Valee (IDS panel confirmed)
+- P2: Get Olarm API key from user.olarm.co/#/api
+- P3: Server-side AI processor — move Telegram AI to Hetzner
+- P4: Hik-Connect API — implement when credentials arrive
+- P5: ElevenLabs voice responses via Telegram
+
+## Next hardware to acquire
+- Olarm communicator for IDS panel (~R600-800)
+- Contact installer to fit it
 
 ## Blocked / needs decision
 - [ ] dispatch_performance_projection.dart — per-contract value, waiting on contract model
