@@ -15453,6 +15453,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _telegramStructuredStatusLabel(OnyxTelegramCommandType commandType) {
     return switch (commandType) {
       OnyxTelegramCommandType.liveStatus => 'Live Status Sent',
+      OnyxTelegramCommandType.gateAccess => 'Gate Status Sent',
       OnyxTelegramCommandType.incident => 'Incident Summary Sent',
       OnyxTelegramCommandType.dispatch => 'Dispatch Summary Sent',
       OnyxTelegramCommandType.guard => 'Guard Status Sent',
@@ -15472,6 +15473,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }) async {
     return switch (commandType) {
       OnyxTelegramCommandType.liveStatus => _telegramLiveStatusReply(
+        clientId: target.clientId,
+        siteId: siteId,
+      ),
+      OnyxTelegramCommandType.gateAccess => _telegramGateAccessReply(
         clientId: target.clientId,
         siteId: siteId,
       ),
@@ -15734,6 +15739,40 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _telegramCommandPerimeterLabel(bool clear) =>
       clear ? 'clear' : 'alert active';
+
+  String _telegramGateCameraOnlyPerimeterLine(
+    TelegramAiSiteAwarenessSummary? summary,
+  ) {
+    if (summary == null) {
+      return 'No fresh camera snapshot is available in the last 30 minutes.';
+    }
+    if (!summary.perimeterClear || summary.activeAlertCount > 0) {
+      final alertCount = summary.activeAlertCount;
+      return alertCount > 0
+          ? 'Perimeter currently has $alertCount active ${alertCount == 1 ? 'alert' : 'alerts'}.'
+          : 'Perimeter is currently in alert state.';
+    }
+    final totalMovement =
+        summary.humanCount +
+        summary.vehicleCount +
+        summary.animalCount +
+        summary.motionCount;
+    if (totalMovement <= 0) {
+      return 'Perimeter is currently clear with no movement detected.';
+    }
+    final parts = <String>[
+      if (summary.humanCount > 0)
+        _telegramCommandCountLabel(summary.humanCount, 'person'),
+      if (summary.vehicleCount > 0)
+        _telegramCommandCountLabel(summary.vehicleCount, 'vehicle'),
+      if (summary.animalCount > 0)
+        _telegramCommandCountLabel(summary.animalCount, 'animal'),
+    ];
+    if (parts.isEmpty && summary.motionCount > 0) {
+      return 'Perimeter is currently clear with recent motion detected.';
+    }
+    return 'Perimeter is currently clear with ${parts.join(' • ')} detected.';
+  }
 
   String _telegramCommandHeaderLabel(
     TelegramAiSiteAwarenessSummary summary,
@@ -16149,6 +16188,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       lines.add('• ${parts.join(' • ')}');
     }
     return lines.join('\n');
+  }
+
+  Future<String> _telegramGateAccessReply({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final occupancyConfigRow = await _readSiteOccupancyConfigRow(siteId: siteId);
+    final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
+      siteId: siteId,
+    );
+    final siteAwarenessSummary =
+        siteAwarenessRow != null &&
+            _isSiteAwarenessSnapshotFresh(siteAwarenessRow, _telegramFlowNowUtc())
+        ? _telegramAiSiteAwarenessSummaryFromRow(siteAwarenessRow)
+        : null;
+    if (occupancyConfigRow == null || !_siteOccupancyHasGateSensors(occupancyConfigRow)) {
+      return [
+        'No gate sensors are configured at $siteLabel.',
+        'ONYX monitors via cameras only.',
+        _telegramGateCameraOnlyPerimeterLine(siteAwarenessSummary),
+      ].join('\n');
+    }
+    return [
+      'Gate sensors are configured at $siteLabel, but direct gate-state reporting is not available in this chat yet.',
+      _telegramGateCameraOnlyPerimeterLine(siteAwarenessSummary),
+    ].join('\n');
   }
 
   Future<String> _telegramGuardReply({
@@ -37209,7 +37275,7 @@ Future<Map<String, dynamic>?> _readSiteOccupancyConfigRow({
     final rows = await Supabase.instance.client
         .from('site_occupancy_config')
         .select(
-          'site_id,expected_occupancy,occupancy_label,site_type,reset_hour,has_guard',
+          'site_id,expected_occupancy,occupancy_label,site_type,reset_hour,has_guard,has_gate_sensors',
         )
         .eq('site_id', siteId.trim())
         .limit(1);
@@ -37284,6 +37350,9 @@ bool _isPrivateResidenceOccupancyConfig(Map<String, dynamic>? row) =>
 
 bool _siteOccupancyHasGuard(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryBool(row?['has_guard']) ?? false;
+
+bool _siteOccupancyHasGateSensors(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryBool(row?['has_gate_sensors']) ?? false;
 
 int _siteOccupancyPeakDetected(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryInt(row?['peak_detected']) ?? 0;

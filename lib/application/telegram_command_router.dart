@@ -1,5 +1,6 @@
 enum OnyxTelegramCommandType {
   liveStatus,
+  gateAccess,
   incident,
   dispatch,
   guard,
@@ -24,6 +25,7 @@ class OnyxTelegramCommandRouter {
     "what's on site",
     'how many people',
     'how many',
+    'count',
     'people on site',
     'anyone on site',
     'who is on site',
@@ -31,6 +33,17 @@ class OnyxTelegramCommandRouter {
     'how many residents',
     'anyone home',
     'anyone there',
+    'who is home',
+  };
+
+  static const Set<String> _gateAccessTriggers = <String>{
+    'gate',
+    'door',
+    'locked',
+    'closed',
+    'open',
+    'access',
+    'entry',
   };
 
   static const Set<String> _incidentTriggers = <String>{
@@ -90,9 +103,24 @@ class OnyxTelegramCommandRouter {
     'dispatch',
   };
 
+  static const Set<String> _skipClassificationPhrases = <String>{
+    'yes',
+    'no',
+    'ok',
+    'okay',
+    'sure',
+    'thanks',
+    'thank you',
+    'got it',
+    'understood',
+  };
+
   OnyxTelegramCommandType classify(String message) {
     final normalized = _normalize(message);
     if (normalized.isEmpty) {
+      return OnyxTelegramCommandType.unknown;
+    }
+    if (_shouldSkipClassification(normalized)) {
       return OnyxTelegramCommandType.unknown;
     }
 
@@ -107,6 +135,9 @@ class OnyxTelegramCommandRouter {
     }
     if (_looksLikeDispatchQuery(normalized)) {
       return OnyxTelegramCommandType.dispatch;
+    }
+    if (_looksLikeGateAccessQuery(normalized)) {
+      return OnyxTelegramCommandType.gateAccess;
     }
     if (_looksLikeIncidentQuery(normalized)) {
       return OnyxTelegramCommandType.incident;
@@ -183,6 +214,37 @@ class OnyxTelegramCommandRouter {
             normalized.contains('on site'));
   }
 
+  bool _looksLikeGateAccessQuery(String normalized) {
+    if (_matchesAny(normalized, _gateAccessTriggers)) {
+      final hasGateNoun =
+          normalized.contains('gate') ||
+          normalized.contains('door') ||
+          normalized.contains('access') ||
+          normalized.contains('entry');
+      if (hasGateNoun) {
+        return true;
+      }
+      return normalized.split(' ').where((value) => value.isNotEmpty).length <=
+          2;
+    }
+    final hasGateNoun =
+        normalized.contains('gate') ||
+        normalized.contains('door') ||
+        normalized.contains('access') ||
+        normalized.contains('entry');
+    if (hasGateNoun) {
+      return true;
+    }
+    final hasStateWord =
+        normalized.contains('locked') ||
+        normalized.contains('closed') ||
+        normalized.contains('open');
+    if (!hasStateWord) {
+      return false;
+    }
+    return normalized.split(' ').where((value) => value.isNotEmpty).length <= 2;
+  }
+
   bool _looksLikeIncidentQuery(String normalized) {
     if (_matchesAny(normalized, _incidentTriggers)) {
       return true;
@@ -199,6 +261,14 @@ class OnyxTelegramCommandRouter {
       }
     }
     return false;
+  }
+
+  bool _shouldSkipClassification(String normalized) {
+    if (_skipClassificationPhrases.contains(normalized)) {
+      return true;
+    }
+    final words = normalized.split(' ').where((value) => value.isNotEmpty);
+    return words.length == 1 && _skipClassificationPhrases.contains(normalized);
   }
 
   String _normalize(String message) {

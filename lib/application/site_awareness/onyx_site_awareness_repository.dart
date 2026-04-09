@@ -11,6 +11,7 @@ class OnyxSiteOccupancyConfig {
   final String siteType;
   final int resetHour;
   final bool hasGuard;
+  final bool hasGateSensors;
 
   const OnyxSiteOccupancyConfig({
     required this.siteId,
@@ -19,6 +20,7 @@ class OnyxSiteOccupancyConfig {
     required this.siteType,
     required this.resetHour,
     required this.hasGuard,
+    required this.hasGateSensors,
   });
 
   factory OnyxSiteOccupancyConfig.fromRow(Map<String, dynamic> row) {
@@ -30,6 +32,7 @@ class OnyxSiteOccupancyConfig {
           (row['site_type'] as String? ?? 'private_residence').trim(),
       resetHour: _siteOccupancyInt(row['reset_hour']) ?? 3,
       hasGuard: _siteOccupancyBool(row['has_guard']) ?? false,
+      hasGateSensors: _siteOccupancyBool(row['has_gate_sensors']) ?? false,
     );
   }
 }
@@ -113,7 +116,7 @@ class OnyxSiteAwarenessRepository {
         final rows = await _client
           .from('site_occupancy_config')
           .select(
-            'site_id,expected_occupancy,occupancy_label,site_type,reset_hour,has_guard',
+            'site_id,expected_occupancy,occupancy_label,site_type,reset_hour,has_guard,has_gate_sensors',
           )
           .eq('site_id', normalizedSiteId)
           .limit(1);
