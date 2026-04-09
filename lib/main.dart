@@ -17396,8 +17396,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (messageThreadId != fallbackThreadId) {
         return null;
       }
-    } else if (messageThreadId != null) {
-      return null;
     }
     final fallbackClientId = (widget.initialClientLaneClientIdOverride ?? '')
         .trim();

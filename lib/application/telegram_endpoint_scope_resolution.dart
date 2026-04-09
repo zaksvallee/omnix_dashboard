@@ -3,14 +3,17 @@ List<T> matchingTelegramEndpointEntries<T>({
   required int? messageThreadId,
   required int? Function(T entry) threadIdOf,
 }) {
-  return entries
-      .where((entry) {
-        final candidateThreadId = threadIdOf(entry);
-        if (messageThreadId != null) {
-          return candidateThreadId == messageThreadId;
-        }
-        return candidateThreadId == null;
-      })
+  final materializedEntries = entries.toList(growable: false);
+  if (messageThreadId != null) {
+    final threadMatches = materializedEntries
+        .where((entry) => threadIdOf(entry) == messageThreadId)
+        .toList(growable: false);
+    if (threadMatches.isNotEmpty) {
+      return threadMatches;
+    }
+  }
+  return materializedEntries
+      .where((entry) => threadIdOf(entry) == null)
       .toList(growable: false);
 }
 

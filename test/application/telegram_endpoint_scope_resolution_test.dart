@@ -37,6 +37,37 @@ void main() {
       expect(resolved, isNull);
     });
 
+    test(
+      'falls back to the single unthreaded entry when a topic reply has no thread-specific match',
+      () {
+        final resolved = resolveUniqueTelegramEndpointEntry(
+          entries: const <_FakeTelegramEndpointEntry>[
+            _FakeTelegramEndpointEntry(id: 'endpoint-1', threadId: null),
+          ],
+          messageThreadId: 77,
+          threadIdOf: (entry) => entry.threadId,
+        );
+
+        expect(resolved?.id, 'endpoint-1');
+      },
+    );
+
+    test(
+      'prefers the thread-specific entry over the unthreaded fallback when both exist',
+      () {
+        final resolved = resolveUniqueTelegramEndpointEntry(
+          entries: const <_FakeTelegramEndpointEntry>[
+            _FakeTelegramEndpointEntry(id: 'endpoint-1', threadId: null),
+            _FakeTelegramEndpointEntry(id: 'endpoint-2', threadId: 77),
+          ],
+          messageThreadId: 77,
+          threadIdOf: (entry) => entry.threadId,
+        );
+
+        expect(resolved?.id, 'endpoint-2');
+      },
+    );
+
     test('counts unique typed endpoint mappings by chat and thread', () {
       final count = countUniqueTelegramEndpointMappings(
         entries: const <_FakeTelegramEndpointEntry>[
@@ -148,5 +179,24 @@ void main() {
 
       expect(resolved, isNull);
     });
+
+    test(
+      'falls back to the chat-level row when a topic message arrives without a stored thread mapping',
+      () {
+        final resolved = resolveUniqueTelegramEndpointRow(
+          rows: <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'endpoint-1',
+              'client_id': 'CLIENT-001',
+              'site_id': 'SITE-001',
+              'telegram_thread_id': '',
+            },
+          ],
+          messageThreadId: 2016,
+        );
+
+        expect(resolved?['id'], 'endpoint-1');
+      },
+    );
   });
 }
