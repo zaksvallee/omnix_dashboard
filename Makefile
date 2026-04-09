@@ -6,7 +6,7 @@ SAMPLES ?= 3
 MAX_REPORT_AGE_HOURS ?= 24
 
 run-web:
-	flutter run -d chrome --dart-define-from-file=$(CONFIG)
+	./scripts/run_onyx_chrome_local.sh --config $(CONFIG)
 
 analyze:
 	flutter analyze

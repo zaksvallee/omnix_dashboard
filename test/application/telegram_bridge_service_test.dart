@@ -99,6 +99,36 @@ void main() {
     expect(markup['resize_keyboard'], isTrue);
   });
 
+  test('http bridge uses configured api base uri when provided', () async {
+    late Uri requestUri;
+    final client = MockClient((request) async {
+      requestUri = request.url;
+      return http.Response('{"ok":true,"result":{"message_id":21}}', 200);
+    });
+    final service = HttpTelegramBridgeService(
+      client: client,
+      botToken: 'token-123',
+      apiBaseUri: Uri.parse('http://127.0.0.1:11637/proxy'),
+    );
+
+    final result = await service.sendMessages(
+      messages: const [
+        TelegramBridgeMessage(
+          messageKey: 'm-proxy',
+          chatId: '-5247743742',
+          text: 'proxy test',
+        ),
+      ],
+    );
+
+    expect(
+      requestUri.toString(),
+      'http://127.0.0.1:11637/proxy/bottoken-123/sendMessage',
+    );
+    expect(result.sentCount, 1);
+    expect(result.failedCount, 0);
+  });
+
   test('http bridge sendPhoto uploads bytes with caption', () async {
     late Uri requestUri;
     late http.MultipartRequest multipart;

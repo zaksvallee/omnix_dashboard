@@ -137,11 +137,13 @@ class UnconfiguredTelegramBridgeService implements TelegramBridgeService {
 class HttpTelegramBridgeService implements TelegramBridgeService {
   final http.Client client;
   final String botToken;
+  final Uri? apiBaseUri;
   final Duration requestTimeout;
 
   const HttpTelegramBridgeService({
     required this.client,
     required this.botToken,
+    this.apiBaseUri,
     this.requestTimeout = const Duration(seconds: 12),
   });
 
@@ -160,10 +162,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     if (!isConfigured) {
       return TelegramBridgeSendResult(sent: const [], failed: messages);
     }
-    final endpoint = Uri.https(
-      'api.telegram.org',
-      '/bot${botToken.trim()}/sendMessage',
-    );
+    final endpoint = _buildEndpoint('sendMessage');
     final sent = <TelegramBridgeMessage>[];
     final failed = <TelegramBridgeMessage>[];
     final failureReasons = <String, String>{};
@@ -235,10 +234,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
   }
 
   Future<http.Response> _sendPhotoMessage(TelegramBridgeMessage message) async {
-    final endpoint = Uri.https(
-      'api.telegram.org',
-      '/bot${botToken.trim()}/sendPhoto',
-    );
+    final endpoint = _buildEndpoint('sendPhoto');
     final request = http.MultipartRequest('POST', endpoint)
       ..fields['chat_id'] = message.chatId.trim();
     if (message.messageThreadId != null) {
@@ -283,11 +279,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     if (offset != null) {
       query['offset'] = '$offset';
     }
-    final endpoint = Uri.https(
-      'api.telegram.org',
-      '/bot${botToken.trim()}/getUpdates',
-      query,
-    );
+    final endpoint = _buildEndpoint('getUpdates', queryParameters: query);
     final response = await client
         .get(endpoint, headers: const {'Accept': 'application/json'})
         .timeout(requestTimeout);
@@ -388,10 +380,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     if (!isConfigured || callbackQueryId.trim().isEmpty) {
       return false;
     }
-    final endpoint = Uri.https(
-      'api.telegram.org',
-      '/bot${botToken.trim()}/answerCallbackQuery',
-    );
+    final endpoint = _buildEndpoint('answerCallbackQuery');
     try {
       final response = await client
           .post(
@@ -436,5 +425,31 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       // Ignore decode errors and fall back to generic labels.
     }
     return null;
+  }
+
+  Uri _buildEndpoint(String method, {Map<String, String>? queryParameters}) {
+    final normalizedToken = botToken.trim();
+    final normalizedMethod = method.trim();
+    final baseUri = apiBaseUri;
+    if (baseUri == null) {
+      return Uri.https(
+        'api.telegram.org',
+        '/bot$normalizedToken/$normalizedMethod',
+        queryParameters,
+      );
+    }
+    final basePath = baseUri.path.trim();
+    final normalizedBasePath = basePath.isEmpty || basePath == '/'
+        ? ''
+        : (basePath.endsWith('/')
+              ? basePath.substring(0, basePath.length - 1)
+              : basePath);
+    return baseUri.replace(
+      path: '$normalizedBasePath/bot$normalizedToken/$normalizedMethod',
+      queryParameters: queryParameters?.isEmpty == true
+          ? null
+          : queryParameters,
+      fragment: null,
+    );
   }
 }

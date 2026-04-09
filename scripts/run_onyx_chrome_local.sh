@@ -85,6 +85,8 @@ supabase_anon_key="$(json_value "SUPABASE_ANON_KEY" | tr -d '\r')"
 live_feed_url="$(json_value "ONYX_LIVE_FEED_URL" | tr -d '\r')"
 telemetry_provider="$(json_value "ONYX_GUARD_TELEMETRY_NATIVE_PROVIDER" | tr -d '\r')"
 telemetry_stub="$(json_value "ONYX_GUARD_TELEMETRY_NATIVE_STUB" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
+telegram_bridge_enabled="$(json_value "ONYX_TELEGRAM_BRIDGE_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
+telegram_bot_token="$(json_value "ONYX_TELEGRAM_BOT_TOKEN" | tr -d '\r')"
 
 supabase_mode="IN-MEMORY"
 if [[ -n "$supabase_url" && -n "$supabase_anon_key" ]]; then
@@ -101,12 +103,18 @@ if [[ -n "$live_feed_url" ]]; then
   live_feed_mode="CONFIGURED"
 fi
 
+telegram_bridge_mode="DISABLED"
+if [[ "$telegram_bridge_enabled" == "true" && -n "$telegram_bot_token" ]]; then
+  telegram_bridge_mode="PROXY"
+fi
+
 echo "ONYX launch profile:"
 echo "  defines file: $CONFIG_FILE"
 echo "  device: $DEVICE"
 echo "  supabase: $supabase_mode"
 echo "  telemetry: $telemetry_mode (${telemetry_provider:-unknown})"
 echo "  live feed: $live_feed_mode"
+echo "  telegram bridge: $telegram_bridge_mode"
 if [[ -n "$LOG_FILE" ]]; then
   echo "  log file: $LOG_FILE"
 fi
@@ -117,6 +125,10 @@ if [[ "$supabase_mode" != "LIVE" ]]; then
     exit 1
   fi
   echo "WARN: SUPABASE_URL/SUPABASE_ANON_KEY missing; app will run in local fallback mode." >&2
+fi
+
+if [[ "$telegram_bridge_mode" == "PROXY" ]]; then
+  ./scripts/ensure_telegram_bot_api_proxy.sh --config "$CONFIG_FILE"
 fi
 
 echo "Launching ONYX..."

@@ -1209,6 +1209,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _telegramBotTokenEnv = String.fromEnvironment(
     'ONYX_TELEGRAM_BOT_TOKEN',
   );
+  static const _telegramProxyUrlEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_PROXY_URL',
+  );
+  static const _telegramProxyHostEnv = String.fromEnvironment(
+    'ONYX_TELEGRAM_PROXY_HOST',
+    defaultValue: '127.0.0.1',
+  );
+  static const _telegramProxyPortEnv = int.fromEnvironment(
+    'ONYX_TELEGRAM_PROXY_PORT',
+    defaultValue: 11637,
+  );
   static const _telegramChatIdEnv = String.fromEnvironment(
     'ONYX_TELEGRAM_CHAT_ID',
   );
@@ -2549,7 +2560,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return HttpTelegramBridgeService(
       client: _telegramBridgeHttpClient,
       botToken: botToken,
+      apiBaseUri: _resolvedTelegramBridgeApiBaseUri(),
     );
+  }
+
+  Uri? _resolvedTelegramBridgeApiBaseUri() {
+    final configuredProxyUrl = _telegramProxyUrlEnv.trim();
+    if (configuredProxyUrl.isNotEmpty) {
+      return Uri.tryParse(configuredProxyUrl);
+    }
+    if (!kIsWeb) {
+      return null;
+    }
+    final host = _telegramProxyHostEnv.trim().isEmpty
+        ? '127.0.0.1'
+        : _telegramProxyHostEnv.trim();
+    return Uri(scheme: 'http', host: host, port: _telegramProxyPortEnv);
   }
 
   TelegramAiAssistantService _buildTelegramAiAssistant() {
