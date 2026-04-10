@@ -26,6 +26,7 @@ import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:omnix_dashboard/application/onyx_proactive_alert_service.dart';
 import 'package:omnix_dashboard/application/onyx_site_profile_service.dart';
 import 'package:supabase/supabase.dart';
@@ -1450,6 +1451,11 @@ String _siteCameraZoneChannelId(Object? value) {
 
 // ─── Inlined from lib/application/site_awareness/onyx_hik_isapi_stream_awareness_service.dart ───
 
+http.Client _buildIsapiHttpClient() {
+  final client = HttpClient()..connectionTimeout = const Duration(seconds: 30);
+  return IOClient(client);
+}
+
 class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final String host;
   final int port;
@@ -1479,6 +1485,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   StreamSubscription<List<int>>? _streamSubscription;
   StreamSubscription<OnyxProactiveAlertDecision>? _proactiveAlertSubscription;
   Timer? _publishTimer;
+  Timer? _heartbeatTimer;
   OnyxSiteAwarenessProjector? _projector;
   OnyxSiteAwarenessSnapshot? _latestSnapshot;
   bool _isConnected = false;
@@ -1487,6 +1494,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   int _generation = 0;
   String _siteId = '';
   String _clientId = '';
+  DateTime? _lastStreamEventAtUtc;
 
   OnyxHikIsapiStreamAwarenessService({
     required this.host,
@@ -1505,7 +1513,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     DateTime Function()? clock,
     Future<void> Function(Duration duration)? sleep,
     this.onReconnectFailure,
-  }) : _client = client ?? http.Client(),
+  }) : _client = client ?? _buildIsapiHttpClient(),
        _repository = repository,
        _proactiveAlertService = proactiveAlertService,
        _clock = clock ?? DateTime.now,
@@ -1525,6 +1533,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     host: host,
     port: port,
     path: '/ISAPI/Event/notification/alertStream',
+  );
+
+  Uri get _systemStatusUri => Uri(
+    scheme: 'http',
+    host: host,
+    port: port,
+    path: '/ISAPI/System/status',
   );
 
   Uri _snapshotUriForChannel(String channelId) {
@@ -1586,8 +1601,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _disconnectAlertSent = false;
     _running = true;
     _generation += 1;
+    _lastStreamEventAtUtc = _clock().toUtc();
     _publishTimer = Timer.periodic(publishInterval, (_) {
       _publishProjectedSnapshot();
+    });
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      unawaited(_sendKeepaliveHeartbeat(_generation));
     });
     unawaited(_runConnectionLoop(_generation));
   }
@@ -1600,6 +1619,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _disconnectAlertSent = false;
     _publishTimer?.cancel();
     _publishTimer = null;
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    _lastStreamEventAtUtc = null;
     final subscription = _streamSubscription;
     _streamSubscription = null;
     final proactiveAlertSubscription = _proactiveAlertSubscription;
@@ -1670,6 +1692,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       StackTrace? disconnectStackTrace;
       var disconnectLogLevel = 1000;
       try {
+        await _primeSocketConnection();
         final response = await _auth
             .send(
               _client,
@@ -1694,6 +1717,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         } else {
           final resumedAfterFailures = retryAttempt > 0 || _disconnectAlertSent;
           _isConnected = true;
+          _lastStreamEventAtUtc = _clock().toUtc();
           retryAttempt = 0;
           _disconnectAlertSent = false;
           if (resumedAfterFailures) {
@@ -1750,6 +1774,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           );
         }
       }
+      if (nextAttempt >= 3) {
+        developer.log(
+          '[ONYX] Camera worker terminating after 3 failures',
+          name: 'OnyxHikIsapiStream',
+          level: 1000,
+        );
+        await stop();
+        exit(1);
+      }
       retryAttempt += 1;
       await _sleep(delay);
     }
@@ -1766,6 +1799,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     var buffer = '';
     _streamSubscription = stream.listen(
       (chunk) {
+        _lastStreamEventAtUtc = _clock().toUtc();
         buffer += utf8.decode(chunk, allowMalformed: true);
         final extraction = _extractAlertXml(buffer);
         buffer = extraction.remainder;
@@ -1808,6 +1842,67 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     await completer.future;
     if (generation == _generation) {
       _streamSubscription = null;
+    }
+  }
+
+  Future<void> _sendKeepaliveHeartbeat(int generation) async {
+    if (!_running || !_isConnected || generation != _generation) {
+      return;
+    }
+    final lastEventAtUtc = _lastStreamEventAtUtc;
+    if (lastEventAtUtc != null &&
+        _clock().toUtc().difference(lastEventAtUtc) <
+            const Duration(seconds: 60)) {
+      return;
+    }
+    try {
+      await _primeSocketConnection();
+      final response = await _auth
+          .head(
+            _client,
+            _systemStatusUri,
+            headers: const <String, String>{'Accept': '*/*'},
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        _lastStreamEventAtUtc = _clock().toUtc();
+      } else {
+        developer.log(
+          'ISAPI keepalive heartbeat returned HTTP ${response.statusCode}.',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'ISAPI keepalive heartbeat failed.',
+        name: 'OnyxHikIsapiStream',
+        error: error,
+        stackTrace: stackTrace,
+        level: 900,
+      );
+    }
+  }
+
+  Future<void> _primeSocketConnection() async {
+    Socket? socket;
+    try {
+      socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(seconds: 10),
+      );
+      socket.setOption(SocketOption.tcpNoDelay, true);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to prime TCP socket before ISAPI request.',
+        name: 'OnyxHikIsapiStream',
+        error: error,
+        stackTrace: stackTrace,
+        level: 900,
+      );
+    } finally {
+      await socket?.close();
     }
   }
 
