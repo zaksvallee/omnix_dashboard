@@ -706,15 +706,12 @@ class PlateRecognitionModule:
             self._last_error = str(exc)
             return None
 
-        import cv2
-
         best_candidate = None
         best_score = -1.0
         for priority, crop in self._candidate_crops(image_bgr, detections, item):
             if crop.size == 0:
                 continue
-            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-            attempts = [crop, gray]
+            attempts = self._ocr_attempts(crop)
             for attempt in attempts:
                 results = reader.readtext(
                     attempt,
@@ -740,6 +737,29 @@ class PlateRecognitionModule:
                             "plate_confidence": confidence,
                         }
         return best_candidate
+
+    def _ocr_attempts(self, crop: Any) -> List[Any]:
+        import cv2
+
+        height, width = crop.shape[:2]
+        scale = 4.0 if max(height, width) <= 220 else 2.0
+        upscaled = cv2.resize(
+            crop,
+            None,
+            fx=scale,
+            fy=scale,
+            interpolation=cv2.INTER_CUBIC,
+        )
+        gray = cv2.cvtColor(upscaled, cv2.COLOR_BGR2GRAY)
+        enhanced = cv2.equalizeHist(gray)
+        blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
+        _, binary = cv2.threshold(
+            blurred,
+            0,
+            255,
+            cv2.THRESH_BINARY + cv2.THRESH_OTSU,
+        )
+        return [upscaled, gray, enhanced, binary]
 
     def _ensure_reader(self):
         if self._reader is not None:
@@ -767,14 +787,40 @@ class PlateRecognitionModule:
             box = detection.get("box")
             if not isinstance(box, list) or len(box) != 4:
                 continue
-            x1, y1, x2, y2 = [int(max(0, round(float(value)))) for value in box]
-            x1 = max(0, x1 - int((x2 - x1) * 0.08))
-            y1 = max(0, y1 - int((y2 - y1) * 0.08))
-            x2 = min(width, x2 + int((x2 - x1) * 0.08))
-            y2 = min(height, y2 + int((y2 - y1) * 0.08))
-            crop = image_bgr[y1:y2, x1:x2]
-            if crop.size != 0:
-                crops.append((0.12, crop))
+            raw_x1, raw_y1, raw_x2, raw_y2 = [
+                int(max(0, round(float(value)))) for value in box
+            ]
+            vehicle_width = max(1, raw_x2 - raw_x1)
+            vehicle_height = max(1, raw_y2 - raw_y1)
+            x1 = max(0, raw_x1 - int(vehicle_width * 0.08))
+            y1 = max(0, raw_y1 - int(vehicle_height * 0.08))
+            x2 = min(width, raw_x2 + int(vehicle_width * 0.08))
+            y2 = min(height, raw_y2 + int(vehicle_height * 0.08))
+
+            whole_vehicle = image_bgr[y1:y2, x1:x2]
+            if whole_vehicle.size != 0:
+                crops.append((0.12, whole_vehicle))
+
+            lower_half_start = y1 + int((y2 - y1) * 0.45)
+            lower_half = image_bgr[lower_half_start:y2, x1:x2]
+            if lower_half.size != 0:
+                crops.append((0.18, lower_half))
+
+            lower_third_start = y1 + int((y2 - y1) * 0.66)
+            lower_third = image_bgr[lower_third_start:y2, x1:x2]
+            if lower_third.size != 0:
+                crops.append((0.24, lower_third))
+
+            center_margin = int((x2 - x1) * 0.18)
+            center_x1 = min(x2, max(0, x1 + center_margin))
+            center_x2 = max(center_x1, min(width, x2 - center_margin))
+            center_lower_band_start = y1 + int((y2 - y1) * 0.58)
+            center_lower_band = image_bgr[
+                center_lower_band_start:y2,
+                center_x1:center_x2,
+            ]
+            if center_lower_band.size != 0:
+                crops.append((0.32, center_lower_band))
         signal_text = " ".join(
             [
                 str(item.get("object_label", "")),
