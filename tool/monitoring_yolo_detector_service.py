@@ -877,7 +877,12 @@ class PlateRecognitionModule:
         import cv2
 
         height, width = crop.shape[:2]
-        scale = 4.0 if max(height, width) <= 220 else 2.0
+        if max(height, width) <= 160:
+            scale = 6.0
+        elif max(height, width) <= 280:
+            scale = 4.0
+        else:
+            scale = 2.0
         upscaled = cv2.resize(
             crop,
             None,
@@ -887,14 +892,24 @@ class PlateRecognitionModule:
         )
         gray = cv2.cvtColor(upscaled, cv2.COLOR_BGR2GRAY)
         enhanced = cv2.equalizeHist(gray)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
         blurred = cv2.GaussianBlur(enhanced, (3, 3), 0)
+        bilateral = cv2.bilateralFilter(clahe, 9, 75, 75)
         _, binary = cv2.threshold(
             blurred,
             0,
             255,
             cv2.THRESH_BINARY + cv2.THRESH_OTSU,
         )
-        return [upscaled, gray, enhanced, binary]
+        adaptive = cv2.adaptiveThreshold(
+            bilateral,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY,
+            31,
+            5,
+        )
+        return [upscaled, gray, enhanced, clahe, bilateral, binary, adaptive]
 
     def _ensure_reader(self):
         if self._reader is not None:
@@ -956,6 +971,22 @@ class PlateRecognitionModule:
             ]
             if center_lower_band.size != 0:
                 crops.append((0.32, center_lower_band))
+
+            lower_quarter_start = y1 + int((y2 - y1) * 0.74)
+            lower_quarter = image_bgr[lower_quarter_start:y2, x1:x2]
+            if lower_quarter.size != 0:
+                crops.append((0.38, lower_quarter))
+
+            wide_center_margin = int((x2 - x1) * 0.08)
+            wide_center_x1 = min(x2, max(0, x1 + wide_center_margin))
+            wide_center_x2 = max(wide_center_x1, min(width, x2 - wide_center_margin))
+            wide_center_strip_start = y1 + int((y2 - y1) * 0.68)
+            wide_center_strip = image_bgr[
+                wide_center_strip_start:y2,
+                wide_center_x1:wide_center_x2,
+            ]
+            if wide_center_strip.size != 0:
+                crops.append((0.42, wide_center_strip))
         signal_text = " ".join(
             [
                 str(item.get("object_label", "")),
@@ -963,6 +994,13 @@ class PlateRecognitionModule:
                 str(item.get("summary", "")),
             ]
         ).lower()
+        if width >= 1000 and height >= 600:
+            hd_center_strip = image_bgr[
+                int(height * 0.38):int(height * 0.62),
+                int(width * 0.34):int(width * 0.72),
+            ]
+            if hd_center_strip.size != 0:
+                crops.append((0.16, hd_center_strip))
         if not crops and _contains_any(signal_text, ("vehicle", "plate", "car", "truck", "gate")):
             crops.append((0.0, image_bgr))
         return crops
