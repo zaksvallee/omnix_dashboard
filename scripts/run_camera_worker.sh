@@ -119,5 +119,8 @@ set_optional_env ONYX_MONITORING_YOLO_ENDPOINT "$(json_value_any ONYX_MONITORING
 set_optional_env ONYX_MONITORING_YOLO_AUTH_TOKEN "$(json_value_any ONYX_MONITORING_YOLO_AUTH_TOKEN || true)"
 set_optional_env ONYX_MONITORING_YOLO_HOST "$(json_value_any ONYX_MONITORING_YOLO_HOST || true)"
 set_optional_env ONYX_MONITORING_YOLO_PORT "$(json_value_any ONYX_MONITORING_YOLO_PORT || true)"
+set_optional_env ONYX_RTSP_FRAME_SERVER_ENDPOINT "$(json_value_any ONYX_RTSP_FRAME_SERVER_ENDPOINT || true)"
+set_optional_env ONYX_RTSP_FRAME_SERVER_HOST "$(json_value_any ONYX_RTSP_FRAME_SERVER_HOST || true)"
+set_optional_env ONYX_RTSP_FRAME_SERVER_PORT "$(json_value_any ONYX_RTSP_FRAME_SERVER_PORT || true)"
 
 exec dart run bin/onyx_camera_worker.dart "$@"

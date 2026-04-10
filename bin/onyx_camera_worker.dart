@@ -2873,6 +2873,12 @@ Future<void> main() async {
   final yoloAuthToken =
       Platform.environment['ONYX_MONITORING_YOLO_AUTH_TOKEN'] ?? '';
   final yoloEndpoint = Uri.tryParse(yoloEndpointRaw.trim());
+  final rtspFrameServerEndpointRaw =
+      Platform.environment['ONYX_RTSP_FRAME_SERVER_ENDPOINT'] ??
+      'http://127.0.0.1:11638';
+  final rtspFrameServerEndpoint = Uri.tryParse(
+    rtspFrameServerEndpointRaw.trim(),
+  );
 
   final rawFaultChannels =
       Platform.environment['ONYX_HIK_KNOWN_FAULT_CHANNELS'] ??
@@ -2927,6 +2933,7 @@ Future<void> main() async {
           client: yoloHttpClient,
           endpoint: yoloEndpoint,
           authToken: yoloAuthToken,
+          rtspFrameServerBaseUri: rtspFrameServerEndpoint,
         );
 
   final service = OnyxHikIsapiStreamAwarenessService(

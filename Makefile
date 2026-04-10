@@ -10,11 +10,7 @@ MAX_REPORT_AGE_HOURS ?= 24
 run-web: flutter
 
 flutter:
-	@if pgrep -f "flutter.*run.*chrome" > /dev/null; then \
-		echo "Flutter already running"; \
-	else \
-		bash scripts/run_onyx_chrome_local.sh --config $(CONFIG); \
-	fi
+	@bash scripts/run_onyx_chrome_local.sh --config $(CONFIG)
 
 start: run-web
 

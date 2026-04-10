@@ -35,15 +35,54 @@ class OnyxLiveSnapshotYoloService {
   final Uri endpoint;
   final String authToken;
   final Duration requestTimeout;
+  final Uri? rtspFrameServerBaseUri;
 
-  const OnyxLiveSnapshotYoloService({
+  OnyxLiveSnapshotYoloService({
     required this.client,
     required this.endpoint,
     this.authToken = '',
     this.requestTimeout = const Duration(seconds: 20),
+    this.rtspFrameServerBaseUri,
   });
 
   bool get isConfigured => endpoint.toString().trim().isNotEmpty;
+  bool get isRtspFrameServerConfigured =>
+      (rtspFrameServerBaseUri?.toString().trim() ?? '').isNotEmpty;
+
+  Future<List<int>?> fetchRtspFrame(String channelId) async {
+    if (!isRtspFrameServerConfigured) {
+      return null;
+    }
+    final normalizedChannelId = channelId.trim();
+    if (normalizedChannelId.isEmpty) {
+      return null;
+    }
+    final frameUri = rtspFrameServerBaseUri!.replace(
+      path:
+          '${rtspFrameServerBaseUri!.path.endsWith('/') ? rtspFrameServerBaseUri!.path.substring(0, rtspFrameServerBaseUri!.path.length - 1) : rtspFrameServerBaseUri!.path}/frame/$normalizedChannelId',
+    );
+    try {
+      final response = await client
+          .get(
+            frameUri,
+            headers: const <String, String>{'Accept': 'image/jpeg,image/*,*/*'},
+          )
+          .timeout(requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+      return response.bodyBytes;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to fetch RTSP frame snapshot for channel $normalizedChannelId.',
+        name: 'OnyxLiveSnapshotYolo',
+        error: error,
+        stackTrace: stackTrace,
+        level: 900,
+      );
+      return null;
+    }
+  }
 
   Future<OnyxLiveSnapshotYoloResult?> detectSnapshot({
     required String recordKey,

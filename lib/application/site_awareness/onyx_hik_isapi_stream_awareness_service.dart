@@ -209,6 +209,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   }
 
   Future<List<int>?> fetchSnapshotBytes(String channelId) async {
+    final rtspSnapshotBytes = await _liveSnapshotYoloService?.fetchRtspFrame(
+      channelId.trim(),
+    );
+    if (rtspSnapshotBytes != null && rtspSnapshotBytes.isNotEmpty) {
+      return rtspSnapshotBytes;
+    }
     try {
       final response = await _auth
           .get(

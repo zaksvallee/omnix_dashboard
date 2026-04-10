@@ -9,6 +9,7 @@ FLUTTER_PID_FILE="${ONYX_FLUTTER_PID_FILE:-tmp/onyx_flutter.pid}"
 PROXY_PID_FILE="${ONYX_TELEGRAM_PROXY_PID_FILE:-tmp/onyx_telegram_proxy.pid}"
 WORKER_PID_FILE="${ONYX_CAMERA_WORKER_PID_FILE:-tmp/onyx_camera_worker.pid}"
 YOLO_PID_FILE="${ONYX_YOLO_SERVER_PID_FILE:-tmp/onyx_yolo_server.pid}"
+RTSP_FRAME_PID_FILE="${ONYX_RTSP_FRAME_SERVER_PID_FILE:-tmp/onyx_rtsp_frame_server.pid}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -87,10 +88,14 @@ proxy_port="$(json_value "ONYX_TELEGRAM_PROXY_PORT" | tr -d '\r')"
 yolo_enabled="$(json_value "ONYX_MONITORING_YOLO_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
 yolo_host="$(json_value "ONYX_MONITORING_YOLO_HOST" | tr -d '\r')"
 yolo_port="$(json_value "ONYX_MONITORING_YOLO_PORT" | tr -d '\r')"
+rtsp_frame_host="$(json_value "ONYX_RTSP_FRAME_SERVER_HOST" | tr -d '\r')"
+rtsp_frame_port="$(json_value "ONYX_RTSP_FRAME_SERVER_PORT" | tr -d '\r')"
 proxy_host="${proxy_host:-127.0.0.1}"
 proxy_port="${proxy_port:-11637}"
 yolo_host="${yolo_host:-127.0.0.1}"
 yolo_port="${yolo_port:-11636}"
+rtsp_frame_host="${rtsp_frame_host:-127.0.0.1}"
+rtsp_frame_port="${rtsp_frame_port:-11638}"
 telegram_token="$(json_value "ONYX_TELEGRAM_BOT_TOKEN" | tr -d '\r')"
 
 echo "ONYX stack status"
@@ -108,8 +113,13 @@ if [[ "$yolo_enabled" == "true" ]]; then
     "YOLO detector" \
     "$YOLO_PID_FILE" \
     "tool/monitoring_yolo_detector_service\\.py" || true
+  render_process_status \
+    "RTSP frame server" \
+    "$RTSP_FRAME_PID_FILE" \
+    "tool/onyx_rtsp_frame_server\\.py" || true
 else
   echo "YOLO detector: DISABLED"
+  echo "RTSP frame server: DISABLED"
 fi
 if render_process_status \
   "Camera worker" \
@@ -152,6 +162,29 @@ try:
     print(f"YOLO health: {'ready' if ready else 'not ready'} ({backend}; {detail})")
 except Exception as exc:
     print(f"YOLO health: error ({exc})")
+PY
+  if lsof -nP -iTCP:"$rtsp_frame_port" -sTCP:LISTEN >/tmp/onyx_rtsp_frame_lsof_status 2>/dev/null; then
+    echo "RTSP frame listen:"
+    sed 's/^/  /' /tmp/onyx_rtsp_frame_lsof_status
+    rm -f /tmp/onyx_rtsp_frame_lsof_status
+  else
+    echo "RTSP frame listen: not detected on ${rtsp_frame_host}:${rtsp_frame_port}"
+  fi
+  python3 - "$rtsp_frame_host" "$rtsp_frame_port" <<'PY'
+import json
+import sys
+import urllib.request
+
+host, port = sys.argv[1], sys.argv[2]
+url = f"http://{host}:{port}/health"
+try:
+    with urllib.request.urlopen(url, timeout=3) as response:
+        data = json.loads(response.read().decode())
+    ready = bool(data.get("ready"))
+    channel_count = data.get("channel_count", "unknown")
+    print(f"RTSP frame health: {'ready' if ready else 'warming'} ({channel_count} channels)")
+except Exception as exc:
+    print(f"RTSP frame health: error ({exc})")
 PY
 fi
 
