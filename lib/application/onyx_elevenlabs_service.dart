@@ -10,6 +10,7 @@ const kOnyxDefaultElevenLabsProxyBaseUri = 'http://127.0.0.1:11637';
 
 abstract class OnyxElevenLabsService {
   bool get isConfigured;
+  int get apiKeyLength;
 
   Future<Uint8List?> synthesize(String text);
 }
@@ -19,6 +20,9 @@ class UnconfiguredOnyxElevenLabsService implements OnyxElevenLabsService {
 
   @override
   bool get isConfigured => false;
+
+  @override
+  int get apiKeyLength => 0;
 
   @override
   Future<Uint8List?> synthesize(String text) async => null;
@@ -43,6 +47,9 @@ class HttpOnyxElevenLabsService implements OnyxElevenLabsService {
   bool get isConfigured {
     return apiKey.trim().isNotEmpty && voiceId.trim().isNotEmpty;
   }
+
+  @override
+  int get apiKeyLength => apiKey.trim().length;
 
   @override
   Future<Uint8List?> synthesize(String text) async {

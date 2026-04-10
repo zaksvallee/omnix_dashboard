@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -426,9 +427,19 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     int? messageThreadId,
   }) async {
     if (!isConfigured || chatId.trim().isEmpty || audioBytes.isEmpty) {
+      developer.log(
+        '[ONYX] TelegramBridge: sendVoice skipped configured=$isConfigured '
+        'chat_empty=${chatId.trim().isEmpty} bytes=${audioBytes.length}',
+        name: 'ElevenLabs',
+      );
       return;
     }
     try {
+      developer.log(
+        '[ONYX] TelegramBridge: sendVoice start chat=${chatId.trim()} '
+        'thread=${messageThreadId ?? 0} bytes=${audioBytes.length}',
+        name: 'ElevenLabs',
+      );
       final endpoint = _buildEndpoint('sendVoice');
       final request = http.MultipartRequest('POST', endpoint)
         ..fields['chat_id'] = chatId.trim();
@@ -445,13 +456,36 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       final streamed = await client.send(request).timeout(requestTimeout);
       final response = await http.Response.fromStream(streamed);
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        developer.log(
+          '[ONYX] TelegramBridge: sendVoice failed HTTP ${response.statusCode} '
+          '${response.body}',
+          name: 'ElevenLabs',
+        );
         return;
       }
       final decoded = jsonDecode(response.body);
       if (decoded is! Map || decoded['ok'] != true) {
+        developer.log(
+          '[ONYX] TelegramBridge: sendVoice invalid response ${response.body}',
+          name: 'ElevenLabs',
+        );
         return;
       }
-    } catch (_) {
+      final resultPayload = decoded['result'];
+      final messageId = resultPayload is Map
+          ? _asInt(resultPayload['message_id'])
+          : null;
+      developer.log(
+        '[ONYX] TelegramBridge: sendVoice ok message_id=${messageId ?? 0}',
+        name: 'ElevenLabs',
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        '[ONYX] TelegramBridge: sendVoice exception',
+        name: 'ElevenLabs',
+        error: error,
+        stackTrace: stackTrace,
+      );
       return;
     }
   }

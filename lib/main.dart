@@ -16346,6 +16346,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String sourceLabel,
   }) async {
     if (!_elevenLabsService.isConfigured || !_telegramBridge.isConfigured) {
+      developer.log(
+        '[ONYX] ElevenLabs: skipped voice synthesis '
+        'elevenlabs_configured=${_elevenLabsService.isConfigured} '
+        'telegram_configured=${_telegramBridge.isConfigured}',
+        name: 'ElevenLabs',
+      );
       return;
     }
     try {
@@ -16355,16 +16361,42 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         fallbackText: fallbackText,
       );
       if (script == null || script.trim().isEmpty) {
+        developer.log(
+          '[ONYX] ElevenLabs: skipped voice synthesis because script was empty',
+          name: 'ElevenLabs',
+        );
         return;
       }
+      developer.log(
+        '[ONYX] ElevenLabs: attempting voice synthesis, '
+        'key_length=${_elevenLabsService.apiKeyLength}',
+        name: 'ElevenLabs',
+      );
       final audioBytes = await _elevenLabsService.synthesize(script);
+      developer.log(
+        '[ONYX] ElevenLabs: synthesis result = ${audioBytes?.length ?? 0} bytes',
+        name: 'ElevenLabs',
+      );
       if (audioBytes == null || audioBytes.isEmpty) {
+        developer.log(
+          '[ONYX] ElevenLabs: skipping Telegram voice upload because no audio was returned',
+          name: 'ElevenLabs',
+        );
         return;
       }
+      developer.log(
+        '[ONYX] ElevenLabs: sending voice message to chat=$chatId '
+        'thread=${messageThreadId ?? 0} source=$sourceLabel',
+        name: 'ElevenLabs',
+      );
       await _telegramBridge.sendVoiceMessage(
         chatId,
         audioBytes,
         messageThreadId: messageThreadId,
+      );
+      developer.log(
+        '[ONYX] ElevenLabs: sendVoiceMessage completed',
+        name: 'ElevenLabs',
       );
     } catch (error, stackTrace) {
       developer.log(
