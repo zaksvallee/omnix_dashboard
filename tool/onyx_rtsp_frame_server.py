@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 import argparse
-import io
 import json
+import io
 import os
-import select
 import signal
 import subprocess
 import sys
@@ -12,7 +11,6 @@ import time
 import urllib.parse
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from typing import Dict, Optional
 
 from PIL import Image
@@ -104,7 +102,7 @@ class RtspChannelWorker(threading.Thread):
         rtsp_url: str,
         stop_event: threading.Event,
         poll_interval_seconds: float = 1.5,
-        reconnect_delay_seconds: float = 5.0,
+        reconnect_delay_seconds: float = 10.0,
     ) -> None:
         super().__init__(daemon=True, name=f"rtsp-channel-{state.channel_id}")
         self._state = state
@@ -115,116 +113,29 @@ class RtspChannelWorker(threading.Thread):
 
     def run(self) -> None:
         while not self._stop_event.is_set():
-            process = self._spawn_ffmpeg()
-            buffer = bytearray()
-            connected_at = time.time()
-            last_frame_at: Optional[float] = None
-            error = "warming_up"
-            try:
-                while not self._stop_event.is_set():
-                    if process.poll() is not None:
-                        error = f"FFmpeg exited ({process.returncode})"
-                        break
-
-                    ready, _, _ = select.select([process.stdout], [], [], 1.0)
-                    if ready:
-                        chunk = os.read(process.stdout.fileno(), 65536)
-                        if not chunk:
-                            error = "RTSP frame stream ended"
-                            break
-                        buffer.extend(chunk)
-                        while True:
-                            soi = buffer.find(b"\xff\xd8")
-                            if soi < 0:
-                                if len(buffer) > 2_000_000:
-                                    del buffer[:-2]
-                                break
-                            eoi = buffer.find(b"\xff\xd9", soi + 2)
-                            if eoi < 0:
-                                if soi > 0:
-                                    del buffer[:soi]
-                                break
-                            jpeg = bytes(buffer[soi:eoi + 2])
-                            del buffer[:eoi + 2]
-                            try:
-                                image = Image.open(io.BytesIO(jpeg))
-                                image.load()
-                                resolution = [int(image.size[0]), int(image.size[1])]
-                            except Exception:
-                                continue
-                            now = time.time()
-                            last_frame_at = now
-                            with self._state.lock:
-                                self._state.latest_jpeg = jpeg
-                                self._state.latest_resolution = resolution
-                                self._state.latest_frame_at_epoch = now
-                                self._state.connected = True
-                                self._state.error = ""
-                            time.sleep(self._poll_interval_seconds)
-                    else:
-                        now = time.time()
-                        if last_frame_at is None:
-                            if now - connected_at >= 30:
-                                error = "RTSP warmup timeout"
-                                break
-                            with self._state.lock:
-                                self._state.connected = False
-                                self._state.error = "warming_up"
-                        elif now - last_frame_at >= 15:
-                            error = "RTSP frame stalled"
-                            break
-            finally:
-                self._terminate_process(process)
-
+            jpeg, resolution, error = _capture_rtsp_frame_once(
+                self._rtsp_url,
+                timeout_seconds=30,
+            )
+            now = time.time()
             with self._state.lock:
-                self._state.connected = False
-                if self._state.latest_frame_at_epoch is None and (
-                    time.time() - self._state.started_at_epoch
-                ) < 30:
-                    self._state.error = "warming_up"
+                if jpeg:
+                    self._state.latest_jpeg = jpeg
+                    self._state.latest_resolution = resolution
+                    self._state.latest_frame_at_epoch = now
+                    self._state.connected = True
+                    self._state.error = ""
                 else:
-                    self._state.error = error
-            time.sleep(self._reconnect_delay_seconds)
-
-    def _spawn_ffmpeg(self) -> subprocess.Popen:
-        command = [
-            "ffmpeg",
-            "-hide_banner",
-            "-loglevel",
-            "error",
-            "-rtsp_transport",
-            "tcp",
-            "-fflags",
-            "nobuffer",
-            "-flags",
-            "low_delay",
-            "-i",
-            self._rtsp_url,
-            "-vf",
-            "fps=1",
-            "-q:v",
-            "2",
-            "-f",
-            "image2pipe",
-            "-vcodec",
-            "mjpeg",
-            "-",
-        ]
-        return subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            bufsize=0,
-        )
-
-    def _terminate_process(self, process: subprocess.Popen) -> None:
-        if process.poll() is not None:
-            return
-        process.terminate()
-        try:
-            process.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            process.kill()
+                    self._state.connected = False
+                    if self._state.latest_frame_at_epoch is None and (
+                        now - self._state.started_at_epoch
+                    ) < 30:
+                        self._state.error = "warming_up"
+                    else:
+                        self._state.error = error or "RTSP frame decode failed"
+            time.sleep(
+                self._poll_interval_seconds if jpeg else self._reconnect_delay_seconds
+            )
 
 
 class RtspFrameHandler(BaseHTTPRequestHandler):
@@ -266,9 +177,17 @@ class RtspFrameHandler(BaseHTTPRequestHandler):
         if state is None:
             self.send_error(404, "Unknown channel")
             return
-        jpeg = self.app.capture_frame(channel_id)
-        with state.lock:
-            error = state.error
+        self.app.ensure_worker(channel_id)
+        deadline = time.time() + 3
+        jpeg = None
+        error = "Frame unavailable"
+        while time.time() < deadline and jpeg is None:
+            with state.lock:
+                jpeg = state.latest_jpeg
+                error = state.error
+            if jpeg is not None:
+                break
+            time.sleep(0.1)
         if not jpeg:
             self.send_error(503, error or "Frame unavailable")
             return
@@ -355,22 +274,31 @@ class RtspFrameServer:
                 f"{self.rtsp_urls[channel_id]}"
             )
 
-    def capture_frame(self, channel_id: int) -> Optional[bytes]:
-        state = self.channel_states[channel_id]
-        rtsp_url = self.rtsp_urls[channel_id]
-        jpeg, resolution, error = _capture_rtsp_frame_once(rtsp_url, timeout_seconds=40)
-        with state.lock:
-            state.started_at_epoch = time.time()
-            if jpeg:
-                state.latest_jpeg = jpeg
-                state.latest_resolution = resolution
-                state.latest_frame_at_epoch = time.time()
-                state.connected = True
-                state.error = ""
-            else:
-                state.connected = False
-                state.error = error or "RTSP frame decode failed"
-        return jpeg
+    def ensure_all_workers(self) -> None:
+        for channel_id in sorted(self.channel_states.keys()):
+            self.ensure_worker(channel_id)
+
+    def warmup_channels(self, timeout_seconds: float = 30.0) -> None:
+        deadline = time.time() + timeout_seconds
+        pending = set(self.channel_states.keys())
+        while pending and time.time() < deadline and not self.stop_event.is_set():
+            ready_now = set()
+            for channel_id in pending:
+                state = self.channel_states[channel_id]
+                with state.lock:
+                    if state.latest_jpeg:
+                        ready_now.add(channel_id)
+            pending -= ready_now
+            if pending:
+                time.sleep(0.25)
+        if pending:
+            print(
+                "[ONYX] RTSP frame warmup incomplete for "
+                + ", ".join(f"CH{channel_id}" for channel_id in sorted(pending)),
+                file=sys.stderr,
+            )
+        else:
+            print("[ONYX] RTSP frame warmup complete for all configured channels")
 
 
 def main() -> int:
@@ -428,6 +356,8 @@ def main() -> int:
     signal.signal(signal.SIGTERM, _shutdown)
     signal.signal(signal.SIGINT, _shutdown)
 
+    server.ensure_all_workers()
+    server.warmup_channels(timeout_seconds=30.0)
     print(f"[ONYX] RTSP frame server listening on http://{args.host}:{args.port}")
     try:
         server.serve_forever()
