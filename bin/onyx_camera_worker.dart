@@ -2413,17 +2413,41 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   ) async {
     final liveSnapshotYoloService = _liveSnapshotYoloService;
     if (liveSnapshotYoloService == null || !liveSnapshotYoloService.isConfigured) {
+      developer.log(
+        '[ONYX] FR snapshot skipped for CH${event.channelId}: YOLO/FR endpoint is not configured.',
+        name: 'OnyxHikIsapiStream',
+        level: 800,
+      );
       return event;
     }
     final channelId = event.channelId.trim();
     if (channelId.isEmpty || channelId == 'unknown') {
+      developer.log(
+        '[ONYX] FR snapshot skipped: human detection has no usable channel ID.',
+        name: 'OnyxHikIsapiStream',
+        level: 800,
+      );
       return event;
     }
+    final snapshotChannelId = _snapshotStreamChannelId(channelId);
+    developer.log(
+      '[ONYX] Capturing snapshot from CH$snapshotChannelId for live FR...',
+      name: 'OnyxHikIsapiStream',
+    );
     final snapshotBytes = await fetchSnapshotBytes(channelId);
     if (snapshotBytes == null || snapshotBytes.isEmpty) {
+      developer.log(
+        '[ONYX] FR snapshot capture failed for CH$snapshotChannelId.',
+        name: 'OnyxHikIsapiStream',
+        level: 900,
+      );
       return event;
     }
     final zone = _projector?.cameraZones[channelId];
+    developer.log(
+      '[ONYX] Sending CH$snapshotChannelId snapshot to YOLO/FR (${snapshotBytes.length} bytes)...',
+      name: 'OnyxHikIsapiStream',
+    );
     final result = await liveSnapshotYoloService.detectSnapshot(
       recordKey:
           '${_siteId}_${channelId}_${event.detectedAt.toUtc().microsecondsSinceEpoch}',
@@ -2483,6 +2507,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         faceMatchConfidence: result.personConfidence,
       );
     }
+    developer.log(
+      '[ONYX] FR: No person confirmed in CH$channelId snapshot '
+      '(${(result.personConfidence ?? 0).toStringAsFixed(2)}).',
+      name: 'OnyxHikIsapiStream',
+    );
     return event;
   }
 
