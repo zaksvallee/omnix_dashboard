@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:supabase/supabase.dart';
 
 import '../onyx_proactive_alert_service.dart';
+import '../onyx_site_profile_service.dart';
 import 'onyx_site_awareness_snapshot.dart';
 
 class OnyxSiteOccupancyConfig {
@@ -125,6 +126,10 @@ class OnyxSiteAwarenessRepository {
       <String, OnyxSiteOccupancyConfig?>{};
   final Map<String, SiteAlertConfig?> _alertConfigCache =
       <String, SiteAlertConfig?>{};
+  final Map<String, SiteIntelligenceProfile?> _siteProfileCache =
+      <String, SiteIntelligenceProfile?>{};
+  final Map<String, List<SiteZoneRule>> _siteZoneRulesCache =
+      <String, List<SiteZoneRule>>{};
   final Map<String, Map<String, OnyxCameraZone>> _cameraZonesCache =
       <String, Map<String, OnyxCameraZone>>{};
 
@@ -272,6 +277,90 @@ class OnyxSiteAwarenessRepository {
       );
       return null;
     }
+  }
+
+  Future<Map<String, dynamic>?> readSiteProfileRow(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return null;
+    }
+    try {
+      final rows = await _client
+          .from('site_intelligence_profiles')
+          .select(
+            'site_id,industry_type,operating_hours_start,operating_hours_end,operating_days,timezone,is_24h_operation,expected_staff_count,expected_resident_count,expected_vehicle_count,has_guard,has_armed_response,after_hours_sensitivity,during_hours_sensitivity,monitor_staff_activity,inactive_staff_alert_minutes,monitor_till_attendance,till_unattended_minutes,monitor_restricted_zones,monitor_vehicle_movement,after_hours_vehicle_alert,send_shift_start_briefing,send_shift_end_report,send_daily_summary,daily_summary_time,custom_rules',
+          )
+          .eq('site_id', normalizedSiteId)
+          .limit(1);
+      if (rows.isEmpty) {
+        return null;
+      }
+      return Map<String, dynamic>.from(rows.first as Map);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read site intelligence profile row for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return null;
+    }
+  }
+
+  Future<SiteIntelligenceProfile?> readSiteProfile(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return null;
+    }
+    if (_siteProfileCache.containsKey(normalizedSiteId)) {
+      return _siteProfileCache[normalizedSiteId];
+    }
+    final row = await readSiteProfileRow(normalizedSiteId);
+    final profile = row == null ? null : SiteIntelligenceProfile.fromRow(row);
+    _siteProfileCache[normalizedSiteId] = profile;
+    return profile;
+  }
+
+  Future<List<Map<String, dynamic>>> readSiteZoneRuleRows(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return const <Map<String, dynamic>>[];
+    }
+    try {
+      final rows = await _client
+          .from('site_zone_rules')
+          .select(
+            'site_id,zone_name,zone_type,allowed_roles,access_hours_start,access_hours_end,access_days,violation_action,max_dwell_minutes,requires_escort,is_restricted',
+          )
+          .eq('site_id', normalizedSiteId);
+      return rows
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList(growable: false);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read site zone rules for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return const <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<List<SiteZoneRule>> readSiteZoneRules(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return const <SiteZoneRule>[];
+    }
+    if (_siteZoneRulesCache.containsKey(normalizedSiteId)) {
+      return _siteZoneRulesCache[normalizedSiteId]!;
+    }
+    final rows = await readSiteZoneRuleRows(normalizedSiteId);
+    final rules = rows.map(SiteZoneRule.fromRow).toList(growable: false);
+    _siteZoneRulesCache[normalizedSiteId] = rules;
+    return rules;
   }
 
   Future<void> recordHumanDetection({

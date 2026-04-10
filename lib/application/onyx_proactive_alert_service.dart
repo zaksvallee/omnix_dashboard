@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'onyx_site_profile_service.dart';
+
 enum OnyxAlertSensitivity { allMotion, suspiciousOnly, off }
 
 enum OnyxProactiveDetectionKind { human, vehicle }
@@ -156,6 +158,7 @@ class OnyxProactiveAlertDecision {
 
 class OnyxProactiveAlertService {
   final Future<SiteAlertConfig?> Function(String siteId) readConfig;
+  final OnyxSiteProfileService profileService;
   final Duration sequenceWindow;
   final Duration alertCooldown;
   final StreamController<OnyxProactiveAlertDecision> _alertController =
@@ -167,6 +170,7 @@ class OnyxProactiveAlertService {
 
   OnyxProactiveAlertService({
     required this.readConfig,
+    required this.profileService,
     this.sequenceWindow = const Duration(minutes: 5),
     this.alertCooldown = const Duration(minutes: 2),
   });
@@ -188,6 +192,7 @@ class OnyxProactiveAlertService {
     }
     final config =
         await readConfig(normalizedSiteId) ?? SiteAlertConfig.defaults(siteId);
+    final profile = await profileService.loadProfile(normalizedSiteId);
     final normalizedZoneType = _normalizeZoneType(zoneType, isPerimeter);
     final normalizedZoneName = zoneName.trim().isEmpty
         ? 'Channel $channelId'
@@ -213,7 +218,6 @@ class OnyxProactiveAlertService {
       config: config,
     );
 
-    final withinAlertWindow = _isWithinAlertWindow(config, detectedAt);
     final loiterWindowMinutes = math.max(config.loiterDetectionMinutes, 1);
     final loitering = _isLoitering(
       normalizedSiteId,
@@ -224,25 +228,31 @@ class OnyxProactiveAlertService {
     final sequence =
         config.perimeterSequenceAlert &&
         _isPerimeterSequence(normalizedSiteId, detectedAt);
-    final occupancyWithinExpectedRange = _isOccupancyWithinExpectedRange(
+    final observedDistinctPresenceCount = _recentDistinctPresenceCount(
       normalizedSiteId,
       detectedAt,
-      config,
     );
-    final shouldAlert = await _shouldAlert(
-      config: config,
-      zoneType: normalizedZoneType,
-      isPerimeter: isPerimeter,
-      isLoitering: loitering,
-      isSequence: sequence,
-      withinAlertWindow: withinAlertWindow,
-      occupancyWithinExpectedRange: occupancyWithinExpectedRange,
-      detectionKind: detectionKind,
+    final profileDecision = await profileService.evaluateDetection(
+      siteId: normalizedSiteId,
+      event: DetectionEvent(
+        siteId: normalizedSiteId,
+        channelId: channelId,
+        zoneName: normalizedZoneName,
+        zoneType: normalizedZoneType,
+        isPerimeter: isPerimeter,
+        isIndoor: isIndoor,
+        detectionKind: detectionKind,
+        detectedAtUtc: detectedAt.toUtc(),
+        isLoitering: loitering,
+        isPerimeterSequence: sequence,
+        observedDistinctPresenceCount: observedDistinctPresenceCount,
+      ),
+      profile: profile,
     );
-    if (!shouldAlert) {
+    if (!profileDecision.shouldAlert) {
       return;
     }
-
+    final afterHours = profileDecision.afterHours;
     final decision = OnyxProactiveAlertDecision(
       siteId: normalizedSiteId,
       channelId: channelId,
@@ -252,7 +262,7 @@ class OnyxProactiveAlertService {
       isIndoor: isIndoor,
       detectionKind: detectionKind,
       detectedAt: detectedAt.toUtc(),
-      withinAlertWindow: withinAlertWindow,
+      withinAlertWindow: afterHours,
       isLoitering: loitering,
       isSequence: sequence,
       loiterMinutes: _loiteringDurationMinutes(
@@ -262,7 +272,7 @@ class OnyxProactiveAlertService {
         loiterWindowMinutes: loiterWindowMinutes,
       ),
       message: _buildAlertMessage(
-        config: config,
+        profile: profile,
         zoneName: normalizedZoneName,
         zoneType: normalizedZoneType,
         isPerimeter: isPerimeter,
@@ -270,6 +280,7 @@ class OnyxProactiveAlertService {
         detectedAt: detectedAt.toUtc(),
         isLoitering: loitering,
         isSequence: sequence,
+        alertDecision: profileDecision,
         loiterMinutes: _loiteringDurationMinutes(
           normalizedSiteId,
           channelId,
@@ -326,67 +337,6 @@ class OnyxProactiveAlertService {
     return recentChannels.length >= 3;
   }
 
-  bool _isWithinAlertWindow(SiteAlertConfig config, DateTime now) {
-    final local = _siteLocalTime(config.timezone, now.toUtc());
-    final start =
-        _parseClock(config.alertWindowStart) ?? const _ClockTime(23, 0);
-    final end = _parseClock(config.alertWindowEnd) ?? const _ClockTime(8, 0);
-    final nowMinutes = (local.hour * 60) + local.minute;
-    final startMinutes = start.hour * 60 + start.minute;
-    final endMinutes = end.hour * 60 + end.minute;
-    if (startMinutes == endMinutes) {
-      return true;
-    }
-    if (startMinutes < endMinutes) {
-      return nowMinutes >= startMinutes && nowMinutes < endMinutes;
-    }
-    return nowMinutes >= startMinutes || nowMinutes < endMinutes;
-  }
-
-  Future<bool> _shouldAlert({
-    required SiteAlertConfig config,
-    required String zoneType,
-    required bool isPerimeter,
-    required bool isLoitering,
-    required bool isSequence,
-    required bool withinAlertWindow,
-    required bool occupancyWithinExpectedRange,
-    required OnyxProactiveDetectionKind detectionKind,
-  }) async {
-    if (zoneType == 'indoor') {
-      return false;
-    }
-    final isPrivateResidence = config.siteType == 'private_residence';
-    if (detectionKind == OnyxProactiveDetectionKind.vehicle &&
-        isPrivateResidence &&
-        !_vehicleAlertsAllowedDuringDaytime(config) &&
-        !withinAlertWindow) {
-      return false;
-    }
-    if (!withinAlertWindow &&
-        isPrivateResidence &&
-        !isLoitering &&
-        !isSequence) {
-      return false;
-    }
-    if (!withinAlertWindow &&
-        isPrivateResidence &&
-        occupancyWithinExpectedRange) {
-      return false;
-    }
-    final sensitivity = _effectiveSensitivity(
-      config: config,
-      zoneType: zoneType,
-      isPerimeter: isPerimeter,
-      withinAlertWindow: withinAlertWindow,
-    );
-    return switch (sensitivity) {
-      OnyxAlertSensitivity.allMotion => true,
-      OnyxAlertSensitivity.suspiciousOnly => isLoitering || isSequence,
-      OnyxAlertSensitivity.off => false,
-    };
-  }
-
   void resetSite(String siteId) {
     final normalizedSiteId = siteId.trim();
     if (normalizedSiteId.isEmpty) {
@@ -402,60 +352,6 @@ class OnyxProactiveAlertService {
     await _alertController.close();
     _detectionsBySite.clear();
     _lastAlertAtByDeduplicationKey.clear();
-  }
-
-  OnyxAlertSensitivity _effectiveSensitivity({
-    required SiteAlertConfig config,
-    required String zoneType,
-    required bool isPerimeter,
-    required bool withinAlertWindow,
-  }) {
-    if (zoneType == 'indoor') {
-      return OnyxAlertSensitivity.off;
-    }
-    final isPrivateResidence = config.siteType == 'private_residence';
-    if (withinAlertWindow && isPerimeter) {
-      return config.quietHoursSensitivity;
-    }
-    if (!withinAlertWindow && isPrivateResidence) {
-      if (isPerimeter || zoneType == 'perimeter') {
-        return OnyxAlertSensitivity.suspiciousOnly;
-      }
-      if (zoneType == 'semi_perimeter') {
-        return OnyxAlertSensitivity.suspiciousOnly;
-      }
-      return OnyxAlertSensitivity.off;
-    }
-    if (isPerimeter || zoneType == 'perimeter') {
-      return _combineSensitivity(
-        config.perimeterSensitivity,
-        config.daySensitivity,
-      );
-    }
-    if (zoneType == 'semi_perimeter') {
-      return _combineSensitivity(
-        config.semiPerimeterSensitivity,
-        withinAlertWindow
-            ? config.semiPerimeterSensitivity
-            : config.daySensitivity,
-      );
-    }
-    return config.indoorSensitivity;
-  }
-
-  OnyxAlertSensitivity _combineSensitivity(
-    OnyxAlertSensitivity primary,
-    OnyxAlertSensitivity secondary,
-  ) {
-    if (primary == OnyxAlertSensitivity.allMotion ||
-        secondary == OnyxAlertSensitivity.allMotion) {
-      return OnyxAlertSensitivity.allMotion;
-    }
-    if (primary == OnyxAlertSensitivity.suspiciousOnly ||
-        secondary == OnyxAlertSensitivity.suspiciousOnly) {
-      return OnyxAlertSensitivity.suspiciousOnly;
-    }
-    return OnyxAlertSensitivity.off;
   }
 
   void _pruneDetections({
@@ -506,30 +402,21 @@ class OnyxProactiveAlertService {
     return math.max(1, elapsed.inMinutes);
   }
 
-  bool _isOccupancyWithinExpectedRange(
-    String siteId,
-    DateTime now,
-    SiteAlertConfig config,
-  ) {
-    final expectedOccupancy = config.expectedOccupancy;
-    if (expectedOccupancy <= 0) {
-      return false;
-    }
+  int _recentDistinctPresenceCount(String siteId, DateTime now) {
     final history = _detectionsBySite[siteId];
     if (history == null || history.isEmpty) {
-      return true;
+      return 0;
     }
     final cutoff = now.toUtc().subtract(const Duration(hours: 2));
-    final distinctChannels = history
+    return history
         .where((record) => !record.detectedAt.isBefore(cutoff))
         .map((record) => record.channelId)
         .toSet()
         .length;
-    return distinctChannels <= expectedOccupancy;
   }
 
   String _buildAlertMessage({
-    required SiteAlertConfig config,
+    required SiteIntelligenceProfile profile,
     required String zoneName,
     required String zoneType,
     required bool isPerimeter,
@@ -537,9 +424,10 @@ class OnyxProactiveAlertService {
     required DateTime detectedAt,
     required bool isLoitering,
     required bool isSequence,
+    required AlertDecision alertDecision,
     required int loiterMinutes,
   }) {
-    final local = _siteLocalTime(config.timezone, detectedAt.toUtc());
+    final local = _siteLocalTime(profile.timezone, detectedAt.toUtc());
     final timeLabel =
         '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
     final lines = <String>['⚠️ $zoneName — $timeLabel'];
@@ -557,11 +445,11 @@ class OnyxProactiveAlertService {
     if (isSequence) {
       lines.add('Movement detected across multiple perimeter points.');
     }
+    if (alertDecision.suggestedAction != null &&
+        alertDecision.suggestedAction!.trim().isNotEmpty) {
+      lines.add(alertDecision.suggestedAction!.trim());
+    }
     return lines.join('\n');
-  }
-
-  bool _vehicleAlertsAllowedDuringDaytime(SiteAlertConfig config) {
-    return config.vehicleDaytimeThreshold == 'all_day';
   }
 
   DateTime _siteLocalTime(String timezone, DateTime utc) {
@@ -573,23 +461,6 @@ class OnyxProactiveAlertService {
       return utc.toUtc();
     }
     return utc.toLocal();
-  }
-
-  _ClockTime? _parseClock(String value) {
-    final normalized = value.trim();
-    final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(normalized);
-    if (match == null) {
-      return null;
-    }
-    final hour = int.tryParse(match.group(1)!);
-    final minute = int.tryParse(match.group(2)!);
-    if (hour == null || minute == null) {
-      return null;
-    }
-    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-      return null;
-    }
-    return _ClockTime(hour, minute);
   }
 
   String _normalizeZoneType(String zoneType, bool isPerimeter) {
@@ -625,13 +496,6 @@ class _SiteDetectionRecord {
     required this.detectionKind,
     required this.detectedAt,
   });
-}
-
-class _ClockTime {
-  final int hour;
-  final int minute;
-
-  const _ClockTime(this.hour, this.minute);
 }
 
 OnyxAlertSensitivity _parseSensitivity(

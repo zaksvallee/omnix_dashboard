@@ -105,6 +105,8 @@ import 'application/onyx_agent_local_brain_service.dart';
 import 'application/onyx_command_parser.dart';
 import 'application/onyx_elevenlabs_service.dart';
 import 'application/onyx_patrol_monitor_service.dart';
+import 'application/onyx_behaviour_monitor_service.dart';
+import 'application/onyx_site_profile_service.dart';
 import 'application/onyx_telegram_command_gateway.dart';
 import 'application/onyx_telegram_operational_command_service.dart';
 import 'application/ops_integration_profile.dart';
@@ -2002,6 +2004,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final TelegramPushCoordinator _telegramPushCoordinator;
   late final TelegramPushSyncCoordinator _telegramPushSyncCoordinator;
   late final ClientBackendProbeCoordinator _clientBackendProbeCoordinator;
+  late final OnyxSiteProfileService _siteProfileService;
+  late final OnyxBehaviourMonitorService _behaviourMonitorService;
   late final TelegramPollingTabLock _telegramPollingTabLock;
   List<String> _guardSyncAvailableFacadeIds = const [];
   String? _guardSyncSelectedFacadeId;
@@ -2096,6 +2100,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Timer? _telegramAdminPollTimer;
   Timer? _siteAwarenessAlertPollTimer;
   Timer? _patrolMonitorTimer;
+  Timer? _behaviourMonitorTimer;
   Timer? _monitoringWatchScheduleTimer;
   Timer? _monitoringContinuousVisualWatchTimer;
   Timer? _demoAutopilotRouteTimer;
@@ -2107,6 +2112,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   int _telegramDemoScriptTotal = 0;
   int _telegramDemoScriptIntervalSeconds = 20;
   bool _patrolMonitorInFlight = false;
+  bool _behaviourMonitorInFlight = false;
   final Map<String, DateTime> _patrolMissedAlertSentAtUtcByKey =
       <String, DateTime>{};
   String _telegramDemoScriptScopeLabel = '';
@@ -3280,6 +3286,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               ),
       nowUtc: () => DateTime.now().toUtc(),
     );
+    _siteProfileService = OnyxSiteProfileService(
+      readProfileRow: (siteId) => _readSiteIntelligenceProfileRow(siteId: siteId),
+      readZoneRuleRows: (siteId) => _readSiteZoneRuleRows(siteId: siteId),
+    );
+    _behaviourMonitorService = OnyxBehaviourMonitorService();
     _outcomeGovernancePolicy = OutcomeLabelGovernancePolicy.fromJsonString(
       _guardOutcomeGovernanceJson,
       fallback: OutcomeLabelGovernancePolicy.defaultPolicy(),
@@ -3417,6 +3428,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _startTelegramAdminControlLoop();
     _startSiteAwarenessAlertLoop();
     _startPatrolMonitorLoop();
+    _startBehaviourMonitorLoop();
     _startMonitoringWatchScheduleLoop();
     if (widget.initialTelegramInboundUpdatesOverride.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3622,6 +3634,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _telegramAdminPollTimer?.cancel();
     _siteAwarenessAlertPollTimer?.cancel();
     _patrolMonitorTimer?.cancel();
+    _behaviourMonitorTimer?.cancel();
     _telegramPollingTabLock.dispose();
     _monitoringWatchScheduleTimer?.cancel();
     _monitoringContinuousVisualWatchTimer?.cancel();
@@ -3679,6 +3692,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _siteAwarenessAlertPollTimer = null;
           _patrolMonitorTimer?.cancel();
           _patrolMonitorTimer = null;
+          _behaviourMonitorTimer?.cancel();
+          _behaviourMonitorTimer = null;
           _telegramPollingTabLock.release();
           _telegramPollingPrimaryTab = false;
         }
@@ -3689,6 +3704,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _startTelegramAdminControlLoop();
     _startSiteAwarenessAlertLoop();
     _startPatrolMonitorLoop();
+    _startBehaviourMonitorLoop();
     _startMonitoringWatchScheduleLoop();
     unawaited(_maybeAutoGenerateMorningSovereignReport());
     if (!widget.supabaseReady || _guardOpsSyncInFlight) return;
@@ -14253,6 +14269,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _selectedSite.trim().isNotEmpty;
   }
 
+  bool get _behaviourMonitorEnabled {
+    return widget.supabaseReady &&
+        _selectedClient.trim().isNotEmpty &&
+        _selectedSite.trim().isNotEmpty;
+  }
+
   void _startSiteAwarenessAlertLoop() {
     if (!_siteAwarenessAlertWatcherEnabled) {
       _siteAwarenessAlertPollTimer?.cancel();
@@ -14289,6 +14311,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return;
     }
     _scheduleNextPatrolMonitorPoll(15);
+  }
+
+  void _startBehaviourMonitorLoop() {
+    if (!_behaviourMonitorEnabled) {
+      _behaviourMonitorTimer?.cancel();
+      _behaviourMonitorTimer = null;
+      return;
+    }
+    if (_behaviourMonitorTimer != null || _behaviourMonitorInFlight) {
+      return;
+    }
+    if (!_telegramPollingPrimaryTab) {
+      if (!_telegramPollingLockAcquisitionInFlight) {
+        unawaited(_ensureTelegramPrimaryTabForBehaviourMonitor());
+      }
+      return;
+    }
+    _scheduleNextBehaviourMonitorPoll(5);
   }
 
   Future<void> _ensureTelegramPollingPrimaryTab() async {
@@ -14369,6 +14409,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _scheduleNextPatrolMonitorPoll(5);
   }
 
+  Future<void> _ensureTelegramPrimaryTabForBehaviourMonitor() async {
+    if (!_behaviourMonitorEnabled || _telegramPollingLockAcquisitionInFlight) {
+      return;
+    }
+    _telegramPollingLockAcquisitionInFlight = true;
+    try {
+      final isPrimary = await _telegramPollingTabLock.ensurePrimary();
+      _telegramPollingPrimaryTab = isPrimary;
+      if (!isPrimary) {
+        return;
+      }
+    } finally {
+      _telegramPollingLockAcquisitionInFlight = false;
+    }
+    if (_telegramInboundRouterEnabled && _telegramAdminPollTimer == null) {
+      _scheduleNextTelegramAdminPoll(1);
+    }
+    _startSiteAwarenessAlertLoop();
+    _scheduleNextBehaviourMonitorPoll(5);
+  }
+
   void _scheduleNextSiteAwarenessAlertPoll(int delaySeconds) {
     _siteAwarenessAlertPollTimer?.cancel();
     if (!_siteAwarenessAlertWatcherEnabled || !_telegramPollingPrimaryTab) {
@@ -14388,6 +14449,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _patrolMonitorTimer = Timer(Duration(seconds: delaySeconds), () {
       unawaited(_pollPatrolMonitorOnce());
+    });
+  }
+
+  void _scheduleNextBehaviourMonitorPoll(int delaySeconds) {
+    _behaviourMonitorTimer?.cancel();
+    if (!_behaviourMonitorEnabled || !_telegramPollingPrimaryTab) {
+      _behaviourMonitorTimer = null;
+      return;
+    }
+    _behaviourMonitorTimer = Timer(Duration(seconds: delaySeconds), () {
+      unawaited(_pollBehaviourMonitorOnce());
     });
   }
 
@@ -14547,6 +14619,71 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     } finally {
       _patrolMonitorInFlight = false;
       _scheduleNextPatrolMonitorPoll(15 * 60);
+    }
+  }
+
+  Future<void> _pollBehaviourMonitorOnce() async {
+    if (!_behaviourMonitorEnabled ||
+        !_telegramPollingPrimaryTab ||
+        _behaviourMonitorInFlight) {
+      return;
+    }
+    _behaviourMonitorInFlight = true;
+    try {
+      final profile = await _siteProfileService.loadProfile(_selectedSite);
+      final latestSnapshotRow = await _readLatestSiteAwarenessSnapshotRow(
+        siteId: _selectedSite,
+      );
+      if (latestSnapshotRow != null) {
+        final humanZones = _siteAwarenessHumanZones(latestSnapshotRow);
+        final observedAtUtc =
+            _siteAwarenessSummaryDate(latestSnapshotRow['snapshot_at']) ??
+            DateTime.now().toUtc();
+        for (final zone in humanZones) {
+          final channelId = int.tryParse(zone.channelId) ?? 0;
+          if (channelId <= 0) {
+            continue;
+          }
+          await _behaviourMonitorService.recordPresence(
+            siteId: _selectedSite,
+            channelId: channelId,
+            zoneName: zone.zoneName,
+            detectedAt: zone.lastDetectedAtUtc ?? observedAtUtc,
+          );
+        }
+      }
+      final zoneRules = await _siteProfileService.loadZoneRules(_selectedSite);
+      final inactivityAlerts = await _behaviourMonitorService.checkInactivity(
+        _selectedSite,
+        profile,
+      );
+      final tillAlerts = await _behaviourMonitorService.checkTillAttendance(
+        _selectedSite,
+        profile,
+      );
+      final zoneViolations = await _behaviourMonitorService.checkZoneViolations(
+        _selectedSite,
+        zoneRules,
+      );
+      if (inactivityAlerts.isNotEmpty ||
+          tillAlerts.isNotEmpty ||
+          zoneViolations.isNotEmpty) {
+        developer.log(
+          'Behaviour monitor: inactivity=${inactivityAlerts.length} '
+          'till=${tillAlerts.length} zone_violations=${zoneViolations.length}',
+          name: 'OnyxBehaviourMonitor',
+        );
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'ONYX behaviour monitor poll failed',
+        name: 'OnyxBehaviourMonitor',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _behaviourMonitorInFlight = false;
+      _scheduleNextBehaviourMonitorPoll(5 * 60);
     }
   }
 
@@ -14894,6 +15031,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _siteAwarenessAlertPollTimer = null;
     _patrolMonitorTimer?.cancel();
     _patrolMonitorTimer = null;
+    _behaviourMonitorTimer?.cancel();
+    _behaviourMonitorTimer = null;
     _telegramPollingPrimaryTab = false;
     if (!mounted) {
       return;
@@ -14911,11 +15050,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _telegramPollingLockAcquisitionInFlight) {
       _startSiteAwarenessAlertLoop();
       _startPatrolMonitorLoop();
+      _startBehaviourMonitorLoop();
       return;
     }
     unawaited(_ensureTelegramPollingPrimaryTab());
     _startSiteAwarenessAlertLoop();
     _startPatrolMonitorLoop();
+    _startBehaviourMonitorLoop();
   }
 
   void _recordTelegramInboundUpdateFailure({
@@ -16212,23 +16353,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return '$emoji $siteLabel — $label';
   }
 
-  String _telegramCommandPresenceSummaryLine(
-    TelegramAiSiteAwarenessSummary summary,
-  ) {
-    final parts = <String>[
-      if (summary.humanCount > 0)
-        _telegramCommandCountLabel(summary.humanCount, 'person'),
-      if (summary.vehicleCount > 0)
-        _telegramCommandCountLabel(summary.vehicleCount, 'vehicle'),
-      if (summary.animalCount > 0)
-        _telegramCommandCountLabel(summary.animalCount, 'animal'),
-    ];
-    if (parts.isEmpty) {
-      return 'No people detected';
-    }
-    return '${parts.join(' • ')} detected';
-  }
-
   String? _telegramCommandHumanZoneActivityLine(
     List<_SiteAwarenessHumanZone> zones,
   ) {
@@ -16413,6 +16537,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteId,
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final siteProfile = await _siteProfileService.loadProfile(siteId);
     final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
       siteId: siteId,
     );
@@ -16471,37 +16596,56 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (humanZoneActivityLine != null) {
         lines.add(humanZoneActivityLine);
       }
-      final isPrivateResidence =
-          _isPrivateResidenceOccupancyConfig(occupancyConfigRow) &&
-          _siteOccupancyExpectedOccupancy(occupancyConfigRow) > 0;
-      if (isPrivateResidence) {
-        final expectedOccupancy = _siteOccupancyExpectedOccupancy(
-          occupancyConfigRow,
-        );
-        final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
-        final detectedToday = _siteOccupancyDisplayedDetectedCount(
-          configRow: occupancyConfigRow,
-          sessionRow: occupancySessionRow,
-          currentHumanCount: siteAwarenessSummary.humanCount,
-        );
-        lines.add(
-          'Occupancy: $detectedToday of $expectedOccupancy $occupancyLabel detected today',
-        );
-        if (detectedToday < expectedOccupancy) {
-          lines.add('Expected on site: $expectedOccupancy $occupancyLabel');
-        }
+      final expectedPeopleCount = _siteProfileExpectedPeopleCount(
+        siteProfile,
+        occupancyConfigRow,
+      );
+      final displayedPeopleCount = expectedPeopleCount > 0
+          ? _siteOccupancyDisplayedDetectedCount(
+              configRow: <String, dynamic>{
+                'expected_occupancy': expectedPeopleCount,
+              },
+              sessionRow: occupancySessionRow,
+              currentHumanCount: siteAwarenessSummary.humanCount,
+            )
+          : math.max(
+              siteAwarenessSummary.humanCount,
+              _siteOccupancyPeakDetected(occupancySessionRow),
+            );
+      lines.add(
+        _siteProfileService.formatStatusMessage(
+          profile: siteProfile,
+          snapshot: SiteSnapshot(
+            siteId: siteId,
+            siteName: siteLabel,
+            observedAtUtc: siteAwarenessSummary.observedAtUtc,
+            perimeterClear: siteAwarenessSummary.perimeterClear,
+            onSiteCount: displayedPeopleCount,
+            expectedPeopleCount: expectedPeopleCount,
+            vehicleCount: siteAwarenessSummary.vehicleCount,
+            activeIncidents: activeIncidents.length,
+            offlineChannels: _telegramCommandKnownFaultLines(
+              freshSiteAwarenessRow,
+            ),
+            fresh: true,
+            activeAlerts: siteAwarenessSummary.activeAlertCount,
+          ),
+        ),
+      );
+      if (siteProfile.industryType == 'residential' && expectedPeopleCount > 0) {
         final lastMovementAtUtc =
             _siteOccupancyLastDetectionAtUtc(occupancySessionRow) ??
-            (detectedToday > 0 ? siteAwarenessSummary.observedAtUtc : null);
+            (displayedPeopleCount > 0
+                ? siteAwarenessSummary.observedAtUtc
+                : null);
+        if (displayedPeopleCount < expectedPeopleCount) {
+          lines.add('Expected on site: $expectedPeopleCount residents');
+        }
         if (lastMovementAtUtc != null) {
           lines.add(
             'Last movement: ${_telegramCommandLocalTimeLabel(lastMovementAtUtc)}',
           );
         }
-      } else if (humanZoneActivityLine == null) {
-        lines.add(
-          'On site: ${_telegramCommandPresenceSummaryLine(siteAwarenessSummary)}',
-        );
       }
       if (siteAwarenessSummary.activeAlertCount > 0) {
         lines.add('Active alerts: ${siteAwarenessSummary.activeAlertCount}');
@@ -16997,6 +17141,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteLabel,
     required Map<String, dynamic> occupancyConfigRow,
   }) async {
+    final siteProfile = await _siteProfileService.loadProfile(siteId);
     final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
       siteId: siteId,
     );
@@ -17015,7 +17160,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final expectedOccupancy = _siteOccupancyExpectedOccupancy(
       occupancyConfigRow,
     );
-    final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
     final detectedToday = _siteOccupancyDisplayedDetectedCount(
       configRow: occupancyConfigRow,
       sessionRow: occupancySessionRow,
@@ -17043,10 +17187,30 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'Report: $siteLabel',
       if (siteAwarenessSummary != null) ...<String>[
         '• Camera monitoring: active',
-        '• Perimeter: ${siteAwarenessSummary.perimeterClear ? 'clear' : 'alert active'}',
+        '• ${_siteProfileService.formatStatusMessage(
+          profile: siteProfile,
+          snapshot: SiteSnapshot(
+            siteId: siteId,
+            siteName: siteLabel,
+            observedAtUtc: siteAwarenessSummary.observedAtUtc,
+            perimeterClear: siteAwarenessSummary.perimeterClear,
+            onSiteCount: detectedToday,
+            expectedPeopleCount: _siteProfileExpectedPeopleCount(
+              siteProfile,
+              occupancyConfigRow,
+            ),
+            vehicleCount: siteAwarenessSummary.vehicleCount,
+            activeIncidents: incidentsToday,
+            offlineChannels: _telegramCommandKnownFaultLines(
+              siteAwarenessRow ?? const <String, dynamic>{},
+            ),
+            fresh: true,
+            activeAlerts: siteAwarenessSummary.activeAlertCount,
+          ),
+        )}',
       ] else ...<String>['• Camera monitoring: limited'],
-      if (expectedOccupancy > 0)
-        '• Occupancy: $detectedToday of $expectedOccupancy $occupancyLabel detected today',
+      if (expectedOccupancy > 0 && siteProfile.industryType == 'residential')
+        '• Occupancy: $detectedToday of $expectedOccupancy residents detected today',
       '• Incidents today: $incidentsToday',
       '• Alert summary: ${siteAwarenessSummary == null || siteAwarenessSummary.activeAlertCount <= 0 ? 'none' : '${siteAwarenessSummary.activeAlertCount} active'}',
       if (siteAwarenessSummary != null)
@@ -38279,6 +38443,50 @@ Future<Map<String, dynamic>?> _readSiteOccupancyConfigRow({
   }
 }
 
+Future<Map<String, dynamic>?> _readSiteIntelligenceProfileRow({
+  required String siteId,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return null;
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('site_intelligence_profiles')
+        .select(
+          'site_id,industry_type,operating_hours_start,operating_hours_end,operating_days,timezone,is_24h_operation,expected_staff_count,expected_resident_count,expected_vehicle_count,has_guard,has_armed_response,after_hours_sensitivity,during_hours_sensitivity,monitor_staff_activity,inactive_staff_alert_minutes,monitor_till_attendance,till_unattended_minutes,monitor_restricted_zones,monitor_vehicle_movement,after_hours_vehicle_alert,send_shift_start_briefing,send_shift_end_report,send_daily_summary,daily_summary_time,custom_rules',
+        )
+        .eq('site_id', siteId.trim())
+        .limit(1);
+    if (rows.isEmpty) {
+      return null;
+    }
+    return Map<String, dynamic>.from(rows.first as Map);
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<List<Map<String, dynamic>>> _readSiteZoneRuleRows({
+  required String siteId,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <Map<String, dynamic>>[];
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('site_zone_rules')
+        .select(
+          'site_id,zone_name,zone_type,allowed_roles,access_hours_start,access_hours_end,access_days,violation_action,max_dwell_minutes,requires_escort,is_restricted',
+        )
+        .eq('site_id', siteId.trim());
+    return rows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  } catch (_) {
+    return const <Map<String, dynamic>>[];
+  }
+}
+
 Future<Map<String, dynamic>?> _readSiteOccupancySessionRow({
   required String siteId,
   required DateTime nowLocal,
@@ -38403,6 +38611,17 @@ int _siteOccupancyDisplayedDetectedCount({
     return detectedCount;
   }
   return math.min(detectedCount, expectedOccupancy);
+}
+
+int _siteProfileExpectedPeopleCount(
+  SiteIntelligenceProfile profile,
+  Map<String, dynamic>? occupancyConfigRow,
+) {
+  final profileCount = profile.expectedPeopleCount;
+  if (profileCount > 0) {
+    return profileCount;
+  }
+  return _siteOccupancyExpectedOccupancy(occupancyConfigRow);
 }
 
 DateTime? _siteOccupancyLastDetectionAtUtc(Map<String, dynamic>? row) =>
