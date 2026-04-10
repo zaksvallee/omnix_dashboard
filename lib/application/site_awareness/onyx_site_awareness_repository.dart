@@ -120,6 +120,75 @@ class OnyxSiteCameraZone {
   }
 }
 
+class OnyxSiteVehicleRegistryEntry {
+  final String siteId;
+  final String plateNumber;
+  final String vehicleDescription;
+  final String ownerName;
+  final String ownerRole;
+  final bool isActive;
+  final String visitType;
+
+  const OnyxSiteVehicleRegistryEntry({
+    required this.siteId,
+    required this.plateNumber,
+    required this.vehicleDescription,
+    required this.ownerName,
+    required this.ownerRole,
+    required this.isActive,
+    required this.visitType,
+  });
+
+  factory OnyxSiteVehicleRegistryEntry.fromRow(Map<String, dynamic> row) {
+    return OnyxSiteVehicleRegistryEntry(
+      siteId: (row['site_id'] as String? ?? '').trim(),
+      plateNumber: _normalizeVehiclePlate(row['plate_number']),
+      vehicleDescription:
+          (row['vehicle_description'] as String? ?? '').trim(),
+      ownerName: (row['owner_name'] as String? ?? '').trim(),
+      ownerRole: (row['owner_role'] as String? ?? '').trim(),
+      isActive: _siteOccupancyBool(row['is_active']) ?? true,
+      visitType: (row['visit_type'] as String? ?? '').trim(),
+    );
+  }
+}
+
+class OnyxSiteVehiclePresenceEvent {
+  final String id;
+  final String siteId;
+  final String plateNumber;
+  final String ownerName;
+  final String eventType;
+  final int? channelId;
+  final String? zoneName;
+  final DateTime occurredAt;
+
+  const OnyxSiteVehiclePresenceEvent({
+    required this.id,
+    required this.siteId,
+    required this.plateNumber,
+    required this.ownerName,
+    required this.eventType,
+    required this.channelId,
+    required this.zoneName,
+    required this.occurredAt,
+  });
+
+  factory OnyxSiteVehiclePresenceEvent.fromRow(Map<String, dynamic> row) {
+    return OnyxSiteVehiclePresenceEvent(
+      id: (row['id'] as String? ?? '').trim(),
+      siteId: (row['site_id'] as String? ?? '').trim(),
+      plateNumber: _normalizeVehiclePlate(row['plate_number']),
+      ownerName: (row['owner_name'] as String? ?? '').trim(),
+      eventType: (row['event_type'] as String? ?? '').trim(),
+      channelId: _siteOccupancyInt(row['channel_id']),
+      zoneName: (row['zone_name'] as String?)?.trim(),
+      occurredAt:
+          _siteOccupancyDate(row['occurred_at']) ?? DateTime.now().toUtc(),
+    );
+  }
+}
+
 class OnyxSiteAwarenessRepository {
   final SupabaseClient _client;
   final Map<String, OnyxSiteOccupancyConfig?> _occupancyConfigCache =
@@ -132,6 +201,8 @@ class OnyxSiteAwarenessRepository {
       <String, List<SiteZoneRule>>{};
   final Map<String, Map<String, OnyxCameraZone>> _cameraZonesCache =
       <String, Map<String, OnyxCameraZone>>{};
+  final Map<String, List<OnyxSiteVehicleRegistryEntry>> _vehicleRegistryCache =
+      <String, List<OnyxSiteVehicleRegistryEntry>>{};
 
   OnyxSiteAwarenessRepository(SupabaseClient client) : _client = client;
 
@@ -393,6 +464,65 @@ class OnyxSiteAwarenessRepository {
     }
   }
 
+  Future<List<OnyxSiteVehicleRegistryEntry>> readVehicleRegistry(
+    String siteId,
+  ) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return const <OnyxSiteVehicleRegistryEntry>[];
+    }
+    if (_vehicleRegistryCache.containsKey(normalizedSiteId)) {
+      return _vehicleRegistryCache[normalizedSiteId]!;
+    }
+    try {
+      final rows = await _client
+          .from('site_vehicle_registry')
+          .select(
+            'site_id,plate_number,vehicle_description,owner_name,owner_role,is_active,visit_type',
+          )
+          .eq('site_id', normalizedSiteId)
+          .eq('is_active', true)
+          .order('owner_name', ascending: true);
+      final vehicles = rows
+          .map(
+            (row) => OnyxSiteVehicleRegistryEntry.fromRow(
+              Map<String, dynamic>.from(row as Map),
+            ),
+          )
+          .where((entry) => entry.plateNumber.isNotEmpty)
+          .toList(growable: false);
+      _vehicleRegistryCache[normalizedSiteId] =
+          List<OnyxSiteVehicleRegistryEntry>.unmodifiable(vehicles);
+      return _vehicleRegistryCache[normalizedSiteId]!;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read vehicle registry for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return const <OnyxSiteVehicleRegistryEntry>[];
+    }
+  }
+
+  Future<OnyxSiteVehicleRegistryEntry?> readVehicleRegistryEntry({
+    required String siteId,
+    required String plateNumber,
+  }) async {
+    final normalizedPlate = _normalizeVehiclePlate(plateNumber);
+    if (normalizedPlate.isEmpty) {
+      return null;
+    }
+    final registry = await readVehicleRegistry(siteId);
+    for (final entry in registry) {
+      if (entry.plateNumber == normalizedPlate) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
   Future<void> _expireOnDemandExpectedVisitors(String siteId) async {
     try {
       await _client
@@ -459,6 +589,72 @@ class OnyxSiteAwarenessRepository {
     }
   }
 
+  Future<void> recordVehicleDetection({
+    required String siteId,
+    required String plateNumber,
+    required int channelId,
+    required String zoneName,
+    required DateTime detectedAt,
+  }) async {
+    final normalizedSiteId = siteId.trim();
+    final normalizedPlate = _normalizeVehiclePlate(plateNumber);
+    if (normalizedSiteId.isEmpty) {
+      return;
+    }
+    try {
+      final registryEntry = normalizedPlate.isEmpty
+          ? null
+          : await readVehicleRegistryEntry(
+              siteId: normalizedSiteId,
+              plateNumber: normalizedPlate,
+            );
+      final recentPresence = await _readLatestVehiclePresence(
+        siteId: normalizedSiteId,
+        plateNumber: normalizedPlate,
+      );
+      final ownerName =
+          registryEntry?.ownerName.trim().isNotEmpty == true
+          ? registryEntry!.ownerName.trim()
+          : 'Unknown';
+      final eventType =
+          normalizedPlate.isEmpty
+          ? 'detected'
+          : recentPresence != null &&
+                detectedAt
+                        .toUtc()
+                        .difference(recentPresence.occurredAt.toUtc()) <
+                    const Duration(minutes: 30)
+          ? 'on_site'
+          : 'arrived';
+      await _client.from('site_vehicle_presence').insert(<String, Object?>{
+        'site_id': normalizedSiteId,
+        'plate_number': normalizedPlate.isEmpty ? 'UNKNOWN' : normalizedPlate,
+        'owner_name': ownerName,
+        'event_type': eventType,
+        'channel_id': channelId > 0 ? channelId : null,
+        'zone_name': zoneName.trim().isEmpty ? null : zoneName.trim(),
+        'occurred_at': detectedAt.toUtc().toIso8601String(),
+      });
+      developer.log(
+        normalizedPlate.isEmpty
+            ? 'Unknown vehicle detected on $normalizedSiteId.'
+            : registryEntry == null
+            ? 'Unknown vehicle detected: $normalizedPlate'
+            : 'Known vehicle detected: $normalizedPlate — ${registryEntry.ownerName}',
+        name: 'OnyxSiteAwarenessRepository',
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to record vehicle detection for $normalizedSiteId plate ${plateNumber.trim()}.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      rethrow;
+    }
+  }
+
   Future<void> recordCameraWorkerOffline({
     required String siteId,
     required String deviceId,
@@ -509,6 +705,31 @@ class OnyxSiteAwarenessRepository {
       return null;
     }
     return OnyxSiteOccupancySession.fromRow(
+      Map<String, dynamic>.from(rows.first as Map),
+    );
+  }
+
+  Future<OnyxSiteVehiclePresenceEvent?> _readLatestVehiclePresence({
+    required String siteId,
+    required String plateNumber,
+  }) async {
+    final normalizedPlate = _normalizeVehiclePlate(plateNumber);
+    if (siteId.trim().isEmpty || normalizedPlate.isEmpty) {
+      return null;
+    }
+    final rows = await _client
+        .from('site_vehicle_presence')
+        .select(
+          'id,site_id,plate_number,owner_name,event_type,channel_id,zone_name,occurred_at',
+        )
+        .eq('site_id', siteId.trim())
+        .eq('plate_number', normalizedPlate)
+        .order('occurred_at', ascending: false)
+        .limit(1);
+    if (rows.isEmpty) {
+      return null;
+    }
+    return OnyxSiteVehiclePresenceEvent.fromRow(
       Map<String, dynamic>.from(rows.first as Map),
     );
   }
@@ -574,6 +795,14 @@ bool? _siteOccupancyBool(Object? value) {
     }
   }
   return null;
+}
+
+String _normalizeVehiclePlate(Object? value) {
+  final raw = value?.toString().trim().toUpperCase() ?? '';
+  if (raw.isEmpty) {
+    return '';
+  }
+  return raw.replaceAll(RegExp(r'[^A-Z0-9]'), '');
 }
 
 String _siteCameraZoneChannelId(Object? value) {

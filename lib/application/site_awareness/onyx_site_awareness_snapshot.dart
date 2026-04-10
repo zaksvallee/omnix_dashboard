@@ -256,6 +256,7 @@ class OnyxSiteAwarenessEvent {
   final DateTime detectedAt;
   final String rawEventType;
   final String? targetType;
+  final String? plateNumber;
   final bool isKnownFaultChannel;
 
   const OnyxSiteAwarenessEvent({
@@ -264,6 +265,7 @@ class OnyxSiteAwarenessEvent {
     required this.detectedAt,
     required this.rawEventType,
     this.targetType,
+    this.plateNumber,
     this.isKnownFaultChannel = false,
   });
 
@@ -283,6 +285,11 @@ class OnyxSiteAwarenessEvent {
       _readTag(document, 'eventDescription'),
     );
     final targetType = _readTag(document, 'targetType');
+    final plateNumber = _firstNonEmpty(
+      _readTag(document, 'licensePlate'),
+      _readTag(document, 'plateNumber'),
+      _readTag(document, 'licensePlateNumber'),
+    );
     final detectedAt =
         DateTime.tryParse(_readTag(document, 'dateTime'))?.toUtc() ??
         (clock ?? DateTime.now).call().toUtc();
@@ -295,6 +302,7 @@ class OnyxSiteAwarenessEvent {
       detectedAt: detectedAt,
       rawEventType: rawEventType,
       targetType: targetType.isEmpty ? null : targetType,
+      plateNumber: plateNumber.isEmpty ? null : plateNumber,
       isKnownFaultChannel: knownFaultChannels.contains(channelId),
     );
   }

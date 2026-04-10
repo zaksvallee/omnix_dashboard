@@ -1905,6 +1905,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool _siteAwarenessAlertPollInFlight = false;
   DateTime? _telegramAdminOffsetBootstrappedAtUtc;
   DateTime? _siteAwarenessAlertBootCutoffUtc;
+  DateTime? _vehiclePresenceBootCutoffUtc;
   DateTime? _telegramAdminLastCommandAtUtc;
   String? _telegramAdminLastCommandSummary;
   List<String> _telegramAdminCommandAudit = const [];
@@ -2130,6 +2131,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   final Map<String, MonitoringWatchRecoveryState>
   _monitoringWatchRecoveryByScope = {};
   final Set<String> _siteAwarenessDeliveredAlertIds = <String>{};
+  final Set<String> _vehiclePresenceDeliveredArrivalIds = <String>{};
+  final Map<String, DateTime> _vehiclePresenceDepartureAlertedAtByPlate =
+      <String, DateTime>{};
   final Map<String, MonitoringSceneReviewRecord>
   _monitoringSceneReviewByIntelligenceId = {};
   bool _demoAutopilotRunning = false;
@@ -14478,71 +14482,220 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _siteAwarenessAlertPollInFlight = true;
     try {
+      final nowUtc = DateTime.now().toUtc();
       final row = await _readLatestSiteAwarenessSnapshotRow(
         siteId: _selectedSite,
       );
-      if (row == null) {
-        return;
-      }
-      final nowUtc = DateTime.now().toUtc();
-      if (!_isSiteAwarenessSnapshotFresh(row, nowUtc)) {
-        return;
-      }
-      _siteAwarenessAlertBootCutoffUtc ??= nowUtc;
-      final activeAlerts = _siteAwarenessActiveAlertsFromRow(row);
-      for (final alert in activeAlerts.reversed) {
-        final alertId = alert.alertId.trim();
-        if (alertId.isEmpty ||
-            alert.isAcknowledged ||
-            alert.message.trim().isEmpty) {
-          if (alertId.isNotEmpty) {
-            _siteAwarenessDeliveredAlertIds.add(alertId);
+      if (row != null && _isSiteAwarenessSnapshotFresh(row, nowUtc)) {
+        _siteAwarenessAlertBootCutoffUtc ??= nowUtc;
+        final activeAlerts = _siteAwarenessActiveAlertsFromRow(row);
+        for (final alert in activeAlerts.reversed) {
+          final alertId = alert.alertId.trim();
+          if (alertId.isEmpty ||
+              alert.isAcknowledged ||
+              alert.message.trim().isEmpty) {
+            if (alertId.isNotEmpty) {
+              _siteAwarenessDeliveredAlertIds.add(alertId);
+            }
+            continue;
           }
-          continue;
-        }
-        final bootCutoffUtc = _siteAwarenessAlertBootCutoffUtc;
-        if (bootCutoffUtc != null && alert.detectedAt.isBefore(bootCutoffUtc)) {
+          final bootCutoffUtc = _siteAwarenessAlertBootCutoffUtc;
+          if (bootCutoffUtc != null &&
+              alert.detectedAt.isBefore(bootCutoffUtc)) {
+            _siteAwarenessDeliveredAlertIds.add(alertId);
+            continue;
+          }
+          if (_siteAwarenessDeliveredAlertIds.contains(alertId)) {
+            continue;
+          }
+          final dispatch = await _telegramPushCoordinator.sendProactiveSiteAlert(
+            clientId: _selectedClient,
+            siteId: _selectedSite,
+            alertId: alertId,
+            text: alert.message,
+          );
+          if (!mounted) {
+            continue;
+          }
+          setState(() {
+            _telegramBridgeHealthLabel = dispatch.healthLabel;
+            _telegramBridgeHealthDetail = dispatch.healthDetail;
+            _telegramBridgeHealthUpdatedAtUtc = _telegramFlowNowUtc();
+          });
+          if (dispatch.attemptStatus != 'telegram-ok') {
+            continue;
+          }
           _siteAwarenessDeliveredAlertIds.add(alertId);
-          continue;
+          await _appendTelegramConversationMessage(
+            clientId: _selectedClient,
+            siteId: _selectedSite,
+            author: 'ONYX Watch',
+            body: alert.message,
+            occurredAtUtc: alert.detectedAt,
+            roomKey: 'Residents',
+            viewerRole: ClientAppViewerRole.client.name,
+            incidentStatusLabel: 'Proactive Alert',
+            messageSource: 'telegram',
+            messageProvider: 'site_awareness',
+          );
         }
-        if (_siteAwarenessDeliveredAlertIds.contains(alertId)) {
-          continue;
-        }
-        final dispatch = await _telegramPushCoordinator.sendProactiveSiteAlert(
-          clientId: _selectedClient,
-          siteId: _selectedSite,
-          alertId: alertId,
-          text: alert.message,
-        );
-        if (!mounted) {
-          continue;
-        }
-        setState(() {
-          _telegramBridgeHealthLabel = dispatch.healthLabel;
-          _telegramBridgeHealthDetail = dispatch.healthDetail;
-          _telegramBridgeHealthUpdatedAtUtc = _telegramFlowNowUtc();
-        });
-        if (dispatch.attemptStatus != 'telegram-ok') {
-          continue;
-        }
-        _siteAwarenessDeliveredAlertIds.add(alertId);
-        await _appendTelegramConversationMessage(
-          clientId: _selectedClient,
-          siteId: _selectedSite,
-          author: 'ONYX Watch',
-          body: alert.message,
-          occurredAtUtc: alert.detectedAt,
-          roomKey: 'Residents',
-          viewerRole: ClientAppViewerRole.client.name,
-          incidentStatusLabel: 'Proactive Alert',
-          messageSource: 'telegram',
-          messageProvider: 'site_awareness',
-        );
       }
+      await _pollVehiclePresenceNotifications(nowUtc: nowUtc);
     } finally {
       _siteAwarenessAlertPollInFlight = false;
       _scheduleNextSiteAwarenessAlertPoll(5);
     }
+  }
+
+  Future<void> _pollVehiclePresenceNotifications({
+    required DateTime nowUtc,
+  }) async {
+    if (!_siteAwarenessAlertWatcherEnabled) {
+      return;
+    }
+    _vehiclePresenceBootCutoffUtc ??= nowUtc;
+    _pruneVehiclePresenceNotificationState(nowUtc);
+    final registryRows = await _readSiteVehicleRegistryRows(siteId: _selectedSite);
+    if (registryRows.isEmpty) {
+      return;
+    }
+    final recentPresenceRows = await _readSiteVehiclePresenceRows(
+      siteId: _selectedSite,
+      sinceUtc: nowUtc.subtract(const Duration(hours: 6)),
+    );
+    final cameraZones = await _readSiteCameraZoneRowsByChannel(
+      siteId: _selectedSite,
+    );
+    for (final row in recentPresenceRows.reversed) {
+      final record = _SiteVehiclePresenceRecord.fromRow(row);
+      if (record.eventType != 'arrived' ||
+          record.id.isEmpty ||
+          record.ownerName.trim().isEmpty ||
+          record.ownerName.trim().toLowerCase() == 'unknown') {
+        continue;
+      }
+      final bootCutoffUtc = _vehiclePresenceBootCutoffUtc;
+      if (bootCutoffUtc != null && record.occurredAtUtc.isBefore(bootCutoffUtc)) {
+        _vehiclePresenceDeliveredArrivalIds.add(record.id);
+        continue;
+      }
+      if (_vehiclePresenceDeliveredArrivalIds.contains(record.id)) {
+        continue;
+      }
+      final zone = record.channelId == null ? null : cameraZones[record.channelId!];
+      final isPerimeter = _siteAwarenessSummaryBool(zone?['is_perimeter']) ?? false;
+      if (!isPerimeter) {
+        _vehiclePresenceDeliveredArrivalIds.add(record.id);
+        continue;
+      }
+      final registry = registryRows
+          .map(_SiteVehicleRegistryRecord.fromRow)
+          .firstWhere(
+            (entry) => entry.plateNumber == record.plateNumber,
+            orElse: () => _SiteVehicleRegistryRecord(
+              siteId: _selectedSite,
+              plateNumber: record.plateNumber,
+              vehicleDescription: record.plateNumber,
+              ownerName: record.ownerName,
+              ownerRole: 'vehicle',
+            ),
+          );
+      final text =
+          '${_vehiclePresenceOwnerLabel(registry)} arrived home — '
+          '${_vehiclePresenceVehicleLabel(registry)} detected at '
+          '${record.zoneName?.trim().isNotEmpty == true ? record.zoneName!.trim() : 'a perimeter camera'} '
+          'at ${_telegramCommandLocalTimeLabel(record.occurredAtUtc)}';
+      final dispatch = await _telegramPushCoordinator.sendScopedAlert(
+        clientId: _selectedClient,
+        siteId: _selectedSite,
+        messageKeyPrefix: 'tg-vehicle-arrival-${record.id}',
+        text: text,
+      );
+      if (dispatch.attemptStatus != 'telegram-ok') {
+        continue;
+      }
+      _vehiclePresenceDeliveredArrivalIds.add(record.id);
+      await _appendTelegramConversationMessage(
+        clientId: _selectedClient,
+        siteId: _selectedSite,
+        author: 'ONYX Watch',
+        body: text,
+        occurredAtUtc: record.occurredAtUtc,
+        roomKey: 'Residents',
+        viewerRole: ClientAppViewerRole.client.name,
+        incidentStatusLabel: 'Vehicle Arrival',
+        messageSource: 'telegram',
+        messageProvider: 'vehicle_presence',
+      );
+    }
+
+    final todayLocal = _telegramFlowNowLocal();
+    final todayPresenceRows = await _readSiteVehiclePresenceRows(
+      siteId: _selectedSite,
+      sinceUtc: DateTime(
+        todayLocal.year,
+        todayLocal.month,
+        todayLocal.day,
+      ).toUtc(),
+    );
+    final statuses = _buildVehiclePresenceStatuses(
+      registryRows: registryRows,
+      presenceRows: todayPresenceRows,
+      nowUtc: nowUtc,
+    );
+    for (final status in statuses) {
+      final latest = status.latestPresence;
+      if (latest == null || status.isHome) {
+        continue;
+      }
+      if (nowUtc.difference(latest.occurredAtUtc) <= const Duration(hours: 2)) {
+        continue;
+      }
+      final bootCutoffUtc = _vehiclePresenceBootCutoffUtc;
+      if (bootCutoffUtc != null && latest.occurredAtUtc.isBefore(bootCutoffUtc)) {
+        continue;
+      }
+      final lastAlertAt =
+          _vehiclePresenceDepartureAlertedAtByPlate[status.registry.plateNumber];
+      if (lastAlertAt != null && !lastAlertAt.isBefore(latest.occurredAtUtc)) {
+        continue;
+      }
+      final text =
+          '${_vehiclePresenceOwnerLabel(status.registry)} may have left — '
+          '${_vehiclePresenceVehicleLabel(status.registry)} not detected since '
+          '${_telegramCommandLocalTimeLabel(latest.occurredAtUtc)}';
+      final dispatch = await _telegramPushCoordinator.sendScopedAlert(
+        clientId: _selectedClient,
+        siteId: _selectedSite,
+        messageKeyPrefix:
+            'tg-vehicle-departure-${status.registry.plateNumber}-${latest.occurredAtUtc.microsecondsSinceEpoch}',
+        text: text,
+      );
+      if (dispatch.attemptStatus != 'telegram-ok') {
+        continue;
+      }
+      _vehiclePresenceDepartureAlertedAtByPlate[status.registry.plateNumber] =
+          nowUtc;
+      await _appendTelegramConversationMessage(
+        clientId: _selectedClient,
+        siteId: _selectedSite,
+        author: 'ONYX Watch',
+        body: text,
+        occurredAtUtc: nowUtc,
+        roomKey: 'Residents',
+        viewerRole: ClientAppViewerRole.client.name,
+        incidentStatusLabel: 'Vehicle Departure',
+        messageSource: 'telegram',
+        messageProvider: 'vehicle_presence',
+      );
+    }
+  }
+
+  void _pruneVehiclePresenceNotificationState(DateTime nowUtc) {
+    final cutoff = nowUtc.subtract(const Duration(days: 1));
+    _vehiclePresenceDepartureAlertedAtByPlate.removeWhere(
+      (_, sentAtUtc) => sentAtUtc.isBefore(cutoff),
+    );
   }
 
   Future<void> _pollPatrolMonitorOnce() async {
@@ -15763,6 +15916,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ? await _telegramLiveStatusReply(
               clientId: target.clientId,
               siteId: siteId,
+              prompt: update.text,
             )
           : 'Your message has been received. Our team will follow up shortly.';
       aiDraft = TelegramAiDraftReply(
@@ -16070,6 +16224,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               clientId: target.clientId,
               siteId: siteId,
               audienceRole: ClientAppViewerRole.control.name,
+              prompt: update.text,
             )
           : trimmedResponse;
       await _appendCriticalTelegramClientReplyControlMirror(
@@ -16135,6 +16290,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         clientId: target.clientId,
         siteId: siteId,
         audienceRole: target.endpointRole,
+        prompt: update.text,
       ),
       OnyxTelegramCommandType.gateAccess => _telegramGateAccessReply(
         clientId: target.clientId,
@@ -16928,8 +17084,22 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String clientId,
     required String siteId,
     String audienceRole = 'client',
+    String prompt = '',
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final vehiclePresenceQuery = _telegramPromptLooksLikeVehiclePresence(prompt);
+    if (vehiclePresenceQuery) {
+      final vehiclePresenceReply = await _telegramVehiclePresenceReply(
+        siteId: siteId,
+        siteLabel: siteLabel,
+        prompt: prompt,
+        nowUtc: _telegramFlowNowUtc(),
+        todayLocal: _telegramFlowNowLocal(),
+      );
+      if (vehiclePresenceReply != null) {
+        return vehiclePresenceReply;
+      }
+    }
     final siteProfile = await _siteProfileService.loadProfile(siteId);
     final activeExpectedVisitors = await _siteProfileService.loadActiveExpectedVisitors(
       siteId: siteId,
@@ -17069,6 +17239,23 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       }
       if (siteAwarenessSummary.activeAlertCount > 0) {
         lines.add('Active alerts: ${siteAwarenessSummary.activeAlertCount}');
+      }
+      final vehicleSection = _telegramVehiclePresenceSummarySection(
+        _buildVehiclePresenceStatuses(
+          registryRows: await _readSiteVehicleRegistryRows(siteId: siteId),
+          presenceRows: await _readSiteVehiclePresenceRows(
+            siteId: siteId,
+            sinceUtc: DateTime(
+              _telegramFlowNowLocal().year,
+              _telegramFlowNowLocal().month,
+              _telegramFlowNowLocal().day,
+            ).toUtc(),
+          ),
+          nowUtc: _telegramFlowNowUtc(),
+        ),
+      );
+      if (vehicleSection.isNotEmpty) {
+        lines.add(vehicleSection);
       }
       lines.add(
         'Last update: ${_telegramCommandRelativeAgeLabel(siteAwarenessSummary.observedAtUtc)}',
@@ -20477,6 +20664,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         siteAwarenessStatusOverride = await _telegramLiveStatusReply(
           clientId: target.clientId,
           siteId: siteId,
+          prompt: 'status',
         );
       }
     }
@@ -39156,6 +39344,352 @@ String _telegramExpectedVisitorUntilLabel(String? rawTime) {
     return rawTime.trim();
   }
   return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+}
+
+class _SiteVehicleRegistryRecord {
+  final String siteId;
+  final String plateNumber;
+  final String vehicleDescription;
+  final String ownerName;
+  final String ownerRole;
+
+  const _SiteVehicleRegistryRecord({
+    required this.siteId,
+    required this.plateNumber,
+    required this.vehicleDescription,
+    required this.ownerName,
+    required this.ownerRole,
+  });
+
+  factory _SiteVehicleRegistryRecord.fromRow(Map<String, dynamic> row) {
+    return _SiteVehicleRegistryRecord(
+      siteId: (row['site_id'] as String? ?? '').trim(),
+      plateNumber: _normalizedVehiclePlate(row['plate_number']),
+      vehicleDescription: (row['vehicle_description'] as String? ?? '').trim(),
+      ownerName: (row['owner_name'] as String? ?? '').trim(),
+      ownerRole: (row['owner_role'] as String? ?? '').trim(),
+    );
+  }
+}
+
+class _SiteVehiclePresenceRecord {
+  final String id;
+  final String siteId;
+  final String plateNumber;
+  final String ownerName;
+  final String eventType;
+  final int? channelId;
+  final String? zoneName;
+  final DateTime occurredAtUtc;
+
+  const _SiteVehiclePresenceRecord({
+    required this.id,
+    required this.siteId,
+    required this.plateNumber,
+    required this.ownerName,
+    required this.eventType,
+    required this.channelId,
+    required this.zoneName,
+    required this.occurredAtUtc,
+  });
+
+  factory _SiteVehiclePresenceRecord.fromRow(Map<String, dynamic> row) {
+    return _SiteVehiclePresenceRecord(
+      id: (row['id'] as String? ?? '').trim(),
+      siteId: (row['site_id'] as String? ?? '').trim(),
+      plateNumber: _normalizedVehiclePlate(row['plate_number']),
+      ownerName: (row['owner_name'] as String? ?? '').trim(),
+      eventType: (row['event_type'] as String? ?? '').trim().toLowerCase(),
+      channelId: _siteAwarenessSummaryInt(row['channel_id']),
+      zoneName: (row['zone_name'] as String?)?.trim(),
+      occurredAtUtc:
+          _siteAwarenessSummaryDate(row['occurred_at']) ?? DateTime.now().toUtc(),
+    );
+  }
+}
+
+class _SiteVehiclePresenceStatus {
+  final _SiteVehicleRegistryRecord registry;
+  final _SiteVehiclePresenceRecord? latestPresence;
+  final bool seenToday;
+  final bool isHome;
+
+  const _SiteVehiclePresenceStatus({
+    required this.registry,
+    required this.latestPresence,
+    required this.seenToday,
+    required this.isHome,
+  });
+}
+
+Future<List<Map<String, dynamic>>> _readSiteVehicleRegistryRows({
+  required String siteId,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <Map<String, dynamic>>[];
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('site_vehicle_registry')
+        .select(
+          'site_id,plate_number,vehicle_description,owner_name,owner_role,is_active,visit_type',
+        )
+        .eq('site_id', siteId.trim())
+        .eq('is_active', true)
+        .order('owner_name', ascending: true);
+    return rows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  } catch (_) {
+    return const <Map<String, dynamic>>[];
+  }
+}
+
+Future<List<Map<String, dynamic>>> _readSiteVehiclePresenceRows({
+  required String siteId,
+  DateTime? sinceUtc,
+  int limit = 200,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <Map<String, dynamic>>[];
+  }
+  try {
+    final base = Supabase.instance.client
+        .from('site_vehicle_presence')
+        .select(
+          'id,site_id,plate_number,owner_name,event_type,channel_id,zone_name,occurred_at',
+        )
+        .eq('site_id', siteId.trim());
+    final rows = await (sinceUtc == null
+        ? base.order('occurred_at', ascending: false).limit(limit)
+        : base
+              .gte('occurred_at', sinceUtc.toUtc().toIso8601String())
+              .order('occurred_at', ascending: false)
+              .limit(limit));
+    return rows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  } catch (_) {
+    return const <Map<String, dynamic>>[];
+  }
+}
+
+Future<Map<int, Map<String, dynamic>>> _readSiteCameraZoneRowsByChannel({
+  required String siteId,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <int, Map<String, dynamic>>{};
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('site_camera_zones')
+        .select('channel_id,zone_name,zone_type,is_perimeter,is_indoor')
+        .eq('site_id', siteId.trim());
+    final mapped = <int, Map<String, dynamic>>{};
+    for (final row in rows) {
+      final data = Map<String, dynamic>.from(row as Map);
+      final channelId = _siteAwarenessSummaryInt(data['channel_id']);
+      if (channelId == null) {
+        continue;
+      }
+      mapped[channelId] = data;
+    }
+    return mapped;
+  } catch (_) {
+    return const <int, Map<String, dynamic>>{};
+  }
+}
+
+List<_SiteVehiclePresenceStatus> _buildVehiclePresenceStatuses({
+  required List<Map<String, dynamic>> registryRows,
+  required List<Map<String, dynamic>> presenceRows,
+  required DateTime nowUtc,
+  Duration homeThreshold = const Duration(hours: 2),
+}) {
+  final registry = registryRows
+      .map(_SiteVehicleRegistryRecord.fromRow)
+      .where((entry) => entry.plateNumber.isNotEmpty)
+      .toList(growable: false);
+  final presenceByPlate = <String, List<_SiteVehiclePresenceRecord>>{};
+  for (final row in presenceRows) {
+    final record = _SiteVehiclePresenceRecord.fromRow(row);
+    if (record.plateNumber.isEmpty) {
+      continue;
+    }
+    presenceByPlate.putIfAbsent(record.plateNumber, () => <_SiteVehiclePresenceRecord>[]).add(record);
+  }
+  final statuses = <_SiteVehiclePresenceStatus>[];
+  for (final entry in registry) {
+    final records = List<_SiteVehiclePresenceRecord>.from(
+      presenceByPlate[entry.plateNumber] ??
+          const <_SiteVehiclePresenceRecord>[],
+    );
+    records.sort((left, right) => right.occurredAtUtc.compareTo(left.occurredAtUtc));
+    final latest = records.isEmpty ? null : records.first;
+    final seenToday = latest != null;
+    final isHome =
+        latest != null &&
+        nowUtc.difference(latest.occurredAtUtc) <= homeThreshold &&
+        latest.eventType != 'departed';
+    statuses.add(
+      _SiteVehiclePresenceStatus(
+        registry: entry,
+        latestPresence: latest,
+        seenToday: seenToday,
+        isHome: isHome,
+      ),
+    );
+  }
+  return List<_SiteVehiclePresenceStatus>.unmodifiable(statuses);
+}
+
+bool _telegramPromptLooksLikeVehiclePresence(String prompt) {
+  final normalized = prompt.trim().toLowerCase();
+  if (normalized.isEmpty) {
+    return false;
+  }
+  return normalized.contains('whos home') ||
+      normalized.contains('who is home') ||
+      normalized.contains('who is on site') ||
+      normalized.contains('which cars are home') ||
+      normalized.contains('which car is home') ||
+      normalized.contains('did ') && normalized.contains(' arrive') ||
+      normalized.startsWith('is ') && normalized.endsWith(' home');
+}
+
+String _vehiclePresenceOwnerLabel(_SiteVehicleRegistryRecord registry) {
+  final owner = registry.ownerName.trim();
+  return owner.isEmpty ? registry.plateNumber : owner;
+}
+
+String _vehiclePresenceVehicleLabel(_SiteVehicleRegistryRecord registry) {
+  final description = registry.vehicleDescription.trim();
+  return description.isEmpty ? registry.plateNumber : description;
+}
+
+String _vehiclePresenceLastSeenLabel(_SiteVehiclePresenceRecord? presence) {
+  if (presence == null) {
+    return 'not detected today';
+  }
+  final zoneName = presence.zoneName?.trim();
+  final zoneLabel = zoneName == null || zoneName.isEmpty
+      ? 'unknown zone'
+      : zoneName;
+  return '$zoneLabel ${_vehiclePresenceLocalTimeLabel(presence.occurredAtUtc)}';
+}
+
+String _telegramVehiclePresenceSummarySection(
+  List<_SiteVehiclePresenceStatus> statuses,
+) {
+  if (statuses.isEmpty) {
+    return '';
+  }
+  final lines = <String>['🚗 Vehicles on site:'];
+  for (final status in statuses) {
+    final vehicle = _vehiclePresenceVehicleLabel(status.registry);
+    final owner = _vehiclePresenceOwnerLabel(status.registry);
+    if (!status.seenToday || status.latestPresence == null) {
+      lines.add('- $owner — $vehicle (not detected today)');
+      continue;
+    }
+    lines.add(
+      '- $owner — $vehicle (last seen: ${_vehiclePresenceLastSeenLabel(status.latestPresence)})',
+    );
+  }
+  return lines.join('\n');
+}
+
+String _telegramVehiclePresenceHomeLine(_SiteVehiclePresenceStatus status) {
+  final owner = _vehiclePresenceOwnerLabel(status.registry);
+  final vehicle = _vehiclePresenceVehicleLabel(status.registry);
+  final latest = status.latestPresence;
+  if (latest == null) {
+    return '$owner — out ($vehicle not detected today)';
+  }
+  final zoneName = latest.zoneName?.trim();
+  final zoneLabel = zoneName == null || zoneName.isEmpty ? 'site' : zoneName;
+  final timeLabel = _vehiclePresenceLocalTimeLabel(latest.occurredAtUtc);
+  if (status.isHome) {
+    return '$owner — home ($vehicle in $zoneLabel since $timeLabel)';
+  }
+  return '$owner — out ($vehicle not seen since $timeLabel)';
+}
+
+_SiteVehiclePresenceStatus? _matchedVehiclePresenceStatusForPrompt(
+  String prompt,
+  List<_SiteVehiclePresenceStatus> statuses,
+) {
+  final normalized = prompt.trim().toLowerCase();
+  for (final status in statuses) {
+    final owner = status.registry.ownerName.trim().toLowerCase();
+    if (owner.isNotEmpty && normalized.contains(owner)) {
+      return status;
+    }
+    for (final token in owner.split(RegExp(r'\s+'))) {
+      if (token.length >= 3 && normalized.contains(token)) {
+        return status;
+      }
+    }
+  }
+  return null;
+}
+
+Future<String?> _telegramVehiclePresenceReply({
+  required String siteId,
+  required String siteLabel,
+  required String prompt,
+  required DateTime nowUtc,
+  required DateTime todayLocal,
+}) async {
+  final registryRows = await _readSiteVehicleRegistryRows(siteId: siteId);
+  if (registryRows.isEmpty) {
+    return null;
+  }
+  final startOfDayUtc = DateTime(
+    todayLocal.year,
+    todayLocal.month,
+    todayLocal.day,
+  ).toUtc();
+  final presenceRows = await _readSiteVehiclePresenceRows(
+    siteId: siteId,
+    sinceUtc: startOfDayUtc,
+  );
+  final statuses = _buildVehiclePresenceStatuses(
+    registryRows: registryRows,
+    presenceRows: presenceRows,
+    nowUtc: nowUtc,
+  );
+  if (statuses.isEmpty) {
+    return null;
+  }
+  final matchedStatus = _matchedVehiclePresenceStatusForPrompt(prompt, statuses);
+  if (matchedStatus != null) {
+    return [
+      'Vehicle presence: $siteLabel',
+      _telegramVehiclePresenceHomeLine(matchedStatus),
+    ].join('\n');
+  }
+  return [
+    'Vehicle presence: $siteLabel',
+    ...statuses.map(_telegramVehiclePresenceHomeLine),
+  ].join('\n');
+}
+
+String _normalizedVehiclePlate(Object? value) {
+  final raw = value?.toString().trim().toUpperCase() ?? '';
+  if (raw.isEmpty) {
+    return '';
+  }
+  return raw.replaceAll(RegExp(r'[^A-Z0-9]'), '');
+}
+
+String _vehiclePresenceLocalTimeLabel(DateTime? instantUtc) {
+  if (instantUtc == null) {
+    return 'n/a';
+  }
+  final local = instantUtc.toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${two(local.hour)}:${two(local.minute)}';
 }
 
 String _telegramVisitorWeekdayLabel(DateTime dateLocal) {

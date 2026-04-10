@@ -37,6 +37,9 @@ class OnyxTelegramCommandRouter {
     'anyone home',
     'anyone there',
     'who is home',
+    'whos home',
+    'which cars are home',
+    'which car is home',
   };
 
   static const Set<String> _gateAccessTriggers = <String>{
@@ -294,14 +297,28 @@ class OnyxTelegramCommandRouter {
     if (normalized == 'how many') {
       return true;
     }
-    return normalized.contains('how many') &&
+    if (normalized.contains('how many') &&
         (normalized.contains('people') ||
             normalized.contains('resident') ||
             normalized.contains('occupancy') ||
             normalized.contains('anyone') ||
             normalized.contains('home') ||
             normalized.contains('there') ||
-            normalized.contains('on site'));
+            normalized.contains('on site'))) {
+      return true;
+    }
+    if (normalized.contains('which cars are home') ||
+        normalized.contains('which car is home') ||
+        normalized.contains('whos home')) {
+      return true;
+    }
+    if (normalized.startsWith('is ') && normalized.endsWith(' home')) {
+      return true;
+    }
+    if (normalized.startsWith('did ') && normalized.contains(' arrive')) {
+      return true;
+    }
+    return false;
   }
 
   bool _looksLikeGateAccessQuery(String normalized) {

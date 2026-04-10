@@ -408,6 +408,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (repository != null && event.eventType == OnyxEventType.humanDetected) {
       unawaited(_persistOccupancy(repository, event));
     }
+    if (repository != null && event.eventType == OnyxEventType.vehicleDetected) {
+      unawaited(_persistVehiclePresence(repository, event));
+    }
     final proactiveAlertService = _proactiveAlertService;
     if (proactiveAlertService != null &&
         (event.eventType == OnyxEventType.humanDetected ||
@@ -495,6 +498,31 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     } catch (error, stackTrace) {
       developer.log(
         'Failed to persist site occupancy session.',
+        name: 'OnyxHikIsapiStream',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
+  }
+
+  Future<void> _persistVehiclePresence(
+    OnyxSiteAwarenessRepository repository,
+    OnyxSiteAwarenessEvent event,
+  ) async {
+    try {
+      final channelId = int.tryParse(event.channelId.trim()) ?? 0;
+      final zone = _projector?.cameraZones[event.channelId];
+      await repository.recordVehicleDetection(
+        siteId: _siteId,
+        plateNumber: event.plateNumber ?? '',
+        channelId: channelId,
+        zoneName: zone?.zoneName ?? 'Channel ${event.channelId}',
+        detectedAt: event.detectedAt,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to persist vehicle presence event.',
         name: 'OnyxHikIsapiStream',
         error: error,
         stackTrace: stackTrace,
