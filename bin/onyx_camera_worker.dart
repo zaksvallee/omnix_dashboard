@@ -307,10 +307,10 @@ class OnyxSiteAwarenessEvent {
     DateTime Function()? clock,
   }) {
     final document = xml.XmlDocument.parse(payload);
-    final channelId = _firstNonEmpty(
-      _readTag(document, 'dynChannelID'),
+    final channelId = _resolvedAlertChannelId(
       _readTag(document, 'channelID'),
       _readTag(document, 'channelId'),
+      _readTag(document, 'dynChannelID'),
     );
     final rawEventType = _firstNonEmpty(
       _readTag(document, 'eventType'),
@@ -612,6 +612,25 @@ class OnyxSiteAwarenessProjector {
         })
         .toList(growable: false);
   }
+}
+
+String _resolvedAlertChannelId(
+  String primaryChannelId,
+  String secondaryChannelId,
+  String dynamicChannelId,
+) {
+  final candidates = <String>[
+    primaryChannelId.trim(),
+    secondaryChannelId.trim(),
+    dynamicChannelId.trim(),
+  ];
+  for (final candidate in candidates) {
+    final parsed = int.tryParse(candidate);
+    if (parsed != null && parsed > 0) {
+      return candidate;
+    }
+  }
+  return _firstNonEmpty(primaryChannelId, secondaryChannelId, dynamicChannelId);
 }
 
 OnyxEventType mapOnyxEventType({
