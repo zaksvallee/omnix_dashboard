@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-11 01:25
-- **Last commit:** feat: server-side AI processor + CH0 filter
-- **Commit hash:** e091e57
+- **Date:** 2026-04-11 04:25
+- **Last commit:** fix: suppress resident alerts + animal detection filter
+- **Commit hash:** 33f84ff
 
 ## Completed today (2026-04-10)
 - [x] YOLO in pipeline — false positive filter active (0814e25)
@@ -39,6 +39,12 @@
 - [x] LPR from HD RTSP frames — detector-side OCR crop improvements (505e507)
 - [x] Channel 0 filter in status output and worker summaries (e091e57)
 - [x] Server-side Telegram AI processor + Dockerfile scaffold (e091e57)
+- [x] RTSP frame server — warmup, URL encoding, background frame buffer (712c354)
+- [x] FR at 1280x720 from RTSP — HD frame path active in worker + detector (a771b66)
+- [x] LPR at 1280x720 — extra HD crop regions added, garage frame tested (e895c66)
+- [x] Ghost CH0 filtered at ingest/persistence/proactive paths (58e8deb)
+- [x] Server-side Telegram AI processor — Hetzner deploy artifacts + CLI bundle path (49a48e1)
+- [x] Resident alerts suppressed + animal detections downgraded to log-only (33f84ff)
 
 
 ## Completed (this sprint)
@@ -73,13 +79,14 @@
 - [ ] RTSP live validation — confirm frame server returns stable 1280x720 frames on CH12 / CH16
 - [ ] Live FR validation — confirm cropped RTSP frames produce real matches during walk tests
 - [ ] Live LPR validation — confirm LF05CFGP reads from HD garage frames
+- [ ] Hetzner deployment — install and start onyx-telegram-ai-processor.service
 
 ## Priority queue (next session)
-- P0: Validate RTSP frame server delivers stable HD frames on CH12 / CH16
-- P1: Verify live FR walk test from RTSP frames and capture first real match
-- P2: Verify HD LPR reads LF05CFGP and other registered plates reliably
-- P3: Deploy onyx-telegram-ai-processor to Hetzner systemd
-- P4: Alert suppression — enrolled residents no alerts
+- P0: Deploy onyx-telegram-ai-processor to Hetzner and verify Telegram keeps working with the Mac asleep
+- P1: Validate RTSP frame server delivers stable HD frames on CH12 / CH16 under live load
+- P2: Verify live FR walk test from RTSP frames and capture first real match
+- P3: Verify HD LPR reads LF05CFGP or confirm dedicated LPR camera is required
+- P4: Confirm CH11 known fault displays cleanly everywhere after the ghost CH0 ingest filter
 - P5: Olarm device installation
 
 ## Next hardware to acquire
