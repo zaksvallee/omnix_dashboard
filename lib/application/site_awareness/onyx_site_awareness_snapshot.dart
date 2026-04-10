@@ -658,7 +658,7 @@ String _resolvedAlertChannelId(
       return candidate;
     }
   }
-  return _firstNonEmpty(primaryChannelId, secondaryChannelId, dynamicChannelId);
+  return '';
 }
 
 OnyxEventType mapOnyxEventType({

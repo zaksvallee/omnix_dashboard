@@ -17140,6 +17140,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final sortedKeys = channels.keys.toList(growable: false)
         ..sort((left, right) => left.toString().compareTo(right.toString()));
       for (final key in sortedKeys) {
+        final keyLabel = key.toString().trim();
+        if (!_siteAwarenessValidChannelLabel(keyLabel)) {
+          continue;
+        }
         final raw = channels[key];
         if (raw is! Map) {
           continue;
@@ -17154,7 +17158,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           'online' => 'Online',
           _ => _humanizeScopeLabel(status),
         };
-        faultLines.add('Channel $key: $statusLabel (known fault)');
+        faultLines.add('Channel $keyLabel: $statusLabel (known fault)');
       }
     }
     if (faultLines.isNotEmpty) {
@@ -17166,7 +17170,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     return knownFaults
         .map((value) => value.toString().trim())
-        .where((value) => value.isNotEmpty)
+        .where(_siteAwarenessValidChannelLabel)
         .map((value) => 'Channel $value: Offline (known fault)')
         .toList(growable: false);
   }
@@ -17176,7 +17180,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final knownFaultLabels = knownFaults is List
         ? knownFaults
               .map((value) => value.toString().trim())
-              .where((value) => value.isNotEmpty)
+              .where(_siteAwarenessValidChannelLabel)
               .toList(growable: false)
         : const <String>[];
     final channels = row['channels'];
@@ -17189,13 +17193,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ..sort((left, right) => left.toString().compareTo(right.toString()));
     final parts = <String>[];
     for (final key in sortedKeys.take(4)) {
+      final keyLabel = key.toString().trim();
+      if (!_siteAwarenessValidChannelLabel(keyLabel)) {
+        continue;
+      }
       final raw = channels[key];
       if (raw is! Map) {
         continue;
       }
       final status = _siteAwarenessHumanizedLabel(raw['status']);
       final isFault = raw['is_fault'] == true || raw['isFault'] == true;
-      parts.add('Channel $key ${isFault ? 'fault' : status}');
+      parts.add('Channel $keyLabel ${isFault ? 'fault' : status}');
     }
     if (parts.isEmpty) {
       return knownFaultLabels.isEmpty
@@ -38940,7 +38948,7 @@ TelegramAiSiteAwarenessSummary? _telegramAiSiteAwarenessSummaryFromRow(
   final knownFaultLabels = knownFaults is List
       ? knownFaults
             .map((value) => value.toString().trim())
-            .where((value) => value.isNotEmpty)
+            .where(_siteAwarenessValidChannelLabel)
             .toList(growable: false)
       : const <String>[];
   final activeAlerts = row['active_alerts'];
@@ -39185,6 +39193,11 @@ String? _siteAwarenessSummaryString(Object? value) {
   }
   final trimmed = value.trim();
   return trimmed.isEmpty ? null : trimmed;
+}
+
+bool _siteAwarenessValidChannelLabel(String value) {
+  final parsed = int.tryParse(value.trim());
+  return parsed != null && parsed > 0;
 }
 
 Future<Map<String, dynamic>?> _readSiteOccupancyConfigRow({
@@ -40243,6 +40256,10 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
     final sortedKeys = channels.keys.toList(growable: false)
       ..sort((a, b) => a.toString().compareTo(b.toString()));
     for (final key in sortedKeys) {
+      final keyLabel = key.toString().trim();
+      if (!_siteAwarenessValidChannelLabel(keyLabel)) {
+        continue;
+      }
       final ch = channels[key];
       if (ch is Map) {
         final status = _siteAwarenessHumanizedLabel(ch['status']);
@@ -40273,7 +40290,7 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
         if (faultReason != null) {
           details.add('fault reason $faultReason');
         }
-        channelLines.add('  Channel $key: ${details.join('; ')}');
+        channelLines.add('  Channel $keyLabel: ${details.join('; ')}');
       }
     }
     if (channelLines.length > 1) {

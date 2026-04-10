@@ -692,7 +692,12 @@ String _resolvedAlertChannelId(
       return candidate;
     }
   }
-  return _firstNonEmpty(primaryChannelId, secondaryChannelId, dynamicChannelId);
+  return '';
+}
+
+bool _isPositiveChannelLabel(String value) {
+  final parsed = int.tryParse(value.trim());
+  return parsed != null && parsed > 0;
 }
 
 OnyxEventType mapOnyxEventType({
@@ -3047,6 +3052,9 @@ void _printSnapshot(OnyxSiteAwarenessSnapshot snapshot) {
   final channelParts = <String>[];
   final sortedChannels = snapshot.channels.keys.toList(growable: false)..sort();
   for (final channelId in sortedChannels) {
+    if (!_isPositiveChannelLabel(channelId)) {
+      continue;
+    }
     final ch = snapshot.channels[channelId]!;
     final statusLabel = switch (ch.status) {
       OnyxChannelStatusType.active =>
@@ -3072,7 +3080,12 @@ void _printSnapshot(OnyxSiteAwarenessSnapshot snapshot) {
   ];
 
   if (snapshot.knownFaults.isNotEmpty) {
-    parts.add('faults: ${snapshot.knownFaults.join(',')}');
+    final validKnownFaults = snapshot.knownFaults
+        .where(_isPositiveChannelLabel)
+        .toList(growable: false);
+    if (validKnownFaults.isNotEmpty) {
+      parts.add('faults: ${validKnownFaults.join(',')}');
+    }
   }
   if (snapshot.activeAlerts.isNotEmpty) {
     parts.add('alerts: ${snapshot.activeAlerts.length}');

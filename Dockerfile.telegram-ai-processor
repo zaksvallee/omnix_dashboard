@@ -1,0 +1,21 @@
+FROM ghcr.io/cirruslabs/flutter:stable AS build
+
+WORKDIR /app
+
+COPY pubspec.yaml ./
+RUN flutter pub get
+
+COPY . .
+RUN dart compile exe bin/onyx_telegram_ai_processor.dart -o /out/onyx_telegram_ai_processor
+
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=build /out/onyx_telegram_ai_processor /app/onyx_telegram_ai_processor
+
+ENTRYPOINT ["/app/onyx_telegram_ai_processor"]
