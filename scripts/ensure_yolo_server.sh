@@ -111,6 +111,7 @@ dependencies_ready() {
   "$VENV_PYTHON" - "$yolo_lpr_enabled" <<'PY' >/dev/null 2>&1
 import sys
 import PIL  # noqa: F401
+import pi_heif  # noqa: F401
 import ultralytics  # noqa: F401
 if sys.argv[1] == "true":
     import easyocr  # noqa: F401
