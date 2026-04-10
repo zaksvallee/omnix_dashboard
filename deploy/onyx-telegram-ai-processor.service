@@ -1,0 +1,14 @@
+[Unit]
+Description=ONYX Telegram AI Processor
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/onyx
+ExecStart=/opt/onyx/telegram_ai_processor/bundle/bin/onyx_telegram_ai_processor
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/onyx/.env
+
+[Install]
+WantedBy=multi-user.target

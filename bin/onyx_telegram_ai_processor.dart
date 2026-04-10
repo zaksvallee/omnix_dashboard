@@ -12,7 +12,7 @@ import 'package:omnix_dashboard/application/telegram_bridge_service.dart';
 import 'package:omnix_dashboard/application/telegram_command_router.dart';
 import 'package:omnix_dashboard/application/telegram_endpoint_scope_resolution.dart';
 
-const Duration _defaultPollInterval = Duration(seconds: 5);
+const Duration _defaultPollInterval = Duration(seconds: 2);
 
 Future<void> main() async {
   final supabaseUrl = Platform.environment['ONYX_SUPABASE_URL'] ?? '';
@@ -265,8 +265,20 @@ class _OnyxTelegramAiProcessor {
         siteId: target.siteId,
         prompt: update.text,
       ),
+      OnyxTelegramCommandType.dispatch => _buildDispatchReply(
+        siteId: target.siteId,
+        prompt: update.text,
+      ),
       OnyxTelegramCommandType.report => _buildReportReply(siteId: target.siteId),
       OnyxTelegramCommandType.guard => _buildGuardReply(siteId: target.siteId),
+      OnyxTelegramCommandType.camera => _buildCameraReply(siteId: target.siteId),
+      OnyxTelegramCommandType.intelligence => _buildIntelligenceReply(
+        siteId: target.siteId,
+      ),
+      OnyxTelegramCommandType.actionRequest => _buildActionRequestReply(
+        siteId: target.siteId,
+        prompt: update.text,
+      ),
       OnyxTelegramCommandType.visitorRegistration => _handleVisitorRegistration(
         siteId: target.siteId,
         prompt: update.text,
@@ -392,6 +404,53 @@ class _OnyxTelegramAiProcessor {
     return lines.join('\n');
   }
 
+  Future<String> _buildDispatchReply({
+    required String siteId,
+    required String prompt,
+  }) async {
+    final siteLabel = _siteLabel(siteId);
+    final incidentRows = await supabase
+        .from('incidents')
+        .select(
+          'id,event_uid,status,incident_type,created_at,occurred_at,signal_received_at,dispatch_time,arrival_time',
+        )
+        .eq('site_id', siteId)
+        .order('created_at', ascending: false)
+        .limit(20);
+    final dispatchedRows = incidentRows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .where(
+          (row) =>
+              _asDateTimeUtc(row['dispatch_time']) != null ||
+              _asDateTimeUtc(row['arrival_time']) != null ||
+              _incidentIsActive((row['status'] ?? '').toString()),
+        )
+        .toList(growable: false);
+    if (dispatchedRows.isEmpty) {
+      return 'Dispatch summary: $siteLabel\n• No dispatch records are attached to this site yet.';
+    }
+    final lines = <String>['Dispatch summary: $siteLabel'];
+    for (final row in dispatchedRows.take(4)) {
+      final reference =
+          (row['event_uid'] ?? row['id'] ?? 'incident').toString().trim();
+      final status = _humanizeLabel((row['status'] ?? 'open').toString());
+      final dispatchAt = _asDateTimeUtc(
+        row['dispatch_time'] ?? row['signal_received_at'] ?? row['occurred_at'],
+      );
+      final arrivalAt = _asDateTimeUtc(row['arrival_time']);
+      final parts = <String>[
+        reference,
+        'dispatched ${_clockLabel(dispatchAt)}',
+        'status $status',
+      ];
+      if (arrivalAt != null) {
+        parts.add('arrived ${_clockLabel(arrivalAt)}');
+      }
+      lines.add('• ${parts.join(' • ')}');
+    }
+    return lines.join('\n');
+  }
+
   Future<String> _buildGuardReply({required String siteId}) async {
     final siteLabel = _siteLabel(siteId);
     final assignments = await supabase
@@ -433,6 +492,64 @@ class _OnyxTelegramAiProcessor {
       );
     }
     return lines.join('\n');
+  }
+
+  Future<String> _buildCameraReply({required String siteId}) async {
+    final siteLabel = _siteLabel(siteId);
+    final snapshot = await _readLatestSnapshot(siteId);
+    if (snapshot == null) {
+      return 'Visual status: $siteLabel\n• No fresh camera snapshot is available right now.';
+    }
+    final summary = _siteAwarenessSummaryFromRow(snapshot);
+    final knownFaults = summary.knownFaultChannels
+        .where(_isValidChannelLabel)
+        .toList(growable: false);
+    return <String>[
+      'Visual status: $siteLabel',
+      '• Snapshot time: ${_clockLabel(summary.observedAtUtc)}',
+      '• Perimeter: ${summary.perimeterClear ? 'Clear' : 'Alert active'}',
+      '• Snapshot counts: ${summary.humanCount} people • ${summary.vehicleCount} vehicles • ${summary.animalCount} animals',
+      '• Active alerts: ${summary.activeAlertCount}',
+      '• Channel status: ${knownFaults.isEmpty ? 'All reported channels online' : knownFaults.map((channel) => 'CH$channel offline').join(', ')}',
+    ].join('\n');
+  }
+
+  Future<String> _buildIntelligenceReply({required String siteId}) async {
+    final siteLabel = _siteLabel(siteId);
+    final snapshot = await _readLatestSnapshot(siteId);
+    final incidents = await _readActiveIncidents(siteId);
+    if (snapshot == null) {
+      return 'Risk intelligence: $siteLabel\n• Not enough site telemetry is available yet.';
+    }
+    final summary = _siteAwarenessSummaryFromRow(snapshot);
+    final unusualLine = summary.activeAlertCount > 0
+        ? '${summary.activeAlertCount} active alert markers need review.'
+        : summary.humanCount > 0
+        ? 'Human movement is present, but no active alert markers are elevated.'
+        : 'No unusual activity pattern is standing out right now.';
+    return <String>[
+      'Risk intelligence: $siteLabel',
+      '• Current pattern: ${summary.humanCount} people • ${summary.vehicleCount} vehicles • ${summary.animalCount} animals',
+      '• Perimeter: ${summary.perimeterClear ? 'holding clear' : 'requires review'}',
+      '• Active incidents: $incidents',
+      '• Unusual marker: $unusualLine',
+    ].join('\n');
+  }
+
+  Future<String> _buildActionRequestReply({
+    required String siteId,
+    required String prompt,
+  }) async {
+    final siteLabel = _siteLabel(siteId);
+    final normalized = prompt.toLowerCase();
+    final actionLabel = normalized.contains('guard')
+        ? 'call the assigned guard unit'
+        : normalized.contains('escalate')
+        ? 'escalate the site for response'
+        : 'dispatch armed response';
+    return 'Action request: $siteLabel\n'
+        '• This will $actionLabel.\n'
+        '• Confirm before ONYX takes any action.';
   }
 
   Future<String> _handleVisitorRegistration({
