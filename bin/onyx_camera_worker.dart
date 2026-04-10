@@ -2443,89 +2443,117 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return event;
     }
     final snapshotChannelId = _snapshotStreamChannelId(channelId);
-    developer.log(
-      '[ONYX] Capturing snapshot from CH$snapshotChannelId for live FR...',
-      name: 'OnyxHikIsapiStream',
-    );
-    final snapshotBytes = await fetchSnapshotBytes(channelId);
-    if (snapshotBytes == null || snapshotBytes.isEmpty) {
+    try {
+      // ignore: avoid_print
+      print('[ONYX-DEBUG] Attempting snapshot for CH$channelId...');
       developer.log(
-        '[ONYX] FR snapshot capture failed for CH$snapshotChannelId.',
+        '[ONYX] Capturing snapshot from CH$snapshotChannelId for live FR...',
         name: 'OnyxHikIsapiStream',
-        level: 900,
+      );
+      final snapshotBytes = await fetchSnapshotBytes(channelId);
+      // ignore: avoid_print
+      print(
+        '[ONYX-DEBUG] Snapshot result: ${snapshotBytes?.length ?? 0} bytes',
+      );
+      if (snapshotBytes == null || snapshotBytes.isEmpty) {
+        developer.log(
+          '[ONYX] FR snapshot capture failed for CH$snapshotChannelId.',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+        return event;
+      }
+      final zone = _projector?.cameraZones[channelId];
+      developer.log(
+        '[ONYX] Sending CH$snapshotChannelId snapshot to YOLO/FR (${snapshotBytes.length} bytes)...',
+        name: 'OnyxHikIsapiStream',
+      );
+      final result = await liveSnapshotYoloService.detectSnapshot(
+        recordKey:
+            '${_siteId}_${channelId}_${event.detectedAt.toUtc().microsecondsSinceEpoch}',
+        provider: 'hikvision_isapi',
+        sourceType: 'site_awareness_snapshot',
+        clientId: _clientId,
+        siteId: _siteId,
+        cameraId: channelId,
+        zone: zone?.zoneName ?? 'Channel $channelId',
+        occurredAtUtc: event.detectedAt.toUtc(),
+        imageBytes: snapshotBytes,
+      );
+      // ignore: avoid_print
+      print('[ONYX-DEBUG] YOLO result: $result');
+      if (result == null) {
+        developer.log(
+          '[ONYX] FR: YOLO/FR returned null for CH$channelId.',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+        return event;
+      }
+      if ((result.error ?? '').trim().isNotEmpty) {
+        developer.log(
+          'YOLO snapshot detect returned an error for CH$channelId: ${result.error}',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+      }
+      final faceMatchId = (result.faceMatchId ?? '').trim().toUpperCase();
+      if (faceMatchId.isNotEmpty) {
+        final person = _repository == null
+            ? null
+            : await _repository.readFrPerson(
+                siteId: _siteId,
+                personId: faceMatchId,
+              );
+        final label =
+            (person?.displayName ?? '').trim().isNotEmpty
+            ? person!.displayName.trim()
+            : faceMatchId;
+        developer.log(
+          '[ONYX] FR match: $label detected on CH$channelId '
+          '(confidence ${(result.faceConfidence ?? result.personConfidence ?? 0).toStringAsFixed(2)}, '
+          'distance ${(result.faceDistance ?? 0).toStringAsFixed(2)})',
+          name: 'OnyxHikIsapiStream',
+        );
+        return event.copyWith(
+          faceMatchId: faceMatchId,
+          faceMatchName: person?.displayName,
+          faceMatchConfidence: result.faceConfidence ?? result.personConfidence,
+          faceMatchDistance: result.faceDistance,
+          unknownPerson: false,
+        );
+      }
+      if (result.personDetected) {
+        developer.log(
+          '[ONYX] FR: Unknown person on CH$channelId '
+          '(confidence ${(result.personConfidence ?? 0).toStringAsFixed(2)})',
+          name: 'OnyxHikIsapiStream',
+        );
+        return event.copyWith(
+          unknownPerson: true,
+          faceMatchConfidence: result.personConfidence,
+        );
+      }
+      developer.log(
+        '[ONYX] FR: No person confirmed in CH$channelId snapshot '
+        '(${(result.personConfidence ?? 0).toStringAsFixed(2)}).',
+        name: 'OnyxHikIsapiStream',
+      );
+      return event;
+    } catch (error, stackTrace) {
+      // ignore: avoid_print
+      print(
+        '[ONYX-DEBUG] FR pipeline error on CH$channelId: $error',
+      );
+      developer.log(
+        '[ONYX] FR pipeline error on CH$channelId: $error',
+        name: 'OnyxHikIsapiStream',
+        level: 1000,
+        error: error,
+        stackTrace: stackTrace,
       );
       return event;
     }
-    final zone = _projector?.cameraZones[channelId];
-    developer.log(
-      '[ONYX] Sending CH$snapshotChannelId snapshot to YOLO/FR (${snapshotBytes.length} bytes)...',
-      name: 'OnyxHikIsapiStream',
-    );
-    final result = await liveSnapshotYoloService.detectSnapshot(
-      recordKey:
-          '${_siteId}_${channelId}_${event.detectedAt.toUtc().microsecondsSinceEpoch}',
-      provider: 'hikvision_isapi',
-      sourceType: 'site_awareness_snapshot',
-      clientId: _clientId,
-      siteId: _siteId,
-      cameraId: channelId,
-      zone: zone?.zoneName ?? 'Channel $channelId',
-      occurredAtUtc: event.detectedAt.toUtc(),
-      imageBytes: snapshotBytes,
-    );
-    if (result == null) {
-      return event;
-    }
-    if ((result.error ?? '').trim().isNotEmpty) {
-      developer.log(
-        'YOLO snapshot detect returned an error for CH$channelId: ${result.error}',
-        name: 'OnyxHikIsapiStream',
-        level: 900,
-      );
-    }
-    final faceMatchId = (result.faceMatchId ?? '').trim().toUpperCase();
-    if (faceMatchId.isNotEmpty) {
-      final person = _repository == null
-          ? null
-          : await _repository.readFrPerson(
-              siteId: _siteId,
-              personId: faceMatchId,
-            );
-      final label =
-          (person?.displayName ?? '').trim().isNotEmpty
-          ? person!.displayName.trim()
-          : faceMatchId;
-      developer.log(
-        '[ONYX] FR match: $label detected on CH$channelId '
-        '(confidence ${(result.faceConfidence ?? result.personConfidence ?? 0).toStringAsFixed(2)}, '
-        'distance ${(result.faceDistance ?? 0).toStringAsFixed(2)})',
-        name: 'OnyxHikIsapiStream',
-      );
-      return event.copyWith(
-        faceMatchId: faceMatchId,
-        faceMatchName: person?.displayName,
-        faceMatchConfidence: result.faceConfidence ?? result.personConfidence,
-        faceMatchDistance: result.faceDistance,
-        unknownPerson: false,
-      );
-    }
-    if (result.personDetected) {
-      developer.log(
-        '[ONYX] FR: Unknown person on CH$channelId '
-        '(confidence ${(result.personConfidence ?? 0).toStringAsFixed(2)})',
-        name: 'OnyxHikIsapiStream',
-      );
-      return event.copyWith(
-        unknownPerson: true,
-        faceMatchConfidence: result.personConfidence,
-      );
-    }
-    developer.log(
-      '[ONYX] FR: No person confirmed in CH$channelId snapshot '
-      '(${(result.personConfidence ?? 0).toStringAsFixed(2)}).',
-      name: 'OnyxHikIsapiStream',
-    );
-    return event;
   }
 
   Future<OnyxSiteAwarenessEvent> _enrichVehicleDetectionEvent(
