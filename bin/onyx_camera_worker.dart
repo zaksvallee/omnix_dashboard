@@ -1156,7 +1156,7 @@ class OnyxSiteAwarenessRepository {
       final rows = await _client
           .from('site_alert_config')
           .select(
-            'site_id,alert_window_start,alert_window_end,timezone,perimeter_sensitivity,semi_perimeter_sensitivity,indoor_sensitivity,loiter_detection_minutes,perimeter_sequence_alert,quiet_hours_sensitivity,day_sensitivity',
+            'site_id,alert_window_start,alert_window_end,timezone,perimeter_sensitivity,semi_perimeter_sensitivity,indoor_sensitivity,loiter_detection_minutes,perimeter_sequence_alert,quiet_hours_sensitivity,day_sensitivity,vehicle_daytime_threshold',
           )
           .eq('site_id', normalizedSiteId)
           .limit(1);
@@ -1675,7 +1675,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     final proactiveAlertService = _proactiveAlertService;
     if (proactiveAlertService != null &&
-        event.eventType == OnyxEventType.humanDetected) {
+        (event.eventType == OnyxEventType.humanDetected ||
+            event.eventType == OnyxEventType.vehicleDetected)) {
       final zone = projector.cameraZones[event.channelId];
       final channelId = int.tryParse(event.channelId.trim()) ?? 0;
       unawaited(
@@ -1687,6 +1688,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
               (zone?.isPerimeter == true ? 'perimeter' : 'semi_perimeter'),
           zoneName: zone?.zoneName ?? 'Channel ${event.channelId}',
           isPerimeter: zone?.isPerimeter ?? false,
+          detectionKind: event.eventType == OnyxEventType.vehicleDetected
+              ? OnyxProactiveDetectionKind.vehicle
+              : OnyxProactiveDetectionKind.human,
           detectedAt: event.detectedAt,
         ),
       );

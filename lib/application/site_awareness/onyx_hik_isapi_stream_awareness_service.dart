@@ -360,7 +360,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     final proactiveAlertService = _proactiveAlertService;
     if (proactiveAlertService != null &&
-        event.eventType == OnyxEventType.humanDetected) {
+        (event.eventType == OnyxEventType.humanDetected ||
+            event.eventType == OnyxEventType.vehicleDetected)) {
       final zone = projector.cameraZones[event.channelId];
       final channelId = int.tryParse(event.channelId.trim()) ?? 0;
       unawaited(
@@ -372,6 +373,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
               (zone?.isPerimeter == true ? 'perimeter' : 'semi_perimeter'),
           zoneName: zone?.zoneName ?? 'Channel ${event.channelId}',
           isPerimeter: zone?.isPerimeter ?? false,
+          detectionKind: event.eventType == OnyxEventType.vehicleDetected
+              ? OnyxProactiveDetectionKind.vehicle
+              : OnyxProactiveDetectionKind.human,
           detectedAt: event.detectedAt,
         ),
       );

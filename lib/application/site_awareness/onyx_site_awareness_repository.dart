@@ -247,7 +247,7 @@ class OnyxSiteAwarenessRepository {
       final rows = await _client
           .from('site_alert_config')
           .select(
-            'site_id,alert_window_start,alert_window_end,timezone,perimeter_sensitivity,semi_perimeter_sensitivity,indoor_sensitivity,loiter_detection_minutes,perimeter_sequence_alert,quiet_hours_sensitivity,day_sensitivity',
+            'site_id,alert_window_start,alert_window_end,timezone,perimeter_sensitivity,semi_perimeter_sensitivity,indoor_sensitivity,loiter_detection_minutes,perimeter_sequence_alert,quiet_hours_sensitivity,day_sensitivity,vehicle_daytime_threshold',
           )
           .eq('site_id', normalizedSiteId)
           .limit(1);

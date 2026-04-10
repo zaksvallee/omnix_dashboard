@@ -3,6 +3,8 @@ import 'dart:math' as math;
 
 enum OnyxAlertSensitivity { allMotion, suspiciousOnly, off }
 
+enum OnyxProactiveDetectionKind { human, vehicle }
+
 class SiteAlertConfig {
   final String siteId;
   final String siteType;
@@ -17,6 +19,7 @@ class SiteAlertConfig {
   final bool perimeterSequenceAlert;
   final OnyxAlertSensitivity quietHoursSensitivity;
   final OnyxAlertSensitivity daySensitivity;
+  final String vehicleDaytimeThreshold;
 
   const SiteAlertConfig({
     required this.siteId,
@@ -32,6 +35,7 @@ class SiteAlertConfig {
     required this.perimeterSequenceAlert,
     required this.quietHoursSensitivity,
     required this.daySensitivity,
+    required this.vehicleDaytimeThreshold,
   });
 
   factory SiteAlertConfig.fromRow(Map<String, dynamic> row) {
@@ -76,6 +80,10 @@ class SiteAlertConfig {
         row['day_sensitivity'],
         fallback: OnyxAlertSensitivity.suspiciousOnly,
       ),
+      vehicleDaytimeThreshold:
+          (row['vehicle_daytime_threshold'] as String? ?? 'quiet_hours_only')
+              .trim()
+              .toLowerCase(),
     );
   }
 
@@ -94,6 +102,7 @@ class SiteAlertConfig {
       perimeterSequenceAlert: true,
       quietHoursSensitivity: OnyxAlertSensitivity.allMotion,
       daySensitivity: OnyxAlertSensitivity.suspiciousOnly,
+      vehicleDaytimeThreshold: 'quiet_hours_only',
     );
   }
 }
@@ -105,6 +114,7 @@ class OnyxProactiveAlertDecision {
   final String zoneName;
   final bool isPerimeter;
   final bool isIndoor;
+  final OnyxProactiveDetectionKind detectionKind;
   final DateTime detectedAt;
   final bool withinAlertWindow;
   final bool isLoitering;
@@ -119,6 +129,7 @@ class OnyxProactiveAlertDecision {
     required this.zoneName,
     required this.isPerimeter,
     required this.isIndoor,
+    required this.detectionKind,
     required this.detectedAt,
     required this.withinAlertWindow,
     required this.isLoitering,
@@ -133,6 +144,7 @@ class OnyxProactiveAlertDecision {
       '$channelId',
       zoneType,
       zoneName,
+      detectionKind.name,
       isPerimeter ? 'perimeter' : 'non-perimeter',
       isIndoor ? 'indoor' : 'non-indoor',
       withinAlertWindow ? 'quiet' : 'day',
@@ -167,6 +179,7 @@ class OnyxProactiveAlertService {
     required String zoneType,
     required String zoneName,
     required bool isPerimeter,
+    required OnyxProactiveDetectionKind detectionKind,
     required DateTime detectedAt,
   }) async {
     final normalizedSiteId = siteId.trim();
@@ -186,6 +199,7 @@ class OnyxProactiveAlertService {
       zoneName: normalizedZoneName,
       isPerimeter: isPerimeter,
       isIndoor: isIndoor,
+      detectionKind: detectionKind,
       detectedAt: detectedAt.toUtc(),
     );
     final history = _detectionsBySite.putIfAbsent(
@@ -223,6 +237,7 @@ class OnyxProactiveAlertService {
       isSequence: sequence,
       withinAlertWindow: withinAlertWindow,
       occupancyWithinExpectedRange: occupancyWithinExpectedRange,
+      detectionKind: detectionKind,
     );
     if (!shouldAlert) {
       return;
@@ -235,6 +250,7 @@ class OnyxProactiveAlertService {
       zoneName: normalizedZoneName,
       isPerimeter: isPerimeter,
       isIndoor: isIndoor,
+      detectionKind: detectionKind,
       detectedAt: detectedAt.toUtc(),
       withinAlertWindow: withinAlertWindow,
       isLoitering: loitering,
@@ -250,6 +266,7 @@ class OnyxProactiveAlertService {
         zoneName: normalizedZoneName,
         zoneType: normalizedZoneType,
         isPerimeter: isPerimeter,
+        detectionKind: detectionKind,
         detectedAt: detectedAt.toUtc(),
         isLoitering: loitering,
         isSequence: sequence,
@@ -334,11 +351,18 @@ class OnyxProactiveAlertService {
     required bool isSequence,
     required bool withinAlertWindow,
     required bool occupancyWithinExpectedRange,
+    required OnyxProactiveDetectionKind detectionKind,
   }) async {
     if (zoneType == 'indoor') {
       return false;
     }
     final isPrivateResidence = config.siteType == 'private_residence';
+    if (detectionKind == OnyxProactiveDetectionKind.vehicle &&
+        isPrivateResidence &&
+        !_vehicleAlertsAllowedDuringDaytime(config) &&
+        !withinAlertWindow) {
+      return false;
+    }
     if (!withinAlertWindow &&
         isPrivateResidence &&
         !isLoitering &&
@@ -509,6 +533,7 @@ class OnyxProactiveAlertService {
     required String zoneName,
     required String zoneType,
     required bool isPerimeter,
+    required OnyxProactiveDetectionKind detectionKind,
     required DateTime detectedAt,
     required bool isLoitering,
     required bool isSequence,
@@ -518,10 +543,13 @@ class OnyxProactiveAlertService {
     final timeLabel =
         '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
     final lines = <String>['⚠️ $zoneName — $timeLabel'];
+    final subjectLabel = detectionKind == OnyxProactiveDetectionKind.vehicle
+        ? 'vehicle'
+        : 'movement';
     if (isPerimeter || zoneType == 'perimeter') {
-      lines.add('Perimeter camera detected movement.');
+      lines.add('Perimeter camera detected $subjectLabel.');
     } else {
-      lines.add('Semi-perimeter camera detected movement.');
+      lines.add('Semi-perimeter camera detected $subjectLabel.');
     }
     if (isLoitering) {
       lines.add('Same area active for $loiterMinutes minutes.');
@@ -530,6 +558,10 @@ class OnyxProactiveAlertService {
       lines.add('Movement detected across multiple perimeter points.');
     }
     return lines.join('\n');
+  }
+
+  bool _vehicleAlertsAllowedDuringDaytime(SiteAlertConfig config) {
+    return config.vehicleDaytimeThreshold == 'all_day';
   }
 
   DateTime _siteLocalTime(String timezone, DateTime utc) {
@@ -581,6 +613,7 @@ class _SiteDetectionRecord {
   final String zoneName;
   final bool isPerimeter;
   final bool isIndoor;
+  final OnyxProactiveDetectionKind detectionKind;
   final DateTime detectedAt;
 
   const _SiteDetectionRecord({
@@ -589,6 +622,7 @@ class _SiteDetectionRecord {
     required this.zoneName,
     required this.isPerimeter,
     required this.isIndoor,
+    required this.detectionKind,
     required this.detectedAt,
   });
 }
