@@ -9,24 +9,24 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-09 23:48
-- **Last commit:** fix: ElevenLabs CORS — route TTS through local proxy
-- **Commit hash:** d4748ae
+- **Date:** 2026-04-10 14:57
+- **Last commit:** feat: ONYX client onboarding wizard
+- **Commit hash:** 2a66a8c
 
-## Completed today (2026-04-09 night)
-- [x] Olarm integration scaffold — REST + MQTT, IDS/Paradox/DSC support, Telegram alerts (9da04c1)
-- [x] Telegram command routing brain — 8 query types (bf2477c)
-- [x] Camera-only occupancy tracking — site_occupancy_config + sessions (778a8d3)
-- [x] Full stack automation — make starts proxy + worker + Flutter (44e35da)
-- [x] Boot grace period fix — no longer drops live messages (9bf10f7)
-- [x] Telegram proxy CORS fix — local proxy on port 11637 (9129b55)
-- [x] Site awareness authoritative — fresh snapshot overrides browser (9cae56d)
-- [x] Gate sensor handling — honest camera-only response (ce06301)
-- [x] No fake guard data — guard queries check config first
-- [x] Double response fix — single Chrome tab polling (e7048e1)
-- [x] ElevenLabs voice integration — TTS via Telegram voice messages (ef16ab2)
-- [x] Client statement detection — natural acknowledgement (7252da5)
-- [x] ElevenLabs CORS proxy fix — local proxy route for browser-safe TTS (d4748ae)
+## Completed today (2026-04-10)
+- [x] YOLO in pipeline — false positive filter active (0814e25)
+- [x] Camera worker watchdog + Telegram alert on disconnect (35c0920)
+- [x] Camera worker keepalive — TCP nodelay + 60s heartbeat (9038560)
+- [x] Proactive alert engine — configurable windows, suspicious movement (6fa0217)
+- [x] Expected visitor suppression — cleaner/staff schedules (253571a)
+- [x] Universal site intelligence profiles — all industry types (b447367)
+- [x] Guard patrol system — QR checkpoints, compliance reports (9f409e4)
+- [x] FR person registry — private by architecture, client+AI only (019a508)
+- [x] FR enrollment tool — enroll_person.py (019a508)
+- [x] Client onboarding wizard — onboard_new_site.py (2a66a8c)
+- [x] Status API live — api.onyxsecurity.co.za/v1/status (0a252bb)
+- [x] Siri shortcut working — voice status via iPhone
+- [x] Zone mapping — all 16 MS Valee channels mapped (f428044)
 
 
 ## Completed (this sprint)
@@ -61,13 +61,17 @@
 - [ ] Server-side AI processor planning — move Telegram AI off the browser path
 
 ## Priority queue (next session)
-- P0: Zone mapping — which cameras are indoor vs outdoor
-- P1: Olarm device installation at MS Valee (IDS panel)
-- P2: Server-side AI processor
+- P0: Enroll MS Valee residents into FR gallery
+- P1: Alert tuning — verify false positives eliminated with YOLO
+- P2: Get Olarm device installed at MS Valee (IDS panel)
+- P3: Server-side AI processor — move brain off Mac
+- P4: MediaPipe behaviour intelligence
+- P5: LPR scaffold — license plate recognition
+- P6: First commercial client approach
 
 ## Next hardware to acquire
 - Olarm communicator for IDS panel (~R600-800)
-- Contact installer to fit it
+- Discuss with technician re: alarm panel activation
 
 ## Blocked / needs decision
 - [ ] dispatch_performance_projection.dart — per-contract value, waiting on contract model
