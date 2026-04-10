@@ -26,6 +26,7 @@ import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
+import 'package:omnix_dashboard/application/onyx_proactive_alert_service.dart';
 import 'package:supabase/supabase.dart';
 import 'package:xml/xml.dart' as xml;
 
@@ -229,6 +230,12 @@ class OnyxSiteAlert {
   final OnyxEventType eventType;
   final DateTime detectedAt;
   final bool isAcknowledged;
+  final String? zoneName;
+  final String? zoneType;
+  final String? message;
+  final bool isLoitering;
+  final bool isSequence;
+  final String? alertSource;
 
   const OnyxSiteAlert({
     required this.alertId,
@@ -236,7 +243,25 @@ class OnyxSiteAlert {
     required this.eventType,
     required this.detectedAt,
     this.isAcknowledged = false,
+    this.zoneName,
+    this.zoneType,
+    this.message,
+    this.isLoitering = false,
+    this.isSequence = false,
+    this.alertSource,
   });
+
+  String get deduplicationKey {
+    return <String>[
+      channelId,
+      eventType.name,
+      (zoneName ?? '').trim(),
+      (zoneType ?? '').trim(),
+      isLoitering ? 'loiter' : 'single',
+      isSequence ? 'sequence' : 'local',
+      (alertSource ?? '').trim(),
+    ].join('|');
+  }
 
   Map<String, Object?> toJsonMap() {
     return <String, Object?>{
@@ -245,6 +270,12 @@ class OnyxSiteAlert {
       'event_type': eventType.name,
       'detected_at': detectedAt.toUtc().toIso8601String(),
       'is_acknowledged': isAcknowledged,
+      'zone_name': zoneName,
+      'zone_type': zoneType,
+      'message': message,
+      'is_loitering': isLoitering,
+      'is_sequence': isSequence,
+      'alert_source': alertSource,
     };
   }
 }
@@ -360,36 +391,23 @@ class OnyxSiteAwarenessProjector {
           : null,
     );
     if (event.shouldRaiseAlert) {
-      // Dedup: if an unacknowledged alert for the same channel+eventType
-      // already exists within the window, update its timestamp instead of
-      // adding a second alert for the same trigger.
-      final dupIndex = _activeAlerts.indexWhere(
-        (alert) =>
-            !alert.isAcknowledged &&
-            alert.channelId == event.channelId &&
-            alert.eventType == event.eventType,
-      );
-      if (dupIndex >= 0) {
-        _activeAlerts[dupIndex] = OnyxSiteAlert(
-          alertId: _activeAlerts[dupIndex].alertId,
+      _upsertAlert(
+        OnyxSiteAlert(
+          alertId: _uuidV4(_random),
           channelId: event.channelId,
           eventType: event.eventType,
           detectedAt: event.detectedAt.toUtc(),
           isAcknowledged: false,
-        );
-      } else {
-        _activeAlerts.add(
-          OnyxSiteAlert(
-            alertId: _uuidV4(_random),
-            channelId: event.channelId,
-            eventType: event.eventType,
-            detectedAt: event.detectedAt.toUtc(),
-            isAcknowledged: false,
-          ),
-        );
-      }
+        ),
+      );
     }
     return snapshot(at: event.detectedAt);
+  }
+
+  OnyxSiteAwarenessSnapshot ingestSiteAlert(OnyxSiteAlert alert) {
+    _prune(alert.detectedAt);
+    _upsertAlert(alert);
+    return snapshot(at: alert.detectedAt);
   }
 
   OnyxSiteAwarenessSnapshot snapshot({DateTime? at}) {
@@ -491,6 +509,12 @@ class OnyxSiteAwarenessProjector {
         eventType: _activeAlerts[i].eventType,
         detectedAt: _activeAlerts[i].detectedAt,
         isAcknowledged: true,
+        zoneName: _activeAlerts[i].zoneName,
+        zoneType: _activeAlerts[i].zoneType,
+        message: _activeAlerts[i].message,
+        isLoitering: _activeAlerts[i].isLoitering,
+        isSequence: _activeAlerts[i].isSequence,
+        alertSource: _activeAlerts[i].alertSource,
       );
     }
     return snapshot();
@@ -500,6 +524,32 @@ class OnyxSiteAwarenessProjector {
     final cutoff = nowUtc.subtract(detectionWindow);
     _recentEvents.removeWhere((event) => event.detectedAt.isBefore(cutoff));
     _activeAlerts.removeWhere((alert) => alert.detectedAt.isBefore(cutoff));
+  }
+
+  void _upsertAlert(OnyxSiteAlert alert) {
+    final deduplicationKey = alert.deduplicationKey;
+    final dupIndex = _activeAlerts.indexWhere(
+      (existing) =>
+          !existing.isAcknowledged &&
+          existing.deduplicationKey == deduplicationKey,
+    );
+    if (dupIndex >= 0) {
+      _activeAlerts[dupIndex] = OnyxSiteAlert(
+        alertId: _activeAlerts[dupIndex].alertId,
+        channelId: alert.channelId,
+        eventType: alert.eventType,
+        detectedAt: alert.detectedAt.toUtc(),
+        isAcknowledged: false,
+        zoneName: alert.zoneName,
+        zoneType: alert.zoneType,
+        message: alert.message,
+        isLoitering: alert.isLoitering,
+        isSequence: alert.isSequence,
+        alertSource: alert.alertSource,
+      );
+      return;
+    }
+    _activeAlerts.add(alert);
   }
 
   OnyxChannelStatus _resolvedChannelStatus(
@@ -982,6 +1032,8 @@ class OnyxSiteAwarenessRepository {
   final SupabaseClient _client;
   final Map<String, OnyxSiteOccupancyConfig?> _occupancyConfigCache =
       <String, OnyxSiteOccupancyConfig?>{};
+  final Map<String, SiteAlertConfig?> _alertConfigCache =
+      <String, SiteAlertConfig?>{};
   final Map<String, Map<String, OnyxCameraZone>> _cameraZonesCache =
       <String, Map<String, OnyxCameraZone>>{};
 
@@ -1088,6 +1140,41 @@ class OnyxSiteAwarenessRepository {
         level: 1000,
       );
       return const <String, OnyxCameraZone>{};
+    }
+  }
+
+  Future<SiteAlertConfig?> readAlertConfig(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return null;
+    }
+    if (_alertConfigCache.containsKey(normalizedSiteId)) {
+      return _alertConfigCache[normalizedSiteId];
+    }
+    try {
+      final rows = await _client
+          .from('site_alert_config')
+          .select(
+            'site_id,alert_window_start,alert_window_end,timezone,perimeter_sensitivity,semi_perimeter_sensitivity,indoor_sensitivity,loiter_detection_minutes,perimeter_sequence_alert,quiet_hours_sensitivity,day_sensitivity',
+          )
+          .eq('site_id', normalizedSiteId)
+          .limit(1);
+      final config = rows.isEmpty
+          ? null
+          : SiteAlertConfig.fromRow(
+              Map<String, dynamic>.from(rows.first as Map),
+            );
+      _alertConfigCache[normalizedSiteId] = config;
+      return config;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read alert config for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return null;
     }
   }
 
@@ -1242,6 +1329,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final List<String> knownFaultChannels;
   final http.Client _client;
   final OnyxSiteAwarenessRepository? _repository;
+  final OnyxProactiveAlertService? _proactiveAlertService;
   final Duration requestTimeout;
   final Duration publishInterval;
   final Duration detectionWindow;
@@ -1254,6 +1342,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
 
   StreamSubscription<List<int>>? _streamSubscription;
+  StreamSubscription<OnyxProactiveAlertDecision>? _proactiveAlertSubscription;
   Timer? _publishTimer;
   OnyxSiteAwarenessProjector? _projector;
   OnyxSiteAwarenessSnapshot? _latestSnapshot;
@@ -1271,6 +1360,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     this.knownFaultChannels = const <String>[],
     http.Client? client,
     OnyxSiteAwarenessRepository? repository,
+    OnyxProactiveAlertService? proactiveAlertService,
     this.requestTimeout = const Duration(seconds: 15),
     this.publishInterval = const Duration(seconds: 30),
     this.detectionWindow = const Duration(minutes: 5),
@@ -1280,6 +1370,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     Future<void> Function(Duration duration)? sleep,
   }) : _client = client ?? http.Client(),
        _repository = repository,
+       _proactiveAlertService = proactiveAlertService,
        _clock = clock ?? DateTime.now,
        _sleep = sleep ?? Future<void>.delayed;
 
@@ -1324,6 +1415,35 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       detectionWindow: detectionWindow,
       clock: _clock,
     );
+    _proactiveAlertService?.resetSite(_siteId);
+    await _proactiveAlertSubscription?.cancel();
+    _proactiveAlertSubscription = _proactiveAlertService?.alerts.listen((
+      decision,
+    ) {
+      if (decision.siteId.trim() != _siteId.trim()) {
+        return;
+      }
+      final projector = _projector;
+      if (projector == null) {
+        return;
+      }
+      final snapshot = projector.ingestSiteAlert(
+        OnyxSiteAlert(
+          alertId:
+              '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}',
+          channelId: '${decision.channelId}',
+          eventType: OnyxEventType.humanDetected,
+          detectedAt: decision.detectedAt,
+          zoneName: decision.zoneName,
+          zoneType: decision.zoneType,
+          message: decision.message,
+          isLoitering: decision.isLoitering,
+          isSequence: decision.isSequence,
+          alertSource: 'proactive_detection',
+        ),
+      );
+      _emitSnapshot(snapshot);
+    });
     _latestSnapshot = null;
     _isConnected = false;
     _running = true;
@@ -1343,12 +1463,27 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _publishTimer = null;
     final subscription = _streamSubscription;
     _streamSubscription = null;
+    final proactiveAlertSubscription = _proactiveAlertSubscription;
+    _proactiveAlertSubscription = null;
     if (subscription != null) {
       try {
         await subscription.cancel();
       } catch (error, stackTrace) {
         developer.log(
           'Failed to cancel Hikvision alert stream subscription cleanly.',
+          name: 'OnyxHikIsapiStream',
+          error: error,
+          stackTrace: stackTrace,
+          level: 1000,
+        );
+      }
+    }
+    if (proactiveAlertSubscription != null) {
+      try {
+        await proactiveAlertSubscription.cancel();
+      } catch (error, stackTrace) {
+        developer.log(
+          'Failed to cancel proactive alert subscription cleanly.',
           name: 'OnyxHikIsapiStream',
           error: error,
           stackTrace: stackTrace,
@@ -1529,6 +1664,24 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (repository != null && event.eventType == OnyxEventType.humanDetected) {
       unawaited(_persistOccupancy(repository, event));
     }
+    final proactiveAlertService = _proactiveAlertService;
+    if (proactiveAlertService != null &&
+        event.eventType == OnyxEventType.humanDetected) {
+      final zone = projector.cameraZones[event.channelId];
+      final channelId = int.tryParse(event.channelId.trim()) ?? 0;
+      unawaited(
+        proactiveAlertService.evaluateDetection(
+          siteId: _siteId,
+          channelId: channelId,
+          zoneType:
+              zone?.zoneType ??
+              (zone?.isPerimeter == true ? 'perimeter' : 'semi_perimeter'),
+          zoneName: zone?.zoneName ?? 'Channel ${event.channelId}',
+          isPerimeter: zone?.isPerimeter ?? false,
+          detectedAt: event.detectedAt,
+        ),
+      );
+    }
     if (event.shouldPublishImmediately) {
       _emitSnapshot(snapshot);
     }
@@ -1694,9 +1847,13 @@ Future<void> main() async {
   final supabaseKey = serviceKey.isNotEmpty ? serviceKey : anonKey;
 
   OnyxSiteAwarenessRepository? repository;
+  OnyxProactiveAlertService? proactiveAlertService;
   if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
     final supabaseClient = SupabaseClient(supabaseUrl, supabaseKey);
     repository = OnyxSiteAwarenessRepository(supabaseClient);
+    proactiveAlertService = OnyxProactiveAlertService(
+      readConfig: repository.readAlertConfig,
+    );
     stdout.writeln(
       '[ONYX] Supabase: $supabaseUrl '
       '(${serviceKey.isNotEmpty ? 'service key' : 'anon key'})',
@@ -1719,6 +1876,7 @@ Future<void> main() async {
     password: password,
     knownFaultChannels: knownFaultChannels,
     repository: repository,
+    proactiveAlertService: proactiveAlertService,
   );
 
   // Subscribe before starting so no events are missed.
@@ -1744,6 +1902,7 @@ Future<void> main() async {
     try {
       await subscription.cancel();
       await service.stop();
+      await proactiveAlertService?.dispose();
     } catch (error) {
       stderr.writeln('[ONYX] Error during shutdown: $error');
     }

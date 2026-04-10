@@ -2,6 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:supabase/supabase.dart';
 
+import '../onyx_proactive_alert_service.dart';
 import 'onyx_site_awareness_snapshot.dart';
 
 class OnyxSiteOccupancyConfig {
@@ -121,6 +122,8 @@ class OnyxSiteAwarenessRepository {
   final SupabaseClient _client;
   final Map<String, OnyxSiteOccupancyConfig?> _occupancyConfigCache =
       <String, OnyxSiteOccupancyConfig?>{};
+  final Map<String, SiteAlertConfig?> _alertConfigCache =
+      <String, SiteAlertConfig?>{};
   final Map<String, Map<String, OnyxCameraZone>> _cameraZonesCache =
       <String, Map<String, OnyxCameraZone>>{};
 
@@ -227,6 +230,41 @@ class OnyxSiteAwarenessRepository {
         level: 1000,
       );
       return const <String, OnyxCameraZone>{};
+    }
+  }
+
+  Future<SiteAlertConfig?> readAlertConfig(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return null;
+    }
+    if (_alertConfigCache.containsKey(normalizedSiteId)) {
+      return _alertConfigCache[normalizedSiteId];
+    }
+    try {
+      final rows = await _client
+          .from('site_alert_config')
+          .select(
+            'site_id,alert_window_start,alert_window_end,timezone,perimeter_sensitivity,semi_perimeter_sensitivity,indoor_sensitivity,loiter_detection_minutes,perimeter_sequence_alert,quiet_hours_sensitivity,day_sensitivity',
+          )
+          .eq('site_id', normalizedSiteId)
+          .limit(1);
+      final config = rows.isEmpty
+          ? null
+          : SiteAlertConfig.fromRow(
+              Map<String, dynamic>.from(rows.first as Map),
+            );
+      _alertConfigCache[normalizedSiteId] = config;
+      return config;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read alert config for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return null;
     }
   }
 

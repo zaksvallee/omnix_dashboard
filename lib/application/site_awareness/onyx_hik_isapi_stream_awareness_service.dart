@@ -9,6 +9,7 @@ import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 
+import '../onyx_proactive_alert_service.dart';
 import '../dvr_http_auth.dart';
 import 'onyx_site_awareness_repository.dart';
 import 'onyx_site_awareness_service.dart';
@@ -22,6 +23,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final List<String> knownFaultChannels;
   final http.Client _client;
   final OnyxSiteAwarenessRepository? _repository;
+  final OnyxProactiveAlertService? _proactiveAlertService;
   final Duration requestTimeout;
   final Duration publishInterval;
   final Duration detectionWindow;
@@ -34,6 +36,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
 
   StreamSubscription<List<int>>? _streamSubscription;
+  StreamSubscription<OnyxProactiveAlertDecision>? _proactiveAlertSubscription;
   Timer? _publishTimer;
   OnyxSiteAwarenessProjector? _projector;
   OnyxSiteAwarenessSnapshot? _latestSnapshot;
@@ -51,6 +54,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     this.knownFaultChannels = const <String>[],
     http.Client? client,
     OnyxSiteAwarenessRepository? repository,
+    OnyxProactiveAlertService? proactiveAlertService,
     this.requestTimeout = const Duration(seconds: 15),
     this.publishInterval = const Duration(seconds: 30),
     this.detectionWindow = const Duration(minutes: 5),
@@ -60,6 +64,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     Future<void> Function(Duration duration)? sleep,
   }) : _client = client ?? http.Client(),
        _repository = repository,
+       _proactiveAlertService = proactiveAlertService,
        _clock = clock ?? DateTime.now,
        _sleep = sleep ?? Future<void>.delayed;
 
@@ -104,6 +109,35 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       detectionWindow: detectionWindow,
       clock: _clock,
     );
+    _proactiveAlertService?.resetSite(_siteId);
+    await _proactiveAlertSubscription?.cancel();
+    _proactiveAlertSubscription = _proactiveAlertService?.alerts.listen((
+      decision,
+    ) {
+      if (decision.siteId.trim() != _siteId.trim()) {
+        return;
+      }
+      final projector = _projector;
+      if (projector == null) {
+        return;
+      }
+      final snapshot = projector.ingestSiteAlert(
+        OnyxSiteAlert(
+          alertId:
+              '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}',
+          channelId: '${decision.channelId}',
+          eventType: OnyxEventType.humanDetected,
+          detectedAt: decision.detectedAt,
+          zoneName: decision.zoneName,
+          zoneType: decision.zoneType,
+          message: decision.message,
+          isLoitering: decision.isLoitering,
+          isSequence: decision.isSequence,
+          alertSource: 'proactive_detection',
+        ),
+      );
+      _emitSnapshot(snapshot);
+    });
     _latestSnapshot = null;
     _isConnected = false;
     _running = true;
@@ -123,12 +157,27 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _publishTimer = null;
     final subscription = _streamSubscription;
     _streamSubscription = null;
+    final proactiveAlertSubscription = _proactiveAlertSubscription;
+    _proactiveAlertSubscription = null;
     if (subscription != null) {
       try {
         await subscription.cancel();
       } catch (error, stackTrace) {
         developer.log(
           'Failed to cancel Hikvision alert stream subscription cleanly.',
+          name: 'OnyxHikIsapiStream',
+          error: error,
+          stackTrace: stackTrace,
+          level: 1000,
+        );
+      }
+    }
+    if (proactiveAlertSubscription != null) {
+      try {
+        await proactiveAlertSubscription.cancel();
+      } catch (error, stackTrace) {
+        developer.log(
+          'Failed to cancel proactive alert subscription cleanly.',
           name: 'OnyxHikIsapiStream',
           error: error,
           stackTrace: stackTrace,
@@ -308,6 +357,24 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final repository = _repository;
     if (repository != null && event.eventType == OnyxEventType.humanDetected) {
       unawaited(_persistOccupancy(repository, event));
+    }
+    final proactiveAlertService = _proactiveAlertService;
+    if (proactiveAlertService != null &&
+        event.eventType == OnyxEventType.humanDetected) {
+      final zone = projector.cameraZones[event.channelId];
+      final channelId = int.tryParse(event.channelId.trim()) ?? 0;
+      unawaited(
+        proactiveAlertService.evaluateDetection(
+          siteId: _siteId,
+          channelId: channelId,
+          zoneType:
+              zone?.zoneType ??
+              (zone?.isPerimeter == true ? 'perimeter' : 'semi_perimeter'),
+          zoneName: zone?.zoneName ?? 'Channel ${event.channelId}',
+          isPerimeter: zone?.isPerimeter ?? false,
+          detectedAt: event.detectedAt,
+        ),
+      );
     }
     if (event.shouldPublishImmediately) {
       _emitSnapshot(snapshot);

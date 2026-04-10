@@ -382,6 +382,21 @@ class TelegramPushCoordinator {
     );
   }
 
+  Future<TelegramPushDispatchResult> sendProactiveSiteAlert({
+    required String clientId,
+    required String siteId,
+    required String alertId,
+    required String text,
+  }) {
+    final normalizedAlertId = alertId.trim().isEmpty ? 'alert' : alertId.trim();
+    return sendScopedAlert(
+      clientId: clientId,
+      siteId: siteId,
+      messageKeyPrefix: 'tg-site-awareness-alert-$normalizedAlertId',
+      text: text,
+    );
+  }
+
   Map<String, List<String>> _mergeDeliveredMessageKeysByScope({
     required Iterable<String> sentMessageKeys,
     required Map<String, String> scopeByMessageKey,

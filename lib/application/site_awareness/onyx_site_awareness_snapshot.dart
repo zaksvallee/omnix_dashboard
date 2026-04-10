@@ -200,6 +200,12 @@ class OnyxSiteAlert {
   final OnyxEventType eventType;
   final DateTime detectedAt;
   final bool isAcknowledged;
+  final String? zoneName;
+  final String? zoneType;
+  final String? message;
+  final bool isLoitering;
+  final bool isSequence;
+  final String? alertSource;
 
   const OnyxSiteAlert({
     required this.alertId,
@@ -207,7 +213,25 @@ class OnyxSiteAlert {
     required this.eventType,
     required this.detectedAt,
     this.isAcknowledged = false,
+    this.zoneName,
+    this.zoneType,
+    this.message,
+    this.isLoitering = false,
+    this.isSequence = false,
+    this.alertSource,
   });
+
+  String get deduplicationKey {
+    return <String>[
+      channelId,
+      eventType.name,
+      (zoneName ?? '').trim(),
+      (zoneType ?? '').trim(),
+      isLoitering ? 'loiter' : 'single',
+      isSequence ? 'sequence' : 'local',
+      (alertSource ?? '').trim(),
+    ].join('|');
+  }
 
   Map<String, Object?> toJsonMap() {
     return <String, Object?>{
@@ -216,6 +240,12 @@ class OnyxSiteAlert {
       'event_type': eventType.name,
       'detected_at': detectedAt.toUtc().toIso8601String(),
       'is_acknowledged': isAcknowledged,
+      'zone_name': zoneName,
+      'zone_type': zoneType,
+      'message': message,
+      'is_loitering': isLoitering,
+      'is_sequence': isSequence,
+      'alert_source': alertSource,
     };
   }
 }
@@ -331,36 +361,23 @@ class OnyxSiteAwarenessProjector {
           : null,
     );
     if (event.shouldRaiseAlert) {
-      // Dedup: if an unacknowledged alert for the same channel+eventType
-      // already exists within the window, update its timestamp instead of
-      // adding a second alert for the same trigger.
-      final dupIndex = _activeAlerts.indexWhere(
-        (alert) =>
-            !alert.isAcknowledged &&
-            alert.channelId == event.channelId &&
-            alert.eventType == event.eventType,
-      );
-      if (dupIndex >= 0) {
-        _activeAlerts[dupIndex] = OnyxSiteAlert(
-          alertId: _activeAlerts[dupIndex].alertId,
+      _upsertAlert(
+        OnyxSiteAlert(
+          alertId: _uuidV4(_random),
           channelId: event.channelId,
           eventType: event.eventType,
           detectedAt: event.detectedAt.toUtc(),
           isAcknowledged: false,
-        );
-      } else {
-        _activeAlerts.add(
-          OnyxSiteAlert(
-            alertId: _uuidV4(_random),
-            channelId: event.channelId,
-            eventType: event.eventType,
-            detectedAt: event.detectedAt.toUtc(),
-            isAcknowledged: false,
-          ),
-        );
-      }
+        ),
+      );
     }
     return snapshot(at: event.detectedAt);
+  }
+
+  OnyxSiteAwarenessSnapshot ingestSiteAlert(OnyxSiteAlert alert) {
+    _prune(alert.detectedAt);
+    _upsertAlert(alert);
+    return snapshot(at: alert.detectedAt);
   }
 
   OnyxSiteAwarenessSnapshot snapshot({DateTime? at}) {
@@ -462,6 +479,12 @@ class OnyxSiteAwarenessProjector {
         eventType: _activeAlerts[i].eventType,
         detectedAt: _activeAlerts[i].detectedAt,
         isAcknowledged: true,
+        zoneName: _activeAlerts[i].zoneName,
+        zoneType: _activeAlerts[i].zoneType,
+        message: _activeAlerts[i].message,
+        isLoitering: _activeAlerts[i].isLoitering,
+        isSequence: _activeAlerts[i].isSequence,
+        alertSource: _activeAlerts[i].alertSource,
       );
     }
     return snapshot();
@@ -471,6 +494,32 @@ class OnyxSiteAwarenessProjector {
     final cutoff = nowUtc.subtract(detectionWindow);
     _recentEvents.removeWhere((event) => event.detectedAt.isBefore(cutoff));
     _activeAlerts.removeWhere((alert) => alert.detectedAt.isBefore(cutoff));
+  }
+
+  void _upsertAlert(OnyxSiteAlert alert) {
+    final deduplicationKey = alert.deduplicationKey;
+    final dupIndex = _activeAlerts.indexWhere(
+      (existing) =>
+          !existing.isAcknowledged &&
+          existing.deduplicationKey == deduplicationKey,
+    );
+    if (dupIndex >= 0) {
+      _activeAlerts[dupIndex] = OnyxSiteAlert(
+        alertId: _activeAlerts[dupIndex].alertId,
+        channelId: alert.channelId,
+        eventType: alert.eventType,
+        detectedAt: alert.detectedAt.toUtc(),
+        isAcknowledged: false,
+        zoneName: alert.zoneName,
+        zoneType: alert.zoneType,
+        message: alert.message,
+        isLoitering: alert.isLoitering,
+        isSequence: alert.isSequence,
+        alertSource: alert.alertSource,
+      );
+      return;
+    }
+    _activeAlerts.add(alert);
   }
 
   OnyxChannelStatus _resolvedChannelStatus(

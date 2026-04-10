@@ -1957,7 +1957,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool _telegramAdminOffsetBootstrapped = false;
   bool _telegramPollingLockAcquisitionInFlight = false;
   bool _telegramPollingPrimaryTab = false;
+  bool _siteAwarenessAlertPollInFlight = false;
   DateTime? _telegramAdminOffsetBootstrappedAtUtc;
+  DateTime? _siteAwarenessAlertBootCutoffUtc;
   DateTime? _telegramAdminLastCommandAtUtc;
   String? _telegramAdminLastCommandSummary;
   List<String> _telegramAdminCommandAudit = const [];
@@ -2150,6 +2152,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Timer? _guardOpsSyncTimer;
   Timer? _offlineIncidentSpoolSyncTimer;
   Timer? _telegramAdminPollTimer;
+  Timer? _siteAwarenessAlertPollTimer;
   Timer? _monitoringWatchScheduleTimer;
   Timer? _monitoringContinuousVisualWatchTimer;
   Timer? _demoAutopilotRouteTimer;
@@ -2172,6 +2175,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   _monitoringWatchOutcomeByScope = {};
   final Map<String, MonitoringWatchRecoveryState>
   _monitoringWatchRecoveryByScope = {};
+  final Set<String> _siteAwarenessDeliveredAlertIds = <String>{};
   final Map<String, MonitoringSceneReviewRecord>
   _monitoringSceneReviewByIntelligenceId = {};
   bool _demoAutopilotRunning = false;
@@ -3465,6 +3469,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _startOfflineIncidentSpoolSyncLoop();
     _startOpsIntegrationPollingLoop();
     _startTelegramAdminControlLoop();
+    _startSiteAwarenessAlertLoop();
     _startMonitoringWatchScheduleLoop();
     if (widget.initialTelegramInboundUpdatesOverride.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3668,6 +3673,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _tacticalGuardPositionsDebounceTimer?.cancel();
     _offlineIncidentSpoolSyncTimer?.cancel();
     _telegramAdminPollTimer?.cancel();
+    _siteAwarenessAlertPollTimer?.cancel();
     _telegramPollingTabLock.dispose();
     _monitoringWatchScheduleTimer?.cancel();
     _monitoringContinuousVisualWatchTimer?.cancel();
@@ -3721,6 +3727,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         if (!_keepTelegramPollingWhenBackgrounded) {
           _telegramAdminPollTimer?.cancel();
           _telegramAdminPollTimer = null;
+          _siteAwarenessAlertPollTimer?.cancel();
+          _siteAwarenessAlertPollTimer = null;
           _telegramPollingTabLock.release();
           _telegramPollingPrimaryTab = false;
         }
@@ -3729,6 +3737,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _startOpsIntegrationPollingLoop();
     _startTelegramAdminControlLoop();
+    _startSiteAwarenessAlertLoop();
     _startMonitoringWatchScheduleLoop();
     unawaited(_maybeAutoGenerateMorningSovereignReport());
     if (!widget.supabaseReady || _guardOpsSyncInFlight) return;
@@ -14280,6 +14289,33 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     unawaited(_ensureTelegramPollingPrimaryTab());
   }
 
+  bool get _siteAwarenessAlertWatcherEnabled {
+    return widget.supabaseReady &&
+        _telegramBridge.isConfigured &&
+        _selectedClient.trim().isNotEmpty &&
+        _selectedSite.trim().isNotEmpty;
+  }
+
+  void _startSiteAwarenessAlertLoop() {
+    if (!_siteAwarenessAlertWatcherEnabled) {
+      _siteAwarenessAlertPollTimer?.cancel();
+      _siteAwarenessAlertPollTimer = null;
+      return;
+    }
+    if (_siteAwarenessAlertPollTimer != null ||
+        _siteAwarenessAlertPollInFlight) {
+      return;
+    }
+    if (!_telegramPollingPrimaryTab) {
+      if (!_telegramPollingLockAcquisitionInFlight) {
+        unawaited(_ensureTelegramPrimaryTabForSiteAwarenessAlerts());
+      }
+      return;
+    }
+    _siteAwarenessAlertBootCutoffUtc ??= DateTime.now().toUtc();
+    _scheduleNextSiteAwarenessAlertPoll(1);
+  }
+
   Future<void> _ensureTelegramPollingPrimaryTab() async {
     if (!_telegramInboundRouterEnabled ||
         _telegramAdminPollTimer != null ||
@@ -14312,6 +14348,115 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'bridge=${_telegramBridge.isConfigured ? 'configured' : 'disabled'}',
     );
     _scheduleNextTelegramAdminPoll(1);
+    _startSiteAwarenessAlertLoop();
+  }
+
+  Future<void> _ensureTelegramPrimaryTabForSiteAwarenessAlerts() async {
+    if (!_siteAwarenessAlertWatcherEnabled ||
+        _telegramPollingLockAcquisitionInFlight) {
+      return;
+    }
+    _telegramPollingLockAcquisitionInFlight = true;
+    try {
+      final isPrimary = await _telegramPollingTabLock.ensurePrimary();
+      _telegramPollingPrimaryTab = isPrimary;
+      if (!isPrimary) {
+        return;
+      }
+    } finally {
+      _telegramPollingLockAcquisitionInFlight = false;
+    }
+    if (_telegramInboundRouterEnabled && _telegramAdminPollTimer == null) {
+      _scheduleNextTelegramAdminPoll(1);
+    }
+    _siteAwarenessAlertBootCutoffUtc ??= DateTime.now().toUtc();
+    _scheduleNextSiteAwarenessAlertPoll(1);
+  }
+
+  void _scheduleNextSiteAwarenessAlertPoll(int delaySeconds) {
+    _siteAwarenessAlertPollTimer?.cancel();
+    if (!_siteAwarenessAlertWatcherEnabled || !_telegramPollingPrimaryTab) {
+      _siteAwarenessAlertPollTimer = null;
+      return;
+    }
+    _siteAwarenessAlertPollTimer = Timer(Duration(seconds: delaySeconds), () {
+      unawaited(_pollSiteAwarenessAlertsOnce());
+    });
+  }
+
+  Future<void> _pollSiteAwarenessAlertsOnce() async {
+    if (!_siteAwarenessAlertWatcherEnabled ||
+        !_telegramPollingPrimaryTab ||
+        _siteAwarenessAlertPollInFlight) {
+      return;
+    }
+    _siteAwarenessAlertPollInFlight = true;
+    try {
+      final row = await _readLatestSiteAwarenessSnapshotRow(
+        siteId: _selectedSite,
+      );
+      if (row == null) {
+        return;
+      }
+      final nowUtc = DateTime.now().toUtc();
+      if (!_isSiteAwarenessSnapshotFresh(row, nowUtc)) {
+        return;
+      }
+      _siteAwarenessAlertBootCutoffUtc ??= nowUtc;
+      final activeAlerts = _siteAwarenessActiveAlertsFromRow(row);
+      for (final alert in activeAlerts.reversed) {
+        final alertId = alert.alertId.trim();
+        if (alertId.isEmpty ||
+            alert.isAcknowledged ||
+            alert.message.trim().isEmpty) {
+          if (alertId.isNotEmpty) {
+            _siteAwarenessDeliveredAlertIds.add(alertId);
+          }
+          continue;
+        }
+        final bootCutoffUtc = _siteAwarenessAlertBootCutoffUtc;
+        if (bootCutoffUtc != null && alert.detectedAt.isBefore(bootCutoffUtc)) {
+          _siteAwarenessDeliveredAlertIds.add(alertId);
+          continue;
+        }
+        if (_siteAwarenessDeliveredAlertIds.contains(alertId)) {
+          continue;
+        }
+        final dispatch = await _telegramPushCoordinator.sendProactiveSiteAlert(
+          clientId: _selectedClient,
+          siteId: _selectedSite,
+          alertId: alertId,
+          text: alert.message,
+        );
+        if (!mounted) {
+          continue;
+        }
+        setState(() {
+          _telegramBridgeHealthLabel = dispatch.healthLabel;
+          _telegramBridgeHealthDetail = dispatch.healthDetail;
+          _telegramBridgeHealthUpdatedAtUtc = _telegramFlowNowUtc();
+        });
+        if (dispatch.attemptStatus != 'telegram-ok') {
+          continue;
+        }
+        _siteAwarenessDeliveredAlertIds.add(alertId);
+        await _appendTelegramConversationMessage(
+          clientId: _selectedClient,
+          siteId: _selectedSite,
+          author: 'ONYX Watch',
+          body: alert.message,
+          occurredAtUtc: alert.detectedAt,
+          roomKey: 'Residents',
+          viewerRole: ClientAppViewerRole.client.name,
+          incidentStatusLabel: 'Proactive Alert',
+          messageSource: 'telegram',
+          messageProvider: 'site_awareness',
+        );
+      }
+    } finally {
+      _siteAwarenessAlertPollInFlight = false;
+      _scheduleNextSiteAwarenessAlertPoll(5);
+    }
   }
 
   void _scheduleNextTelegramAdminPoll(int delaySeconds) {
@@ -14629,6 +14774,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   void _handleTelegramPollingPrimaryLost() {
     _telegramAdminPollTimer?.cancel();
     _telegramAdminPollTimer = null;
+    _siteAwarenessAlertPollTimer?.cancel();
+    _siteAwarenessAlertPollTimer = null;
     _telegramPollingPrimaryTab = false;
     if (!mounted) {
       return;
@@ -14644,9 +14791,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (!_telegramInboundRouterEnabled ||
         _telegramAdminPollTimer != null ||
         _telegramPollingLockAcquisitionInFlight) {
+      _startSiteAwarenessAlertLoop();
       return;
     }
     unawaited(_ensureTelegramPollingPrimaryTab());
+    _startSiteAwarenessAlertLoop();
   }
 
   void _recordTelegramInboundUpdateFailure({
@@ -37810,6 +37959,92 @@ TelegramAiSiteAwarenessSummary? _telegramAiSiteAwarenessSummaryFromRow(
     activeAlertCount: activeAlerts is List ? activeAlerts.length : 0,
     knownFaultChannels: knownFaultLabels,
   );
+}
+
+class _SiteAwarenessActiveAlertRecord {
+  final String alertId;
+  final String channelId;
+  final String eventType;
+  final DateTime detectedAt;
+  final bool isAcknowledged;
+  final String message;
+  final String? zoneName;
+  final String? zoneType;
+  final bool isLoitering;
+  final bool isSequence;
+  final String? alertSource;
+
+  const _SiteAwarenessActiveAlertRecord({
+    required this.alertId,
+    required this.channelId,
+    required this.eventType,
+    required this.detectedAt,
+    required this.isAcknowledged,
+    required this.message,
+    this.zoneName,
+    this.zoneType,
+    this.isLoitering = false,
+    this.isSequence = false,
+    this.alertSource,
+  });
+}
+
+List<_SiteAwarenessActiveAlertRecord> _siteAwarenessActiveAlertsFromRow(
+  Map<String, dynamic> row,
+) {
+  final rawAlerts = row['active_alerts'];
+  if (rawAlerts is! List) {
+    return const <_SiteAwarenessActiveAlertRecord>[];
+  }
+  final alerts = <_SiteAwarenessActiveAlertRecord>[];
+  for (final entry in rawAlerts) {
+    final alert = _siteAwarenessAsObjectMap(entry);
+    if (alert == null) {
+      continue;
+    }
+    final alertId = _siteAwarenessSummaryString(alert['alert_id']) ?? '';
+    final channelId = _siteAwarenessSummaryString(alert['channel_id']) ?? '';
+    final detectedAt = _siteAwarenessSummaryDate(alert['detected_at']);
+    if (alertId.isEmpty || detectedAt == null) {
+      continue;
+    }
+    alerts.add(
+      _SiteAwarenessActiveAlertRecord(
+        alertId: alertId,
+        channelId: channelId,
+        eventType:
+            _siteAwarenessSummaryString(alert['event_type']) ?? 'unknown',
+        detectedAt: detectedAt,
+        isAcknowledged:
+            _siteAwarenessSummaryBool(
+              alert['is_acknowledged'] ?? alert['isAcknowledged'],
+            ) ??
+            false,
+        message: _siteAwarenessSummaryString(alert['message']) ?? '',
+        zoneName: _siteAwarenessSummaryString(
+          alert['zone_name'] ?? alert['zoneName'],
+        ),
+        zoneType: _siteAwarenessSummaryString(
+          alert['zone_type'] ?? alert['zoneType'],
+        ),
+        isLoitering:
+            _siteAwarenessSummaryBool(
+              alert['is_loitering'] ?? alert['isLoitering'],
+            ) ??
+            false,
+        isSequence:
+            _siteAwarenessSummaryBool(
+              alert['is_sequence'] ?? alert['isSequence'],
+            ) ??
+            false,
+        alertSource: _siteAwarenessSummaryString(
+          alert['alert_source'] ?? alert['alertSource'],
+        ),
+      ),
+    );
+  }
+  alerts.sort((left, right) => right.detectedAt.compareTo(left.detectedAt));
+  return List<_SiteAwarenessActiveAlertRecord>.unmodifiable(alerts);
 }
 
 class _SiteAwarenessHumanZone {
