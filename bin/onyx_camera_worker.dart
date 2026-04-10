@@ -1152,6 +1152,7 @@ class OnyxSiteAwarenessRepository {
       return _alertConfigCache[normalizedSiteId];
     }
     try {
+      final occupancyConfig = await readOccupancyConfig(normalizedSiteId);
       final rows = await _client
           .from('site_alert_config')
           .select(
@@ -1161,9 +1162,13 @@ class OnyxSiteAwarenessRepository {
           .limit(1);
       final config = rows.isEmpty
           ? null
-          : SiteAlertConfig.fromRow(
-              Map<String, dynamic>.from(rows.first as Map),
-            );
+          : SiteAlertConfig.fromRow(<String, dynamic>{
+              ...Map<String, dynamic>.from(rows.first as Map),
+              if (occupancyConfig != null) ...<String, dynamic>{
+                'site_type': occupancyConfig.siteType,
+                'expected_occupancy': occupancyConfig.expectedOccupancy,
+              },
+            });
       _alertConfigCache[normalizedSiteId] = config;
       return config;
     } catch (error, stackTrace) {
@@ -1202,10 +1207,14 @@ class OnyxSiteAwarenessRepository {
         ...?existing?.channelsWithDetections,
         normalizedChannelId,
       }.toList(growable: false)..sort();
-      final peakDetected =
+      final rawPeakDetected =
           updatedChannels.length > (existing?.peakDetected ?? 0)
           ? updatedChannels.length
           : (existing?.peakDetected ?? 0);
+      final expectedOccupancy = config?.expectedOccupancy ?? 0;
+      final peakDetected = expectedOccupancy > 0
+          ? math.min(rawPeakDetected, expectedOccupancy)
+          : rawPeakDetected;
       await _client.from('site_occupancy_sessions').upsert(<String, Object?>{
         'site_id': normalizedSiteId,
         'session_date': sessionDate,

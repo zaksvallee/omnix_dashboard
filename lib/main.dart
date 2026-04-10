@@ -16521,10 +16521,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           occupancyConfigRow,
         );
         final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
-        final occupancyPeak = _siteOccupancyPeakDetected(occupancySessionRow);
-        final detectedToday = siteAwarenessSummary.humanCount > occupancyPeak
-            ? siteAwarenessSummary.humanCount
-            : occupancyPeak;
+        final detectedToday = _siteOccupancyDisplayedDetectedCount(
+          configRow: occupancyConfigRow,
+          sessionRow: occupancySessionRow,
+          currentHumanCount: siteAwarenessSummary.humanCount,
+        );
         lines.add(
           'Occupancy: $detectedToday of $expectedOccupancy $occupancyLabel detected today',
         );
@@ -16695,7 +16696,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             ? 'Perimeter clear.'
             : 'Perimeter alert active.',
       ];
-      final humanCount = siteAwarenessSummary.humanCount;
+      final humanCount = _siteOccupancyDisplayedDetectedCount(
+        configRow: occupancyConfigRow,
+        sessionRow: occupancySessionRow,
+        currentHumanCount: siteAwarenessSummary.humanCount,
+      );
       if (humanCount > 0) {
         segments.add(
           humanCount == 1
@@ -16737,10 +16742,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             occupancyConfigRow,
           );
           final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
-          final occupancyPeak = _siteOccupancyPeakDetected(occupancySessionRow);
-          final detectedToday = siteAwarenessSummary.humanCount > occupancyPeak
-              ? siteAwarenessSummary.humanCount
-              : occupancyPeak;
+          final detectedToday = _siteOccupancyDisplayedDetectedCount(
+            configRow: occupancyConfigRow,
+            sessionRow: occupancySessionRow,
+            currentHumanCount: siteAwarenessSummary.humanCount,
+          );
           segments.add(
             '$detectedToday of $expectedOccupancy $occupancyLabel detected today.',
           );
@@ -17003,8 +17009,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }) async {
     final normalizedPrompt = prompt.toLowerCase();
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final occupancyConfigRow = await _readSiteOccupancyConfigRow(
+      siteId: siteId,
+    );
     if (!normalizedPrompt.contains('weekly') &&
         !normalizedPrompt.contains('monthly')) {
+      if (occupancyConfigRow != null &&
+          !_siteOccupancyHasGuard(occupancyConfigRow)) {
+        return _telegramCameraOnlyResidenceReportReply(
+          clientId: clientId,
+          siteId: siteId,
+          siteLabel: siteLabel,
+          occupancyConfigRow: occupancyConfigRow,
+        );
+      }
       return _siteActivityTelegramSummaryForScope(
         clientId: clientId,
         siteId: siteId,
@@ -17045,6 +17063,75 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       '• Long presence markers: $totalLongPresence',
       if (trend != null) '• Trend: ${trend.label} — ${trend.summary}',
     ].join('\n');
+  }
+
+  Future<String> _telegramCameraOnlyResidenceReportReply({
+    required String clientId,
+    required String siteId,
+    required String siteLabel,
+    required Map<String, dynamic> occupancyConfigRow,
+  }) async {
+    final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
+      siteId: siteId,
+    );
+    final nowUtc = _telegramFlowNowUtc();
+    final freshSiteAwareness =
+        siteAwarenessRow != null &&
+        _isSiteAwarenessSnapshotFresh(siteAwarenessRow, nowUtc);
+    final siteAwarenessSummary = freshSiteAwareness
+        ? _telegramAiSiteAwarenessSummaryFromRow(siteAwarenessRow)
+        : null;
+    final occupancySessionRow = await _readSiteOccupancySessionRow(
+      siteId: siteId,
+      nowLocal: _telegramFlowNowLocal(),
+      resetHour: _siteOccupancyResetHour(occupancyConfigRow),
+    );
+    final expectedOccupancy = _siteOccupancyExpectedOccupancy(
+      occupancyConfigRow,
+    );
+    final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
+    final detectedToday = _siteOccupancyDisplayedDetectedCount(
+      configRow: occupancyConfigRow,
+      sessionRow: occupancySessionRow,
+      currentHumanCount: siteAwarenessSummary?.humanCount ?? 0,
+    );
+    final localNow = _telegramFlowNowLocal();
+    final startOfTodayLocal = DateTime(
+      localNow.year,
+      localNow.month,
+      localNow.day,
+    );
+    final endOfTodayLocal = startOfTodayLocal.add(const Duration(days: 1));
+    final incidentsToday =
+        _telegramCommandDispatchSummariesForScope(
+          clientId: clientId,
+          siteId: siteId,
+        ).where((summary) {
+          final lastEventAtUtc = summary.lastEventAtUtc;
+          if (lastEventAtUtc == null) {
+            return false;
+          }
+          final lastEventAtLocal = lastEventAtUtc.toLocal();
+          return !lastEventAtLocal.isBefore(startOfTodayLocal) &&
+              lastEventAtLocal.isBefore(endOfTodayLocal);
+        }).length;
+    final lines = <String>[
+      'Report: $siteLabel',
+      if (siteAwarenessSummary != null) ...<String>[
+        '• Camera monitoring: active',
+        '• Perimeter: ${siteAwarenessSummary.perimeterClear ? 'clear' : 'alert active'}',
+      ] else ...<String>['• Camera monitoring: limited'],
+      if (expectedOccupancy > 0)
+        '• Occupancy: $detectedToday of $expectedOccupancy $occupancyLabel detected today',
+      '• Incidents today: $incidentsToday',
+      '• Alert summary: ${siteAwarenessSummary == null || siteAwarenessSummary.activeAlertCount <= 0 ? 'none' : '${siteAwarenessSummary.activeAlertCount} active'}',
+      if (siteAwarenessSummary != null)
+        '• Last update: ${_telegramCommandRelativeAgeLabel(siteAwarenessSummary.observedAtUtc)}',
+      ..._telegramCommandKnownFaultLines(
+        siteAwarenessRow ?? const <String, dynamic>{},
+      ).map((line) => '• $line'),
+    ];
+    return lines.join('\n');
   }
 
   Future<String> _telegramCameraReply({
@@ -38274,6 +38361,20 @@ bool _siteOccupancyHasGateSensors(Map<String, dynamic>? row) =>
 
 int _siteOccupancyPeakDetected(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryInt(row?['peak_detected']) ?? 0;
+
+int _siteOccupancyDisplayedDetectedCount({
+  required Map<String, dynamic>? configRow,
+  required Map<String, dynamic>? sessionRow,
+  required int currentHumanCount,
+}) {
+  final occupancyPeak = _siteOccupancyPeakDetected(sessionRow);
+  final detectedCount = math.max(currentHumanCount, occupancyPeak);
+  final expectedOccupancy = _siteOccupancyExpectedOccupancy(configRow);
+  if (expectedOccupancy <= 0) {
+    return detectedCount;
+  }
+  return math.min(detectedCount, expectedOccupancy);
+}
 
 DateTime? _siteOccupancyLastDetectionAtUtc(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryDate(row?['last_detection_at']);

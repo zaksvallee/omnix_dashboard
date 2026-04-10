@@ -5,6 +5,8 @@ enum OnyxAlertSensitivity { allMotion, suspiciousOnly, off }
 
 class SiteAlertConfig {
   final String siteId;
+  final String siteType;
+  final int expectedOccupancy;
   final String alertWindowStart;
   final String alertWindowEnd;
   final String timezone;
@@ -18,6 +20,8 @@ class SiteAlertConfig {
 
   const SiteAlertConfig({
     required this.siteId,
+    required this.siteType,
+    required this.expectedOccupancy,
     required this.alertWindowStart,
     required this.alertWindowEnd,
     required this.timezone,
@@ -33,6 +37,10 @@ class SiteAlertConfig {
   factory SiteAlertConfig.fromRow(Map<String, dynamic> row) {
     return SiteAlertConfig(
       siteId: (row['site_id'] as String? ?? '').trim(),
+      siteType: (row['site_type'] as String? ?? 'private_residence')
+          .trim()
+          .toLowerCase(),
+      expectedOccupancy: _parseInt(row['expected_occupancy']) ?? 0,
       alertWindowStart:
           (row['alert_window_start'] as String? ?? '23:00').trim().isEmpty
           ? '23:00'
@@ -74,6 +82,8 @@ class SiteAlertConfig {
   factory SiteAlertConfig.defaults(String siteId) {
     return SiteAlertConfig(
       siteId: siteId.trim(),
+      siteType: 'private_residence',
+      expectedOccupancy: 0,
       alertWindowStart: '23:00',
       alertWindowEnd: '08:00',
       timezone: 'Africa/Johannesburg',
@@ -200,6 +210,11 @@ class OnyxProactiveAlertService {
     final sequence =
         config.perimeterSequenceAlert &&
         _isPerimeterSequence(normalizedSiteId, detectedAt);
+    final occupancyWithinExpectedRange = _isOccupancyWithinExpectedRange(
+      normalizedSiteId,
+      detectedAt,
+      config,
+    );
     final shouldAlert = await _shouldAlert(
       config: config,
       zoneType: normalizedZoneType,
@@ -207,6 +222,7 @@ class OnyxProactiveAlertService {
       isLoitering: loitering,
       isSequence: sequence,
       withinAlertWindow: withinAlertWindow,
+      occupancyWithinExpectedRange: occupancyWithinExpectedRange,
     );
     if (!shouldAlert) {
       return;
@@ -317,8 +333,15 @@ class OnyxProactiveAlertService {
     required bool isLoitering,
     required bool isSequence,
     required bool withinAlertWindow,
+    required bool occupancyWithinExpectedRange,
   }) async {
     if (zoneType == 'indoor') {
+      return false;
+    }
+    final isPrivateResidence = config.siteType == 'private_residence';
+    if (!withinAlertWindow &&
+        isPrivateResidence &&
+        occupancyWithinExpectedRange) {
       return false;
     }
     final sensitivity = _effectiveSensitivity(
@@ -360,8 +383,18 @@ class OnyxProactiveAlertService {
     if (zoneType == 'indoor') {
       return OnyxAlertSensitivity.off;
     }
+    final isPrivateResidence = config.siteType == 'private_residence';
     if (withinAlertWindow && isPerimeter) {
       return config.quietHoursSensitivity;
+    }
+    if (!withinAlertWindow && isPrivateResidence) {
+      if (isPerimeter || zoneType == 'perimeter') {
+        return OnyxAlertSensitivity.suspiciousOnly;
+      }
+      if (zoneType == 'semi_perimeter') {
+        return OnyxAlertSensitivity.suspiciousOnly;
+      }
+      return OnyxAlertSensitivity.off;
     }
     if (isPerimeter || zoneType == 'perimeter') {
       return _combineSensitivity(
@@ -406,7 +439,11 @@ class OnyxProactiveAlertService {
     }
     final retention = Duration(
       minutes:
-          math.max(config.loiterDetectionMinutes, sequenceWindow.inMinutes) + 2,
+          math.max(
+            math.max(config.loiterDetectionMinutes, sequenceWindow.inMinutes),
+            config.expectedOccupancy > 0 ? 120 : 0,
+          ) +
+          2,
     );
     final cutoff = now.toUtc().subtract(retention);
     history.removeWhere((record) => record.detectedAt.isBefore(cutoff));
@@ -437,6 +474,28 @@ class OnyxProactiveAlertService {
     }
     final elapsed = now.toUtc().difference(matching.first.detectedAt);
     return math.max(1, elapsed.inMinutes);
+  }
+
+  bool _isOccupancyWithinExpectedRange(
+    String siteId,
+    DateTime now,
+    SiteAlertConfig config,
+  ) {
+    final expectedOccupancy = config.expectedOccupancy;
+    if (expectedOccupancy <= 0) {
+      return false;
+    }
+    final history = _detectionsBySite[siteId];
+    if (history == null || history.isEmpty) {
+      return true;
+    }
+    final cutoff = now.toUtc().subtract(const Duration(hours: 2));
+    final distinctChannels = history
+        .where((record) => !record.detectedAt.isBefore(cutoff))
+        .map((record) => record.channelId)
+        .toSet()
+        .length;
+    return distinctChannels <= expectedOccupancy;
   }
 
   String _buildAlertMessage({

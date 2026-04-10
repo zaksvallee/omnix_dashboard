@@ -7,6 +7,7 @@ import 'package:web/web.dart' as web;
 
 class TelegramPollingTabLock {
   static const int _tabIdRandomMax = 1000000;
+  static const Duration _startupStaleLockTtl = Duration(seconds: 30);
 
   TelegramPollingTabLock({
     this.channelName = 'onyx_telegram_lock',
@@ -113,6 +114,7 @@ class TelegramPollingTabLock {
     if (_initialized) {
       return;
     }
+    _sanitizeStartupLockRecord();
     _broadcastChannel = web.BroadcastChannel(channelName);
     _broadcastChannel!.onmessage = _handleMessage.toJS;
     web.document.addEventListener(
@@ -124,6 +126,30 @@ class TelegramPollingTabLock {
       _handleWatchdogTick();
     });
     _initialized = true;
+  }
+
+  void _sanitizeStartupLockRecord() {
+    final record = _readLockRecord();
+    if (record == null) {
+      return;
+    }
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final ageMs = nowMs - record.heartbeatMs;
+    if (ageMs > _startupStaleLockTtl.inMilliseconds) {
+      try {
+        web.window.localStorage.removeItem(_storageKey);
+      } catch (_) {
+        // Ignore startup cleanup failures and fall back to handshake checks.
+      }
+      _recordObservedHeartbeat(senderId: '', heartbeatMs: 0);
+      return;
+    }
+    if (ageMs <= heartbeatTtl.inMilliseconds && record.ownerId != _tabId) {
+      _recordObservedHeartbeat(
+        senderId: record.ownerId,
+        heartbeatMs: record.heartbeatMs,
+      );
+    }
   }
 
   void _handleMessage(web.Event event) {

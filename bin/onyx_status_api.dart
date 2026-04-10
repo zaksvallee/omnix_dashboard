@@ -294,7 +294,10 @@ Future<_StatusSummary?> _buildStatusSummary(
   final expectedOccupancy = _asInt(configRow?['expected_occupancy']) ?? 0;
   final occupancyLabel = _asString(configRow?['occupancy_label']) ?? 'people';
   final peakDetected = _asInt(sessionRow?['peak_detected']) ?? 0;
-  final onSite = math.max(currentHumans, peakDetected);
+  final detectedCount = math.max(currentHumans, peakDetected);
+  final onSite = expectedOccupancy > 0
+      ? math.min(detectedCount, expectedOccupancy)
+      : detectedCount;
 
   final offlineChannelIds = _offlineChannelIds(snapshotRow);
   final offlineChannels = offlineChannelIds
