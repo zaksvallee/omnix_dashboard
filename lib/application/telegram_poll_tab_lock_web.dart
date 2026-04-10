@@ -12,8 +12,8 @@ class TelegramPollingTabLock {
     this.channelName = 'onyx_telegram_lock',
     this.onPrimaryLost,
     this.onPrimaryAvailable,
-    this.heartbeatInterval = const Duration(seconds: 2),
-    this.heartbeatTtl = const Duration(seconds: 6),
+    this.heartbeatInterval = const Duration(seconds: 5),
+    this.heartbeatTtl = const Duration(seconds: 15),
   }) {
     _storageKey = '$channelName-owner';
     _ensureInitialized();
@@ -29,12 +29,20 @@ class TelegramPollingTabLock {
       '${DateTime.now().microsecondsSinceEpoch}-${math.Random().nextInt(_tabIdRandomMax) + 1}';
 
   late final String _storageKey;
+  late final JSFunction _visibilityChangeListener =
+      _handleVisibilityChange.toJS;
+  late final JSFunction _focusListener = _handleFocus.toJS;
   web.BroadcastChannel? _broadcastChannel;
   Timer? _heartbeatTimer;
+  Timer? _watchdogTimer;
   Completer<bool>? _claimResponseCompleter;
   bool _initialized = false;
   bool _disposed = false;
   bool _isPrimary = false;
+  bool _wasHidden = false;
+  bool _availabilitySignalPending = false;
+  String? _lastObservedPrimaryTabId;
+  int? _lastObservedHeartbeatMs;
 
   bool get isPrimary => _isPrimary;
 
@@ -89,6 +97,13 @@ class TelegramPollingTabLock {
     }
     release();
     _disposed = true;
+    _watchdogTimer?.cancel();
+    _watchdogTimer = null;
+    web.document.removeEventListener(
+      'visibilitychange',
+      _visibilityChangeListener,
+    );
+    web.window.removeEventListener('focus', _focusListener);
     _broadcastChannel?.close();
     _broadcastChannel = null;
     _claimResponseCompleter = null;
@@ -100,6 +115,14 @@ class TelegramPollingTabLock {
     }
     _broadcastChannel = web.BroadcastChannel(channelName);
     _broadcastChannel!.onmessage = _handleMessage.toJS;
+    web.document.addEventListener(
+      'visibilitychange',
+      _visibilityChangeListener,
+    );
+    web.window.addEventListener('focus', _focusListener);
+    _watchdogTimer = Timer.periodic(heartbeatInterval, (_) {
+      _handleWatchdogTick();
+    });
     _initialized = true;
   }
 
@@ -127,14 +150,25 @@ class TelegramPollingTabLock {
         }
         return;
       case 'claimed':
+        _recordObservedHeartbeat(
+          senderId: senderId,
+          heartbeatMs: _readHeartbeatMs(message),
+        );
         final completer = _claimResponseCompleter;
         if (completer != null && !completer.isCompleted) {
           completer.complete(true);
         }
         return;
+      case 'heartbeat':
+        _recordObservedHeartbeat(
+          senderId: senderId,
+          heartbeatMs: _readHeartbeatMs(message),
+        );
+        return;
       case 'released':
+        _recordObservedHeartbeat(senderId: '', heartbeatMs: 0);
         if (!_isPrimary) {
-          onPrimaryAvailable?.call();
+          _notifyPrimaryAvailable();
         }
         return;
     }
@@ -157,6 +191,9 @@ class TelegramPollingTabLock {
 
   void _promoteToPrimary() {
     _isPrimary = true;
+    _availabilitySignalPending = false;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    _recordObservedHeartbeat(senderId: _tabId, heartbeatMs: nowMs);
     _heartbeatTimer ??= Timer.periodic(heartbeatInterval, (_) {
       final current = _readLockRecord();
       final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -166,17 +203,24 @@ class TelegramPollingTabLock {
         _clearLockRecordIfOwned();
         _demoteToSecondary();
         onPrimaryLost?.call();
+        _notifyPrimaryAvailable();
         return;
       }
       _writeLockRecord(nowMs);
+      _postHeartbeat(nowMs);
     });
-    _writeLockRecord(DateTime.now().millisecondsSinceEpoch);
+    _writeLockRecord(nowMs);
+    _postHeartbeat(nowMs);
   }
 
   void _demoteToSecondary() {
     _isPrimary = false;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    if (_lastObservedPrimaryTabId == _tabId) {
+      _lastObservedPrimaryTabId = null;
+      _lastObservedHeartbeatMs = null;
+    }
   }
 
   _TelegramPollLockRecord? _readLockRecord() {
@@ -250,6 +294,157 @@ class TelegramPollingTabLock {
     } catch (_) {
       // Ignore transient broadcast failures.
     }
+  }
+
+  void _handleVisibilityChange(web.Event _) {
+    if (_disposed) {
+      return;
+    }
+    if (web.document.hidden) {
+      _wasHidden = true;
+      return;
+    }
+    if (_wasHidden) {
+      _wasHidden = false;
+      _restartElection();
+    }
+  }
+
+  void _handleFocus(web.Event _) {
+    if (_disposed || web.document.hidden) {
+      return;
+    }
+    _revalidateLockOwnership();
+  }
+
+  void _handleWatchdogTick() {
+    if (_disposed) {
+      return;
+    }
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (_isPrimary) {
+      final current = _readLockRecord();
+      if (current != null &&
+          current.ownerId != _tabId &&
+          _isFresh(current, nowMs: nowMs)) {
+        _clearLockRecordIfOwned();
+        _demoteToSecondary();
+        onPrimaryLost?.call();
+        _notifyPrimaryAvailable();
+        return;
+      }
+      _writeLockRecord(nowMs);
+      _postHeartbeat(nowMs);
+      return;
+    }
+    final current = _readLockRecord();
+    if (current != null &&
+        current.ownerId != _tabId &&
+        _isFresh(current, nowMs: nowMs)) {
+      _recordObservedHeartbeat(
+        senderId: current.ownerId,
+        heartbeatMs: current.heartbeatMs,
+      );
+      _availabilitySignalPending = false;
+      return;
+    }
+    if (_hasFreshObservedHeartbeat(nowMs: nowMs) || web.document.hidden) {
+      return;
+    }
+    _notifyPrimaryAvailable();
+  }
+
+  void _restartElection() {
+    final wasPrimary = _isPrimary || _ownsCurrentLock();
+    release();
+    if (wasPrimary) {
+      onPrimaryLost?.call();
+    }
+    _availabilitySignalPending = false;
+    _notifyPrimaryAvailable();
+  }
+
+  void _revalidateLockOwnership() {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (_isPrimary) {
+      if (_ownsCurrentLock()) {
+        _writeLockRecord(nowMs);
+        _postHeartbeat(nowMs);
+        return;
+      }
+      _clearLockRecordIfOwned();
+      _demoteToSecondary();
+      onPrimaryLost?.call();
+      _notifyPrimaryAvailable();
+      return;
+    }
+    final current = _readLockRecord();
+    if (current != null &&
+        current.ownerId != _tabId &&
+        _isFresh(current, nowMs: nowMs)) {
+      _recordObservedHeartbeat(
+        senderId: current.ownerId,
+        heartbeatMs: current.heartbeatMs,
+      );
+      _availabilitySignalPending = false;
+      return;
+    }
+    if (!_hasFreshObservedHeartbeat(nowMs: nowMs)) {
+      _notifyPrimaryAvailable();
+    }
+  }
+
+  void _postHeartbeat(int nowMs) {
+    _postMessage(<String, Object?>{
+      'type': 'heartbeat',
+      'tabId': _tabId,
+      'heartbeatMs': nowMs,
+    });
+  }
+
+  void _recordObservedHeartbeat({
+    required String senderId,
+    required int heartbeatMs,
+  }) {
+    if (senderId.trim().isEmpty || heartbeatMs <= 0) {
+      _lastObservedPrimaryTabId = null;
+      _lastObservedHeartbeatMs = null;
+      return;
+    }
+    _lastObservedPrimaryTabId = senderId.trim();
+    _lastObservedHeartbeatMs = heartbeatMs;
+    _availabilitySignalPending = false;
+  }
+
+  bool _hasFreshObservedHeartbeat({int? nowMs}) {
+    final heartbeatMs = _lastObservedHeartbeatMs;
+    final ownerId = _lastObservedPrimaryTabId;
+    if (heartbeatMs == null || ownerId == null || ownerId.isEmpty) {
+      return false;
+    }
+    final currentMs = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+    return currentMs - heartbeatMs <= heartbeatTtl.inMilliseconds;
+  }
+
+  void _notifyPrimaryAvailable() {
+    if (_availabilitySignalPending) {
+      return;
+    }
+    _availabilitySignalPending = true;
+    scheduleMicrotask(() {
+      if (_disposed) {
+        return;
+      }
+      onPrimaryAvailable?.call();
+    });
+  }
+
+  int _readHeartbeatMs(Map<String, Object?> message) {
+    final raw = message['heartbeatMs'];
+    if (raw is int) {
+      return raw;
+    }
+    return int.tryParse((raw ?? '').toString()) ?? 0;
   }
 }
 
