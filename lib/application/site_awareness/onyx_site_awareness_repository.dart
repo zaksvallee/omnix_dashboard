@@ -369,10 +369,11 @@ class OnyxSiteAwarenessRepository {
       return const <Map<String, dynamic>>[];
     }
     try {
+      await _expireOnDemandExpectedVisitors(normalizedSiteId);
       final rows = await _client
           .from('site_expected_visitors')
           .select(
-            'site_id,visitor_name,visitor_role,visit_days,visit_start,visit_end,is_active,notes,visit_date,expires_at',
+            'site_id,visitor_name,visitor_role,visit_type,visit_days,visit_start,visit_end,is_active,notes,visit_date,expires_at',
           )
           .eq('site_id', normalizedSiteId)
           .eq('is_active', true)
@@ -389,6 +390,20 @@ class OnyxSiteAwarenessRepository {
         level: 1000,
       );
       return const <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<void> _expireOnDemandExpectedVisitors(String siteId) async {
+    try {
+      await _client
+          .from('site_expected_visitors')
+          .update(<String, Object?>{'is_active': false})
+          .eq('site_id', siteId)
+          .eq('visit_type', 'on_demand')
+          .eq('is_active', true)
+          .lte('expires_at', DateTime.now().toUtc().toIso8601String());
+    } catch (_) {
+      // Best-effort cleanup only.
     }
   }
 

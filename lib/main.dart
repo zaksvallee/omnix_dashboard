@@ -16190,6 +16190,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteId,
     required String prompt,
   }) async {
+    if (_telegramVisitorDepartureRequested(prompt)) {
+      try {
+        await _deactivateOnDemandExpectedVisitors(siteId: siteId);
+        return 'Visitor access removed.\nNormal monitoring resumed.';
+      } catch (error, stackTrace) {
+        developer.log(
+          'Failed to remove expected visitor registration for $siteId.',
+          name: 'OnyxTelegramVisitorRegistration',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        return 'I could not remove visitor access just now, so the current visitor window is still active.';
+      }
+    }
     final registration = _telegramExpectedVisitorRegistrationForPrompt(prompt);
     if (registration == null) {
       return 'Noted. I can expect a cleaner, gardener, contractor, delivery, or visitor on site today if you want me to suppress normal daytime movement.';
@@ -16199,9 +16213,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         siteId: siteId,
         registration: registration,
       );
-      return "Got it. I'll expect ${registration.responseLabel} on site "
-          "${registration.dayLabel} and won't alert for normal movement during "
-          'their visit. Let me know when they leave.';
+      return 'Got it. Visitor access noted until '
+          '${_telegramExpectedVisitorUntilLabel(registration.visitEnd)}.\n'
+          "I won't alert for movement until then.\n"
+          'Let me know when they leave.';
     } catch (error, stackTrace) {
       developer.log(
         'Failed to create expected visitor registration for $siteId.',
@@ -16283,49 +16298,168 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   _TelegramExpectedVisitorRegistration?
   _telegramExpectedVisitorRegistrationForPrompt(String prompt) {
-    final normalized = prompt.trim().toLowerCase();
+    final trimmed = prompt.trim();
+    final normalized = trimmed.toLowerCase();
     if (normalized.isEmpty) {
       return null;
-    }
-    String visitorRole = 'visitor';
-    String visitorName = 'Visitor';
-    String responseLabel = 'the visitor';
-    if (normalized.contains('cleaner')) {
-      visitorRole = 'cleaner';
-      visitorName = 'Cleaner';
-      responseLabel = 'the cleaner';
-    } else if (normalized.contains('gardener')) {
-      visitorRole = 'gardener';
-      visitorName = 'Gardener';
-      responseLabel = 'the gardener';
-    } else if (normalized.contains('contractor')) {
-      visitorRole = 'contractor';
-      visitorName = 'Contractor';
-      responseLabel = 'the contractor';
-    } else if (normalized.contains('delivery')) {
-      visitorRole = 'delivery';
-      visitorName = 'Delivery';
-      responseLabel = 'the delivery';
-    } else if (normalized.contains('visitor')) {
-      visitorRole = 'regular_visitor';
-      visitorName = 'Visitor';
-      responseLabel = 'the visitor';
     }
     final nowLocal = _telegramFlowNowLocal();
     final targetDate = normalized.contains('tomorrow')
         ? DateTime(nowLocal.year, nowLocal.month, nowLocal.day + 1)
         : DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
-    final startTime = normalized.contains('tomorrow')
-        ? '00:00'
-        : '${nowLocal.hour.toString().padLeft(2, '0')}:${nowLocal.minute.toString().padLeft(2, '0')}';
+    final startDateTimeLocal = normalized.contains('tomorrow')
+        ? DateTime(targetDate.year, targetDate.month, targetDate.day, 8)
+        : nowLocal;
+    final endDateTimeLocal = _telegramExpectedVisitorEndDateTimeLocal(
+      prompt: trimmed,
+      normalized: normalized,
+      targetDateLocal: targetDate,
+      startDateTimeLocal: startDateTimeLocal,
+    );
+    final visitorName = _telegramExpectedVisitorNameForPrompt(
+      prompt: trimmed,
+      normalized: normalized,
+    );
     return _TelegramExpectedVisitorRegistration(
       visitorName: visitorName,
-      visitorRole: visitorRole,
-      responseLabel: responseLabel,
+      visitorRole: 'visitor',
+      visitType: 'on_demand',
       targetDateLocal: targetDate,
-      dayLabel: normalized.contains('tomorrow') ? 'tomorrow' : 'today',
-      visitStart: startTime,
-      visitEnd: '23:59',
+      visitStart: _telegramClockLabel(startDateTimeLocal),
+      visitEnd: _telegramClockLabel(endDateTimeLocal),
+      expiresAtUtc: endDateTimeLocal.toUtc(),
+    );
+  }
+
+  bool _telegramVisitorDepartureRequested(String prompt) {
+    final normalized = prompt.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return false;
+    }
+    return normalized.contains('leaving now') ||
+        normalized.contains('cleaner leaving') ||
+        normalized.contains('visitor gone') ||
+        normalized.contains('just left') ||
+        normalized.contains('gone now');
+  }
+
+  String _telegramExpectedVisitorNameForPrompt({
+    required String prompt,
+    required String normalized,
+  }) {
+    if (normalized.contains('cleaner')) {
+      return 'Cleaner';
+    }
+    if (normalized.contains('gardener')) {
+      return 'Gardener';
+    }
+    if (normalized.contains('contractor')) {
+      return 'Contractor';
+    }
+    if (normalized.contains('delivery')) {
+      return 'Delivery';
+    }
+    if (normalized.contains('visitor')) {
+      return 'Visitor';
+    }
+    final patterns = <RegExp>[
+      RegExp(
+        r"^\s*([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)\s+is\s+here\b",
+        caseSensitive: false,
+      ),
+      RegExp(
+        r"^\s*([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)\s+just\s+arrived\b",
+        caseSensitive: false,
+      ),
+      RegExp(
+        r"^\s*([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)\s+came\s+in\b",
+        caseSensitive: false,
+      ),
+      RegExp(
+        r"letting in\s+([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)",
+        caseSensitive: false,
+      ),
+      RegExp(
+        r"opening for\s+([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)",
+        caseSensitive: false,
+      ),
+    ];
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(prompt);
+      if (match != null) {
+        final candidate = (match.group(1) ?? '').trim();
+        if (candidate.isNotEmpty) {
+          return _telegramHumanizedPersonName(candidate);
+        }
+      }
+    }
+    return 'Visitor';
+  }
+
+  DateTime _telegramExpectedVisitorEndDateTimeLocal({
+    required String prompt,
+    required String normalized,
+    required DateTime targetDateLocal,
+    required DateTime startDateTimeLocal,
+  }) {
+    final durationMatch = RegExp(r'\bfor\s+(\d+)\s+hours?\b').firstMatch(normalized);
+    if (durationMatch != null) {
+      final hours = int.tryParse(durationMatch.group(1) ?? '');
+      if (hours != null && hours > 0) {
+        return startDateTimeLocal.add(Duration(hours: hours));
+      }
+    }
+    if (normalized.contains('until lunchtime') ||
+        normalized.contains('until lunch')) {
+      return DateTime(
+        targetDateLocal.year,
+        targetDateLocal.month,
+        targetDateLocal.day,
+        13,
+      );
+    }
+    final untilPattern = RegExp(
+      r'until\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
+      caseSensitive: false,
+    );
+    final untilMatch = untilPattern.firstMatch(prompt);
+    if (untilMatch != null) {
+      var hour = int.tryParse(untilMatch.group(1) ?? '') ?? 17;
+      final minute = int.tryParse(untilMatch.group(2) ?? '') ?? 0;
+      final meridiem = (untilMatch.group(3) ?? '').toLowerCase();
+      if (meridiem == 'pm' && hour < 12) {
+        hour += 12;
+      } else if (meridiem == 'am' && hour == 12) {
+        hour = 0;
+      }
+      if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+        final parsed = DateTime(
+          targetDateLocal.year,
+          targetDateLocal.month,
+          targetDateLocal.day,
+          hour,
+          minute,
+        );
+        if (!parsed.isBefore(startDateTimeLocal)) {
+          return parsed;
+        }
+      }
+    }
+    final defaultEnd = DateTime(
+      targetDateLocal.year,
+      targetDateLocal.month,
+      targetDateLocal.day,
+      17,
+    );
+    if (!defaultEnd.isBefore(startDateTimeLocal)) {
+      return defaultEnd;
+    }
+    return DateTime(
+      targetDateLocal.year,
+      targetDateLocal.month,
+      targetDateLocal.day,
+      23,
+      59,
     );
   }
 
@@ -38780,10 +38914,11 @@ Future<List<Map<String, dynamic>>> _readSiteExpectedVisitorRows({
     return const <Map<String, dynamic>>[];
   }
   try {
+    await _deactivateExpiredOnDemandExpectedVisitors(siteId: siteId);
     final rows = await Supabase.instance.client
         .from('site_expected_visitors')
         .select(
-          'site_id,visitor_name,visitor_role,visit_days,visit_start,visit_end,is_active,notes,visit_date,expires_at,created_at',
+          'site_id,visitor_name,visitor_role,visit_type,visit_days,visit_start,visit_end,is_active,notes,visit_date,expires_at,created_at',
         )
         .eq('site_id', siteId.trim())
         .eq('is_active', true)
@@ -38824,27 +38959,49 @@ Future<void> _insertTemporaryExpectedVisitor({
   required _TelegramExpectedVisitorRegistration registration,
 }) async {
   final targetDateLocal = registration.targetDateLocal;
-  final expiresAtUtc = DateTime(
-    targetDateLocal.year,
-    targetDateLocal.month,
-    targetDateLocal.day,
-    23,
-    59,
-    59,
-  ).toUtc();
   await Supabase.instance.client.from('site_expected_visitors').insert(<String, Object?>{
     'site_id': siteId.trim(),
     'visitor_name': registration.visitorName,
     'visitor_role': registration.visitorRole,
-    'visit_days': <String>[_telegramVisitorWeekdayLabel(targetDateLocal)],
+    'visit_type': registration.visitType,
+    'visit_days': registration.visitType == 'on_demand'
+        ? const <String>[]
+        : <String>[_telegramVisitorWeekdayLabel(targetDateLocal)],
     'visit_start': registration.visitStart,
     'visit_end': registration.visitEnd,
     'visit_date':
         '${targetDateLocal.year.toString().padLeft(4, '0')}-${targetDateLocal.month.toString().padLeft(2, '0')}-${targetDateLocal.day.toString().padLeft(2, '0')}',
-    'expires_at': expiresAtUtc.toIso8601String(),
+    'expires_at': registration.expiresAtUtc.toIso8601String(),
     'is_active': true,
     'notes': 'Telegram visitor registration created ${DateTime.now().toUtc().toIso8601String()}',
   });
+}
+
+Future<void> _deactivateOnDemandExpectedVisitors({
+  required String siteId,
+}) async {
+  final nowLocal = DateTime.now().toLocal();
+  final visitDate =
+      '${nowLocal.year.toString().padLeft(4, '0')}-${nowLocal.month.toString().padLeft(2, '0')}-${nowLocal.day.toString().padLeft(2, '0')}';
+  await Supabase.instance.client
+      .from('site_expected_visitors')
+      .update(<String, Object?>{'is_active': false})
+      .eq('site_id', siteId.trim())
+      .eq('visit_type', 'on_demand')
+      .eq('visit_date', visitDate)
+      .eq('is_active', true);
+}
+
+Future<void> _deactivateExpiredOnDemandExpectedVisitors({
+  required String siteId,
+}) async {
+  await Supabase.instance.client
+      .from('site_expected_visitors')
+      .update(<String, Object?>{'is_active': false})
+      .eq('site_id', siteId.trim())
+      .eq('visit_type', 'on_demand')
+      .eq('is_active', true)
+      .lte('expires_at', DateTime.now().toUtc().toIso8601String());
 }
 
 Future<Map<String, dynamic>?> _readSiteOccupancySessionRow({
@@ -39014,23 +39171,27 @@ String _telegramVisitorWeekdayLabel(DateTime dateLocal) {
   };
 }
 
+String _telegramClockLabel(DateTime dateTimeLocal) {
+  return '${dateTimeLocal.hour.toString().padLeft(2, '0')}:${dateTimeLocal.minute.toString().padLeft(2, '0')}';
+}
+
 class _TelegramExpectedVisitorRegistration {
   final String visitorName;
   final String visitorRole;
-  final String responseLabel;
+  final String visitType;
   final DateTime targetDateLocal;
-  final String dayLabel;
   final String visitStart;
   final String visitEnd;
+  final DateTime expiresAtUtc;
 
   const _TelegramExpectedVisitorRegistration({
     required this.visitorName,
     required this.visitorRole,
-    required this.responseLabel,
+    required this.visitType,
     required this.targetDateLocal,
-    required this.dayLabel,
     required this.visitStart,
     required this.visitEnd,
+    required this.expiresAtUtc,
   });
 }
 

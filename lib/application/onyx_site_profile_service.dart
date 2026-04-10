@@ -85,6 +85,7 @@ class SiteExpectedVisitor {
   final String siteId;
   final String visitorName;
   final String visitorRole;
+  final String visitType;
   final List<String> visitDays;
   final String? visitStart;
   final String? visitEnd;
@@ -97,6 +98,7 @@ class SiteExpectedVisitor {
     required this.siteId,
     required this.visitorName,
     required this.visitorRole,
+    required this.visitType,
     required this.visitDays,
     required this.visitStart,
     required this.visitEnd,
@@ -112,6 +114,9 @@ class SiteExpectedVisitor {
       visitorName: _profileString(row['visitor_name']),
       visitorRole:
           (_nullableProfileString(row['visitor_role']) ?? 'visitor')
+              .toLowerCase(),
+      visitType:
+          (_nullableProfileString(row['visit_type']) ?? 'scheduled')
               .toLowerCase(),
       visitDays: _stringList(row['visit_days']),
       visitStart: _nullableProfileString(row['visit_start']),
@@ -149,6 +154,9 @@ class SiteExpectedVisitor {
       return false;
     }
     final local = _profileLocalTime(timezone, observedUtc);
+    if (visitType == 'on_demand' && visitDate == null) {
+      return false;
+    }
     if (visitDate != null) {
       if (local.year != visitDate!.year ||
           local.month != visitDate!.month ||

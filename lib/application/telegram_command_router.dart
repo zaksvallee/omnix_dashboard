@@ -111,14 +111,28 @@ class OnyxTelegramCommandRouter {
 
   static const Set<String> _visitorRegistrationTriggers = <String>{
     'cleaner is coming',
+    'cleaner is here',
+    'there is a cleaner',
+    'cleaner on site',
     'expecting a visitor',
     'contractor coming tomorrow',
+    'contractor is here',
     'gardener today',
+    'cleaner came',
+    'someone is working on site',
     'visitor coming',
     'delivery coming',
     'cleaner coming',
     'gardener coming',
     'contractor coming',
+    'is here',
+    'just arrived',
+    'came in',
+    'letting in',
+    'opening for',
+    'leaving now',
+    'just left',
+    'gone now',
   };
 
   static const Set<String> _frOnboardingTriggers = <String>{
@@ -361,7 +375,51 @@ class OnyxTelegramCommandRouter {
   }
 
   bool _looksLikeVisitorRegistration(String normalized) {
+    const questionStarters = <String>[
+      'what ',
+      'when ',
+      'where ',
+      'who ',
+      'why ',
+      'how ',
+      'is ',
+      'are ',
+      'was ',
+      'were ',
+      'can ',
+      'could ',
+      'did ',
+      'does ',
+      'do ',
+      'will ',
+      'would ',
+      'should ',
+      'have ',
+      'has ',
+      'had ',
+    ];
+    for (final starter in questionStarters) {
+      if (normalized.startsWith(starter)) {
+        return false;
+      }
+    }
     if (_matchesAny(normalized, _visitorRegistrationTriggers)) {
+      return true;
+    }
+    final isArrivalPhrase =
+        normalized.contains(' is here') ||
+        normalized.contains(' just arrived') ||
+        normalized.contains(' came in') ||
+        normalized.contains(' arrived') ||
+        normalized.contains(' letting in') ||
+        normalized.contains(' opening for');
+    final isDeparturePhrase =
+        normalized.contains(' leaving now') ||
+        normalized.contains(' just left') ||
+        normalized.contains(' gone now') ||
+        normalized.contains(' visitor gone') ||
+        normalized.contains(' cleaner leaving');
+    if (isDeparturePhrase) {
       return true;
     }
     final mentionsVisitorRole =
@@ -370,14 +428,28 @@ class OnyxTelegramCommandRouter {
         normalized.contains('contractor') ||
         normalized.contains('visitor') ||
         normalized.contains('delivery');
-    if (!mentionsVisitorRole) {
-      return false;
+    final hasDurationHint =
+        normalized.contains(' until ') ||
+        RegExp(r'\bfor\s+\d+\s+hours?\b').hasMatch(normalized) ||
+        normalized.contains('lunchtime');
+    if (mentionsVisitorRole) {
+      return normalized.contains('coming') ||
+          normalized.contains('expecting') ||
+          normalized.contains('today') ||
+          normalized.contains('tomorrow') ||
+          normalized.contains('arriving') ||
+          normalized.contains('here') ||
+          normalized.contains('on site') ||
+          normalized.contains('working') ||
+          hasDurationHint;
     }
-    return normalized.contains('coming') ||
-        normalized.contains('expecting') ||
-        normalized.contains('today') ||
-        normalized.contains('tomorrow') ||
-        normalized.contains('arriving');
+    if (hasDurationHint && isArrivalPhrase) {
+      return true;
+    }
+    return RegExp(r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+is\s+here\b")
+            .hasMatch(normalized) ||
+        RegExp(r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+just\s+arrived\b")
+            .hasMatch(normalized);
   }
 
   bool _looksLikeFrOnboarding(String normalized) {
