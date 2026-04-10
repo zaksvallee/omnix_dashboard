@@ -525,30 +525,26 @@ class FaceRecognitionModule:
         saw_face = False
         for crop in self._candidate_face_crops(image_bgr, detections or []):
             saw_person_crop = True
-            for attempt in self._face_attempts(crop):
-                rgb = self._to_rgb(attempt)
-                locations = face_recognition.face_locations(rgb, model="cnn")
-                if not locations:
-                    locations = face_recognition.face_locations(rgb, model="hog")
-                if not locations:
-                    continue
-                saw_face = True
-                encodings = face_recognition.face_encodings(rgb, locations)
-                for encoding in encodings:
-                    distances = face_recognition.face_distance(
-                        [entry["encoding"] for entry in self._gallery_face_encodings],
-                        encoding,
-                    )
-                    if len(distances) == 0:
-                        continue
-                    best_index = int(distances.argmin())
-                    distance = float(distances[best_index])
-                    if best_distance is None or distance < best_distance:
-                        best_distance = distance
-                        best_match_id = self._gallery_face_encodings[best_index]["match_id"]
+            best_match_id, best_distance, crop_saw_face = self._match_attempts(
+                face_recognition=face_recognition,
+                attempts=self._face_attempts(crop),
+                best_match_id=best_match_id,
+                best_distance=best_distance,
+            )
+            saw_face = saw_face or crop_saw_face
 
         if saw_person_crop and not saw_face:
             print("[ONYX] FR: No face in crop")
+        if not saw_face:
+            print("[ONYX] FR: Trying direct full-frame fallback")
+            best_match_id, best_distance, saw_face = self._match_attempts(
+                face_recognition=face_recognition,
+                attempts=self._full_frame_attempts(image_bgr),
+                best_match_id=best_match_id,
+                best_distance=best_distance,
+            )
+        if not saw_face:
+            print("[ONYX] FR: No face found in direct fallback")
             return None
 
         if not best_match_id or best_distance is None or best_distance > self.match_threshold:
@@ -719,6 +715,21 @@ class FaceRecognitionModule:
                     crops.append(crop)
         return crops
 
+    def _full_frame_attempts(self, image_bgr: Any) -> List[Any]:
+        import cv2
+
+        upscaled = cv2.resize(
+            image_bgr,
+            None,
+            fx=2.0,
+            fy=2.0,
+            interpolation=cv2.INTER_CUBIC,
+        )
+        gray = cv2.cvtColor(upscaled, cv2.COLOR_BGR2GRAY)
+        equalized = cv2.equalizeHist(gray)
+        equalized_bgr = cv2.cvtColor(equalized, cv2.COLOR_GRAY2BGR)
+        return [image_bgr, upscaled, equalized_bgr]
+
     def _face_attempts(self, crop: Any) -> List[Any]:
         import cv2
 
@@ -733,6 +744,38 @@ class FaceRecognitionModule:
         equalized = cv2.equalizeHist(gray)
         equalized_bgr = cv2.cvtColor(equalized, cv2.COLOR_GRAY2BGR)
         return [upscaled, equalized_bgr]
+
+    def _match_attempts(
+        self,
+        *,
+        face_recognition: Any,
+        attempts: Sequence[Any],
+        best_match_id: str,
+        best_distance: Optional[float],
+    ) -> Tuple[str, Optional[float], bool]:
+        saw_face = False
+        for attempt in attempts:
+            rgb = self._to_rgb(attempt)
+            locations = face_recognition.face_locations(rgb, model="cnn")
+            if not locations:
+                locations = face_recognition.face_locations(rgb, model="hog")
+            if not locations:
+                continue
+            saw_face = True
+            encodings = face_recognition.face_encodings(rgb, locations)
+            for encoding in encodings:
+                distances = face_recognition.face_distance(
+                    [entry["encoding"] for entry in self._gallery_face_encodings],
+                    encoding,
+                )
+                if len(distances) == 0:
+                    continue
+                best_index = int(distances.argmin())
+                distance = float(distances[best_index])
+                if best_distance is None or distance < best_distance:
+                    best_distance = distance
+                    best_match_id = self._gallery_face_encodings[best_index]["match_id"]
+        return best_match_id, best_distance, saw_face
 
     def _to_rgb(self, image_bgr: Any):
         import cv2
