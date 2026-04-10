@@ -1008,6 +1008,18 @@ class PlateRecognitionModule:
             ]
             if hd_center_strip.size != 0:
                 crops.append((0.16, hd_center_strip))
+            hd_lower_center = image_bgr[
+                int(height * 0.35):int(height * 0.55),
+                int(width * 0.25):int(width * 0.65),
+            ]
+            if hd_lower_center.size != 0:
+                crops.append((0.20, hd_lower_center))
+            hd_lower_third = image_bgr[
+                int(height * 0.40):int(height * 0.60),
+                int(width * 0.20):int(width * 0.70),
+            ]
+            if hd_lower_third.size != 0:
+                crops.append((0.24, hd_lower_third))
         if not crops and _contains_any(signal_text, ("vehicle", "plate", "car", "truck", "gate")):
             crops.append((0.0, image_bgr))
         return crops
