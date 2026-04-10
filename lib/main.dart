@@ -354,65 +354,6 @@ class _ListenerAlarmAdvisoryDeliveryResult {
   });
 }
 
-class _TelegramCommandDispatchSummary {
-  _TelegramCommandDispatchSummary(this.dispatchId);
-
-  final String dispatchId;
-  DateTime? openedAtUtc;
-  DateTime? arrivedAtUtc;
-  String? responderLabel;
-  DateTime? closedAtUtc;
-  String? resolutionType;
-  DateTime? executionCompletedAtUtc;
-  DateTime? executionDeniedAtUtc;
-  String? executionDeniedReason;
-  DateTime? partnerUpdatedAtUtc;
-  String? partnerLabel;
-  PartnerDispatchStatus? partnerStatus;
-
-  DateTime? get lastEventAtUtc {
-    final timestamps = <DateTime>[
-      ?openedAtUtc,
-      ?arrivedAtUtc,
-      ?closedAtUtc,
-      ?executionCompletedAtUtc,
-      ?executionDeniedAtUtc,
-      ?partnerUpdatedAtUtc,
-    ]..sort((left, right) => right.compareTo(left));
-    return timestamps.isEmpty ? null : timestamps.first;
-  }
-
-  bool get isActive => closedAtUtc == null;
-
-  String get statusLabel {
-    if (closedAtUtc != null) {
-      return resolutionType?.trim().isNotEmpty == true
-          ? resolutionType!.trim()
-          : 'closed';
-    }
-    if (arrivedAtUtc != null) {
-      return 'on site';
-    }
-    if (partnerStatus != null &&
-        partnerStatus != PartnerDispatchStatus.unknown) {
-      return switch (partnerStatus!) {
-        PartnerDispatchStatus.accepted => 'accepted',
-        PartnerDispatchStatus.onSite => 'partner on site',
-        PartnerDispatchStatus.allClear => 'all clear',
-        PartnerDispatchStatus.cancelled => 'cancelled',
-        PartnerDispatchStatus.unknown => 'pending',
-      };
-    }
-    if (executionDeniedAtUtc != null) {
-      return 'denied';
-    }
-    if (executionCompletedAtUtc != null) {
-      return 'completed';
-    }
-    return 'dispatched';
-  }
-}
-
 class _ListenerAlarmCctvReviewResult {
   final ListenerAlarmAdvisoryDisposition disposition;
   final String summary;
@@ -16008,136 +15949,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     };
   }
 
-  List<_TelegramCommandDispatchSummary>
-  _telegramCommandDispatchSummariesForScope({
-    required String clientId,
-    required String siteId,
-  }) {
-    final summaries = <String, _TelegramCommandDispatchSummary>{};
-    for (final event in _telegramCommandScopedEvents(
-      clientId: clientId,
-      siteId: siteId,
-    )) {
-      switch (event) {
-        case DecisionCreated value:
-          final dispatchId = value.dispatchId.trim();
-          if (dispatchId.isEmpty) {
-            break;
-          }
-          final summary = summaries.putIfAbsent(
-            dispatchId,
-            () => _TelegramCommandDispatchSummary(dispatchId),
-          );
-          final occurredAtUtc = value.occurredAt.toUtc();
-          if (summary.openedAtUtc == null ||
-              occurredAtUtc.isBefore(summary.openedAtUtc!)) {
-            summary.openedAtUtc = occurredAtUtc;
-          }
-          break;
-        case ResponseArrived value:
-          final dispatchId = value.dispatchId.trim();
-          if (dispatchId.isEmpty) {
-            break;
-          }
-          final summary = summaries.putIfAbsent(
-            dispatchId,
-            () => _TelegramCommandDispatchSummary(dispatchId),
-          );
-          final occurredAtUtc = value.occurredAt.toUtc();
-          if (summary.arrivedAtUtc == null ||
-              occurredAtUtc.isBefore(summary.arrivedAtUtc!)) {
-            summary.arrivedAtUtc = occurredAtUtc;
-            if (value.guardId.trim().isNotEmpty) {
-              summary.responderLabel = value.guardId.trim();
-            }
-          }
-          break;
-        case PartnerDispatchStatusDeclared value:
-          final dispatchId = value.dispatchId.trim();
-          if (dispatchId.isEmpty) {
-            break;
-          }
-          final summary = summaries.putIfAbsent(
-            dispatchId,
-            () => _TelegramCommandDispatchSummary(dispatchId),
-          );
-          final occurredAtUtc = value.occurredAt.toUtc();
-          if (summary.partnerUpdatedAtUtc == null ||
-              occurredAtUtc.isAfter(summary.partnerUpdatedAtUtc!)) {
-            summary.partnerUpdatedAtUtc = occurredAtUtc;
-            summary.partnerLabel = value.partnerLabel.trim();
-            summary.partnerStatus = value.status;
-          }
-          break;
-        case IncidentClosed value:
-          final dispatchId = value.dispatchId.trim();
-          if (dispatchId.isEmpty) {
-            break;
-          }
-          final summary = summaries.putIfAbsent(
-            dispatchId,
-            () => _TelegramCommandDispatchSummary(dispatchId),
-          );
-          final occurredAtUtc = value.occurredAt.toUtc();
-          if (summary.closedAtUtc == null ||
-              occurredAtUtc.isBefore(summary.closedAtUtc!)) {
-            summary.closedAtUtc = occurredAtUtc;
-            summary.resolutionType = value.resolutionType.trim();
-          }
-          break;
-        case ExecutionCompleted value:
-          final dispatchId = value.dispatchId.trim();
-          if (dispatchId.isEmpty) {
-            break;
-          }
-          final summary = summaries.putIfAbsent(
-            dispatchId,
-            () => _TelegramCommandDispatchSummary(dispatchId),
-          );
-          final occurredAtUtc = value.occurredAt.toUtc();
-          if (summary.executionCompletedAtUtc == null ||
-              occurredAtUtc.isAfter(summary.executionCompletedAtUtc!)) {
-            summary.executionCompletedAtUtc = occurredAtUtc;
-          }
-          break;
-        case ExecutionDenied value:
-          final dispatchId = value.dispatchId.trim();
-          if (dispatchId.isEmpty) {
-            break;
-          }
-          final summary = summaries.putIfAbsent(
-            dispatchId,
-            () => _TelegramCommandDispatchSummary(dispatchId),
-          );
-          final occurredAtUtc = value.occurredAt.toUtc();
-          if (summary.executionDeniedAtUtc == null ||
-              occurredAtUtc.isAfter(summary.executionDeniedAtUtc!)) {
-            summary.executionDeniedAtUtc = occurredAtUtc;
-            summary.executionDeniedReason = value.reason.trim();
-          }
-          break;
-        default:
-          break;
-      }
-    }
-    final values = summaries.values.toList(growable: false)
-      ..sort((left, right) {
-        final rightStamp = right.lastEventAtUtc ?? right.openedAtUtc;
-        final leftStamp = left.lastEventAtUtc ?? left.openedAtUtc;
-        if (rightStamp == null && leftStamp == null) {
-          return left.dispatchId.compareTo(right.dispatchId);
-        }
-        if (rightStamp == null) {
-          return -1;
-        }
-        if (leftStamp == null) {
-          return 1;
-        }
-        return rightStamp.compareTo(leftStamp);
-      });
-    return values;
-  }
-
   DateTime? _telegramCommandLatestScopedEventAtUtc({
     required String clientId,
     required String siteId,
@@ -16385,21 +16196,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return parts.join(' • ');
   }
 
-  String? _telegramCommandDispatchReferenceFromPrompt(String prompt) {
-    final match = RegExp(
-      r'\b(?:INC-|DISP-)[A-Z0-9-]+\b',
-      caseSensitive: false,
-    ).firstMatch(prompt);
-    if (match == null) {
-      return null;
-    }
-    final raw = (match.group(0) ?? '').trim().toUpperCase();
-    if (raw.startsWith('INC-')) {
-      return raw.substring(4);
-    }
-    return raw;
-  }
-
   ({DateTime startLocal, DateTime endLocal, String label})
   _telegramCommandIncidentWindowForPrompt(String prompt) {
     final normalized = prompt.toLowerCase();
@@ -16474,17 +16270,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         );
       }
     }
-    final dispatches = _telegramCommandDispatchSummariesForScope(
-      clientId: clientId,
-      siteId: siteId,
-    );
-    final activeDispatches = dispatches
-        .where((summary) => summary.isActive)
+    final incidentRows = await _readIncidentRowsForSite(siteId: siteId);
+    final activeIncidents = incidentRows
+        .where(_incidentRowIsActive)
         .toList(growable: false);
-    final latestDispatch = dispatches.isEmpty ? null : dispatches.first;
+    final latestIncident = incidentRows.isEmpty ? null : incidentRows.first;
     final latestEventAtUtc =
         siteAwarenessSummary?.observedAtUtc ??
-        latestDispatch?.lastEventAtUtc ??
+        _incidentRowOccurredAtUtc(latestIncident) ??
         _telegramCommandLatestScopedEventAtUtc(
           clientId: clientId,
           siteId: siteId,
@@ -16563,10 +16356,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         );
       }
     }
-    lines.add('Active incidents: ${activeDispatches.length}');
-    if (latestDispatch != null) {
+    lines.add('Active incidents: ${activeIncidents.length}');
+    if (latestIncident != null) {
       lines.add(
-        'Latest operational incident: ${latestDispatch.dispatchId} • ${latestDispatch.statusLabel}',
+        'Latest operational incident: ${_incidentRowReference(latestIncident)} • ${_incidentRowStatusLabel(latestIncident)}',
       );
     }
     return lines.join('\n');
@@ -16679,13 +16472,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           resetHour: _siteOccupancyResetHour(occupancyConfigRow),
         );
       }
-      final dispatches = _telegramCommandDispatchSummariesForScope(
-        clientId: clientId,
+      final activeIncidentCount = (await _readIncidentRowsForSite(
         siteId: siteId,
-      );
-      final activeDispatchCount = dispatches
-          .where((summary) => summary.isActive)
-          .length;
+      )).where(_incidentRowIsActive).length;
       final segments = <String>[
         _telegramEndpointRoleAllowsVoice(endpointRole)
             ? 'ONYX Control.'
@@ -16710,13 +16499,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       } else {
         segments.add('No persons detected on site.');
       }
-      if (activeDispatchCount <= 0) {
+      if (activeIncidentCount <= 0) {
         segments.add('No active alerts.');
       } else {
         segments.add(
-          activeDispatchCount == 1
+          activeIncidentCount == 1
               ? '1 active alert.'
-              : '$activeDispatchCount active alerts.',
+              : '$activeIncidentCount active alerts.',
         );
       }
       segments.add('Camera coverage nominal.');
@@ -16779,69 +16568,49 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String prompt,
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
-    final dispatches = _telegramCommandDispatchSummariesForScope(
-      clientId: clientId,
-      siteId: siteId,
-    );
-    final dispatchReference = _telegramCommandDispatchReferenceFromPrompt(
-      prompt,
-    );
-    if (dispatchReference != null) {
-      for (final summary in dispatches) {
-        if (summary.dispatchId.trim().toUpperCase() != dispatchReference) {
-          continue;
-        }
-        return [
-          'Incident summary: $siteLabel',
-          '• Reference: ${summary.dispatchId}',
-          '• Opened: ${_telegramCommandLocalDateTimeLabel(summary.openedAtUtc)}',
-          '• Response: ${(summary.partnerLabel ?? summary.responderLabel ?? 'not yet assigned').trim()}',
-          '• Arrival: ${_telegramCommandLocalDateTimeLabel(summary.arrivedAtUtc)}',
-          '• Outcome: ${summary.closedAtUtc == null ? summary.statusLabel : '${summary.statusLabel} at ${_telegramCommandLocalDateTimeLabel(summary.closedAtUtc)}'}',
-        ].join('\n');
-      }
-    }
-
+    final incidentRows = await _readIncidentRowsForSite(siteId: siteId);
     final window = _telegramCommandIncidentWindowForPrompt(prompt);
-    final filtered = dispatches
-        .where((summary) {
-          final openedAtUtc = summary.openedAtUtc;
-          if (openedAtUtc == null) {
+    final filtered = incidentRows
+        .where((row) {
+          final occurredAtUtc = _incidentRowOccurredAtUtc(row);
+          if (occurredAtUtc == null) {
             return false;
           }
-          final openedAtLocal = openedAtUtc.toLocal();
-          return !openedAtLocal.isBefore(window.startLocal) &&
-              openedAtLocal.isBefore(window.endLocal);
+          final occurredAtLocal = occurredAtUtc.toLocal();
+          return !occurredAtLocal.isBefore(window.startLocal) &&
+              occurredAtLocal.isBefore(window.endLocal);
         })
         .toList(growable: false);
     if (filtered.isEmpty) {
-      return 'Incident summary: $siteLabel\n• No incidents logged for ${window.label}.';
+      if (window.label == 'today') {
+        return 'No incidents recorded today at $siteLabel.';
+      }
+      return 'Incident summary: $siteLabel\n• No incidents recorded for ${window.label}.';
     }
     final lines = <String>[
       'Incident summary: $siteLabel',
       '• Window: ${window.label}',
     ];
-    for (final summary in filtered.take(4)) {
+    for (final row in filtered.take(4)) {
       final parts = <String>[
-        summary.dispatchId,
-        'opened ${_telegramCommandLocalTimeLabel(summary.openedAtUtc)}',
+        _incidentRowReference(row),
+        'opened ${_telegramCommandLocalTimeLabel(_incidentRowOccurredAtUtc(row))}',
       ];
-      final responder = (summary.partnerLabel ?? summary.responderLabel ?? '')
-          .trim();
-      if (responder.isNotEmpty) {
-        parts.add('response $responder');
+      final dispatchAtUtc = _incidentRowDispatchAtUtc(row);
+      if (dispatchAtUtc != null) {
+        parts.add('dispatch ${_telegramCommandLocalTimeLabel(dispatchAtUtc)}');
       }
-      if (summary.arrivedAtUtc != null) {
-        parts.add(
-          'arrived ${_telegramCommandLocalTimeLabel(summary.arrivedAtUtc)}',
-        );
+      final arrivedAtUtc = _incidentRowArrivalAtUtc(row);
+      if (arrivedAtUtc != null) {
+        parts.add('arrived ${_telegramCommandLocalTimeLabel(arrivedAtUtc)}');
       }
-      if (summary.closedAtUtc != null) {
+      final resolvedAtUtc = _incidentRowResolutionAtUtc(row);
+      if (resolvedAtUtc != null) {
         parts.add(
-          'outcome ${summary.statusLabel} at ${_telegramCommandLocalTimeLabel(summary.closedAtUtc)}',
+          'outcome ${_incidentRowStatusLabel(row)} at ${_telegramCommandLocalTimeLabel(resolvedAtUtc)}',
         );
       } else {
-        parts.add('status ${summary.statusLabel}');
+        parts.add('status ${_incidentRowStatusLabel(row)}');
       }
       lines.add('• ${parts.join(' • ')}');
     }
@@ -16854,10 +16623,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String prompt,
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
-    var dispatches = _telegramCommandDispatchSummariesForScope(
-      clientId: clientId,
-      siteId: siteId,
-    );
+    var incidentRows = await _readIncidentRowsForSite(siteId: siteId);
     if (prompt.toLowerCase().contains('today')) {
       final todayStartLocal = DateTime(
         _telegramFlowNowLocal().year,
@@ -16865,38 +16631,39 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _telegramFlowNowLocal().day,
       );
       final tomorrowStartLocal = todayStartLocal.add(const Duration(days: 1));
-      dispatches = dispatches
-          .where((summary) {
-            final openedAtUtc = summary.openedAtUtc;
-            if (openedAtUtc == null) {
+      incidentRows = incidentRows
+          .where((row) {
+            final occurredAtUtc = _incidentRowOccurredAtUtc(row);
+            if (occurredAtUtc == null) {
               return false;
             }
-            final local = openedAtUtc.toLocal();
+            final local = occurredAtUtc.toLocal();
             return !local.isBefore(todayStartLocal) &&
                 local.isBefore(tomorrowStartLocal);
           })
           .toList(growable: false);
     }
-    if (dispatches.isEmpty) {
+    final dispatchedRows = incidentRows
+        .where(
+          (row) =>
+              _incidentRowDispatchAtUtc(row) != null ||
+              _incidentRowArrivalAtUtc(row) != null ||
+              _incidentRowIsActive(row),
+        )
+        .toList(growable: false);
+    if (dispatchedRows.isEmpty) {
       return 'Dispatch summary: $siteLabel\n• No dispatch records are attached to this site yet.';
     }
     final lines = <String>['Dispatch summary: $siteLabel'];
-    for (final summary in dispatches.take(4)) {
-      final responder =
-          (summary.partnerLabel ??
-                  summary.responderLabel ??
-                  'response team pending')
-              .trim();
+    for (final row in dispatchedRows.take(4)) {
       final parts = <String>[
-        summary.dispatchId,
-        'dispatched ${_telegramCommandLocalTimeLabel(summary.openedAtUtc)}',
-        responder,
-        'status ${summary.statusLabel}',
+        _incidentRowReference(row),
+        'dispatched ${_telegramCommandLocalTimeLabel(_incidentRowDispatchAtUtc(row) ?? _incidentRowOccurredAtUtc(row))}',
+        'status ${_incidentRowStatusLabel(row)}',
       ];
-      if (summary.arrivedAtUtc != null) {
-        parts.add(
-          'arrived ${_telegramCommandLocalTimeLabel(summary.arrivedAtUtc)}',
-        );
+      final arrivedAtUtc = _incidentRowArrivalAtUtc(row);
+      if (arrivedAtUtc != null) {
+        parts.add('arrived ${_telegramCommandLocalTimeLabel(arrivedAtUtc)}');
       }
       lines.add('• ${parts.join(' • ')}');
     }
@@ -17102,19 +16869,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       localNow.day,
     );
     final endOfTodayLocal = startOfTodayLocal.add(const Duration(days: 1));
-    final incidentsToday =
-        _telegramCommandDispatchSummariesForScope(
-          clientId: clientId,
-          siteId: siteId,
-        ).where((summary) {
-          final lastEventAtUtc = summary.lastEventAtUtc;
-          if (lastEventAtUtc == null) {
+    final incidentsToday = (await _readIncidentRowsForSite(siteId: siteId))
+        .where((row) {
+          final occurredAtUtc = _incidentRowOccurredAtUtc(row);
+          if (occurredAtUtc == null) {
             return false;
           }
-          final lastEventAtLocal = lastEventAtUtc.toLocal();
-          return !lastEventAtLocal.isBefore(startOfTodayLocal) &&
-              lastEventAtLocal.isBefore(endOfTodayLocal);
-        }).length;
+          final occurredAtLocal = occurredAtUtc.toLocal();
+          return !occurredAtLocal.isBefore(startOfTodayLocal) &&
+              occurredAtLocal.isBefore(endOfTodayLocal);
+        })
+        .length;
     final lines = <String>[
       'Report: $siteLabel',
       if (siteAwarenessSummary != null) ...<String>[
@@ -17177,6 +16942,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteId,
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final occupancyConfigRow = await _readSiteOccupancyConfigRow(
+      siteId: siteId,
+    );
+    final hasGuard = _siteOccupancyHasGuard(occupancyConfigRow);
     final history = _siteActivityHistoryPointsForScope(
       clientId: clientId,
       siteId: siteId,
@@ -17199,7 +16968,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     double pressureScore(SiteActivityIntelligenceSnapshot snapshot) {
       return (snapshot.flaggedIdentitySignals * 3.0) +
           snapshot.longPresenceSignals +
-          snapshot.guardInteractionSignals +
+          (hasGuard ? snapshot.guardInteractionSignals : 0) +
           snapshot.unknownPersonSignals +
           snapshot.unknownVehicleSignals;
     }
@@ -17218,6 +16987,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                   .reduce((left, right) => left + right) /
               baseline.length;
     final trend = _siteActivityTrendSnapshotFor(latest.snapshot);
+    final fieldInteractionCount = latest.snapshot.guardInteractionSignals;
     String unusualLine;
     if (latest.snapshot.flaggedIdentitySignals > 0) {
       unusualLine =
@@ -17225,9 +16995,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     } else if (latest.snapshot.longPresenceSignals > 0) {
       unusualLine =
           '${latest.snapshot.longPresenceSignals} long-presence patterns stand out in the latest shift.';
-    } else if (latest.snapshot.guardInteractionSignals > 0) {
+    } else if (hasGuard && fieldInteractionCount > 0) {
       unusualLine =
-          '${latest.snapshot.guardInteractionSignals} guard-interaction signals are showing up in the latest shift.';
+          '$fieldInteractionCount field interaction markers are showing up in the latest shift.';
     } else {
       unusualLine =
           'No unusual activity pattern is standing out above baseline right now.';
@@ -21264,8 +21034,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           entries.add((
             occurredAtUtc: event.occurredAt.toUtc(),
             source: 'Response arrival',
-            summary:
-                'A response-arrival signal was logged through ONYX field telemetry.',
+            summary: 'A response arrival was recorded on site.',
           ));
         default:
           break;
@@ -21608,10 +21377,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       trendLabel: trend?.label,
       trendSummary: trend?.summary,
       quietFallbackLine: snapshot.totalSignals <= 0 && fieldActivity != null
-          ? '${fieldActivity.count} ${fieldActivity.count == 1 ? 'guard or response-team activity signal was' : 'guard or response-team activity signals were'} logged through ONYX field telemetry.'
+          ? '${fieldActivity.count} ${fieldActivity.count == 1 ? 'site activity update was' : 'site activity updates were'} recorded on site.'
           : null,
       quietFallbackDetail: snapshot.totalSignals <= 0 && fieldActivity != null
-          ? 'Latest field signal: ${fieldActivity.latestSummary}'
+          ? 'Latest site activity: ${fieldActivity.latestSummary}'
           : null,
       includeEvidenceHandoff: includeEvidenceHandoff,
       reviewCommandHint: includeReviewCommandHint
@@ -26214,12 +25983,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     return _bodyContainsAny(body, const [
       'site activity summary',
-      'field telemetry',
-      'latest field signal:',
-      'guard or response-team activity signals were logged through onyx field telemetry',
-      'guard or response-team activity signal was logged through onyx field telemetry',
+      'site telemetry',
+      'latest site activity:',
+      'site activity updates were recorded on site',
+      'site activity update was recorded on site',
       'recorded onyx telemetry activity',
-      'recorded onyx field telemetry',
+      'recorded onyx site telemetry',
       'no guard is confirmed on site',
       'confirmed guard on site',
       'verified position update',
@@ -35875,8 +35644,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     final telemetrySummaryVisible =
         joined.contains('site activity summary') ||
-        joined.contains('field telemetry') ||
-        joined.contains('latest field signal');
+        joined.contains('site telemetry') ||
+        joined.contains('latest site activity');
     if (!telemetrySummaryVisible) {
       return null;
     }
@@ -38320,6 +38089,46 @@ Future<Map<String, dynamic>?> _readSiteOccupancySessionRow({
   }
 }
 
+Future<List<Map<String, dynamic>>> _readIncidentRowsForSite({
+  required String siteId,
+  int limit = 50,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <Map<String, dynamic>>[];
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('incidents')
+        .select(
+          'id,event_uid,status,incident_type,created_at,occurred_at,signal_received_at,dispatch_time,arrival_time,resolution_time,controller_notes,field_report',
+        )
+        .eq('site_id', siteId.trim())
+        .order('created_at', ascending: false)
+        .limit(limit);
+    final normalized =
+        rows
+            .map((row) => Map<String, dynamic>.from(row as Map))
+            .toList(growable: false)
+          ..sort((left, right) {
+            final rightAt = _incidentRowOccurredAtUtc(right);
+            final leftAt = _incidentRowOccurredAtUtc(left);
+            if (rightAt == null && leftAt == null) {
+              return 0;
+            }
+            if (rightAt == null) {
+              return -1;
+            }
+            if (leftAt == null) {
+              return 1;
+            }
+            return rightAt.compareTo(leftAt);
+          });
+    return normalized;
+  } catch (_) {
+    return const <Map<String, dynamic>>[];
+  }
+}
+
 String _siteOccupancySessionDateValue(
   DateTime observedAtLocal, {
   int resetHour = 3,
@@ -38378,6 +38187,59 @@ int _siteOccupancyDisplayedDetectedCount({
 
 DateTime? _siteOccupancyLastDetectionAtUtc(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryDate(row?['last_detection_at']);
+
+DateTime? _incidentRowOccurredAtUtc(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryDate(
+      row?['signal_received_at'] ?? row?['occurred_at'] ?? row?['created_at'],
+    );
+
+DateTime? _incidentRowDispatchAtUtc(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryDate(row?['dispatch_time']);
+
+DateTime? _incidentRowArrivalAtUtc(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryDate(row?['arrival_time']);
+
+DateTime? _incidentRowResolutionAtUtc(Map<String, dynamic>? row) =>
+    _siteAwarenessSummaryDate(row?['resolution_time']);
+
+String _incidentRowReference(Map<String, dynamic>? row) {
+  final eventUid = _siteAwarenessSummaryString(row?['event_uid']);
+  if (eventUid != null && eventUid.isNotEmpty) {
+    return eventUid;
+  }
+  final id = _siteAwarenessSummaryString(row?['id']) ?? 'incident';
+  if (id.length <= 8) {
+    return id;
+  }
+  return id.substring(0, 8);
+}
+
+String _incidentRowStatusLabel(Map<String, dynamic>? row) {
+  final status = (_siteAwarenessSummaryString(row?['status']) ?? 'open')
+      .trim()
+      .toLowerCase();
+  if (status.isEmpty) {
+    return 'open';
+  }
+  return _siteAwarenessHumanizedLabel(status);
+}
+
+bool _incidentRowIsActive(Map<String, dynamic>? row) {
+  final status = (_siteAwarenessSummaryString(row?['status']) ?? 'open')
+      .trim()
+      .toLowerCase();
+  switch (status) {
+    case 'closed':
+    case 'resolved':
+    case 'all_clear':
+    case 'all clear':
+    case 'cancelled':
+    case 'canceled':
+      return false;
+    default:
+      return true;
+  }
+}
 
 bool? _siteAwarenessSummaryBool(Object? value) {
   if (value is bool) {

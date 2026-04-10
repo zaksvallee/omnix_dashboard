@@ -341,6 +341,12 @@ class OnyxProactiveAlertService {
     final isPrivateResidence = config.siteType == 'private_residence';
     if (!withinAlertWindow &&
         isPrivateResidence &&
+        !isLoitering &&
+        !isSequence) {
+      return false;
+    }
+    if (!withinAlertWindow &&
+        isPrivateResidence &&
         occupancyWithinExpectedRange) {
       return false;
     }
