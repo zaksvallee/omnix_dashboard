@@ -54,6 +54,7 @@ PY
 }
 
 yolo_enabled="$(json_value "ONYX_MONITORING_YOLO_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
+yolo_fr_enabled="$(json_value "ONYX_MONITORING_FR_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
 yolo_lpr_enabled="$(json_value "ONYX_MONITORING_LPR_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
 yolo_host="$(json_value "ONYX_MONITORING_YOLO_HOST" | tr -d '\r')"
 yolo_port="$(json_value "ONYX_MONITORING_YOLO_PORT" | tr -d '\r')"
@@ -108,12 +109,14 @@ dependencies_ready() {
   if [[ ! -x "$VENV_PYTHON" ]]; then
     return 1
   fi
-  "$VENV_PYTHON" - "$yolo_lpr_enabled" <<'PY' >/dev/null 2>&1
+  "$VENV_PYTHON" - "$yolo_fr_enabled" "$yolo_lpr_enabled" <<'PY' >/dev/null 2>&1
 import sys
 import PIL  # noqa: F401
 import pi_heif  # noqa: F401
 import ultralytics  # noqa: F401
 if sys.argv[1] == "true":
+    import face_recognition  # noqa: F401
+if sys.argv[2] == "true":
     import easyocr  # noqa: F401
 PY
 }

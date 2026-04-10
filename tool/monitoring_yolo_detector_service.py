@@ -460,6 +460,7 @@ class FaceRecognitionModule:
         self._recognizer = None
         self._gallery_signature: Optional[Tuple[Tuple[str, int, int], ...]] = None
         self._gallery_embeddings: List[Dict[str, Any]] = []
+        self._gallery_face_encodings: List[Dict[str, Any]] = []
         self._gallery_image_count = 0
         self._last_error = ""
 
@@ -489,58 +490,75 @@ class FaceRecognitionModule:
             self._last_error = f"Face recognition gallery not found: {self.gallery_dir}"
             return False, self._last_error
         try:
+            import face_recognition  # noqa: F401
             self._ensure_models()
             self._refresh_gallery()
         except Exception as exc:
             self._last_error = str(exc)
             return False, self._last_error
-        if not self._gallery_embeddings:
+        if not self._gallery_face_encodings:
             self._last_error = "Face recognition gallery is empty or contains no usable faces."
             return False, self._last_error
         self._last_error = ""
         return True, ""
 
-    def match(self, image_bgr: Any) -> Optional[Dict[str, Any]]:
+    def match(
+        self,
+        image_bgr: Any,
+        detections: Optional[Sequence[Dict[str, Any]]] = None,
+    ) -> Optional[Dict[str, Any]]:
         if not self.enabled:
             return None
         try:
-            detector, recognizer = self._ensure_models()
+            import face_recognition
+
             self._refresh_gallery()
         except Exception as exc:
             self._last_error = str(exc)
             return None
-        if not self._gallery_embeddings:
+        if not self._gallery_face_encodings:
             return None
-        faces = self._detect_faces(detector, image_bgr)
-        if not faces:
-            return None
-        import cv2
 
         best_match_id = ""
-        best_score = -1.0
-        for face in faces:
-            try:
-                aligned = recognizer.alignCrop(image_bgr, face)
-                feature = recognizer.feature(aligned)
-            except Exception:
-                continue
-            for gallery in self._gallery_embeddings:
-                score = float(
-                    recognizer.match(
-                        feature,
-                        gallery["feature"],
-                        cv2.FaceRecognizerSF_FR_COSINE,
+        best_distance = None
+        saw_person_crop = False
+        saw_face = False
+        for crop in self._candidate_face_crops(image_bgr, detections or []):
+            saw_person_crop = True
+            for attempt in self._face_attempts(crop):
+                rgb = self._to_rgb(attempt)
+                locations = face_recognition.face_locations(rgb, model="cnn")
+                if not locations:
+                    locations = face_recognition.face_locations(rgb, model="hog")
+                if not locations:
+                    continue
+                saw_face = True
+                encodings = face_recognition.face_encodings(rgb, locations)
+                for encoding in encodings:
+                    distances = face_recognition.face_distance(
+                        [entry["encoding"] for entry in self._gallery_face_encodings],
+                        encoding,
                     )
-                )
-                if score > best_score:
-                    best_score = score
-                    best_match_id = gallery["match_id"]
-        if not best_match_id or best_score < self.match_threshold:
+                    if len(distances) == 0:
+                        continue
+                    best_index = int(distances.argmin())
+                    distance = float(distances[best_index])
+                    if best_distance is None or distance < best_distance:
+                        best_distance = distance
+                        best_match_id = self._gallery_face_encodings[best_index]["match_id"]
+
+        if saw_person_crop and not saw_face:
+            print("[ONYX] FR: No face in crop")
             return None
+
+        if not best_match_id or best_distance is None or best_distance > self.match_threshold:
+            return None
+
+        confidence = max(0.0, min(1.0 - best_distance, 1.0))
         return {
             "face_match_id": best_match_id,
-            "face_confidence": max(0.0, min(best_score, 1.0)),
-            "face_distance": max(0.0, min(1.0 - best_score, 1.0)),
+            "face_confidence": confidence,
+            "face_distance": max(0.0, min(best_distance, 1.0)),
             "matched": True,
         }
 
@@ -591,6 +609,7 @@ class FaceRecognitionModule:
     def _refresh_gallery(self) -> None:
         assert self.gallery_dir is not None
         detector, recognizer = self._ensure_models()
+        import face_recognition
         files = sorted(
             path
             for path in self.gallery_dir.rglob("*")
@@ -606,27 +625,44 @@ class FaceRecognitionModule:
         import cv2
 
         embeddings: List[Dict[str, Any]] = []
+        face_encodings_gallery: List[Dict[str, Any]] = []
         for path in files:
             image = cv2.imread(str(path))
             if image is None:
                 continue
+            rgb = self._to_rgb(image)
+            gallery_locations = face_recognition.face_locations(rgb, model="hog")
+            gallery_encodings = face_recognition.face_encodings(rgb, gallery_locations)
             faces = self._detect_faces(detector, image)
-            if not faces:
-                continue
-            best_face = max(
-                faces,
-                key=lambda face: float(face[2] * face[3]) * float(face[-1] if len(face) > 14 else 1.0),
-            )
-            try:
-                aligned = recognizer.alignCrop(image, best_face)
-                feature = recognizer.feature(aligned)
-            except Exception:
-                continue
             match_id = self._gallery_match_id(path)
             if not match_id:
                 continue
-            embeddings.append({"match_id": match_id, "feature": feature})
+            if faces:
+                best_face = max(
+                    faces,
+                    key=lambda face: float(face[2] * face[3]) * float(face[-1] if len(face) > 14 else 1.0),
+                )
+                try:
+                    aligned = recognizer.alignCrop(image, best_face)
+                    feature = recognizer.feature(aligned)
+                    embeddings.append({"match_id": match_id, "feature": feature})
+                except Exception:
+                    pass
+            if gallery_encodings:
+                best_index = 0
+                if len(gallery_locations) == len(gallery_encodings):
+                    best_index = max(
+                        range(len(gallery_locations)),
+                        key=lambda idx: (
+                            (gallery_locations[idx][2] - gallery_locations[idx][0])
+                            * (gallery_locations[idx][1] - gallery_locations[idx][3])
+                        ),
+                    )
+                face_encodings_gallery.append(
+                    {"match_id": match_id, "encoding": gallery_encodings[best_index]}
+                )
         self._gallery_embeddings = embeddings
+        self._gallery_face_encodings = face_encodings_gallery
         self._gallery_signature = signature
 
     def _gallery_match_id(self, path: Path) -> str:
@@ -646,6 +682,62 @@ class FaceRecognitionModule:
         if faces is None:
             return []
         return [face for face in faces]
+
+    def _candidate_face_crops(
+        self,
+        image_bgr: Any,
+        detections: Sequence[Dict[str, Any]],
+    ) -> List[Any]:
+        crops: List[Any] = []
+        frame_height, frame_width = image_bgr.shape[:2]
+        for detection in detections:
+            if detection.get("label") != "person":
+                continue
+            box = detection.get("box")
+            if not isinstance(box, list) or len(box) != 4:
+                continue
+            raw_x1, raw_y1, raw_x2, raw_y2 = [
+                int(max(0, round(float(value)))) for value in box
+            ]
+            person_width = max(1, raw_x2 - raw_x1)
+            person_height = max(1, raw_y2 - raw_y1)
+            x1 = max(0, raw_x1 - int(person_width * 0.2))
+            x2 = min(frame_width, raw_x2 + int(person_width * 0.2))
+            y1 = max(0, raw_y1 - int(person_height * 0.08))
+            top_40_end = min(frame_height, y1 + int(person_height * 0.42))
+            top_55_end = min(frame_height, y1 + int(person_height * 0.55))
+            center_margin = int((x2 - x1) * 0.1)
+            center_x1 = min(x2, max(0, x1 + center_margin))
+            center_x2 = max(center_x1, min(frame_width, x2 - center_margin))
+            variants = [
+                image_bgr[y1:top_40_end, x1:x2],
+                image_bgr[y1:top_55_end, x1:x2],
+                image_bgr[y1:top_55_end, center_x1:center_x2],
+            ]
+            for crop in variants:
+                if crop.size != 0:
+                    crops.append(crop)
+        return crops
+
+    def _face_attempts(self, crop: Any) -> List[Any]:
+        import cv2
+
+        upscaled = cv2.resize(
+            crop,
+            None,
+            fx=4.0,
+            fy=4.0,
+            interpolation=cv2.INTER_CUBIC,
+        )
+        gray = cv2.cvtColor(upscaled, cv2.COLOR_BGR2GRAY)
+        equalized = cv2.equalizeHist(gray)
+        equalized_bgr = cv2.cvtColor(equalized, cv2.COLOR_GRAY2BGR)
+        return [upscaled, equalized_bgr]
+
+    def _to_rgb(self, image_bgr: Any):
+        import cv2
+
+        return cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
 
 
 class PlateRecognitionModule:
@@ -943,7 +1035,7 @@ class UltralyticsBackend(DetectorBackend):
             )
         detections = _dedupe_detections(detections)
 
-        face_match = self._face_module.match(image_bgr)
+        face_match = self._face_module.match(image_bgr, detections)
         plate_match = self._plate_module.detect(image_bgr, detections, item)
 
         best = _best_detection(detections)
