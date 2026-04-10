@@ -93,10 +93,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     await stop();
     _siteId = siteId.trim();
     _clientId = clientId.trim();
+    final cameraZones = _repository == null
+        ? const <String, OnyxCameraZone>{}
+        : await _repository.readCameraZones(_siteId);
     _projector = OnyxSiteAwarenessProjector(
       siteId: _siteId,
       clientId: _clientId,
       knownFaultChannels: knownFaultChannels.toSet(),
+      cameraZones: cameraZones,
       detectionWindow: detectionWindow,
       clock: _clock,
     );
@@ -236,7 +240,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         for (final payload in extraction.payloads) {
           _ingestAlertPayload(
             payload,
-            errorLabel: 'Failed to parse Hikvision EventNotificationAlert payload.',
+            errorLabel:
+                'Failed to parse Hikvision EventNotificationAlert payload.',
           );
         }
       },

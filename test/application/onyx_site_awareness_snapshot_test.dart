@@ -32,6 +32,40 @@ void main() {
       expect(event.eventType, OnyxEventType.humanDetected);
     });
 
+    test('includes zone metadata for human detections in snapshot output', () {
+      final projector = OnyxSiteAwarenessProjector(
+        siteId: 'SITE-1',
+        clientId: 'CLIENT-1',
+        cameraZones: const <String, OnyxCameraZone>{
+          '1': OnyxCameraZone(
+            siteId: 'SITE-1',
+            channelId: '1',
+            zoneName: 'Street East Gate',
+            zoneType: 'perimeter',
+            isPerimeter: true,
+            isIndoor: false,
+          ),
+        },
+        clock: () => DateTime.utc(2026, 4, 8, 12, 1),
+      );
+
+      final snapshot = projector.ingest(
+        OnyxSiteAwarenessEvent.fromAlertXml(
+          _alertXml(
+            channelId: '1',
+            eventType: 'VMD',
+            targetType: 'human',
+            dateTime: DateTime.utc(2026, 4, 8, 12, 1),
+          ),
+        ),
+      );
+
+      expect(snapshot.detections.humanZones, hasLength(1));
+      expect(snapshot.detections.humanZones.first.zoneName, 'Street East Gate');
+      expect(snapshot.detections.humanZones.first.zoneType, 'perimeter');
+      expect(snapshot.detections.humanZones.first.isPerimeter, isTrue);
+    });
+
     test(
       'maps videoloss to a faulty channel status when channel is in knownFaultChannels',
       () {

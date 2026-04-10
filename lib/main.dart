@@ -16090,6 +16090,63 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return '${parts.join(' • ')} detected';
   }
 
+  String? _telegramCommandHumanZoneActivityLine(
+    List<_SiteAwarenessHumanZone> zones,
+  ) {
+    if (zones.isEmpty) {
+      return null;
+    }
+    final perimeterZones = zones
+        .where((zone) => zone.isPerimeter || zone.zoneType == 'perimeter')
+        .toList(growable: false);
+    if (perimeterZones.isNotEmpty) {
+      final label = _telegramCommandHumanZoneLabels(
+        perimeterZones,
+        includeZoneType: false,
+      );
+      final cameraLabel = perimeterZones.length == 1
+          ? 'perimeter camera'
+          : 'perimeter cameras';
+      return '⚠️ Movement at $label — $cameraLabel';
+    }
+    final indoorZones = zones
+        .where((zone) => zone.isIndoor || zone.zoneType == 'indoor')
+        .toList(growable: false);
+    if (indoorZones.length == zones.length) {
+      return 'Household activity detected — '
+          '${_telegramCommandHumanZoneLabels(indoorZones)}';
+    }
+    return 'Movement detected at ${_telegramCommandHumanZoneLabels(zones)}';
+  }
+
+  String _telegramCommandHumanZoneLabels(
+    List<_SiteAwarenessHumanZone> zones, {
+    bool includeZoneType = true,
+  }) {
+    final labels = zones
+        .take(2)
+        .map((zone) {
+          final base = zone.zoneName.trim();
+          if (!includeZoneType) {
+            return base;
+          }
+          return '$base (${zone.zoneTypeLabel})';
+        })
+        .toList(growable: false);
+    if (zones.length > 2) {
+      labels.add(
+        'and ${zones.length - 2} more area${zones.length - 2 == 1 ? '' : 's'}',
+      );
+    }
+    if (labels.length <= 1) {
+      return labels.isEmpty ? 'the site' : labels.first;
+    }
+    if (labels.length == 2) {
+      return '${labels.first} and ${labels.last}';
+    }
+    return '${labels.sublist(0, labels.length - 1).join(', ')}, and ${labels.last}';
+  }
+
   String _telegramCommandRelativeAgeLabel(DateTime observedAtUtc) {
     final difference = _telegramFlowNowUtc().difference(observedAtUtc).abs();
     if (difference < const Duration(minutes: 1)) {
@@ -16287,10 +16344,26 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final lines = <String>[];
     if (siteAwarenessSummary != null) {
       final freshSiteAwarenessRow = siteAwarenessRow!;
-      lines.add(_telegramCommandHeaderLabel(siteAwarenessSummary, siteLabel));
+      final humanZones = _siteAwarenessHumanZones(freshSiteAwarenessRow);
+      final humanZoneActivityLine = _telegramCommandHumanZoneActivityLine(
+        humanZones,
+      );
+      final hasPerimeterHumanMovement = humanZones.any(
+        (zone) => zone.isPerimeter || zone.zoneType == 'perimeter',
+      );
+      lines.add(
+        hasPerimeterHumanMovement &&
+                siteAwarenessSummary.perimeterClear &&
+                siteAwarenessSummary.activeAlertCount <= 0
+            ? '🟠 $siteLabel — Perimeter movement'
+            : _telegramCommandHeaderLabel(siteAwarenessSummary, siteLabel),
+      );
       lines.add(
         'Perimeter: ${siteAwarenessSummary.perimeterClear ? 'Clear' : 'Alert active'}',
       );
+      if (humanZoneActivityLine != null) {
+        lines.add(humanZoneActivityLine);
+      }
       final isPrivateResidence =
           _isPrivateResidenceOccupancyConfig(occupancyConfigRow) &&
           _siteOccupancyExpectedOccupancy(occupancyConfigRow) > 0;
@@ -16317,7 +16390,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             'Last movement: ${_telegramCommandLocalTimeLabel(lastMovementAtUtc)}',
           );
         }
-      } else {
+      } else if (humanZoneActivityLine == null) {
         lines.add(
           'On site: ${_telegramCommandPresenceSummaryLine(siteAwarenessSummary)}',
         );
@@ -37739,6 +37812,102 @@ TelegramAiSiteAwarenessSummary? _telegramAiSiteAwarenessSummaryFromRow(
   );
 }
 
+class _SiteAwarenessHumanZone {
+  final String channelId;
+  final String zoneName;
+  final String zoneType;
+  final bool isPerimeter;
+  final bool isIndoor;
+  final DateTime? lastDetectedAtUtc;
+
+  const _SiteAwarenessHumanZone({
+    required this.channelId,
+    required this.zoneName,
+    required this.zoneType,
+    required this.isPerimeter,
+    required this.isIndoor,
+    required this.lastDetectedAtUtc,
+  });
+
+  String get zoneTypeLabel {
+    if (isPerimeter || zoneType == 'perimeter') {
+      return 'perimeter';
+    }
+    if (isIndoor || zoneType == 'indoor') {
+      return 'indoor';
+    }
+    final normalized = zoneType
+        .trim()
+        .replaceAll('_', '-')
+        .replaceAll(RegExp(r'\s+'), ' ');
+    return normalized.isEmpty ? 'camera zone' : normalized;
+  }
+}
+
+List<_SiteAwarenessHumanZone> _siteAwarenessHumanZones(
+  Map<String, dynamic> row,
+) {
+  final detections = _siteAwarenessAsObjectMap(row['detections']);
+  final rawZones = detections?['human_zones'] ?? detections?['humanZones'];
+  if (rawZones is! List) {
+    return const <_SiteAwarenessHumanZone>[];
+  }
+  final zones = <_SiteAwarenessHumanZone>[];
+  for (final entry in rawZones) {
+    final zone = _siteAwarenessAsObjectMap(entry);
+    if (zone == null) {
+      continue;
+    }
+    final channelId =
+        _siteAwarenessSummaryString(zone['channel_id'] ?? zone['channelId']) ??
+        '';
+    final zoneName =
+        _siteAwarenessSummaryString(zone['zone_name'] ?? zone['zoneName']) ??
+        '';
+    if (zoneName.isEmpty) {
+      continue;
+    }
+    zones.add(
+      _SiteAwarenessHumanZone(
+        channelId: channelId,
+        zoneName: zoneName,
+        zoneType:
+            _siteAwarenessSummaryString(
+              zone['zone_type'] ?? zone['zoneType'],
+            ) ??
+            'camera zone',
+        isPerimeter:
+            _siteAwarenessSummaryBool(
+              zone['is_perimeter'] ?? zone['isPerimeter'],
+            ) ??
+            false,
+        isIndoor:
+            _siteAwarenessSummaryBool(zone['is_indoor'] ?? zone['isIndoor']) ??
+            false,
+        lastDetectedAtUtc: _siteAwarenessSummaryDate(
+          zone['last_detected_at'] ?? zone['lastDetectedAt'],
+        ),
+      ),
+    );
+  }
+  zones.sort((left, right) {
+    final rightStamp = right.lastDetectedAtUtc;
+    final leftStamp = left.lastDetectedAtUtc;
+    if (rightStamp != null && leftStamp != null) {
+      final compare = rightStamp.compareTo(leftStamp);
+      if (compare != 0) {
+        return compare;
+      }
+    } else if (rightStamp != null) {
+      return 1;
+    } else if (leftStamp != null) {
+      return -1;
+    }
+    return left.channelId.compareTo(right.channelId);
+  });
+  return List<_SiteAwarenessHumanZone>.unmodifiable(zones);
+}
+
 Map<String, Object?>? _siteAwarenessAsObjectMap(Object? value) {
   if (value is! Map) {
     return null;
@@ -37947,6 +38116,7 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
             .toList(growable: false)
       : const <String>[];
   final alertCount = activeAlerts is List ? activeAlerts.length : 0;
+  final humanZones = _siteAwarenessHumanZones(row);
 
   final lines = <String>[];
   if (snapshotAt.isNotEmpty) {
@@ -37959,6 +38129,11 @@ String _formatSiteAwarenessSnapshot(Map<String, dynamic> row) {
   lines.add('- Vehicles detected in latest snapshot: $vehicles');
   lines.add('- Animals detected in latest snapshot: $animals');
   lines.add('- Motion indicators in latest snapshot: $motion');
+  if (humanZones.isNotEmpty) {
+    lines.add(
+      '- Human movement zones in latest snapshot: ${humanZones.map((zone) => '${zone.zoneName} (${zone.zoneTypeLabel})').join(', ')}',
+    );
+  }
   lines.add('- Active alerts in latest snapshot: $alertCount');
   lines.add(
     '- Known fault channels: ${knownFaultLabels.isEmpty ? 'none' : knownFaultLabels.map((value) => 'Channel $value').join(', ')}',

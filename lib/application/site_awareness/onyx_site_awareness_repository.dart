@@ -28,8 +28,7 @@ class OnyxSiteOccupancyConfig {
       siteId: (row['site_id'] as String? ?? '').trim(),
       expectedOccupancy: _siteOccupancyInt(row['expected_occupancy']) ?? 0,
       occupancyLabel: (row['occupancy_label'] as String? ?? 'people').trim(),
-      siteType:
-          (row['site_type'] as String? ?? 'private_residence').trim(),
+      siteType: (row['site_type'] as String? ?? 'private_residence').trim(),
       resetHour: _siteOccupancyInt(row['reset_hour']) ?? 3,
       hasGuard: _siteOccupancyBool(row['has_guard']) ?? false,
       hasGateSensors: _siteOccupancyBool(row['has_gate_sensors']) ?? false,
@@ -69,10 +68,61 @@ class OnyxSiteOccupancySession {
   }
 }
 
+class OnyxSiteCameraZone {
+  final String siteId;
+  final String channelId;
+  final String zoneName;
+  final String zoneType;
+  final bool isPerimeter;
+  final bool isIndoor;
+  final String? notes;
+
+  const OnyxSiteCameraZone({
+    required this.siteId,
+    required this.channelId,
+    required this.zoneName,
+    required this.zoneType,
+    required this.isPerimeter,
+    required this.isIndoor,
+    this.notes,
+  });
+
+  OnyxCameraZone toAwarenessZone() {
+    return OnyxCameraZone(
+      siteId: siteId,
+      channelId: channelId,
+      zoneName: zoneName,
+      zoneType: zoneType,
+      isPerimeter: isPerimeter,
+      isIndoor: isIndoor,
+      notes: notes,
+    );
+  }
+
+  factory OnyxSiteCameraZone.fromRow(Map<String, dynamic> row) {
+    final channelId = _siteCameraZoneChannelId(row['channel_id']);
+    return OnyxSiteCameraZone(
+      siteId: (row['site_id'] as String? ?? '').trim(),
+      channelId: channelId,
+      zoneName: (row['zone_name'] as String? ?? '').trim().isEmpty
+          ? 'Channel $channelId'
+          : (row['zone_name'] as String? ?? '').trim(),
+      zoneType: (row['zone_type'] as String? ?? 'unmapped').trim(),
+      isPerimeter: _siteOccupancyBool(row['is_perimeter']) ?? false,
+      isIndoor: _siteOccupancyBool(row['is_indoor']) ?? false,
+      notes: (row['notes'] as String?)?.trim().isEmpty == true
+          ? null
+          : (row['notes'] as String?)?.trim(),
+    );
+  }
+}
+
 class OnyxSiteAwarenessRepository {
   final SupabaseClient _client;
   final Map<String, OnyxSiteOccupancyConfig?> _occupancyConfigCache =
       <String, OnyxSiteOccupancyConfig?>{};
+  final Map<String, Map<String, OnyxCameraZone>> _cameraZonesCache =
+      <String, Map<String, OnyxCameraZone>>{};
 
   OnyxSiteAwarenessRepository(SupabaseClient client) : _client = client;
 
@@ -113,7 +163,7 @@ class OnyxSiteAwarenessRepository {
       return _occupancyConfigCache[normalizedSiteId];
     }
     try {
-        final rows = await _client
+      final rows = await _client
           .from('site_occupancy_config')
           .select(
             'site_id,expected_occupancy,occupancy_label,site_type,reset_hour,has_guard,has_gate_sensors',
@@ -136,6 +186,47 @@ class OnyxSiteAwarenessRepository {
         level: 1000,
       );
       return null;
+    }
+  }
+
+  Future<Map<String, OnyxCameraZone>> readCameraZones(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return const <String, OnyxCameraZone>{};
+    }
+    if (_cameraZonesCache.containsKey(normalizedSiteId)) {
+      return _cameraZonesCache[normalizedSiteId]!;
+    }
+    try {
+      final rows = await _client
+          .from('site_camera_zones')
+          .select(
+            'site_id,channel_id,zone_name,zone_type,is_perimeter,is_indoor,notes',
+          )
+          .eq('site_id', normalizedSiteId)
+          .order('channel_id', ascending: true);
+      final zones = <String, OnyxCameraZone>{};
+      for (final row in rows) {
+        final zone = OnyxSiteCameraZone.fromRow(
+          Map<String, dynamic>.from(row as Map),
+        ).toAwarenessZone();
+        if (zone.channelId.trim().isEmpty) {
+          continue;
+        }
+        zones[zone.channelId] = zone;
+      }
+      final frozen = Map<String, OnyxCameraZone>.unmodifiable(zones);
+      _cameraZonesCache[normalizedSiteId] = frozen;
+      return frozen;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read camera zones for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return const <String, OnyxCameraZone>{};
     }
   }
 
@@ -162,9 +253,9 @@ class OnyxSiteAwarenessRepository {
       final updatedChannels = <String>{
         ...?existing?.channelsWithDetections,
         normalizedChannelId,
-      }.toList(growable: false)
-        ..sort();
-      final peakDetected = updatedChannels.length > (existing?.peakDetected ?? 0)
+      }.toList(growable: false)..sort();
+      final peakDetected =
+          updatedChannels.length > (existing?.peakDetected ?? 0)
           ? updatedChannels.length
           : (existing?.peakDetected ?? 0);
       await _client.from('site_occupancy_sessions').upsert(<String, Object?>{
@@ -268,4 +359,14 @@ bool? _siteOccupancyBool(Object? value) {
     }
   }
   return null;
+}
+
+String _siteCameraZoneChannelId(Object? value) {
+  if (value is int) {
+    return value.toString();
+  }
+  if (value is num) {
+    return value.toInt().toString();
+  }
+  return (value?.toString() ?? '').trim();
 }
