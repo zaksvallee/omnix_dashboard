@@ -8,6 +8,7 @@ enum OnyxTelegramCommandType {
   camera,
   intelligence,
   actionRequest,
+  visitorRegistration,
   clientStatement,
   unknown,
 }
@@ -107,6 +108,18 @@ class OnyxTelegramCommandRouter {
     'dispatch',
   };
 
+  static const Set<String> _visitorRegistrationTriggers = <String>{
+    'cleaner is coming',
+    'expecting a visitor',
+    'contractor coming tomorrow',
+    'gardener today',
+    'visitor coming',
+    'delivery coming',
+    'cleaner coming',
+    'gardener coming',
+    'contractor coming',
+  };
+
   // Phrases that identify possession/identity context ("is my dad", "are my kids").
   static const Set<String> _identityPhrases = <String>{
     'is my',
@@ -162,6 +175,9 @@ class OnyxTelegramCommandRouter {
     }
     if (_shouldSkipClassification(normalized)) {
       return OnyxTelegramCommandType.unknown;
+    }
+    if (_looksLikeVisitorRegistration(normalized)) {
+      return OnyxTelegramCommandType.visitorRegistration;
     }
     // Statement check runs first — before topic classifiers — so phrases like
     // "the one person detected is my dad" don't leak into liveStatus/camera.
@@ -327,6 +343,26 @@ class OnyxTelegramCommandRouter {
       return true;
     }
     return false;
+  }
+
+  bool _looksLikeVisitorRegistration(String normalized) {
+    if (_matchesAny(normalized, _visitorRegistrationTriggers)) {
+      return true;
+    }
+    final mentionsVisitorRole =
+        normalized.contains('cleaner') ||
+        normalized.contains('gardener') ||
+        normalized.contains('contractor') ||
+        normalized.contains('visitor') ||
+        normalized.contains('delivery');
+    if (!mentionsVisitorRole) {
+      return false;
+    }
+    return normalized.contains('coming') ||
+        normalized.contains('expecting') ||
+        normalized.contains('today') ||
+        normalized.contains('tomorrow') ||
+        normalized.contains('arriving');
   }
 
   bool _matchesAny(String normalized, Set<String> phrases) {

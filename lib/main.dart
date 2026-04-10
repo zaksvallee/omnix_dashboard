@@ -3289,6 +3289,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _siteProfileService = OnyxSiteProfileService(
       readProfileRow: (siteId) => _readSiteIntelligenceProfileRow(siteId: siteId),
       readZoneRuleRows: (siteId) => _readSiteZoneRuleRows(siteId: siteId),
+      readExpectedVisitorRows: (siteId) =>
+          _readSiteExpectedVisitorRows(siteId: siteId),
     );
     _behaviourMonitorService = OnyxBehaviourMonitorService();
     _outcomeGovernancePolicy = OutcomeLabelGovernancePolicy.fromJsonString(
@@ -16098,6 +16100,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxTelegramCommandType.camera => 'Visual Status Sent',
       OnyxTelegramCommandType.intelligence => 'Intelligence Summary Sent',
       OnyxTelegramCommandType.actionRequest => 'Action Confirmation Sent',
+      OnyxTelegramCommandType.visitorRegistration => 'Visitor Registration Saved',
       OnyxTelegramCommandType.clientStatement => 'Statement Acknowledged',
       OnyxTelegramCommandType.unknown => 'Structured Reply Sent',
     };
@@ -16150,11 +16153,42 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         siteId: siteId,
         prompt: update.text,
       ),
+      OnyxTelegramCommandType.visitorRegistration => _telegramVisitorRegistrationReply(
+        siteId: siteId,
+        prompt: update.text,
+      ),
       OnyxTelegramCommandType.clientStatement => Future<String>.value(
         _telegramClientStatementAcknowledgement(update.text),
       ),
       OnyxTelegramCommandType.unknown => Future<String>.value(''),
     };
+  }
+
+  Future<String> _telegramVisitorRegistrationReply({
+    required String siteId,
+    required String prompt,
+  }) async {
+    final registration = _telegramExpectedVisitorRegistrationForPrompt(prompt);
+    if (registration == null) {
+      return 'Noted. I can expect a cleaner, gardener, contractor, delivery, or visitor on site today if you want me to suppress normal daytime movement.';
+    }
+    try {
+      await _insertTemporaryExpectedVisitor(
+        siteId: siteId,
+        registration: registration,
+      );
+      return "Got it. I'll expect ${registration.responseLabel} on site "
+          "${registration.dayLabel} and won't alert for normal movement during "
+          'their visit. Let me know when they leave.';
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to create expected visitor registration for $siteId.',
+        name: 'OnyxTelegramVisitorRegistration',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return 'I could not save that visitor schedule just now, so normal monitoring remains active.';
+    }
   }
 
   String _telegramClientStatementAcknowledgement(String rawText) {
@@ -16213,6 +16247,54 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (normalized.contains(hint)) return hint;
     }
     return null;
+  }
+
+  _TelegramExpectedVisitorRegistration?
+  _telegramExpectedVisitorRegistrationForPrompt(String prompt) {
+    final normalized = prompt.trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    String visitorRole = 'visitor';
+    String visitorName = 'Visitor';
+    String responseLabel = 'the visitor';
+    if (normalized.contains('cleaner')) {
+      visitorRole = 'cleaner';
+      visitorName = 'Cleaner';
+      responseLabel = 'the cleaner';
+    } else if (normalized.contains('gardener')) {
+      visitorRole = 'gardener';
+      visitorName = 'Gardener';
+      responseLabel = 'the gardener';
+    } else if (normalized.contains('contractor')) {
+      visitorRole = 'contractor';
+      visitorName = 'Contractor';
+      responseLabel = 'the contractor';
+    } else if (normalized.contains('delivery')) {
+      visitorRole = 'delivery';
+      visitorName = 'Delivery';
+      responseLabel = 'the delivery';
+    } else if (normalized.contains('visitor')) {
+      visitorRole = 'regular_visitor';
+      visitorName = 'Visitor';
+      responseLabel = 'the visitor';
+    }
+    final nowLocal = _telegramFlowNowLocal();
+    final targetDate = normalized.contains('tomorrow')
+        ? DateTime(nowLocal.year, nowLocal.month, nowLocal.day + 1)
+        : DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+    final startTime = normalized.contains('tomorrow')
+        ? '00:00'
+        : '${nowLocal.hour.toString().padLeft(2, '0')}:${nowLocal.minute.toString().padLeft(2, '0')}';
+    return _TelegramExpectedVisitorRegistration(
+      visitorName: visitorName,
+      visitorRole: visitorRole,
+      responseLabel: responseLabel,
+      targetDateLocal: targetDate,
+      dayLabel: normalized.contains('tomorrow') ? 'tomorrow' : 'today',
+      visitStart: startTime,
+      visitEnd: '23:59',
+    );
   }
 
   List<DispatchEvent> _telegramCommandScopedEvents({
@@ -16538,6 +16620,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
     final siteProfile = await _siteProfileService.loadProfile(siteId);
+    final activeExpectedVisitors = await _siteProfileService.loadActiveExpectedVisitors(
+      siteId: siteId,
+      timezone: siteProfile.timezone,
+      atUtc: _telegramFlowNowUtc(),
+    );
     final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
       siteId: siteId,
     );
@@ -16646,6 +16733,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             'Last movement: ${_telegramCommandLocalTimeLabel(lastMovementAtUtc)}',
           );
         }
+      }
+      final expectedVisitorLine = _telegramExpectedVisitorStatusLine(
+        activeExpectedVisitors,
+      );
+      if (expectedVisitorLine != null) {
+        final noUnusualActivity =
+            siteAwarenessSummary.perimeterClear &&
+            siteAwarenessSummary.activeAlertCount <= 0 &&
+            activeIncidents.isEmpty;
+        lines.add(
+          noUnusualActivity
+              ? '$expectedVisitorLine No unusual activity.'
+              : expectedVisitorLine,
+        );
       }
       if (siteAwarenessSummary.activeAlertCount > 0) {
         lines.add('Active alerts: ${siteAwarenessSummary.activeAlertCount}');
@@ -38487,6 +38588,57 @@ Future<List<Map<String, dynamic>>> _readSiteZoneRuleRows({
   }
 }
 
+Future<List<Map<String, dynamic>>> _readSiteExpectedVisitorRows({
+  required String siteId,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <Map<String, dynamic>>[];
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('site_expected_visitors')
+        .select(
+          'site_id,visitor_name,visitor_role,visit_days,visit_start,visit_end,is_active,notes,visit_date,expires_at,created_at',
+        )
+        .eq('site_id', siteId.trim())
+        .eq('is_active', true)
+        .order('created_at', ascending: false);
+    return rows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  } catch (_) {
+    return const <Map<String, dynamic>>[];
+  }
+}
+
+Future<void> _insertTemporaryExpectedVisitor({
+  required String siteId,
+  required _TelegramExpectedVisitorRegistration registration,
+}) async {
+  final targetDateLocal = registration.targetDateLocal;
+  final expiresAtUtc = DateTime(
+    targetDateLocal.year,
+    targetDateLocal.month,
+    targetDateLocal.day,
+    23,
+    59,
+    59,
+  ).toUtc();
+  await Supabase.instance.client.from('site_expected_visitors').insert(<String, Object?>{
+    'site_id': siteId.trim(),
+    'visitor_name': registration.visitorName,
+    'visitor_role': registration.visitorRole,
+    'visit_days': <String>[_telegramVisitorWeekdayLabel(targetDateLocal)],
+    'visit_start': registration.visitStart,
+    'visit_end': registration.visitEnd,
+    'visit_date':
+        '${targetDateLocal.year.toString().padLeft(4, '0')}-${targetDateLocal.month.toString().padLeft(2, '0')}-${targetDateLocal.day.toString().padLeft(2, '0')}',
+    'expires_at': expiresAtUtc.toIso8601String(),
+    'is_active': true,
+    'notes': 'Telegram visitor registration created ${DateTime.now().toUtc().toIso8601String()}',
+  });
+}
+
 Future<Map<String, dynamic>?> _readSiteOccupancySessionRow({
   required String siteId,
   required DateTime nowLocal,
@@ -38611,6 +38763,67 @@ int _siteOccupancyDisplayedDetectedCount({
     return detectedCount;
   }
   return math.min(detectedCount, expectedOccupancy);
+}
+
+String? _telegramExpectedVisitorStatusLine(List<SiteExpectedVisitor> visitors) {
+  if (visitors.isEmpty) {
+    return null;
+  }
+  final primary = visitors.first;
+  final untilLabel = _telegramExpectedVisitorUntilLabel(primary.visitEnd);
+  if (visitors.length == 1) {
+    return '${primary.displayName} expected on site until $untilLabel.';
+  }
+  return '${primary.displayName} and ${visitors.length - 1} more expected on site until $untilLabel.';
+}
+
+String _telegramExpectedVisitorUntilLabel(String? rawTime) {
+  if (rawTime == null || rawTime.trim().isEmpty) {
+    return 'end of day';
+  }
+  final match = RegExp(r'^(\d{1,2}):(\d{2})').firstMatch(rawTime.trim());
+  if (match == null) {
+    return rawTime.trim();
+  }
+  final hour = int.tryParse(match.group(1)!);
+  final minute = int.tryParse(match.group(2)!);
+  if (hour == null || minute == null) {
+    return rawTime.trim();
+  }
+  return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+}
+
+String _telegramVisitorWeekdayLabel(DateTime dateLocal) {
+  return switch (dateLocal.weekday) {
+    DateTime.monday => 'monday',
+    DateTime.tuesday => 'tuesday',
+    DateTime.wednesday => 'wednesday',
+    DateTime.thursday => 'thursday',
+    DateTime.friday => 'friday',
+    DateTime.saturday => 'saturday',
+    DateTime.sunday => 'sunday',
+    _ => 'unknown',
+  };
+}
+
+class _TelegramExpectedVisitorRegistration {
+  final String visitorName;
+  final String visitorRole;
+  final String responseLabel;
+  final DateTime targetDateLocal;
+  final String dayLabel;
+  final String visitStart;
+  final String visitEnd;
+
+  const _TelegramExpectedVisitorRegistration({
+    required this.visitorName,
+    required this.visitorRole,
+    required this.responseLabel,
+    required this.targetDateLocal,
+    required this.dayLabel,
+    required this.visitStart,
+    required this.visitEnd,
+  });
 }
 
 int _siteProfileExpectedPeopleCount(

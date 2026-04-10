@@ -449,6 +449,10 @@ class OnyxProactiveAlertService {
         alertDecision.suggestedAction!.trim().isNotEmpty) {
       lines.add(alertDecision.suggestedAction!.trim());
     }
+    if (alertDecision.contextNote != null &&
+        alertDecision.contextNote!.trim().isNotEmpty) {
+      lines.add(alertDecision.contextNote!.trim());
+    }
     return lines.join('\n');
   }
 

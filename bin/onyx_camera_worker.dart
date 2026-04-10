@@ -1240,6 +1240,35 @@ class OnyxSiteAwarenessRepository {
     }
   }
 
+  Future<List<Map<String, dynamic>>> readExpectedVisitorRows(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return const <Map<String, dynamic>>[];
+    }
+    try {
+      final rows = await _client
+          .from('site_expected_visitors')
+          .select(
+            'site_id,visitor_name,visitor_role,visit_days,visit_start,visit_end,is_active,notes,visit_date,expires_at',
+          )
+          .eq('site_id', normalizedSiteId)
+          .eq('is_active', true)
+          .order('created_at', ascending: false);
+      return rows
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList(growable: false);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read expected visitors for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return const <Map<String, dynamic>>[];
+    }
+  }
+
   Future<void> recordHumanDetection({
     required String siteId,
     required String channelId,
@@ -2103,6 +2132,7 @@ Future<void> main() async {
       profileService: OnyxSiteProfileService(
         readProfileRow: repository.readSiteProfileRow,
         readZoneRuleRows: repository.readSiteZoneRuleRows,
+        readExpectedVisitorRows: repository.readExpectedVisitorRows,
       ),
     );
     stdout.writeln(

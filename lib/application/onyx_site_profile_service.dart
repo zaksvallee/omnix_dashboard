@@ -23,6 +23,7 @@ class AlertDecision {
   final AlertLevel alertLevel;
   final String reason;
   final String? suggestedAction;
+  final String? contextNote;
   final bool afterHours;
 
   const AlertDecision({
@@ -30,6 +31,7 @@ class AlertDecision {
     required this.alertLevel,
     required this.reason,
     this.suggestedAction,
+    this.contextNote,
     required this.afterHours,
   });
 
@@ -72,6 +74,102 @@ class DetectionEvent {
     required this.isPerimeterSequence,
     required this.observedDistinctPresenceCount,
   });
+}
+
+class SiteExpectedVisitor {
+  final String siteId;
+  final String visitorName;
+  final String visitorRole;
+  final List<String> visitDays;
+  final String? visitStart;
+  final String? visitEnd;
+  final bool isActive;
+  final String? notes;
+  final DateTime? visitDate;
+  final DateTime? expiresAtUtc;
+
+  const SiteExpectedVisitor({
+    required this.siteId,
+    required this.visitorName,
+    required this.visitorRole,
+    required this.visitDays,
+    required this.visitStart,
+    required this.visitEnd,
+    required this.isActive,
+    required this.notes,
+    required this.visitDate,
+    required this.expiresAtUtc,
+  });
+
+  factory SiteExpectedVisitor.fromRow(Map<String, dynamic> row) {
+    return SiteExpectedVisitor(
+      siteId: _profileString(row['site_id']),
+      visitorName: _profileString(row['visitor_name']),
+      visitorRole:
+          (_nullableProfileString(row['visitor_role']) ?? 'visitor')
+              .toLowerCase(),
+      visitDays: _stringList(row['visit_days']),
+      visitStart: _nullableProfileString(row['visit_start']),
+      visitEnd: _nullableProfileString(row['visit_end']),
+      isActive: _profileBool(row['is_active']) ?? true,
+      notes: _nullableProfileString(row['notes']),
+      visitDate: _profileDate(row['visit_date']),
+      expiresAtUtc: _profileDateTimeUtc(row['expires_at']),
+    );
+  }
+
+  String get displayName {
+    if (visitorName.trim().isNotEmpty) {
+      return visitorName.trim();
+    }
+    return switch (visitorRole.trim().toLowerCase()) {
+      'cleaner' => 'Cleaner',
+      'gardener' => 'Gardener',
+      'contractor' => 'Contractor',
+      'delivery' => 'Delivery',
+      'regular_visitor' => 'Visitor',
+      _ => 'Visitor',
+    };
+  }
+
+  bool isExpectedAt({
+    required DateTime observedAtUtc,
+    required String timezone,
+  }) {
+    if (!isActive) {
+      return false;
+    }
+    final observedUtc = observedAtUtc.toUtc();
+    if (expiresAtUtc != null && observedUtc.isAfter(expiresAtUtc!)) {
+      return false;
+    }
+    final local = _profileLocalTime(timezone, observedUtc);
+    if (visitDate != null) {
+      if (local.year != visitDate!.year ||
+          local.month != visitDate!.month ||
+          local.day != visitDate!.day) {
+        return false;
+      }
+    } else if (visitDays.isNotEmpty &&
+        !visitDays.contains(_weekdayLabel(local.weekday))) {
+      return false;
+    }
+    final start = visitStart == null ? null : _parseClock(visitStart!);
+    final end = visitEnd == null ? null : _parseClock(visitEnd!);
+    if (start == null || end == null) {
+      return true;
+    }
+    final nowMinutes = local.hour * 60 + local.minute;
+    final startMinutes = start.hour * 60 + start.minute;
+    final endMinutes = end.hour * 60 + end.minute;
+    if (startMinutes == endMinutes) {
+      return true;
+    }
+    if (startMinutes < endMinutes) {
+      return nowMinutes >= startMinutes && nowMinutes <= endMinutes;
+    }
+    return nowMinutes >= startMinutes || nowMinutes <= endMinutes;
+  }
 }
 
 class SiteSnapshot {
@@ -317,14 +415,18 @@ typedef SiteProfileRowReader =
     Future<Map<String, dynamic>?> Function(String siteId);
 typedef SiteZoneRuleRowsReader =
     Future<List<Map<String, dynamic>>> Function(String siteId);
+typedef SiteExpectedVisitorRowsReader =
+    Future<List<Map<String, dynamic>>> Function(String siteId);
 
 class OnyxSiteProfileService {
   final SiteProfileRowReader? readProfileRow;
   final SiteZoneRuleRowsReader? readZoneRuleRows;
+  final SiteExpectedVisitorRowsReader? readExpectedVisitorRows;
 
   const OnyxSiteProfileService({
     this.readProfileRow,
     this.readZoneRuleRows,
+    this.readExpectedVisitorRows,
   });
 
   Future<SiteIntelligenceProfile> loadProfile(String siteId) async {
@@ -349,6 +451,32 @@ class OnyxSiteProfileService {
     return rows.map(SiteZoneRule.fromRow).toList(growable: false);
   }
 
+  Future<List<SiteExpectedVisitor>> loadExpectedVisitors(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return const <SiteExpectedVisitor>[];
+    }
+    final rows = await readExpectedVisitorRows?.call(normalizedSiteId) ??
+        const <Map<String, dynamic>>[];
+    return rows.map(SiteExpectedVisitor.fromRow).toList(growable: false);
+  }
+
+  Future<List<SiteExpectedVisitor>> loadActiveExpectedVisitors({
+    required String siteId,
+    required String timezone,
+    required DateTime atUtc,
+  }) async {
+    final visitors = await loadExpectedVisitors(siteId);
+    return visitors
+        .where(
+          (visitor) => visitor.isExpectedAt(
+            observedAtUtc: atUtc.toUtc(),
+            timezone: timezone,
+          ),
+        )
+        .toList(growable: false);
+  }
+
   AlertThresholds getAlertThresholds(SiteIntelligenceProfile profile) {
     return AlertThresholds(
       duringHoursLevel: _alertLevelForSensitivity(profile.duringHoursSensitivity),
@@ -367,6 +495,16 @@ class OnyxSiteProfileService {
     final thresholds = getAlertThresholds(profile);
     final zoneRules = await loadZoneRules(siteId);
     final matchingRule = _matchZoneRule(zoneRules, event);
+    final activeExpectedVisitors = await loadActiveExpectedVisitors(
+      siteId: siteId,
+      timezone: profile.timezone,
+      atUtc: event.detectedAtUtc,
+    );
+    final expectedVisitorNote = activeExpectedVisitors.isEmpty
+        ? null
+        : 'Note: Expected visitor '
+              '(${_expectedVisitorLabel(activeExpectedVisitors)}) '
+              'on site during these hours.';
 
     if (event.isIndoor && profile.industryType == 'residential') {
       return AlertDecision.noAlert(
@@ -400,6 +538,35 @@ class OnyxSiteProfileService {
         reason: 'Vehicle movement monitoring is disabled for this site.',
         afterHours: afterHours,
       );
+    }
+
+    if (profile.industryType == 'residential' &&
+        !afterHours &&
+        activeExpectedVisitors.isNotEmpty) {
+      if (event.zoneType == 'semi_perimeter' || event.isIndoor) {
+        return AlertDecision.noAlert(
+          reason: 'Expected visitor is scheduled on site during daytime hours.',
+          afterHours: afterHours,
+        );
+      }
+      if (event.zoneType == 'perimeter' &&
+          !_isStreetFacingPerimeterZone(event.zoneName)) {
+        return AlertDecision.noAlert(
+          reason: 'Expected visitor is scheduled on site during daytime hours.',
+          afterHours: afterHours,
+        );
+      }
+      if (event.zoneType == 'perimeter' &&
+          _isStreetFacingPerimeterZone(event.zoneName)) {
+        return AlertDecision(
+          shouldAlert: true,
+          alertLevel: AlertLevel.warning,
+          reason:
+              'Street-facing perimeter movement detected while an expected visitor is on site.',
+          contextNote: expectedVisitorNote,
+          afterHours: afterHours,
+        );
+      }
     }
 
     if (profile.industryType == 'residential' && !afterHours) {
@@ -472,6 +639,7 @@ class OnyxSiteProfileService {
       alertLevel: sensitivityLevel,
       reason: _reasonForDetection(profile, event, afterHours),
       suggestedAction: _suggestedActionForProfile(profile, event, afterHours),
+      contextNote: !afterHours ? expectedVisitorNote : null,
       afterHours: afterHours,
     );
   }
@@ -648,6 +816,32 @@ class OnyxSiteProfileService {
       _ => 'Alert the control channel for review.',
     };
   }
+
+  String _expectedVisitorLabel(List<SiteExpectedVisitor> visitors) {
+    if (visitors.isEmpty) {
+      return 'visitor';
+    }
+    final labels = visitors
+        .map((visitor) => visitor.displayName.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (labels.isEmpty) {
+      return 'visitor';
+    }
+    if (labels.length == 1) {
+      return labels.first;
+    }
+    return '${labels.first} and ${labels.length - 1} more';
+  }
+
+  bool _isStreetFacingPerimeterZone(String zoneName) {
+    final normalized = zoneName.trim().toLowerCase();
+    return normalized.contains('street') ||
+        normalized.contains('front') ||
+        normalized.contains('main gate') ||
+        normalized.contains('driveway');
+  }
 }
 
 DateTime _profileLocalTime(String timezone, DateTime utc) {
@@ -712,6 +906,22 @@ int? _profileInt(Object? value) {
     return int.tryParse(value.trim());
   }
   return null;
+}
+
+DateTime? _profileDate(Object? value) {
+  final raw = _nullableProfileString(value);
+  if (raw == null) {
+    return null;
+  }
+  return DateTime.tryParse(raw);
+}
+
+DateTime? _profileDateTimeUtc(Object? value) {
+  final raw = _nullableProfileString(value);
+  if (raw == null) {
+    return null;
+  }
+  return DateTime.tryParse(raw)?.toUtc();
 }
 
 bool? _profileBool(Object? value) {
