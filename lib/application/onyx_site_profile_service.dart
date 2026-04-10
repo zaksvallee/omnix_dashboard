@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'onyx_fr_service.dart';
 import 'onyx_proactive_alert_service.dart';
 
 enum AlertLevel { info, warning, critical }
@@ -60,6 +61,8 @@ class DetectionEvent {
   final bool isLoitering;
   final bool isPerimeterSequence;
   final int observedDistinctPresenceCount;
+  final bool frEvaluated;
+  final OnyxFrMatchContext? frMatch;
 
   const DetectionEvent({
     required this.siteId,
@@ -73,6 +76,8 @@ class DetectionEvent {
     required this.isLoitering,
     required this.isPerimeterSequence,
     required this.observedDistinctPresenceCount,
+    this.frEvaluated = false,
+    this.frMatch,
   });
 }
 
@@ -527,6 +532,49 @@ class OnyxSiteProfileService {
               : AlertLevel.warning,
           reason: '${event.zoneName} is a restricted zone.',
           suggestedAction: _suggestedActionForViolation(matchingRule),
+          afterHours: afterHours,
+        );
+      }
+    }
+
+    if (event.frEvaluated) {
+      final frMatch = event.frMatch;
+      if (frMatch != null && frMatch.isExpectedNow) {
+        return AlertDecision.noAlert(
+          reason:
+              'Recognized ${frMatch.person.role} is scheduled to be on site.',
+          afterHours: afterHours,
+        );
+      }
+      if (frMatch != null && !frMatch.isExpectedNow) {
+        return AlertDecision(
+          shouldAlert: true,
+          alertLevel: AlertLevel.info,
+          reason:
+              'Recognized ${frMatch.person.role} detected outside expected hours.',
+          suggestedAction: 'Verify whether this visit is expected.',
+          afterHours: afterHours,
+        );
+      }
+      if (frMatch == null &&
+          event.detectionKind == OnyxProactiveDetectionKind.human &&
+          event.isIndoor) {
+        return AlertDecision.noAlert(
+          reason: 'Unknown indoor person noted for review only.',
+          afterHours: afterHours,
+        );
+      }
+      if (frMatch == null &&
+          event.detectionKind == OnyxProactiveDetectionKind.human &&
+          afterHours &&
+          event.isPerimeter) {
+        return AlertDecision(
+          shouldAlert: true,
+          alertLevel: AlertLevel.critical,
+          reason: 'Unknown person detected on the perimeter after hours.',
+          suggestedAction: profile.hasArmedResponse
+              ? 'Escalate for response verification.'
+              : 'Review live cameras and contact the client.',
           afterHours: afterHours,
         );
       }

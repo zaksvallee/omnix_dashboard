@@ -104,6 +104,7 @@ import 'application/onyx_agent_client_draft_service.dart';
 import 'application/onyx_agent_local_brain_service.dart';
 import 'application/onyx_command_parser.dart';
 import 'application/onyx_elevenlabs_service.dart';
+import 'application/onyx_fr_service.dart';
 import 'application/onyx_patrol_monitor_service.dart';
 import 'application/onyx_behaviour_monitor_service.dart';
 import 'application/onyx_site_profile_service.dart';
@@ -2005,6 +2006,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final TelegramPushSyncCoordinator _telegramPushSyncCoordinator;
   late final ClientBackendProbeCoordinator _clientBackendProbeCoordinator;
   late final OnyxSiteProfileService _siteProfileService;
+  late final OnyxFrService _frService;
   late final OnyxBehaviourMonitorService _behaviourMonitorService;
   late final TelegramPollingTabLock _telegramPollingTabLock;
   List<String> _guardSyncAvailableFacadeIds = const [];
@@ -3291,6 +3293,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       readZoneRuleRows: (siteId) => _readSiteZoneRuleRows(siteId: siteId),
       readExpectedVisitorRows: (siteId) =>
           _readSiteExpectedVisitorRows(siteId: siteId),
+    );
+    _frService = OnyxFrService(
+      readRegistryRows: (siteId) => _readFrPersonRegistryRows(siteId: siteId),
     );
     _behaviourMonitorService = OnyxBehaviourMonitorService();
     _outcomeGovernancePolicy = OutcomeLabelGovernancePolicy.fromJsonString(
@@ -15722,7 +15727,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           siteAwarenessRow,
           _telegramFlowNowUtc(),
         )) {
-      siteAwarenessContext = _formatSiteAwarenessSnapshot(siteAwarenessRow);
+      siteAwarenessContext = await _formatTelegramAiSiteAwarenessContext(
+        clientId: target.clientId,
+        siteId: siteId,
+        row: siteAwarenessRow,
+      );
       siteAwarenessSummary = _telegramAiSiteAwarenessSummaryFromRow(
         siteAwarenessRow,
       );
@@ -16055,11 +16064,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       messageProvider: providerLabel,
     );
     if (delivered) {
+      final controlMirrorBody =
+          commandType == OnyxTelegramCommandType.liveStatus
+          ? await _telegramLiveStatusReply(
+              clientId: target.clientId,
+              siteId: siteId,
+              audienceRole: ClientAppViewerRole.control.name,
+            )
+          : trimmedResponse;
       await _appendCriticalTelegramClientReplyControlMirror(
         clientId: target.clientId,
         siteId: siteId,
         author: 'ONYX',
-        body: trimmedResponse,
+        body: controlMirrorBody,
         occurredAtUtc: nowUtc,
         messageProvider: providerLabel,
       );
@@ -16101,6 +16118,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxTelegramCommandType.intelligence => 'Intelligence Summary Sent',
       OnyxTelegramCommandType.actionRequest => 'Action Confirmation Sent',
       OnyxTelegramCommandType.visitorRegistration => 'Visitor Registration Saved',
+      OnyxTelegramCommandType.frOnboarding => 'FR Onboarding Sent',
       OnyxTelegramCommandType.clientStatement => 'Statement Acknowledged',
       OnyxTelegramCommandType.unknown => 'Structured Reply Sent',
     };
@@ -16116,6 +16134,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxTelegramCommandType.liveStatus => _telegramLiveStatusReply(
         clientId: target.clientId,
         siteId: siteId,
+        audienceRole: target.endpointRole,
       ),
       OnyxTelegramCommandType.gateAccess => _telegramGateAccessReply(
         clientId: target.clientId,
@@ -16157,6 +16176,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         siteId: siteId,
         prompt: update.text,
       ),
+      OnyxTelegramCommandType.frOnboarding => Future<String>.value(
+        _telegramFrOnboardingReply(update.text),
+      ),
       OnyxTelegramCommandType.clientStatement => Future<String>.value(
         _telegramClientStatementAcknowledgement(update.text),
       ),
@@ -16189,6 +16211,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return 'I could not save that visitor schedule just now, so normal monitoring remains active.';
     }
+  }
+
+  String _telegramFrOnboardingReply(String prompt) {
+    final name = _telegramFrOnboardingName(prompt);
+    final subject = name ?? 'someone';
+    return 'To add $subject to ONYX recognition:\n'
+        '1. Send me 3-5 clear photos of $subject\'s face\n'
+        "2. I'll enroll them automatically\n"
+        '3. ONYX will then recognise them on site\n\n'
+        'Photos should be well-lit, face clearly visible, different angles preferred.';
   }
 
   String _telegramClientStatementAcknowledgement(String rawText) {
@@ -16295,6 +16327,150 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       visitStart: startTime,
       visitEnd: '23:59',
     );
+  }
+
+  String? _telegramFrOnboardingName(String prompt) {
+    final trimmed = prompt.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final patterns = <RegExp>[
+      RegExp(r'add\s+(.+?)\s+to\s+(?:the\s+)?system', caseSensitive: false),
+      RegExp(
+        r'register\s+(.+?)\s+as\s+(?:a\s+)?(?:resident|staff|guard|regular visitor)',
+        caseSensitive: false,
+      ),
+      RegExp(r'enroll\s+(.+?)\s+in\s+(?:the\s+)?system', caseSensitive: false),
+      RegExp(r'enrol\s+(.+?)\s+in\s+(?:the\s+)?system', caseSensitive: false),
+    ];
+    for (final pattern in patterns) {
+      final match = pattern.firstMatch(trimmed);
+      if (match != null) {
+        final candidate = (match.group(1) ?? '').trim();
+        if (candidate.isNotEmpty) {
+          return _telegramHumanizedPersonName(candidate);
+        }
+      }
+    }
+    return null;
+  }
+
+  String _telegramHumanizedPersonName(String raw) {
+    return raw
+        .split(RegExp(r'\s+'))
+        .where((part) => part.trim().isNotEmpty)
+        .map(
+          (part) =>
+              '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+        )
+        .join(' ');
+  }
+
+  Future<String> _formatTelegramAiSiteAwarenessContext({
+    required String clientId,
+    required String siteId,
+    required Map<String, dynamic> row,
+  }) async {
+    final base = _formatSiteAwarenessSnapshot(row);
+    final frPresenceLine = await _telegramRecentFrPresenceLine(
+      clientId: clientId,
+      siteId: siteId,
+      audienceRole: 'ai',
+    );
+    if (frPresenceLine == null || frPresenceLine.trim().isEmpty) {
+      return base;
+    }
+    return '$base\n- Recent recognised people: $frPresenceLine';
+  }
+
+  Future<String?> _telegramRecentFrPresenceLine({
+    required String clientId,
+    required String siteId,
+    required String audienceRole,
+  }) async {
+    final registry = await _frService.loadRegistry(siteId);
+    if (registry.isEmpty) {
+      return null;
+    }
+    final recentEvents = _recentFrEventsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (recentEvents.isEmpty) {
+      return null;
+    }
+    final normalizedAudience = audienceRole.trim().toLowerCase();
+    final lines = <String>[];
+    final seenMatchIds = <String>{};
+    for (final event in recentEvents) {
+      final faceMatchId = (event.faceMatchId ?? '').trim().toUpperCase();
+      if (faceMatchId.isEmpty || !seenMatchIds.add(faceMatchId)) {
+        continue;
+      }
+      final context = await _frService.resolveMatch(
+        siteId: siteId,
+        personId: faceMatchId,
+        observedAtUtc: event.occurredAt.toUtc(),
+        timezone: 'Africa/Johannesburg',
+      );
+      if (context == null) {
+        continue;
+      }
+      final location = _frLocationLabelForEvent(event);
+      if (normalizedAudience == ClientAppViewerRole.control.name) {
+        lines.add(
+          '${context.audienceLabel(OnyxFrAudience.controller)} detected near $location.',
+        );
+      } else if (normalizedAudience == 'ai') {
+        lines.add(
+          '${context.audienceLabel(OnyxFrAudience.ai)} (${context.person.role}) detected near $location.',
+        );
+      } else {
+        lines.add(
+          '${context.audienceLabel(OnyxFrAudience.client)} detected near $location.',
+        );
+      }
+      if (lines.length >= 2) {
+        break;
+      }
+    }
+    if (lines.isEmpty) {
+      return null;
+    }
+    return lines.join(' ');
+  }
+
+  List<IntelligenceReceived> _recentFrEventsForScope({
+    required String clientId,
+    required String siteId,
+  }) {
+    final cutoff = _telegramFlowNowUtc().subtract(const Duration(minutes: 30));
+    final events = store
+        .allEvents()
+        .whereType<IntelligenceReceived>()
+        .where(
+          (event) =>
+              event.clientId.trim() == clientId.trim() &&
+              event.siteId.trim() == siteId.trim() &&
+              (event.faceMatchId ?? '').trim().isNotEmpty &&
+              !event.occurredAt.toUtc().isBefore(cutoff),
+        )
+        .toList(growable: false)
+      ..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+    return events;
+  }
+
+  String _frLocationLabelForEvent(IntelligenceReceived event) {
+    final zone = (event.zone ?? '').trim();
+    if (zone.isNotEmpty) {
+      return zone;
+    }
+    final cameraLabel = _monitoringCameraLabelForScope(
+      clientId: event.clientId,
+      siteId: event.siteId,
+      cameraId: event.cameraId,
+    );
+    return cameraLabel.trim().isEmpty ? 'the site' : cameraLabel;
   }
 
   List<DispatchEvent> _telegramCommandScopedEvents({
@@ -16617,6 +16793,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Future<String> _telegramLiveStatusReply({
     required String clientId,
     required String siteId,
+    String audienceRole = 'client',
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
     final siteProfile = await _siteProfileService.loadProfile(siteId);
@@ -16667,6 +16844,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final humanZoneActivityLine = _telegramCommandHumanZoneActivityLine(
         humanZones,
       );
+      final frPresenceLine = await _telegramRecentFrPresenceLine(
+        clientId: clientId,
+        siteId: siteId,
+        audienceRole: audienceRole,
+      );
       final hasPerimeterHumanMovement = humanZones.any(
         (zone) => zone.isPerimeter || zone.zoneType == 'perimeter',
       );
@@ -16682,6 +16864,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       if (humanZoneActivityLine != null) {
         lines.add(humanZoneActivityLine);
+      }
+      if (frPresenceLine != null) {
+        lines.add(frPresenceLine);
       }
       final expectedPeopleCount = _siteProfileExpectedPeopleCount(
         siteProfile,
@@ -22436,7 +22621,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final confidence = event.faceConfidence == null
           ? ''
           : ' ${(event.faceConfidence! * 100).toStringAsFixed(1)}%';
-      parts.add('Face $faceMatchId$confidence');
+      parts.add('Expected person$confidence');
     }
     if (plateNumber.isNotEmpty) {
       final confidence = event.plateConfidence == null
@@ -38599,6 +38784,29 @@ Future<List<Map<String, dynamic>>> _readSiteExpectedVisitorRows({
         .from('site_expected_visitors')
         .select(
           'site_id,visitor_name,visitor_role,visit_days,visit_start,visit_end,is_active,notes,visit_date,expires_at,created_at',
+        )
+        .eq('site_id', siteId.trim())
+        .eq('is_active', true)
+        .order('created_at', ascending: false);
+    return rows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList(growable: false);
+  } catch (_) {
+    return const <Map<String, dynamic>>[];
+  }
+}
+
+Future<List<Map<String, dynamic>>> _readFrPersonRegistryRows({
+  required String siteId,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <Map<String, dynamic>>[];
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('fr_person_registry')
+        .select(
+          'site_id,person_id,display_name,role,is_private,expected_days,expected_start,expected_end,photo_count,gallery_path,is_enrolled,enrolled_at,is_active,created_at',
         )
         .eq('site_id', siteId.trim())
         .eq('is_active', true)

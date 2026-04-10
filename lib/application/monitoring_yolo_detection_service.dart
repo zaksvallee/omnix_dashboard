@@ -735,7 +735,7 @@ class HttpMonitoringYoloDetectionService
         ? 'Camera ${cameraId!.trim()}'
         : 'the site';
     if ((faceMatchId ?? '').trim().isNotEmpty) {
-      return 'ONYX matched ${faceMatchId!.trim().toUpperCase()} near $hotspot';
+      return 'ONYX matched an enrolled person near $hotspot';
     }
     if ((plateNumber ?? '').trim().isNotEmpty) {
       return 'ONYX matched vehicle ${_normalizedPlateNumber(plateNumber!)} near $hotspot';
@@ -761,7 +761,7 @@ class HttpMonitoringYoloDetectionService
     final identityDetails = <String>[];
     if ((faceMatchId ?? '').trim().isNotEmpty) {
       final faceLine =
-          ' ONYX matched ${faceMatchId!.trim().toUpperCase()}'
+          ' ONYX matched an enrolled person'
           '${faceConfidence == null ? '' : ' at ${faceConfidence.toStringAsFixed(2)} confidence'}.';
       identityDetails.add(faceLine);
     }

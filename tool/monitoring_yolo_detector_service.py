@@ -630,6 +630,8 @@ class FaceRecognitionModule:
     def _gallery_match_id(self, path: Path) -> str:
         assert self.gallery_dir is not None
         relative = path.relative_to(self.gallery_dir)
+        if len(relative.parts) > 2:
+            return relative.parts[1].strip().upper()
         if len(relative.parts) > 1:
             return relative.parts[0].strip().upper()
         stem = path.stem.strip()

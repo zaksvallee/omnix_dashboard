@@ -9,6 +9,7 @@ enum OnyxTelegramCommandType {
   intelligence,
   actionRequest,
   visitorRegistration,
+  frOnboarding,
   clientStatement,
   unknown,
 }
@@ -120,6 +121,17 @@ class OnyxTelegramCommandRouter {
     'contractor coming',
   };
 
+  static const Set<String> _frOnboardingTriggers = <String>{
+    'add to the system',
+    'add to onyx',
+    'register as a resident',
+    'register as resident',
+    'register in the system',
+    'enrol in the system',
+    'enroll in the system',
+    'add resident',
+  };
+
   // Phrases that identify possession/identity context ("is my dad", "are my kids").
   static const Set<String> _identityPhrases = <String>{
     'is my',
@@ -175,6 +187,9 @@ class OnyxTelegramCommandRouter {
     }
     if (_shouldSkipClassification(normalized)) {
       return OnyxTelegramCommandType.unknown;
+    }
+    if (_looksLikeFrOnboarding(normalized)) {
+      return OnyxTelegramCommandType.frOnboarding;
     }
     if (_looksLikeVisitorRegistration(normalized)) {
       return OnyxTelegramCommandType.visitorRegistration;
@@ -363,6 +378,23 @@ class OnyxTelegramCommandRouter {
         normalized.contains('today') ||
         normalized.contains('tomorrow') ||
         normalized.contains('arriving');
+  }
+
+  bool _looksLikeFrOnboarding(String normalized) {
+    if (_matchesAny(normalized, _frOnboardingTriggers)) {
+      return true;
+    }
+    final includesAdd = normalized.contains('add ');
+    final includesRegister =
+        normalized.contains('register ') || normalized.contains('enroll ');
+    final includesPersonContext =
+        normalized.contains('resident') ||
+        normalized.contains('staff') ||
+        normalized.contains('guard') ||
+        normalized.contains('visitor') ||
+        normalized.contains('system') ||
+        normalized.contains('recognition');
+    return (includesAdd || includesRegister) && includesPersonContext;
   }
 
   bool _matchesAny(String normalized, Set<String> phrases) {
