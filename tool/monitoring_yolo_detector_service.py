@@ -540,6 +540,8 @@ class FaceRecognitionModule:
         return {
             "face_match_id": best_match_id,
             "face_confidence": max(0.0, min(best_score, 1.0)),
+            "face_distance": max(0.0, min(1.0 - best_score, 1.0)),
+            "matched": True,
         }
 
     def _ensure_models(self):
@@ -919,8 +921,17 @@ class UltralyticsBackend(DetectorBackend):
                 plate_match=plate_match,
             ),
             "detections": detections,
+            "face_match": None
+            if face_match is None
+            else {
+                "person_id": face_match["face_match_id"],
+                "confidence": face_match["face_confidence"],
+                "distance": face_match.get("face_distance"),
+                "matched": True,
+            },
             "face_match_id": None if face_match is None else face_match["face_match_id"],
             "face_confidence": None if face_match is None else face_match["face_confidence"],
+            "face_distance": None if face_match is None else face_match.get("face_distance"),
             "plate_number": None if plate_match is None else plate_match["plate_number"],
             "plate_confidence": None if plate_match is None else plate_match["plate_confidence"],
         }
@@ -1006,14 +1017,27 @@ class UltralyticsBackend(DetectorBackend):
         use_tracking: bool,
     ) -> List[Dict[str, Any]]:
         if use_tracking:
-            result = model.track(
-                source=image,
-                conf=confidence,
-                imgsz=self._image_size,
-                tracker=self._tracker_config_name(),
-                persist=True,
-                verbose=False,
-            )[0]
+            try:
+                result = model.track(
+                    source=image,
+                    conf=confidence,
+                    imgsz=self._image_size,
+                    tracker=self._tracker_config_name(),
+                    persist=True,
+                    verbose=False,
+                )[0]
+            except Exception as exc:
+                print(
+                    "[ONYX] YOLO tracking unavailable; falling back to non-tracking prediction: "
+                    f"{exc}"
+                )
+                result = model.predict(
+                    source=image,
+                    conf=confidence,
+                    imgsz=self._image_size,
+                    verbose=False,
+                )[0]
+                use_tracking = False
         else:
             result = model.predict(
                 source=image,

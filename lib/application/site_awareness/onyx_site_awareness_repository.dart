@@ -189,6 +189,35 @@ class OnyxSiteVehiclePresenceEvent {
   }
 }
 
+class OnyxFrPersonRegistryEntry {
+  final String siteId;
+  final String personId;
+  final String displayName;
+  final String role;
+  final bool isEnrolled;
+  final bool isActive;
+
+  const OnyxFrPersonRegistryEntry({
+    required this.siteId,
+    required this.personId,
+    required this.displayName,
+    required this.role,
+    required this.isEnrolled,
+    required this.isActive,
+  });
+
+  factory OnyxFrPersonRegistryEntry.fromRow(Map<String, dynamic> row) {
+    return OnyxFrPersonRegistryEntry(
+      siteId: (row['site_id'] as String? ?? '').trim(),
+      personId: (row['person_id'] as String? ?? '').trim().toUpperCase(),
+      displayName: (row['display_name'] as String? ?? '').trim(),
+      role: (row['role'] as String? ?? '').trim(),
+      isEnrolled: _siteOccupancyBool(row['is_enrolled']) ?? false,
+      isActive: _siteOccupancyBool(row['is_active']) ?? true,
+    );
+  }
+}
+
 class OnyxSiteAwarenessRepository {
   final SupabaseClient _client;
   final Map<String, OnyxSiteOccupancyConfig?> _occupancyConfigCache =
@@ -203,6 +232,8 @@ class OnyxSiteAwarenessRepository {
       <String, Map<String, OnyxCameraZone>>{};
   final Map<String, List<OnyxSiteVehicleRegistryEntry>> _vehicleRegistryCache =
       <String, List<OnyxSiteVehicleRegistryEntry>>{};
+  final Map<String, List<OnyxFrPersonRegistryEntry>> _frRegistryCache =
+      <String, List<OnyxFrPersonRegistryEntry>>{};
 
   OnyxSiteAwarenessRepository(SupabaseClient client) : _client = client;
 
@@ -517,6 +548,62 @@ class OnyxSiteAwarenessRepository {
     final registry = await readVehicleRegistry(siteId);
     for (final entry in registry) {
       if (entry.plateNumber == normalizedPlate) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  Future<List<OnyxFrPersonRegistryEntry>> readFrRegistry(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return const <OnyxFrPersonRegistryEntry>[];
+    }
+    if (_frRegistryCache.containsKey(normalizedSiteId)) {
+      return _frRegistryCache[normalizedSiteId]!;
+    }
+    try {
+      final rows = await _client
+          .from('fr_person_registry')
+          .select('site_id,person_id,display_name,role,is_enrolled,is_active')
+          .eq('site_id', normalizedSiteId)
+          .eq('is_active', true)
+          .eq('is_enrolled', true)
+          .order('display_name', ascending: true);
+      final people = rows
+          .map(
+            (row) => OnyxFrPersonRegistryEntry.fromRow(
+              Map<String, dynamic>.from(row as Map),
+            ),
+          )
+          .where((entry) => entry.personId.isNotEmpty)
+          .toList(growable: false);
+      _frRegistryCache[normalizedSiteId] =
+          List<OnyxFrPersonRegistryEntry>.unmodifiable(people);
+      return _frRegistryCache[normalizedSiteId]!;
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to read FR registry for $normalizedSiteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return const <OnyxFrPersonRegistryEntry>[];
+    }
+  }
+
+  Future<OnyxFrPersonRegistryEntry?> readFrPerson({
+    required String siteId,
+    required String personId,
+  }) async {
+    final normalizedPersonId = personId.trim().toUpperCase();
+    if (normalizedPersonId.isEmpty) {
+      return null;
+    }
+    final registry = await readFrRegistry(siteId);
+    for (final entry in registry) {
+      if (entry.personId == normalizedPersonId) {
         return entry;
       }
     }

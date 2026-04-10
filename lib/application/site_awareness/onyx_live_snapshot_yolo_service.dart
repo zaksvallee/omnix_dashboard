@@ -1,0 +1,210 @@
+import 'dart:convert';
+import 'dart:developer' as developer;
+
+import 'package:http/http.dart' as http;
+
+class OnyxLiveSnapshotYoloResult {
+  final bool personDetected;
+  final double? personConfidence;
+  final String? faceMatchId;
+  final double? faceConfidence;
+  final double? faceDistance;
+  final String? plateNumber;
+  final String? summary;
+  final String? error;
+
+  const OnyxLiveSnapshotYoloResult({
+    required this.personDetected,
+    required this.personConfidence,
+    required this.faceMatchId,
+    required this.faceConfidence,
+    required this.faceDistance,
+    required this.plateNumber,
+    required this.summary,
+    required this.error,
+  });
+
+  bool get matchedPerson => (faceMatchId ?? '').trim().isNotEmpty;
+  bool get unknownPerson => personDetected && !matchedPerson;
+}
+
+class OnyxLiveSnapshotYoloService {
+  final http.Client client;
+  final Uri endpoint;
+  final String authToken;
+  final Duration requestTimeout;
+
+  const OnyxLiveSnapshotYoloService({
+    required this.client,
+    required this.endpoint,
+    this.authToken = '',
+    this.requestTimeout = const Duration(seconds: 20),
+  });
+
+  bool get isConfigured => endpoint.toString().trim().isNotEmpty;
+
+  Future<OnyxLiveSnapshotYoloResult?> detectSnapshot({
+    required String recordKey,
+    required String provider,
+    required String sourceType,
+    required String clientId,
+    required String siteId,
+    required String cameraId,
+    required String zone,
+    required DateTime occurredAtUtc,
+    required List<int> imageBytes,
+  }) async {
+    if (!isConfigured || imageBytes.isEmpty) {
+      return null;
+    }
+    try {
+      final response = await client
+          .post(
+            endpoint,
+            headers: <String, String>{
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              if (authToken.trim().isNotEmpty)
+                'Authorization': 'Bearer ${authToken.trim()}',
+            },
+            body: jsonEncode(<String, Object?>{
+              'items': <Map<String, Object?>>[
+                <String, Object?>{
+                  'record_key': recordKey,
+                  'provider': provider,
+                  'source_type': sourceType,
+                  'client_id': clientId,
+                  'site_id': siteId,
+                  'camera_id': cameraId,
+                  'zone': zone,
+                  'headline': 'Site awareness snapshot',
+                  'summary': 'Live human detection snapshot',
+                  'object_label': 'person',
+                  'occurred_at_utc': occurredAtUtc.toUtc().toIso8601String(),
+                  'image_url':
+                      'data:image/jpeg;base64,${base64Encode(imageBytes)}',
+                },
+              ],
+            }),
+          )
+          .timeout(requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        developer.log(
+          'YOLO snapshot detect returned HTTP ${response.statusCode}.',
+          name: 'OnyxLiveSnapshotYolo',
+          level: 900,
+        );
+        return null;
+      }
+      return _parseResult(response.body);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to run live snapshot detection through YOLO.',
+        name: 'OnyxLiveSnapshotYolo',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      return null;
+    }
+  }
+
+  OnyxLiveSnapshotYoloResult? _parseResult(String rawBody) {
+    final decoded = jsonDecode(rawBody);
+    if (decoded is! Map) {
+      return null;
+    }
+    final payload = decoded.cast<Object?, Object?>();
+    final items = switch (payload['results'] ?? payload['items']) {
+      List value => value,
+      _ => const <Object?>[],
+    };
+    if (items.isEmpty) {
+      return const OnyxLiveSnapshotYoloResult(
+        personDetected: false,
+        personConfidence: null,
+        faceMatchId: null,
+        faceConfidence: null,
+        faceDistance: null,
+        plateNumber: null,
+        summary: null,
+        error: null,
+      );
+    }
+    final first = items.first;
+    if (first is! Map) {
+      return null;
+    }
+    final item = first.map((key, value) => MapEntry(key.toString(), value));
+    final faceMatch = switch (item['face_match'] ?? item['faceMatch']) {
+      Map value => value.map((key, value) => MapEntry(key.toString(), value)),
+      _ => const <String, Object?>{},
+    };
+    final detections = switch (item['detections']) {
+      List value => value,
+      _ => const <Object?>[],
+    };
+    final personDetected =
+        (item['primary_label'] ?? item['primaryLabel'] ?? '')
+                .toString()
+                .trim()
+                .toLowerCase() ==
+            'person' ||
+        detections.whereType<Map>().any((rawDetection) {
+          final label = (rawDetection['label'] ?? rawDetection['class'] ?? '')
+              .toString()
+              .trim()
+              .toLowerCase();
+          return label == 'person';
+        }) ||
+        (item['face_match_id'] ?? item['faceMatchId'] ?? '')
+            .toString()
+            .trim()
+            .isNotEmpty;
+    return OnyxLiveSnapshotYoloResult(
+      personDetected: personDetected,
+      personConfidence: _yoloDouble(
+        item['confidence'] ?? item['primary_confidence'],
+      ),
+      faceMatchId: _yoloString(
+        item['face_match_id'] ??
+            item['faceMatchId'] ??
+            faceMatch['person_id'] ??
+            faceMatch['face_match_id'],
+      ),
+      faceConfidence: _yoloDouble(
+        item['face_confidence'] ??
+            item['faceConfidence'] ??
+            faceMatch['confidence'] ??
+            faceMatch['face_confidence'],
+      ),
+      faceDistance: _yoloDouble(
+        item['face_distance'] ??
+            item['faceDistance'] ??
+            faceMatch['distance'] ??
+            faceMatch['face_distance'],
+      ),
+      plateNumber: _yoloString(item['plate_number'] ?? item['plateNumber']),
+      summary: _yoloString(item['summary']),
+      error: _yoloString(item['error']),
+    );
+  }
+}
+
+String? _yoloString(Object? value) {
+  final normalized = (value?.toString() ?? '').trim();
+  return normalized.isEmpty ? null : normalized;
+}
+
+double? _yoloDouble(Object? value) {
+  if (value is double) {
+    return value;
+  }
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value.trim());
+  }
+  return null;
+}

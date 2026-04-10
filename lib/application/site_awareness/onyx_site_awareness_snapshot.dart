@@ -172,6 +172,11 @@ class OnyxDetectionZone {
   final bool isPerimeter;
   final bool isIndoor;
   final DateTime lastDetectedAt;
+  final String? knownPersonId;
+  final String? knownPersonName;
+  final bool unknownPerson;
+  final double? faceMatchConfidence;
+  final double? faceMatchDistance;
 
   const OnyxDetectionZone({
     required this.channelId,
@@ -180,6 +185,11 @@ class OnyxDetectionZone {
     required this.isPerimeter,
     required this.isIndoor,
     required this.lastDetectedAt,
+    this.knownPersonId,
+    this.knownPersonName,
+    this.unknownPerson = false,
+    this.faceMatchConfidence,
+    this.faceMatchDistance,
   });
 
   Map<String, Object?> toJsonMap() {
@@ -190,6 +200,11 @@ class OnyxDetectionZone {
       'is_perimeter': isPerimeter,
       'is_indoor': isIndoor,
       'last_detected_at': lastDetectedAt.toUtc().toIso8601String(),
+      'known_person_id': knownPersonId,
+      'known_person_name': knownPersonName,
+      'unknown_person': unknownPerson,
+      'face_match_confidence': faceMatchConfidence,
+      'face_match_distance': faceMatchDistance,
     };
   }
 }
@@ -257,6 +272,11 @@ class OnyxSiteAwarenessEvent {
   final String rawEventType;
   final String? targetType;
   final String? plateNumber;
+  final String? faceMatchId;
+  final String? faceMatchName;
+  final double? faceMatchConfidence;
+  final double? faceMatchDistance;
+  final bool unknownPerson;
   final bool isKnownFaultChannel;
 
   const OnyxSiteAwarenessEvent({
@@ -266,8 +286,43 @@ class OnyxSiteAwarenessEvent {
     required this.rawEventType,
     this.targetType,
     this.plateNumber,
+    this.faceMatchId,
+    this.faceMatchName,
+    this.faceMatchConfidence,
+    this.faceMatchDistance,
+    this.unknownPerson = false,
     this.isKnownFaultChannel = false,
   });
+
+  OnyxSiteAwarenessEvent copyWith({
+    String? channelId,
+    OnyxEventType? eventType,
+    DateTime? detectedAt,
+    String? rawEventType,
+    String? targetType,
+    String? plateNumber,
+    String? faceMatchId,
+    String? faceMatchName,
+    double? faceMatchConfidence,
+    double? faceMatchDistance,
+    bool? unknownPerson,
+    bool? isKnownFaultChannel,
+  }) {
+    return OnyxSiteAwarenessEvent(
+      channelId: channelId ?? this.channelId,
+      eventType: eventType ?? this.eventType,
+      detectedAt: detectedAt ?? this.detectedAt,
+      rawEventType: rawEventType ?? this.rawEventType,
+      targetType: targetType ?? this.targetType,
+      plateNumber: plateNumber ?? this.plateNumber,
+      faceMatchId: faceMatchId ?? this.faceMatchId,
+      faceMatchName: faceMatchName ?? this.faceMatchName,
+      faceMatchConfidence: faceMatchConfidence ?? this.faceMatchConfidence,
+      faceMatchDistance: faceMatchDistance ?? this.faceMatchDistance,
+      unknownPerson: unknownPerson ?? this.unknownPerson,
+      isKnownFaultChannel: isKnownFaultChannel ?? this.isKnownFaultChannel,
+    );
+  }
 
   factory OnyxSiteAwarenessEvent.fromAlertXml(
     String payload, {
@@ -576,6 +631,11 @@ class OnyxSiteAwarenessProjector {
             isPerimeter: zone?.isPerimeter ?? false,
             isIndoor: zone?.isIndoor ?? false,
             lastDetectedAt: event.detectedAt,
+            knownPersonId: event.faceMatchId,
+            knownPersonName: event.faceMatchName,
+            unknownPerson: event.unknownPerson,
+            faceMatchConfidence: event.faceMatchConfidence,
+            faceMatchDistance: event.faceMatchDistance,
           );
         })
         .toList(growable: false);
