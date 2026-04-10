@@ -543,6 +543,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (result == null) {
       return event;
     }
+    final primaryLabel = (result.primaryLabel ?? '').trim().toLowerCase();
+    if (primaryLabel == 'animal') {
+      developer.log(
+        '[ONYX] Animal detected on CH$channelId — suppressed.',
+        name: 'OnyxHikIsapiStream',
+      );
+      return event.copyWith(eventType: OnyxEventType.animalDetected);
+    }
     if ((result.error ?? '').trim().isNotEmpty) {
       developer.log(
         'YOLO snapshot detect returned an error for CH$channelId: ${result.error}',

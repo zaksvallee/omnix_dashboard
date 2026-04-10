@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:http/http.dart' as http;
 
 class OnyxLiveSnapshotYoloResult {
+  final String? primaryLabel;
   final bool personDetected;
   final double? personConfidence;
   final String? faceMatchId;
@@ -15,6 +16,7 @@ class OnyxLiveSnapshotYoloResult {
   final String? error;
 
   const OnyxLiveSnapshotYoloResult({
+    required this.primaryLabel,
     required this.personDetected,
     required this.personConfidence,
     required this.faceMatchId,
@@ -165,6 +167,7 @@ class OnyxLiveSnapshotYoloService {
     };
     if (items.isEmpty) {
       return const OnyxLiveSnapshotYoloResult(
+        primaryLabel: null,
         personDetected: false,
         personConfidence: null,
         faceMatchId: null,
@@ -207,6 +210,7 @@ class OnyxLiveSnapshotYoloService {
             .trim()
             .isNotEmpty;
     return OnyxLiveSnapshotYoloResult(
+      primaryLabel: _yoloString(item['primary_label'] ?? item['primaryLabel']),
       personDetected: personDetected,
       personConfidence: _yoloDouble(
         item['confidence'] ?? item['primary_confidence'],

@@ -554,6 +554,12 @@ class OnyxSiteProfileService {
 
     if (event.frEvaluated) {
       final frMatch = event.frMatch;
+      if (frMatch != null && frMatch.person.role.toLowerCase() == 'resident') {
+        return AlertDecision.noAlert(
+          reason: 'Recognized resident detected on site.',
+          afterHours: afterHours,
+        );
+      }
       if (frMatch != null && frMatch.isExpectedNow) {
         return AlertDecision.noAlert(
           reason:
