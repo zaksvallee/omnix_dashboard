@@ -1,4 +1,4 @@
-.PHONY: run-web start stop status analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot validation-bundle-cert cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-field-gate cctv-signoff cctv-release-gate cctv-release-trend dvr-validate dvr-readiness dvr-mock-artifacts dvr-capture-pack dvr-pilot-gate dvr-field-gate dvr-release-gate dvr-release-trend dvr-signoff listener-bench listener-baseline-promote listener-parity listener-parity-trend listener-validation-trend listener-cutover-decision listener-cutover-trend listener-release-gate listener-release-trend listener-capture-pack listener-validate listener-readiness listener-mock-artifacts listener-field-gate listener-parity-readiness listener-pilot-gate listener-signoff
+.PHONY: run-web start stop restart status analyze test smoke-ui preflight preflight-smoke guard-auto guard-predevice guard-pilot validation-bundle-cert cctv-validate cctv-readiness cctv-mock-artifacts cctv-capture-pack cctv-pilot-gate cctv-field-gate cctv-signoff cctv-release-gate cctv-release-trend dvr-validate dvr-readiness dvr-mock-artifacts dvr-capture-pack dvr-pilot-gate dvr-field-gate dvr-release-gate dvr-release-trend dvr-signoff listener-bench listener-baseline-promote listener-parity listener-parity-trend listener-validation-trend listener-cutover-decision listener-cutover-trend listener-release-gate listener-release-trend listener-capture-pack listener-validate listener-readiness listener-mock-artifacts listener-field-gate listener-parity-readiness listener-pilot-gate listener-signoff
 
 .DEFAULT_GOAL := run-web
 
@@ -14,6 +14,9 @@ start: run-web
 
 stop:
 	./scripts/stop_onyx.sh --config $(CONFIG)
+
+restart:
+	@bash scripts/restart_onyx.sh
 
 status:
 	./scripts/onyx_status.sh --config $(CONFIG)
