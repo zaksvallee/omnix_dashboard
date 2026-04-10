@@ -213,9 +213,19 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       channelId.trim(),
     );
     if (rtspSnapshotBytes != null && rtspSnapshotBytes.isNotEmpty) {
+      developer.log(
+        '[ONYX] FR: Using HD frame from RTSP for CH${channelId.trim()} '
+        '(${rtspSnapshotBytes.length} bytes).',
+        name: 'OnyxHikIsapiStream',
+      );
       return rtspSnapshotBytes;
     }
     try {
+      developer.log(
+        '[ONYX] FR: Falling back to ISAPI snapshot for CH${channelId.trim()}.',
+        name: 'OnyxHikIsapiStream',
+        level: 800,
+      );
       final response = await _auth
           .get(
             _client,

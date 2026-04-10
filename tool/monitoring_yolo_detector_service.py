@@ -519,6 +519,10 @@ class FaceRecognitionModule:
         if not self._gallery_face_encodings:
             return None
 
+        height, width = image_bgr.shape[:2]
+        if width >= 1000 and height >= 600:
+            print(f"[ONYX] FR: Using HD frame {width}x{height} from RTSP")
+
         best_match_id = ""
         best_distance = None
         saw_person_crop = False
@@ -718,6 +722,7 @@ class FaceRecognitionModule:
     def _full_frame_attempts(self, image_bgr: Any) -> List[Any]:
         import cv2
 
+        height, width = image_bgr.shape[:2]
         upscaled = cv2.resize(
             image_bgr,
             None,
@@ -728,6 +733,8 @@ class FaceRecognitionModule:
         gray = cv2.cvtColor(upscaled, cv2.COLOR_BGR2GRAY)
         equalized = cv2.equalizeHist(gray)
         equalized_bgr = cv2.cvtColor(equalized, cv2.COLOR_GRAY2BGR)
+        if width >= 1000 and height >= 600:
+            return [upscaled, image_bgr, equalized_bgr]
         return [image_bgr, upscaled, equalized_bgr]
 
     def _face_attempts(self, crop: Any) -> List[Any]:
