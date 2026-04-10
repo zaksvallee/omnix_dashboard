@@ -4,15 +4,19 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
-const kOnyxDefaultElevenLabsVoiceId = 'EXAVITQu4vr4xnSDxMaL';
-const kOnyxDefaultElevenLabsModelId = 'eleven_multilingual_v2';
+const kOnyxDefaultElevenLabsVoiceId = 'pNInz6obpgDQGcFmaJgB';
+const kOnyxDefaultElevenLabsModelId = 'eleven_turbo_v2_5';
 const kOnyxDefaultElevenLabsProxyBaseUri = 'http://127.0.0.1:11637';
+const kOnyxDefaultDeterrentMessage =
+    'This property is under active ONYX Security monitoring. '
+    'You have been detected. A security response has been notified.';
 
 abstract class OnyxElevenLabsService {
   bool get isConfigured;
   int get apiKeyLength;
 
   Future<Uint8List?> synthesize(String text);
+  Future<Uint8List?> synthesizeDeterrent(String message);
 }
 
 class UnconfiguredOnyxElevenLabsService implements OnyxElevenLabsService {
@@ -26,6 +30,9 @@ class UnconfiguredOnyxElevenLabsService implements OnyxElevenLabsService {
 
   @override
   Future<Uint8List?> synthesize(String text) async => null;
+
+  @override
+  Future<Uint8List?> synthesizeDeterrent(String message) async => null;
 }
 
 class HttpOnyxElevenLabsService implements OnyxElevenLabsService {
@@ -54,6 +61,18 @@ class HttpOnyxElevenLabsService implements OnyxElevenLabsService {
   @override
   Future<Uint8List?> synthesize(String text) async {
     final normalized = _normalizeInput(text);
+    return _synthesizeNormalizedText(normalized);
+  }
+
+  @override
+  Future<Uint8List?> synthesizeDeterrent(String message) async {
+    final normalized = _normalizeInput(
+      message.trim().isEmpty ? kOnyxDefaultDeterrentMessage : message,
+    );
+    return _synthesizeNormalizedText(normalized);
+  }
+
+  Future<Uint8List?> _synthesizeNormalizedText(String normalized) async {
     if (!isConfigured || normalized.isEmpty) {
       return null;
     }

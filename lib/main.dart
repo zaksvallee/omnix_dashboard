@@ -593,12 +593,14 @@ class _TelegramInboundClientTarget {
   final String clientId;
   final String? siteId;
   final String displayLabel;
+  final String endpointRole;
 
   const _TelegramInboundClientTarget({
     required this.endpointId,
     required this.clientId,
     this.siteId,
     required this.displayLabel,
+    this.endpointRole = 'client',
   });
 }
 
@@ -674,6 +676,15 @@ class _TelegramPartnerDispatchBinding {
       sentAtUtc: sentAt,
     );
   }
+}
+
+String _normalizeTelegramEndpointRole(String? value) {
+  final normalized = (value ?? '').trim().toLowerCase();
+  return normalized.isEmpty ? 'client' : normalized;
+}
+
+bool _telegramEndpointRoleAllowsVoice(String? endpointRole) {
+  return _normalizeTelegramEndpointRole(endpointRole) == 'controller';
 }
 
 class _MonitoringWatchTarget {
@@ -15607,6 +15618,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         messageThreadId: update.messageThreadId,
         clientId: target.clientId,
         siteId: siteId,
+        endpointRole: target.endpointRole,
         fallbackText: trimmedResponse,
         sourceLabel: 'command_router',
       );
@@ -16342,9 +16354,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required int? messageThreadId,
     required String clientId,
     required String siteId,
+    required String endpointRole,
     required String fallbackText,
     required String sourceLabel,
   }) async {
+    final normalizedEndpointRole = _normalizeTelegramEndpointRole(endpointRole);
+    if (!_telegramEndpointRoleAllowsVoice(normalizedEndpointRole)) {
+      developer.log(
+        '[ONYX] ElevenLabs: skipped voice synthesis endpoint_role=$normalizedEndpointRole',
+        name: 'ElevenLabs',
+      );
+      return;
+    }
     if (!_elevenLabsService.isConfigured || !_telegramBridge.isConfigured) {
       developer.log(
         '[ONYX] ElevenLabs: skipped voice synthesis '
@@ -16358,6 +16379,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final script = await _buildTelegramStatusVoiceScript(
         clientId: clientId,
         siteId: siteId,
+        endpointRole: normalizedEndpointRole,
         fallbackText: fallbackText,
       );
       if (script == null || script.trim().isEmpty) {
@@ -16411,6 +16433,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Future<String?> _buildTelegramStatusVoiceScript({
     required String clientId,
     required String siteId,
+    required String endpointRole,
     required String fallbackText,
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
@@ -16441,49 +16464,67 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           .where((summary) => summary.isActive)
           .length;
       final segments = <String>[
-        'ONYX Security.',
+        _telegramEndpointRoleAllowsVoice(endpointRole)
+            ? 'ONYX Control.'
+            : 'ONYX Security.',
         '$siteLabel.',
+        if (_telegramEndpointRoleAllowsVoice(endpointRole)) 'Status update.',
         siteAwarenessSummary.perimeterClear
-            ? 'All clear.'
-            : 'Attention required.',
-        siteAwarenessSummary.perimeterClear
-            ? 'Perimeter secure.'
+            ? 'Perimeter clear.'
             : 'Perimeter alert active.',
       ];
-      final isPrivateResidence =
-          _isPrivateResidenceOccupancyConfig(occupancyConfigRow) &&
-          _siteOccupancyExpectedOccupancy(occupancyConfigRow) > 0;
-      if (isPrivateResidence) {
-        final expectedOccupancy = _siteOccupancyExpectedOccupancy(
-          occupancyConfigRow,
-        );
-        final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
-        final occupancyPeak = _siteOccupancyPeakDetected(occupancySessionRow);
-        final detectedToday = siteAwarenessSummary.humanCount > occupancyPeak
-            ? siteAwarenessSummary.humanCount
-            : occupancyPeak;
+      final humanCount = siteAwarenessSummary.humanCount;
+      if (humanCount > 0) {
         segments.add(
-          '$detectedToday of $expectedOccupancy $occupancyLabel detected today.',
-        );
-      } else if (siteAwarenessSummary.humanCount > 0) {
-        final peopleLabel = siteAwarenessSummary.humanCount == 1
-            ? 'person'
-            : 'people';
-        segments.add(
-          '${siteAwarenessSummary.humanCount} $peopleLabel on site.',
+          humanCount == 1
+              ? '1 person on site.'
+              : '$humanCount persons on site.',
         );
       } else {
-        segments.add('No people detected on site.');
+        segments.add('No persons detected on site.');
       }
       if (activeDispatchCount <= 0) {
-        segments.add('No active incidents.');
+        segments.add('No active alerts.');
       } else {
-        final incidentLabel = activeDispatchCount == 1
-            ? 'active incident'
-            : 'active incidents';
-        segments.add('$activeDispatchCount $incidentLabel.');
+        segments.add(
+          activeDispatchCount == 1
+              ? '1 active alert.'
+              : '$activeDispatchCount active alerts.',
+        );
       }
-      segments.add('Monitoring continues.');
+      segments.add('Camera coverage nominal.');
+      for (final line in _telegramCommandKnownFaultLines(siteAwarenessRow)) {
+        final spoken = line
+            .replaceAll(':', '')
+            .replaceAll('(', ', ')
+            .replaceAll(')', '')
+            .replaceAll('  ', ' ')
+            .trim();
+        if (spoken.isNotEmpty) {
+          segments.add(spoken.endsWith('.') ? spoken : '$spoken.');
+        }
+      }
+      if (_telegramEndpointRoleAllowsVoice(endpointRole)) {
+        segments.add('End of update.');
+      } else {
+        final isPrivateResidence =
+            _isPrivateResidenceOccupancyConfig(occupancyConfigRow) &&
+            _siteOccupancyExpectedOccupancy(occupancyConfigRow) > 0;
+        if (isPrivateResidence) {
+          final expectedOccupancy = _siteOccupancyExpectedOccupancy(
+            occupancyConfigRow,
+          );
+          final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
+          final occupancyPeak = _siteOccupancyPeakDetected(occupancySessionRow);
+          final detectedToday = siteAwarenessSummary.humanCount > occupancyPeak
+              ? siteAwarenessSummary.humanCount
+              : occupancyPeak;
+          segments.add(
+            '$detectedToday of $expectedOccupancy $occupancyLabel detected today.',
+          );
+        }
+        segments.add('Monitoring continues.');
+      }
       return _normalizeTelegramStatusVoiceScript(segments.join(' '));
     }
     return _normalizeTelegramStatusVoiceScript(fallbackText);
@@ -19036,7 +19077,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       try {
         final rowsRaw = await Supabase.instance.client
             .from('client_messaging_endpoints')
-            .select('id, client_id, site_id, display_label, telegram_thread_id')
+            .select(
+              'id, client_id, site_id, display_label, telegram_thread_id, endpoint_role',
+            )
             .eq('provider', 'telegram')
             .eq('is_active', true)
             .eq('telegram_chat_id', normalizedChatId)
@@ -19068,6 +19111,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
                   (pick['display_label'] ?? '').toString().trim().isEmpty
                   ? 'Telegram'
                   : (pick['display_label'] ?? '').toString().trim(),
+              endpointRole: _normalizeTelegramEndpointRole(
+                (pick['endpoint_role'] ?? '').toString(),
+              ),
             );
           }
         }
@@ -19098,6 +19144,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       clientId: fallbackClientId,
       siteId: fallbackSiteId,
       displayLabel: 'Telegram Fallback',
+      endpointRole: 'client',
     );
   }
 
@@ -19594,6 +19641,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         messageThreadId: update.messageThreadId,
         clientId: target.clientId,
         siteId: siteId,
+        endpointRole: target.endpointRole,
         fallbackText: responseText,
         sourceLabel: 'quick_action',
       );

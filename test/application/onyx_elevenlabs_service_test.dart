@@ -11,9 +11,11 @@ void main() {
     const service = UnconfiguredOnyxElevenLabsService();
 
     final bytes = await service.synthesize('ONYX Security. All clear.');
+    final deterrent = await service.synthesizeDeterrent('');
 
     expect(service.isConfigured, isFalse);
     expect(bytes, isNull);
+    expect(deterrent, isNull);
   });
 
   test('http elevenlabs service posts normalized capped payload', () async {
@@ -118,4 +120,27 @@ void main() {
     expect(bytes, isNotNull);
     expect(bytes, hasLength(3));
   });
+
+  test(
+    'http elevenlabs service uses default deterrent message when blank',
+    () async {
+      late Map<String, dynamic> payload;
+      final client = MockClient((request) async {
+        payload = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response.bytes(const <int>[2, 4, 6, 8], 200);
+      });
+      final service = HttpOnyxElevenLabsService(
+        client: client,
+        apiKey: 'api-key-123',
+        voiceId: 'voice-456',
+      );
+
+      final bytes = await service.synthesizeDeterrent('');
+
+      expect(payload['text'], kOnyxDefaultDeterrentMessage);
+      expect(payload['model_id'], kOnyxDefaultElevenLabsModelId);
+      expect(bytes, isNotNull);
+      expect(bytes, hasLength(4));
+    },
+  );
 }
