@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-10 14:57
-- **Last commit:** feat: ONYX client onboarding wizard
-- **Commit hash:** 2a66a8c
+- **Date:** 2026-04-10 21:20
+- **Last commit:** fix: camera worker logs to file + stdout
+- **Commit hash:** 36c9749
 
 ## Completed today (2026-04-10)
 - [x] YOLO in pipeline — false positive filter active (0814e25)
@@ -27,6 +27,13 @@
 - [x] Status API live — api.onyxsecurity.co.za/v1/status (0a252bb)
 - [x] Siri shortcut working — voice status via iPhone
 - [x] Zone mapping — all 16 MS Valee channels mapped (f428044)
+- [x] FR enrollment — all 5 people (Zaks, Shaheda, Muhammed Saeed, Fatima, Jonathan)
+- [x] Live FR pipeline wired (f5a5e5b, 0bab897)
+- [x] Vehicle registry — 4 cars, driver assigned
+- [x] Vehicle presence + manual confirmation
+- [x] On-demand visitor system (Jonathan)
+- [x] Real names throughout
+- [x] Combined "who is on site" response
 
 
 ## Completed (this sprint)
@@ -61,13 +68,12 @@
 - [ ] Server-side AI processor planning — move Telegram AI off the browser path
 
 ## Priority queue (next session)
-- P0: Enroll MS Valee residents into FR gallery
-- P1: Alert tuning — verify false positives eliminated with YOLO
-- P2: Get Olarm device installed at MS Valee (IDS panel)
-- P3: Server-side AI processor — move brain off Mac
-- P4: MediaPipe behaviour intelligence
-- P5: LPR scaffold — license plate recognition
-- P6: First commercial client approach
+- P0: Verify FR debug lines in camera worker output
+- P1: Channel 0 → Channel 11 fix in status responses
+- P2: Alert suppression — enrolled residents no alerts
+- P3: Server-side AI processor
+- P4: Olarm device installation
+- P5: LPR active plate reading
 
 ## Next hardware to acquire
 - Olarm communicator for IDS panel (~R600-800)

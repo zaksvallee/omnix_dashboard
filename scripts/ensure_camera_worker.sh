@@ -133,6 +133,7 @@ start_worker_once() {
   mkdir -p "$(dirname "$LOG_FILE")"
   mkdir -p "$(dirname "$PID_FILE")"
   touch "$LOG_FILE"
+  # Mirror worker output to both the terminal and the persistent log file.
   nohup bash -lc 'exec ./scripts/run_camera_worker.sh --config "$1"' _ "$CONFIG_FILE" \
     > >(tee -a "$LOG_FILE") \
     2> >(tee -a "$LOG_FILE" >&2) &
