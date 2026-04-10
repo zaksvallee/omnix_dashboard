@@ -16360,6 +16360,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return 'I could not remove visitor access just now, so the current visitor window is still active.';
       }
     }
+    final confirmedResidents = await _recordManualVehiclePresenceConfirmation(
+      siteId: siteId,
+      prompt: prompt,
+    );
+    if (confirmedResidents.isNotEmpty) {
+      final names = confirmedResidents
+          .map(_vehiclePresenceOwnerLabel)
+          .toList(growable: false);
+      final joinedNames = names.length == 1
+          ? names.first
+          : '${names.take(names.length - 1).join(', ')} and ${names.last}';
+      return 'Got it. I\'ve marked $joinedNames as on site.\n'
+          'Vehicle presence has been confirmed by the resident.\n'
+          'Let me know when they leave or if anything seems unusual.';
+    }
     final registration = _telegramExpectedVisitorRegistrationForPrompt(prompt);
     if (registration == null) {
       return 'Noted. I can expect a cleaner, gardener, contractor, delivery, or visitor on site today if you want me to suppress normal daytime movement.';
@@ -16730,6 +16745,140 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return lines.join(' ');
   }
 
+  Future<List<_TelegramFrPresenceStatus>> _telegramRecentFrPresenceStatuses({
+    required String clientId,
+    required String siteId,
+  }) async {
+    final recentEvents = _recentFrEventsForScope(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    if (recentEvents.isEmpty) {
+      return const <_TelegramFrPresenceStatus>[];
+    }
+    final statuses = <_TelegramFrPresenceStatus>[];
+    final seenMatchIds = <String>{};
+    for (final event in recentEvents) {
+      final faceMatchId = (event.faceMatchId ?? '').trim().toUpperCase();
+      if (faceMatchId.isEmpty || !seenMatchIds.add(faceMatchId)) {
+        continue;
+      }
+      final context = await _frService.resolveMatch(
+        siteId: siteId,
+        personId: faceMatchId,
+        observedAtUtc: event.occurredAt.toUtc(),
+        timezone: 'Africa/Johannesburg',
+      );
+      if (context == null) {
+        continue;
+      }
+      statuses.add(
+        _TelegramFrPresenceStatus(
+          displayName: context.audienceLabel(OnyxFrAudience.client),
+          occurredAtUtc: event.occurredAt.toUtc(),
+          locationLabel: _frLocationLabelForEvent(event),
+        ),
+      );
+    }
+    return List<_TelegramFrPresenceStatus>.unmodifiable(statuses);
+  }
+
+  Future<String?> _telegramCombinedPresenceReply({
+    required String clientId,
+    required String siteId,
+    required String siteLabel,
+    required String prompt,
+    required DateTime nowUtc,
+    required DateTime todayLocal,
+  }) async {
+    final registryRows = await _readSiteVehicleRegistryRows(siteId: siteId);
+    if (registryRows.isEmpty) {
+      return null;
+    }
+    final startOfDayUtc = DateTime(
+      todayLocal.year,
+      todayLocal.month,
+      todayLocal.day,
+    ).toUtc();
+    final presenceRows = await _readSiteVehiclePresenceRows(
+      siteId: siteId,
+      sinceUtc: startOfDayUtc,
+    );
+    final statuses = _buildVehiclePresenceStatuses(
+      registryRows: registryRows,
+      presenceRows: presenceRows,
+      nowUtc: nowUtc,
+    );
+    if (statuses.isEmpty) {
+      return null;
+    }
+    final matchedStatus = _matchedVehiclePresenceStatusForPrompt(
+      prompt,
+      statuses,
+    );
+    final normalizedPrompt = prompt.trim().toLowerCase();
+    final asksForCombinedPresence =
+        normalizedPrompt.contains('who is home') ||
+        normalizedPrompt.contains('whos home') ||
+        normalizedPrompt.contains('who is on site');
+    if (matchedStatus != null && !asksForCombinedPresence) {
+      return [
+        'Vehicle presence: $siteLabel',
+        _telegramVehiclePresenceHomeLine(matchedStatus),
+      ].join('\n');
+    }
+    final frStatuses = await _telegramRecentFrPresenceStatuses(
+      clientId: clientId,
+      siteId: siteId,
+    );
+    final onSiteLines = <String>[];
+    final seenPeople = <String>{};
+    for (final frStatus in frStatuses) {
+      final key = _normalizedPresenceNameKey(frStatus.displayName);
+      if (key.isEmpty || !seenPeople.add(key)) {
+        continue;
+      }
+      onSiteLines.add(
+        '${frStatus.displayName} (detected ${_vehiclePresenceLocalTimeLabel(frStatus.occurredAtUtc)})',
+      );
+    }
+    for (final status in statuses.where((entry) => entry.isHome)) {
+      final owner = _vehiclePresenceOwnerLabel(status.registry);
+      final key = _normalizedPresenceNameKey(owner);
+      if (key.isEmpty || !seenPeople.add(key)) {
+        continue;
+      }
+      if (_vehiclePresenceWasResidentConfirmed(status.latestPresence)) {
+        onSiteLines.add('$owner (resident confirmed)');
+        continue;
+      }
+      final latest = status.latestPresence;
+      if (latest != null) {
+        onSiteLines.add(
+          '$owner (vehicle on site since ${_vehiclePresenceLocalTimeLabel(latest.occurredAtUtc)})',
+        );
+      }
+    }
+    return [
+      'On site: ${onSiteLines.isEmpty ? 'No one confirmed on site right now.' : onSiteLines.join(', ')}',
+      'Vehicles:',
+      ...statuses.map((status) {
+        final owner = _vehiclePresenceOwnerLabel(status.registry);
+        final vehicle = _vehiclePresenceVehicleLabel(status.registry);
+        if (!status.seenToday || status.latestPresence == null) {
+          return '- $owner — not detected today';
+        }
+        if (status.isHome) {
+          if (_vehiclePresenceWasResidentConfirmed(status.latestPresence)) {
+            return '- $owner — $vehicle on site (resident confirmed)';
+          }
+          return '- $owner — $vehicle on site (${_vehiclePresenceLastSeenLabel(status.latestPresence)})';
+        }
+        return '- $owner — out ($vehicle not seen since ${_vehiclePresenceLocalTimeLabel(status.latestPresence!.occurredAtUtc)})';
+      }),
+    ].join('\n');
+  }
+
   List<IntelligenceReceived> _recentFrEventsForScope({
     required String clientId,
     required String siteId,
@@ -17089,7 +17238,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
     final vehiclePresenceQuery = _telegramPromptLooksLikeVehiclePresence(prompt);
     if (vehiclePresenceQuery) {
-      final vehiclePresenceReply = await _telegramVehiclePresenceReply(
+      final vehiclePresenceReply = await _telegramCombinedPresenceReply(
+        clientId: clientId,
         siteId: siteId,
         siteLabel: siteLabel,
         prompt: prompt,
@@ -39422,6 +39572,18 @@ class _SiteVehiclePresenceStatus {
   });
 }
 
+class _TelegramFrPresenceStatus {
+  final String displayName;
+  final DateTime occurredAtUtc;
+  final String locationLabel;
+
+  const _TelegramFrPresenceStatus({
+    required this.displayName,
+    required this.occurredAtUtc,
+    required this.locationLabel,
+  });
+}
+
 Future<List<Map<String, dynamic>>> _readSiteVehicleRegistryRows({
   required String siteId,
 }) async {
@@ -39543,6 +39705,118 @@ List<_SiteVehiclePresenceStatus> _buildVehiclePresenceStatuses({
   return List<_SiteVehiclePresenceStatus>.unmodifiable(statuses);
 }
 
+String _normalizedPresenceNameKey(String value) {
+  return value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
+bool _vehiclePresenceWasResidentConfirmed(_SiteVehiclePresenceRecord? presence) {
+  final zone = presence?.zoneName?.trim().toLowerCase() ?? '';
+  return presence != null &&
+      presence.eventType == 'on_site' &&
+      zone == 'resident confirmed';
+}
+
+bool _promptContainsOwnerName(String prompt, String ownerName) {
+  final normalizedPrompt = ' ${_normalizedPresenceNameKey(prompt)} ';
+  final normalizedOwner = _normalizedPresenceNameKey(ownerName);
+  if (normalizedOwner.isEmpty) {
+    return false;
+  }
+  if (normalizedPrompt.contains(' $normalizedOwner ')) {
+    return true;
+  }
+  for (final token in normalizedOwner.split(' ')) {
+    if (token.length < 3) {
+      continue;
+    }
+    if (normalizedPrompt.contains(' $token ')) {
+      return true;
+    }
+  }
+  return false;
+}
+
+List<_SiteVehicleRegistryRecord> _matchedVehicleRegistryOwnersForPrompt({
+  required String prompt,
+  required List<_SiteVehicleRegistryRecord> registry,
+}) {
+  final matches = <_SiteVehicleRegistryRecord>[];
+  final seenPlates = <String>{};
+  for (final entry in registry) {
+    if (entry.ownerName.trim().isEmpty) {
+      continue;
+    }
+    if (!_promptContainsOwnerName(prompt, entry.ownerName)) {
+      continue;
+    }
+    if (!seenPlates.add(entry.plateNumber)) {
+      continue;
+    }
+    matches.add(entry);
+  }
+  return List<_SiteVehicleRegistryRecord>.unmodifiable(matches);
+}
+
+Future<List<_SiteVehicleRegistryRecord>> _recordManualVehiclePresenceConfirmation({
+  required String siteId,
+  required String prompt,
+}) async {
+  final registryRows = await _readSiteVehicleRegistryRows(siteId: siteId);
+  if (registryRows.isEmpty) {
+    return const <_SiteVehicleRegistryRecord>[];
+  }
+  final registry = registryRows
+      .map(_SiteVehicleRegistryRecord.fromRow)
+      .where((entry) => entry.plateNumber.isNotEmpty)
+      .toList(growable: false);
+  final matches = _matchedVehicleRegistryOwnersForPrompt(
+    prompt: prompt,
+    registry: registry,
+  );
+  if (matches.isEmpty) {
+    return const <_SiteVehicleRegistryRecord>[];
+  }
+  final nowUtc = DateTime.now().toUtc();
+  final recentRows = await _readSiteVehiclePresenceRows(
+    siteId: siteId,
+    sinceUtc: nowUtc.subtract(const Duration(hours: 6)),
+    limit: 400,
+  );
+  final latestByPlate = <String, _SiteVehiclePresenceRecord>{};
+  for (final row in recentRows) {
+    final record = _SiteVehiclePresenceRecord.fromRow(row);
+    if (record.plateNumber.isEmpty) {
+      continue;
+    }
+    latestByPlate.putIfAbsent(record.plateNumber, () => record);
+  }
+  for (final entry in matches) {
+    final latest = latestByPlate[entry.plateNumber];
+    final shouldInsert =
+        latest == null ||
+        nowUtc.difference(latest.occurredAtUtc) > const Duration(minutes: 15) ||
+        !_vehiclePresenceWasResidentConfirmed(latest);
+    if (!shouldInsert) {
+      continue;
+    }
+    await Supabase.instance.client.from('site_vehicle_presence').insert(<String, Object?>{
+      'site_id': siteId.trim(),
+      'plate_number': entry.plateNumber,
+      'owner_name': entry.ownerName,
+      'event_type': 'on_site',
+      'channel_id': null,
+      'zone_name': 'resident confirmed',
+      'occurred_at': nowUtc.toIso8601String(),
+    });
+  }
+  return matches;
+}
+
 bool _telegramPromptLooksLikeVehiclePresence(String prompt) {
   final normalized = prompt.trim().toLowerCase();
   if (normalized.isEmpty) {
@@ -39592,6 +39866,11 @@ String _telegramVehiclePresenceSummarySection(
       lines.add('- $owner — $vehicle (not detected today)');
       continue;
     }
+    if (_vehiclePresenceWasResidentConfirmed(status.latestPresence) &&
+        status.isHome) {
+      lines.add('- $owner — $vehicle (on site, confirmed by resident)');
+      continue;
+    }
     lines.add(
       '- $owner — $vehicle (last seen: ${_vehiclePresenceLastSeenLabel(status.latestPresence)})',
     );
@@ -39610,6 +39889,9 @@ String _telegramVehiclePresenceHomeLine(_SiteVehiclePresenceStatus status) {
   final zoneLabel = zoneName == null || zoneName.isEmpty ? 'site' : zoneName;
   final timeLabel = _vehiclePresenceLocalTimeLabel(latest.occurredAtUtc);
   if (status.isHome) {
+    if (_vehiclePresenceWasResidentConfirmed(latest)) {
+      return '$owner — home ($vehicle confirmed by resident)';
+    }
     return '$owner — home ($vehicle in $zoneLabel since $timeLabel)';
   }
   return '$owner — out ($vehicle not seen since $timeLabel)';
@@ -39632,47 +39914,6 @@ _SiteVehiclePresenceStatus? _matchedVehiclePresenceStatusForPrompt(
     }
   }
   return null;
-}
-
-Future<String?> _telegramVehiclePresenceReply({
-  required String siteId,
-  required String siteLabel,
-  required String prompt,
-  required DateTime nowUtc,
-  required DateTime todayLocal,
-}) async {
-  final registryRows = await _readSiteVehicleRegistryRows(siteId: siteId);
-  if (registryRows.isEmpty) {
-    return null;
-  }
-  final startOfDayUtc = DateTime(
-    todayLocal.year,
-    todayLocal.month,
-    todayLocal.day,
-  ).toUtc();
-  final presenceRows = await _readSiteVehiclePresenceRows(
-    siteId: siteId,
-    sinceUtc: startOfDayUtc,
-  );
-  final statuses = _buildVehiclePresenceStatuses(
-    registryRows: registryRows,
-    presenceRows: presenceRows,
-    nowUtc: nowUtc,
-  );
-  if (statuses.isEmpty) {
-    return null;
-  }
-  final matchedStatus = _matchedVehiclePresenceStatusForPrompt(prompt, statuses);
-  if (matchedStatus != null) {
-    return [
-      'Vehicle presence: $siteLabel',
-      _telegramVehiclePresenceHomeLine(matchedStatus),
-    ].join('\n');
-  }
-  return [
-    'Vehicle presence: $siteLabel',
-    ...statuses.map(_telegramVehiclePresenceHomeLine),
-  ].join('\n');
 }
 
 String _normalizedVehiclePlate(Object? value) {

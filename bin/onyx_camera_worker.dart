@@ -2412,6 +2412,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     OnyxSiteAwarenessEvent event,
   ) async {
     final liveSnapshotYoloService = _liveSnapshotYoloService;
+    // ignore: avoid_print
+    print('[ONYX-DEBUG] _enrichHumanDetectionEvent called for CH${event.channelId}');
+    // ignore: avoid_print
+    print(
+      '[ONYX-DEBUG] liveSnapshotYoloService configured: '
+      '${liveSnapshotYoloService?.isConfigured}',
+    );
     if (liveSnapshotYoloService == null || !liveSnapshotYoloService.isConfigured) {
       developer.log(
         '[ONYX] FR snapshot skipped for CH${event.channelId}: YOLO/FR endpoint is not configured.',

@@ -129,6 +129,7 @@ class OnyxTelegramCommandRouter {
     'gardener coming',
     'contractor coming',
     'is here',
+    'are here',
     'just arrived',
     'came in',
     'letting in',
@@ -425,6 +426,7 @@ class OnyxTelegramCommandRouter {
     }
     final isArrivalPhrase =
         normalized.contains(' is here') ||
+        normalized.contains(' are here') ||
         normalized.contains(' just arrived') ||
         normalized.contains(' came in') ||
         normalized.contains(' arrived') ||
