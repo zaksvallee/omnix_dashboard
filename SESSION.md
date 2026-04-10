@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-10 21:20
-- **Last commit:** fix: camera worker logs to file + stdout
-- **Commit hash:** 36c9749
+- **Date:** 2026-04-11 01:25
+- **Last commit:** feat: server-side AI processor + CH0 filter
+- **Commit hash:** e091e57
 
 ## Completed today (2026-04-10)
 - [x] YOLO in pipeline — false positive filter active (0814e25)
@@ -34,6 +34,11 @@
 - [x] On-demand visitor system (Jonathan)
 - [x] Real names throughout
 - [x] Combined "who is on site" response
+- [x] RTSP frame server hardening — URL encoding, warmup, reconnect logic (1c81b93)
+- [x] FR pipeline — RTSP frames, direct FR fallback, no silent drops (14b7b7f)
+- [x] LPR from HD RTSP frames — detector-side OCR crop improvements (505e507)
+- [x] Channel 0 filter in status output and worker summaries (e091e57)
+- [x] Server-side Telegram AI processor + Dockerfile scaffold (e091e57)
 
 
 ## Completed (this sprint)
@@ -65,15 +70,17 @@
 - [x] ONVIF bridge — discovery, streams, snapshots, PTZ, presets
 
 ## In progress
-- [ ] Server-side AI processor planning — move Telegram AI off the browser path
+- [ ] RTSP live validation — confirm frame server returns stable 1280x720 frames on CH12 / CH16
+- [ ] Live FR validation — confirm cropped RTSP frames produce real matches during walk tests
+- [ ] Live LPR validation — confirm LF05CFGP reads from HD garage frames
 
 ## Priority queue (next session)
-- P0: Verify FR debug lines in camera worker output
-- P1: Channel 0 → Channel 11 fix in status responses
-- P2: Alert suppression — enrolled residents no alerts
-- P3: Server-side AI processor
-- P4: Olarm device installation
-- P5: LPR active plate reading
+- P0: Validate RTSP frame server delivers stable HD frames on CH12 / CH16
+- P1: Verify live FR walk test from RTSP frames and capture first real match
+- P2: Verify HD LPR reads LF05CFGP and other registered plates reliably
+- P3: Deploy onyx-telegram-ai-processor to Hetzner systemd
+- P4: Alert suppression — enrolled residents no alerts
+- P5: Olarm device installation
 
 ## Next hardware to acquire
 - Olarm communicator for IDS panel (~R600-800)
