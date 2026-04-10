@@ -14559,19 +14559,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (registryRows.isEmpty) {
       return;
     }
+    final siteProfile = await _siteProfileService.loadProfile(_selectedSite);
     final recentPresenceRows = await _readSiteVehiclePresenceRows(
       siteId: _selectedSite,
       sinceUtc: nowUtc.subtract(const Duration(hours: 6)),
     );
-    final cameraZones = await _readSiteCameraZoneRowsByChannel(
-      siteId: _selectedSite,
-    );
     for (final row in recentPresenceRows.reversed) {
       final record = _SiteVehiclePresenceRecord.fromRow(row);
-      if (record.eventType != 'arrived' ||
-          record.id.isEmpty ||
-          record.ownerName.trim().isEmpty ||
-          record.ownerName.trim().toLowerCase() == 'unknown') {
+      if (record.eventType != 'arrived' || record.id.isEmpty) {
         continue;
       }
       final bootCutoffUtc = _vehiclePresenceBootCutoffUtc;
@@ -14582,9 +14577,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (_vehiclePresenceDeliveredArrivalIds.contains(record.id)) {
         continue;
       }
-      final zone = record.channelId == null ? null : cameraZones[record.channelId!];
-      final isPerimeter = _siteAwarenessSummaryBool(zone?['is_perimeter']) ?? false;
-      if (!isPerimeter) {
+      final zoneLabel =
+          record.zoneName?.trim().isNotEmpty == true
+          ? record.zoneName!.trim()
+          : 'site';
+      final isUnknownOwner =
+          record.ownerName.trim().isEmpty ||
+          record.ownerName.trim().toLowerCase() == 'unknown';
+      if (isUnknownOwner &&
+          !_siteProfileService.isAfterHours(
+            profile: siteProfile,
+            observedAtUtc: record.occurredAtUtc,
+          )) {
         _vehiclePresenceDeliveredArrivalIds.add(record.id);
         continue;
       }
@@ -14600,11 +14604,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               ownerRole: 'vehicle',
             ),
           );
-      final text =
-          '${_vehiclePresenceOwnerLabel(registry)} arrived home — '
-          '${_vehiclePresenceVehicleLabel(registry)} detected at '
-          '${record.zoneName?.trim().isNotEmpty == true ? record.zoneName!.trim() : 'a perimeter camera'} '
-          'at ${_telegramCommandLocalTimeLabel(record.occurredAtUtc)}';
+      final text = isUnknownOwner
+          ? '🚗 Unknown vehicle detected at $zoneLabel '
+                '(${_telegramCommandLocalTimeLabel(record.occurredAtUtc)})'
+                '${record.plateNumber.isEmpty || record.plateNumber == 'UNKNOWN' ? '' : ' — plate: ${record.plateNumber}'}'
+          : '🚗 ${_vehiclePresenceOwnerLabel(registry)} arrived home — '
+                '${_vehiclePresenceVehicleLabel(registry)} detected at '
+                '$zoneLabel (${_telegramCommandLocalTimeLabel(record.occurredAtUtc)})';
       final dispatch = await _telegramPushCoordinator.sendScopedAlert(
         clientId: _selectedClient,
         siteId: _selectedSite,
@@ -16871,6 +16877,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         if (status.isHome) {
           if (_vehiclePresenceWasResidentConfirmed(status.latestPresence)) {
             return '- $owner — $vehicle on site (resident confirmed)';
+          }
+          if (status.latestPresence!.eventType == 'arrived') {
+            return '- $owner — $vehicle — ${_vehiclePresenceArrivalLabel(status.latestPresence!)}';
           }
           return '- $owner — $vehicle on site (${_vehiclePresenceLastSeenLabel(status.latestPresence)})';
         }
@@ -39636,32 +39645,6 @@ Future<List<Map<String, dynamic>>> _readSiteVehiclePresenceRows({
   }
 }
 
-Future<Map<int, Map<String, dynamic>>> _readSiteCameraZoneRowsByChannel({
-  required String siteId,
-}) async {
-  if (siteId.trim().isEmpty) {
-    return const <int, Map<String, dynamic>>{};
-  }
-  try {
-    final rows = await Supabase.instance.client
-        .from('site_camera_zones')
-        .select('channel_id,zone_name,zone_type,is_perimeter,is_indoor')
-        .eq('site_id', siteId.trim());
-    final mapped = <int, Map<String, dynamic>>{};
-    for (final row in rows) {
-      final data = Map<String, dynamic>.from(row as Map);
-      final channelId = _siteAwarenessSummaryInt(data['channel_id']);
-      if (channelId == null) {
-        continue;
-      }
-      mapped[channelId] = data;
-    }
-    return mapped;
-  } catch (_) {
-    return const <int, Map<String, dynamic>>{};
-  }
-}
-
 List<_SiteVehiclePresenceStatus> _buildVehiclePresenceStatuses({
   required List<Map<String, dynamic>> registryRows,
   required List<Map<String, dynamic>> presenceRows,
@@ -39852,6 +39835,12 @@ String _vehiclePresenceLastSeenLabel(_SiteVehiclePresenceRecord? presence) {
   return '$zoneLabel ${_vehiclePresenceLocalTimeLabel(presence.occurredAtUtc)}';
 }
 
+String _vehiclePresenceArrivalLabel(_SiteVehiclePresenceRecord presence) {
+  final zoneName = presence.zoneName?.trim();
+  final zoneLabel = zoneName == null || zoneName.isEmpty ? 'site' : zoneName;
+  return 'arrived ${_vehiclePresenceLocalTimeLabel(presence.occurredAtUtc)} ($zoneLabel)';
+}
+
 String _telegramVehiclePresenceSummarySection(
   List<_SiteVehiclePresenceStatus> statuses,
 ) {
@@ -39864,6 +39853,10 @@ String _telegramVehiclePresenceSummarySection(
     final owner = _vehiclePresenceOwnerLabel(status.registry);
     if (!status.seenToday || status.latestPresence == null) {
       lines.add('- $owner — $vehicle (not detected today)');
+      continue;
+    }
+    if (status.latestPresence!.eventType == 'arrived' && status.isHome) {
+      lines.add('- $owner — $vehicle — ${_vehiclePresenceArrivalLabel(status.latestPresence!)}');
       continue;
     }
     if (_vehiclePresenceWasResidentConfirmed(status.latestPresence) &&
@@ -39891,6 +39884,9 @@ String _telegramVehiclePresenceHomeLine(_SiteVehiclePresenceStatus status) {
   if (status.isHome) {
     if (_vehiclePresenceWasResidentConfirmed(latest)) {
       return '$owner — home ($vehicle confirmed by resident)';
+    }
+    if (latest.eventType == 'arrived') {
+      return '$owner — home ($vehicle ${_vehiclePresenceArrivalLabel(latest)})';
     }
     return '$owner — home ($vehicle in $zoneLabel since $timeLabel)';
   }

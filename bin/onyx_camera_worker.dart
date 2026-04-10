@@ -27,6 +27,7 @@ import 'dart:math' as math;
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:omnix_dashboard/application/onyx_lpr_service.dart';
 import 'package:omnix_dashboard/application/onyx_proactive_alert_service.dart';
 import 'package:omnix_dashboard/application/onyx_site_profile_service.dart';
 import 'package:omnix_dashboard/application/site_awareness/onyx_live_snapshot_yolo_service.dart';
@@ -1910,6 +1911,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   )?
   onReconnectFailure;
   final OnyxLiveSnapshotYoloService? _liveSnapshotYoloService;
+  final OnyxLprService? _lprService;
 
   final StreamController<OnyxSiteAwarenessSnapshot> _snapshotController =
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
@@ -1946,12 +1948,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     Future<void> Function(Duration duration)? sleep,
     this.onReconnectFailure,
     OnyxLiveSnapshotYoloService? liveSnapshotYoloService,
+    OnyxLprService? lprService,
   }) : _client = client ?? _buildIsapiHttpClient(),
        _repository = repository,
        _proactiveAlertService = proactiveAlertService,
        _clock = clock ?? DateTime.now,
        _sleep = sleep ?? Future<void>.delayed,
-       _liveSnapshotYoloService = liveSnapshotYoloService;
+       _liveSnapshotYoloService = liveSnapshotYoloService,
+       _lprService = lprService;
 
   @override
   OnyxSiteAwarenessSnapshot? get latestSnapshot => _latestSnapshot;
@@ -2345,6 +2349,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       );
       if (event.eventType == OnyxEventType.humanDetected) {
         event = await _enrichHumanDetectionEvent(event);
+      } else if (event.eventType == OnyxEventType.vehicleDetected) {
+        event = await _enrichVehicleDetectionEvent(event);
       }
       await _ingestEvent(event);
     } catch (error, stackTrace) {
@@ -2520,6 +2526,79 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       name: 'OnyxHikIsapiStream',
     );
     return event;
+  }
+
+  Future<OnyxSiteAwarenessEvent> _enrichVehicleDetectionEvent(
+    OnyxSiteAwarenessEvent event,
+  ) async {
+    final lprService = _lprService;
+    if (lprService == null || !lprService.isConfigured) {
+      return event;
+    }
+    final channelId = event.channelId.trim();
+    if (channelId.isEmpty || channelId == 'unknown') {
+      return event;
+    }
+    final snapshotChannelId = _snapshotStreamChannelId(channelId);
+    developer.log(
+      '[ONYX] Capturing vehicle snapshot from CH$snapshotChannelId for live LPR...',
+      name: 'OnyxHikIsapiStream',
+    );
+    final snapshotBytes = await fetchSnapshotBytes(channelId);
+    if (snapshotBytes == null || snapshotBytes.isEmpty) {
+      developer.log(
+        '[ONYX] LPR snapshot capture failed for CH$snapshotChannelId.',
+        name: 'OnyxHikIsapiStream',
+        level: 900,
+      );
+      return event;
+    }
+    final zone = _projector?.cameraZones[channelId];
+    final result = await lprService.detectPlate(
+      recordKey:
+          '${_siteId}_${channelId}_${event.detectedAt.toUtc().microsecondsSinceEpoch}_vehicle',
+      provider: 'hikvision_isapi',
+      sourceType: 'site_awareness_vehicle_snapshot',
+      clientId: _clientId,
+      siteId: _siteId,
+      cameraId: channelId,
+      zone: zone?.zoneName ?? 'Channel $channelId',
+      occurredAtUtc: event.detectedAt.toUtc(),
+      imageBytes: snapshotBytes,
+    );
+    if (result == null) {
+      return event;
+    }
+    if ((result.error ?? '').trim().isNotEmpty) {
+      developer.log(
+        'YOLO vehicle snapshot detect returned an error for CH$channelId: ${result.error}',
+        name: 'OnyxHikIsapiStream',
+        level: 900,
+      );
+    }
+    final detectedPlate = _normalizeVehiclePlate(
+      result.plateNumber ?? event.plateNumber ?? '',
+    );
+    if (detectedPlate.isEmpty) {
+      developer.log(
+        '[ONYX] LPR: No readable plate on CH$channelId.',
+        name: 'OnyxHikIsapiStream',
+      );
+      return event;
+    }
+    final registryEntry = _repository == null
+        ? null
+        : await _repository.readVehicleRegistryEntry(
+            siteId: _siteId,
+            plateNumber: detectedPlate,
+          );
+    developer.log(
+      registryEntry == null
+          ? '[ONYX] LPR: Unknown plate — $detectedPlate at CH$channelId'
+          : '[ONYX] LPR: Plate detected — $detectedPlate → ${registryEntry.ownerName}',
+      name: 'OnyxHikIsapiStream',
+    );
+    return event.copyWith(plateNumber: detectedPlate);
   }
 
   void _publishProjectedSnapshot() {
@@ -2841,6 +2920,14 @@ Future<void> main() async {
   stdout.writeln(
     '[ONYX] YOLO/FR: ${yoloEndpoint == null ? 'disabled' : yoloEndpoint.toString()}',
   );
+  final yoloHttpClient = http.Client();
+  final liveSnapshotYoloService = yoloEndpoint == null
+      ? null
+      : OnyxLiveSnapshotYoloService(
+          client: yoloHttpClient,
+          endpoint: yoloEndpoint,
+          authToken: yoloAuthToken,
+        );
 
   final service = OnyxHikIsapiStreamAwarenessService(
     host: host,
@@ -2850,13 +2937,10 @@ Future<void> main() async {
     knownFaultChannels: knownFaultChannels,
     repository: repository,
     proactiveAlertService: proactiveAlertService,
-    liveSnapshotYoloService: yoloEndpoint == null
+    liveSnapshotYoloService: liveSnapshotYoloService,
+    lprService: liveSnapshotYoloService == null
         ? null
-        : OnyxLiveSnapshotYoloService(
-            client: http.Client(),
-            endpoint: yoloEndpoint,
-            authToken: yoloAuthToken,
-          ),
+        : OnyxLprService(detector: liveSnapshotYoloService),
     onReconnectFailure: (alertSiteId, consecutiveFailures, nextRetryDelay) {
       return Future.wait<void>(<Future<void>>[
         if (repository != null)
@@ -2903,6 +2987,7 @@ Future<void> main() async {
     try {
       await subscription.cancel();
       await service.stop();
+      yoloHttpClient.close();
       await proactiveAlertService?.dispose();
     } catch (error) {
       stderr.writeln('[ONYX] Error during shutdown: $error');

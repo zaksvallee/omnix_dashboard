@@ -10,6 +10,7 @@ class OnyxLiveSnapshotYoloResult {
   final double? faceConfidence;
   final double? faceDistance;
   final String? plateNumber;
+  final double? plateConfidence;
   final String? summary;
   final String? error;
 
@@ -20,6 +21,7 @@ class OnyxLiveSnapshotYoloResult {
     required this.faceConfidence,
     required this.faceDistance,
     required this.plateNumber,
+    required this.plateConfidence,
     required this.summary,
     required this.error,
   });
@@ -53,6 +55,9 @@ class OnyxLiveSnapshotYoloService {
     required String zone,
     required DateTime occurredAtUtc,
     required List<int> imageBytes,
+    String headline = 'Site awareness snapshot',
+    String summary = 'Live human detection snapshot',
+    String objectLabel = 'person',
   }) async {
     if (!isConfigured || imageBytes.isEmpty) {
       return null;
@@ -77,9 +82,9 @@ class OnyxLiveSnapshotYoloService {
                   'site_id': siteId,
                   'camera_id': cameraId,
                   'zone': zone,
-                  'headline': 'Site awareness snapshot',
-                  'summary': 'Live human detection snapshot',
-                  'object_label': 'person',
+                  'headline': headline,
+                  'summary': summary,
+                  'object_label': objectLabel,
                   'occurred_at_utc': occurredAtUtc.toUtc().toIso8601String(),
                   'image_url':
                       'data:image/jpeg;base64,${base64Encode(imageBytes)}',
@@ -127,6 +132,7 @@ class OnyxLiveSnapshotYoloService {
         faceConfidence: null,
         faceDistance: null,
         plateNumber: null,
+        plateConfidence: null,
         summary: null,
         error: null,
       );
@@ -185,6 +191,9 @@ class OnyxLiveSnapshotYoloService {
             faceMatch['face_distance'],
       ),
       plateNumber: _yoloString(item['plate_number'] ?? item['plateNumber']),
+      plateConfidence: _yoloDouble(
+        item['plate_confidence'] ?? item['plateConfidence'],
+      ),
       summary: _yoloString(item['summary']),
       error: _yoloString(item['error']),
     );

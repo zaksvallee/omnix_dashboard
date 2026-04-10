@@ -499,6 +499,13 @@ class OnyxSiteProfileService {
     );
   }
 
+  bool isAfterHours({
+    required SiteIntelligenceProfile profile,
+    required DateTime observedAtUtc,
+  }) {
+    return !_isWithinOperatingSchedule(profile, observedAtUtc.toUtc());
+  }
+
   Future<AlertDecision> evaluateDetection({
     required String siteId,
     required DetectionEvent event,
