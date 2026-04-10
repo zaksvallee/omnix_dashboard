@@ -132,6 +132,7 @@ if [[ "$telegram_bridge_mode" == "PROXY" ]]; then
   ./scripts/ensure_telegram_bot_api_proxy.sh --config "$CONFIG_FILE"
 fi
 
+./scripts/ensure_yolo_server.sh --config "$CONFIG_FILE"
 ./scripts/ensure_camera_worker.sh --config "$CONFIG_FILE"
 
 echo "Launching ONYX..."

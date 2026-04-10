@@ -15,6 +15,13 @@ import 'onyx_site_awareness_repository.dart';
 import 'onyx_site_awareness_service.dart';
 import 'onyx_site_awareness_snapshot.dart';
 
+typedef OnyxReconnectFailureCallback =
+    Future<void> Function(
+      String siteId,
+      int consecutiveFailures,
+      Duration nextRetryDelay,
+    );
+
 class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final String host;
   final int port;
@@ -31,6 +38,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final Duration maxRetryDelay;
   final DateTime Function() _clock;
   final Future<void> Function(Duration duration) _sleep;
+  final OnyxReconnectFailureCallback? onReconnectFailure;
 
   final StreamController<OnyxSiteAwarenessSnapshot> _snapshotController =
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
@@ -42,6 +50,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   OnyxSiteAwarenessSnapshot? _latestSnapshot;
   bool _isConnected = false;
   bool _running = false;
+  bool _disconnectAlertSent = false;
   int _generation = 0;
   String _siteId = '';
   String _clientId = '';
@@ -62,6 +71,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     this.maxRetryDelay = const Duration(seconds: 60),
     DateTime Function()? clock,
     Future<void> Function(Duration duration)? sleep,
+    this.onReconnectFailure,
   }) : _client = client ?? http.Client(),
        _repository = repository,
        _proactiveAlertService = proactiveAlertService,
@@ -140,6 +150,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     });
     _latestSnapshot = null;
     _isConnected = false;
+    _disconnectAlertSent = false;
     _running = true;
     _generation += 1;
     _publishTimer = Timer.periodic(publishInterval, (_) {
@@ -153,6 +164,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _running = false;
     _generation += 1;
     _isConnected = false;
+    _disconnectAlertSent = false;
     _publishTimer?.cancel();
     _publishTimer = null;
     final subscription = _streamSubscription;
@@ -220,6 +232,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   Future<void> _runConnectionLoop(int generation) async {
     var retryAttempt = 0;
     while (_running && generation == _generation) {
+      String? disconnectReason;
+      Object? disconnectError;
+      StackTrace? disconnectStackTrace;
+      var disconnectLogLevel = 1000;
       try {
         final response = await _auth
             .send(
@@ -238,35 +254,69 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         }
         if (response.statusCode < 200 || response.statusCode >= 300) {
           _isConnected = false;
-          developer.log(
-            'Alert stream returned HTTP ${response.statusCode}; retrying.',
-            name: 'OnyxHikIsapiStream',
-            level: 900,
-          );
+          disconnectReason =
+              'Alert stream returned HTTP ${response.statusCode}.';
+          disconnectLogLevel = 900;
           await response.stream.drain<void>();
         } else {
+          final resumedAfterFailures = retryAttempt > 0 || _disconnectAlertSent;
           _isConnected = true;
           retryAttempt = 0;
+          _disconnectAlertSent = false;
+          if (resumedAfterFailures) {
+            developer.log(
+              '[ONYX] Camera stream reconnected.',
+              name: 'OnyxHikIsapiStream',
+            );
+          }
           final projector = _projector;
           if (projector != null) {
             _emitSnapshot(projector.snapshot());
           }
           await _consumeAlertStream(response.stream, generation);
+          if (_running && generation == _generation) {
+            _isConnected = false;
+            disconnectReason = 'Alert stream closed unexpectedly.';
+          }
         }
       } catch (error, stackTrace) {
         _isConnected = false;
-        developer.log(
-          'Site awareness stream connection failed; retrying.',
-          name: 'OnyxHikIsapiStream',
-          error: error,
-          stackTrace: stackTrace,
-          level: 1000,
-        );
+        disconnectReason = 'Site awareness stream connection failed.';
+        disconnectError = error;
+        disconnectStackTrace = stackTrace;
       }
       if (!_running || generation != _generation) {
         break;
       }
+      if (disconnectReason == null) {
+        continue;
+      }
+      final nextAttempt = retryAttempt + 1;
       final delay = _retryDelayFor(retryAttempt);
+      developer.log(
+        '[ONYX] ⚠️ Camera stream disconnected — reconnecting in '
+        '${delay.inSeconds}s (attempt $nextAttempt). $disconnectReason',
+        name: 'OnyxHikIsapiStream',
+        error: disconnectError,
+        stackTrace: disconnectStackTrace,
+        level: disconnectLogLevel,
+      );
+      if (nextAttempt >= 3 &&
+          !_disconnectAlertSent &&
+          onReconnectFailure != null) {
+        try {
+          await onReconnectFailure!(_siteId, nextAttempt, delay);
+          _disconnectAlertSent = true;
+        } catch (error, stackTrace) {
+          developer.log(
+            'Failed to dispatch camera reconnect alert.',
+            name: 'OnyxHikIsapiStream',
+            error: error,
+            stackTrace: stackTrace,
+            level: 1000,
+          );
+        }
+      }
       retryAttempt += 1;
       await _sleep(delay);
     }

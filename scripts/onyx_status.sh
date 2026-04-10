@@ -8,6 +8,7 @@ CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 FLUTTER_PID_FILE="${ONYX_FLUTTER_PID_FILE:-tmp/onyx_flutter.pid}"
 PROXY_PID_FILE="${ONYX_TELEGRAM_PROXY_PID_FILE:-tmp/onyx_telegram_proxy.pid}"
 WORKER_PID_FILE="${ONYX_CAMERA_WORKER_PID_FILE:-tmp/onyx_camera_worker.pid}"
+YOLO_PID_FILE="${ONYX_YOLO_SERVER_PID_FILE:-tmp/onyx_yolo_server.pid}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -83,8 +84,13 @@ render_process_status() {
 
 proxy_host="$(json_value "ONYX_TELEGRAM_PROXY_HOST" | tr -d '\r')"
 proxy_port="$(json_value "ONYX_TELEGRAM_PROXY_PORT" | tr -d '\r')"
+yolo_enabled="$(json_value "ONYX_MONITORING_YOLO_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
+yolo_host="$(json_value "ONYX_MONITORING_YOLO_HOST" | tr -d '\r')"
+yolo_port="$(json_value "ONYX_MONITORING_YOLO_PORT" | tr -d '\r')"
 proxy_host="${proxy_host:-127.0.0.1}"
 proxy_port="${proxy_port:-11637}"
+yolo_host="${yolo_host:-127.0.0.1}"
+yolo_port="${yolo_port:-11636}"
 telegram_token="$(json_value "ONYX_TELEGRAM_BOT_TOKEN" | tr -d '\r')"
 
 echo "ONYX stack status"
@@ -97,10 +103,22 @@ render_process_status \
   "Telegram proxy" \
   "$PROXY_PID_FILE" \
   "bin/onyx_telegram_bot_api_proxy\\.dart" || true
-render_process_status \
+if [[ "$yolo_enabled" == "true" ]]; then
+  render_process_status \
+    "YOLO detector" \
+    "$YOLO_PID_FILE" \
+    "tool/monitoring_yolo_detector_service\\.py" || true
+else
+  echo "YOLO detector: DISABLED"
+fi
+if render_process_status \
   "Camera worker" \
   "$WORKER_PID_FILE" \
-  "bin/onyx_camera_worker\\.dart" || true
+  "bin/onyx_camera_worker\\.dart"; then
+  :
+else
+  echo "Camera worker state: DISCONNECTED — RESTART REQUIRED"
+fi
 
 if lsof -nP -iTCP:"$proxy_port" -sTCP:LISTEN >/tmp/onyx_proxy_lsof_status 2>/dev/null; then
   echo "Proxy listen:"
@@ -108,6 +126,33 @@ if lsof -nP -iTCP:"$proxy_port" -sTCP:LISTEN >/tmp/onyx_proxy_lsof_status 2>/dev
   rm -f /tmp/onyx_proxy_lsof_status
 else
   echo "Proxy listen: not detected on ${proxy_host}:${proxy_port}"
+fi
+
+if [[ "$yolo_enabled" == "true" ]]; then
+  if lsof -nP -iTCP:"$yolo_port" -sTCP:LISTEN >/tmp/onyx_yolo_lsof_status 2>/dev/null; then
+    echo "YOLO listen:"
+    sed 's/^/  /' /tmp/onyx_yolo_lsof_status
+    rm -f /tmp/onyx_yolo_lsof_status
+  else
+    echo "YOLO listen: not detected on ${yolo_host}:${yolo_port}"
+  fi
+  python3 - "$yolo_host" "$yolo_port" <<'PY'
+import json
+import sys
+import urllib.request
+
+host, port = sys.argv[1], sys.argv[2]
+url = f"http://{host}:{port}/health"
+try:
+    with urllib.request.urlopen(url, timeout=3) as response:
+        data = json.loads(response.read().decode())
+    backend = data.get("backend", "unknown")
+    ready = bool(data.get("ready"))
+    detail = data.get("detail") or "ok"
+    print(f"YOLO health: {'ready' if ready else 'not ready'} ({backend}; {detail})")
+except Exception as exc:
+    print(f"YOLO health: error ({exc})")
+PY
 fi
 
 if [[ -n "$telegram_token" ]]; then

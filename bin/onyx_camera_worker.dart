@@ -1346,6 +1346,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final Duration maxRetryDelay;
   final DateTime Function() _clock;
   final Future<void> Function(Duration duration) _sleep;
+  final Future<void> Function(
+    String siteId,
+    int consecutiveFailures,
+    Duration nextRetryDelay,
+  )?
+  onReconnectFailure;
 
   final StreamController<OnyxSiteAwarenessSnapshot> _snapshotController =
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
@@ -1357,6 +1363,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   OnyxSiteAwarenessSnapshot? _latestSnapshot;
   bool _isConnected = false;
   bool _running = false;
+  bool _disconnectAlertSent = false;
   int _generation = 0;
   String _siteId = '';
   String _clientId = '';
@@ -1377,6 +1384,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     this.maxRetryDelay = const Duration(seconds: 60),
     DateTime Function()? clock,
     Future<void> Function(Duration duration)? sleep,
+    this.onReconnectFailure,
   }) : _client = client ?? http.Client(),
        _repository = repository,
        _proactiveAlertService = proactiveAlertService,
@@ -1455,6 +1463,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     });
     _latestSnapshot = null;
     _isConnected = false;
+    _disconnectAlertSent = false;
     _running = true;
     _generation += 1;
     _publishTimer = Timer.periodic(publishInterval, (_) {
@@ -1468,6 +1477,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _running = false;
     _generation += 1;
     _isConnected = false;
+    _disconnectAlertSent = false;
     _publishTimer?.cancel();
     _publishTimer = null;
     final subscription = _streamSubscription;
@@ -1535,6 +1545,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   Future<void> _runConnectionLoop(int generation) async {
     var retryAttempt = 0;
     while (_running && generation == _generation) {
+      String? disconnectReason;
+      Object? disconnectError;
+      StackTrace? disconnectStackTrace;
+      var disconnectLogLevel = 1000;
       try {
         final response = await _auth
             .send(
@@ -1553,35 +1567,69 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         }
         if (response.statusCode < 200 || response.statusCode >= 300) {
           _isConnected = false;
-          developer.log(
-            'Alert stream returned HTTP ${response.statusCode}; retrying.',
-            name: 'OnyxHikIsapiStream',
-            level: 900,
-          );
+          disconnectReason =
+              'Alert stream returned HTTP ${response.statusCode}.';
+          disconnectLogLevel = 900;
           await response.stream.drain<void>();
         } else {
+          final resumedAfterFailures = retryAttempt > 0 || _disconnectAlertSent;
           _isConnected = true;
           retryAttempt = 0;
+          _disconnectAlertSent = false;
+          if (resumedAfterFailures) {
+            developer.log(
+              '[ONYX] Camera stream reconnected.',
+              name: 'OnyxHikIsapiStream',
+            );
+          }
           final projector = _projector;
           if (projector != null) {
             _emitSnapshot(projector.snapshot());
           }
           await _consumeAlertStream(response.stream, generation);
+          if (_running && generation == _generation) {
+            _isConnected = false;
+            disconnectReason = 'Alert stream closed unexpectedly.';
+          }
         }
       } catch (error, stackTrace) {
         _isConnected = false;
-        developer.log(
-          'Site awareness stream connection failed; retrying.',
-          name: 'OnyxHikIsapiStream',
-          error: error,
-          stackTrace: stackTrace,
-          level: 1000,
-        );
+        disconnectReason = 'Site awareness stream connection failed.';
+        disconnectError = error;
+        disconnectStackTrace = stackTrace;
       }
       if (!_running || generation != _generation) {
         break;
       }
+      if (disconnectReason == null) {
+        continue;
+      }
+      final nextAttempt = retryAttempt + 1;
       final delay = _retryDelayFor(retryAttempt);
+      developer.log(
+        '[ONYX] ⚠️ Camera stream disconnected — reconnecting in '
+        '${delay.inSeconds}s (attempt $nextAttempt). $disconnectReason',
+        name: 'OnyxHikIsapiStream',
+        error: disconnectError,
+        stackTrace: disconnectStackTrace,
+        level: disconnectLogLevel,
+      );
+      if (nextAttempt >= 3 &&
+          !_disconnectAlertSent &&
+          onReconnectFailure != null) {
+        try {
+          await onReconnectFailure!(_siteId, nextAttempt, delay);
+          _disconnectAlertSent = true;
+        } catch (error, stackTrace) {
+          developer.log(
+            'Failed to dispatch camera reconnect alert.',
+            name: 'OnyxHikIsapiStream',
+            error: error,
+            stackTrace: stackTrace,
+            level: 1000,
+          );
+        }
+      }
       retryAttempt += 1;
       await _sleep(delay);
     }
@@ -1822,6 +1870,100 @@ const String _defaultSiteId = String.fromEnvironment(
   defaultValue: 'SITE-MS-VALLEE-RESIDENCE',
 );
 
+bool _envBool(String name, {bool fallback = false}) {
+  final raw = Platform.environment[name];
+  if (raw == null || raw.trim().isEmpty) {
+    return fallback;
+  }
+  switch (raw.trim().toLowerCase()) {
+    case '1':
+    case 'true':
+    case 'yes':
+    case 'on':
+      return true;
+    case '0':
+    case 'false':
+    case 'no':
+    case 'off':
+      return false;
+    default:
+      return fallback;
+  }
+}
+
+Future<void> _sendCameraWorkerReconnectAlert({
+  required String siteId,
+  required String host,
+  required int port,
+  required int consecutiveFailures,
+  required Duration nextRetryDelay,
+}) async {
+  final botToken = Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
+  final chatId = Platform.environment['ONYX_TELEGRAM_ADMIN_CHAT_ID'] ?? '';
+  final threadId = (Platform.environment['ONYX_TELEGRAM_ADMIN_THREAD_ID'] ?? '')
+      .trim();
+  final adminEnabled = _envBool(
+    'ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED',
+    fallback: true,
+  );
+  final criticalPushEnabled = _envBool(
+    'ONYX_TELEGRAM_ADMIN_CRITICAL_PUSH_ENABLED',
+    fallback: true,
+  );
+  if (!adminEnabled ||
+      !criticalPushEnabled ||
+      botToken.isEmpty ||
+      chatId.isEmpty) {
+    developer.log(
+      'Camera reconnect alert skipped because admin Telegram push is not configured.',
+      name: 'OnyxHikIsapiStream',
+      level: 900,
+    );
+    return;
+  }
+
+  final uri = Uri.https('api.telegram.org', '/bot$botToken/sendMessage');
+  final body = <String, String>{
+    'chat_id': chatId,
+    'text':
+        '⚠️ ONYX camera stream disconnected for $siteId and has failed '
+        'to reconnect after $consecutiveFailures attempts. '
+        'Target: $host:$port. '
+        'Next retry in ${nextRetryDelay.inSeconds}s.',
+    'disable_notification': 'false',
+  };
+  if (threadId.isNotEmpty) {
+    body['message_thread_id'] = threadId;
+  }
+
+  try {
+    final response = await http
+        .post(uri, body: body)
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      developer.log(
+        'Camera reconnect alert failed with HTTP ${response.statusCode}.',
+        name: 'OnyxHikIsapiStream',
+        error: response.body,
+        level: 1000,
+      );
+      return;
+    }
+    developer.log(
+      'Camera reconnect alert sent to Telegram admin chat.',
+      name: 'OnyxHikIsapiStream',
+    );
+  } catch (error, stackTrace) {
+    developer.log(
+      'Camera reconnect alert failed to send.',
+      name: 'OnyxHikIsapiStream',
+      error: error,
+      stackTrace: stackTrace,
+      level: 1000,
+    );
+  }
+}
+
 Future<void> main() async {
   // Password must come from the runtime environment — never compiled in.
   final password = Platform.environment['ONYX_HIK_PASSWORD'] ?? '';
@@ -1890,6 +2032,15 @@ Future<void> main() async {
     knownFaultChannels: knownFaultChannels,
     repository: repository,
     proactiveAlertService: proactiveAlertService,
+    onReconnectFailure: (alertSiteId, consecutiveFailures, nextRetryDelay) {
+      return _sendCameraWorkerReconnectAlert(
+        siteId: alertSiteId,
+        host: host,
+        port: port,
+        consecutiveFailures: consecutiveFailures,
+        nextRetryDelay: nextRetryDelay,
+      );
+    },
   );
 
   // Subscribe before starting so no events are missed.

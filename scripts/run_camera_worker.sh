@@ -97,6 +97,11 @@ set_optional_env() {
 export ONYX_SUPABASE_URL="$(json_value_any ONYX_SUPABASE_URL SUPABASE_URL)"
 export ONYX_SUPABASE_SERVICE_KEY="$(json_value_any ONYX_SUPABASE_SERVICE_KEY SUPABASE_SERVICE_KEY)"
 export SUPABASE_ANON_KEY="$(json_value_any SUPABASE_ANON_KEY ONYX_SUPABASE_ANON_KEY)"
+set_optional_env ONYX_TELEGRAM_BOT_TOKEN "$(json_value_any ONYX_TELEGRAM_BOT_TOKEN || true)"
+set_optional_env ONYX_TELEGRAM_ADMIN_CHAT_ID "$(json_value_any ONYX_TELEGRAM_ADMIN_CHAT_ID || true)"
+set_optional_env ONYX_TELEGRAM_ADMIN_THREAD_ID "$(json_value_any ONYX_TELEGRAM_ADMIN_THREAD_ID || true)"
+set_optional_env ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED "$(json_value_any ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED || true)"
+set_optional_env ONYX_TELEGRAM_ADMIN_CRITICAL_PUSH_ENABLED "$(json_value_any ONYX_TELEGRAM_ADMIN_CRITICAL_PUSH_ENABLED || true)"
 set_optional_env ONYX_HIK_HOST "$(json_value_any ONYX_HIK_HOST || true)"
 if [[ -z "${ONYX_HIK_HOST:-}" ]]; then
   set_optional_env ONYX_HIK_HOST "$(json_url_part ONYX_DVR_PROXY_UPSTREAM_URL host || true)"
