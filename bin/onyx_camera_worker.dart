@@ -2368,6 +2368,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         knownFaultChannels: knownFaultChannels.toSet(),
         clock: _clock,
       );
+      if (event.channelId.trim() == '0') {
+        developer.log(
+          '[ONYX] Ignoring ghost CH0 event from Hikvision alert stream.',
+          name: 'OnyxHikIsapiStream',
+          level: 800,
+        );
+        return;
+      }
       if (event.eventType == OnyxEventType.humanDetected) {
         event = await _enrichHumanDetectionEvent(event);
       } else if (event.eventType == OnyxEventType.vehicleDetected) {
@@ -2413,6 +2421,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       } else {
         final zone = projector.cameraZones[event.channelId];
         final channelId = int.tryParse(event.channelId.trim()) ?? 0;
+        if (channelId <= 0) {
+          developer.log(
+            '[ONYX] Skipping proactive alert evaluation for invalid channel ${event.channelId}.',
+            name: 'OnyxHikIsapiStream',
+            level: 800,
+          );
+          return;
+        }
         unawaited(
           proactiveAlertService.evaluateDetection(
             siteId: _siteId,
@@ -2724,6 +2740,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   ) async {
     try {
       final channelId = int.tryParse(event.channelId.trim()) ?? 0;
+      if (channelId <= 0) {
+        developer.log(
+          '[ONYX] Skipping vehicle presence persistence for invalid channel ${event.channelId}.',
+          name: 'OnyxHikIsapiStream',
+          level: 800,
+        );
+        return;
+      }
       final zone = _projector?.cameraZones[event.channelId];
       await repository.recordVehicleDetection(
         siteId: _siteId,
