@@ -1235,6 +1235,40 @@ class OnyxSiteAwarenessRepository {
     }
   }
 
+  Future<void> recordCameraWorkerOffline({
+    required String siteId,
+    required String deviceId,
+    required DateTime occurredAt,
+    required int consecutiveFailures,
+    required Duration nextRetryDelay,
+    required String host,
+    required int port,
+  }) async {
+    try {
+      await _client.from('site_alarm_events').insert(<String, Object?>{
+        'site_id': siteId.trim(),
+        'device_id': deviceId.trim(),
+        'event_type': 'camera_worker_offline',
+        'occurred_at': occurredAt.toUtc().toIso8601String(),
+        'raw_payload': <String, Object?>{
+          'host': host,
+          'port': port,
+          'consecutive_failures': consecutiveFailures,
+          'next_retry_seconds': nextRetryDelay.inSeconds,
+        },
+      });
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to record camera worker offline event for $siteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      rethrow;
+    }
+  }
+
   Future<OnyxSiteOccupancySession?> _readOccupancySession({
     required String siteId,
     required String sessionDate,
@@ -1607,7 +1641,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       final nextAttempt = retryAttempt + 1;
       final delay = _retryDelayFor(retryAttempt);
       developer.log(
-        '[ONYX] ⚠️ Camera stream disconnected — reconnecting in '
+        '[ONYX] ⚠️ Camera stream disconnected from $host:$port — reconnecting in '
         '${delay.inSeconds}s (attempt $nextAttempt). $disconnectReason',
         name: 'OnyxHikIsapiStream',
         error: disconnectError,
@@ -1831,12 +1865,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   }
 
   Duration _retryDelayFor(int attempt) {
-    final multiplier = math.pow(2, attempt).toInt();
-    final seconds = math.min<int>(
-      maxRetryDelay.inSeconds,
-      initialRetryDelay.inSeconds * math.max(1, multiplier),
-    );
-    return Duration(seconds: seconds);
+    const retryScheduleSeconds = <int>[5, 10, 30, 60];
+    final seconds =
+        retryScheduleSeconds[math.min<int>(
+          attempt,
+          retryScheduleSeconds.length - 1,
+        )];
+    return Duration(seconds: math.min(seconds, maxRetryDelay.inSeconds));
   }
 
   DvrHttpAuthConfig get _auth => DvrHttpAuthConfig(
@@ -2033,13 +2068,25 @@ Future<void> main() async {
     repository: repository,
     proactiveAlertService: proactiveAlertService,
     onReconnectFailure: (alertSiteId, consecutiveFailures, nextRetryDelay) {
-      return _sendCameraWorkerReconnectAlert(
-        siteId: alertSiteId,
-        host: host,
-        port: port,
-        consecutiveFailures: consecutiveFailures,
-        nextRetryDelay: nextRetryDelay,
-      );
+      return Future.wait<void>(<Future<void>>[
+        if (repository != null)
+          repository.recordCameraWorkerOffline(
+            siteId: alertSiteId,
+            deviceId: 'hikvision:$host:$port',
+            occurredAt: DateTime.now().toUtc(),
+            consecutiveFailures: consecutiveFailures,
+            nextRetryDelay: nextRetryDelay,
+            host: host,
+            port: port,
+          ),
+        _sendCameraWorkerReconnectAlert(
+          siteId: alertSiteId,
+          host: host,
+          port: port,
+          consecutiveFailures: consecutiveFailures,
+          nextRetryDelay: nextRetryDelay,
+        ),
+      ]);
     },
   );
 

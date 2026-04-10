@@ -8,6 +8,7 @@ CONFIG_FILE="${ONYX_DART_DEFINE_FILE:-config/onyx.local.json}"
 LOG_FILE="${ONYX_YOLO_SERVER_LOG_FILE:-tmp/onyx_yolo_server.log}"
 PID_FILE="${ONYX_YOLO_SERVER_PID_FILE:-tmp/onyx_yolo_server.pid}"
 VENV_PYTHON="${ROOT_DIR}/.venv-monitoring-yolo/bin/python"
+START_SCRIPT="${ROOT_DIR}/scripts/start_yolo_server.sh"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -138,7 +139,7 @@ fi
 
 mkdir -p "$(dirname "$LOG_FILE")"
 mkdir -p "$(dirname "$PID_FILE")"
-nohup bash ./tool/start_monitoring_yolo_detector.sh --config "$CONFIG_FILE" \
+nohup bash "$START_SCRIPT" --config "$CONFIG_FILE" \
   >"$LOG_FILE" 2>&1 &
 yolo_pid=$!
 printf '%s\n' "$yolo_pid" >"$PID_FILE"

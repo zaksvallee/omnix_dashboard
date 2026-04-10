@@ -133,7 +133,7 @@ if [[ "$telegram_bridge_mode" == "PROXY" ]]; then
 fi
 
 ./scripts/ensure_yolo_server.sh --config "$CONFIG_FILE"
-./scripts/ensure_camera_worker.sh --config "$CONFIG_FILE"
+./scripts/ensure_camera_worker.sh --config "$CONFIG_FILE" --watchdog
 
 echo "Launching ONYX..."
 mkdir -p "$(dirname "$FLUTTER_PID_FILE")"

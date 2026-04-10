@@ -294,7 +294,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       final nextAttempt = retryAttempt + 1;
       final delay = _retryDelayFor(retryAttempt);
       developer.log(
-        '[ONYX] ⚠️ Camera stream disconnected — reconnecting in '
+        '[ONYX] ⚠️ Camera stream disconnected from $host:$port — reconnecting in '
         '${delay.inSeconds}s (attempt $nextAttempt). $disconnectReason',
         name: 'OnyxHikIsapiStream',
         error: disconnectError,
@@ -518,12 +518,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   }
 
   Duration _retryDelayFor(int attempt) {
-    final multiplier = math.pow(2, attempt).toInt();
-    final seconds = math.min<int>(
-      maxRetryDelay.inSeconds,
-      initialRetryDelay.inSeconds * math.max(1, multiplier),
-    );
-    return Duration(seconds: seconds);
+    const retryScheduleSeconds = <int>[5, 10, 30, 60];
+    final seconds =
+        retryScheduleSeconds[math.min<int>(
+          attempt,
+          retryScheduleSeconds.length - 1,
+        )];
+    return Duration(seconds: math.min(seconds, maxRetryDelay.inSeconds));
   }
 
   DvrHttpAuthConfig get _auth => DvrHttpAuthConfig(

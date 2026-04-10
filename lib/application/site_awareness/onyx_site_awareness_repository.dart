@@ -326,6 +326,40 @@ class OnyxSiteAwarenessRepository {
     }
   }
 
+  Future<void> recordCameraWorkerOffline({
+    required String siteId,
+    required String deviceId,
+    required DateTime occurredAt,
+    required int consecutiveFailures,
+    required Duration nextRetryDelay,
+    required String host,
+    required int port,
+  }) async {
+    try {
+      await _client.from('site_alarm_events').insert(<String, Object?>{
+        'site_id': siteId.trim(),
+        'device_id': deviceId.trim(),
+        'event_type': 'camera_worker_offline',
+        'occurred_at': occurredAt.toUtc().toIso8601String(),
+        'raw_payload': <String, Object?>{
+          'host': host,
+          'port': port,
+          'consecutive_failures': consecutiveFailures,
+          'next_retry_seconds': nextRetryDelay.inSeconds,
+        },
+      });
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to record camera worker offline event for $siteId.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      rethrow;
+    }
+  }
+
   Future<OnyxSiteOccupancySession?> _readOccupancySession({
     required String siteId,
     required String sessionDate,
