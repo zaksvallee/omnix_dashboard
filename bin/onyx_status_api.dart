@@ -19,6 +19,8 @@ import 'dart:math' as math;
 
 import 'package:supabase/supabase.dart';
 
+import 'package:omnix_dashboard/application/onyx_patrol_monitor_service.dart';
+
 const String _defaultHost = '127.0.0.1';
 const int _defaultPort = 8444;
 const Duration _freshnessWindow = Duration(minutes: 30);
@@ -61,6 +63,11 @@ Future<void> _handleRequest(
       await _writeJsonResponse(request, HttpStatus.ok, <String, Object?>{
         'status': 'ok',
       });
+      return;
+    }
+
+    if (request.method == 'POST' && request.uri.path == '/v1/patrol/scan') {
+      await _handlePatrolScanRequest(request, supabase);
       return;
     }
 
@@ -135,6 +142,122 @@ Future<void> _handleRequest(
       // The connection may already be closed.
     }
   }
+}
+
+Future<void> _handlePatrolScanRequest(
+  HttpRequest request,
+  SupabaseClient supabase,
+) async {
+  final body = await utf8.decoder.bind(request).join();
+  Object? decoded;
+  try {
+    decoded = jsonDecode(body);
+  } catch (_) {
+    await _writeJsonResponse(request, HttpStatus.badRequest, <String, Object?>{
+      'ok': false,
+      'error': 'invalid_json',
+    });
+    return;
+  }
+  if (decoded is! Map) {
+    await _writeJsonResponse(request, HttpStatus.badRequest, <String, Object?>{
+      'ok': false,
+      'error': 'invalid_body',
+    });
+    return;
+  }
+  final payload = Map<String, dynamic>.from(decoded);
+  final siteId = _asString(payload['site_id']) ?? '';
+  final guardId = _asString(payload['guard_id']) ?? '';
+  final checkpointCode = _asString(payload['checkpoint_code']) ?? '';
+  final token =
+      _asString(payload['token']) ?? _extractApiToken(request) ?? '';
+  if (siteId.isEmpty ||
+      guardId.isEmpty ||
+      checkpointCode.isEmpty ||
+      token.isEmpty) {
+    await _writeJsonResponse(request, HttpStatus.badRequest, <String, Object?>{
+      'ok': false,
+      'error': 'missing_required_fields',
+    });
+    return;
+  }
+  final tokenId = await _validateToken(
+    supabase,
+    siteId: siteId,
+    token: token,
+  );
+  if (tokenId == null) {
+    await _writeJsonResponse(request, HttpStatus.forbidden, <String, Object?>{
+      'ok': false,
+      'error': 'invalid_token',
+    });
+    return;
+  }
+  unawaited(_touchTokenUsage(supabase, tokenId));
+
+  final checkpointRows = await supabase
+      .from('patrol_checkpoints')
+      .select(
+        'id,route_id,site_id,checkpoint_name,checkpoint_code,sequence_order,is_active',
+      )
+      .eq('site_id', siteId)
+      .eq('checkpoint_code', checkpointCode)
+      .eq('is_active', true)
+      .limit(1);
+  if (checkpointRows.isEmpty) {
+    await _writeJsonResponse(request, HttpStatus.notFound, <String, Object?>{
+      'ok': false,
+      'error': 'checkpoint_not_found',
+    });
+    return;
+  }
+  final checkpoint = OnyxPatrolCheckpoint.fromRow(
+    Map<String, dynamic>.from(checkpointRows.first as Map),
+  );
+  final scannedAtUtc = DateTime.now().toUtc();
+  await supabase.from('patrol_scans').insert(<String, Object?>{
+    'site_id': siteId,
+    'guard_id': guardId,
+    'checkpoint_id': checkpoint.id,
+    'checkpoint_name': checkpoint.checkpointName,
+    'scanned_at': scannedAtUtc.toIso8601String(),
+    'lat': _doubleValue(payload['lat']),
+    'lon': _doubleValue(payload['lon']),
+    'note': _asString(payload['note']),
+  });
+
+  final routeCheckpointRows = await supabase
+      .from('patrol_checkpoints')
+      .select(
+        'id,route_id,site_id,checkpoint_name,checkpoint_code,sequence_order,is_active',
+      )
+      .eq('site_id', siteId)
+      .eq('route_id', checkpoint.routeId)
+      .eq('is_active', true)
+      .order('sequence_order', ascending: true);
+  final routeCheckpoints = routeCheckpointRows
+      .map((row) => OnyxPatrolCheckpoint.fromRow(Map<String, dynamic>.from(row as Map)))
+      .toList(growable: false);
+  final nextCheckpoint = _nextPatrolCheckpoint(
+    routeCheckpoints,
+    currentCheckpointId: checkpoint.id,
+  );
+
+  await _refreshPatrolComplianceForGuard(
+    supabase,
+    siteId: siteId,
+    guardId: guardId,
+    nowUtc: scannedAtUtc,
+  );
+
+  await _writeJsonResponse(request, HttpStatus.ok, <String, Object?>{
+    'ok': true,
+    'checkpoint': checkpoint.checkpointName,
+    'scanned_at': scannedAtUtc.toIso8601String(),
+    'next_checkpoint': nextCheckpoint?.checkpointName,
+    'message': 'Checkpoint confirmed. Good work.',
+  });
 }
 
 _StatusRoute? _parseStatusRoute(Uri uri) {
@@ -338,6 +461,93 @@ Future<_StatusSummary?> _buildStatusSummary(
   );
 }
 
+Future<void> _refreshPatrolComplianceForGuard(
+  SupabaseClient supabase, {
+  required String siteId,
+  required String guardId,
+  required DateTime nowUtc,
+}) async {
+  final assignmentRows = await supabase
+      .from('guard_assignments')
+      .select(
+        'id,site_id,guard_id,guard_name,route_id,shift_start,shift_end,patrol_interval_minutes,is_active',
+      )
+      .eq('site_id', siteId)
+      .eq('guard_id', guardId)
+      .eq('is_active', true);
+  if (assignmentRows.isEmpty) {
+    return;
+  }
+  final assignments = assignmentRows
+      .map((row) => OnyxGuardPatrolAssignment.fromRow(Map<String, dynamic>.from(row as Map)))
+      .toList(growable: false);
+  final routeIds = assignments
+      .map((assignment) => assignment.routeId.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet()
+      .toList(growable: false);
+  final checkpointRows = routeIds.isEmpty
+      ? const []
+      : await supabase
+            .from('patrol_checkpoints')
+            .select(
+              'id,route_id,site_id,checkpoint_name,checkpoint_code,sequence_order,is_active',
+            )
+            .eq('site_id', siteId)
+            .inFilter('route_id', routeIds)
+            .eq('is_active', true);
+  final checkpoints = checkpointRows
+      .map((row) => OnyxPatrolCheckpoint.fromRow(Map<String, dynamic>.from(row as Map)))
+      .toList(growable: false);
+  final scanRows = await supabase
+      .from('patrol_scans')
+      .select(
+        'id,site_id,guard_id,checkpoint_id,checkpoint_name,scanned_at,lat,lon,note',
+      )
+      .eq('site_id', siteId)
+      .eq('guard_id', guardId)
+      .order('scanned_at', ascending: false)
+      .limit(500);
+  final scans = scanRows
+      .map((row) => OnyxPatrolScan.fromRow(Map<String, dynamic>.from(row as Map)))
+      .toList(growable: false);
+  final service = const OnyxPatrolMonitorService();
+  final outcome = service.evaluate(
+    siteId: siteId,
+    assignments: assignments,
+    checkpoints: checkpoints,
+    scans: scans,
+    nowLocal: nowUtc.add(_saTimeOffset),
+  );
+  for (final snapshot in outcome.complianceSnapshots) {
+    await supabase.from('patrol_compliance').upsert(<String, Object?>{
+      'site_id': snapshot.siteId,
+      'guard_id': snapshot.guardId,
+      'compliance_date': snapshot.complianceDateValue,
+      'expected_patrols': snapshot.expectedPatrols,
+      'completed_patrols': snapshot.completedPatrols,
+      'missed_checkpoints': snapshot.missedCheckpoints,
+      'compliance_percent': snapshot.compliancePercent,
+    }, onConflict: 'site_id,guard_id,compliance_date');
+  }
+}
+
+OnyxPatrolCheckpoint? _nextPatrolCheckpoint(
+  List<OnyxPatrolCheckpoint> checkpoints, {
+  required String currentCheckpointId,
+}) {
+  if (checkpoints.isEmpty) {
+    return null;
+  }
+  final index = checkpoints.indexWhere(
+    (checkpoint) => checkpoint.id.trim() == currentCheckpointId.trim(),
+  );
+  if (index < 0) {
+    return checkpoints.first;
+  }
+  return checkpoints[(index + 1) % checkpoints.length];
+}
+
 String _deriveStatus({
   required bool freshSnapshot,
   required bool perimeterClear,
@@ -447,6 +657,19 @@ int? _asInt(Object? value) {
   }
   if (value is String) {
     return int.tryParse(value);
+  }
+  return null;
+}
+
+double? _doubleValue(Object? value) {
+  if (value is double) {
+    return value;
+  }
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value.trim());
   }
   return null;
 }

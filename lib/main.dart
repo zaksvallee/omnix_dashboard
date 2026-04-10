@@ -104,6 +104,7 @@ import 'application/onyx_agent_client_draft_service.dart';
 import 'application/onyx_agent_local_brain_service.dart';
 import 'application/onyx_command_parser.dart';
 import 'application/onyx_elevenlabs_service.dart';
+import 'application/onyx_patrol_monitor_service.dart';
 import 'application/onyx_telegram_command_gateway.dart';
 import 'application/onyx_telegram_operational_command_service.dart';
 import 'application/ops_integration_profile.dart';
@@ -2094,6 +2095,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Timer? _offlineIncidentSpoolSyncTimer;
   Timer? _telegramAdminPollTimer;
   Timer? _siteAwarenessAlertPollTimer;
+  Timer? _patrolMonitorTimer;
   Timer? _monitoringWatchScheduleTimer;
   Timer? _monitoringContinuousVisualWatchTimer;
   Timer? _demoAutopilotRouteTimer;
@@ -2104,6 +2106,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   int _telegramDemoScriptStep = 0;
   int _telegramDemoScriptTotal = 0;
   int _telegramDemoScriptIntervalSeconds = 20;
+  bool _patrolMonitorInFlight = false;
+  final Map<String, DateTime> _patrolMissedAlertSentAtUtcByKey =
+      <String, DateTime>{};
   String _telegramDemoScriptScopeLabel = '';
   String _telegramDemoScriptRunId = '';
   DateTime? _telegramDemoScriptStartedAtUtc;
@@ -3411,6 +3416,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _startOpsIntegrationPollingLoop();
     _startTelegramAdminControlLoop();
     _startSiteAwarenessAlertLoop();
+    _startPatrolMonitorLoop();
     _startMonitoringWatchScheduleLoop();
     if (widget.initialTelegramInboundUpdatesOverride.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3615,6 +3621,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _offlineIncidentSpoolSyncTimer?.cancel();
     _telegramAdminPollTimer?.cancel();
     _siteAwarenessAlertPollTimer?.cancel();
+    _patrolMonitorTimer?.cancel();
     _telegramPollingTabLock.dispose();
     _monitoringWatchScheduleTimer?.cancel();
     _monitoringContinuousVisualWatchTimer?.cancel();
@@ -3670,6 +3677,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _telegramAdminPollTimer = null;
           _siteAwarenessAlertPollTimer?.cancel();
           _siteAwarenessAlertPollTimer = null;
+          _patrolMonitorTimer?.cancel();
+          _patrolMonitorTimer = null;
           _telegramPollingTabLock.release();
           _telegramPollingPrimaryTab = false;
         }
@@ -3679,6 +3688,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _startOpsIntegrationPollingLoop();
     _startTelegramAdminControlLoop();
     _startSiteAwarenessAlertLoop();
+    _startPatrolMonitorLoop();
     _startMonitoringWatchScheduleLoop();
     unawaited(_maybeAutoGenerateMorningSovereignReport());
     if (!widget.supabaseReady || _guardOpsSyncInFlight) return;
@@ -14237,6 +14247,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _selectedSite.trim().isNotEmpty;
   }
 
+  bool get _patrolMonitorEnabled {
+    return widget.supabaseReady &&
+        _selectedClient.trim().isNotEmpty &&
+        _selectedSite.trim().isNotEmpty;
+  }
+
   void _startSiteAwarenessAlertLoop() {
     if (!_siteAwarenessAlertWatcherEnabled) {
       _siteAwarenessAlertPollTimer?.cancel();
@@ -14255,6 +14271,24 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _siteAwarenessAlertBootCutoffUtc ??= DateTime.now().toUtc();
     _scheduleNextSiteAwarenessAlertPoll(1);
+  }
+
+  void _startPatrolMonitorLoop() {
+    if (!_patrolMonitorEnabled) {
+      _patrolMonitorTimer?.cancel();
+      _patrolMonitorTimer = null;
+      return;
+    }
+    if (_patrolMonitorTimer != null || _patrolMonitorInFlight) {
+      return;
+    }
+    if (!_telegramPollingPrimaryTab) {
+      if (!_telegramPollingLockAcquisitionInFlight) {
+        unawaited(_ensureTelegramPrimaryTabForPatrolMonitor());
+      }
+      return;
+    }
+    _scheduleNextPatrolMonitorPoll(15);
   }
 
   Future<void> _ensureTelegramPollingPrimaryTab() async {
@@ -14314,6 +14348,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _scheduleNextSiteAwarenessAlertPoll(1);
   }
 
+  Future<void> _ensureTelegramPrimaryTabForPatrolMonitor() async {
+    if (!_patrolMonitorEnabled || _telegramPollingLockAcquisitionInFlight) {
+      return;
+    }
+    _telegramPollingLockAcquisitionInFlight = true;
+    try {
+      final isPrimary = await _telegramPollingTabLock.ensurePrimary();
+      _telegramPollingPrimaryTab = isPrimary;
+      if (!isPrimary) {
+        return;
+      }
+    } finally {
+      _telegramPollingLockAcquisitionInFlight = false;
+    }
+    if (_telegramInboundRouterEnabled && _telegramAdminPollTimer == null) {
+      _scheduleNextTelegramAdminPoll(1);
+    }
+    _startSiteAwarenessAlertLoop();
+    _scheduleNextPatrolMonitorPoll(5);
+  }
+
   void _scheduleNextSiteAwarenessAlertPoll(int delaySeconds) {
     _siteAwarenessAlertPollTimer?.cancel();
     if (!_siteAwarenessAlertWatcherEnabled || !_telegramPollingPrimaryTab) {
@@ -14322,6 +14377,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _siteAwarenessAlertPollTimer = Timer(Duration(seconds: delaySeconds), () {
       unawaited(_pollSiteAwarenessAlertsOnce());
+    });
+  }
+
+  void _scheduleNextPatrolMonitorPoll(int delaySeconds) {
+    _patrolMonitorTimer?.cancel();
+    if (!_patrolMonitorEnabled || !_telegramPollingPrimaryTab) {
+      _patrolMonitorTimer = null;
+      return;
+    }
+    _patrolMonitorTimer = Timer(Duration(seconds: delaySeconds), () {
+      unawaited(_pollPatrolMonitorOnce());
     });
   }
 
@@ -14398,6 +14464,115 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _siteAwarenessAlertPollInFlight = false;
       _scheduleNextSiteAwarenessAlertPoll(5);
     }
+  }
+
+  Future<void> _pollPatrolMonitorOnce() async {
+    if (!_patrolMonitorEnabled ||
+        !_telegramPollingPrimaryTab ||
+        _patrolMonitorInFlight) {
+      return;
+    }
+    _patrolMonitorInFlight = true;
+    try {
+      _prunePatrolMissedAlertKeys();
+      final occupancyConfigRow = await _readSiteOccupancyConfigRow(
+        siteId: _selectedSite,
+      );
+      if (occupancyConfigRow == null || !_siteOccupancyHasGuard(occupancyConfigRow)) {
+        return;
+      }
+      final assignments = await _readPatrolAssignmentsForSite(siteId: _selectedSite);
+      if (assignments.isEmpty) {
+        return;
+      }
+      final routeIds = assignments
+          .map((assignment) => assignment.routeId.trim())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+      final checkpoints = await _readPatrolCheckpointsForSite(
+        siteId: _selectedSite,
+        routeIds: routeIds,
+      );
+      final scans = await _readPatrolScansForSite(siteId: _selectedSite);
+      final outcome = const OnyxPatrolMonitorService().evaluate(
+        siteId: _selectedSite,
+        assignments: assignments,
+        checkpoints: checkpoints,
+        scans: scans,
+        nowLocal: _telegramFlowNowLocal(),
+      );
+      for (final snapshot in outcome.complianceSnapshots) {
+        await _upsertPatrolComplianceSnapshot(snapshot);
+      }
+      final siteLabel = _deliverySiteLabelFor(
+        clientId: _selectedClient,
+        siteId: _selectedSite,
+      );
+      for (final alert in outcome.missedAlerts) {
+        if (_patrolMissedAlertSentAtUtcByKey.containsKey(alert.alertKey)) {
+          continue;
+        }
+        final text = _formatPatrolMissedAlertText(
+          siteLabel: siteLabel,
+          alert: alert,
+        );
+        final messageKeyPrefix =
+            'tg-patrol-missed-${alert.guardId}-${alert.expectedNextPatrolByUtc.millisecondsSinceEpoch}';
+        final adminChatId = _resolvedTelegramAdminChatId();
+        if (adminChatId.isNotEmpty) {
+          await _sendTelegramMessageWithChunks(
+            messageKeyPrefix: '$messageKeyPrefix-admin',
+            chatId: adminChatId,
+            messageThreadId: _resolvedTelegramAdminThreadId(),
+            responseText: text,
+            failureContext: 'Guard patrol missed alert',
+          );
+        }
+        await _telegramPushCoordinator.sendScopedAlert(
+          clientId: _selectedClient,
+          siteId: _selectedSite,
+          messageKeyPrefix: '$messageKeyPrefix-client',
+          text: text,
+        );
+        _patrolMissedAlertSentAtUtcByKey[alert.alertKey] = DateTime.now().toUtc();
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'ONYX patrol monitor poll failed',
+        name: 'PatrolMonitor',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _patrolMonitorInFlight = false;
+      _scheduleNextPatrolMonitorPoll(15 * 60);
+    }
+  }
+
+  void _prunePatrolMissedAlertKeys() {
+    if (_patrolMissedAlertSentAtUtcByKey.isEmpty) {
+      return;
+    }
+    final cutoff = DateTime.now().toUtc().subtract(const Duration(hours: 24));
+    _patrolMissedAlertSentAtUtcByKey.removeWhere(
+      (_, sentAtUtc) => sentAtUtc.isBefore(cutoff),
+    );
+  }
+
+  String _formatPatrolMissedAlertText({
+    required String siteLabel,
+    required OnyxMissedPatrolAlert alert,
+  }) {
+    final lastCheckpointLine = alert.lastCheckpointName == null
+        ? 'Last checkpoint: none logged yet.'
+        : 'Last checkpoint: ${alert.lastCheckpointName} at ${_telegramCommandLocalTimeLabel(alert.lastScanAtUtc)}.';
+    return [
+      '⚠️ Missed patrol — ${alert.guardId} at $siteLabel.',
+      lastCheckpointLine,
+      'Expected next patrol by: ${_telegramCommandLocalTimeLabel(alert.expectedNextPatrolByUtc)}.',
+      'Current time: ${_telegramCommandLocalTimeLabel(alert.currentTimeUtc)}.',
+    ].join('\n');
   }
 
   void _scheduleNextTelegramAdminPoll(int delaySeconds) {
@@ -14717,6 +14892,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _telegramAdminPollTimer = null;
     _siteAwarenessAlertPollTimer?.cancel();
     _siteAwarenessAlertPollTimer = null;
+    _patrolMonitorTimer?.cancel();
+    _patrolMonitorTimer = null;
     _telegramPollingPrimaryTab = false;
     if (!mounted) {
       return;
@@ -14733,10 +14910,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _telegramAdminPollTimer != null ||
         _telegramPollingLockAcquisitionInFlight) {
       _startSiteAwarenessAlertLoop();
+      _startPatrolMonitorLoop();
       return;
     }
     unawaited(_ensureTelegramPollingPrimaryTab());
     _startSiteAwarenessAlertLoop();
+    _startPatrolMonitorLoop();
   }
 
   void _recordTelegramInboundUpdateFailure({
@@ -16229,20 +16408,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
-  String _telegramGuardComplianceLabel(DateTime? lastPatrolUtc) {
-    if (lastPatrolUtc == null) {
-      return 'awaiting patrol signal';
-    }
-    final age = _telegramFlowNowUtc().difference(lastPatrolUtc.toUtc());
-    if (age <= const Duration(hours: 2)) {
-      return 'on schedule';
-    }
-    if (age <= const Duration(hours: 6)) {
-      return 'late';
-    }
-    return 'overdue';
-  }
-
   Future<String> _telegramLiveStatusReply({
     required String clientId,
     required String siteId,
@@ -16715,57 +16880,49 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return 'No guard is assigned to this site.\nONYX is monitoring via cameras only.';
     }
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
-    final repository = await _guardSyncRepositoryForScope(
-      clientId: clientId,
-      siteId: siteId,
-    );
-    List<GuardAssignment> assignments = const <GuardAssignment>[];
-    try {
-      assignments = await repository.readAssignments();
-    } catch (_) {
-      assignments = const <GuardAssignment>[];
+    final assignments = await _readPatrolAssignmentsForSite(siteId: siteId);
+    if (assignments.isEmpty) {
+      return 'No active guard assignment is configured at $siteLabel yet.';
     }
-    final scopedAssignments = assignments
-        .where(
-          (assignment) =>
-              assignment.clientId.trim() == clientId.trim() &&
-              assignment.siteId.trim() == siteId.trim(),
-        )
-        .toList(growable: false);
-    final scopedEvents = _telegramCommandScopedEvents(
-      clientId: clientId,
+    final checkpoints = await _readPatrolCheckpointsForSite(
       siteId: siteId,
+      routeIds: assignments
+          .map((assignment) => assignment.routeId.trim())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(growable: false),
     );
-    final patrols = scopedEvents.whereType<PatrolCompleted>().toList(
-      growable: false,
-    )..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
-    final checkIns = scopedEvents.whereType<GuardCheckedIn>().toList(
-      growable: false,
-    )..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
-    final hasGuardCoverage =
-        scopedAssignments.isNotEmpty ||
-        patrols.isNotEmpty ||
-        checkIns.isNotEmpty;
-    if (!hasGuardCoverage) {
-      return 'No guard is assigned to this site.\nONYX is monitoring via cameras only.';
+    final scans = await _readPatrolScansForSite(siteId: siteId);
+    final outcome = const OnyxPatrolMonitorService().evaluate(
+      siteId: siteId,
+      assignments: assignments,
+      checkpoints: checkpoints,
+      scans: scans,
+      nowLocal: _telegramFlowNowLocal(),
+    );
+    if (outcome.complianceSnapshots.isEmpty) {
+      return 'Guard status: $siteLabel\n• No patrol telemetry has been recorded yet.';
     }
-    final latestPatrol = patrols.isEmpty ? null : patrols.first;
-    final latestCheckIn = checkIns.isEmpty ? null : checkIns.first;
-    final assignmentLabel = scopedAssignments.isEmpty
-        ? 'telemetry only'
-        : scopedAssignments
-              .take(3)
-              .map(
-                (assignment) =>
-                    '${assignment.guardId} (${assignment.status.name})',
-              )
-              .join(', ');
+    final snapshot =
+        outcome.complianceSnapshots.where((entry) => entry.onDuty).isNotEmpty
+        ? outcome.complianceSnapshots.firstWhere((entry) => entry.onDuty)
+        : outcome.complianceSnapshots.first;
+    final shiftLabel =
+        '${_telegramCommandLocalTimeLabel(snapshot.windowStartLocal)} - ${_telegramCommandLocalTimeLabel(snapshot.windowEndLocal)}';
+    final lastScanLine = snapshot.lastCheckpointName == null
+        ? 'none logged yet'
+        : '${snapshot.lastCheckpointName} at ${_telegramCommandLocalDateTimeLabel(snapshot.lastScanAtUtc)}';
+    final complianceLabel = snapshot.expectedPatrols <= 0
+        ? 'awaiting first patrol window'
+        : '${snapshot.completedPatrols} of ${snapshot.expectedPatrols} expected (${snapshot.compliancePercent.toStringAsFixed(0)}%)';
     return [
       'Guard status: $siteLabel',
-      '• Assigned guard coverage: $assignmentLabel',
-      '• Last patrol: ${latestPatrol == null ? 'no patrol log yet' : '${latestPatrol.guardId} on ${_humanizeScopeLabel(latestPatrol.routeId)} at ${_telegramCommandLocalDateTimeLabel(latestPatrol.occurredAt)}'}',
-      '• Last check-in: ${latestCheckIn == null ? 'none logged' : '${latestCheckIn.guardId} at ${_telegramCommandLocalDateTimeLabel(latestCheckIn.occurredAt)}'}',
-      '• Patrol compliance: ${_telegramGuardComplianceLabel(latestPatrol?.occurredAt)}',
+      '• Guard on duty: ${snapshot.guardName} (${snapshot.guardId})${snapshot.onDuty ? '' : ' — off shift'}',
+      '• Shift: $shiftLabel',
+      '• Last checkpoint: $lastScanLine',
+      '• Patrol compliance: $complianceLabel',
+      if (snapshot.missedCheckpoints.isNotEmpty)
+        '• Outstanding checkpoints: ${snapshot.missedCheckpoints.take(3).join(', ')}',
     ].join('\n');
   }
 
@@ -16790,9 +16947,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           occupancyConfigRow: occupancyConfigRow,
         );
       }
-      return _siteActivityTelegramSummaryForScope(
+      return _telegramGuardPatrolReportReply(
         clientId: clientId,
         siteId: siteId,
+        siteLabel: siteLabel,
+        occupancyConfigRow: occupancyConfigRow,
       );
     }
     final history = _siteActivityHistoryPointsForScope(
@@ -16895,6 +17054,67 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ..._telegramCommandKnownFaultLines(
         siteAwarenessRow ?? const <String, dynamic>{},
       ).map((line) => '• $line'),
+    ];
+    return lines.join('\n');
+  }
+
+  Future<String> _telegramGuardPatrolReportReply({
+    required String clientId,
+    required String siteId,
+    required String siteLabel,
+    required Map<String, dynamic>? occupancyConfigRow,
+  }) async {
+    final cameraReport = await _telegramCameraOnlyResidenceReportReply(
+      clientId: clientId,
+      siteId: siteId,
+      siteLabel: siteLabel,
+      occupancyConfigRow:
+          occupancyConfigRow ??
+          const <String, dynamic>{
+            'expected_occupancy': 0,
+            'occupancy_label': 'people',
+            'site_type': '',
+            'reset_hour': 3,
+          },
+    );
+    final assignments = await _readPatrolAssignmentsForSite(siteId: siteId);
+    if (assignments.isEmpty) {
+      return '$cameraReport\n• Guard patrol report: no active guard assignment configured.';
+    }
+    final checkpoints = await _readPatrolCheckpointsForSite(
+      siteId: siteId,
+      routeIds: assignments
+          .map((assignment) => assignment.routeId.trim())
+          .where((value) => value.isNotEmpty)
+          .toSet()
+          .toList(growable: false),
+    );
+    final scans = await _readPatrolScansForSite(siteId: siteId);
+    final outcome = const OnyxPatrolMonitorService().evaluate(
+      siteId: siteId,
+      assignments: assignments,
+      checkpoints: checkpoints,
+      scans: scans,
+      nowLocal: _telegramFlowNowLocal(),
+    );
+    if (outcome.complianceSnapshots.isEmpty) {
+      return '$cameraReport\n• Guard patrol report: no patrol scans recorded today.';
+    }
+    final snapshot =
+        outcome.complianceSnapshots.where((entry) => entry.onDuty).isNotEmpty
+        ? outcome.complianceSnapshots.firstWhere((entry) => entry.onDuty)
+        : outcome.complianceSnapshots.first;
+    final shiftLabel =
+        '${_telegramCommandLocalTimeLabel(snapshot.windowStartLocal)} - ${_telegramCommandLocalTimeLabel(snapshot.windowEndLocal)}';
+    final lines = <String>[
+      cameraReport,
+      '• Guard Patrol Report — ${snapshot.complianceDateValue}',
+      '• Guard: ${snapshot.guardName} (${snapshot.guardId})',
+      '• Shift: $shiftLabel',
+      '• Patrols completed: ${snapshot.completedPatrols} of ${snapshot.expectedPatrols} expected',
+      '• Compliance: ${snapshot.compliancePercent.toStringAsFixed(0)}%',
+      '• Missed checkpoints: ${snapshot.missedCheckpoints.isEmpty ? 'none' : snapshot.missedCheckpoints.join(', ')}',
+      '• Last scan: ${snapshot.lastCheckpointName == null ? 'none logged yet' : '${snapshot.lastCheckpointName} at ${_telegramCommandLocalTimeLabel(snapshot.lastScanAtUtc)}'}',
     ];
     return lines.join('\n');
   }
@@ -38238,6 +38458,114 @@ bool _incidentRowIsActive(Map<String, dynamic>? row) {
       return false;
     default:
       return true;
+  }
+}
+
+Future<List<OnyxGuardPatrolAssignment>> _readPatrolAssignmentsForSite({
+  required String siteId,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <OnyxGuardPatrolAssignment>[];
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('guard_assignments')
+        .select(
+          'id,site_id,guard_id,guard_name,route_id,shift_start,shift_end,patrol_interval_minutes,is_active',
+        )
+        .eq('site_id', siteId.trim())
+        .eq('is_active', true);
+    return rows
+        .map(
+          (row) => OnyxGuardPatrolAssignment.fromRow(
+            Map<String, dynamic>.from(row as Map),
+          ),
+        )
+        .toList(growable: false);
+  } catch (_) {
+    return const <OnyxGuardPatrolAssignment>[];
+  }
+}
+
+Future<List<OnyxPatrolCheckpoint>> _readPatrolCheckpointsForSite({
+  required String siteId,
+  List<String> routeIds = const <String>[],
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <OnyxPatrolCheckpoint>[];
+  }
+  try {
+    final builder = Supabase.instance.client
+        .from('patrol_checkpoints')
+        .select(
+          'id,route_id,site_id,checkpoint_name,checkpoint_code,sequence_order,is_active',
+        )
+        .eq('site_id', siteId.trim())
+        .eq('is_active', true);
+    final normalizedRouteIds = routeIds
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    final rows = normalizedRouteIds.isEmpty
+        ? await builder.order('sequence_order', ascending: true)
+        : await builder
+              .inFilter('route_id', normalizedRouteIds)
+              .order('sequence_order', ascending: true);
+    return rows
+        .map(
+          (row) =>
+              OnyxPatrolCheckpoint.fromRow(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList(growable: false);
+  } catch (_) {
+    return const <OnyxPatrolCheckpoint>[];
+  }
+}
+
+Future<List<OnyxPatrolScan>> _readPatrolScansForSite({
+  required String siteId,
+  int limit = 500,
+}) async {
+  if (siteId.trim().isEmpty) {
+    return const <OnyxPatrolScan>[];
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('patrol_scans')
+        .select(
+          'id,site_id,guard_id,checkpoint_id,checkpoint_name,scanned_at,lat,lon,note',
+        )
+        .eq('site_id', siteId.trim())
+        .order('scanned_at', ascending: false)
+        .limit(limit);
+    return rows
+        .map(
+          (row) => OnyxPatrolScan.fromRow(Map<String, dynamic>.from(row as Map)),
+        )
+        .toList(growable: false);
+  } catch (_) {
+    return const <OnyxPatrolScan>[];
+  }
+}
+
+Future<void> _upsertPatrolComplianceSnapshot(
+  OnyxPatrolComplianceSnapshot snapshot,
+) async {
+  try {
+    await Supabase.instance.client.from('patrol_compliance').upsert(
+      <String, Object?>{
+        'site_id': snapshot.siteId,
+        'guard_id': snapshot.guardId,
+        'compliance_date': snapshot.complianceDateValue,
+        'expected_patrols': snapshot.expectedPatrols,
+        'completed_patrols': snapshot.completedPatrols,
+        'missed_checkpoints': snapshot.missedCheckpoints,
+        'compliance_percent': snapshot.compliancePercent,
+      },
+      onConflict: 'site_id,guard_id,compliance_date',
+    );
+  } catch (_) {
+    // Patrol compliance persistence is best-effort; alerts still continue.
   }
 }
 

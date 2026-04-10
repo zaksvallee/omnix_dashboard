@@ -70,6 +70,8 @@ class OnyxTelegramCommandRouter {
     'checkpoint',
     'guard on site',
     'missed patrol',
+    'did guard patrol',
+    'guard status',
   };
 
   static const Set<String> _reportTriggers = <String>{
@@ -78,6 +80,7 @@ class OnyxTelegramCommandRouter {
     'weekly',
     'monthly',
     'send report',
+    'patrol report',
   };
 
   static const Set<String> _cameraTriggers = <String>{
