@@ -39750,6 +39750,151 @@ Future<List<Map<String, dynamic>>> _readSiteVehiclePresenceRows({
     return rows
         .map((row) => Map<String, dynamic>.from(row as Map))
         .toList(growable: false);
+  } on PostgrestException catch (error) {
+    if (_isMissingSupabaseRelationError(error, 'site_vehicle_presence')) {
+      developer.log(
+        'Falling back to vehicle_visits because site_vehicle_presence is unavailable in Supabase REST.',
+        name: 'OnyxVehiclePresence',
+        error: error,
+      );
+      return _readVehiclePresenceRowsFromVehicleVisits(
+        siteId: siteId,
+        sinceUtc: sinceUtc,
+        limit: limit,
+      );
+    }
+    return const <Map<String, dynamic>>[];
+  } catch (_) {
+    return const <Map<String, dynamic>>[];
+  }
+}
+
+bool _isMissingSupabaseRelationError(
+  PostgrestException error,
+  String relationName,
+) {
+  final relation = relationName.trim().toLowerCase();
+  if (relation.isEmpty) {
+    return false;
+  }
+  final code = error.code.toString().trim().toLowerCase();
+  final details = (error.details ?? '').toString().trim().toLowerCase();
+  final hint = (error.hint ?? '').toString().trim().toLowerCase();
+  final message = error.message.toString().trim().toLowerCase();
+  final combined = '$message $details $hint';
+  if (!combined.contains(relation)) {
+    return false;
+  }
+  return code == 'pgrst205' ||
+      combined.contains('schema cache') ||
+      combined.contains('could not find the table') ||
+      combined.contains('relation') && combined.contains('does not exist');
+}
+
+Future<List<Map<String, dynamic>>> _readVehiclePresenceRowsFromVehicleVisits({
+  required String siteId,
+  DateTime? sinceUtc,
+  int limit = 200,
+}) async {
+  final registryRows = await _readSiteVehicleRegistryRows(siteId: siteId);
+  final registryByPlate = <String, _SiteVehicleRegistryRecord>{};
+  for (final row in registryRows) {
+    final record = _SiteVehicleRegistryRecord.fromRow(row);
+    if (record.plateNumber.isEmpty) {
+      continue;
+    }
+    registryByPlate[record.plateNumber] = record;
+  }
+  try {
+    final rows = await Supabase.instance.client
+        .from('vehicle_visits')
+        .select(
+          'id,site_id,plate_number,started_at_utc,last_seen_at_utc,completed_at_utc,visit_status,zone_labels',
+        )
+        .eq('site_id', siteId.trim())
+        .order('last_seen_at_utc', ascending: false)
+        .limit(limit);
+    final synthesized = <Map<String, dynamic>>[];
+    for (final rawRow in rows) {
+      final row = Map<String, dynamic>.from(rawRow as Map);
+      final visitId = (row['id'] ?? '').toString().trim();
+      final normalizedPlate = _normalizedVehiclePlate(row['plate_number']);
+      final startedAtUtc = _siteAwarenessSummaryDate(row['started_at_utc']);
+      final lastSeenAtUtc = _siteAwarenessSummaryDate(row['last_seen_at_utc']);
+      final completedAtUtc = _siteAwarenessSummaryDate(row['completed_at_utc']);
+      final visitStatus = (row['visit_status'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      final zoneLabels = row['zone_labels'];
+      final zoneName = zoneLabels is List
+          ? zoneLabels
+                .map((value) => value.toString().trim())
+                .firstWhere((value) => value.isNotEmpty, orElse: () => '')
+          : '';
+      final registry = registryByPlate[normalizedPlate];
+      final ownerName = registry?.ownerName ?? '';
+      void addSyntheticEvent({
+        required String suffix,
+        required String eventType,
+        required DateTime occurredAtUtc,
+      }) {
+        final normalizedOccurredAtUtc = occurredAtUtc.toUtc();
+        if (sinceUtc != null &&
+            normalizedOccurredAtUtc.isBefore(sinceUtc.toUtc())) {
+          return;
+        }
+        synthesized.add(<String, dynamic>{
+          'id': visitId.isEmpty
+              ? '$normalizedPlate:$suffix'
+              : '$visitId:$suffix',
+          'site_id': siteId.trim(),
+          'plate_number': normalizedPlate,
+          'owner_name': ownerName,
+          'event_type': eventType,
+          'channel_id': null,
+          'zone_name': zoneName.isEmpty ? null : zoneName,
+          'occurred_at': normalizedOccurredAtUtc.toIso8601String(),
+        });
+      }
+
+      if (startedAtUtc != null) {
+        addSyntheticEvent(
+          suffix: 'arrived',
+          eventType: 'arrived',
+          occurredAtUtc: startedAtUtc,
+        );
+      }
+      if (visitStatus != 'completed' && lastSeenAtUtc != null) {
+        addSyntheticEvent(
+          suffix: 'on_site',
+          eventType: 'on_site',
+          occurredAtUtc: lastSeenAtUtc,
+        );
+      }
+      if (completedAtUtc != null) {
+        addSyntheticEvent(
+          suffix: 'departed',
+          eventType: 'departed',
+          occurredAtUtc: completedAtUtc,
+        );
+      }
+    }
+    synthesized.sort((left, right) {
+      final rightAt = _siteAwarenessSummaryDate(right['occurred_at']);
+      final leftAt = _siteAwarenessSummaryDate(left['occurred_at']);
+      if (rightAt == null && leftAt == null) {
+        return 0;
+      }
+      if (rightAt == null) {
+        return -1;
+      }
+      if (leftAt == null) {
+        return 1;
+      }
+      return rightAt.compareTo(leftAt);
+    });
+    return synthesized.take(limit).toList(growable: false);
   } catch (_) {
     return const <Map<String, dynamic>>[];
   }
