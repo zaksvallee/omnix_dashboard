@@ -156,6 +156,17 @@ class _OnyxTelegramAiProcessor {
           continue;
         }
 
+        if ((update.callbackQueryId ?? '').trim().isNotEmpty) {
+          final answered = await telegramBridge.answerCallbackQuery(
+            callbackQueryId: update.callbackQueryId!.trim(),
+          );
+          if (!answered) {
+            _logError(
+              'Failed to answer Telegram callback query for row $rowId.',
+            );
+          }
+        }
+
         final target = await _resolveInboundClientTarget(
           chatId: update.chatId,
           messageThreadId: update.messageThreadId,
@@ -172,7 +183,9 @@ class _OnyxTelegramAiProcessor {
         }
 
         _logInfo('Sending row $rowId to AI/reply builder...');
-        final reply = await _buildReply(update: update, target: target);
+        final reply = _isOnyxAlertCallbackData(update.text)
+            ? await _handleOnyxAlertCallback(update: update, target: target)
+            : await _buildReply(update: update, target: target);
         _logInfo('AI response for row $rowId: ${_preview(reply)}');
         if (reply.trim().isEmpty) {
           _logInfo('Row $rowId produced an empty reply.');
@@ -616,6 +629,15 @@ class _OnyxTelegramAiProcessor {
     required String siteId,
     required String prompt,
   }) async {
+    if (_visitorLeaveNotificationRequested(prompt)) {
+      final activeVisitors = await _readActiveOnDemandVisitors(siteId);
+      if (activeVisitors.isEmpty) {
+        return 'I don’t have any on-demand visitors marked on site right now. Send "2 visitors arrived" or "[name] is here" first.';
+      }
+      await _markOnDemandVisitorsForLeaveNotification(activeVisitors);
+      return 'Will do. I\'ll alert you when movement stops or you can send \'visitors left\' to clear them.';
+    }
+
     if (_visitorDepartureRequested(prompt)) {
       final today = _dateValue(DateTime.now().toLocal());
       await supabase
@@ -633,20 +655,238 @@ class _OnyxTelegramAiProcessor {
       prompt: prompt,
       nowLocal: nowLocal,
     );
-    await supabase.from('site_expected_visitors').insert(<String, Object?>{
-      'site_id': siteId,
-      'visitor_name': registration.visitorName,
-      'visitor_role': registration.visitorRole,
-      'visit_type': 'on_demand',
-      'visit_days': const <String>[],
-      'visit_start': _clockValue(nowLocal),
-      'visit_end': _clockValue(registration.endLocal),
-      'visit_date': _dateValue(nowLocal),
-      'is_active': true,
-      'notes': 'Hetzner AI processor registration',
-    });
+    final rows = List<Map<String, Object?>>.generate(
+      registration.visitorCount,
+      (index) {
+        final visitorName =
+            registration.visitorCount > 1 &&
+                _isGenericAnonymousVisitorName(registration.visitorName)
+            ? 'Visitor'
+            : registration.visitorName;
+        return <String, Object?>{
+          'site_id': siteId,
+          'visitor_name': visitorName,
+          'visitor_role': registration.visitorRole,
+          'visit_type': 'on_demand',
+          'visit_days': const <String>[],
+          'visit_start': _clockValue(nowLocal),
+          'visit_end': _clockValue(registration.endLocal),
+          'visit_date': _dateValue(nowLocal),
+          'is_active': true,
+          'notes': _onDemandVisitorNotes(
+            sourceLabel: 'Hetzner AI processor registration',
+            groupSize: registration.visitorCount,
+          ),
+        };
+      },
+    );
+    await supabase.from('site_expected_visitors').insert(rows);
+    if (registration.visitorCount > 1 &&
+        registration.visitorRole == 'visitor' &&
+        _isGenericAnonymousVisitorName(registration.visitorName)) {
+      return 'Got it. ${registration.visitorCount} visitors noted on site.\n'
+          'I\'ll suppress alerts for their movement.\n'
+          'Let me know when they leave.';
+    }
     return 'Got it. ${_visitorPossessiveLabel(registration.visitorName)} visit noted until ${_clockValue(registration.endLocal)}.\n'
         'I won’t alert for movement until then.';
+  }
+
+  Future<String> _handleOnyxAlertCallback({
+    required TelegramBridgeInboundMessage update,
+    required _ProcessorTarget target,
+  }) async {
+    final callback = _parseOnyxAlertCallback(update.text);
+    if (callback == null) {
+      return 'I couldn’t understand that alert action. Monitoring continues.';
+    }
+    final nowUtc = DateTime.now().toUtc();
+    final cameraLabel = await _readAlertCameraLabel(
+      siteId: target.siteId,
+      channelId: callback.channelId,
+    );
+    return switch (callback.action) {
+      _OnyxAlertCallbackAction.armedResponse => _handleArmedResponseCallback(
+        target: target,
+        callback: callback,
+        cameraLabel: cameraLabel,
+        nowUtc: nowUtc,
+      ),
+      _OnyxAlertCallbackAction.soundWarning => _handleSoundWarningCallback(
+        target: target,
+        callback: callback,
+        cameraLabel: cameraLabel,
+        nowUtc: nowUtc,
+      ),
+      _OnyxAlertCallbackAction.falseAlarm => _handleFalseAlarmCallback(
+        target: target,
+        callback: callback,
+        nowUtc: nowUtc,
+      ),
+      _OnyxAlertCallbackAction.keepWatching => Future<String>.value(
+        '👁 Noted. I\'ll update you if situation changes.',
+      ),
+      _OnyxAlertCallbackAction.registerVehicle =>
+        _handleRegisterVehicleCallback(
+          target: target,
+          callback: callback,
+          nowUtc: nowUtc,
+        ),
+    };
+  }
+
+  Future<String> _handleArmedResponseCallback({
+    required _ProcessorTarget target,
+    required _OnyxAlertCallback callback,
+    required String cameraLabel,
+    required DateTime nowUtc,
+  }) async {
+    final incidentId = _telegramInlineIncidentId(nowUtc);
+    await _recordAlertActionEvent(
+      siteId: target.siteId,
+      channelId: callback.channelId,
+      zoneName: cameraLabel,
+      eventType: 'armed_response_requested',
+      occurredAtUtc: nowUtc,
+      rawPayload: <String, Object?>{
+        'source': 'telegram_inline_button',
+        'incident_id': incidentId,
+        'camera_name': cameraLabel,
+      },
+    );
+    return '📞 Armed response notified.\nIncident #$incidentId logged.';
+  }
+
+  Future<String> _handleSoundWarningCallback({
+    required _ProcessorTarget target,
+    required _OnyxAlertCallback callback,
+    required String cameraLabel,
+    required DateTime nowUtc,
+  }) async {
+    await _recordAlertActionEvent(
+      siteId: target.siteId,
+      channelId: callback.channelId,
+      zoneName: cameraLabel,
+      eventType: 'voice_warning_requested',
+      occurredAtUtc: nowUtc,
+      rawPayload: <String, Object?>{
+        'source': 'telegram_inline_button',
+        'camera_name': cameraLabel,
+      },
+    );
+    return '🔊 Voice warning requested on $cameraLabel.';
+  }
+
+  Future<String> _handleFalseAlarmCallback({
+    required _ProcessorTarget target,
+    required _OnyxAlertCallback callback,
+    required DateTime nowUtc,
+  }) async {
+    await supabase
+        .from('site_awareness_snapshots')
+        .update(<String, Object?>{'active_alerts': <Object?>[]})
+        .eq('site_id', target.siteId);
+    await _recordAlertActionEvent(
+      siteId: target.siteId,
+      channelId: callback.channelId,
+      zoneName: null,
+      eventType: 'false_alarm_cleared',
+      occurredAtUtc: nowUtc,
+      rawPayload: const <String, Object?>{'source': 'telegram_inline_button'},
+    );
+    return '✅ False alarm cleared. Monitoring continues.';
+  }
+
+  Future<String> _handleRegisterVehicleCallback({
+    required _ProcessorTarget target,
+    required _OnyxAlertCallback callback,
+    required DateTime nowUtc,
+  }) async {
+    final endLocal = _vehicleRegistrationEndTime(nowUtc.toLocal());
+    await supabase.from('site_expected_visitors').insert(<String, Object?>{
+      'site_id': target.siteId,
+      'visitor_name': 'Expected Vehicle',
+      'visitor_role': 'vehicle',
+      'visit_type': 'on_demand',
+      'visit_days': const <String>[],
+      'visit_start': _clockValue(nowUtc.toLocal()),
+      'visit_end': _clockValue(endLocal),
+      'visit_date': _dateValue(nowUtc.toLocal()),
+      'is_active': true,
+      'notes': 'Telegram inline vehicle registration',
+    });
+    await _recordAlertActionEvent(
+      siteId: target.siteId,
+      channelId: callback.channelId,
+      zoneName: null,
+      eventType: 'vehicle_registered_expected',
+      occurredAtUtc: nowUtc,
+      rawPayload: const <String, Object?>{'source': 'telegram_inline_button'},
+    );
+    return '✅ Vehicle registered as expected visitor.';
+  }
+
+  Future<void> _recordAlertActionEvent({
+    required String siteId,
+    required String channelId,
+    required String? zoneName,
+    required String eventType,
+    required DateTime occurredAtUtc,
+    required Map<String, Object?> rawPayload,
+  }) async {
+    await supabase.from('site_alarm_events').insert(<String, Object?>{
+      'site_id': siteId.trim(),
+      'device_id': channelId.trim().isEmpty
+          ? 'telegram-inline'
+          : 'camera-ch${channelId.trim()}',
+      'event_type': eventType,
+      'zone_name': (zoneName ?? '').trim().isEmpty ? null : zoneName!.trim(),
+      'occurred_at': occurredAtUtc.toUtc().toIso8601String(),
+      'raw_payload': rawPayload,
+    });
+  }
+
+  Future<String> _readAlertCameraLabel({
+    required String siteId,
+    required String channelId,
+  }) async {
+    final normalizedChannelId = channelId.trim();
+    if (normalizedChannelId.isEmpty) {
+      return 'site';
+    }
+    final rows = await supabase
+        .from('site_awareness_snapshots')
+        .select('active_alerts')
+        .eq('site_id', siteId)
+        .order('snapshot_at', ascending: false)
+        .limit(1);
+    if (rows.isEmpty) {
+      return 'Channel $normalizedChannelId';
+    }
+    final row = Map<String, dynamic>.from(rows.first as Map);
+    final activeAlerts = row['active_alerts'];
+    if (activeAlerts is! List) {
+      return 'Channel $normalizedChannelId';
+    }
+    for (final entry in activeAlerts) {
+      final alert = _asObjectMap(entry);
+      if (alert == null) {
+        continue;
+      }
+      final entryChannelId = (alert['channel_id'] ?? alert['channelId'] ?? '')
+          .toString()
+          .trim();
+      if (entryChannelId != normalizedChannelId) {
+        continue;
+      }
+      final zoneName = (alert['zone_name'] ?? alert['zoneName'] ?? '')
+          .toString()
+          .trim();
+      if (zoneName.isNotEmpty) {
+        return zoneName;
+      }
+    }
+    return 'Channel $normalizedChannelId';
   }
 
   Future<String> _buildAiFallbackReply({
@@ -693,7 +933,7 @@ class _OnyxTelegramAiProcessor {
     final rows = await supabase
         .from('site_expected_visitors')
         .select(
-          'visitor_name,visitor_role,visit_type,visit_end,visit_date,is_active',
+          'id,visitor_name,visitor_role,visit_type,visit_end,visit_date,is_active,notes',
         )
         .eq('site_id', siteId)
         .eq('visit_type', 'on_demand')
@@ -715,6 +955,27 @@ class _OnyxTelegramAiProcessor {
           return notEnded;
         })
         .toList(growable: false);
+  }
+
+  Future<void> _markOnDemandVisitorsForLeaveNotification(
+    List<Map<String, dynamic>> activeVisitors,
+  ) async {
+    final requestedAtUtc = DateTime.now().toUtc().toIso8601String();
+    for (final visitor in activeVisitors) {
+      final visitorId = (visitor['id'] ?? '').toString().trim();
+      if (visitorId.isEmpty) {
+        continue;
+      }
+      await supabase
+          .from('site_expected_visitors')
+          .update(<String, Object?>{
+            'notes': _withLeaveNotificationRequestNote(
+              existingNotes: visitor['notes'],
+              requestedAtUtc: requestedAtUtc,
+            ),
+          })
+          .eq('id', visitorId);
+    }
   }
 
   Future<int> _readActiveIncidents(String siteId) async {
@@ -1035,20 +1296,82 @@ String? _onDemandVisitorStatusLine(List<Map<String, dynamic>> visitors) {
 bool _visitorDepartureRequested(String prompt) {
   final normalized = prompt.trim().toLowerCase();
   return normalized.contains('leaving now') ||
+      normalized.contains('visitors left') ||
+      normalized.contains('visitor left') ||
       normalized.contains('leaving') ||
       normalized.contains('just left') ||
       normalized.contains('gone now') ||
       normalized.contains('visitor gone');
 }
 
+bool _visitorLeaveNotificationRequested(String prompt) {
+  final normalized = prompt.trim().toLowerCase();
+  if (normalized.isEmpty) {
+    return false;
+  }
+  return normalized.contains('let me know when they leave') ||
+      normalized.contains('tell me when they leave') ||
+      normalized.contains('notify me when they leave') ||
+      normalized.contains('alert me when they leave') ||
+      normalized.contains('let me know when visitors leave') ||
+      normalized.contains('tell me when visitors leave') ||
+      normalized.contains('notify me when visitors leave');
+}
+
+bool _isOnyxAlertCallbackData(String text) {
+  return text.trim().toLowerCase().startsWith('oa|');
+}
+
+enum _OnyxAlertCallbackAction {
+  armedResponse,
+  soundWarning,
+  falseAlarm,
+  keepWatching,
+  registerVehicle,
+}
+
+class _OnyxAlertCallback {
+  final _OnyxAlertCallbackAction action;
+  final String channelId;
+
+  const _OnyxAlertCallback({required this.action, required this.channelId});
+}
+
+_OnyxAlertCallback? _parseOnyxAlertCallback(String raw) {
+  final parts = raw
+      .trim()
+      .split('|')
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList(growable: false);
+  if (parts.length < 3 || parts.first.toLowerCase() != 'oa') {
+    return null;
+  }
+  final action = switch (parts[1].toLowerCase()) {
+    'armed_response' => _OnyxAlertCallbackAction.armedResponse,
+    'sound_warning' => _OnyxAlertCallbackAction.soundWarning,
+    'false_alarm' || 'all_good' => _OnyxAlertCallbackAction.falseAlarm,
+    'keep_watching' || 'i_see_them' => _OnyxAlertCallbackAction.keepWatching,
+    'register_vehicle' ||
+    'expected_vehicle' => _OnyxAlertCallbackAction.registerVehicle,
+    _ => null,
+  };
+  if (action == null) {
+    return null;
+  }
+  return _OnyxAlertCallback(action: action, channelId: parts[2]);
+}
+
 class _VisitorRegistrationDetails {
   final String visitorName;
   final String visitorRole;
+  final int visitorCount;
   final DateTime endLocal;
 
   const _VisitorRegistrationDetails({
     required this.visitorName,
     required this.visitorRole,
+    required this.visitorCount,
     required this.endLocal,
   });
 }
@@ -1061,12 +1384,53 @@ _VisitorRegistrationDetails _visitorRegistrationDetails({
   return _VisitorRegistrationDetails(
     visitorName: _visitorNameForPrompt(prompt, normalized),
     visitorRole: _visitorRoleForPrompt(normalized),
+    visitorCount: _visitorCountForPrompt(normalized),
     endLocal: _visitorEndTime(
       prompt: prompt,
       normalized: normalized,
       nowLocal: nowLocal,
     ),
   );
+}
+
+int _visitorCountForPrompt(String normalized) {
+  final numericMatch = RegExp(
+    r'\b(\d+)\s+(?:anonymous\s+)?(?:visitor|visitors|guest|guests|people)\b',
+  ).firstMatch(normalized);
+  if (numericMatch != null) {
+    final parsed = int.tryParse(numericMatch.group(1) ?? '');
+    if (parsed != null && parsed > 0) {
+      return parsed;
+    }
+  }
+  final wordMatch = RegExp(
+    r'\b(one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:anonymous\s+)?(?:visitor|visitors|guest|guests|people)\b',
+  ).firstMatch(normalized);
+  if (wordMatch == null) {
+    return 1;
+  }
+  return switch (wordMatch.group(1)) {
+    'one' => 1,
+    'two' => 2,
+    'three' => 3,
+    'four' => 4,
+    'five' => 5,
+    'six' => 6,
+    'seven' => 7,
+    'eight' => 8,
+    'nine' => 9,
+    'ten' => 10,
+    _ => 1,
+  };
+}
+
+bool _isGenericAnonymousVisitorName(String visitorName) {
+  final normalized = visitorName.trim().toLowerCase();
+  return normalized.isEmpty ||
+      normalized == 'visitor' ||
+      normalized == 'visitors' ||
+      normalized == 'guest' ||
+      normalized == 'guests';
 }
 
 String _visitorRoleForPrompt(String normalized) {
@@ -1158,6 +1522,56 @@ String _visitorPossessiveLabel(String visitorName) {
     return '$trimmed\'';
   }
   return '$trimmed\'s';
+}
+
+String _onDemandVisitorNotes({
+  required String sourceLabel,
+  required int groupSize,
+}) {
+  final parts = <String>[sourceLabel.trim()];
+  if (groupSize > 1) {
+    parts.add('anonymous_group_size=$groupSize');
+  }
+  return parts.join(' | ');
+}
+
+String _withLeaveNotificationRequestNote({
+  required Object? existingNotes,
+  required String requestedAtUtc,
+}) {
+  final parts = (existingNotes ?? '')
+      .toString()
+      .split('|')
+      .map((value) => value.trim())
+      .where(
+        (value) =>
+            value.isNotEmpty &&
+            value != 'notify_when_left=true' &&
+            !value.startsWith('notify_requested_at='),
+      )
+      .toList(growable: true);
+  parts.add('notify_when_left=true');
+  parts.add('notify_requested_at=$requestedAtUtc');
+  return parts.join(' | ');
+}
+
+DateTime _vehicleRegistrationEndTime(DateTime nowLocal) {
+  final endOfDay = DateTime(
+    nowLocal.year,
+    nowLocal.month,
+    nowLocal.day,
+    23,
+    59,
+  );
+  if (!endOfDay.isBefore(nowLocal)) {
+    return endOfDay;
+  }
+  return nowLocal.add(const Duration(hours: 4));
+}
+
+String _telegramInlineIncidentId(DateTime nowUtc) {
+  final millis = nowUtc.toUtc().millisecondsSinceEpoch.toString();
+  return 'INC-${millis.substring(math.max(0, millis.length - 6))}';
 }
 
 DateTime _visitorEndTime({
@@ -1553,13 +1967,23 @@ class TelegramBridgeMessage {
   final String chatId;
   final int? messageThreadId;
   final String text;
+  final List<int>? photoBytes;
+  final String? photoFilename;
+  final Map<String, Object?>? replyMarkup;
+  final String? parseMode;
 
   const TelegramBridgeMessage({
     required this.messageKey,
     required this.chatId,
     this.messageThreadId,
     required this.text,
+    this.photoBytes,
+    this.photoFilename,
+    this.replyMarkup,
+    this.parseMode,
   });
+
+  bool get isPhoto => photoBytes != null && photoBytes!.isNotEmpty;
 }
 
 class TelegramBridgeInboundMessage {
@@ -1616,6 +2040,11 @@ abstract class TelegramBridgeService {
   Future<TelegramBridgeSendResult> sendMessages({
     required List<TelegramBridgeMessage> messages,
   });
+
+  Future<bool> answerCallbackQuery({
+    required String callbackQueryId,
+    String? text,
+  });
 }
 
 class HttpTelegramBridgeService implements TelegramBridgeService {
@@ -1651,7 +2080,6 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
         },
       );
     }
-    final endpoint = _buildEndpoint('sendMessage');
     final sent = <TelegramBridgeMessage>[];
     final failed = <TelegramBridgeMessage>[];
     final failureReasons = <String, String>{};
@@ -1663,22 +2091,28 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
         continue;
       }
       try {
-        final response = await client
-            .post(
-              endpoint,
-              headers: const <String, String>{
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-              },
-              body: jsonEncode(<String, Object?>{
-                'chat_id': chatId,
-                if (message.messageThreadId != null)
-                  'message_thread_id': message.messageThreadId,
-                'text': message.text,
-                'disable_web_page_preview': true,
-              }),
-            )
-            .timeout(requestTimeout);
+        final response = message.isPhoto
+            ? await _sendPhotoMessage(message).timeout(requestTimeout)
+            : await client
+                  .post(
+                    _buildEndpoint('sendMessage'),
+                    headers: const <String, String>{
+                      'Content-Type': 'application/json',
+                      'Accept': 'application/json',
+                    },
+                    body: jsonEncode(<String, Object?>{
+                      'chat_id': chatId,
+                      if (message.messageThreadId != null)
+                        'message_thread_id': message.messageThreadId,
+                      'text': message.text,
+                      if ((message.parseMode ?? '').trim().isNotEmpty)
+                        'parse_mode': message.parseMode!.trim(),
+                      if (message.replyMarkup != null)
+                        'reply_markup': message.replyMarkup,
+                      'disable_web_page_preview': true,
+                    }),
+                  )
+                  .timeout(requestTimeout);
         if (response.statusCode < 200 || response.statusCode >= 300) {
           failed.add(message);
           failureReasons[message.messageKey] =
@@ -1705,6 +2139,68 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       failed: failed,
       failureReasonsByMessageKey: failureReasons,
     );
+  }
+
+  Future<http.Response> _sendPhotoMessage(TelegramBridgeMessage message) async {
+    final endpoint = _buildEndpoint('sendPhoto');
+    final request = http.MultipartRequest('POST', endpoint)
+      ..fields['chat_id'] = message.chatId.trim();
+    if (message.messageThreadId != null) {
+      request.fields['message_thread_id'] = '${message.messageThreadId!}';
+    }
+    if (message.text.trim().isNotEmpty) {
+      request.fields['caption'] = message.text.trim();
+    }
+    if ((message.parseMode ?? '').trim().isNotEmpty) {
+      request.fields['parse_mode'] = message.parseMode!.trim();
+    }
+    if (message.replyMarkup != null) {
+      request.fields['reply_markup'] = jsonEncode(message.replyMarkup);
+    }
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'photo',
+        message.photoBytes!,
+        filename: (message.photoFilename ?? '').trim().isEmpty
+            ? 'snapshot.jpg'
+            : message.photoFilename!.trim(),
+      ),
+    );
+    final streamed = await client.send(request);
+    return http.Response.fromStream(streamed);
+  }
+
+  @override
+  Future<bool> answerCallbackQuery({
+    required String callbackQueryId,
+    String? text,
+  }) async {
+    if (!isConfigured || callbackQueryId.trim().isEmpty) {
+      return false;
+    }
+    final endpoint = _buildEndpoint('answerCallbackQuery');
+    try {
+      final response = await client
+          .post(
+            endpoint,
+            headers: const <String, String>{
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(<String, Object?>{
+              'callback_query_id': callbackQueryId.trim(),
+              if ((text ?? '').trim().isNotEmpty) 'text': text!.trim(),
+            }),
+          )
+          .timeout(requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return false;
+      }
+      final decoded = jsonDecode(response.body);
+      return decoded is Map && decoded['ok'] == true;
+    } catch (_) {
+      return false;
+    }
   }
 
   String? _extractTelegramErrorDescription(String body) {

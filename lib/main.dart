@@ -14523,6 +14523,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     try {
       final nowUtc = DateTime.now().toUtc();
       _pruneSiteAwarenessAlertDeduplicationState(nowUtc);
+      final siteProfile = await _siteProfileService.loadProfile(_selectedSite);
       final row = await _readLatestSiteAwarenessSnapshotRow(
         siteId: _selectedSite,
       );
@@ -14554,12 +14555,21 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           }
           final deliveryDeduplicationKey =
               _siteAwarenessAlertDeliveryDeduplicationKey(alert);
+          final presentation = await _buildTelegramProactiveAlertPresentation(
+            alert: alert,
+            siteProfile: siteProfile,
+            nowUtc: nowUtc,
+          );
           final dispatch = await _telegramPushCoordinator
               .sendProactiveSiteAlert(
                 clientId: _selectedClient,
                 siteId: _selectedSite,
                 alertId: alertId,
-                text: alert.message,
+                text: presentation.markdownText,
+                replyMarkup: presentation.replyMarkup,
+                parseMode: 'Markdown',
+                photoBytes: presentation.photoBytes,
+                photoFilename: presentation.photoFilename,
               );
           if (!mounted) {
             continue;
@@ -14575,11 +14585,25 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _siteAwarenessLastDeliveredAlertAtByCameraType[deliveryDeduplicationKey] =
               alert.detectedAt.toUtc();
           _siteAwarenessDeliveredAlertIds.add(alertId);
+          final autoResponseText = await _maybeAutoRespondToProactiveAlert(
+            alert: alert,
+            siteProfile: siteProfile,
+            presentation: presentation,
+            nowUtc: nowUtc,
+          );
+          if (autoResponseText != null && autoResponseText.trim().isNotEmpty) {
+            await _telegramPushCoordinator.sendScopedAlert(
+              clientId: _selectedClient,
+              siteId: _selectedSite,
+              messageKeyPrefix: 'tg-site-awareness-auto-$alertId',
+              text: autoResponseText,
+            );
+          }
           await _appendTelegramConversationMessage(
             clientId: _selectedClient,
             siteId: _selectedSite,
             author: 'ONYX Watch',
-            body: alert.message,
+            body: presentation.plainText,
             occurredAtUtc: alert.detectedAt,
             roomKey: 'Residents',
             viewerRole: ClientAppViewerRole.client.name,
@@ -14749,6 +14773,344 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         messageProvider: 'vehicle_presence',
       );
     }
+  }
+
+  Future<_TelegramProactiveAlertPresentation>
+  _buildTelegramProactiveAlertPresentation({
+    required _SiteAwarenessActiveAlertRecord alert,
+    required SiteIntelligenceProfile siteProfile,
+    required DateTime nowUtc,
+  }) async {
+    final alertKind = _telegramProactiveAlertKindFor(
+      alert: alert,
+      siteProfile: siteProfile,
+    );
+    final cameraLabel = _telegramAlertCameraLabel(alert);
+    final localDetectedAt = _telegramSiteProfileLocalTime(
+      siteProfile.timezone,
+      alert.detectedAt,
+    );
+    final timeLabel =
+        '${localDetectedAt.hour.toString().padLeft(2, '0')}:${localDetectedAt.minute.toString().padLeft(2, '0')}';
+    final activeMinutes = math.max(
+      1,
+      nowUtc.difference(alert.detectedAt.toUtc()).inMinutes,
+    );
+    final subjectLabel = _telegramAlertSubjectLabel(alert);
+    final zoneTypeLabel = _telegramAlertZoneTypeLabel(alert);
+    final timeContextLabel = _telegramAlertTimeContextLabel(
+      alert: alert,
+      siteProfile: siteProfile,
+    );
+    final alertTypeLabel = _telegramAlertTypeLabel(alertKind);
+    final markdownText = <String>[
+      '⚠️ *${_telegramMarkdownEscape(alertTypeLabel)}* — ${_telegramMarkdownEscape(cameraLabel)}',
+      '🕐 $timeLabel — Active $activeMinutes ${activeMinutes == 1 ? 'minute' : 'minutes'}',
+      '👤 YOLO: ${_telegramMarkdownEscape(subjectLabel)}',
+      '📍 ${_telegramMarkdownEscape(zoneTypeLabel)} — ${_telegramMarkdownEscape(timeContextLabel)}',
+      '❌ No resident or visitor match',
+    ].join('\n');
+    final plainText = <String>[
+      '⚠️ $alertTypeLabel — $cameraLabel',
+      '🕐 $timeLabel — Active $activeMinutes ${activeMinutes == 1 ? 'minute' : 'minutes'}',
+      '👤 YOLO: $subjectLabel',
+      '📍 $zoneTypeLabel — $timeContextLabel',
+      '❌ No resident or visitor match',
+    ].join('\n');
+    final replyMarkup = siteProfile.alertWithButtons
+        ? _telegramInlineKeyboardForProactiveAlert(
+            alertKind: alertKind,
+            channelId: alert.channelId,
+          )
+        : null;
+    List<int>? photoBytes;
+    if (siteProfile.alertWithSnapshot) {
+      photoBytes = await _fetchProactiveAlertSnapshotBytes(
+        alert.channelId,
+      ).timeout(const Duration(seconds: 2), onTimeout: () => null);
+    }
+    return _TelegramProactiveAlertPresentation(
+      markdownText: markdownText,
+      plainText: plainText,
+      replyMarkup: replyMarkup,
+      photoBytes: photoBytes,
+      photoFilename: photoBytes == null || photoBytes.isEmpty
+          ? null
+          : 'onyx-alert-ch${alert.channelId.trim().isEmpty ? '0' : alert.channelId.trim()}.jpg',
+      alertKind: alertKind,
+    );
+  }
+
+  Future<List<int>?> _fetchProactiveAlertSnapshotBytes(String channelId) async {
+    final normalizedChannelId = channelId.trim();
+    if (normalizedChannelId.isEmpty) {
+      return null;
+    }
+    const base = String.fromEnvironment(
+      'ONYX_RTSP_FRAME_SERVER_BASE_URL',
+      defaultValue: 'http://127.0.0.1:11638',
+    );
+    final baseUri = Uri.tryParse(base);
+    if (baseUri == null) {
+      return null;
+    }
+    final frameUri = baseUri.replace(
+      path:
+          '${baseUri.path.endsWith('/') ? baseUri.path.substring(0, baseUri.path.length - 1) : baseUri.path}/frame/$normalizedChannelId',
+    );
+    return _fetchTelegramSnapshotBytes(frameUri);
+  }
+
+  Future<String?> _maybeAutoRespondToProactiveAlert({
+    required _SiteAwarenessActiveAlertRecord alert,
+    required SiteIntelligenceProfile siteProfile,
+    required _TelegramProactiveAlertPresentation presentation,
+    required DateTime nowUtc,
+  }) async {
+    final mode = siteProfile.responseMode.trim().toLowerCase();
+    if (presentation.alertKind != _TelegramProactiveAlertKind.perimeterBreach) {
+      return null;
+    }
+    if (mode == 'proactive') {
+      final cameraLabel = _telegramAlertCameraLabel(alert);
+      await _recordTelegramAlertActionEvent(
+        siteId: _selectedSite,
+        channelId: alert.channelId,
+        zoneName: alert.zoneName,
+        eventType: 'voice_warning_requested',
+        occurredAtUtc: nowUtc,
+        rawPayload: <String, Object?>{
+          'source': 'site_intelligence_profile',
+          'response_mode': mode,
+          'alert_id': alert.alertId,
+          'camera_name': cameraLabel,
+        },
+      );
+      return '🔊 Proactive voice warning requested automatically on $cameraLabel.';
+    }
+    if (mode == 'tactical') {
+      final incidentId = _telegramInlineIncidentId(nowUtc);
+      await _recordTelegramAlertActionEvent(
+        siteId: _selectedSite,
+        channelId: alert.channelId,
+        zoneName: alert.zoneName,
+        eventType: 'armed_response_requested',
+        occurredAtUtc: nowUtc,
+        rawPayload: <String, Object?>{
+          'source': 'site_intelligence_profile',
+          'response_mode': mode,
+          'alert_id': alert.alertId,
+          'incident_id': incidentId,
+        },
+      );
+      return '📞 Tactical profile auto-notified armed response. Incident #$incidentId logged.';
+    }
+    return null;
+  }
+
+  Future<void> _recordTelegramAlertActionEvent({
+    required String siteId,
+    required String channelId,
+    required String? zoneName,
+    required String eventType,
+    required DateTime occurredAtUtc,
+    required Map<String, Object?> rawPayload,
+  }) async {
+    if (!widget.supabaseReady) {
+      return;
+    }
+    try {
+      await Supabase.instance.client.from('site_alarm_events').insert(
+        <String, Object?>{
+          'site_id': siteId.trim(),
+          'device_id': channelId.trim().isEmpty
+              ? 'telegram-inline'
+              : 'camera-ch${channelId.trim()}',
+          'event_type': eventType,
+          'zone_name': (zoneName ?? '').trim().isEmpty ? null : zoneName!.trim(),
+          'occurred_at': occurredAtUtc.toUtc().toIso8601String(),
+          'raw_payload': rawPayload,
+        },
+      );
+    } catch (_) {}
+  }
+
+  _TelegramProactiveAlertKind _telegramProactiveAlertKindFor({
+    required _SiteAwarenessActiveAlertRecord alert,
+    required SiteIntelligenceProfile siteProfile,
+  }) {
+    final normalizedStoredKind = (alert.alertKind ?? '').trim().toLowerCase();
+    if (normalizedStoredKind == 'perimeterbreach' ||
+        normalizedStoredKind == 'perimeter_breach') {
+      return _TelegramProactiveAlertKind.perimeterBreach;
+    }
+    if (normalizedStoredKind == 'unknownvehicleatgate' ||
+        normalizedStoredKind == 'unknown_vehicle_at_gate') {
+      return _TelegramProactiveAlertKind.unknownVehicleAtGate;
+    }
+    if (normalizedStoredKind == 'loitering') {
+      return _TelegramProactiveAlertKind.loitering;
+    }
+    final isAfterHours = _siteProfileService.isAfterHours(
+      profile: siteProfile,
+      observedAtUtc: alert.detectedAt,
+    );
+    final zoneName = (alert.zoneName ?? '').trim().toLowerCase();
+    if (alert.isLoitering) {
+      return _TelegramProactiveAlertKind.loitering;
+    }
+    if (alert.eventType.trim().toLowerCase().contains('vehicle')) {
+      if (zoneName.contains('gate')) {
+        return _TelegramProactiveAlertKind.unknownVehicleAtGate;
+      }
+    }
+    if (_telegramAlertZoneTypeLabel(alert).toLowerCase() == 'perimeter' &&
+        isAfterHours) {
+      return _TelegramProactiveAlertKind.perimeterBreach;
+    }
+    return _TelegramProactiveAlertKind.generalMovement;
+  }
+
+  String _telegramAlertCameraLabel(_SiteAwarenessActiveAlertRecord alert) {
+    final zoneName = (alert.zoneName ?? '').trim();
+    if (zoneName.isNotEmpty) {
+      return zoneName;
+    }
+    final channelId = alert.channelId.trim();
+    return channelId.isEmpty ? 'Unknown Camera' : 'Channel $channelId';
+  }
+
+  String _telegramAlertTypeLabel(_TelegramProactiveAlertKind kind) {
+    return switch (kind) {
+      _TelegramProactiveAlertKind.perimeterBreach => 'Perimeter Breach',
+      _TelegramProactiveAlertKind.unknownVehicleAtGate => 'Unknown Vehicle',
+      _TelegramProactiveAlertKind.loitering => 'Loitering',
+      _TelegramProactiveAlertKind.generalMovement => 'Movement Alert',
+    };
+  }
+
+  String _telegramAlertSubjectLabel(_SiteAwarenessActiveAlertRecord alert) {
+    final stored = (alert.subjectLabel ?? '').trim();
+    if (stored.isNotEmpty) {
+      return stored;
+    }
+    final normalizedEventType = alert.eventType.trim().toLowerCase();
+    if (normalizedEventType.contains('vehicle')) {
+      return 'vehicle';
+    }
+    return 'person';
+  }
+
+  String _telegramAlertZoneTypeLabel(_SiteAwarenessActiveAlertRecord alert) {
+    final normalized = (alert.zoneType ?? '').trim().toLowerCase();
+    if (normalized == 'perimeter') {
+      return 'Perimeter';
+    }
+    if (normalized == 'indoor') {
+      return 'Indoor';
+    }
+    if (normalized == 'semi_perimeter' || normalized == 'semi-perimeter') {
+      return 'Semi-perimeter';
+    }
+    return 'Camera zone';
+  }
+
+  String _telegramAlertTimeContextLabel({
+    required _SiteAwarenessActiveAlertRecord alert,
+    required SiteIntelligenceProfile siteProfile,
+  }) {
+    final stored = (alert.timeContext ?? '').trim().toLowerCase();
+    if (stored == 'after_hours' || stored == 'after-hours') {
+      return 'after hours';
+    }
+    if (stored == 'daytime' || stored == 'during_hours') {
+      return 'daytime';
+    }
+    return _siteProfileService.isAfterHours(
+          profile: siteProfile,
+          observedAtUtc: alert.detectedAt,
+        )
+        ? 'after hours'
+        : 'daytime';
+  }
+
+  DateTime _telegramSiteProfileLocalTime(String timezone, DateTime utc) {
+    final normalized = timezone.trim();
+    if (normalized == 'Africa/Johannesburg') {
+      return utc.toUtc().add(const Duration(hours: 2));
+    }
+    if (normalized.toUpperCase() == 'UTC') {
+      return utc.toUtc();
+    }
+    return utc.toLocal();
+  }
+
+  String _telegramMarkdownEscape(String value) {
+    return value
+        .replaceAll('\\', '\\\\')
+        .replaceAll('*', r'\*')
+        .replaceAll('_', r'\_')
+        .replaceAll('[', r'\[')
+        .replaceAll(']', r'\]')
+        .replaceAll('`', r'\`');
+  }
+
+  Map<String, Object?> _telegramInlineKeyboardForProactiveAlert({
+    required _TelegramProactiveAlertKind alertKind,
+    required String channelId,
+  }) {
+    Map<String, String> button(String label, String action) => <String, String>{
+      'text': label,
+      'callback_data': 'oa|$action|${channelId.trim()}',
+    };
+    return <String, Object?>{
+      'inline_keyboard': switch (alertKind) {
+        _TelegramProactiveAlertKind.perimeterBreach =>
+          <List<Map<String, String>>>[
+            <Map<String, String>>[
+              button('📞 Armed Response', 'armed_response'),
+              button('🔊 Sound Warning', 'sound_warning'),
+            ],
+            <Map<String, String>>[
+              button('✅ False Alarm', 'false_alarm'),
+              button('👁 Keep Watching', 'keep_watching'),
+            ],
+          ],
+        _TelegramProactiveAlertKind.unknownVehicleAtGate =>
+          <List<Map<String, String>>>[
+            <Map<String, String>>[
+              button('📞 Armed Response', 'armed_response'),
+              button('🚗 Register Vehicle', 'register_vehicle'),
+            ],
+            <Map<String, String>>[
+              button('✅ Expected', 'expected_vehicle'),
+              button('👁 Monitor', 'keep_watching'),
+            ],
+          ],
+        _TelegramProactiveAlertKind.loitering => <List<Map<String, String>>>[
+          <Map<String, String>>[
+            button('📞 Armed Response', 'armed_response'),
+            button('🔊 Sound Warning', 'sound_warning'),
+          ],
+          <Map<String, String>>[
+            button('✅ False Alarm', 'false_alarm'),
+            button('👁 Monitor', 'keep_watching'),
+          ],
+        ],
+        _TelegramProactiveAlertKind.generalMovement =>
+          <List<Map<String, String>>>[
+            <Map<String, String>>[
+              button('✅ All Good', 'all_good'),
+              button('👁 I See Them', 'i_see_them'),
+            ],
+          ],
+      },
+    };
+  }
+
+  String _telegramInlineIncidentId(DateTime nowUtc) {
+    final millis = nowUtc.toUtc().millisecondsSinceEpoch.toString();
+    return 'INC-${millis.substring(math.max(0, millis.length - 6))}';
   }
 
   void _pruneVehiclePresenceNotificationState(DateTime nowUtc) {
@@ -39006,6 +39368,9 @@ class _SiteAwarenessActiveAlertRecord {
   final bool isLoitering;
   final bool isSequence;
   final String? alertSource;
+  final String? alertKind;
+  final String? subjectLabel;
+  final String? timeContext;
 
   const _SiteAwarenessActiveAlertRecord({
     required this.alertId,
@@ -39019,6 +39384,9 @@ class _SiteAwarenessActiveAlertRecord {
     this.isLoitering = false,
     this.isSequence = false,
     this.alertSource,
+    this.alertKind,
+    this.subjectLabel,
+    this.timeContext,
   });
 
   String get deliveryCameraKey {
@@ -39118,6 +39486,15 @@ List<_SiteAwarenessActiveAlertRecord> _siteAwarenessActiveAlertsFromRow(
         alertSource: _siteAwarenessSummaryString(
           alert['alert_source'] ?? alert['alertSource'],
         ),
+        alertKind: _siteAwarenessSummaryString(
+          alert['alert_kind'] ?? alert['alertKind'],
+        ),
+        subjectLabel: _siteAwarenessSummaryString(
+          alert['subject_label'] ?? alert['subjectLabel'],
+        ),
+        timeContext: _siteAwarenessSummaryString(
+          alert['time_context'] ?? alert['timeContext'],
+        ),
       ),
     );
   }
@@ -39155,6 +39532,31 @@ class _SiteAwarenessHumanZone {
         .replaceAll(RegExp(r'\s+'), ' ');
     return normalized.isEmpty ? 'camera zone' : normalized;
   }
+}
+
+enum _TelegramProactiveAlertKind {
+  perimeterBreach,
+  unknownVehicleAtGate,
+  loitering,
+  generalMovement,
+}
+
+class _TelegramProactiveAlertPresentation {
+  final String markdownText;
+  final String plainText;
+  final Map<String, Object?>? replyMarkup;
+  final List<int>? photoBytes;
+  final String? photoFilename;
+  final _TelegramProactiveAlertKind alertKind;
+
+  const _TelegramProactiveAlertPresentation({
+    required this.markdownText,
+    required this.plainText,
+    required this.replyMarkup,
+    required this.photoBytes,
+    required this.photoFilename,
+    required this.alertKind,
+  });
 }
 
 List<_SiteAwarenessHumanZone> _siteAwarenessHumanZones(
@@ -39295,9 +39697,7 @@ Future<Map<String, dynamic>?> _readSiteIntelligenceProfileRow({
   try {
     final rows = await Supabase.instance.client
         .from('site_intelligence_profiles')
-        .select(
-          'site_id,industry_type,operating_hours_start,operating_hours_end,operating_days,timezone,is_24h_operation,expected_staff_count,expected_resident_count,expected_vehicle_count,has_guard,has_armed_response,after_hours_sensitivity,during_hours_sensitivity,monitor_staff_activity,inactive_staff_alert_minutes,monitor_till_attendance,till_unattended_minutes,monitor_restricted_zones,monitor_vehicle_movement,after_hours_vehicle_alert,send_shift_start_briefing,send_shift_end_report,send_daily_summary,daily_summary_time,custom_rules',
-        )
+        .select('*')
         .eq('site_id', siteId.trim())
         .limit(1);
     if (rows.isEmpty) {

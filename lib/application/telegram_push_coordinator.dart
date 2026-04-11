@@ -279,6 +279,8 @@ class TelegramPushCoordinator {
     required String text,
     Map<String, Object?>? replyMarkup,
     String? parseMode,
+    List<int>? photoBytes,
+    String? photoFilename,
   }) async {
     final normalizedClientId = clientId.trim();
     final normalizedSiteId = siteId.trim();
@@ -325,6 +327,8 @@ class TelegramPushCoordinator {
           chatId: target.chatId,
           messageThreadId: target.threadId,
           text: normalizedText,
+          photoBytes: photoBytes,
+          photoFilename: photoFilename,
           replyMarkup: replyMarkup,
           parseMode: parseMode,
         ),
@@ -387,6 +391,10 @@ class TelegramPushCoordinator {
     required String siteId,
     required String alertId,
     required String text,
+    Map<String, Object?>? replyMarkup,
+    String? parseMode,
+    List<int>? photoBytes,
+    String? photoFilename,
   }) {
     final normalizedAlertId = alertId.trim().isEmpty ? 'alert' : alertId.trim();
     return sendScopedAlert(
@@ -394,6 +402,10 @@ class TelegramPushCoordinator {
       siteId: siteId,
       messageKeyPrefix: 'tg-site-awareness-alert-$normalizedAlertId',
       text: text,
+      replyMarkup: replyMarkup,
+      parseMode: parseMode,
+      photoBytes: photoBytes,
+      photoFilename: photoFilename,
     );
   }
 

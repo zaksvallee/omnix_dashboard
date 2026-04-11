@@ -145,7 +145,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           alertId:
               '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}',
           channelId: '${decision.channelId}',
-          eventType: OnyxEventType.humanDetected,
+          eventType:
+              decision.detectionKind == OnyxProactiveDetectionKind.vehicle
+              ? OnyxEventType.vehicleDetected
+              : OnyxEventType.humanDetected,
           detectedAt: decision.detectedAt,
           zoneName: decision.zoneName,
           zoneType: decision.zoneType,
@@ -153,6 +156,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           isLoitering: decision.isLoitering,
           isSequence: decision.isSequence,
           alertSource: 'proactive_detection',
+          alertKind: decision.telegramAlertKind.name,
+          subjectLabel: decision.telegramSubjectLabel,
+          timeContext: decision.withinAlertWindow ? 'after_hours' : 'daytime',
         ),
       );
       _emitSnapshot(snapshot);
@@ -441,7 +447,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (repository != null && event.eventType == OnyxEventType.humanDetected) {
       unawaited(_persistOccupancy(repository, event));
     }
-    if (repository != null && event.eventType == OnyxEventType.vehicleDetected) {
+    if (repository != null &&
+        event.eventType == OnyxEventType.vehicleDetected) {
       unawaited(_persistVehiclePresence(repository, event));
     }
     final proactiveAlertService = _proactiveAlertService;
@@ -492,7 +499,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     OnyxSiteAwarenessEvent event,
   ) async {
     final liveSnapshotYoloService = _liveSnapshotYoloService;
-    if (liveSnapshotYoloService == null || !liveSnapshotYoloService.isConfigured) {
+    if (liveSnapshotYoloService == null ||
+        !liveSnapshotYoloService.isConfigured) {
       developer.log(
         '[ONYX] FR snapshot skipped for CH${event.channelId}: YOLO/FR endpoint is not configured.',
         name: 'OnyxHikIsapiStream',
@@ -566,8 +574,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
               siteId: _siteId,
               personId: faceMatchId,
             );
-      final label =
-          (person?.displayName ?? '').trim().isNotEmpty
+      final label = (person?.displayName ?? '').trim().isNotEmpty
           ? person!.displayName.trim()
           : faceMatchId;
       developer.log(

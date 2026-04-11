@@ -221,6 +221,9 @@ class OnyxSiteAlert {
   final bool isLoitering;
   final bool isSequence;
   final String? alertSource;
+  final String? alertKind;
+  final String? subjectLabel;
+  final String? timeContext;
 
   const OnyxSiteAlert({
     required this.alertId,
@@ -234,6 +237,9 @@ class OnyxSiteAlert {
     this.isLoitering = false,
     this.isSequence = false,
     this.alertSource,
+    this.alertKind,
+    this.subjectLabel,
+    this.timeContext,
   });
 
   String get deduplicationKey {
@@ -261,6 +267,9 @@ class OnyxSiteAlert {
       'is_loitering': isLoitering,
       'is_sequence': isSequence,
       'alert_source': alertSource,
+      'alert_kind': alertKind,
+      'subject_label': subjectLabel,
+      'time_context': timeContext,
     };
   }
 }

@@ -283,6 +283,9 @@ class SiteIntelligenceProfile {
   final bool sendShiftEndReport;
   final bool sendDailySummary;
   final String dailySummaryTime;
+  final bool alertWithSnapshot;
+  final bool alertWithButtons;
+  final String responseMode;
   final List<Map<String, dynamic>> customRules;
 
   const SiteIntelligenceProfile({
@@ -311,6 +314,9 @@ class SiteIntelligenceProfile {
     required this.sendShiftEndReport,
     required this.sendDailySummary,
     required this.dailySummaryTime,
+    required this.alertWithSnapshot,
+    required this.alertWithButtons,
+    required this.responseMode,
     required this.customRules,
   });
 
@@ -358,6 +364,10 @@ class SiteIntelligenceProfile {
       sendDailySummary: _profileBool(row['send_daily_summary']) ?? true,
       dailySummaryTime:
           _nullableProfileString(row['daily_summary_time']) ?? '07:00',
+      alertWithSnapshot: _profileBool(row['alert_with_snapshot']) ?? true,
+      alertWithButtons: _profileBool(row['alert_with_buttons']) ?? true,
+      responseMode: (_nullableProfileString(row['response_mode']) ?? 'passive')
+          .toLowerCase(),
       customRules: _jsonRuleList(row['custom_rules']),
     );
   }
@@ -395,6 +405,9 @@ class SiteIntelligenceProfile {
       sendShiftEndReport: true,
       sendDailySummary: true,
       dailySummaryTime: '07:00',
+      alertWithSnapshot: true,
+      alertWithButtons: true,
+      responseMode: 'passive',
       customRules: const <Map<String, dynamic>>[],
     );
   }

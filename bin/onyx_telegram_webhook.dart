@@ -8,6 +8,8 @@
 // Environment variables:
 //   ONYX_SUPABASE_URL               Supabase project URL          (required)
 //   ONYX_SUPABASE_SERVICE_KEY       Service-role key — bypasses RLS (required)
+//   ONYX_TELEGRAM_BOT_TOKEN         Telegram bot token            (optional)
+//   ONYX_TELEGRAM_WEBHOOK_URL       Public HTTPS webhook URL      (optional)
 //   ONYX_TELEGRAM_WEBHOOK_SECRET    Validates X-Telegram-Bot-Api-Secret-Token (optional)
 //   ONYX_WEBHOOK_HOST               Bind address (default: 127.0.0.1)
 //   ONYX_WEBHOOK_PORT               Bind port    (default: 8443)
@@ -31,6 +33,8 @@ const int _defaultPort = int.fromEnvironment(
 Future<void> main() async {
   final supabaseUrl = Platform.environment['ONYX_SUPABASE_URL'] ?? '';
   final serviceKey = Platform.environment['ONYX_SUPABASE_SERVICE_KEY'] ?? '';
+  final botToken = Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
+  final webhookUrl = Platform.environment['ONYX_TELEGRAM_WEBHOOK_URL'] ?? '';
   final webhookSecret =
       Platform.environment['ONYX_TELEGRAM_WEBHOOK_SECRET'] ?? '';
   final host = Platform.environment['ONYX_WEBHOOK_HOST'] ?? _defaultHost;
@@ -56,8 +60,15 @@ Future<void> main() async {
   if (webhookSecret.isNotEmpty) {
     stdout.writeln('[ONYX] Webhook secret validation: enabled');
   } else {
-    stdout.writeln('[ONYX] Webhook secret validation: disabled (no secret set)');
+    stdout.writeln(
+      '[ONYX] Webhook secret validation: disabled (no secret set)',
+    );
   }
+  await _maybeSyncTelegramWebhook(
+    botToken: botToken,
+    webhookUrl: webhookUrl,
+    webhookSecret: webhookSecret,
+  );
 
   await for (final request in server) {
     // Handle each request in the background — never block the accept loop.
@@ -78,8 +89,7 @@ Future<void> _handleRequest(
       return;
     }
 
-    if (request.method != 'POST' ||
-        request.uri.path != '/telegram/webhook') {
+    if (request.method != 'POST' || request.uri.path != '/telegram/webhook') {
       _respond(request, 404, '{"error":"not found"}');
       return;
     }
@@ -90,9 +100,7 @@ Future<void> _handleRequest(
           request.headers.value('x-telegram-bot-api-secret-token') ?? '';
       if (token != webhookSecret) {
         // Respond 200 anyway — returning 403 causes Telegram to retry.
-        stderr.writeln(
-          '[ONYX] Rejected update — invalid secret token.',
-        );
+        stderr.writeln('[ONYX] Rejected update — invalid secret token.');
         _respond(request, 200, '{"ok":true}');
         return;
       }
@@ -139,12 +147,13 @@ Future<void> _handleRequest(
     final update = decoded.cast<String, Object?>();
     final updateId = _extractUpdateId(update);
     final chatId = _extractChatId(update);
+    final updateKind = _extractUpdateKind(update);
 
     // Respond to Telegram immediately — persistence happens async.
     _respond(request, 200, '{"ok":true}');
 
     // Insert into Supabase in the background.
-    unawaited(_persistUpdate(supabase, updateId, chatId, update));
+    unawaited(_persistUpdate(supabase, updateId, chatId, updateKind, update));
   } catch (error, stackTrace) {
     // Last-resort catch — log and swallow. We must not let any error
     // propagate without first having sent a 200 response to Telegram.
@@ -162,6 +171,7 @@ Future<void> _persistUpdate(
   SupabaseClient supabase,
   int? updateId,
   String? chatId,
+  String updateKind,
   Map<String, Object?> update,
 ) async {
   try {
@@ -173,11 +183,60 @@ Future<void> _persistUpdate(
     });
     stdout.writeln(
       '[ONYX] Stored update${updateId != null ? ' #$updateId' : ''}'
-      '${chatId != null ? ' chat=$chatId' : ''}',
+      '${chatId != null ? ' chat=$chatId' : ''} kind=$updateKind',
     );
   } catch (error, stackTrace) {
     stderr.writeln('[ONYX] Failed to persist update to Supabase: $error');
     stderr.writeln(stackTrace);
+  }
+}
+
+Future<void> _maybeSyncTelegramWebhook({
+  required String botToken,
+  required String webhookUrl,
+  required String webhookSecret,
+}) async {
+  final normalizedToken = botToken.trim();
+  final normalizedUrl = webhookUrl.trim();
+  if (normalizedToken.isEmpty || normalizedUrl.isEmpty) {
+    stdout.writeln(
+      '[ONYX] Webhook registration sync skipped (missing bot token or public webhook URL).',
+    );
+    return;
+  }
+  final endpoint = Uri.https(
+    'api.telegram.org',
+    '/bot$normalizedToken/setWebhook',
+  );
+  final client = HttpClient();
+  try {
+    final request = await client.postUrl(endpoint);
+    request.headers.contentType = ContentType.json;
+    request.add(
+      utf8.encode(
+        jsonEncode(<String, Object?>{
+          'url': normalizedUrl,
+          if (webhookSecret.trim().isNotEmpty)
+            'secret_token': webhookSecret.trim(),
+          'allowed_updates': const <String>['message', 'callback_query'],
+        }),
+      ),
+    );
+    final response = await request.close();
+    final body = await utf8.decoder.bind(response).join();
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      stderr.writeln(
+        '[ONYX] Webhook registration sync failed HTTP ${response.statusCode}: $body',
+      );
+      return;
+    }
+    stdout.writeln(
+      '[ONYX] Webhook registration synced with callback_query allowed updates.',
+    );
+  } catch (error) {
+    stderr.writeln('[ONYX] Webhook registration sync failed: $error');
+  } finally {
+    client.close(force: true);
   }
 }
 
@@ -257,4 +316,23 @@ String? _extractChatId(Map<String, Object?> update) {
     }
   }
   return null;
+}
+
+String _extractUpdateKind(Map<String, Object?> update) {
+  if (update['callback_query'] is Map) {
+    return 'callback_query';
+  }
+  if (update['message'] is Map) {
+    return 'message';
+  }
+  if (update['edited_message'] is Map) {
+    return 'edited_message';
+  }
+  if (update['channel_post'] is Map) {
+    return 'channel_post';
+  }
+  if (update['edited_channel_post'] is Map) {
+    return 'edited_channel_post';
+  }
+  return 'unknown';
 }

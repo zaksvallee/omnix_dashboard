@@ -7,6 +7,13 @@ enum OnyxAlertSensitivity { allMotion, suspiciousOnly, off }
 
 enum OnyxProactiveDetectionKind { human, vehicle }
 
+enum OnyxTelegramAlertKind {
+  perimeterBreach,
+  unknownVehicleAtGate,
+  loitering,
+  generalMovement,
+}
+
 class SiteAlertConfig {
   final String siteId;
   final String siteType;
@@ -123,6 +130,8 @@ class OnyxProactiveAlertDecision {
   final bool isSequence;
   final int loiterMinutes;
   final String message;
+  final OnyxTelegramAlertKind telegramAlertKind;
+  final String telegramSubjectLabel;
 
   const OnyxProactiveAlertDecision({
     required this.siteId,
@@ -138,6 +147,8 @@ class OnyxProactiveAlertDecision {
     required this.isSequence,
     required this.loiterMinutes,
     required this.message,
+    required this.telegramAlertKind,
+    required this.telegramSubjectLabel,
   });
 
   String get deduplicationKey {
@@ -253,6 +264,13 @@ class OnyxProactiveAlertService {
       return;
     }
     final afterHours = profileDecision.afterHours;
+    final telegramAlertKind = _telegramAlertKindFor(
+      zoneName: normalizedZoneName,
+      isPerimeter: isPerimeter,
+      detectionKind: detectionKind,
+      afterHours: afterHours,
+      isLoitering: loitering,
+    );
     final decision = OnyxProactiveAlertDecision(
       siteId: normalizedSiteId,
       channelId: channelId,
@@ -271,6 +289,8 @@ class OnyxProactiveAlertService {
         detectedAt,
         loiterWindowMinutes: loiterWindowMinutes,
       ),
+      telegramAlertKind: telegramAlertKind,
+      telegramSubjectLabel: _telegramSubjectLabelFor(detectionKind),
       message: _buildAlertMessage(
         profile: profile,
         zoneName: normalizedZoneName,
@@ -287,6 +307,7 @@ class OnyxProactiveAlertService {
           detectedAt,
           loiterWindowMinutes: loiterWindowMinutes,
         ),
+        telegramAlertKind: telegramAlertKind,
       ),
     );
     final lastAlertAt =
@@ -426,19 +447,20 @@ class OnyxProactiveAlertService {
     required bool isSequence,
     required AlertDecision alertDecision,
     required int loiterMinutes,
+    required OnyxTelegramAlertKind telegramAlertKind,
   }) {
     final local = _siteLocalTime(profile.timezone, detectedAt.toUtc());
     final timeLabel =
         '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
-    final lines = <String>['⚠️ $zoneName — $timeLabel'];
-    final subjectLabel = detectionKind == OnyxProactiveDetectionKind.vehicle
-        ? 'vehicle'
-        : 'movement';
-    if (isPerimeter || zoneType == 'perimeter') {
-      lines.add('Perimeter camera detected $subjectLabel.');
-    } else {
-      lines.add('Semi-perimeter camera detected $subjectLabel.');
-    }
+    final lines = <String>[
+      '⚠️ ${_telegramAlertTypeLabel(telegramAlertKind)} — $zoneName',
+      '🕐 $timeLabel',
+    ];
+    final subjectLabel = _telegramSubjectLabelFor(detectionKind);
+    final zoneLabel = _humanizeZoneType(zoneType, isPerimeter: isPerimeter);
+    lines.add(
+      '${zoneLabel[0].toUpperCase()}${zoneLabel.substring(1)} camera detected $subjectLabel.',
+    );
     if (isLoitering) {
       lines.add('Same area active for $loiterMinutes minutes.');
     }
@@ -454,6 +476,55 @@ class OnyxProactiveAlertService {
       lines.add(alertDecision.contextNote!.trim());
     }
     return lines.join('\n');
+  }
+
+  OnyxTelegramAlertKind _telegramAlertKindFor({
+    required String zoneName,
+    required bool isPerimeter,
+    required OnyxProactiveDetectionKind detectionKind,
+    required bool afterHours,
+    required bool isLoitering,
+  }) {
+    final normalizedZoneName = zoneName.trim().toLowerCase();
+    if (isLoitering) {
+      return OnyxTelegramAlertKind.loitering;
+    }
+    if (detectionKind == OnyxProactiveDetectionKind.vehicle &&
+        normalizedZoneName.contains('gate')) {
+      return OnyxTelegramAlertKind.unknownVehicleAtGate;
+    }
+    if (detectionKind == OnyxProactiveDetectionKind.human &&
+        isPerimeter &&
+        afterHours) {
+      return OnyxTelegramAlertKind.perimeterBreach;
+    }
+    return OnyxTelegramAlertKind.generalMovement;
+  }
+
+  String _telegramAlertTypeLabel(OnyxTelegramAlertKind kind) {
+    return switch (kind) {
+      OnyxTelegramAlertKind.perimeterBreach => 'Perimeter Breach',
+      OnyxTelegramAlertKind.unknownVehicleAtGate => 'Unknown Vehicle',
+      OnyxTelegramAlertKind.loitering => 'Loitering',
+      OnyxTelegramAlertKind.generalMovement => 'Movement Alert',
+    };
+  }
+
+  String _telegramSubjectLabelFor(OnyxProactiveDetectionKind detectionKind) {
+    return switch (detectionKind) {
+      OnyxProactiveDetectionKind.vehicle => 'vehicle',
+      OnyxProactiveDetectionKind.human => 'person',
+    };
+  }
+
+  String _humanizeZoneType(String zoneType, {required bool isPerimeter}) {
+    final normalized = _normalizeZoneType(zoneType, isPerimeter);
+    return switch (normalized) {
+      'perimeter' => 'perimeter',
+      'indoor' => 'indoor',
+      'semi_perimeter' => 'semi-perimeter',
+      _ => 'camera zone',
+    };
   }
 
   DateTime _siteLocalTime(String timezone, DateTime utc) {
