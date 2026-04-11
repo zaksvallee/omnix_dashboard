@@ -113,9 +113,9 @@ env_path.write_text(content)
 PY"
 
 echo "[ONYX] Compiling Telegram AI processor on remote host..."
-ssh "$REMOTE_HOST" "cd $REMOTE_BUILD_DIR && dart pub get && dart compile exe bin/onyx_telegram_ai_processor.dart -o $REMOTE_APP_DIR/bin/onyx_telegram_ai_processor"
+ssh "$REMOTE_HOST" "cd $REMOTE_BUILD_DIR && dart pub get && dart compile exe bin/onyx_telegram_ai_processor.dart -o $REMOTE_APP_DIR/bin/onyx_telegram_ai_processor.next"
 
 echo "[ONYX] Restarting remote systemd service..."
-ssh "$REMOTE_HOST" "systemctl daemon-reload && systemctl enable $SERVICE_NAME && systemctl restart $SERVICE_NAME && systemctl status $SERVICE_NAME --no-pager"
+ssh "$REMOTE_HOST" "systemctl daemon-reload && systemctl enable $SERVICE_NAME && (systemctl stop $SERVICE_NAME || true) && mv $REMOTE_APP_DIR/bin/onyx_telegram_ai_processor.next $REMOTE_APP_DIR/bin/onyx_telegram_ai_processor && chmod +x $REMOTE_APP_DIR/bin/onyx_telegram_ai_processor && systemctl restart $SERVICE_NAME && systemctl status $SERVICE_NAME --no-pager"
 
 echo "[ONYX] Telegram AI processor deployed to $REMOTE_HOST"
