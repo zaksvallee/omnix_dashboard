@@ -642,7 +642,6 @@ class _OnyxTelegramAiProcessor {
       'visit_start': _clockValue(nowLocal),
       'visit_end': _clockValue(registration.endLocal),
       'visit_date': _dateValue(nowLocal),
-      'expires_at': registration.endLocal.toUtc().toIso8601String(),
       'is_active': true,
       'notes': 'Hetzner AI processor registration',
     });
@@ -689,29 +688,31 @@ class _OnyxTelegramAiProcessor {
   Future<List<Map<String, dynamic>>> _readActiveOnDemandVisitors(
     String siteId,
   ) async {
-    final nowUtc = DateTime.now().toUtc();
-    final todayValue = _dateValue(DateTime.now().toLocal());
+    final nowLocal = DateTime.now().toLocal();
+    final todayValue = _dateValue(nowLocal);
     final rows = await supabase
         .from('site_expected_visitors')
         .select(
-          'visitor_name,visitor_role,visit_type,visit_end,visit_date,expires_at,is_active',
+          'visitor_name,visitor_role,visit_type,visit_end,visit_date,is_active',
         )
         .eq('site_id', siteId)
         .eq('visit_type', 'on_demand')
+        .eq('visit_date', todayValue)
         .eq('is_active', true)
         .order('created_at', ascending: false)
         .limit(20);
     return rows
         .map((row) => Map<String, dynamic>.from(row as Map))
         .where((row) {
-          final visitDate = (row['visit_date'] ?? '').toString().trim();
-          final expiresAtUtc = _asDateTimeUtc(row['expires_at']);
-          final matchesToday = visitDate.isEmpty || visitDate == todayValue;
-          final notExpired =
-              expiresAtUtc == null ||
-              expiresAtUtc.isAfter(nowUtc) ||
-              expiresAtUtc.isAtSameMomentAs(nowUtc);
-          return matchesToday && notExpired;
+          final visitEndLocal = _visitEndDateTimeLocal(
+            row['visit_end'],
+            onDateLocal: nowLocal,
+          );
+          final notEnded =
+              visitEndLocal == null ||
+              visitEndLocal.isAfter(nowLocal) ||
+              visitEndLocal.isAtSameMomentAs(nowLocal);
+          return notEnded;
         })
         .toList(growable: false);
   }
@@ -982,6 +983,34 @@ String _clockValue(DateTime value) {
 String _dateValue(DateTime value) {
   String two(int number) => number.toString().padLeft(2, '0');
   return '${value.year.toString().padLeft(4, '0')}-${two(value.month)}-${two(value.day)}';
+}
+
+DateTime? _visitEndDateTimeLocal(
+  Object? rawValue, {
+  required DateTime onDateLocal,
+}) {
+  final raw = (rawValue ?? '').toString().trim();
+  if (raw.isEmpty) {
+    return null;
+  }
+  final match = RegExp(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?$').firstMatch(raw);
+  if (match == null) {
+    return null;
+  }
+  final hour = int.tryParse(match.group(1) ?? '');
+  final minute = int.tryParse(match.group(2) ?? '');
+  final second = int.tryParse(match.group(3) ?? '0') ?? 0;
+  if (hour == null || minute == null) {
+    return null;
+  }
+  return DateTime(
+    onDateLocal.year,
+    onDateLocal.month,
+    onDateLocal.day,
+    hour.clamp(0, 23),
+    minute.clamp(0, 59),
+    second.clamp(0, 59),
+  );
 }
 
 String? _onDemandVisitorStatusLine(List<Map<String, dynamic>> visitors) {
