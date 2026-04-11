@@ -29,15 +29,16 @@ Future<void> main() async {
     exit(1);
   }
 
-  final apiBaseRaw = (Platform.environment['ONYX_TELEGRAM_API_BASE'] ?? '').trim();
+  final apiBaseRaw = (Platform.environment['ONYX_TELEGRAM_API_BASE'] ?? '')
+      .trim();
   final apiBaseUri = apiBaseRaw.isEmpty ? null : Uri.tryParse(apiBaseRaw);
   final httpClient = http.Client();
   final supabase = SupabaseClient(supabaseUrl, serviceKey);
   final aiConfig = OpenAiRuntimeConfig.resolve(
-    primaryApiKey: Platform.environment['ONYX_TELEGRAM_AI_OPENAI_API_KEY'] ?? '',
+    primaryApiKey:
+        Platform.environment['ONYX_TELEGRAM_AI_OPENAI_API_KEY'] ?? '',
     primaryModel:
-        Platform.environment['ONYX_TELEGRAM_AI_OPENAI_MODEL'] ??
-        'gpt-4.1-mini',
+        Platform.environment['ONYX_TELEGRAM_AI_OPENAI_MODEL'] ?? 'gpt-4.1-mini',
     primaryEndpoint:
         Platform.environment['ONYX_TELEGRAM_AI_OPENAI_ENDPOINT'] ?? '',
     genericApiKey: Platform.environment['OPENAI_API_KEY'] ?? '',
@@ -163,10 +164,7 @@ class _OnyxTelegramAiProcessor {
           final message =
               'Skipping inbound Telegram update ${update.updateId} — no active client endpoint binding.';
           _logInfo(message);
-          developer.log(
-            message,
-            name: 'OnyxTelegramAiProcessor',
-          );
+          developer.log(message, name: 'OnyxTelegramAiProcessor');
           await _markProcessed(rowId);
           _logInfo('Row $rowId marked processed.');
           processedCount++;
@@ -197,7 +195,8 @@ class _OnyxTelegramAiProcessor {
         );
         if (sendResult.sentCount <= 0) {
           final failure =
-              sendResult.failureReasonsByMessageKey['telegram-ai-${update.updateId}'] ??
+              sendResult
+                  .failureReasonsByMessageKey['telegram-ai-${update.updateId}'] ??
               'unknown send failure';
           _logError('Telegram AI send failed for row $rowId: $failure');
           developer.log(
@@ -316,9 +315,13 @@ class _OnyxTelegramAiProcessor {
         siteId: target.siteId,
         prompt: update.text,
       ),
-      OnyxTelegramCommandType.report => _buildReportReply(siteId: target.siteId),
+      OnyxTelegramCommandType.report => _buildReportReply(
+        siteId: target.siteId,
+      ),
       OnyxTelegramCommandType.guard => _buildGuardReply(siteId: target.siteId),
-      OnyxTelegramCommandType.camera => _buildCameraReply(siteId: target.siteId),
+      OnyxTelegramCommandType.camera => _buildCameraReply(
+        siteId: target.siteId,
+      ),
       OnyxTelegramCommandType.intelligence => _buildIntelligenceReply(
         siteId: target.siteId,
       ),
@@ -392,13 +395,19 @@ class _OnyxTelegramAiProcessor {
         .order('created_at', ascending: false)
         .limit(20);
     final todayStart = DateTime.now().toLocal();
-    final startLocal = DateTime(todayStart.year, todayStart.month, todayStart.day);
+    final startLocal = DateTime(
+      todayStart.year,
+      todayStart.month,
+      todayStart.day,
+    );
     final startUtc = startLocal.toUtc();
     final filtered = incidentRows
         .map((row) => Map<String, dynamic>.from(row as Map))
         .where((row) {
           final when = _asDateTimeUtc(
-            row['signal_received_at'] ?? row['occurred_at'] ?? row['created_at'],
+            row['signal_received_at'] ??
+                row['occurred_at'] ??
+                row['created_at'],
           );
           return when != null && !when.isBefore(startUtc);
         })
@@ -408,10 +417,13 @@ class _OnyxTelegramAiProcessor {
     }
     final lines = <String>['Incidents today at $siteLabel:'];
     for (final row in filtered.take(5)) {
-      final reference =
-          (row['event_uid'] ?? row['id'] ?? 'incident').toString().trim();
+      final reference = (row['event_uid'] ?? row['id'] ?? 'incident')
+          .toString()
+          .trim();
       final status = (row['status'] ?? 'open').toString().trim();
-      final incidentType = (row['incident_type'] ?? 'incident').toString().trim();
+      final incidentType = (row['incident_type'] ?? 'incident')
+          .toString()
+          .trim();
       final when = _asDateTimeUtc(
         row['signal_received_at'] ?? row['occurred_at'] ?? row['created_at'],
       );
@@ -478,8 +490,9 @@ class _OnyxTelegramAiProcessor {
     }
     final lines = <String>['Dispatch summary: $siteLabel'];
     for (final row in dispatchedRows.take(4)) {
-      final reference =
-          (row['event_uid'] ?? row['id'] ?? 'incident').toString().trim();
+      final reference = (row['event_uid'] ?? row['id'] ?? 'incident')
+          .toString()
+          .trim();
       final status = _humanizeLabel((row['status'] ?? 'open').toString());
       final dispatchAt = _asDateTimeUtc(
         row['dispatch_time'] ?? row['signal_received_at'] ?? row['occurred_at'],
@@ -616,24 +629,25 @@ class _OnyxTelegramAiProcessor {
     }
 
     final nowLocal = DateTime.now().toLocal();
-    final inferred = _inferVisitor(prompt);
-    final endLocal = _visitorEndTime(prompt, nowLocal);
+    final registration = _visitorRegistrationDetails(
+      prompt: prompt,
+      nowLocal: nowLocal,
+    );
     await supabase.from('site_expected_visitors').insert(<String, Object?>{
       'site_id': siteId,
-      'visitor_name': inferred.$1,
-      'visitor_role': inferred.$2,
+      'visitor_name': registration.visitorName,
+      'visitor_role': registration.visitorRole,
       'visit_type': 'on_demand',
       'visit_days': const <String>[],
       'visit_start': _clockValue(nowLocal),
-      'visit_end': _clockValue(endLocal),
+      'visit_end': _clockValue(registration.endLocal),
       'visit_date': _dateValue(nowLocal),
-      'expires_at': endLocal.toUtc().toIso8601String(),
+      'expires_at': registration.endLocal.toUtc().toIso8601String(),
       'is_active': true,
-      'notes': 'Server-side AI processor registration',
+      'notes': 'Hetzner AI processor registration',
     });
-    return 'Got it. Visitor access noted until ${_clockLabel(endLocal.toUtc())}.\n'
-        'I won’t alert for movement until then.\n'
-        'Let me know when they leave.';
+    return 'Got it. ${_visitorPossessiveLabel(registration.visitorName)} visit noted until ${_clockValue(registration.endLocal)}.\n'
+        'I won’t alert for movement until then.';
   }
 
   Future<String> _buildAiFallbackReply({
@@ -641,7 +655,9 @@ class _OnyxTelegramAiProcessor {
     required _ProcessorTarget target,
   }) async {
     final snapshot = await _readLatestSnapshot(target.siteId);
-    final summary = snapshot == null ? null : _siteAwarenessSummaryFromRow(snapshot);
+    final summary = snapshot == null
+        ? null
+        : _siteAwarenessSummaryFromRow(snapshot);
     final draft = await aiAssistant.draftReply(
       audience: TelegramAiAudience.client,
       messageText: update.text,
@@ -698,7 +714,9 @@ class _OnyxTelegramAiProcessor {
     if (rows.isEmpty) {
       return 0;
     }
-    return _asInt(Map<String, dynamic>.from(rows.first as Map)['peak_detected']) ??
+    return _asInt(
+          Map<String, dynamic>.from(rows.first as Map)['peak_detected'],
+        ) ??
         0;
   }
 
@@ -832,9 +850,11 @@ TelegramAiSiteAwarenessSummary _siteAwarenessSummaryFromRow(
   return TelegramAiSiteAwarenessSummary(
     observedAtUtc: snapshotAt,
     perimeterClear: row['perimeter_clear'] == true,
-    humanCount: _asInt(detections?['human_count'] ?? detections?['humanCount']) ?? 0,
+    humanCount:
+        _asInt(detections?['human_count'] ?? detections?['humanCount']) ?? 0,
     vehicleCount:
-        _asInt(detections?['vehicle_count'] ?? detections?['vehicleCount']) ?? 0,
+        _asInt(detections?['vehicle_count'] ?? detections?['vehicleCount']) ??
+        0,
     animalCount:
         _asInt(detections?['animal_count'] ?? detections?['animalCount']) ?? 0,
     motionCount:
@@ -991,49 +1011,149 @@ bool _visitorDepartureRequested(String prompt) {
       normalized.contains('visitor gone');
 }
 
-(String, String) _inferVisitor(String prompt) {
-  final normalized = prompt.trim().toLowerCase();
-  if (normalized.contains('jonathan')) {
-    return ('Jonathan', 'regular_visitor');
-  }
-  if (normalized.contains('cleaner')) {
-    return ('Cleaner', 'cleaner');
-  }
-  if (normalized.contains('gardener')) {
-    return ('Gardener', 'gardener');
-  }
-  if (normalized.contains('contractor')) {
-    return ('Contractor', 'contractor');
-  }
-  if (normalized.contains('delivery')) {
-    return ('Delivery', 'delivery');
-  }
-  return ('Visitor', 'visitor');
+class _VisitorRegistrationDetails {
+  final String visitorName;
+  final String visitorRole;
+  final DateTime endLocal;
+
+  const _VisitorRegistrationDetails({
+    required this.visitorName,
+    required this.visitorRole,
+    required this.endLocal,
+  });
 }
 
-DateTime _visitorEndTime(String prompt, DateTime nowLocal) {
+_VisitorRegistrationDetails _visitorRegistrationDetails({
+  required String prompt,
+  required DateTime nowLocal,
+}) {
   final normalized = prompt.trim().toLowerCase();
-  final forHoursMatch = RegExp(r'for\s+(\d+)\s+hour').firstMatch(normalized);
+  return _VisitorRegistrationDetails(
+    visitorName: _visitorNameForPrompt(prompt, normalized),
+    visitorRole: _visitorRoleForPrompt(normalized),
+    endLocal: _visitorEndTime(
+      prompt: prompt,
+      normalized: normalized,
+      nowLocal: nowLocal,
+    ),
+  );
+}
+
+String _visitorRoleForPrompt(String normalized) {
+  if (normalized.contains('cleaner')) {
+    return 'cleaner';
+  }
+  if (normalized.contains('gardener')) {
+    return 'gardener';
+  }
+  if (normalized.contains('contractor')) {
+    return 'contractor';
+  }
+  if (normalized.contains('delivery')) {
+    return 'delivery';
+  }
+  if (normalized.contains('jonathan')) {
+    return 'regular_visitor';
+  }
+  return 'visitor';
+}
+
+String _visitorNameForPrompt(String prompt, String normalized) {
+  if (normalized.contains('cleaner')) {
+    return 'Cleaner';
+  }
+  if (normalized.contains('gardener')) {
+    return 'Gardener';
+  }
+  if (normalized.contains('contractor')) {
+    return 'Contractor';
+  }
+  if (normalized.contains('delivery')) {
+    return 'Delivery';
+  }
+  final patterns = <RegExp>[
+    RegExp(
+      r"^\s*([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)\s+is\s+here\b",
+      caseSensitive: false,
+    ),
+    RegExp(
+      r"^\s*([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)\s+just\s+arrived\b",
+      caseSensitive: false,
+    ),
+    RegExp(
+      r"^\s*([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)\s+came\s+in\b",
+      caseSensitive: false,
+    ),
+    RegExp(
+      r"letting in\s+([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)",
+      caseSensitive: false,
+    ),
+    RegExp(
+      r"opening for\s+([A-Za-z][A-Za-z'-]*(?:\s+[A-Za-z][A-Za-z'-]*)?)",
+      caseSensitive: false,
+    ),
+  ];
+  for (final pattern in patterns) {
+    final match = pattern.firstMatch(prompt);
+    if (match == null) {
+      continue;
+    }
+    final candidate = (match.group(1) ?? '').trim();
+    if (candidate.isNotEmpty) {
+      return _humanizeVisitorName(candidate);
+    }
+  }
+  if (normalized.contains('jonathan')) {
+    return 'Jonathan';
+  }
+  return 'Visitor';
+}
+
+String _humanizeVisitorName(String raw) {
+  return raw
+      .split(RegExp(r'\s+'))
+      .where((part) => part.trim().isNotEmpty)
+      .map(
+        (part) => '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+      )
+      .join(' ');
+}
+
+String _visitorPossessiveLabel(String visitorName) {
+  final trimmed = visitorName.trim();
+  if (trimmed.isEmpty) {
+    return 'Visitor\'s';
+  }
+  if (trimmed.toLowerCase().endsWith('s')) {
+    return '$trimmed\'';
+  }
+  return '$trimmed\'s';
+}
+
+DateTime _visitorEndTime({
+  required String prompt,
+  required String normalized,
+  required DateTime nowLocal,
+}) {
+  final forHoursMatch = RegExp(
+    r'\bfor\s+(\d+)\s+hours?\b',
+  ).firstMatch(normalized);
   if (forHoursMatch != null) {
-    final hours = int.tryParse(forHoursMatch.group(1)!);
+    final hours = int.tryParse(forHoursMatch.group(1) ?? '');
     if (hours != null && hours > 0) {
       return nowLocal.add(Duration(hours: hours));
     }
   }
-  if (normalized.contains('until lunchtime')) {
-    return DateTime(
-      nowLocal.year,
-      nowLocal.month,
-      nowLocal.day,
-      13,
-      0,
-    );
+  if (normalized.contains('until lunchtime') ||
+      normalized.contains('until lunch')) {
+    return DateTime(nowLocal.year, nowLocal.month, nowLocal.day, 13, 0);
   }
   final untilMatch = RegExp(
     r'until\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
-  ).firstMatch(normalized);
+    caseSensitive: false,
+  ).firstMatch(prompt);
   if (untilMatch != null) {
-    final hourRaw = int.tryParse(untilMatch.group(1)!);
+    final hourRaw = int.tryParse(untilMatch.group(1) ?? '');
     final minuteRaw = int.tryParse(untilMatch.group(2) ?? '0') ?? 0;
     final meridiem = untilMatch.group(3)?.toLowerCase();
     if (hourRaw != null) {
@@ -1043,35 +1163,36 @@ DateTime _visitorEndTime(String prompt, DateTime nowLocal) {
       } else if (meridiem == 'am' && hour == 12) {
         hour = 0;
       }
-      return DateTime(
+      final parsed = DateTime(
         nowLocal.year,
         nowLocal.month,
         nowLocal.day,
         hour.clamp(0, 23),
         minuteRaw.clamp(0, 59),
       );
+      if (!parsed.isBefore(nowLocal)) {
+        return parsed;
+      }
     }
   }
-  final defaultHour = nowLocal.hour < 17 ? 17 : 23;
-  final defaultMinute = nowLocal.hour < 17 ? 0 : 59;
-  return DateTime(
+  final defaultEnd = DateTime(
     nowLocal.year,
     nowLocal.month,
     nowLocal.day,
-    defaultHour,
-    defaultMinute,
+    17,
+    0,
   );
+  if (!defaultEnd.isBefore(nowLocal)) {
+    return defaultEnd;
+  }
+  return DateTime(nowLocal.year, nowLocal.month, nowLocal.day, 23, 59);
 }
 
 void _logInfo(String message) {
   stdout.writeln('[ONYX] $message');
 }
 
-void _logError(
-  String message, {
-  Object? error,
-  StackTrace? stackTrace,
-}) {
+void _logError(String message, {Object? error, StackTrace? stackTrace}) {
   stderr.writeln('[ONYX] $message');
   if (error != null) {
     stderr.writeln('[ONYX]   error: $error');
@@ -1113,7 +1234,11 @@ class OpenAiRuntimeConfig {
     String genericModel = '',
     String genericBaseUrl = '',
   }) {
-    final apiKey = _firstNonEmpty(primaryApiKey, secondaryApiKey, genericApiKey);
+    final apiKey = _firstNonEmpty(
+      primaryApiKey,
+      secondaryApiKey,
+      genericApiKey,
+    );
     final model = _firstNonEmpty(primaryModel, secondaryModel, genericModel);
     final endpointRaw = _firstNonEmpty(
       primaryEndpoint,
@@ -1201,7 +1326,9 @@ class TelegramAiSiteAwarenessSummary {
   String get contextSummary {
     final faults = knownFaultChannels.isEmpty
         ? 'all reporting channels healthy'
-        : knownFaultChannels.map((value) => 'Channel $value offline').join(', ');
+        : knownFaultChannels
+              .map((value) => 'Channel $value offline')
+              .join(', ');
     return '${perimeterClear ? 'perimeter clear' : 'perimeter alert active'}, '
         '$humanCount people, $vehicleCount vehicles, $animalCount animals, '
         '$activeAlertCount active alerts, $faults';
@@ -1250,8 +1377,7 @@ class UnconfiguredTelegramAiAssistantService
   }
 }
 
-class OpenAiTelegramAiAssistantService
-    implements TelegramAiAssistantService {
+class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
   final http.Client client;
   final String apiKey;
   final String model;
@@ -1266,9 +1392,7 @@ class OpenAiTelegramAiAssistantService
 
   @override
   bool get isConfigured =>
-      apiKey.trim().isNotEmpty &&
-      model.trim().isNotEmpty &&
-      endpoint != null;
+      apiKey.trim().isNotEmpty && model.trim().isNotEmpty && endpoint != null;
 
   @override
   Future<TelegramAiDraftReply> draftReply({
@@ -1287,7 +1411,8 @@ class OpenAiTelegramAiAssistantService
       );
     }
     final siteLabel = _siteLabel(siteId ?? '');
-    final summary = siteAwarenessSummary?.contextSummary ?? 'no fresh site summary';
+    final summary =
+        siteAwarenessSummary?.contextSummary ?? 'no fresh site summary';
     final systemPrompt =
         'You are ONYX, a concise security operations assistant. '
         'Reply for a ${audience.name} Telegram audience. '
@@ -1314,7 +1439,10 @@ class OpenAiTelegramAiAssistantService
                 <String, Object?>{
                   'role': 'system',
                   'content': <Map<String, String>>[
-                    <String, String>{'type': 'input_text', 'text': systemPrompt},
+                    <String, String>{
+                      'type': 'input_text',
+                      'text': systemPrompt,
+                    },
                   ],
                 },
                 <String, Object?>{
@@ -2056,10 +2184,12 @@ class OnyxTelegramCommandRouter {
     if (hasDurationHint && isArrivalPhrase) {
       return true;
     }
-    return RegExp(r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+is\s+here\b")
-            .hasMatch(normalized) ||
-        RegExp(r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+just\s+arrived\b")
-            .hasMatch(normalized);
+    return RegExp(
+          r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+is\s+here\b",
+        ).hasMatch(normalized) ||
+        RegExp(
+          r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+just\s+arrived\b",
+        ).hasMatch(normalized);
   }
 
   bool _looksLikeFrOnboarding(String normalized) {

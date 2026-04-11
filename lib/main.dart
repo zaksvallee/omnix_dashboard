@@ -2135,6 +2135,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   final Map<String, MonitoringWatchRecoveryState>
   _monitoringWatchRecoveryByScope = {};
   final Set<String> _siteAwarenessDeliveredAlertIds = <String>{};
+  final Map<String, DateTime> _siteAwarenessLastDeliveredAlertAtByCameraType =
+      <String, DateTime>{};
   final Set<String> _vehiclePresenceDeliveredArrivalIds = <String>{};
   final Map<String, DateTime> _vehiclePresenceDepartureAlertedAtByPlate =
       <String, DateTime>{};
@@ -3298,7 +3300,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       nowUtc: () => DateTime.now().toUtc(),
     );
     _siteProfileService = OnyxSiteProfileService(
-      readProfileRow: (siteId) => _readSiteIntelligenceProfileRow(siteId: siteId),
+      readProfileRow: (siteId) =>
+          _readSiteIntelligenceProfileRow(siteId: siteId),
       readZoneRuleRows: (siteId) => _readSiteZoneRuleRows(siteId: siteId),
       readExpectedVisitorRows: (siteId) =>
           _readSiteExpectedVisitorRows(siteId: siteId),
@@ -14479,6 +14482,37 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  void _pruneSiteAwarenessAlertDeduplicationState(DateTime nowUtc) {
+    _siteAwarenessLastDeliveredAlertAtByCameraType.removeWhere(
+      (_, sentAtUtc) =>
+          nowUtc.toUtc().difference(sentAtUtc.toUtc()) >
+          const Duration(minutes: 10),
+    );
+  }
+
+  String _siteAwarenessAlertDeliveryDeduplicationKey(
+    _SiteAwarenessActiveAlertRecord alert,
+  ) {
+    return '${_selectedSite.trim()}|${alert.deliveryDeduplicationKey}';
+  }
+
+  bool _shouldSkipSiteAwarenessAlertDelivery(
+    _SiteAwarenessActiveAlertRecord alert,
+  ) {
+    final lastDeliveredAtUtc =
+        _siteAwarenessLastDeliveredAlertAtByCameraType[_siteAwarenessAlertDeliveryDeduplicationKey(
+          alert,
+        )];
+    if (lastDeliveredAtUtc == null) {
+      return false;
+    }
+    return alert.detectedAt
+            .toUtc()
+            .difference(lastDeliveredAtUtc.toUtc())
+            .abs() <
+        const Duration(seconds: 60);
+  }
+
   Future<void> _pollSiteAwarenessAlertsOnce() async {
     if (!_siteAwarenessAlertWatcherEnabled ||
         !_telegramPollingPrimaryTab ||
@@ -14488,6 +14522,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _siteAwarenessAlertPollInFlight = true;
     try {
       final nowUtc = DateTime.now().toUtc();
+      _pruneSiteAwarenessAlertDeduplicationState(nowUtc);
       final row = await _readLatestSiteAwarenessSnapshotRow(
         siteId: _selectedSite,
       );
@@ -14513,12 +14548,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           if (_siteAwarenessDeliveredAlertIds.contains(alertId)) {
             continue;
           }
-          final dispatch = await _telegramPushCoordinator.sendProactiveSiteAlert(
-            clientId: _selectedClient,
-            siteId: _selectedSite,
-            alertId: alertId,
-            text: alert.message,
-          );
+          if (_shouldSkipSiteAwarenessAlertDelivery(alert)) {
+            _siteAwarenessDeliveredAlertIds.add(alertId);
+            continue;
+          }
+          final deliveryDeduplicationKey =
+              _siteAwarenessAlertDeliveryDeduplicationKey(alert);
+          final dispatch = await _telegramPushCoordinator
+              .sendProactiveSiteAlert(
+                clientId: _selectedClient,
+                siteId: _selectedSite,
+                alertId: alertId,
+                text: alert.message,
+              );
           if (!mounted) {
             continue;
           }
@@ -14530,6 +14572,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           if (dispatch.attemptStatus != 'telegram-ok') {
             continue;
           }
+          _siteAwarenessLastDeliveredAlertAtByCameraType[deliveryDeduplicationKey] =
+              alert.detectedAt.toUtc();
           _siteAwarenessDeliveredAlertIds.add(alertId);
           await _appendTelegramConversationMessage(
             clientId: _selectedClient,
@@ -14560,7 +14604,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _vehiclePresenceBootCutoffUtc ??= nowUtc;
     _pruneVehiclePresenceNotificationState(nowUtc);
-    final registryRows = await _readSiteVehicleRegistryRows(siteId: _selectedSite);
+    final registryRows = await _readSiteVehicleRegistryRows(
+      siteId: _selectedSite,
+    );
     if (registryRows.isEmpty) {
       return;
     }
@@ -14575,15 +14621,15 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         continue;
       }
       final bootCutoffUtc = _vehiclePresenceBootCutoffUtc;
-      if (bootCutoffUtc != null && record.occurredAtUtc.isBefore(bootCutoffUtc)) {
+      if (bootCutoffUtc != null &&
+          record.occurredAtUtc.isBefore(bootCutoffUtc)) {
         _vehiclePresenceDeliveredArrivalIds.add(record.id);
         continue;
       }
       if (_vehiclePresenceDeliveredArrivalIds.contains(record.id)) {
         continue;
       }
-      final zoneLabel =
-          record.zoneName?.trim().isNotEmpty == true
+      final zoneLabel = record.zoneName?.trim().isNotEmpty == true
           ? record.zoneName!.trim()
           : 'site';
       final isUnknownOwner =
@@ -14663,11 +14709,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         continue;
       }
       final bootCutoffUtc = _vehiclePresenceBootCutoffUtc;
-      if (bootCutoffUtc != null && latest.occurredAtUtc.isBefore(bootCutoffUtc)) {
+      if (bootCutoffUtc != null &&
+          latest.occurredAtUtc.isBefore(bootCutoffUtc)) {
         continue;
       }
       final lastAlertAt =
-          _vehiclePresenceDepartureAlertedAtByPlate[status.registry.plateNumber];
+          _vehiclePresenceDepartureAlertedAtByPlate[status
+              .registry
+              .plateNumber];
       if (lastAlertAt != null && !lastAlertAt.isBefore(latest.occurredAtUtc)) {
         continue;
       }
@@ -14721,10 +14770,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final occupancyConfigRow = await _readSiteOccupancyConfigRow(
         siteId: _selectedSite,
       );
-      if (occupancyConfigRow == null || !_siteOccupancyHasGuard(occupancyConfigRow)) {
+      if (occupancyConfigRow == null ||
+          !_siteOccupancyHasGuard(occupancyConfigRow)) {
         return;
       }
-      final assignments = await _readPatrolAssignmentsForSite(siteId: _selectedSite);
+      final assignments = await _readPatrolAssignmentsForSite(
+        siteId: _selectedSite,
+      );
       if (assignments.isEmpty) {
         return;
       }
@@ -14778,7 +14830,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           messageKeyPrefix: '$messageKeyPrefix-client',
           text: text,
         );
-        _patrolMissedAlertSentAtUtcByKey[alert.alertKey] = DateTime.now().toUtc();
+        _patrolMissedAlertSentAtUtcByKey[alert.alertKey] = DateTime.now()
+            .toUtc();
       }
     } catch (error, stackTrace) {
       developer.log(
@@ -16283,7 +16336,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       OnyxTelegramCommandType.camera => 'Visual Status Sent',
       OnyxTelegramCommandType.intelligence => 'Intelligence Summary Sent',
       OnyxTelegramCommandType.actionRequest => 'Action Confirmation Sent',
-      OnyxTelegramCommandType.visitorRegistration => 'Visitor Registration Saved',
+      OnyxTelegramCommandType.visitorRegistration =>
+        'Visitor Registration Saved',
       OnyxTelegramCommandType.frOnboarding => 'FR Onboarding Sent',
       OnyxTelegramCommandType.clientStatement => 'Statement Acknowledged',
       OnyxTelegramCommandType.unknown => 'Structured Reply Sent',
@@ -16339,10 +16393,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         siteId: siteId,
         prompt: update.text,
       ),
-      OnyxTelegramCommandType.visitorRegistration => _telegramVisitorRegistrationReply(
-        siteId: siteId,
-        prompt: update.text,
-      ),
+      OnyxTelegramCommandType.visitorRegistration =>
+        _telegramVisitorRegistrationReply(siteId: siteId, prompt: update.text),
       OnyxTelegramCommandType.frOnboarding => Future<String>.value(
         _telegramFrOnboardingReply(update.text),
       ),
@@ -16584,7 +16636,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required DateTime targetDateLocal,
     required DateTime startDateTimeLocal,
   }) {
-    final durationMatch = RegExp(r'\bfor\s+(\d+)\s+hours?\b').firstMatch(normalized);
+    final durationMatch = RegExp(
+      r'\bfor\s+(\d+)\s+hours?\b',
+    ).firstMatch(normalized);
     if (durationMatch != null) {
       final hours = int.tryParse(durationMatch.group(1) ?? '');
       if (hours != null && hours > 0) {
@@ -16898,18 +16952,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteId,
   }) {
     final cutoff = _telegramFlowNowUtc().subtract(const Duration(minutes: 30));
-    final events = store
-        .allEvents()
-        .whereType<IntelligenceReceived>()
-        .where(
-          (event) =>
-              event.clientId.trim() == clientId.trim() &&
-              event.siteId.trim() == siteId.trim() &&
-              (event.faceMatchId ?? '').trim().isNotEmpty &&
-              !event.occurredAt.toUtc().isBefore(cutoff),
-        )
-        .toList(growable: false)
-      ..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
+    final events =
+        store
+            .allEvents()
+            .whereType<IntelligenceReceived>()
+            .where(
+              (event) =>
+                  event.clientId.trim() == clientId.trim() &&
+                  event.siteId.trim() == siteId.trim() &&
+                  (event.faceMatchId ?? '').trim().isNotEmpty &&
+                  !event.occurredAt.toUtc().isBefore(cutoff),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => right.occurredAt.compareTo(left.occurredAt));
     return events;
   }
 
@@ -17258,7 +17313,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     String prompt = '',
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
-    final vehiclePresenceQuery = _telegramPromptLooksLikeVehiclePresence(prompt);
+    final vehiclePresenceQuery = _telegramPromptLooksLikeVehiclePresence(
+      prompt,
+    );
     if (vehiclePresenceQuery) {
       final vehiclePresenceReply = await _telegramCombinedPresenceReply(
         clientId: clientId,
@@ -17273,11 +17330,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       }
     }
     final siteProfile = await _siteProfileService.loadProfile(siteId);
-    final activeExpectedVisitors = await _siteProfileService.loadActiveExpectedVisitors(
-      siteId: siteId,
-      timezone: siteProfile.timezone,
-      atUtc: _telegramFlowNowUtc(),
-    );
+    final activeExpectedVisitors = await _siteProfileService
+        .loadActiveExpectedVisitors(
+          siteId: siteId,
+          timezone: siteProfile.timezone,
+          atUtc: _telegramFlowNowUtc(),
+        );
     final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
       siteId: siteId,
     );
@@ -17380,7 +17438,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           ),
         ),
       );
-      if (siteProfile.industryType == 'residential' && expectedPeopleCount > 0) {
+      if (siteProfile.industryType == 'residential' &&
+          expectedPeopleCount > 0) {
         final lastMovementAtUtc =
             _siteOccupancyLastDetectionAtUtc(occupancySessionRow) ??
             (displayedPeopleCount > 0
@@ -17968,24 +18027,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• Camera monitoring: active',
         '• ${_siteProfileService.formatStatusMessage(
           profile: siteProfile,
-          snapshot: SiteSnapshot(
-            siteId: siteId,
-            siteName: siteLabel,
-            observedAtUtc: siteAwarenessSummary.observedAtUtc,
-            perimeterClear: siteAwarenessSummary.perimeterClear,
-            onSiteCount: detectedToday,
-            expectedPeopleCount: _siteProfileExpectedPeopleCount(
-              siteProfile,
-              occupancyConfigRow,
-            ),
-            vehicleCount: siteAwarenessSummary.vehicleCount,
-            activeIncidents: incidentsToday,
-            offlineChannels: _telegramCommandKnownFaultLines(
-              siteAwarenessRow ?? const <String, dynamic>{},
-            ),
-            fresh: true,
-            activeAlerts: siteAwarenessSummary.activeAlertCount,
-          ),
+          snapshot: SiteSnapshot(siteId: siteId, siteName: siteLabel, observedAtUtc: siteAwarenessSummary.observedAtUtc, perimeterClear: siteAwarenessSummary.perimeterClear, onSiteCount: detectedToday, expectedPeopleCount: _siteProfileExpectedPeopleCount(siteProfile, occupancyConfigRow), vehicleCount: siteAwarenessSummary.vehicleCount, activeIncidents: incidentsToday, offlineChannels: _telegramCommandKnownFaultLines(siteAwarenessRow ?? const <String, dynamic>{}), fresh: true, activeAlerts: siteAwarenessSummary.activeAlertCount),
         )}',
       ] else ...<String>['• Camera monitoring: limited'],
       if (expectedOccupancy > 0 && siteProfile.industryType == 'residential')
@@ -39007,6 +39049,51 @@ class _SiteAwarenessActiveAlertRecord {
     this.isSequence = false,
     this.alertSource,
   });
+
+  String get deliveryCameraKey {
+    final normalizedChannelId = channelId.trim();
+    if (normalizedChannelId.isNotEmpty) {
+      return normalizedChannelId;
+    }
+    final normalizedZoneName = (zoneName ?? '').trim().toLowerCase();
+    if (normalizedZoneName.isNotEmpty) {
+      return normalizedZoneName;
+    }
+    return 'unknown-camera';
+  }
+
+  String get deliveryMessageTypeKey {
+    return <String>[
+      (alertSource ?? '').trim().toLowerCase(),
+      eventType.trim().toLowerCase(),
+      isLoitering ? 'loiter' : 'standard',
+      isSequence ? 'sequence' : 'single',
+      _normalizeSiteAwarenessAlertMessageType(message),
+    ].where((part) => part.isNotEmpty).join('|');
+  }
+
+  String get deliveryDeduplicationKey {
+    return '$deliveryCameraKey|$deliveryMessageTypeKey';
+  }
+}
+
+String _normalizeSiteAwarenessAlertMessageType(String message) {
+  final normalizedLines = message
+      .trim()
+      .toLowerCase()
+      .split('\n')
+      .map(
+        (line) => line
+            .trim()
+            .replaceAll(RegExp(r'\s+[—-]\s+\d{1,2}:\d{2}\b'), '')
+            .replaceAll(RegExp(r'\s+'), ' '),
+      )
+      .where((line) => line.isNotEmpty)
+      .toList(growable: false);
+  if (normalizedLines.isEmpty) {
+    return 'alert';
+  }
+  return normalizedLines.join('|');
 }
 
 List<_SiteAwarenessActiveAlertRecord> _siteAwarenessActiveAlertsFromRow(
@@ -39324,7 +39411,10 @@ Future<void> _insertTemporaryExpectedVisitor({
   required _TelegramExpectedVisitorRegistration registration,
 }) async {
   final targetDateLocal = registration.targetDateLocal;
-  await Supabase.instance.client.from('site_expected_visitors').insert(<String, Object?>{
+  await Supabase.instance.client.from('site_expected_visitors').insert(<
+    String,
+    Object?
+  >{
     'site_id': siteId.trim(),
     'visitor_name': registration.visitorName,
     'visitor_role': registration.visitorRole,
@@ -39338,7 +39428,8 @@ Future<void> _insertTemporaryExpectedVisitor({
         '${targetDateLocal.year.toString().padLeft(4, '0')}-${targetDateLocal.month.toString().padLeft(2, '0')}-${targetDateLocal.day.toString().padLeft(2, '0')}',
     'expires_at': registration.expiresAtUtc.toIso8601String(),
     'is_active': true,
-    'notes': 'Telegram visitor registration created ${DateTime.now().toUtc().toIso8601String()}',
+    'notes':
+        'Telegram visitor registration created ${DateTime.now().toUtc().toIso8601String()}',
   });
 }
 
@@ -39580,7 +39671,8 @@ class _SiteVehiclePresenceRecord {
       channelId: _siteAwarenessSummaryInt(row['channel_id']),
       zoneName: (row['zone_name'] as String?)?.trim(),
       occurredAtUtc:
-          _siteAwarenessSummaryDate(row['occurred_at']) ?? DateTime.now().toUtc(),
+          _siteAwarenessSummaryDate(row['occurred_at']) ??
+          DateTime.now().toUtc(),
     );
   }
 }
@@ -39679,7 +39771,9 @@ List<_SiteVehiclePresenceStatus> _buildVehiclePresenceStatuses({
     if (record.plateNumber.isEmpty) {
       continue;
     }
-    presenceByPlate.putIfAbsent(record.plateNumber, () => <_SiteVehiclePresenceRecord>[]).add(record);
+    presenceByPlate
+        .putIfAbsent(record.plateNumber, () => <_SiteVehiclePresenceRecord>[])
+        .add(record);
   }
   final statuses = <_SiteVehiclePresenceStatus>[];
   for (final entry in registry) {
@@ -39687,7 +39781,9 @@ List<_SiteVehiclePresenceStatus> _buildVehiclePresenceStatuses({
       presenceByPlate[entry.plateNumber] ??
           const <_SiteVehiclePresenceRecord>[],
     );
-    records.sort((left, right) => right.occurredAtUtc.compareTo(left.occurredAtUtc));
+    records.sort(
+      (left, right) => right.occurredAtUtc.compareTo(left.occurredAtUtc),
+    );
     final latest = records.isEmpty ? null : records.first;
     final seenToday = latest != null;
     final isHome =
@@ -39715,7 +39811,9 @@ String _normalizedPresenceNameKey(String value) {
       .trim();
 }
 
-bool _vehiclePresenceWasResidentConfirmed(_SiteVehiclePresenceRecord? presence) {
+bool _vehiclePresenceWasResidentConfirmed(
+  _SiteVehiclePresenceRecord? presence,
+) {
   final zone = presence?.zoneName?.trim().toLowerCase() ?? '';
   return presence != null &&
       presence.eventType == 'on_site' &&
@@ -39763,7 +39861,8 @@ List<_SiteVehicleRegistryRecord> _matchedVehicleRegistryOwnersForPrompt({
   return List<_SiteVehicleRegistryRecord>.unmodifiable(matches);
 }
 
-Future<List<_SiteVehicleRegistryRecord>> _recordManualVehiclePresenceConfirmation({
+Future<List<_SiteVehicleRegistryRecord>>
+_recordManualVehiclePresenceConfirmation({
   required String siteId,
   required String prompt,
 }) async {
@@ -39805,15 +39904,17 @@ Future<List<_SiteVehicleRegistryRecord>> _recordManualVehiclePresenceConfirmatio
     if (!shouldInsert) {
       continue;
     }
-    await Supabase.instance.client.from('site_vehicle_presence').insert(<String, Object?>{
-      'site_id': siteId.trim(),
-      'plate_number': entry.plateNumber,
-      'owner_name': entry.ownerName,
-      'event_type': 'on_site',
-      'channel_id': null,
-      'zone_name': 'resident confirmed',
-      'occurred_at': nowUtc.toIso8601String(),
-    });
+    await Supabase.instance.client
+        .from('site_vehicle_presence')
+        .insert(<String, Object?>{
+          'site_id': siteId.trim(),
+          'plate_number': entry.plateNumber,
+          'owner_name': entry.ownerName,
+          'event_type': 'on_site',
+          'channel_id': null,
+          'zone_name': 'resident confirmed',
+          'occurred_at': nowUtc.toIso8601String(),
+        });
   }
   return matches;
 }
@@ -39874,7 +39975,9 @@ String _telegramVehiclePresenceSummarySection(
       continue;
     }
     if (status.latestPresence!.eventType == 'arrived' && status.isHome) {
-      lines.add('- $owner — $vehicle — ${_vehiclePresenceArrivalLabel(status.latestPresence!)}');
+      lines.add(
+        '- $owner — $vehicle — ${_vehiclePresenceArrivalLabel(status.latestPresence!)}',
+      );
       continue;
     }
     if (_vehiclePresenceWasResidentConfirmed(status.latestPresence) &&
@@ -40103,8 +40206,9 @@ Future<List<OnyxPatrolCheckpoint>> _readPatrolCheckpointsForSite({
               .order('sequence_order', ascending: true);
     return rows
         .map(
-          (row) =>
-              OnyxPatrolCheckpoint.fromRow(Map<String, dynamic>.from(row as Map)),
+          (row) => OnyxPatrolCheckpoint.fromRow(
+            Map<String, dynamic>.from(row as Map),
+          ),
         )
         .toList(growable: false);
   } catch (_) {
@@ -40130,7 +40234,8 @@ Future<List<OnyxPatrolScan>> _readPatrolScansForSite({
         .limit(limit);
     return rows
         .map(
-          (row) => OnyxPatrolScan.fromRow(Map<String, dynamic>.from(row as Map)),
+          (row) =>
+              OnyxPatrolScan.fromRow(Map<String, dynamic>.from(row as Map)),
         )
         .toList(growable: false);
   } catch (_) {
@@ -40142,18 +40247,17 @@ Future<void> _upsertPatrolComplianceSnapshot(
   OnyxPatrolComplianceSnapshot snapshot,
 ) async {
   try {
-    await Supabase.instance.client.from('patrol_compliance').upsert(
-      <String, Object?>{
-        'site_id': snapshot.siteId,
-        'guard_id': snapshot.guardId,
-        'compliance_date': snapshot.complianceDateValue,
-        'expected_patrols': snapshot.expectedPatrols,
-        'completed_patrols': snapshot.completedPatrols,
-        'missed_checkpoints': snapshot.missedCheckpoints,
-        'compliance_percent': snapshot.compliancePercent,
-      },
-      onConflict: 'site_id,guard_id,compliance_date',
-    );
+    await Supabase.instance.client
+        .from('patrol_compliance')
+        .upsert(<String, Object?>{
+          'site_id': snapshot.siteId,
+          'guard_id': snapshot.guardId,
+          'compliance_date': snapshot.complianceDateValue,
+          'expected_patrols': snapshot.expectedPatrols,
+          'completed_patrols': snapshot.completedPatrols,
+          'missed_checkpoints': snapshot.missedCheckpoints,
+          'compliance_percent': snapshot.compliancePercent,
+        }, onConflict: 'site_id,guard_id,compliance_date');
   } catch (_) {
     // Patrol compliance persistence is best-effort; alerts still continue.
   }
