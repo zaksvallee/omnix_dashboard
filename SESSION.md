@@ -9,9 +9,9 @@
 - **Rules:** Full file replacements only · Extend not rewrite · supabase_flutter v2+ only
 
 ## Last session
-- **Date:** 2026-04-11 04:25
-- **Last commit:** fix: suppress resident alerts + animal detection filter
-- **Commit hash:** 33f84ff
+- **Date:** 2026-04-11 21:19
+- **Last commit:** fix: persistent RTSP reader — survive H.264 decode errors for HD frames
+- **Commit hash:** 8091999
 
 ## Completed today (2026-04-10)
 - [x] YOLO in pipeline — false positive filter active (0814e25)
@@ -74,20 +74,26 @@
 - [x] Camera worker CLI — standalone dart process, launch script
 - [x] Vendor cameras — Dahua, Axis, Uniview workers implemented
 - [x] ONVIF bridge — discovery, streams, snapshots, PTZ, presets
+- [x] Telegram AI processor on Hetzner — 24/7 independent
+- [x] Webhook routing fixed
+- [x] Honest occupancy messaging
+- [x] CH0 → CH11 fix
+- [x] Stack watchdog + resilient restart
+- [x] Supabase reconnect on camera worker
+- [x] Persistent RTSP reader (ready for new cameras)
+- [x] Double alert dedup
+- [x] Visitor context in AI processor
 
-## In progress
-- [ ] RTSP live validation — confirm frame server returns stable 1280x720 frames on CH12 / CH16
-- [ ] Live FR validation — confirm cropped RTSP frames produce real matches during walk tests
-- [ ] Live LPR validation — confirm LF05CFGP reads from HD garage frames
-- [ ] Hetzner deployment — install and start onyx-telegram-ai-processor.service
+## Blocked on hardware
+- [ ] FR — needs new cameras (H.264 standard, not H.264+)
+- [ ] LPR — same, waiting for new cameras Monday
 
-## Priority queue (next session)
-- P0: Deploy onyx-telegram-ai-processor to Hetzner and verify Telegram keeps working with the Mac asleep
-- P1: Validate RTSP frame server delivers stable HD frames on CH12 / CH16 under live load
-- P2: Verify live FR walk test from RTSP frames and capture first real match
-- P3: Verify HD LPR reads LF05CFGP or confirm dedicated LPR camera is required
-- P4: Confirm CH11 known fault displays cleanly everywhere after the ghost CH0 ingest filter
-- P5: Olarm device installation
+## Priority queue (Monday)
+- P0: Install new 2MP cameras — Main Gate, Back Kitchen, Interior Passage, Garage
+- P1: Test RTSP at proper resolution
+- P2: FR live test
+- P3: LPR live test
+- P4: Olarm device installation
 
 ## Next hardware to acquire
 - Olarm communicator for IDS panel (~R600-800)
