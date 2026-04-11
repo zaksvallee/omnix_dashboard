@@ -1237,6 +1237,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     'ONYX_TELEGRAM_BRIDGE_ENABLED',
     defaultValue: false,
   );
+  static const _telegramUseWebhookEnv = bool.fromEnvironment(
+    'ONYX_TELEGRAM_USE_WEBHOOK',
+    defaultValue: false,
+  );
   static const _telegramBotTokenEnv = String.fromEnvironment(
     'ONYX_TELEGRAM_BOT_TOKEN',
   );
@@ -2620,6 +2624,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       client: _telegramBridgeHttpClient,
       botToken: botToken,
       apiBaseUri: _resolvedTelegramBridgeApiBaseUri(),
+      disableInboundPolling: _telegramUseWebhookEnv,
     );
   }
 

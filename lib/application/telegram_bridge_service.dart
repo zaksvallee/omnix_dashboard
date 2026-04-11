@@ -153,12 +153,14 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
   final http.Client client;
   final String botToken;
   final Uri? apiBaseUri;
+  final bool disableInboundPolling;
   final Duration requestTimeout;
 
   const HttpTelegramBridgeService({
     required this.client,
     required this.botToken,
     this.apiBaseUri,
+    this.disableInboundPolling = false,
     this.requestTimeout = const Duration(seconds: 12),
   });
 
@@ -283,7 +285,7 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     int limit = 30,
     int timeoutSeconds = 0,
   }) async {
-    if (!isConfigured) {
+    if (!isConfigured || disableInboundPolling) {
       return const <TelegramBridgeInboundMessage>[];
     }
     final query = <String, String>{
