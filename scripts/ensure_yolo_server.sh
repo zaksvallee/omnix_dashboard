@@ -58,8 +58,13 @@ yolo_fr_enabled="$(json_value "ONYX_MONITORING_FR_ENABLED" | tr -d '\r' | tr '[:
 yolo_lpr_enabled="$(json_value "ONYX_MONITORING_LPR_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
 yolo_host="$(json_value "ONYX_MONITORING_YOLO_HOST" | tr -d '\r')"
 yolo_port="$(json_value "ONYX_MONITORING_YOLO_PORT" | tr -d '\r')"
+yolo_warmup_seconds="${ONYX_MONITORING_YOLO_WARMUP_SECONDS:-$(json_value "ONYX_MONITORING_YOLO_WARMUP_SECONDS" | tr -d '\r')}"
 yolo_host="${yolo_host:-127.0.0.1}"
 yolo_port="${yolo_port:-11636}"
+yolo_warmup_seconds="${yolo_warmup_seconds:-180}"
+if [[ ! "$yolo_warmup_seconds" =~ ^[0-9]+$ ]] || [[ "$yolo_warmup_seconds" -le 0 ]]; then
+  yolo_warmup_seconds=180
+fi
 yolo_url="http://${yolo_host}:${yolo_port}"
 
 if [[ "$yolo_enabled" != "true" ]]; then
@@ -121,6 +126,34 @@ if sys.argv[2] == "true":
 PY
 }
 
+pid_elapsed_seconds() {
+  local pid="$1"
+  local elapsed
+  elapsed="$(ps -o etime= -p "$pid" 2>/dev/null | tr -d '[:space:]')"
+  if [[ -z "$elapsed" ]]; then
+    return 1
+  fi
+  python3 - "$elapsed" <<'PY'
+import sys
+
+raw = sys.argv[1].strip()
+days = 0
+if "-" in raw:
+    days_part, raw = raw.split("-", 1)
+    days = int(days_part or "0")
+parts = [int(part or "0") for part in raw.split(":")]
+if len(parts) == 3:
+    hours, minutes, seconds = parts
+elif len(parts) == 2:
+    hours, minutes, seconds = 0, parts[0], parts[1]
+elif len(parts) == 1:
+    hours, minutes, seconds = 0, 0, parts[0]
+else:
+    raise SystemExit(1)
+print(days * 86400 + hours * 3600 + minutes * 60 + seconds)
+PY
+}
+
 if healthcheck; then
   mkdir -p "$(dirname "$PID_FILE")"
   if existing_pid="$(running_pid)"; then
@@ -131,6 +164,14 @@ if healthcheck; then
 fi
 
 if existing_pid="$(running_pid)"; then
+  existing_age_seconds="$(pid_elapsed_seconds "$existing_pid" || true)"
+  if [[ "$existing_age_seconds" =~ ^[0-9]+$ ]] &&
+      [[ "$existing_age_seconds" -lt "$yolo_warmup_seconds" ]]; then
+    mkdir -p "$(dirname "$PID_FILE")"
+    printf '%s\n' "$existing_pid" >"$PID_FILE"
+    echo "ONYX YOLO detector warming up on ${yolo_url} (pid ${existing_pid}, age ${existing_age_seconds}s)"
+    exit 0
+  fi
   echo "Restarting unhealthy ONYX YOLO detector (pid ${existing_pid})"
   kill -TERM "$existing_pid" 2>/dev/null || true
   sleep 1
@@ -160,6 +201,12 @@ for _ in $(seq 1 60); do
   fi
   if ! kill -0 "$yolo_pid" 2>/dev/null; then
     break
+  fi
+  yolo_age_seconds="$(pid_elapsed_seconds "$yolo_pid" || true)"
+  if [[ "$yolo_age_seconds" =~ ^[0-9]+$ ]] &&
+      [[ "$yolo_age_seconds" -lt "$yolo_warmup_seconds" ]]; then
+    echo "ONYX YOLO detector warming up on ${yolo_url} (pid ${yolo_pid}, age ${yolo_age_seconds}s)"
+    exit 0
   fi
 done
 
