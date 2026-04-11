@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 import argparse
-import json
 import io
+import json
 import os
 import signal
-import subprocess
 import sys
 import threading
 import time
 import urllib.parse
+import urllib.request
+import cv2
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Dict, Optional
@@ -41,57 +42,41 @@ class ChannelState:
     latest_resolution: Optional[list[int]] = None
     connected: bool = False
     error: str = "warming_up"
+    source: str = "warming_up"
     started_at_epoch: float = field(default_factory=time.time)
+    first_frame_logged: bool = False
+    first_hd_frame_logged: bool = False
+    low_resolution_warned: bool = False
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
-def _capture_rtsp_frame_once(
-    rtsp_url: str,
+def _capture_isapi_snapshot_once(
+    snapshot_url: str,
     *,
-    timeout_seconds: int = 40,
+    username: str,
+    password: str,
+    timeout_seconds: int = 10,
 ) -> tuple[Optional[bytes], Optional[list[int]], str]:
-    command = [
-        "ffmpeg",
-        "-hide_banner",
-        "-loglevel",
-        "error",
-        "-rtsp_transport",
-        "tcp",
-        "-fflags",
-        "nobuffer",
-        "-flags",
-        "low_delay",
-        "-i",
-        rtsp_url,
-        "-frames:v",
-        "1",
-        "-q:v",
-        "2",
-        "-f",
-        "image2pipe",
-        "-vcodec",
-        "mjpeg",
-        "-",
-    ]
+    password_manager = urllib.request.HTTPPasswordMgrWithDefaultRealm()
+    password_manager.add_password(None, snapshot_url, username, password)
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPDigestAuthHandler(password_manager)
+    )
+    request = urllib.request.Request(snapshot_url)
     try:
-        completed = subprocess.run(
-            command,
-            capture_output=True,
-            timeout=timeout_seconds,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        return None, None, "RTSP frame timeout"
-    if completed.returncode != 0 or not completed.stdout:
-        stderr = completed.stderr.decode("utf-8", errors="ignore").strip()
-        return None, None, stderr or "RTSP frame decode failed"
+        with opener.open(request, timeout=timeout_seconds) as response:
+            jpeg = response.read()
+    except Exception as exc:  # pragma: no cover - network/auth defensive
+        return None, None, f"ISAPI snapshot failed: {exc}"
+    if not jpeg:
+        return None, None, "ISAPI snapshot returned no data"
     try:
-        image = Image.open(io.BytesIO(completed.stdout))
+        image = Image.open(io.BytesIO(jpeg))
         image.load()
         resolution = [int(image.size[0]), int(image.size[1])]
     except Exception as exc:  # pragma: no cover - defensive
-        return None, None, f"JPEG decode failed: {exc}"
-    return completed.stdout, resolution, ""
+        return None, None, f"ISAPI JPEG decode failed: {exc}"
+    return jpeg, resolution, ""
 
 
 class RtspChannelWorker(threading.Thread):
@@ -100,42 +85,244 @@ class RtspChannelWorker(threading.Thread):
         *,
         state: ChannelState,
         rtsp_url: str,
+        snapshot_url: Optional[str],
+        snapshot_username: str,
+        snapshot_password: str,
         stop_event: threading.Event,
-        poll_interval_seconds: float = 1.5,
-        reconnect_delay_seconds: float = 10.0,
+        reconnect_delay_seconds: float = 5.0,
+        publish_interval_seconds: float = 0.25,
+        startup_stabilization_seconds: float = 15.0,
+        stale_frame_seconds: float = 5.0,
+        fallback_snapshot_delay_seconds: float = 15.0,
     ) -> None:
         super().__init__(daemon=True, name=f"rtsp-channel-{state.channel_id}")
         self._state = state
         self._rtsp_url = rtsp_url
+        self._snapshot_url = snapshot_url
+        self._snapshot_username = snapshot_username
+        self._snapshot_password = snapshot_password
         self._stop_event = stop_event
-        self._poll_interval_seconds = poll_interval_seconds
         self._reconnect_delay_seconds = reconnect_delay_seconds
+        self._publish_interval_seconds = publish_interval_seconds
+        self._startup_stabilization_seconds = startup_stabilization_seconds
+        self._stale_frame_seconds = stale_frame_seconds
+        self._fallback_snapshot_delay_seconds = fallback_snapshot_delay_seconds
+
+    def _open_capture(self) -> cv2.VideoCapture:
+        # Persistent readers perform best when we prefer TCP and discard corrupt
+        # startup packets instead of tearing the session down on first decode errors.
+        os.environ.setdefault(
+            "OPENCV_FFMPEG_CAPTURE_OPTIONS",
+            "rtsp_transport;tcp|fflags;discardcorrupt|max_delay;500000",
+        )
+        capture = cv2.VideoCapture(self._rtsp_url, cv2.CAP_FFMPEG)
+        if hasattr(cv2, "CAP_PROP_BUFFERSIZE"):
+            capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        return capture
+
+    def _publish_frame(
+        self,
+        frame,
+        *,
+        source: str,
+        now: float,
+    ) -> tuple[bool, Optional[list[int]], str]:
+        ok, encoded = cv2.imencode(
+            ".jpg",
+            frame,
+            [int(cv2.IMWRITE_JPEG_QUALITY), 90],
+        )
+        if not ok:
+            return False, None, "JPEG encode failed"
+        resolution = [int(frame.shape[1]), int(frame.shape[0])]
+        jpeg = encoded.tobytes()
+        first_frame_logged = False
+        first_hd_frame_logged = False
+        with self._state.lock:
+            self._state.latest_jpeg = jpeg
+            self._state.latest_resolution = resolution
+            self._state.latest_frame_at_epoch = now
+            self._state.connected = True
+            self._state.error = ""
+            self._state.source = source
+            if not self._state.first_frame_logged:
+                self._state.first_frame_logged = True
+                first_frame_logged = True
+            if (
+                resolution[0] >= 1280
+                and resolution[1] >= 720
+                and not self._state.first_hd_frame_logged
+            ):
+                self._state.first_hd_frame_logged = True
+                first_hd_frame_logged = True
+        if first_frame_logged:
+            print(
+                f"[ONYX] First clean frame buffered for CH{self._state.channel_id} "
+                f"at {resolution[0]}x{resolution[1]} via {source}."
+            )
+        if first_hd_frame_logged:
+            print(
+                f"[ONYX] First clean HD frame buffered for CH{self._state.channel_id} "
+                f"at {resolution[0]}x{resolution[1]}."
+            )
+        self._warn_if_low_resolution(now)
+        return True, resolution, ""
+
+    def _mark_reader_state(self, *, now: float, error: str) -> None:
+        with self._state.lock:
+            has_frame = self._state.latest_frame_at_epoch is not None
+            if not has_frame and (now - self._state.started_at_epoch) < 30:
+                self._state.connected = False
+                self._state.error = "warming_up"
+                self._state.source = "warming_up"
+                return
+            self._state.connected = False
+            self._state.error = error
+            if not has_frame:
+                self._state.source = "unavailable"
+        self._warn_if_low_resolution(now)
+
+    def _warn_if_low_resolution(self, now: float) -> None:
+        with self._state.lock:
+            if self._state.low_resolution_warned:
+                return
+            age_seconds = now - self._state.started_at_epoch
+            resolution = list(self._state.latest_resolution or [])
+            source = self._state.source
+        if age_seconds < 30:
+            return
+        if len(resolution) == 2 and resolution[0] >= 1280 and resolution[1] >= 720:
+            return
+        if len(resolution) == 2:
+            detail = f"{resolution[0]}x{resolution[1]} via {source}"
+        else:
+            detail = "no clean frame buffered"
+        with self._state.lock:
+            if self._state.low_resolution_warned:
+                return
+            self._state.low_resolution_warned = True
+        print(
+            f"[ONYX] RTSP warning for CH{self._state.channel_id}: "
+            f"resolution still below 1280x720 after 30 seconds ({detail}).",
+            file=sys.stderr,
+        )
+
+    def _refresh_snapshot_fallback(self, now: float) -> bool:
+        if (
+            not self._snapshot_url
+            or not self._snapshot_username
+            or not self._snapshot_password
+        ):
+            return False
+        snapshot_jpeg, snapshot_resolution, snapshot_error = _capture_isapi_snapshot_once(
+            self._snapshot_url,
+            username=self._snapshot_username,
+            password=self._snapshot_password,
+        )
+        if snapshot_jpeg is None or snapshot_resolution is None:
+            self._mark_reader_state(
+                now=now,
+                error=snapshot_error or "ISAPI snapshot fallback failed",
+            )
+            return False
+        with self._state.lock:
+            self._state.latest_jpeg = snapshot_jpeg
+            self._state.latest_resolution = snapshot_resolution
+            self._state.latest_frame_at_epoch = now
+            self._state.connected = True
+            self._state.error = ""
+            self._state.source = "isapi_snapshot"
+            if not self._state.first_frame_logged:
+                self._state.first_frame_logged = True
+                print(
+                    f"[ONYX] First clean frame buffered for CH{self._state.channel_id} "
+                    f"at {snapshot_resolution[0]}x{snapshot_resolution[1]} via isapi_snapshot."
+                )
+        self._warn_if_low_resolution(now)
+        return True
 
     def run(self) -> None:
         while not self._stop_event.is_set():
-            jpeg, resolution, error = _capture_rtsp_frame_once(
-                self._rtsp_url,
-                timeout_seconds=30,
-            )
-            now = time.time()
-            with self._state.lock:
-                if jpeg:
-                    self._state.latest_jpeg = jpeg
-                    self._state.latest_resolution = resolution
-                    self._state.latest_frame_at_epoch = now
-                    self._state.connected = True
-                    self._state.error = ""
-                else:
-                    self._state.connected = False
-                    if self._state.latest_frame_at_epoch is None and (
-                        now - self._state.started_at_epoch
-                    ) < 30:
-                        self._state.error = "warming_up"
+            capture = self._open_capture()
+            opened_at = time.time()
+            last_publish_at = 0.0
+            last_snapshot_at = 0.0
+            last_good_frame_at: Optional[float] = None
+            if not capture.isOpened():
+                self._mark_reader_state(
+                    now=opened_at,
+                    error="RTSP open failed",
+                )
+                capture.release()
+                time.sleep(self._reconnect_delay_seconds)
+                continue
+
+            while not self._stop_event.is_set():
+                now = time.time()
+                frame = None
+                grabbed = capture.grab()
+                if grabbed:
+                    ok, candidate = capture.retrieve()
+                    if ok and candidate is not None and getattr(candidate, "size", 0) > 0:
+                        frame = candidate
+                        last_good_frame_at = now
+
+                if frame is not None and (now - last_publish_at) >= self._publish_interval_seconds:
+                    published, _, error = self._publish_frame(
+                        frame,
+                        source="rtsp",
+                        now=now,
+                    )
+                    if published:
+                        last_publish_at = now
                     else:
-                        self._state.error = error or "RTSP frame decode failed"
-            time.sleep(
-                self._poll_interval_seconds if jpeg else self._reconnect_delay_seconds
-            )
+                        self._mark_reader_state(
+                            now=now,
+                            error=error or "JPEG encode failed",
+                        )
+
+                if last_good_frame_at is None:
+                    if (now - opened_at) < self._startup_stabilization_seconds:
+                        self._warn_if_low_resolution(now)
+                        time.sleep(0.02)
+                        continue
+                    fallback_succeeded = False
+                    if (
+                        self._snapshot_url
+                        and (now - last_snapshot_at) >= self._fallback_snapshot_delay_seconds
+                    ):
+                        if self._refresh_snapshot_fallback(now):
+                            last_snapshot_at = now
+                            fallback_succeeded = True
+                    if fallback_succeeded:
+                        break
+                    self._mark_reader_state(
+                        now=now,
+                        error="RTSP startup never produced a clean frame",
+                    )
+                    break
+
+                if (now - last_good_frame_at) < self._stale_frame_seconds:
+                    self._warn_if_low_resolution(now)
+                    time.sleep(0.02)
+                    continue
+
+                if (
+                    self._snapshot_url
+                    and (now - last_snapshot_at) >= self._fallback_snapshot_delay_seconds
+                ):
+                    if self._refresh_snapshot_fallback(now):
+                        last_snapshot_at = now
+                        break
+                self._mark_reader_state(
+                    now=now,
+                    error="RTSP stream stalled",
+                )
+                break
+
+            capture.release()
+            if self._stop_event.wait(self._reconnect_delay_seconds):
+                return
 
 
 class RtspFrameHandler(BaseHTTPRequestHandler):
@@ -164,7 +351,10 @@ class RtspFrameHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
     def _serve_frame(self) -> None:
         channel_raw = self.path.rsplit("/", 1)[-1]
@@ -198,7 +388,10 @@ class RtspFrameHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
-        self.wfile.write(jpeg)
+        try:
+            self.wfile.write(jpeg)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
 
 class RtspFrameServer:
@@ -209,12 +402,18 @@ class RtspFrameServer:
         port: int,
         channel_states: Dict[int, ChannelState],
         rtsp_urls: Dict[int, str],
+        snapshot_urls: Dict[int, Optional[str]],
+        snapshot_username: str,
+        snapshot_password: str,
         stop_event: threading.Event,
     ) -> None:
         self.host = host
         self.port = port
         self.channel_states = channel_states
         self.rtsp_urls = rtsp_urls
+        self.snapshot_urls = snapshot_urls
+        self.snapshot_username = snapshot_username
+        self.snapshot_password = snapshot_password
         self.stop_event = stop_event
         self._workers: Dict[int, RtspChannelWorker] = {}
         self._lock = threading.Lock()
@@ -237,6 +436,7 @@ class RtspFrameServer:
                 latest_resolution = state.latest_resolution
                 connected = state.connected
                 error = state.error
+                source = state.source
             if latest_at is not None:
                 ready = True
             channels[str(channel_id)] = {
@@ -244,6 +444,7 @@ class RtspFrameServer:
                 "latest_frame_at_epoch": latest_at,
                 "latest_resolution": latest_resolution,
                 "error": error,
+                "source": source,
             }
         return {
             "status": "ok",
@@ -265,6 +466,9 @@ class RtspFrameServer:
             worker = RtspChannelWorker(
                 state=state,
                 rtsp_url=self.rtsp_urls[channel_id],
+                snapshot_url=self.snapshot_urls.get(channel_id),
+                snapshot_username=self.snapshot_username,
+                snapshot_password=self.snapshot_password,
                 stop_event=self.stop_event,
             )
             worker.start()
@@ -340,12 +544,19 @@ def main() -> int:
         )
         for channel_id in channel_ids
     }
+    snapshot_urls = {
+        channel_id: f"http://{nvr_host}/ISAPI/Streaming/channels/{channel_id}01/picture"
+        for channel_id in channel_ids
+    }
 
     server = RtspFrameServer(
         host=args.host,
         port=args.port,
         channel_states=channel_states,
         rtsp_urls=rtsp_urls,
+        snapshot_urls=snapshot_urls,
+        snapshot_username=nvr_user,
+        snapshot_password=nvr_password,
         stop_event=stop_event,
     )
 
