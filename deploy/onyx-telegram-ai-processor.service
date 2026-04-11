@@ -8,7 +8,7 @@ WorkingDirectory=/opt/onyx
 ExecStart=/opt/onyx/bin/onyx_telegram_ai_processor
 Restart=always
 RestartSec=5
-EnvironmentFile=/opt/onyx/.env
+EnvironmentFile=/opt/onyx/config/worker.env
 
 [Install]
 WantedBy=multi-user.target
