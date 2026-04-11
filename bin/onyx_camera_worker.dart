@@ -1147,8 +1147,7 @@ class OnyxSiteVehicleRegistryEntry {
     return OnyxSiteVehicleRegistryEntry(
       siteId: (row['site_id'] as String? ?? '').trim(),
       plateNumber: _normalizeVehiclePlate(row['plate_number']),
-      vehicleDescription:
-          (row['vehicle_description'] as String? ?? '').trim(),
+      vehicleDescription: (row['vehicle_description'] as String? ?? '').trim(),
       ownerName: (row['owner_name'] as String? ?? '').trim(),
       ownerRole: (row['owner_role'] as String? ?? '').trim(),
       isActive: _siteOccupancyBool(row['is_active']) ?? true,
@@ -1223,7 +1222,10 @@ class OnyxFrPersonRegistryEntry {
 }
 
 class OnyxSiteAwarenessRepository {
-  final SupabaseClient _client;
+  final String _supabaseUrl;
+  final String _supabaseKey;
+  final Duration requestTimeout;
+  SupabaseClient _client;
   final Map<String, OnyxSiteOccupancyConfig?> _occupancyConfigCache =
       <String, OnyxSiteOccupancyConfig?>{};
   final Map<String, SiteAlertConfig?> _alertConfigCache =
@@ -1234,28 +1236,135 @@ class OnyxSiteAwarenessRepository {
       <String, List<OnyxSiteVehicleRegistryEntry>>{};
   final Map<String, List<OnyxFrPersonRegistryEntry>> _frRegistryCache =
       <String, List<OnyxFrPersonRegistryEntry>>{};
+  Completer<void>? _reconnectCompleter;
+  DateTime? _lastSnapshotPersistAttemptAtUtc;
+  DateTime? _lastSuccessfulSnapshotPersistAtUtc;
+  DateTime? _firstSnapshotPersistFailureAtUtc;
+  DateTime? _lastReconnectAtUtc;
+  int _consecutiveSnapshotPersistFailures = 0;
 
-  OnyxSiteAwarenessRepository(SupabaseClient client) : _client = client;
+  OnyxSiteAwarenessRepository({
+    required String supabaseUrl,
+    required String supabaseKey,
+    this.requestTimeout = const Duration(seconds: 20),
+  }) : _supabaseUrl = supabaseUrl.trim(),
+       _supabaseKey = supabaseKey.trim(),
+       _client = SupabaseClient(supabaseUrl.trim(), supabaseKey.trim());
 
-  Future<void> upsertSnapshot(OnyxSiteAwarenessSnapshot snapshot) async {
+  DateTime? get lastSnapshotPersistAttemptAtUtc =>
+      _lastSnapshotPersistAttemptAtUtc;
+  DateTime? get lastSuccessfulSnapshotPersistAtUtc =>
+      _lastSuccessfulSnapshotPersistAtUtc;
+  DateTime? get lastReconnectAtUtc => _lastReconnectAtUtc;
+  int get consecutiveSnapshotPersistFailures =>
+      _consecutiveSnapshotPersistFailures;
+
+  bool isSnapshotPersistenceStale({
+    required DateTime nowUtc,
+    required Duration staleAfter,
+  }) {
+    final lastAttemptAtUtc = _lastSnapshotPersistAttemptAtUtc;
+    if (lastAttemptAtUtc == null) {
+      return false;
+    }
+    if (nowUtc.difference(lastAttemptAtUtc) > staleAfter) {
+      return false;
+    }
+    final lastSuccessAtUtc = _lastSuccessfulSnapshotPersistAtUtc;
+    if (lastSuccessAtUtc != null &&
+        nowUtc.difference(lastSuccessAtUtc) <= staleAfter) {
+      return false;
+    }
+    final firstFailureAtUtc = _firstSnapshotPersistFailureAtUtc;
+    if (firstFailureAtUtc != null &&
+        nowUtc.difference(firstFailureAtUtc) >= staleAfter) {
+      return true;
+    }
+    return _consecutiveSnapshotPersistFailures >= 3;
+  }
+
+  Future<void> reconnect({required String reason}) async {
+    final activeReconnect = _reconnectCompleter;
+    if (activeReconnect != null) {
+      await activeReconnect.future;
+      return;
+    }
+    final completer = Completer<void>();
+    _reconnectCompleter = completer;
+    final previousClient = _client;
     try {
-      await _client.from('site_awareness_snapshots').upsert(<String, Object?>{
-        'site_id': snapshot.siteId,
-        'client_id': snapshot.clientId,
-        'snapshot_at': snapshot.snapshotAt.toUtc().toIso8601String(),
-        'channels': snapshot.channels.map(
-          (key, value) => MapEntry(key, value.toJsonMap()),
-        ),
-        'detections': snapshot.detections.toJsonMap(),
-        'perimeter_clear': snapshot.perimeterClear,
-        'known_faults': snapshot.knownFaults,
-        'active_alerts': snapshot.activeAlerts
-            .map((alert) => alert.toJsonMap())
-            .toList(growable: false),
-      }, onConflict: 'site_id');
+      developer.log(
+        '[ONYX] Reconnecting Supabase client. Reason: $reason',
+        name: 'OnyxSiteAwarenessRepository',
+        level: 900,
+      );
+      _client = SupabaseClient(_supabaseUrl, _supabaseKey);
+      _lastReconnectAtUtc = DateTime.now().toUtc();
+      completer.complete();
+    } catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
+      developer.log(
+        'Failed to reconnect Supabase client.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      rethrow;
+    } finally {
+      _reconnectCompleter = null;
+    }
+    try {
+      await previousClient.dispose();
     } catch (error, stackTrace) {
       developer.log(
-        'Failed to upsert site awareness snapshot for ${snapshot.siteId}.',
+        'Failed to dispose stale Supabase client after reconnect.',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 900,
+      );
+    }
+  }
+
+  Future<void> upsertSnapshot(OnyxSiteAwarenessSnapshot snapshot) async {
+    _lastSnapshotPersistAttemptAtUtc = DateTime.now().toUtc();
+    try {
+      await _runWriteWithReconnect(
+        operationLabel:
+            'upsert site awareness snapshot for ${snapshot.siteId} at '
+            '${snapshot.snapshotAt.toUtc().toIso8601String()}',
+        action: (client) =>
+            client.from('site_awareness_snapshots').upsert(<String, Object?>{
+              'site_id': snapshot.siteId,
+              'client_id': snapshot.clientId,
+              'snapshot_at': snapshot.snapshotAt.toUtc().toIso8601String(),
+              'channels': snapshot.channels.map(
+                (key, value) => MapEntry(key, value.toJsonMap()),
+              ),
+              'detections': snapshot.detections.toJsonMap(),
+              'perimeter_clear': snapshot.perimeterClear,
+              'known_faults': snapshot.knownFaults,
+              'active_alerts': snapshot.activeAlerts
+                  .map((alert) => alert.toJsonMap())
+                  .toList(growable: false),
+            }, onConflict: 'site_id'),
+      );
+      _lastSuccessfulSnapshotPersistAtUtc = DateTime.now().toUtc();
+      _firstSnapshotPersistFailureAtUtc = null;
+      _consecutiveSnapshotPersistFailures = 0;
+    } catch (error, stackTrace) {
+      final failedAtUtc = DateTime.now().toUtc();
+      _firstSnapshotPersistFailureAtUtc ??= failedAtUtc;
+      _consecutiveSnapshotPersistFailures += 1;
+      developer.log(
+        'Failed to upsert site awareness snapshot for ${snapshot.siteId} at '
+        '${snapshot.snapshotAt.toUtc().toIso8601String()}. '
+        'Consecutive snapshot persist failures: '
+        '$_consecutiveSnapshotPersistFailures. Last successful snapshot '
+        'write: '
+        '${_lastSuccessfulSnapshotPersistAtUtc?.toIso8601String() ?? 'never'}. '
+        'Supabase error: ${_supabaseErrorSummary(error)}',
         name: 'OnyxSiteAwarenessRepository',
         error: error,
         stackTrace: stackTrace,
@@ -1263,6 +1372,66 @@ class OnyxSiteAwarenessRepository {
       );
       rethrow;
     }
+  }
+
+  Future<void> _runWriteWithReconnect({
+    required String operationLabel,
+    required Future<void> Function(SupabaseClient client) action,
+  }) async {
+    try {
+      await action(_client).timeout(requestTimeout);
+      return;
+    } catch (error, stackTrace) {
+      developer.log(
+        '[ONYX] Supabase write failed during $operationLabel. '
+        '${_supabaseErrorSummary(error)}',
+        name: 'OnyxSiteAwarenessRepository',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+      await reconnect(reason: '$operationLabel failed');
+      try {
+        await action(_client).timeout(requestTimeout);
+        developer.log(
+          '[ONYX] Supabase write recovered after reconnect during '
+          '$operationLabel.',
+          name: 'OnyxSiteAwarenessRepository',
+          level: 900,
+        );
+      } catch (retryError, retryStackTrace) {
+        developer.log(
+          '[ONYX] Supabase write retry failed during $operationLabel after '
+          'reconnect. ${_supabaseErrorSummary(retryError)}',
+          name: 'OnyxSiteAwarenessRepository',
+          error: retryError,
+          stackTrace: retryStackTrace,
+          level: 1000,
+        );
+        rethrow;
+      }
+    }
+  }
+
+  String _supabaseErrorSummary(Object error) {
+    if (error is TimeoutException) {
+      return 'Request timed out after ${requestTimeout.inSeconds}s.';
+    }
+    if (error is SocketException) {
+      return 'Socket error: ${error.message}';
+    }
+    if (error is PostgrestException) {
+      final details = error.details?.toString().trim() ?? '';
+      final hint = error.hint?.toString().trim() ?? '';
+      final parts = <String>[
+        if (error.code?.trim().isNotEmpty == true) 'code=${error.code}',
+        if (error.message.trim().isNotEmpty) error.message.trim(),
+        if (details.isNotEmpty) 'details=$details',
+        if (hint.isNotEmpty) 'hint=$hint',
+      ];
+      return parts.isEmpty ? error.toString() : parts.join(' | ');
+    }
+    return error.toString();
   }
 
   Future<OnyxSiteOccupancyConfig?> readOccupancyConfig(String siteId) async {
@@ -1437,7 +1606,9 @@ class OnyxSiteAwarenessRepository {
     }
   }
 
-  Future<List<Map<String, dynamic>>> readExpectedVisitorRows(String siteId) async {
+  Future<List<Map<String, dynamic>>> readExpectedVisitorRows(
+    String siteId,
+  ) async {
     final normalizedSiteId = siteId.trim();
     if (normalizedSiteId.isEmpty) {
       return const <Map<String, dynamic>>[];
@@ -1628,14 +1799,20 @@ class OnyxSiteAwarenessRepository {
       final peakDetected = expectedOccupancy > 0
           ? math.min(rawPeakDetected, expectedOccupancy)
           : rawPeakDetected;
-      await _client.from('site_occupancy_sessions').upsert(<String, Object?>{
-        'site_id': normalizedSiteId,
-        'session_date': sessionDate,
-        'peak_detected': peakDetected,
-        'last_detection_at': detectedAt.toUtc().toIso8601String(),
-        'channels_with_detections': updatedChannels,
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }, onConflict: 'site_id,session_date');
+      await _runWriteWithReconnect(
+        operationLabel:
+            'record occupancy signal for $normalizedSiteId channel '
+            '$normalizedChannelId',
+        action: (client) =>
+            client.from('site_occupancy_sessions').upsert(<String, Object?>{
+              'site_id': normalizedSiteId,
+              'session_date': sessionDate,
+              'peak_detected': peakDetected,
+              'last_detection_at': detectedAt.toUtc().toIso8601String(),
+              'channels_with_detections': updatedChannels,
+              'updated_at': DateTime.now().toUtc().toIso8601String(),
+            }, onConflict: 'site_id,session_date'),
+      );
     } catch (error, stackTrace) {
       developer.log(
         'Failed to record occupancy signal for $normalizedSiteId channel $normalizedChannelId.',
@@ -1671,29 +1848,35 @@ class OnyxSiteAwarenessRepository {
         siteId: normalizedSiteId,
         plateNumber: normalizedPlate,
       );
-      final ownerName =
-          registryEntry?.ownerName.trim().isNotEmpty == true
+      final ownerName = registryEntry?.ownerName.trim().isNotEmpty == true
           ? registryEntry!.ownerName.trim()
           : 'Unknown';
-      final eventType =
-          normalizedPlate.isEmpty
+      final eventType = normalizedPlate.isEmpty
           ? 'detected'
           : recentPresence != null &&
-                detectedAt
-                        .toUtc()
-                        .difference(recentPresence.occurredAt.toUtc()) <
+                detectedAt.toUtc().difference(
+                      recentPresence.occurredAt.toUtc(),
+                    ) <
                     const Duration(minutes: 30)
           ? 'on_site'
           : 'arrived';
-      await _client.from('site_vehicle_presence').insert(<String, Object?>{
-        'site_id': normalizedSiteId,
-        'plate_number': normalizedPlate.isEmpty ? 'UNKNOWN' : normalizedPlate,
-        'owner_name': ownerName,
-        'event_type': eventType,
-        'channel_id': channelId > 0 ? channelId : null,
-        'zone_name': zoneName.trim().isEmpty ? null : zoneName.trim(),
-        'occurred_at': detectedAt.toUtc().toIso8601String(),
-      });
+      await _runWriteWithReconnect(
+        operationLabel:
+            'record vehicle detection for $normalizedSiteId plate '
+            '${normalizedPlate.isEmpty ? 'UNKNOWN' : normalizedPlate}',
+        action: (client) =>
+            client.from('site_vehicle_presence').insert(<String, Object?>{
+              'site_id': normalizedSiteId,
+              'plate_number': normalizedPlate.isEmpty
+                  ? 'UNKNOWN'
+                  : normalizedPlate,
+              'owner_name': ownerName,
+              'event_type': eventType,
+              'channel_id': channelId > 0 ? channelId : null,
+              'zone_name': zoneName.trim().isEmpty ? null : zoneName.trim(),
+              'occurred_at': detectedAt.toUtc().toIso8601String(),
+            }),
+      );
       developer.log(
         normalizedPlate.isEmpty
             ? 'Unknown vehicle detected on $normalizedSiteId.'
@@ -1724,18 +1907,22 @@ class OnyxSiteAwarenessRepository {
     required int port,
   }) async {
     try {
-      await _client.from('site_alarm_events').insert(<String, Object?>{
-        'site_id': siteId.trim(),
-        'device_id': deviceId.trim(),
-        'event_type': 'camera_worker_offline',
-        'occurred_at': occurredAt.toUtc().toIso8601String(),
-        'raw_payload': <String, Object?>{
-          'host': host,
-          'port': port,
-          'consecutive_failures': consecutiveFailures,
-          'next_retry_seconds': nextRetryDelay.inSeconds,
-        },
-      });
+      await _runWriteWithReconnect(
+        operationLabel: 'record camera worker offline event for $siteId',
+        action: (client) =>
+            client.from('site_alarm_events').insert(<String, Object?>{
+              'site_id': siteId.trim(),
+              'device_id': deviceId.trim(),
+              'event_type': 'camera_worker_offline',
+              'occurred_at': occurredAt.toUtc().toIso8601String(),
+              'raw_payload': <String, Object?>{
+                'host': host,
+                'port': port,
+                'consecutive_failures': consecutiveFailures,
+                'next_retry_seconds': nextRetryDelay.inSeconds,
+              },
+            }),
+      );
     } catch (error, stackTrace) {
       developer.log(
         'Failed to record camera worker offline event for $siteId.',
@@ -1925,6 +2112,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   StreamSubscription<OnyxProactiveAlertDecision>? _proactiveAlertSubscription;
   Timer? _publishTimer;
   Timer? _heartbeatTimer;
+  Timer? _supabaseWatchdogTimer;
   OnyxSiteAwarenessProjector? _projector;
   OnyxSiteAwarenessSnapshot? _latestSnapshot;
   bool _isConnected = false;
@@ -1978,12 +2166,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     path: '/ISAPI/Event/notification/alertStream',
   );
 
-  Uri get _systemStatusUri => Uri(
-    scheme: 'http',
-    host: host,
-    port: port,
-    path: '/ISAPI/System/status',
-  );
+  Uri get _systemStatusUri =>
+      Uri(scheme: 'http', host: host, port: port, path: '/ISAPI/System/status');
 
   Uri _snapshotUriForChannel(String channelId) {
     final normalizedChannelId = _snapshotStreamChannelId(channelId);
@@ -2052,6 +2236,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       unawaited(_sendKeepaliveHeartbeat(_generation));
     });
+    _supabaseWatchdogTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      unawaited(_runSupabaseWatchdog(_generation));
+    });
     unawaited(_runConnectionLoop(_generation));
   }
 
@@ -2065,6 +2252,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _publishTimer = null;
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    _supabaseWatchdogTimer?.cancel();
+    _supabaseWatchdogTimer = null;
     _lastStreamEventAtUtc = null;
     final subscription = _streamSubscription;
     _streamSubscription = null;
@@ -2404,7 +2593,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (repository != null && event.eventType == OnyxEventType.humanDetected) {
       unawaited(_persistOccupancy(repository, event));
     }
-    if (repository != null && event.eventType == OnyxEventType.vehicleDetected) {
+    if (repository != null &&
+        event.eventType == OnyxEventType.vehicleDetected) {
       unawaited(_persistVehiclePresence(repository, event));
     }
     final proactiveAlertService = _proactiveAlertService;
@@ -2456,13 +2646,16 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   ) async {
     final liveSnapshotYoloService = _liveSnapshotYoloService;
     // ignore: avoid_print
-    print('[ONYX-DEBUG] _enrichHumanDetectionEvent called for CH${event.channelId}');
+    print(
+      '[ONYX-DEBUG] _enrichHumanDetectionEvent called for CH${event.channelId}',
+    );
     // ignore: avoid_print
     print(
       '[ONYX-DEBUG] liveSnapshotYoloService configured: '
       '${liveSnapshotYoloService?.isConfigured}',
     );
-    if (liveSnapshotYoloService == null || !liveSnapshotYoloService.isConfigured) {
+    if (liveSnapshotYoloService == null ||
+        !liveSnapshotYoloService.isConfigured) {
       developer.log(
         '[ONYX] FR snapshot skipped for CH${event.channelId}: YOLO/FR endpoint is not configured.',
         name: 'OnyxHikIsapiStream',
@@ -2550,8 +2743,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
                 siteId: _siteId,
                 personId: faceMatchId,
               );
-        final label =
-            (person?.displayName ?? '').trim().isNotEmpty
+        final label = (person?.displayName ?? '').trim().isNotEmpty
             ? person!.displayName.trim()
             : faceMatchId;
         developer.log(
@@ -2587,9 +2779,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return event;
     } catch (error, stackTrace) {
       // ignore: avoid_print
-      print(
-        '[ONYX-DEBUG] FR pipeline error on CH$channelId: $error',
-      );
+      print('[ONYX-DEBUG] FR pipeline error on CH$channelId: $error');
       developer.log(
         '[ONYX] FR pipeline error on CH$channelId: $error',
         name: 'OnyxHikIsapiStream',
@@ -2712,7 +2902,64 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       await repository.upsertSnapshot(snapshot);
     } catch (error, stackTrace) {
       developer.log(
-        'Failed to persist site awareness snapshot.',
+        'Failed to persist site awareness snapshot for ${snapshot.siteId} at '
+        '${snapshot.snapshotAt.toUtc().toIso8601String()}. Last successful '
+        'Supabase snapshot write: '
+        '${repository.lastSuccessfulSnapshotPersistAtUtc?.toIso8601String() ?? 'never'}.',
+        name: 'OnyxHikIsapiStream',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
+  }
+
+  Future<void> _runSupabaseWatchdog(int generation) async {
+    final repository = _repository;
+    if (!_running ||
+        generation != _generation ||
+        !_isConnected ||
+        repository == null) {
+      return;
+    }
+    final nowUtc = _clock().toUtc();
+    final staleAfter = Duration(
+      seconds: math.max(publishInterval.inSeconds * 4, 180),
+    );
+    if (!repository.isSnapshotPersistenceStale(
+      nowUtc: nowUtc,
+      staleAfter: staleAfter,
+    )) {
+      return;
+    }
+    final lastReconnectAtUtc = repository.lastReconnectAtUtc;
+    if (lastReconnectAtUtc != null &&
+        nowUtc.difference(lastReconnectAtUtc) < const Duration(minutes: 1)) {
+      return;
+    }
+    developer.log(
+      '[ONYX] Supabase snapshot persistence is stale while the camera stream '
+      'is connected. Last success: '
+      '${repository.lastSuccessfulSnapshotPersistAtUtc?.toIso8601String() ?? 'never'}, '
+      'last attempt: '
+      '${repository.lastSnapshotPersistAttemptAtUtc?.toIso8601String() ?? 'never'}, '
+      'consecutive failures: ${repository.consecutiveSnapshotPersistFailures}. '
+      'Reconnecting Supabase client.',
+      name: 'OnyxHikIsapiStream',
+      level: 900,
+    );
+    try {
+      await repository.reconnect(
+        reason:
+            'snapshot persistence stale while camera stream remains connected',
+      );
+      final latestSnapshot = _latestSnapshot;
+      if (latestSnapshot != null) {
+        await _persistSnapshot(repository, latestSnapshot);
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'Supabase watchdog reconnect failed.',
         name: 'OnyxHikIsapiStream',
         error: error,
         stackTrace: stackTrace,
@@ -2980,8 +3227,10 @@ Future<void> main() async {
   OnyxSiteAwarenessRepository? repository;
   OnyxProactiveAlertService? proactiveAlertService;
   if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
-    final supabaseClient = SupabaseClient(supabaseUrl, supabaseKey);
-    repository = OnyxSiteAwarenessRepository(supabaseClient);
+    repository = OnyxSiteAwarenessRepository(
+      supabaseUrl: supabaseUrl,
+      supabaseKey: supabaseKey,
+    );
     proactiveAlertService = OnyxProactiveAlertService(
       readConfig: repository.readAlertConfig,
       profileService: OnyxSiteProfileService(

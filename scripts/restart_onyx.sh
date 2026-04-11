@@ -1,6 +1,6 @@
 #!/bin/bash
 # ONYX safe restart — stash, pull, restart
-set -e
+set -euo pipefail
 
 CONFIG_FILE="config/onyx.local.json"
 STASH_CREATED=0
@@ -12,12 +12,17 @@ echo "Stashing local changes..."
 if git diff --quiet && git diff --cached --quiet; then
   echo "No local changes to stash."
 else
-  git stash push -u -m "onyx-restart-$(date +%Y%m%d-%H%M%S)"
-  STASH_CREATED=1
+  if git stash push -u -m "onyx-restart-$(date +%Y%m%d-%H%M%S)"; then
+    STASH_CREATED=1
+  else
+    echo "git stash failed; continuing with current working tree."
+  fi
 fi
 
 echo "Pulling latest from main..."
-git pull --rebase origin main
+if ! git pull --rebase origin main; then
+  echo "git pull failed; continuing with current code."
+fi
 
 echo "Restoring local changes..."
 if [[ "$STASH_CREATED" -eq 1 ]]; then
