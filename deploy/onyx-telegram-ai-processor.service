@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/onyx
-ExecStart=/opt/onyx/telegram_ai_processor/bundle/bin/onyx_telegram_ai_processor
+ExecStart=/opt/onyx/bin/onyx_telegram_ai_processor
 Restart=always
 RestartSec=5
 EnvironmentFile=/opt/onyx/.env

@@ -1,0 +1,10 @@
+name: onyx_telegram_ai_processor
+description: Minimal plain-Dart ONYX Telegram AI processor for server deployment.
+publish_to: none
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+
+dependencies:
+  http: ^1.5.0
+  supabase: ^2.10.3

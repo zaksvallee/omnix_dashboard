@@ -1,16 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart';
-
-import 'package:omnix_dashboard/application/openai_runtime_config.dart';
-import 'package:omnix_dashboard/application/telegram_ai_assistant_service.dart';
-import 'package:omnix_dashboard/application/telegram_bridge_service.dart';
-import 'package:omnix_dashboard/application/telegram_command_router.dart';
-import 'package:omnix_dashboard/application/telegram_endpoint_scope_resolution.dart';
 
 const Duration _defaultPollInterval = Duration(seconds: 2);
 
@@ -1014,4 +1009,1054 @@ DateTime _visitorEndTime(String prompt, DateTime nowLocal) {
     defaultHour,
     defaultMinute,
   );
+}
+
+class OpenAiRuntimeConfig {
+  final String apiKey;
+  final String model;
+  final Uri? endpoint;
+
+  const OpenAiRuntimeConfig({
+    required this.apiKey,
+    required this.model,
+    required this.endpoint,
+  });
+
+  bool get isConfigured => apiKey.trim().isNotEmpty && model.trim().isNotEmpty;
+
+  static OpenAiRuntimeConfig resolve({
+    required String primaryApiKey,
+    required String primaryModel,
+    required String primaryEndpoint,
+    String secondaryApiKey = '',
+    String secondaryModel = '',
+    String secondaryEndpoint = '',
+    String genericApiKey = '',
+    String genericModel = '',
+    String genericBaseUrl = '',
+  }) {
+    final apiKey = _firstNonEmpty(primaryApiKey, secondaryApiKey, genericApiKey);
+    final model = _firstNonEmpty(primaryModel, secondaryModel, genericModel);
+    final endpointRaw = _firstNonEmpty(
+      primaryEndpoint,
+      secondaryEndpoint,
+      genericBaseUrl,
+    );
+    return OpenAiRuntimeConfig(
+      apiKey: apiKey,
+      model: model,
+      endpoint: _resolveResponsesEndpoint(endpointRaw),
+    );
+  }
+
+  static String _firstNonEmpty(String first, String second, String third) {
+    if (first.trim().isNotEmpty) {
+      return first.trim();
+    }
+    if (second.trim().isNotEmpty) {
+      return second.trim();
+    }
+    return third.trim();
+  }
+
+  static Uri? _resolveResponsesEndpoint(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) {
+      return Uri.parse('https://api.openai.com/v1/responses');
+    }
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed == null) {
+      return null;
+    }
+    final normalizedPath = parsed.path.trim();
+    if (normalizedPath.isEmpty || normalizedPath == '/') {
+      return parsed.replace(path: '/v1/responses');
+    }
+    if (normalizedPath.endsWith('/responses') ||
+        normalizedPath == '/responses') {
+      return parsed;
+    }
+    if (normalizedPath == '/v1' || normalizedPath == 'v1') {
+      return parsed.replace(path: '/v1/responses');
+    }
+    return parsed;
+  }
+}
+
+enum TelegramAiAudience { admin, client }
+
+enum TelegramAiDeliveryMode { telegramLive, approvalDraft, smsFallback }
+
+class TelegramAiDraftReply {
+  final String text;
+  final bool usedFallback;
+  final String providerLabel;
+
+  const TelegramAiDraftReply({
+    required this.text,
+    this.usedFallback = false,
+    this.providerLabel = 'fallback',
+  });
+}
+
+class TelegramAiSiteAwarenessSummary {
+  final DateTime observedAtUtc;
+  final bool perimeterClear;
+  final int humanCount;
+  final int vehicleCount;
+  final int animalCount;
+  final int motionCount;
+  final int activeAlertCount;
+  final List<String> knownFaultChannels;
+
+  const TelegramAiSiteAwarenessSummary({
+    required this.observedAtUtc,
+    required this.perimeterClear,
+    required this.humanCount,
+    required this.vehicleCount,
+    required this.animalCount,
+    required this.motionCount,
+    required this.activeAlertCount,
+    this.knownFaultChannels = const <String>[],
+  });
+
+  String get contextSummary {
+    final faults = knownFaultChannels.isEmpty
+        ? 'all reporting channels healthy'
+        : knownFaultChannels.map((value) => 'Channel $value offline').join(', ');
+    return '${perimeterClear ? 'perimeter clear' : 'perimeter alert active'}, '
+        '$humanCount people, $vehicleCount vehicles, $animalCount animals, '
+        '$activeAlertCount active alerts, $faults';
+  }
+}
+
+abstract class TelegramAiAssistantService {
+  bool get isConfigured;
+
+  Future<TelegramAiDraftReply> draftReply({
+    required TelegramAiAudience audience,
+    required String messageText,
+    String? clientId,
+    String? siteId,
+    TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
+  });
+}
+
+class UnconfiguredTelegramAiAssistantService
+    implements TelegramAiAssistantService {
+  const UnconfiguredTelegramAiAssistantService();
+
+  @override
+  bool get isConfigured => false;
+
+  @override
+  Future<TelegramAiDraftReply> draftReply({
+    required TelegramAiAudience audience,
+    required String messageText,
+    String? clientId,
+    String? siteId,
+    TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
+  }) async {
+    final siteLabel = _siteLabel(siteId ?? '');
+    final summary = siteAwarenessSummary?.contextSummary;
+    final text = summary == null
+        ? 'Message received for $siteLabel. Monitoring continues.'
+        : 'Message received for $siteLabel. Current status: $summary.';
+    return TelegramAiDraftReply(
+      text: text,
+      usedFallback: true,
+      providerLabel: 'fallback',
+    );
+  }
+}
+
+class OpenAiTelegramAiAssistantService
+    implements TelegramAiAssistantService {
+  final http.Client client;
+  final String apiKey;
+  final String model;
+  final Uri? endpoint;
+
+  const OpenAiTelegramAiAssistantService({
+    required this.client,
+    required this.apiKey,
+    required this.model,
+    required this.endpoint,
+  });
+
+  @override
+  bool get isConfigured =>
+      apiKey.trim().isNotEmpty &&
+      model.trim().isNotEmpty &&
+      endpoint != null;
+
+  @override
+  Future<TelegramAiDraftReply> draftReply({
+    required TelegramAiAudience audience,
+    required String messageText,
+    String? clientId,
+    String? siteId,
+    TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
+    TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
+  }) async {
+    if (!isConfigured) {
+      return const TelegramAiDraftReply(
+        text: 'Message received. Monitoring continues.',
+        usedFallback: true,
+        providerLabel: 'fallback',
+      );
+    }
+    final siteLabel = _siteLabel(siteId ?? '');
+    final summary = siteAwarenessSummary?.contextSummary ?? 'no fresh site summary';
+    final systemPrompt =
+        'You are ONYX, a concise security operations assistant. '
+        'Reply for a ${audience.name} Telegram audience. '
+        'Keep replies short, practical, and specific. '
+        'Do not invent incidents, dispatches, guards, or camera facts.';
+    final userPrompt =
+        'Site: $siteLabel\n'
+        'Client ID: ${(clientId ?? '').trim()}\n'
+        'Delivery mode: ${deliveryMode.name}\n'
+        'Site summary: $summary\n'
+        'User message: ${messageText.trim()}';
+    try {
+      final response = await client
+          .post(
+            endpoint!,
+            headers: <String, String>{
+              'Authorization': 'Bearer ${apiKey.trim()}',
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(<String, Object?>{
+              'model': model.trim(),
+              'input': <Map<String, Object?>>[
+                <String, Object?>{
+                  'role': 'system',
+                  'content': <Map<String, String>>[
+                    <String, String>{'type': 'input_text', 'text': systemPrompt},
+                  ],
+                },
+                <String, Object?>{
+                  'role': 'user',
+                  'content': <Map<String, String>>[
+                    <String, String>{'type': 'input_text', 'text': userPrompt},
+                  ],
+                },
+              ],
+              'max_output_tokens': 220,
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return TelegramAiDraftReply(
+          text: 'Message received for $siteLabel. Monitoring continues.',
+          usedFallback: true,
+          providerLabel: 'fallback',
+        );
+      }
+      final text = _extractResponseText(response.body);
+      if (text.trim().isEmpty) {
+        return TelegramAiDraftReply(
+          text: 'Message received for $siteLabel. Monitoring continues.',
+          usedFallback: true,
+          providerLabel: 'fallback',
+        );
+      }
+      return TelegramAiDraftReply(text: text.trim(), providerLabel: 'openai');
+    } catch (_) {
+      return TelegramAiDraftReply(
+        text: 'Message received for $siteLabel. Monitoring continues.',
+        usedFallback: true,
+        providerLabel: 'fallback',
+      );
+    }
+  }
+
+  String _extractResponseText(String rawBody) {
+    try {
+      final decoded = jsonDecode(rawBody);
+      if (decoded is! Map) {
+        return '';
+      }
+      final outputText = (decoded['output_text'] ?? '').toString().trim();
+      if (outputText.isNotEmpty) {
+        return outputText;
+      }
+      final output = decoded['output'];
+      if (output is List) {
+        final buffer = StringBuffer();
+        for (final item in output.whereType<Map>()) {
+          final content = item['content'];
+          if (content is! List) {
+            continue;
+          }
+          for (final entry in content.whereType<Map>()) {
+            final text = (entry['text'] ?? '').toString().trim();
+            if (text.isNotEmpty) {
+              if (buffer.isNotEmpty) {
+                buffer.writeln();
+              }
+              buffer.write(text);
+            }
+          }
+        }
+        return buffer.toString().trim();
+      }
+    } catch (_) {
+      return '';
+    }
+    return '';
+  }
+}
+
+class TelegramBridgeMessage {
+  final String messageKey;
+  final String chatId;
+  final int? messageThreadId;
+  final String text;
+
+  const TelegramBridgeMessage({
+    required this.messageKey,
+    required this.chatId,
+    this.messageThreadId,
+    required this.text,
+  });
+}
+
+class TelegramBridgeInboundMessage {
+  final int updateId;
+  final String? callbackQueryId;
+  final int? messageId;
+  final String chatId;
+  final String chatType;
+  final String? chatTitle;
+  final int? messageThreadId;
+  final int? replyToMessageId;
+  final String? replyToText;
+  final int? fromUserId;
+  final String? fromUsername;
+  final bool fromIsBot;
+  final String text;
+  final DateTime? sentAtUtc;
+
+  const TelegramBridgeInboundMessage({
+    required this.updateId,
+    this.callbackQueryId,
+    this.messageId,
+    required this.chatId,
+    required this.chatType,
+    this.chatTitle,
+    this.messageThreadId,
+    this.replyToMessageId,
+    this.replyToText,
+    this.fromUserId,
+    this.fromUsername,
+    this.fromIsBot = false,
+    required this.text,
+    this.sentAtUtc,
+  });
+}
+
+class TelegramBridgeSendResult {
+  final List<TelegramBridgeMessage> sent;
+  final List<TelegramBridgeMessage> failed;
+  final Map<String, String> failureReasonsByMessageKey;
+
+  const TelegramBridgeSendResult({
+    required this.sent,
+    required this.failed,
+    this.failureReasonsByMessageKey = const <String, String>{},
+  });
+
+  int get sentCount => sent.length;
+}
+
+abstract class TelegramBridgeService {
+  bool get isConfigured;
+
+  Future<TelegramBridgeSendResult> sendMessages({
+    required List<TelegramBridgeMessage> messages,
+  });
+}
+
+class HttpTelegramBridgeService implements TelegramBridgeService {
+  final http.Client client;
+  final String botToken;
+  final Uri? apiBaseUri;
+  final Duration requestTimeout;
+
+  const HttpTelegramBridgeService({
+    required this.client,
+    required this.botToken,
+    this.apiBaseUri,
+    this.requestTimeout = const Duration(seconds: 12),
+  });
+
+  @override
+  bool get isConfigured => botToken.trim().isNotEmpty;
+
+  @override
+  Future<TelegramBridgeSendResult> sendMessages({
+    required List<TelegramBridgeMessage> messages,
+  }) async {
+    if (messages.isEmpty) {
+      return const TelegramBridgeSendResult(sent: [], failed: []);
+    }
+    if (!isConfigured) {
+      return TelegramBridgeSendResult(
+        sent: const [],
+        failed: messages,
+        failureReasonsByMessageKey: {
+          for (final message in messages)
+            message.messageKey: 'Telegram bridge not configured.',
+        },
+      );
+    }
+    final endpoint = _buildEndpoint('sendMessage');
+    final sent = <TelegramBridgeMessage>[];
+    final failed = <TelegramBridgeMessage>[];
+    final failureReasons = <String, String>{};
+    for (final message in messages) {
+      final chatId = message.chatId.trim();
+      if (chatId.isEmpty) {
+        failed.add(message);
+        failureReasons[message.messageKey] = 'Missing Telegram chat_id.';
+        continue;
+      }
+      try {
+        final response = await client
+            .post(
+              endpoint,
+              headers: const <String, String>{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: jsonEncode(<String, Object?>{
+                'chat_id': chatId,
+                if (message.messageThreadId != null)
+                  'message_thread_id': message.messageThreadId,
+                'text': message.text,
+                'disable_web_page_preview': true,
+              }),
+            )
+            .timeout(requestTimeout);
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          failed.add(message);
+          failureReasons[message.messageKey] =
+              _extractTelegramErrorDescription(response.body) ??
+              'HTTP ${response.statusCode}';
+          continue;
+        }
+        final decoded = jsonDecode(response.body);
+        if (decoded is! Map || decoded['ok'] != true) {
+          failed.add(message);
+          failureReasons[message.messageKey] =
+              _extractTelegramErrorDescription(response.body) ??
+              'Telegram response invalid';
+          continue;
+        }
+        sent.add(message);
+      } catch (error) {
+        failed.add(message);
+        failureReasons[message.messageKey] = error.toString();
+      }
+    }
+    return TelegramBridgeSendResult(
+      sent: sent,
+      failed: failed,
+      failureReasonsByMessageKey: failureReasons,
+    );
+  }
+
+  String? _extractTelegramErrorDescription(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map) {
+        final description = (decoded['description'] ?? '').toString().trim();
+        if (description.isNotEmpty) {
+          return description;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Uri _buildEndpoint(String method, {Map<String, String>? queryParameters}) {
+    final normalizedToken = botToken.trim();
+    final normalizedMethod = method.trim();
+    final baseUri = apiBaseUri;
+    if (baseUri == null) {
+      return Uri.https(
+        'api.telegram.org',
+        '/bot$normalizedToken/$normalizedMethod',
+        queryParameters,
+      );
+    }
+    return baseUri.replace(
+      path:
+          '${baseUri.path.endsWith('/') ? baseUri.path.substring(0, baseUri.path.length - 1) : baseUri.path}/bot$normalizedToken/$normalizedMethod',
+      queryParameters: queryParameters,
+    );
+  }
+}
+
+enum OnyxTelegramCommandType {
+  liveStatus,
+  gateAccess,
+  incident,
+  dispatch,
+  guard,
+  report,
+  camera,
+  intelligence,
+  actionRequest,
+  visitorRegistration,
+  frOnboarding,
+  clientStatement,
+  unknown,
+}
+
+class OnyxTelegramCommandRouter {
+  const OnyxTelegramCommandRouter();
+
+  static const Set<String> _liveStatusTriggers = <String>{
+    'status',
+    "what's happening",
+    'whats happening',
+    'any activity',
+    'everything okay',
+    'all good',
+    'whats on site',
+    "what's on site",
+    'how many people',
+    'how many',
+    'count',
+    'people on site',
+    'anyone on site',
+    'who is on site',
+    'occupancy',
+    'how many residents',
+    'anyone home',
+    'anyone there',
+    'who is home',
+    'whos home',
+    'which cars are home',
+    'which car is home',
+  };
+
+  static const Set<String> _gateAccessTriggers = <String>{
+    'gate',
+    'door',
+    'locked',
+    'closed',
+    'open',
+    'access',
+    'entry',
+  };
+
+  static const Set<String> _incidentTriggers = <String>{
+    'incident',
+    'what happened',
+    'last night',
+    'today',
+    'yesterday',
+    'show incident',
+  };
+
+  static const Set<String> _dispatchTriggers = <String>{
+    'response',
+    'dispatch',
+    'eta',
+    'arrived',
+    'who responded',
+  };
+
+  static const Set<String> _guardTriggers = <String>{
+    'guard',
+    'patrol',
+    'checkpoint',
+    'guard on site',
+    'missed patrol',
+    'did guard patrol',
+    'guard status',
+  };
+
+  static const Set<String> _reportTriggers = <String>{
+    'report',
+    'summary',
+    'weekly',
+    'monthly',
+    'send report',
+    'patrol report',
+  };
+
+  static const Set<String> _cameraTriggers = <String>{
+    'show me',
+    'camera',
+    'visual',
+    'clip',
+    'what triggered',
+  };
+
+  static const Set<String> _intelligenceTriggers = <String>{
+    'most risky',
+    'worst day',
+    'getting worse',
+    'trends',
+    'patterns',
+    'unusual',
+  };
+
+  static const Set<String> _actionRequestTriggers = <String>{
+    'send response',
+    'escalate',
+    'call guard',
+    'dispatch',
+  };
+
+  static const Set<String> _visitorRegistrationTriggers = <String>{
+    'cleaner is coming',
+    'cleaner is here',
+    'there is a cleaner',
+    'cleaner on site',
+    'expecting a visitor',
+    'contractor coming tomorrow',
+    'contractor is here',
+    'gardener today',
+    'cleaner came',
+    'someone is working on site',
+    'visitor coming',
+    'delivery coming',
+    'cleaner coming',
+    'gardener coming',
+    'contractor coming',
+    'is here',
+    'are here',
+    'just arrived',
+    'came in',
+    'letting in',
+    'opening for',
+    'leaving now',
+    'just left',
+    'gone now',
+  };
+
+  static const Set<String> _frOnboardingTriggers = <String>{
+    'add to the system',
+    'add to onyx',
+    'register as a resident',
+    'register as resident',
+    'register in the system',
+    'enrol in the system',
+    'enroll in the system',
+    'add resident',
+  };
+
+  static const Set<String> _identityPhrases = <String>{
+    'is my',
+    'are my',
+    'is our',
+    'are our',
+    'that was my',
+    'that was our',
+    'this is my',
+    'that is my',
+    'those are my',
+    'those are our',
+  };
+
+  static const Set<String> _statementPrefixes = <String>{
+    'the ',
+    "that's ",
+    'thats ',
+    "it's ",
+    'its ',
+    'they ',
+    'he ',
+    'she ',
+    'we ',
+    'everyone ',
+    'everyone is',
+    'all ',
+    'i have ',
+    "i've ",
+    'there is ',
+    'there are ',
+    'there will ',
+    "there'll ",
+  };
+
+  static const Set<String> _skipClassificationPhrases = <String>{
+    'yes',
+    'no',
+    'ok',
+    'okay',
+    'sure',
+    'thanks',
+    'thank you',
+    'got it',
+    'understood',
+  };
+
+  OnyxTelegramCommandType classify(String message) {
+    final normalized = _normalize(message);
+    if (normalized.isEmpty) {
+      return OnyxTelegramCommandType.unknown;
+    }
+    if (_shouldSkipClassification(normalized)) {
+      return OnyxTelegramCommandType.unknown;
+    }
+    if (_looksLikeFrOnboarding(normalized)) {
+      return OnyxTelegramCommandType.frOnboarding;
+    }
+    if (_looksLikeVisitorRegistration(normalized)) {
+      return OnyxTelegramCommandType.visitorRegistration;
+    }
+    if (_looksLikeClientStatement(normalized)) {
+      return OnyxTelegramCommandType.clientStatement;
+    }
+    if (_looksLikeActionRequest(normalized)) {
+      return OnyxTelegramCommandType.actionRequest;
+    }
+    if (_matchesAny(normalized, _intelligenceTriggers)) {
+      return OnyxTelegramCommandType.intelligence;
+    }
+    if (_matchesAny(normalized, _cameraTriggers)) {
+      return OnyxTelegramCommandType.camera;
+    }
+    if (_looksLikeDispatchQuery(normalized)) {
+      return OnyxTelegramCommandType.dispatch;
+    }
+    if (_looksLikeGateAccessQuery(normalized)) {
+      return OnyxTelegramCommandType.gateAccess;
+    }
+    if (_looksLikeIncidentQuery(normalized)) {
+      return OnyxTelegramCommandType.incident;
+    }
+    if (_matchesAny(normalized, _reportTriggers)) {
+      return OnyxTelegramCommandType.report;
+    }
+    if (_looksLikeLiveStatusQuery(normalized)) {
+      return OnyxTelegramCommandType.liveStatus;
+    }
+    if (_looksLikeGuardQuery(normalized)) {
+      return OnyxTelegramCommandType.guard;
+    }
+    return OnyxTelegramCommandType.unknown;
+  }
+
+  bool _looksLikeActionRequest(String normalized) {
+    if (_matchesAny(normalized, _actionRequestTriggers)) {
+      if (normalized == 'dispatch') {
+        return true;
+      }
+      if (normalized.contains('send response') ||
+          normalized.contains('send armed response') ||
+          normalized.contains('call guard') ||
+          normalized.contains('escalate')) {
+        return true;
+      }
+    }
+    return normalized.startsWith('dispatch ') ||
+        normalized.contains('dispatch now') ||
+        normalized.contains('dispatch response') ||
+        normalized.contains('call the guard') ||
+        normalized.contains('armed response');
+  }
+
+  bool _looksLikeDispatchQuery(String normalized) {
+    if (normalized.contains('who responded') ||
+        normalized.contains('response eta') ||
+        normalized.contains('dispatch eta') ||
+        normalized.contains('when did') && normalized.contains('arriv')) {
+      return true;
+    }
+    if (_matchesAny(normalized, _dispatchTriggers)) {
+      return normalized.contains('response') ||
+          normalized.contains('dispatch') ||
+          normalized.contains('eta') ||
+          normalized.contains('arriv') ||
+          normalized.contains('respond');
+    }
+    return false;
+  }
+
+  bool _looksLikeGuardQuery(String normalized) {
+    if (normalized.contains('guard on site')) {
+      return true;
+    }
+    return _matchesAny(normalized, _guardTriggers);
+  }
+
+  bool _looksLikeLiveStatusQuery(String normalized) {
+    if (_matchesAny(normalized, _liveStatusTriggers)) {
+      return true;
+    }
+    if (normalized == 'how many') {
+      return true;
+    }
+    if (normalized.contains('how many') &&
+        (normalized.contains('people') ||
+            normalized.contains('resident') ||
+            normalized.contains('occupancy') ||
+            normalized.contains('anyone') ||
+            normalized.contains('home') ||
+            normalized.contains('there') ||
+            normalized.contains('on site'))) {
+      return true;
+    }
+    if (normalized.contains('which cars are home') ||
+        normalized.contains('which car is home') ||
+        normalized.contains('whos home')) {
+      return true;
+    }
+    if (normalized.startsWith('is ') && normalized.endsWith(' home')) {
+      return true;
+    }
+    if (normalized.startsWith('did ') && normalized.contains(' arrive')) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _looksLikeGateAccessQuery(String normalized) {
+    if (_matchesAny(normalized, _gateAccessTriggers)) {
+      final hasGateNoun =
+          normalized.contains('gate') ||
+          normalized.contains('door') ||
+          normalized.contains('access') ||
+          normalized.contains('entry');
+      if (hasGateNoun) {
+        return true;
+      }
+      return normalized.split(' ').where((value) => value.isNotEmpty).length <=
+          2;
+    }
+    final hasGateNoun =
+        normalized.contains('gate') ||
+        normalized.contains('door') ||
+        normalized.contains('access') ||
+        normalized.contains('entry');
+    if (hasGateNoun) {
+      return true;
+    }
+    final hasStateWord =
+        normalized.contains('locked') ||
+        normalized.contains('closed') ||
+        normalized.contains('open');
+    if (!hasStateWord) {
+      return false;
+    }
+    return normalized.split(' ').where((value) => value.isNotEmpty).length <= 2;
+  }
+
+  bool _looksLikeIncidentQuery(String normalized) {
+    if (_matchesAny(normalized, _incidentTriggers)) {
+      return true;
+    }
+    return normalized.contains('what happened') ||
+        normalized.contains('show incident') ||
+        normalized.contains('incident history');
+  }
+
+  bool _looksLikeClientStatement(String normalized) {
+    if (normalized.contains('?')) return false;
+    const questionStarters = <String>[
+      'what ',
+      'when ',
+      'where ',
+      'who ',
+      'why ',
+      'how ',
+      'is ',
+      'are ',
+      'was ',
+      'were ',
+      'can ',
+      'could ',
+      'did ',
+      'does ',
+      'do ',
+      'will ',
+      'would ',
+      'should ',
+      'have ',
+      'has ',
+      'had ',
+    ];
+    for (final starter in questionStarters) {
+      if (normalized.startsWith(starter)) return false;
+    }
+    for (final prefix in _statementPrefixes) {
+      if (normalized.startsWith(prefix)) return true;
+    }
+    if (_matchesAny(normalized, _identityPhrases)) return true;
+    if ((normalized.contains('coming') ||
+            normalized.contains('arriving') ||
+            normalized.contains('visitor') ||
+            normalized.contains('dropping by')) &&
+        !normalized.startsWith('is ') &&
+        !normalized.startsWith('are ')) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _looksLikeVisitorRegistration(String normalized) {
+    const questionStarters = <String>[
+      'what ',
+      'when ',
+      'where ',
+      'who ',
+      'why ',
+      'how ',
+      'is ',
+      'are ',
+      'was ',
+      'were ',
+      'can ',
+      'could ',
+      'did ',
+      'does ',
+      'do ',
+      'will ',
+      'would ',
+      'should ',
+      'have ',
+      'has ',
+      'had ',
+    ];
+    for (final starter in questionStarters) {
+      if (normalized.startsWith(starter)) {
+        return false;
+      }
+    }
+    if (_matchesAny(normalized, _visitorRegistrationTriggers)) {
+      return true;
+    }
+    final isArrivalPhrase =
+        normalized.contains(' is here') ||
+        normalized.contains(' are here') ||
+        normalized.contains(' just arrived') ||
+        normalized.contains(' came in') ||
+        normalized.contains(' arrived') ||
+        normalized.contains(' letting in') ||
+        normalized.contains(' opening for');
+    final isDeparturePhrase =
+        normalized.contains(' leaving now') ||
+        normalized.contains(' just left') ||
+        normalized.contains(' gone now') ||
+        normalized.contains(' visitor gone') ||
+        normalized.contains(' cleaner leaving');
+    if (isDeparturePhrase) {
+      return true;
+    }
+    final mentionsVisitorRole =
+        normalized.contains('cleaner') ||
+        normalized.contains('gardener') ||
+        normalized.contains('contractor') ||
+        normalized.contains('visitor') ||
+        normalized.contains('delivery');
+    final hasDurationHint =
+        normalized.contains(' until ') ||
+        RegExp(r'\bfor\s+\d+\s+hours?\b').hasMatch(normalized) ||
+        normalized.contains('lunchtime');
+    if (mentionsVisitorRole) {
+      return normalized.contains('coming') ||
+          normalized.contains('expecting') ||
+          normalized.contains('today') ||
+          normalized.contains('tomorrow') ||
+          normalized.contains('arriving') ||
+          normalized.contains('here') ||
+          normalized.contains('on site') ||
+          normalized.contains('working') ||
+          hasDurationHint;
+    }
+    if (hasDurationHint && isArrivalPhrase) {
+      return true;
+    }
+    return RegExp(r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+is\s+here\b")
+            .hasMatch(normalized) ||
+        RegExp(r"^[a-z][a-z'-]*(?:\s+[a-z][a-z'-]*)?\s+just\s+arrived\b")
+            .hasMatch(normalized);
+  }
+
+  bool _looksLikeFrOnboarding(String normalized) {
+    if (_matchesAny(normalized, _frOnboardingTriggers)) {
+      return true;
+    }
+    final includesAdd = normalized.contains('add ');
+    final includesRegister =
+        normalized.contains('register ') || normalized.contains('enroll ');
+    final includesPersonContext =
+        normalized.contains('resident') ||
+        normalized.contains('staff') ||
+        normalized.contains('guard') ||
+        normalized.contains('visitor') ||
+        normalized.contains('system') ||
+        normalized.contains('recognition');
+    return (includesAdd || includesRegister) && includesPersonContext;
+  }
+
+  bool _matchesAny(String normalized, Set<String> phrases) {
+    for (final phrase in phrases) {
+      if (normalized.contains(phrase)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _shouldSkipClassification(String normalized) {
+    if (_skipClassificationPhrases.contains(normalized)) {
+      return true;
+    }
+    final words = normalized.split(' ').where((value) => value.isNotEmpty);
+    return words.length == 1 && _skipClassificationPhrases.contains(normalized);
+  }
+
+  String _normalize(String message) {
+    return message
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+}
+
+Map<String, dynamic>? resolveUniqueTelegramEndpointRow({
+  required List<Map<String, dynamic>> rows,
+  required int? messageThreadId,
+  String threadField = 'telegram_thread_id',
+}) {
+  int? rowThread(Map<String, dynamic> row) {
+    final raw = (row[threadField] ?? '').toString().trim();
+    if (raw.isEmpty) {
+      return null;
+    }
+    return int.tryParse(raw);
+  }
+
+  final materializedRows = rows.toList(growable: false);
+  if (messageThreadId != null) {
+    final threadMatches = materializedRows
+        .where((row) => rowThread(row) == messageThreadId)
+        .toList(growable: false);
+    if (threadMatches.length == 1) {
+      return threadMatches.single;
+    }
+    if (threadMatches.length > 1) {
+      return null;
+    }
+  }
+  final nonThreadRows = materializedRows
+      .where((row) => rowThread(row) == null)
+      .toList(growable: false);
+  if (nonThreadRows.length != 1) {
+    return null;
+  }
+  return nonThreadRows.single;
 }
