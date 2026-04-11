@@ -349,24 +349,24 @@ class _OnyxTelegramAiProcessor {
   Future<String> _buildLiveStatusReply({required String siteId}) async {
     final siteLabel = _siteLabel(siteId);
     final snapshot = await _readLatestSnapshot(siteId);
-    final config = await _readOccupancyConfig(siteId);
     final incidents = await _readActiveIncidents(siteId);
+    final activeOnDemandVisitors = await _readActiveOnDemandVisitors(siteId);
     if (snapshot == null) {
       return '$siteLabel — monitoring limited right now. No fresh site snapshot is available.';
     }
 
     final summary = _siteAwarenessSummaryFromRow(snapshot);
-    final expected = _asInt(config?['expected_occupancy']) ?? 0;
-    final occupancyPeak = await _readOccupancyPeak(siteId, config);
-    final displayedCount = expected > 0
-        ? math.min(math.max(summary.humanCount, occupancyPeak), expected)
-        : math.max(summary.humanCount, occupancyPeak);
+    final displayedCount = math.max(summary.humanCount, 0);
+    final onDemandVisitorLine = _onDemandVisitorStatusLine(
+      activeOnDemandVisitors,
+    );
     final lines = <String>[
       '${summary.perimeterClear && incidents == 0 ? '🟢' : '🟠'} $siteLabel',
       'Perimeter: ${summary.perimeterClear ? 'Clear' : 'Alert active'}',
-      expected > 0
-          ? 'On site: $displayedCount of $expected residents detected'
-          : 'On site: $displayedCount people detected',
+      displayedCount > 0
+          ? 'Movement detected — $displayedCount ${displayedCount == 1 ? 'person' : 'people'} on site (identity unconfirmed)'
+          : 'No movement detected on site',
+      ?onDemandVisitorLine,
       'Active incidents: $incidents',
       'Last update: ${_relativeAgeLabel(summary.observedAtUtc)}',
     ];
@@ -686,38 +686,34 @@ class _OnyxTelegramAiProcessor {
     return Map<String, dynamic>.from(rows.first as Map);
   }
 
-  Future<Map<String, dynamic>?> _readOccupancyConfig(String siteId) async {
-    final rows = await supabase
-        .from('site_occupancy_config')
-        .select('expected_occupancy,reset_hour')
-        .eq('site_id', siteId)
-        .limit(1);
-    if (rows.isEmpty) {
-      return null;
-    }
-    return Map<String, dynamic>.from(rows.first as Map);
-  }
-
-  Future<int> _readOccupancyPeak(
+  Future<List<Map<String, dynamic>>> _readActiveOnDemandVisitors(
     String siteId,
-    Map<String, dynamic>? config,
   ) async {
-    final nowLocal = DateTime.now().toLocal();
-    final resetHour = _asInt(config?['reset_hour']) ?? 3;
-    final sessionDate = _sessionDateValue(nowLocal, resetHour);
+    final nowUtc = DateTime.now().toUtc();
+    final todayValue = _dateValue(DateTime.now().toLocal());
     final rows = await supabase
-        .from('site_occupancy_sessions')
-        .select('peak_detected')
+        .from('site_expected_visitors')
+        .select(
+          'visitor_name,visitor_role,visit_type,visit_end,visit_date,expires_at,is_active',
+        )
         .eq('site_id', siteId)
-        .eq('session_date', sessionDate)
-        .limit(1);
-    if (rows.isEmpty) {
-      return 0;
-    }
-    return _asInt(
-          Map<String, dynamic>.from(rows.first as Map)['peak_detected'],
-        ) ??
-        0;
+        .eq('visit_type', 'on_demand')
+        .eq('is_active', true)
+        .order('created_at', ascending: false)
+        .limit(20);
+    return rows
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .where((row) {
+          final visitDate = (row['visit_date'] ?? '').toString().trim();
+          final expiresAtUtc = _asDateTimeUtc(row['expires_at']);
+          final matchesToday = visitDate.isEmpty || visitDate == todayValue;
+          final notExpired =
+              expiresAtUtc == null ||
+              expiresAtUtc.isAfter(nowUtc) ||
+              expiresAtUtc.isAtSameMomentAs(nowUtc);
+          return matchesToday && notExpired;
+        })
+        .toList(growable: false);
   }
 
   Future<int> _readActiveIncidents(String siteId) async {
@@ -988,18 +984,23 @@ String _dateValue(DateTime value) {
   return '${value.year.toString().padLeft(4, '0')}-${two(value.month)}-${two(value.day)}';
 }
 
-String _sessionDateValue(DateTime observedAtLocal, int resetHour) {
-  final normalizedResetHour = resetHour.clamp(0, 23);
-  final dayStart = DateTime(
-    observedAtLocal.year,
-    observedAtLocal.month,
-    observedAtLocal.day,
-    normalizedResetHour,
-  );
-  final sessionLocalDate = observedAtLocal.isBefore(dayStart)
-      ? dayStart.subtract(const Duration(days: 1))
-      : dayStart;
-  return _dateValue(sessionLocalDate);
+String? _onDemandVisitorStatusLine(List<Map<String, dynamic>> visitors) {
+  if (visitors.isEmpty) {
+    return null;
+  }
+  final primary = visitors.first;
+  final visitEnd = (primary['visit_end'] ?? '').toString().trim();
+  final untilLabel = visitEnd.isEmpty ? 'end of day' : visitEnd;
+  if (visitors.length == 1) {
+    final visitorName = (primary['visitor_name'] ?? '').toString().trim();
+    if (visitorName.isNotEmpty &&
+        visitorName.toLowerCase() != 'visitor' &&
+        visitorName.toLowerCase() != 'delivery') {
+      return '1 unregistered visitor on site ($visitorName) until $untilLabel';
+    }
+    return '1 unregistered visitor on site until $untilLabel';
+  }
+  return '${visitors.length} unregistered visitors on site until $untilLabel';
 }
 
 bool _visitorDepartureRequested(String prompt) {

@@ -17406,18 +17406,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         siteProfile,
         occupancyConfigRow,
       );
-      final displayedPeopleCount = expectedPeopleCount > 0
-          ? _siteOccupancyDisplayedDetectedCount(
-              configRow: <String, dynamic>{
-                'expected_occupancy': expectedPeopleCount,
-              },
-              sessionRow: occupancySessionRow,
-              currentHumanCount: siteAwarenessSummary.humanCount,
-            )
-          : math.max(
-              siteAwarenessSummary.humanCount,
-              _siteOccupancyPeakDetected(occupancySessionRow),
-            );
+      final currentMovementCount = math.max(siteAwarenessSummary.humanCount, 0);
       lines.add(
         _siteProfileService.formatStatusMessage(
           profile: siteProfile,
@@ -17426,7 +17415,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             siteName: siteLabel,
             observedAtUtc: siteAwarenessSummary.observedAtUtc,
             perimeterClear: siteAwarenessSummary.perimeterClear,
-            onSiteCount: displayedPeopleCount,
+            onSiteCount: currentMovementCount,
             expectedPeopleCount: expectedPeopleCount,
             vehicleCount: siteAwarenessSummary.vehicleCount,
             activeIncidents: activeIncidents.length,
@@ -17442,10 +17431,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           expectedPeopleCount > 0) {
         final lastMovementAtUtc =
             _siteOccupancyLastDetectionAtUtc(occupancySessionRow) ??
-            (displayedPeopleCount > 0
+            (currentMovementCount > 0
                 ? siteAwarenessSummary.observedAtUtc
                 : null);
-        if (displayedPeopleCount < expectedPeopleCount) {
+        if (currentMovementCount < expectedPeopleCount) {
           lines.add('Expected on site: $expectedPeopleCount residents');
         }
         if (lastMovementAtUtc != null) {
@@ -17458,15 +17447,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         activeExpectedVisitors,
       );
       if (expectedVisitorLine != null) {
-        final noUnusualActivity =
-            siteAwarenessSummary.perimeterClear &&
-            siteAwarenessSummary.activeAlertCount <= 0 &&
-            activeIncidents.isEmpty;
-        lines.add(
-          noUnusualActivity
-              ? '$expectedVisitorLine No unusual activity.'
-              : expectedVisitorLine,
-        );
+        lines.add(expectedVisitorLine);
       }
       if (siteAwarenessSummary.activeAlertCount > 0) {
         lines.add('Active alerts: ${siteAwarenessSummary.activeAlertCount}');
@@ -17601,6 +17582,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }) async {
     final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
     final nowUtc = _telegramFlowNowUtc();
+    final siteProfile = await _siteProfileService.loadProfile(siteId);
     final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
       siteId: siteId,
     );
@@ -17609,16 +17591,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final siteAwarenessSummary = _telegramAiSiteAwarenessSummaryFromRow(
         siteAwarenessRow,
       )!;
-      Map<String, dynamic>? occupancyConfigRow =
-          await _readSiteOccupancyConfigRow(siteId: siteId);
-      Map<String, dynamic>? occupancySessionRow;
-      if (occupancyConfigRow != null) {
-        occupancySessionRow = await _readSiteOccupancySessionRow(
-          siteId: siteId,
-          nowLocal: _telegramFlowNowLocal(),
-          resetHour: _siteOccupancyResetHour(occupancyConfigRow),
-        );
-      }
+      final activeExpectedVisitors = await _siteProfileService
+          .loadActiveExpectedVisitors(
+            siteId: siteId,
+            timezone: siteProfile.timezone,
+            atUtc: nowUtc,
+          );
       final activeIncidentCount = (await _readIncidentRowsForSite(
         siteId: siteId,
       )).where(_incidentRowIsActive).length;
@@ -17632,11 +17610,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             ? 'Perimeter clear.'
             : 'Perimeter alert active.',
       ];
-      final humanCount = _siteOccupancyDisplayedDetectedCount(
-        configRow: occupancyConfigRow,
-        sessionRow: occupancySessionRow,
-        currentHumanCount: siteAwarenessSummary.humanCount,
-      );
+      final humanCount = math.max(siteAwarenessSummary.humanCount, 0);
       if (humanCount > 0) {
         segments.add(
           humanCount == 1
@@ -17645,6 +17619,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         );
       } else {
         segments.add('No persons detected on site.');
+      }
+      final onDemandVisitorLine = _telegramExpectedVisitorStatusLine(
+        activeExpectedVisitors,
+      );
+      if (onDemandVisitorLine != null) {
+        segments.add(onDemandVisitorLine);
       }
       if (activeIncidentCount <= 0) {
         segments.add('No active alerts.');
@@ -17670,23 +17650,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (_telegramEndpointRoleAllowsVoice(endpointRole)) {
         segments.add('End of update.');
       } else {
-        final isPrivateResidence =
-            _isPrivateResidenceOccupancyConfig(occupancyConfigRow) &&
-            _siteOccupancyExpectedOccupancy(occupancyConfigRow) > 0;
-        if (isPrivateResidence) {
-          final expectedOccupancy = _siteOccupancyExpectedOccupancy(
-            occupancyConfigRow,
-          );
-          final occupancyLabel = _siteOccupancyLabel(occupancyConfigRow);
-          final detectedToday = _siteOccupancyDisplayedDetectedCount(
-            configRow: occupancyConfigRow,
-            sessionRow: occupancySessionRow,
-            currentHumanCount: siteAwarenessSummary.humanCount,
-          );
-          segments.add(
-            '$detectedToday of $expectedOccupancy $occupancyLabel detected today.',
-          );
-        }
         segments.add('Monitoring continues.');
       }
       return _normalizeTelegramStatusVoiceScript(segments.join(' '));
@@ -17980,6 +17943,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required Map<String, dynamic> occupancyConfigRow,
   }) async {
     final siteProfile = await _siteProfileService.loadProfile(siteId);
+    final activeExpectedVisitors = await _siteProfileService
+        .loadActiveExpectedVisitors(
+          siteId: siteId,
+          timezone: siteProfile.timezone,
+          atUtc: _telegramFlowNowUtc(),
+        );
     final siteAwarenessRow = await _readLatestSiteAwarenessSnapshotRow(
       siteId: siteId,
     );
@@ -17999,7 +17968,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       occupancyConfigRow,
     );
     final detectedToday = _siteOccupancyDisplayedDetectedCount(
-      configRow: occupancyConfigRow,
       sessionRow: occupancySessionRow,
       currentHumanCount: siteAwarenessSummary?.humanCount ?? 0,
     );
@@ -18027,11 +17995,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• Camera monitoring: active',
         '• ${_siteProfileService.formatStatusMessage(
           profile: siteProfile,
-          snapshot: SiteSnapshot(siteId: siteId, siteName: siteLabel, observedAtUtc: siteAwarenessSummary.observedAtUtc, perimeterClear: siteAwarenessSummary.perimeterClear, onSiteCount: detectedToday, expectedPeopleCount: _siteProfileExpectedPeopleCount(siteProfile, occupancyConfigRow), vehicleCount: siteAwarenessSummary.vehicleCount, activeIncidents: incidentsToday, offlineChannels: _telegramCommandKnownFaultLines(siteAwarenessRow ?? const <String, dynamic>{}), fresh: true, activeAlerts: siteAwarenessSummary.activeAlertCount),
+          snapshot: SiteSnapshot(siteId: siteId, siteName: siteLabel, observedAtUtc: siteAwarenessSummary.observedAtUtc, perimeterClear: siteAwarenessSummary.perimeterClear, onSiteCount: math.max(siteAwarenessSummary.humanCount, 0), expectedPeopleCount: _siteProfileExpectedPeopleCount(siteProfile, occupancyConfigRow), vehicleCount: siteAwarenessSummary.vehicleCount, activeIncidents: incidentsToday, offlineChannels: _telegramCommandKnownFaultLines(siteAwarenessRow ?? const <String, dynamic>{}), fresh: true, activeAlerts: siteAwarenessSummary.activeAlertCount),
         )}',
       ] else ...<String>['• Camera monitoring: limited'],
       if (expectedOccupancy > 0 && siteProfile.industryType == 'residential')
-        '• Occupancy: $detectedToday of $expectedOccupancy residents detected today',
+        '• Occupancy: Movement detected from up to $detectedToday ${detectedToday == 1 ? 'person' : 'people'} today (identity unconfirmed)',
+      if (_telegramExpectedVisitorStatusLine(activeExpectedVisitors)
+          case final visitorLine?)
+        '• $visitorLine',
       '• Incidents today: $incidentsToday',
       '• Alert summary: ${siteAwarenessSummary == null || siteAwarenessSummary.activeAlertCount <= 0 ? 'none' : '${siteAwarenessSummary.activeAlertCount} active'}',
       if (siteAwarenessSummary != null)
@@ -39554,15 +39525,6 @@ int _siteOccupancyExpectedOccupancy(Map<String, dynamic>? row) =>
 int _siteOccupancyResetHour(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryInt(row?['reset_hour']) ?? 3;
 
-String _siteOccupancyLabel(Map<String, dynamic>? row) =>
-    _siteAwarenessSummaryString(row?['occupancy_label']) ?? 'people';
-
-String _siteOccupancySiteType(Map<String, dynamic>? row) =>
-    (_siteAwarenessSummaryString(row?['site_type']) ?? '').toLowerCase();
-
-bool _isPrivateResidenceOccupancyConfig(Map<String, dynamic>? row) =>
-    _siteOccupancySiteType(row) == 'private_residence';
-
 bool _siteOccupancyHasGuard(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryBool(row?['has_guard']) ?? false;
 
@@ -39573,29 +39535,32 @@ int _siteOccupancyPeakDetected(Map<String, dynamic>? row) =>
     _siteAwarenessSummaryInt(row?['peak_detected']) ?? 0;
 
 int _siteOccupancyDisplayedDetectedCount({
-  required Map<String, dynamic>? configRow,
   required Map<String, dynamic>? sessionRow,
   required int currentHumanCount,
 }) {
   final occupancyPeak = _siteOccupancyPeakDetected(sessionRow);
-  final detectedCount = math.max(currentHumanCount, occupancyPeak);
-  final expectedOccupancy = _siteOccupancyExpectedOccupancy(configRow);
-  if (expectedOccupancy <= 0) {
-    return detectedCount;
-  }
-  return math.min(detectedCount, expectedOccupancy);
+  return math.max(currentHumanCount, occupancyPeak);
 }
 
 String? _telegramExpectedVisitorStatusLine(List<SiteExpectedVisitor> visitors) {
-  if (visitors.isEmpty) {
+  final onDemandVisitors = visitors
+      .where((visitor) => visitor.visitType.trim().toLowerCase() == 'on_demand')
+      .toList(growable: false);
+  if (onDemandVisitors.isEmpty) {
     return null;
   }
-  final primary = visitors.first;
+  final primary = onDemandVisitors.first;
   final untilLabel = _telegramExpectedVisitorUntilLabel(primary.visitEnd);
-  if (visitors.length == 1) {
-    return '${primary.displayName} expected on site until $untilLabel.';
+  if (onDemandVisitors.length == 1) {
+    final displayName = primary.displayName.trim();
+    if (displayName.isNotEmpty &&
+        displayName.toLowerCase() != 'visitor' &&
+        displayName.toLowerCase() != 'delivery') {
+      return '1 unregistered visitor on site ($displayName) until $untilLabel.';
+    }
+    return '1 unregistered visitor on site until $untilLabel.';
   }
-  return '${primary.displayName} and ${visitors.length - 1} more expected on site until $untilLabel.';
+  return '${onDemandVisitors.length} unregistered visitors on site until $untilLabel.';
 }
 
 String _telegramExpectedVisitorUntilLabel(String? rawTime) {

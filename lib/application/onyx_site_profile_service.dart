@@ -112,12 +112,10 @@ class SiteExpectedVisitor {
     return SiteExpectedVisitor(
       siteId: _profileString(row['site_id']),
       visitorName: _profileString(row['visitor_name']),
-      visitorRole:
-          (_nullableProfileString(row['visitor_role']) ?? 'visitor')
-              .toLowerCase(),
-      visitType:
-          (_nullableProfileString(row['visit_type']) ?? 'scheduled')
-              .toLowerCase(),
+      visitorRole: (_nullableProfileString(row['visitor_role']) ?? 'visitor')
+          .toLowerCase(),
+      visitType: (_nullableProfileString(row['visit_type']) ?? 'scheduled')
+          .toLowerCase(),
       visitDays: _stringList(row['visit_days']),
       visitStart: _nullableProfileString(row['visit_start']),
       visitEnd: _nullableProfileString(row['visit_end']),
@@ -249,8 +247,9 @@ class SiteZoneRule {
       accessHoursStart: _nullableProfileString(row['access_hours_start']),
       accessHoursEnd: _nullableProfileString(row['access_hours_end']),
       accessDays: _stringList(row['access_days']),
-      violationAction: (_nullableProfileString(row['violation_action']) ?? 'alert')
-          .toLowerCase(),
+      violationAction:
+          (_nullableProfileString(row['violation_action']) ?? 'alert')
+              .toLowerCase(),
       maxDwellMinutes: _profileInt(row['max_dwell_minutes']),
       requiresEscort: _profileBool(row['requires_escort']) ?? false,
       isRestricted: _profileBool(row['is_restricted']) ?? false,
@@ -346,8 +345,7 @@ class SiteIntelligenceProfile {
           _profileInt(row['inactive_staff_alert_minutes']) ?? 30,
       monitorTillAttendance:
           _profileBool(row['monitor_till_attendance']) ?? false,
-      tillUnattendedMinutes:
-          _profileInt(row['till_unattended_minutes']) ?? 5,
+      tillUnattendedMinutes: _profileInt(row['till_unattended_minutes']) ?? 5,
       monitorRestrictedZones:
           _profileBool(row['monitor_restricted_zones']) ?? false,
       monitorVehicleMovement:
@@ -356,8 +354,7 @@ class SiteIntelligenceProfile {
           _profileBool(row['after_hours_vehicle_alert']) ?? true,
       sendShiftStartBriefing:
           _profileBool(row['send_shift_start_briefing']) ?? true,
-      sendShiftEndReport:
-          _profileBool(row['send_shift_end_report']) ?? true,
+      sendShiftEndReport: _profileBool(row['send_shift_end_report']) ?? true,
       sendDailySummary: _profileBool(row['send_daily_summary']) ?? true,
       dailySummaryTime:
           _nullableProfileString(row['daily_summary_time']) ?? '07:00',
@@ -459,7 +456,8 @@ class OnyxSiteProfileService {
     if (normalizedSiteId.isEmpty) {
       return const <SiteZoneRule>[];
     }
-    final rows = await readZoneRuleRows?.call(normalizedSiteId) ??
+    final rows =
+        await readZoneRuleRows?.call(normalizedSiteId) ??
         const <Map<String, dynamic>>[];
     return rows.map(SiteZoneRule.fromRow).toList(growable: false);
   }
@@ -469,7 +467,8 @@ class OnyxSiteProfileService {
     if (normalizedSiteId.isEmpty) {
       return const <SiteExpectedVisitor>[];
     }
-    final rows = await readExpectedVisitorRows?.call(normalizedSiteId) ??
+    final rows =
+        await readExpectedVisitorRows?.call(normalizedSiteId) ??
         const <Map<String, dynamic>>[];
     return rows.map(SiteExpectedVisitor.fromRow).toList(growable: false);
   }
@@ -492,7 +491,9 @@ class OnyxSiteProfileService {
 
   AlertThresholds getAlertThresholds(SiteIntelligenceProfile profile) {
     return AlertThresholds(
-      duringHoursLevel: _alertLevelForSensitivity(profile.duringHoursSensitivity),
+      duringHoursLevel: _alertLevelForSensitivity(
+        profile.duringHoursSensitivity,
+      ),
       afterHoursLevel: _alertLevelForSensitivity(profile.afterHoursSensitivity),
       monitorVehiclesAfterHours: profile.afterHoursVehicleAlert,
       monitorRestrictedZones: profile.monitorRestrictedZones,
@@ -511,7 +512,10 @@ class OnyxSiteProfileService {
     required DetectionEvent event,
     required SiteIntelligenceProfile profile,
   }) async {
-    final afterHours = !_isWithinOperatingSchedule(profile, event.detectedAtUtc);
+    final afterHours = !_isWithinOperatingSchedule(
+      profile,
+      event.detectedAtUtc,
+    );
     final thresholds = getAlertThresholds(profile);
     final zoneRules = await loadZoneRules(siteId);
     final matchingRule = _matchZoneRule(zoneRules, event);
@@ -663,7 +667,8 @@ class OnyxSiteProfileService {
         !event.isLoitering &&
         !event.isPerimeterSequence) {
       return AlertDecision.noAlert(
-        reason: 'Single semi-perimeter pass during operating hours is not suspicious.',
+        reason:
+            'Single semi-perimeter pass during operating hours is not suspicious.',
         afterHours: afterHours,
       );
     }
@@ -675,7 +680,8 @@ class OnyxSiteProfileService {
         profile.duringHoursSensitivity != 'high' &&
         profile.duringHoursSensitivity != 'critical') {
       return AlertDecision.noAlert(
-        reason: 'Single perimeter pass during operating hours does not meet threshold.',
+        reason:
+            'Single perimeter pass during operating hours does not meet threshold.',
         afterHours: afterHours,
       );
     }
@@ -689,8 +695,9 @@ class OnyxSiteProfileService {
       );
     }
 
-    final sensitivityLevel =
-        afterHours ? thresholds.afterHoursLevel : thresholds.duringHoursLevel;
+    final sensitivityLevel = afterHours
+        ? thresholds.afterHoursLevel
+        : thresholds.duringHoursLevel;
     final suspicious = event.isLoitering || event.isPerimeterSequence;
     final shouldAlert = switch (sensitivityLevel) {
       AlertLevel.critical => true,
@@ -725,14 +732,11 @@ class OnyxSiteProfileService {
         : '${snapshot.activeIncidents} active incident${snapshot.activeIncidents == 1 ? '' : 's'}.';
     switch (profile.industryType) {
       case 'residential':
-        final expected = math.max(
-          profile.expectedResidentCount,
-          snapshot.expectedPeopleCount,
-        );
-        if (expected > 0) {
-          return '${snapshot.onSiteCount} of $expected residents on site. $perimeterLine';
+        if (snapshot.onSiteCount <= 0) {
+          return 'No movement detected on site. $perimeterLine';
         }
-        return '${snapshot.onSiteCount} residents on site. $perimeterLine';
+        final peopleLabel = snapshot.onSiteCount == 1 ? 'person' : 'people';
+        return 'Movement detected — ${snapshot.onSiteCount} $peopleLabel on site (identity unconfirmed). $perimeterLine';
       case 'retail':
         final tillLine = profile.monitorTillAttendance
             ? 'Till attendance monitored.'
@@ -744,7 +748,8 @@ class OnyxSiteProfileService {
             : 'No guard assigned.';
         return '${snapshot.onSiteCount} staff in monitored zones. Loading areas clear. $guardLine';
       case 'office':
-        final receptionLine = _isWithinOperatingSchedule(profile, snapshot.observedAtUtc)
+        final receptionLine =
+            _isWithinOperatingSchedule(profile, snapshot.observedAtUtc)
             ? 'Reception active.'
             : 'Reception closed.';
         final vehicleLine = snapshot.vehicleCount > 0
@@ -788,7 +793,8 @@ class OnyxSiteProfileService {
 
   SiteZoneRule? _matchZoneRule(List<SiteZoneRule> rules, DetectionEvent event) {
     for (final rule in rules) {
-      if (rule.zoneName.trim().toLowerCase() == event.zoneName.trim().toLowerCase()) {
+      if (rule.zoneName.trim().toLowerCase() ==
+          event.zoneName.trim().toLowerCase()) {
         return rule;
       }
     }
@@ -846,8 +852,9 @@ class OnyxSiteProfileService {
     DetectionEvent event,
     bool afterHours,
   ) {
-    final subject =
-        event.detectionKind == OnyxProactiveDetectionKind.vehicle ? 'Vehicle' : 'Movement';
+    final subject = event.detectionKind == OnyxProactiveDetectionKind.vehicle
+        ? 'Vehicle'
+        : 'Movement';
     if (afterHours) {
       return '$subject detected after normal operating hours at ${event.zoneName}.';
     }
