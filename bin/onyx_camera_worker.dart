@@ -23,6 +23,7 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -310,6 +311,7 @@ class OnyxSiteAwarenessEvent {
   final String? faceMatchName;
   final double? faceMatchConfidence;
   final double? faceMatchDistance;
+  final Uint8List? snapshotBytes;
   final bool unknownPerson;
   final bool isKnownFaultChannel;
 
@@ -324,6 +326,7 @@ class OnyxSiteAwarenessEvent {
     this.faceMatchName,
     this.faceMatchConfidence,
     this.faceMatchDistance,
+    this.snapshotBytes,
     this.unknownPerson = false,
     this.isKnownFaultChannel = false,
   });
@@ -339,6 +342,7 @@ class OnyxSiteAwarenessEvent {
     String? faceMatchName,
     double? faceMatchConfidence,
     double? faceMatchDistance,
+    Uint8List? snapshotBytes,
     bool? unknownPerson,
     bool? isKnownFaultChannel,
   }) {
@@ -353,6 +357,7 @@ class OnyxSiteAwarenessEvent {
       faceMatchName: faceMatchName ?? this.faceMatchName,
       faceMatchConfidence: faceMatchConfidence ?? this.faceMatchConfidence,
       faceMatchDistance: faceMatchDistance ?? this.faceMatchDistance,
+      snapshotBytes: snapshotBytes ?? this.snapshotBytes,
       unknownPerson: unknownPerson ?? this.unknownPerson,
       isKnownFaultChannel: isKnownFaultChannel ?? this.isKnownFaultChannel,
     );
@@ -2081,6 +2086,12 @@ http.Client _buildIsapiHttpClient() {
 }
 
 class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
+  static const double _yoloMinimumPersonConfidence = 0.55;
+  static const Duration _yoloStartupGracePeriod = Duration(seconds: 30);
+  static const Duration _yoloHealthRetryDelay = Duration(seconds: 10);
+  static const Duration _yoloHealthRecheckInterval = Duration(seconds: 30);
+  static const int _yoloHealthFailureThreshold = 3;
+
   final String host;
   final int port;
   final String username;
@@ -2113,11 +2124,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   Timer? _publishTimer;
   Timer? _heartbeatTimer;
   Timer? _supabaseWatchdogTimer;
+  Timer? _yoloHealthTimer;
   OnyxSiteAwarenessProjector? _projector;
   OnyxSiteAwarenessSnapshot? _latestSnapshot;
   bool _isConnected = false;
   bool _running = false;
   bool _disconnectAlertSent = false;
+  bool _isYoloHealthy = false;
+  bool _yoloHealthCheckInFlight = false;
+  DateTime? _yoloStartupGraceUntilUtc;
   int _generation = 0;
   String _siteId = '';
   String _clientId = '';
@@ -2230,6 +2245,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _running = true;
     _generation += 1;
     _lastStreamEventAtUtc = _clock().toUtc();
+    _yoloStartupGraceUntilUtc = _clock().toUtc().add(_yoloStartupGracePeriod);
+    _startYoloHealthMonitor(_generation);
     _publishTimer = Timer.periodic(publishInterval, (_) {
       _publishProjectedSnapshot();
     });
@@ -2254,6 +2271,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _heartbeatTimer = null;
     _supabaseWatchdogTimer?.cancel();
     _supabaseWatchdogTimer = null;
+    _yoloHealthTimer?.cancel();
+    _yoloHealthTimer = null;
+    _isYoloHealthy = false;
+    _yoloHealthCheckInFlight = false;
+    _yoloStartupGraceUntilUtc = null;
     _lastStreamEventAtUtc = null;
     final subscription = _streamSubscription;
     _streamSubscription = null;
@@ -2284,6 +2306,100 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           level: 1000,
         );
       }
+    }
+  }
+
+  void _startYoloHealthMonitor(int generation) {
+    _yoloHealthTimer?.cancel();
+    _yoloHealthTimer = null;
+    _yoloHealthCheckInFlight = false;
+    final liveSnapshotYoloService = _liveSnapshotYoloService;
+    if (liveSnapshotYoloService == null ||
+        !liveSnapshotYoloService.isConfigured) {
+      _isYoloHealthy = false;
+      return;
+    }
+    _isYoloHealthy = false;
+    unawaited(_recheckYoloHealth(generation));
+    _yoloHealthTimer = Timer.periodic(_yoloHealthRecheckInterval, (_) {
+      unawaited(_recheckYoloHealth(generation));
+    });
+  }
+
+  Future<void> _recheckYoloHealth(int generation) async {
+    if (_yoloHealthCheckInFlight || !_running || generation != _generation) {
+      return;
+    }
+    final liveSnapshotYoloService = _liveSnapshotYoloService;
+    if (liveSnapshotYoloService == null ||
+        !liveSnapshotYoloService.isConfigured) {
+      _isYoloHealthy = false;
+      return;
+    }
+    _yoloHealthCheckInFlight = true;
+    try {
+      for (var attempt = 1; attempt <= _yoloHealthFailureThreshold; attempt += 1) {
+        final ready = await _isYoloReady(liveSnapshotYoloService);
+        if (!_running || generation != _generation) {
+          return;
+        }
+        if (ready) {
+          if (!_isYoloHealthy) {
+            _isYoloHealthy = true;
+            developer.log(
+              '[ONYX] YOLO recovered — resuming enrichment',
+              name: 'OnyxHikIsapiStream',
+            );
+          }
+          return;
+        }
+        if (attempt < _yoloHealthFailureThreshold) {
+          developer.log(
+            '[ONYX] YOLO unhealthy check $attempt/3 — waiting before marking dead',
+            name: 'OnyxHikIsapiStream',
+            level: 900,
+          );
+          await _sleep(_yoloHealthRetryDelay);
+        }
+      }
+      _isYoloHealthy = false;
+    } finally {
+      _yoloHealthCheckInFlight = false;
+    }
+  }
+
+  Future<bool> _isYoloReady(
+    OnyxLiveSnapshotYoloService liveSnapshotYoloService,
+  ) async {
+    final healthEndpoint = liveSnapshotYoloService.endpoint.replace(
+      path: '/health',
+      query: null,
+      fragment: null,
+    );
+    try {
+      final response = await liveSnapshotYoloService.client
+          .get(
+            healthEndpoint,
+            headers: <String, String>{
+              'Accept': 'application/json',
+              if (liveSnapshotYoloService.authToken.trim().isNotEmpty)
+                'Authorization':
+                    'Bearer ${liveSnapshotYoloService.authToken.trim()}',
+            },
+          )
+          .timeout(liveSnapshotYoloService.requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return false;
+      }
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) {
+        return false;
+      }
+      final payload = decoded.cast<Object?, Object?>();
+      return payload['ready'] == true ||
+          (payload['status'] ?? '').toString().trim().toLowerCase() == 'ready';
+    } catch (_) {
+      return false;
     }
   }
 
@@ -2566,6 +2682,17 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         return;
       }
       if (event.eventType == OnyxEventType.humanDetected) {
+        final channelId = event.channelId.trim();
+        if (channelId.isNotEmpty &&
+            channelId != 'unknown' &&
+            (event.snapshotBytes == null || event.snapshotBytes!.isEmpty)) {
+          final snapshotBytes = await fetchSnapshotBytes(channelId);
+          if (snapshotBytes != null && snapshotBytes.isNotEmpty) {
+            event = event.copyWith(
+              snapshotBytes: Uint8List.fromList(snapshotBytes),
+            );
+          }
+        }
         event = await _enrichHumanDetectionEvent(event);
       } else if (event.eventType == OnyxEventType.vehicleDetected) {
         event = await _enrichVehicleDetectionEvent(event);
@@ -2655,13 +2782,22 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       '${liveSnapshotYoloService?.isConfigured}',
     );
     if (liveSnapshotYoloService == null ||
-        !liveSnapshotYoloService.isConfigured) {
+        !liveSnapshotYoloService.isConfigured ||
+        !_isYoloHealthy) {
+      if (_shouldAllowUnverifiedHumanAlert(liveSnapshotYoloService)) {
+        developer.log(
+          '[ONYX] Human detected (unverified) on CH${event.channelId} during YOLO startup grace.',
+          name: 'OnyxHikIsapiStream',
+          level: 800,
+        );
+        return event;
+      }
       developer.log(
-        '[ONYX] FR snapshot skipped for CH${event.channelId}: YOLO/FR endpoint is not configured.',
+        '[ONYX] Alert suppressed — YOLO did not confirm human on CH${event.channelId}',
         name: 'OnyxHikIsapiStream',
         level: 800,
       );
-      return event;
+      return event.copyWith(eventType: OnyxEventType.motionDetected);
     }
     final channelId = event.channelId.trim();
     if (channelId.isEmpty || channelId == 'unknown') {
@@ -2680,7 +2816,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         '[ONYX] Capturing snapshot from CH$snapshotChannelId for live FR...',
         name: 'OnyxHikIsapiStream',
       );
-      final snapshotBytes = await fetchSnapshotBytes(channelId);
+      final snapshotBytes =
+          event.snapshotBytes != null && event.snapshotBytes!.isNotEmpty
+          ? event.snapshotBytes!
+          : await fetchSnapshotBytes(channelId);
       // ignore: avoid_print
       print(
         '[ONYX-DEBUG] Snapshot result: ${snapshotBytes?.length ?? 0} bytes',
@@ -2714,13 +2853,31 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       print('[ONYX-DEBUG] YOLO result: $result');
       if (result == null) {
         developer.log(
-          '[ONYX] FR: YOLO/FR returned null for CH$channelId.',
+          '[ONYX] Alert suppressed — YOLO did not confirm human on CH$channelId',
           name: 'OnyxHikIsapiStream',
-          level: 900,
+          level: 800,
         );
-        return event;
+        return event.copyWith(eventType: OnyxEventType.motionDetected);
       }
       final primaryLabel = (result.primaryLabel ?? '').trim().toLowerCase();
+      final personConfidence = result.personConfidence;
+      if (!result.personDetected ||
+          personConfidence == null ||
+          personConfidence < _yoloMinimumPersonConfidence) {
+        if (primaryLabel == 'animal') {
+          developer.log(
+            '[ONYX] Animal detected on CH$channelId — suppressed.',
+            name: 'OnyxHikIsapiStream',
+          );
+          return event.copyWith(eventType: OnyxEventType.animalDetected);
+        }
+        developer.log(
+          '[ONYX] Alert suppressed — YOLO did not confirm human on CH$channelId',
+          name: 'OnyxHikIsapiStream',
+          level: 800,
+        );
+        return event.copyWith(eventType: OnyxEventType.motionDetected);
+      }
       if (primaryLabel == 'animal') {
         developer.log(
           '[ONYX] Animal detected on CH$channelId — suppressed.',
@@ -2776,7 +2933,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         '(${(result.personConfidence ?? 0).toStringAsFixed(2)}).',
         name: 'OnyxHikIsapiStream',
       );
-      return event;
+      developer.log(
+        '[ONYX] Alert suppressed — YOLO did not confirm human on CH$channelId',
+        name: 'OnyxHikIsapiStream',
+        level: 800,
+      );
+      return event.copyWith(eventType: OnyxEventType.motionDetected);
     } catch (error, stackTrace) {
       // ignore: avoid_print
       print('[ONYX-DEBUG] FR pipeline error on CH$channelId: $error');
@@ -2791,11 +2953,23 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
   }
 
+  bool _shouldAllowUnverifiedHumanAlert(
+    OnyxLiveSnapshotYoloService? liveSnapshotYoloService,
+  ) {
+    if (liveSnapshotYoloService == null ||
+        !liveSnapshotYoloService.isConfigured ||
+        _isYoloHealthy) {
+      return false;
+    }
+    final graceUntilUtc = _yoloStartupGraceUntilUtc;
+    return graceUntilUtc != null && _clock().toUtc().isBefore(graceUntilUtc);
+  }
+
   Future<OnyxSiteAwarenessEvent> _enrichVehicleDetectionEvent(
     OnyxSiteAwarenessEvent event,
   ) async {
     final lprService = _lprService;
-    if (lprService == null || !lprService.isConfigured) {
+    if (lprService == null || !lprService.isConfigured || !_isYoloHealthy) {
       return event;
     }
     final channelId = event.channelId.trim();

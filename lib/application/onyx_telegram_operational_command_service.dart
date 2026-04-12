@@ -3138,16 +3138,67 @@ class OnyxTelegramOperationalCommandService {
     }
     return combined
         .replaceAll(
-          RegExp(r'\b(?:yolo|ultralytics)\b', caseSensitive: false),
-          'ONYX',
+          RegExp(
+            r'\b(?:yolo|ultralytics)\s*:\s*(?:person|human|intruder)\b',
+            caseSensitive: false,
+          ),
+          'Detection: human',
         )
         .replaceAll(
-          RegExp(r'\bface recognition\b', caseSensitive: false),
-          'ONYX matching',
+          RegExp(
+            r'\b(?:yolo|ultralytics)\s*:\s*(?:vehicle|car|truck)\b',
+            caseSensitive: false,
+          ),
+          'Detection: vehicle',
+        )
+        .replaceAll(
+          RegExp(
+            r'\b(?:yolo|ultralytics)\s*:\s*(?:animal|dog|cat|bird)\b',
+            caseSensitive: false,
+          ),
+          'Detection: animal',
+        )
+        .replaceAll(
+          RegExp(
+            r'\b(?:yolo|ultralytics)\s*:\s*(?:unknown|unclassified|unidentified)\b',
+            caseSensitive: false,
+          ),
+          'Detection: unclassified',
+        )
+        .replaceAll(
+          RegExp(r'\bface[_ ]recognition\b', caseSensitive: false),
+          'Identity scan',
         )
         .replaceAll(
           RegExp(r'\blicense plate recognition\b', caseSensitive: false),
-          'ONYX plate matching',
+          'Plate scan',
+        )
+        .replaceAll(
+          RegExp(r'\bplate recognition\b', caseSensitive: false),
+          'Plate scan',
+        )
+        .replaceAll(RegExp(r'\bbytetrack\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\bultralytics\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\bopencv\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\beasyocr\b', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\byolo\b', caseSensitive: false), 'Detection')
+        .replaceAllMapped(
+          RegExp(
+            r'\bconfidence\s*[:=]\s*(0(?:\.\d+)?|1(?:\.0+)?)\b',
+            caseSensitive: false,
+          ),
+          (match) {
+            final raw = double.tryParse(match.group(1) ?? '');
+            final percent = raw == null ? null : (raw.clamp(0.0, 1.0) * 100);
+            if (percent == null) {
+              return match.group(0) ?? '';
+            }
+            return 'Confidence: ${percent.round()}%';
+          },
+        )
+        .replaceAll(
+          RegExp(r'\bDetection\s+detection\b', caseSensitive: false),
+          'Detection',
         )
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:xml/xml.dart' as xml;
 
@@ -285,6 +286,7 @@ class OnyxSiteAwarenessEvent {
   final String? faceMatchName;
   final double? faceMatchConfidence;
   final double? faceMatchDistance;
+  final Uint8List? snapshotBytes;
   final bool unknownPerson;
   final bool isKnownFaultChannel;
 
@@ -299,6 +301,7 @@ class OnyxSiteAwarenessEvent {
     this.faceMatchName,
     this.faceMatchConfidence,
     this.faceMatchDistance,
+    this.snapshotBytes,
     this.unknownPerson = false,
     this.isKnownFaultChannel = false,
   });
@@ -314,6 +317,7 @@ class OnyxSiteAwarenessEvent {
     String? faceMatchName,
     double? faceMatchConfidence,
     double? faceMatchDistance,
+    Uint8List? snapshotBytes,
     bool? unknownPerson,
     bool? isKnownFaultChannel,
   }) {
@@ -328,6 +332,7 @@ class OnyxSiteAwarenessEvent {
       faceMatchName: faceMatchName ?? this.faceMatchName,
       faceMatchConfidence: faceMatchConfidence ?? this.faceMatchConfidence,
       faceMatchDistance: faceMatchDistance ?? this.faceMatchDistance,
+      snapshotBytes: snapshotBytes ?? this.snapshotBytes,
       unknownPerson: unknownPerson ?? this.unknownPerson,
       isKnownFaultChannel: isKnownFaultChannel ?? this.isKnownFaultChannel,
     );

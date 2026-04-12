@@ -14806,14 +14806,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final markdownText = <String>[
       '⚠️ *${_telegramMarkdownEscape(alertTypeLabel)}* — ${_telegramMarkdownEscape(cameraLabel)}',
       '🕐 $timeLabel — Active $activeMinutes ${activeMinutes == 1 ? 'minute' : 'minutes'}',
-      '👤 YOLO: ${_telegramMarkdownEscape(subjectLabel)}',
+      '👤 Detection: ${_telegramMarkdownEscape(subjectLabel)}',
       '📍 ${_telegramMarkdownEscape(zoneTypeLabel)} — ${_telegramMarkdownEscape(timeContextLabel)}',
       '❌ No resident or visitor match',
     ].join('\n');
     final plainText = <String>[
       '⚠️ $alertTypeLabel — $cameraLabel',
       '🕐 $timeLabel — Active $activeMinutes ${activeMinutes == 1 ? 'minute' : 'minutes'}',
-      '👤 YOLO: $subjectLabel',
+      '👤 Detection: $subjectLabel',
       '📍 $zoneTypeLabel — $timeContextLabel',
       '❌ No resident or visitor match',
     ].join('\n');
@@ -14991,14 +14991,37 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   String _telegramAlertSubjectLabel(_SiteAwarenessActiveAlertRecord alert) {
     final stored = (alert.subjectLabel ?? '').trim();
-    if (stored.isNotEmpty) {
-      return stored;
+    final normalizedStored = stored.toLowerCase();
+    if (normalizedStored.contains('vehicle') ||
+        normalizedStored.contains('car') ||
+        normalizedStored.contains('truck')) {
+      return 'vehicle';
+    }
+    if (normalizedStored.contains('animal') ||
+        normalizedStored.contains('dog') ||
+        normalizedStored.contains('cat') ||
+        normalizedStored.contains('bird')) {
+      return 'animal';
+    }
+    if (normalizedStored.contains('unknown') ||
+        normalizedStored.contains('unclassified') ||
+        normalizedStored.contains('unidentified')) {
+      return 'unclassified';
+    }
+    if (normalizedStored.contains('person') ||
+        normalizedStored.contains('human') ||
+        normalizedStored.contains('intruder') ||
+        normalizedStored.contains('face')) {
+      return 'human';
     }
     final normalizedEventType = alert.eventType.trim().toLowerCase();
     if (normalizedEventType.contains('vehicle')) {
       return 'vehicle';
     }
-    return 'person';
+    if (normalizedEventType.contains('animal')) {
+      return 'animal';
+    }
+    return 'human';
   }
 
   String _telegramAlertZoneTypeLabel(_SiteAwarenessActiveAlertRecord alert) {

@@ -46,3 +46,4 @@ yolov8n.pt
 *.pt
 tool/model_cache/
 .venv-monitoring-yolo/
+/scripts/deploy_pi_msvallee.sh

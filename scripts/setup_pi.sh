@@ -127,6 +127,11 @@ ensure_repo_checkout() {
 }
 
 ensure_flutter_sdk() {
+  if [[ "${ONYX_PI_SKIP_FLUTTER:-true}" == "true" ]]; then
+    log "Skipping Flutter SDK install (Pi edge mode)"
+    return 0
+  fi
+
   if ! grep -q "sdk: flutter" "${INSTALL_DIR}/pubspec.yaml"; then
     return 0
   fi
@@ -214,6 +219,15 @@ install_repo_dependencies() {
   fi
 
   run_as_app_user "cd '$INSTALL_DIR' && ./tool/setup_monitoring_yolo_detector.sh"
+  python3 -c "
+import json, pathlib
+p = pathlib.Path('${CONFIG_PATH}')
+c = json.loads(p.read_text())
+c['ONYX_MONITORING_YOLO_MODEL'] = 'yolov8n.pt'
+c['ONYX_MONITORING_YOLO_IMAGE_SIZE'] = '640'
+p.write_text(json.dumps(c, indent=2, sort_keys=True))
+"
+  log "Pi edge mode: using yolov8n.pt at 640px"
   run_as_app_user "cd '$INSTALL_DIR' && ./.venv-monitoring-yolo/bin/pip install --upgrade opencv-python"
 }
 
@@ -277,6 +291,7 @@ Environment=HOME=${APP_HOME}
 Environment=PATH=/usr/lib/dart/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Restart=always
 RestartSec=5
+ExecStartPre=/bin/sleep 20
 ExecStart=/bin/bash -lc 'mkdir -p tmp && exec ./scripts/run_camera_worker.sh --config "${CONFIG_PATH}" >>tmp/onyx_camera_worker.log 2>&1'
 
 [Install]
@@ -311,6 +326,7 @@ main() {
   install_systemd_units
   enable_services
   print_status
+  log "Pi edge agent scope: client=${ONYX_CLIENT_ID:-unset} site=${ONYX_SITE_ID:-unset}"
   log "ONYX Raspberry Pi setup complete."
 }
 

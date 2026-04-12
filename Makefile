@@ -10,7 +10,7 @@ MAX_REPORT_AGE_HOURS ?= 24
 run-web: flutter
 
 flutter:
-	@bash scripts/run_onyx_chrome_local.sh --config $(CONFIG)
+	@bash -lc 'caffeinate -di & CAFFEINATE_PID=$$!; trap "kill $$CAFFEINATE_PID 2>/dev/null" EXIT; echo "[ONYX] Mac sleep prevention active (caffeinate)"; bash scripts/run_onyx_chrome_local.sh --config "$(CONFIG)"'
 
 start: run-web
 
