@@ -528,8 +528,8 @@ class _ShellTopBar extends StatelessWidget {
                 style: _appShellTextStyle(
                   color: _appShellTitleColor,
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
                 ),
               ),
               const SizedBox(width: 10),
@@ -887,64 +887,76 @@ class _Sidebar extends StatelessWidget {
       onTap: () => onRouteChanged(route),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 1.5),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: isActive
-              ? OnyxDesignTokens.cyanSurface
-              : _appShellAltSurfaceColor,
-          border: Border.all(
-            color: isActive
-                ? OnyxDesignTokens.cyanBorder
-                : _appShellBorderColor,
-          ),
+              ? _appShellAccentBlue.withValues(alpha: 0.10)
+              : Colors.transparent,
         ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 15,
-              color: isActive
-                  ? _appShellAccentBlue
-                  : _appShellMutedColor,
-            ),
-            const SizedBox(width: 7),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: _appShellTextStyle(
-                  color: isActive ? _appShellTitleColor : _appShellBodyColor,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Stack(
+            children: [
+              if (isActive)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(width: 3, color: _appShellAccentBlue),
                 ),
-              ),
-            ),
-            if (badge != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: BoxDecoration(
-                  color: (badgeColor ?? const Color(0xFF4A678B)).withValues(
-                    alpha: 0.16,
-                  ),
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(
-                    color: (badgeColor ?? const Color(0xFF4A678B)).withValues(
-                      alpha: 0.45,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                child: Row(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 15,
+                      color: isActive ? _appShellAccentBlue : _appShellMutedColor,
                     ),
-                  ),
-                ),
-                child: Text(
-                  '$badge',
-                  style: _appShellTextStyle(
-                    color: badgeColor ?? _appShellAccentSky,
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                  ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: _appShellTextStyle(
+                          color: isActive ? _appShellTitleColor : _appShellBodyColor,
+                          fontSize: 12,
+                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (badge != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: (badgeColor ?? const Color(0xFF4A678B)).withValues(
+                            alpha: 0.16,
+                          ),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(
+                            color: (badgeColor ?? const Color(0xFF4A678B)).withValues(
+                              alpha: 0.45,
+                            ),
+                          ),
+                        ),
+                        child: Text(
+                          '$badge',
+                          style: _appShellTextStyle(
+                            color: badgeColor ?? _appShellAccentSky,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1038,7 +1050,7 @@ class _TopBarActionIcon extends StatelessWidget {
   }
 }
 
-class _OperatorSessionChip extends StatelessWidget {
+class _OperatorSessionChip extends StatefulWidget {
   final String operatorLabel;
   final String roleLabel;
   final String shiftLabel;
@@ -1050,12 +1062,49 @@ class _OperatorSessionChip extends StatelessWidget {
   });
 
   @override
+  State<_OperatorSessionChip> createState() => _OperatorSessionChipState();
+}
+
+class _OperatorSessionChipState extends State<_OperatorSessionChip> {
+  static final _appLaunchTime = DateTime.now();
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _formatElapsed(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60);
+    if (h == 0) return '${m}m';
+    return '${h}h ${m}m';
+  }
+
+  Color _sessionDotColour(Duration d) {
+    if (d.inHours < 8) return const Color(0xFF2ECC71);
+    if (d.inHours < 12) return const Color(0xFFEF9F27);
+    return const Color(0xFFE24B4A);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final normalizedOperator = operatorLabel.trim();
-    final normalizedRole = roleLabel.trim();
-    final normalizedShift = shiftLabel.trim();
+    final elapsed = DateTime.now().difference(_appLaunchTime);
+    final normalizedOperator = widget.operatorLabel.trim();
+    final normalizedRole = widget.roleLabel.trim();
+    final normalizedShift = widget.shiftLabel.trim();
     final hasSessionDetail =
         normalizedRole.isNotEmpty || normalizedShift.isNotEmpty;
+    final dotColour = _sessionDotColour(elapsed);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1070,14 +1119,11 @@ class _OperatorSessionChip extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: const BoxDecoration(
-              color: OnyxDesignTokens.greenNominal,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: dotColour, shape: BoxShape.circle),
           ),
           const SizedBox(width: 10),
           Text(
-            normalizedOperator,
+            normalizedOperator.isEmpty ? 'OPERATOR-01' : normalizedOperator,
             style: _appShellTextStyle(
               color: _appShellTitleColor,
               fontSize: 11.5,
@@ -1123,6 +1169,17 @@ class _OperatorSessionChip extends StatelessWidget {
               ),
             ),
           ],
+          const SizedBox(width: 10),
+          _OperatorSessionSeparator(),
+          const SizedBox(width: 10),
+          Text(
+            _formatElapsed(elapsed),
+            style: _appShellTextStyle(
+              color: _appShellMutedColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
@@ -1413,6 +1470,18 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
 
   @override
   Widget build(BuildContext context) {
+    // Section 4: hide ticker entirely when any item contains broken placeholder text
+    const brokenPhrases = [
+      'missing key',
+      'placeholder',
+      'replace the placeholder',
+    ];
+    final hasBrokenItems = widget.items.any((item) {
+      final lower = item.headline.toLowerCase();
+      return brokenPhrases.any(lower.contains);
+    });
+    if (hasBrokenItems) return const SizedBox.shrink();
+
     final sourceCounts = _sourceCounts();
     final availableFilters = _availableFilters(sourceCounts);
     final activeFilter = _resolvedActiveFilter();

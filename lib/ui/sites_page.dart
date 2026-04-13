@@ -47,7 +47,12 @@ class _SitesPageState extends State<SitesPage> {
   @override
   Widget build(BuildContext context) {
     final projection = OperationsHealthProjection.build(widget.events);
-    final allSites = _buildSiteDrillSnapshots(widget.events, projection);
+    final allSitesRaw = _buildSiteDrillSnapshots(widget.events, projection);
+    // Section 7: filter ghost sites from display only (data unchanged)
+    final allSites = allSitesRaw.where((site) {
+      final id = site.siteId.toLowerCase();
+      return id != 'site-unknown' && id.isNotEmpty;
+    }).toList(growable: false);
 
     if (allSites.isEmpty) {
       return const OnyxPageScaffold(
@@ -74,7 +79,7 @@ class _SitesPageState extends State<SitesPage> {
         allSites.fold<double>(0, (total, site) => total + site.healthScore) /
         allSites.length;
     final boundedDesktopSurface = _desktopEmbeddedScroll;
-    const contentPadding = EdgeInsets.fromLTRB(0.65, 0.65, 0.65, 1.45);
+    const contentPadding = EdgeInsets.all(16);
     final ultrawideSurface = isUltrawideLayout(context);
     final widescreenSurface = isWidescreenLayout(context);
     final surfaceMaxWidth = ultrawideSurface
@@ -285,7 +290,7 @@ class _SitesPageState extends State<SitesPage> {
             title: 'Site Operations Workspace',
             subtitle:
                 'Hold a selected site in focus and inspect command, outcome, or trace context.',
-            padding: const EdgeInsets.all(1.5),
+            padding: const EdgeInsets.all(20),
             flexibleChild: lockToViewport,
             child: sectionBody,
           );
@@ -297,7 +302,7 @@ class _SitesPageState extends State<SitesPage> {
       child: OnyxViewportWorkspaceLayout(
         padding: contentPadding,
         maxWidth: surfaceMaxWidth,
-        spacing: 3.5,
+        spacing: 16,
         lockToViewport: boundedDesktopSurface,
         header: LayoutBuilder(
           builder: (context, headerConstraints) {
@@ -325,15 +330,15 @@ class _SitesPageState extends State<SitesPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(1.1),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
+          colors: [Color(0xFF13131E), Color(0xFF1A1A2E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(4.75),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -354,7 +359,7 @@ class _SitesPageState extends State<SitesPage> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(4),
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF06B6D4), Color(0xFF2563EB)],
+                        colors: [Color(0xFF9D4BFF), Color(0xFF7B2FBE)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -425,7 +430,7 @@ class _SitesPageState extends State<SitesPage> {
                 key: const ValueKey('sites-view-tactical-button'),
                 icon: Icons.open_in_new,
                 label: 'View Tactical',
-                accent: const Color(0xFF93C5FD),
+                accent: const Color(0xFF9D4BFF),
                 onPressed: () => _showTacticalLinkDialog(context),
               ),
             ],
@@ -473,9 +478,9 @@ class _SitesPageState extends State<SitesPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.2),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
+        color: const Color(0x1A9D4BFF),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: RichText(
         text: TextSpan(
@@ -616,12 +621,12 @@ class _SitesPageState extends State<SitesPage> {
 
     return Container(
       key: const ValueKey('sites-overview-selected-card'),
-      padding: const EdgeInsets.all(1.25),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
             statusColor.withValues(alpha: 0.12),
-            const Color(0xFFFFFFFF),
+            const Color(0xFF13131E),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -704,7 +709,7 @@ class _SitesPageState extends State<SitesPage> {
                 key: const ValueKey('sites-overview-selected-open-tactical'),
                 label: 'Tactical',
                 selected: false,
-                accent: const Color(0xFF93C5FD),
+                accent: const Color(0xFF9D4BFF),
                 onTap: () => _showTacticalLinkDialog(context),
               ),
             ],
@@ -724,9 +729,9 @@ class _SitesPageState extends State<SitesPage> {
     return Container(
       padding: const EdgeInsets.all(2.25),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(4.25),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -789,7 +794,7 @@ class _SitesPageState extends State<SitesPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFFFFFFF),
+          backgroundColor: const Color(0xFF13131E),
           title: Text(
             'Tactical Link Ready',
             style: GoogleFonts.inter(
@@ -884,7 +889,7 @@ class _SitesPageState extends State<SitesPage> {
               key: const ValueKey('sites-workspace-banner-open-tactical'),
               label: 'Tactical',
               selected: false,
-              accent: const Color(0xFF93C5FD),
+              accent: const Color(0xFF9D4BFF),
               onTap: () => _showTacticalLinkDialog(context),
             ),
           ],
@@ -957,9 +962,9 @@ class _SitesPageState extends State<SitesPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(1.5),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(4.25),
-            border: Border.all(color: const Color(0xFFD6E1EC)),
+            border: Border.all(color: const Color(0x269D4BFF)),
           ),
           child: bannerChild,
         );
@@ -1190,15 +1195,15 @@ class _SitesPageState extends State<SitesPage> {
         decoration: BoxDecoration(
           gradient: selected
               ? const LinearGradient(
-                  colors: [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
+                  colors: [Color(0x1A9D4BFF), Color(0xFF1A1A2E)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: selected ? null : const Color(0xFFFFFFFF),
+          color: selected ? null : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(6.0),
           border: Border.all(
-            color: selected ? const Color(0xFF3476B1) : const Color(0xFFD6E1EC),
+            color: selected ? const Color(0xFF9D4BFF) : const Color(0x269D4BFF),
           ),
         ),
         child: Column(
@@ -2047,10 +2052,10 @@ class _SitesPageState extends State<SitesPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.75),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEDF6FF) : const Color(0xFFFFFFFF),
+          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF3F87C9) : const Color(0xFFD6E1EC),
+            color: selected ? const Color(0x669D4BFF) : const Color(0x269D4BFF),
           ),
         ),
         child: Row(
@@ -2074,8 +2079,8 @@ class _SitesPageState extends State<SitesPage> {
               ),
               decoration: BoxDecoration(
                 color: selected
-                    ? const Color(0xFFDCEBFA)
-                    : const Color(0xFFF4F8FC),
+                    ? const Color(0x339D4BFF)
+                    : const Color(0x12FFFFFF),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
@@ -2107,10 +2112,10 @@ class _SitesPageState extends State<SitesPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.75),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEDF6FF) : const Color(0xFFFFFFFF),
+          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF3F87C9) : const Color(0xFFD6E1EC),
+            color: selected ? const Color(0x669D4BFF) : const Color(0x269D4BFF),
           ),
         ),
         child: Text(
@@ -2141,14 +2146,14 @@ class _SitesPageState extends State<SitesPage> {
         padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 1.75),
         decoration: BoxDecoration(
           color: !enabled
-              ? const Color(0xFFF1F5F9)
+              ? const Color(0xFF1A1A2E)
               : selected
               ? accent.withValues(alpha: 0.2)
-              : const Color(0xFFFFFFFF),
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(5),
           border: Border.all(
             color: !enabled
-                ? const Color(0xFFD6E1EC)
+                ? const Color(0x269D4BFF)
                 : selected
                 ? accent.withValues(alpha: 0.75)
                 : accent.withValues(alpha: 0.35),
@@ -2173,12 +2178,12 @@ class _SitesPageState extends State<SitesPage> {
       padding: const EdgeInsets.all(2.0),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
+          colors: [Color(0xFF13131E), Color(0xFF1A1A2E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(5.0),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {

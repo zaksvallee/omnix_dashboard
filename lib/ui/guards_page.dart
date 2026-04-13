@@ -12,16 +12,16 @@ import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
 
-const _guardsPanelColor = Color(0xFFFFFFFF);
-const _guardsPanelTint = Color(0xFFF5F7FB);
-const _guardsPanelMuted = Color(0xFFEAF0F7);
-const _guardsSelectedPanelColor = Color(0xFFE8F1FF);
-const _guardsBorderColor = Color(0xFFD7E1EC);
-const _guardsStrongBorderColor = Color(0xFFBFD0EA);
-const _guardsTitleColor = Color(0xFF142235);
-const _guardsBodyColor = Color(0xFF5B708B);
-const _guardsMutedColor = Color(0xFF7A8EA8);
-const _guardsAccentBlue = Color(0xFF365E94);
+const _guardsPanelColor = Color(0xFF13131E);
+const _guardsPanelTint = Color(0xFF1A1A2E);
+const _guardsPanelMuted = Color(0xFF1A1A2E);
+const _guardsSelectedPanelColor = Color(0x1A9D4BFF);
+const _guardsBorderColor = Color(0x269D4BFF);
+const _guardsStrongBorderColor = Color(0x4D9D4BFF);
+const _guardsTitleColor = Color(0xFFE8E8F0);
+const _guardsBodyColor = Color(0x80FFFFFF);
+const _guardsMutedColor = Color(0x4DFFFFFF);
+const _guardsAccentBlue = Color(0xFF9D4BFF);
 
 enum _GuardStatus { onDuty, offDuty }
 
@@ -440,8 +440,8 @@ class _GuardsPageState extends State<GuardsPage> {
       duration: '5h 42m',
       statusLabel: 'ACTIVE',
       statusForeground: Color(0xFF5BD4FF),
-      statusBackground: Color(0x1A22D3EE),
-      statusBorder: Color(0x5522D3EE),
+      statusBackground: Color(0x1A9D4BFF),
+      statusBorder: Color(0x559D4BFF),
       handledBy: 'Emily Davis',
     ),
     _ShiftHistoryRow(
@@ -455,8 +455,8 @@ class _GuardsPageState extends State<GuardsPage> {
       duration: '5h 42m',
       statusLabel: 'ACTIVE',
       statusForeground: Color(0xFF5BD4FF),
-      statusBackground: Color(0x1A22D3EE),
-      statusBorder: Color(0x5522D3EE),
+      statusBackground: Color(0x1A9D4BFF),
+      statusBorder: Color(0x559D4BFF),
       handledBy: 'Sarah J.',
     ),
     _ShiftHistoryRow(
@@ -470,8 +470,8 @@ class _GuardsPageState extends State<GuardsPage> {
       duration: '5h 42m',
       statusLabel: 'ACTIVE',
       statusForeground: Color(0xFF5BD4FF),
-      statusBackground: Color(0x1A22D3EE),
-      statusBorder: Color(0x5522D3EE),
+      statusBackground: Color(0x1A9D4BFF),
+      statusBorder: Color(0x559D4BFF),
       handledBy: 'John S.',
     ),
     _ShiftHistoryRow(
@@ -485,8 +485,8 @@ class _GuardsPageState extends State<GuardsPage> {
       duration: '17h 42m',
       statusLabel: 'ACTIVE',
       statusForeground: Color(0xFF5BD4FF),
-      statusBackground: Color(0x1A22D3EE),
-      statusBorder: Color(0x5522D3EE),
+      statusBackground: Color(0x1A9D4BFF),
+      statusBorder: Color(0x559D4BFF),
       handledBy: 'Mike W.',
     ),
     _ShiftHistoryRow(
@@ -500,8 +500,8 @@ class _GuardsPageState extends State<GuardsPage> {
       duration: '17h 42m',
       statusLabel: 'ACTIVE',
       statusForeground: Color(0xFF5BD4FF),
-      statusBackground: Color(0x1A22D3EE),
-      statusBorder: Color(0x5522D3EE),
+      statusBackground: Color(0x1A9D4BFF),
+      statusBorder: Color(0x559D4BFF),
       handledBy: 'Mike W.',
     ),
     _ShiftHistoryRow(
@@ -915,8 +915,8 @@ class _GuardsPageState extends State<GuardsPage> {
                 icon: Icons.timelapse_rounded,
                 label: '$activeShifts Active Shifts',
                 foreground: const Color(0xFF54C8FF),
-                background: const Color(0x1A22D3EE),
-                border: const Color(0x5522D3EE),
+                background: const Color(0x1A9D4BFF),
+                border: const Color(0x559D4BFF),
               ),
               _pill(
                 icon: Icons.warning_amber_rounded,
@@ -970,7 +970,7 @@ class _GuardsPageState extends State<GuardsPage> {
   Widget _viewTabs() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _guardsPanelTint,
         borderRadius: BorderRadius.circular(18),
@@ -1776,8 +1776,8 @@ class _GuardsPageState extends State<GuardsPage> {
               _countPill(
                 '${calendarDays.length} Days Planned',
                 const Color(0xFF7DDCFF),
-                const Color(0x1A22D3EE),
-                const Color(0x5522D3EE),
+                const Color(0x1A9D4BFF),
+                const Color(0x559D4BFF),
               ),
               _countPill(
                 '$draftDays Draft Days',
@@ -1980,8 +1980,8 @@ class _GuardsPageState extends State<GuardsPage> {
                 icon: Icons.calendar_month_rounded,
                 label: _siteFilter == 'ALL' ? 'All Sites' : _siteFilter,
                 foreground: const Color(0xFF7DDCFF),
-                background: const Color(0x1A22D3EE),
-                border: const Color(0x5522D3EE),
+                background: const Color(0x1A9D4BFF),
+                border: const Color(0x559D4BFF),
               ),
             ],
           ),
@@ -2451,8 +2451,8 @@ class _GuardsPageState extends State<GuardsPage> {
               _countPill(
                 '$activeCount Active',
                 const Color(0xFF54C8FF),
-                const Color(0x1A22D3EE),
-                const Color(0x5522D3EE),
+                const Color(0x1A9D4BFF),
+                const Color(0x559D4BFF),
               ),
               const SizedBox(width: 8),
               _countPill(
@@ -3362,7 +3362,7 @@ class _GuardsPageState extends State<GuardsPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFFFFFFF),
+          backgroundColor: const Color(0xFF13131E),
           title: Text(
             'Reports Workspace Ready',
             style: GoogleFonts.inter(
@@ -3750,8 +3750,8 @@ class _GuardsPageState extends State<GuardsPage> {
           duration: _activeShiftDurationLabel(guard.clockIn, nowUtc),
           statusLabel: 'ACTIVE',
           statusForeground: const Color(0xFF5BD4FF),
-          statusBackground: const Color(0x1A22D3EE),
-          statusBorder: const Color(0x5522D3EE),
+          statusBackground: const Color(0x1A9D4BFF),
+          statusBorder: const Color(0x559D4BFF),
           handledBy: guard.handler,
         ),
       for (final guard in activeGuards)
@@ -3884,7 +3884,7 @@ class _GuardsPageState extends State<GuardsPage> {
     await showModalBottomSheet<void>(
       context: context,
       useSafeArea: true,
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: const Color(0xFF13131E),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

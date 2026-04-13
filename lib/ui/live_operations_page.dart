@@ -2831,7 +2831,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           if (showPageTopBar) _topBar(),
           Expanded(
             child: Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(16),
               child: LayoutBuilder(
                 builder: (context, bodyConstraints) {
                   final canUseEmbeddedDesktopLayout =
@@ -2860,7 +2860,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 showDetailedWorkspace: true,
                                 canCollapse: true,
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 20),
                               Expanded(
                                 child: _desktopWorkspaceShell(
                                   hasScopeFocus: hasScopeFocus,
@@ -2880,7 +2880,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 if (_criticalAlertIncident != null &&
                                     showDetailedWorkspace) ...[
                                   _criticalAlertBanner(_criticalAlertIncident!),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 20),
                                 ],
                                 _commandCenterHero(
                                   activeIncident: activeIncident,
@@ -2889,12 +2889,12 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ledger: ledger,
                                 ),
                                 if (showCommandReceiptBanner) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 20),
                                   _liveOpsCommandReceiptCard(),
                                 ],
                                 if (!canUseEmbeddedDesktopLayout &&
                                     !autoShowDetailedWorkspace) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 20),
                                   _commandWorkspaceToggle(
                                     showDetailedWorkspace:
                                         showDetailedWorkspace,
@@ -2902,7 +2902,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ),
                                 ],
                                 if (!showDetailedWorkspace) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 20),
                                   _commandOverviewDeck(
                                     activeIncident: activeIncident,
                                     clientCommsSnapshot: clientCommsSnapshot,
@@ -2911,13 +2911,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                   ),
                                 ],
                                 if (showDetailedWorkspace) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 20),
                                   if (hasScopeFocus) ...[
                                     _scopeFocusBanner(
                                       clientId: scopeClientId,
                                       siteId: scopeSiteId,
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 20),
                                   ],
                                   if (controlInboxSnapshot != null ||
                                       ledger.isNotEmpty) ...[
@@ -2927,22 +2927,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                       activeIncident: activeIncident,
                                       ledger: ledger,
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 20),
                                   ],
                                   if (clientCommsSnapshot != null) ...[
                                     _clientLaneWatchPanel(
                                       clientCommsSnapshot,
                                       activeIncident,
                                     ),
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 20),
                                   ],
                                   _incidentQueuePanel(embeddedScroll: false),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 20),
                                   _actionLadderPanel(
                                     activeIncident,
                                     embeddedScroll: false,
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 20),
                                   _contextAndVigilancePanel(
                                     activeIncident,
                                     embeddedScroll: false,
@@ -3172,18 +3172,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return Container(
       key: const ValueKey('live-operations-command-center-hero'),
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: _commandPanelColor,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _commandBorderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: _commandShadowColor,
-            blurRadius: 22,
-            spreadRadius: 1,
-          ),
-        ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -4066,7 +4059,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               child: LayoutBuilder(
                 builder: (context, cardConstraints) {
                   final denseCard = compact || cardConstraints.maxHeight < 118;
-                  final contentPadding = denseCard ? 8.0 : 12.0;
+                  final contentPadding = denseCard ? 12.0 : 20.0;
                   final iconContainerSize = denseCard ? 30.0 : 40.0;
                   final iconSize = denseCard ? 22.0 : 32.0;
                   final countFontSize = denseCard
@@ -4085,7 +4078,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         decoration: BoxDecoration(
                           gradient: m.gradient,
                           color: m.gradient == null ? m.surface : null,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: m.border),
                         ),
                         padding: EdgeInsets.all(contentPadding),
@@ -4855,10 +4848,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
   }) {
     final (accent, surface, _, _) = _commandDecisionTone(severity);
     final foreground = count > 0 ? accent : _commandMutedColor;
-    final activeSurface = Color.alphaBlend(
-      Colors.white.withValues(alpha: 0.54),
-      Color.alphaBlend(accent.withValues(alpha: 0.14), surface),
-    );
+    final activeSurface = Color.alphaBlend(accent.withValues(alpha: 0.14), surface);
     return Container(
       constraints: const BoxConstraints(minWidth: 82),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -7754,7 +7744,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8.2),
             gradient: const LinearGradient(
-              colors: [Color(0xFFF4F8FC), Color(0xFFFFFFFF)],
+              colors: [Color(0xFF13131E), Color(0xFF1A1A2E)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -7995,7 +7985,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       key: ValueKey('live-operations-workspace-tab-${tab.name}'),
       label: _tabLabel(tab),
       foreground: selected ? const Color(0xFF245A69) : const Color(0xFF556B80),
-      background: selected ? const Color(0xFFF1FAFC) : const Color(0xFFF5F8FC),
+      background: selected ? const Color(0x1A9D4BFF) : const Color(0xFF1A1A2E),
       border: selected ? const Color(0xFFBEDAE1) : const Color(0xFFD4DFEA),
       leadingIcon: switch (tab) {
         _ContextTab.details => Icons.article_outlined,
@@ -8030,7 +8020,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           padding: const EdgeInsets.all(4.5),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8.5),
-            color: const Color(0xFFFFFFFF),
+            color: const Color(0xFF13131E),
             border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
           child: Column(
@@ -8188,7 +8178,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFFFFFFFF),
+        backgroundColor: const Color(0xFF13131E),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -8657,13 +8647,13 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       child: InkWell(
         key: key,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(16),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 140;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 160),
-              padding: EdgeInsets.all(compact ? 9 : 10.5),
+              padding: EdgeInsets.all(compact ? 12 : 16),
               decoration: BoxDecoration(
                 color: selected
                     ? Color.alphaBlend(
@@ -8676,7 +8666,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         _commandPanelColor,
                       )
                     : _commandPanelColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: selected
                       ? iconAccent.withValues(alpha: 0.56)
@@ -10090,7 +10080,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
                     return Container(
-                      color: const Color(0xFFF4F8FC),
+                      color: const Color(0xFF1A1A2E),
                       alignment: Alignment.center,
                       padding: const EdgeInsets.all(12),
                       child: Text(
@@ -11334,7 +11324,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ? const Color(0x4422D3EE)
                 : isP1
                 ? const Color(0x24EF4444)
-                : const Color(0xFFFFFFFF),
+                : const Color(0xFF13131E),
             border: Border.all(
               color: isActive
                   ? const Color(0xFF4FDFFF)
@@ -12048,7 +12038,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           borderRadius: BorderRadius.circular(9),
           color: isActive
               ? statusColor.withValues(alpha: 0.08)
-              : const Color(0xFFF7FAFD),
+              : const Color(0xFF1A1A2E),
           border: Border.all(
             color: isActive
                 ? statusColor.withValues(alpha: 0.32)
@@ -12174,7 +12164,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                           style: OutlinedButton.styleFrom(
                             side: const BorderSide(color: Color(0x333B82F6)),
                             foregroundColor: const Color(0xFF315A86),
-                            backgroundColor: const Color(0xFFFFFFFF),
+                            backgroundColor: const Color(0xFF13131E),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 6,
                               vertical: 4,
@@ -13708,7 +13698,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF315A86),
-                    backgroundColor: const Color(0xFFFFFFFF),
+                    backgroundColor: const Color(0xFF13131E),
                     side: BorderSide(color: accent.withValues(alpha: 0.58)),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -13872,7 +13862,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       backgroundColor:
                           _laneVoiceOptionSelected(snapshot, option.$2)
                           ? accent.withValues(alpha: 0.16)
-                          : const Color(0xFFFFFFFF),
+                          : const Color(0xFF13131E),
                       side: BorderSide(
                         color: _laneVoiceOptionSelected(snapshot, option.$2)
                             ? accent.withValues(alpha: 0.34)
@@ -13987,10 +13977,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6.5, vertical: 3.5),
       decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          Colors.white.withValues(alpha: 0.62),
-          accent.withValues(alpha: 0.08),
-        ),
+        color: accent.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
@@ -14640,7 +14627,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD4DFEA)),
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -14762,7 +14749,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD4DFEA)),
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -14890,7 +14877,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         _contextChip(
                           label: zoneLabel,
                           foreground: const Color(0xFF556B80),
-                          background: const Color(0xFFF5F8FC),
+                          background: const Color(0xFF1A1A2E),
                           border: const Color(0xFFD4DFEA),
                         ),
                     ],
@@ -15227,7 +15214,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD4DFEA)),
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -15268,7 +15255,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               _contextChip(
                 label: 'Dispatch ${progress.dispatchId}',
                 foreground: const Color(0xFF556B80),
-                background: const Color(0xFFF5F8FC),
+                background: const Color(0xFF1A1A2E),
                 border: const Color(0xFFD4DFEA),
               ),
               if (trend != null)
@@ -15330,7 +15317,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: reached ? tone.$2 : const Color(0xFFF5F8FC),
+        color: reached ? tone.$2 : const Color(0xFF1A1A2E),
         border: Border.all(color: reached ? tone.$3 : const Color(0xFFD4DFEA)),
       ),
       child: Text(
@@ -16663,9 +16650,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         }
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(3.5),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6.5),
+            borderRadius: BorderRadius.circular(16),
             color: _commandPanelColor,
             border: Border.all(color: _commandBorderColor),
           ),
@@ -16673,25 +16660,25 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title.toUpperCase(),
+                title,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF4D7FAE),
-                  fontSize: 7.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.54,
+                  color: _commandTitleColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.1,
                 ),
               ),
-              const SizedBox(height: 0.75),
+              const SizedBox(height: 4),
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
                   color: _commandBodyColor,
-                  fontSize: 8.0,
-                  fontWeight: FontWeight.w600,
-                  height: 1.34,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  height: 1.4,
                 ),
               ),
-              const SizedBox(height: 1.5),
+              const SizedBox(height: 16),
               if (boundedHeight) Expanded(child: child) else child,
             ],
           ),
@@ -17258,7 +17245,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFFFFFFFF),
+              backgroundColor: const Color(0xFF13131E),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: const BorderSide(color: Color(0x66EF4444)),
@@ -17880,7 +17867,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ? const EdgeInsets.symmetric(horizontal: 2.1, vertical: 0.88)
           : const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F8FC),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(compact ? 999 : 9),
         border: Border.all(color: const Color(0xFFD4DFEA)),
       ),

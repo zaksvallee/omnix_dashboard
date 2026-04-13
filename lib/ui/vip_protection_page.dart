@@ -5,13 +5,13 @@ import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
-const _vipSurfaceColor = Color(0xFFFFFFFF);
-const _vipSurfaceAltColor = Color(0xFFF6FAF8);
-const _vipBorderColor = Color(0xFFD8E7DE);
-const _vipStrongBorderColor = Color(0xFFBED7C8);
-const _vipTitleColor = Color(0xFF162436);
-const _vipBodyColor = Color(0xFF3F5A52);
-const _vipMutedColor = Color(0xFF70899A);
+const _vipSurfaceColor = Color(0xFF13131E);
+const _vipSurfaceAltColor = Color(0xFF1A1A2E);
+const _vipBorderColor = Color(0x269D4BFF);
+const _vipStrongBorderColor = Color(0x4D9D4BFF);
+const _vipTitleColor = Color(0xFFE8E8F0);
+const _vipBodyColor = Color(0x80FFFFFF);
+const _vipMutedColor = Color(0x4DFFFFFF);
 
 class VipDetailFact {
   final IconData icon;

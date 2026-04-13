@@ -177,8 +177,8 @@ abstract final class OnyxTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: OnyxColorTokens.accentGreen,
-          foregroundColor: OnyxColorTokens.backgroundPrimary,
+          backgroundColor: OnyxColorTokens.accentCyan,
+          foregroundColor: Colors.white,
           disabledBackgroundColor: OnyxColorTokens.surface,
           disabledForegroundColor: OnyxColorTokens.textDisabled,
           minimumSize: const Size(0, OnyxSpacingTokens.buttonHeightLarge),

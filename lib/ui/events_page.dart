@@ -23,14 +23,14 @@ import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
-const _eventsPanelColor = Color(0xFFFFFFFF);
-const _eventsPanelTint = Color(0xFFF7FAFE);
-const _eventsPanelMuted = Color(0xFFF0F5FB);
-const _eventsBorderColor = Color(0xFFD7E1EC);
-const _eventsTitleColor = Color(0xFF142235);
-const _eventsBodyColor = Color(0xFF516882);
-const _eventsMutedColor = Color(0xFF6A7D93);
-const _eventsAccentBlue = Color(0xFF5B86B1);
+const _eventsPanelColor = Color(0xFF13131E);
+const _eventsPanelTint = Color(0xFF1A1A2E);
+const _eventsPanelMuted = Color(0xFF1A1A2E);
+const _eventsBorderColor = Color(0x269D4BFF);
+const _eventsTitleColor = Color(0xFFE8E8F0);
+const _eventsBodyColor = Color(0x80FFFFFF);
+const _eventsMutedColor = Color(0x4DFFFFFF);
+const _eventsAccentBlue = Color(0xFF9D4BFF);
 
 class EventsPage extends StatefulWidget {
   final List<DispatchEvent> events;
@@ -112,7 +112,7 @@ class _EventsPageState extends State<EventsPage> {
       body: OnyxPageScaffold(
         child: LayoutBuilder(
           builder: (context, viewport) {
-            const contentPadding = EdgeInsets.all(5);
+            const contentPadding = EdgeInsets.all(16);
             final useScrollFallback =
                 handsetLayout ||
                 viewport.maxHeight < 680 ||
@@ -312,22 +312,11 @@ class _EventsPageState extends State<EventsPage> {
     final windowLabel = _timeWindow.label;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(5),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF8FBFF), Color(0xFFEDF4FB)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(8),
+        color: _eventsPanelColor,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _eventsBorderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A081B33),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -342,7 +331,7 @@ class _EventsPageState extends State<EventsPage> {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(16),
                       gradient: const LinearGradient(
                         colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
                         begin: Alignment.topLeft,
@@ -672,14 +661,14 @@ class _EventsPageState extends State<EventsPage> {
 
     return Container(
       key: const ValueKey('events-overview-selected-card'),
-      padding: const EdgeInsets.all(5),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [accent.withValues(alpha: 0.12), _eventsPanelColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: 0.34)),
       ),
       child: SingleChildScrollView(
@@ -776,18 +765,11 @@ class _EventsPageState extends State<EventsPage> {
     required Color accent,
   }) {
     return Container(
-      padding: const EdgeInsets.all(5),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _eventsPanelColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _eventsBorderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A081B33),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -988,7 +970,7 @@ class _EventsPageState extends State<EventsPage> {
     return Container(
       key: const ValueKey('events-workspace-status-banner'),
       width: double.infinity,
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _eventsPanelColor,
         borderRadius: BorderRadius.circular(9),
@@ -1158,7 +1140,7 @@ class _EventsPageState extends State<EventsPage> {
           );
 
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(14),
       decoration: onyxForensicSurfaceCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1418,10 +1400,10 @@ class _EventsPageState extends State<EventsPage> {
     final canWidenWindow = _timeWindow != _TimeWindow.all;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _eventsPanelColor,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _eventsBorderColor),
       ),
       child: Column(
@@ -1563,7 +1545,7 @@ class _EventsPageState extends State<EventsPage> {
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: _eventsPanelMuted,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _eventsBorderColor),
       ),
       child: Column(
@@ -1616,7 +1598,7 @@ class _EventsPageState extends State<EventsPage> {
     };
 
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(14),
       decoration: onyxForensicSurfaceCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1687,7 +1669,7 @@ class _EventsPageState extends State<EventsPage> {
     final dispatchId = _dispatchIdForEvent(row.event);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [row.info.color.withValues(alpha: 0.12), _eventsPanelColor],
@@ -1813,10 +1795,10 @@ class _EventsPageState extends State<EventsPage> {
     Key? valueKey,
   }) {
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _eventsPanelMuted,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
       child: Column(
@@ -2487,7 +2469,7 @@ class _EventsPageState extends State<EventsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 9),
             decoration: BoxDecoration(
               color: _eventsPanelTint,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: _eventsBorderColor),
             ),
             child: DropdownButtonHideUnderline(

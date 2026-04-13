@@ -27,8 +27,8 @@ class OnyxCameraBridgeShellSurface extends StatelessWidget {
         OnyxCameraBridgeShellSurfaceVariant.admin => const EdgeInsets.all(18),
       },
       backgroundColor: switch (variant) {
-        OnyxCameraBridgeShellSurfaceVariant.agent => const Color(0xFFFBFDFF),
-        OnyxCameraBridgeShellSurfaceVariant.admin => const Color(0xFFFFFFFF),
+        OnyxCameraBridgeShellSurfaceVariant.agent => const Color(0xFF1A1A2E),
+        OnyxCameraBridgeShellSurfaceVariant.admin => const Color(0xFF13131E),
       },
       borderRadius: switch (variant) {
         OnyxCameraBridgeShellSurfaceVariant.agent => 12,

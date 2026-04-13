@@ -3,19 +3,19 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'layout_breakpoints.dart';
 
-const _onyxCanvasColor = Color(0xFFF5F7FB);
-const _onyxPanelColor = Color(0xFFFFFFFF);
-const _onyxPanelTint = Color(0xFFF7FAFE);
-const _onyxPanelBorder = Color(0xFFD7E1EC);
-const _onyxSelectedPanel = Color(0xFFE8F1FF);
-const _onyxSelectedBorder = Color(0xFF9EC1E8);
-const _onyxTitleColor = Color(0xFF142235);
-const _onyxBodyColor = Color(0xFF516882);
-const _onyxMutedColor = Color(0xFF6A7D93);
-const _onyxAccentBlue = Color(0xFF5B86B1);
+const _onyxCanvasColor = Color(0xFF0D0D14);
+const _onyxPanelColor = Color(0xFF13131E);
+const _onyxPanelTint = Color(0xFF1A1A2E);
+const _onyxPanelBorder = Color(0x269D4BFF);
+const _onyxSelectedPanel = Color(0x1A9D4BFF);
+const _onyxSelectedBorder = Color(0x669D4BFF);
+const _onyxTitleColor = Color(0xFFE8E8F0);
+const _onyxBodyColor = Color(0x80FFFFFF);
+const _onyxMutedColor = Color(0x4DFFFFFF);
+const _onyxAccentBlue = Color(0xFF9D4BFF);
 
 Color _softenHeroColor(Color color) {
-  return Color.lerp(color, Colors.white, 0.82)!;
+  return Color.lerp(color, const Color(0xFF0D0D14), 0.82)!;
 }
 
 class OnyxPageScaffold extends StatelessWidget {
@@ -39,7 +39,7 @@ class OnyxPageScaffold extends StatelessWidget {
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    colors: [Color(0x225B86B1), Color(0x00F5F7FB)],
+                    colors: [Color(0x229D4BFF), Color(0x000D0D14)],
                   ),
                 ),
               ),
@@ -55,7 +55,7 @@ class OnyxPageScaffold extends StatelessWidget {
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    colors: [Color(0x145B86B1), Color(0x00F5F7FB)],
+                    colors: [Color(0x149D4BFF), Color(0x000D0D14)],
                   ),
                 ),
               ),
@@ -94,10 +94,10 @@ class OnyxPageHeader extends StatelessWidget {
       return _iconLayout();
     }
     final titleCard = Container(
-      padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
       decoration: BoxDecoration(
         color: _onyxPanelColor,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _onyxPanelBorder),
       ),
       child: Column(
@@ -111,22 +111,24 @@ class OnyxPageHeader extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 10),
           Text(
             title,
             style: GoogleFonts.inter(
               color: _onyxTitleColor,
-              fontSize: 19,
+              fontSize: 24,
               fontWeight: FontWeight.w700,
+              letterSpacing: -0.3,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             subtitle,
             style: GoogleFonts.inter(
               color: _onyxMutedColor,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              height: 1.4,
             ),
           ),
         ],
@@ -134,10 +136,10 @@ class OnyxPageHeader extends StatelessWidget {
     );
 
     final actionCard = Container(
-      padding: const EdgeInsets.all(1),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: _onyxPanelTint,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _onyxPanelBorder),
       ),
       child: Wrap(
@@ -157,14 +159,14 @@ class OnyxPageHeader extends StatelessWidget {
         if (compact) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [titleCard, const SizedBox(height: 6), actionCard],
+            children: [titleCard, const SizedBox(height: 12), actionCard],
           );
         }
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: titleCard),
-            const SizedBox(width: 6),
+            const SizedBox(width: 12),
             actionCard,
           ],
         );
@@ -182,12 +184,12 @@ class OnyxPageHeader extends StatelessWidget {
           height: 44,
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Icon(icon, color: color, size: 22),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,13 +199,13 @@ class OnyxPageHeader extends StatelessWidget {
                 title,
                 style: GoogleFonts.inter(
                   color: _onyxTitleColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                  letterSpacing: -0.2,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
+                  letterSpacing: -0.3,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 subtitle,
                 style: GoogleFonts.inter(
@@ -273,7 +275,7 @@ class OnyxStoryHero extends StatelessWidget {
         : _onyxAccentBlue;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: softenedGradient,
@@ -293,16 +295,16 @@ class OnyxStoryHero extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: 44,
+                    height: 44,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       color: _onyxSelectedPanel,
                       border: Border.all(color: _onyxSelectedBorder),
                     ),
-                    child: Icon(icon, color: accentColor, size: 20),
+                    child: Icon(icon, color: accentColor, size: 22),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -312,9 +314,9 @@ class OnyxStoryHero extends StatelessWidget {
                             eyebrow!,
                             style: GoogleFonts.inter(
                               color: accentColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.0,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -323,18 +325,19 @@ class OnyxStoryHero extends StatelessWidget {
                           title,
                           style: GoogleFonts.inter(
                             color: _onyxTitleColor,
-                            fontSize: compact ? 20 : 24,
+                            fontSize: compact ? 22 : 26,
                             fontWeight: FontWeight.w700,
-                            height: 0.96,
+                            height: 1.0,
+                            letterSpacing: -0.4,
                           ),
                         ),
-                        const SizedBox(height: 3),
+                        const SizedBox(height: 4),
                         Text(
                           subtitle,
                           style: GoogleFonts.inter(
                             color: _onyxMutedColor,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
                             height: 1.4,
                           ),
                         ),
@@ -344,10 +347,10 @@ class OnyxStoryHero extends StatelessWidget {
                 ],
               ),
               if (metrics.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
                 Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                  spacing: 8,
+                  runSpacing: 8,
                   children: metrics.map(_metricChip).toList(growable: false),
                 ),
               ],
@@ -369,21 +372,21 @@ class OnyxStoryHero extends StatelessWidget {
                 titleBlock
               else if (compact) ...[
                 titleBlock,
-                const SizedBox(height: 10),
+                const SizedBox(height: 16),
                 actionsBlock,
               ] else
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(child: titleBlock),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 320),
                       child: actionsBlock,
                     ),
                   ],
                 ),
-              if (banner != null) ...[const SizedBox(height: 10), banner!],
+              if (banner != null) ...[const SizedBox(height: 16), banner!],
             ],
           );
         },
@@ -396,7 +399,7 @@ class OnyxStoryHero extends StatelessWidget {
         ? Colors.white
         : _onyxBodyColor;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: metric.background,
         borderRadius: BorderRadius.circular(999),
@@ -409,7 +412,7 @@ class OnyxStoryHero extends StatelessWidget {
               text: '${metric.value} ',
               style: GoogleFonts.inter(
                 color: metric.foreground,
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -417,8 +420,8 @@ class OnyxStoryHero extends StatelessWidget {
               text: metric.label,
               style: GoogleFonts.inter(
                 color: labelColor,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -464,45 +467,39 @@ class OnyxSectionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               Text(
                 title,
                 style: GoogleFonts.inter(
                   color: _onyxTitleColor,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.1,
                 ),
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   subtitle!,
                   style: GoogleFonts.inter(
                     color: _onyxMutedColor,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    height: 1.4,
                   ),
                 ),
               ],
-              const SizedBox(height: 6),
+              const SizedBox(height: 16),
               child,
             ],
           );
           return Container(
             width: double.infinity,
-            padding: padding ?? const EdgeInsets.all(6),
+            padding: padding ?? const EdgeInsets.all(20),
             decoration: BoxDecoration(
               color: _onyxPanelColor,
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: _onyxPanelBorder),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0A081B33),
-                  blurRadius: 14,
-                  offset: Offset(0, 5),
-                ),
-              ],
             ),
             child: phoneLayout
                 ? content
@@ -516,18 +513,11 @@ class OnyxSectionCard extends StatelessWidget {
             : child;
         return Container(
           width: double.infinity,
-          padding: padding ?? const EdgeInsets.all(6),
+          padding: padding ?? const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: _onyxPanelColor,
-            borderRadius: BorderRadius.circular(11),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: _onyxPanelBorder),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0A081B33),
-                blurRadius: 14,
-                offset: Offset(0, 5),
-              ),
-            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -540,28 +530,29 @@ class OnyxSectionCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 10),
               Text(
                 title,
                 style: GoogleFonts.inter(
                   color: _onyxTitleColor,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.1,
                 ),
               ),
               if (subtitle != null) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   subtitle!,
                   style: GoogleFonts.inter(
                     color: _onyxMutedColor,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    height: 1.4,
                   ),
                 ),
               ],
-              const SizedBox(height: 6),
+              const SizedBox(height: 16),
               body,
             ],
           ),
@@ -746,18 +737,11 @@ class OnyxSummaryStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _onyxPanelTint,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _onyxPanelBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A081B33),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -770,22 +754,25 @@ class OnyxSummaryStat extends StatelessWidget {
               borderRadius: BorderRadius.circular(999),
             ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 8),
           Text(
             label,
             style: GoogleFonts.inter(
               color: _onyxMutedColor,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             value,
             style: GoogleFonts.inter(
               color: accent,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              height: 1.0,
+              letterSpacing: -0.5,
             ),
           ),
         ],
@@ -797,41 +784,26 @@ class OnyxSummaryStat extends StatelessWidget {
 BoxDecoration onyxWorkspaceSurfaceDecoration() {
   return BoxDecoration(
     color: _onyxPanelColor,
-    borderRadius: BorderRadius.circular(14),
+    borderRadius: BorderRadius.circular(16),
     border: Border.all(color: _onyxPanelBorder),
-    boxShadow: const [
-      BoxShadow(color: Color(0x08081B33), blurRadius: 10, offset: Offset(0, 3)),
-    ],
   );
 }
 
 BoxDecoration onyxSelectableRowSurfaceDecoration({required bool isSelected}) {
   return BoxDecoration(
     color: isSelected ? _onyxSelectedPanel : _onyxPanelColor,
-    borderRadius: BorderRadius.circular(12),
+    borderRadius: BorderRadius.circular(16),
     border: Border.all(
       color: isSelected ? _onyxSelectedBorder : _onyxPanelBorder,
     ),
-    boxShadow: isSelected
-        ? const [
-            BoxShadow(
-              color: Color(0x08081B33),
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ]
-        : null,
   );
 }
 
-BoxDecoration onyxPanelSurfaceDecoration({double radius = 12}) {
+BoxDecoration onyxPanelSurfaceDecoration({double radius = 16}) {
   return BoxDecoration(
     color: _onyxPanelColor,
     borderRadius: BorderRadius.circular(radius),
     border: Border.all(color: _onyxPanelBorder),
-    boxShadow: const [
-      BoxShadow(color: Color(0x08081B33), blurRadius: 10, offset: Offset(0, 3)),
-    ],
   );
 }
 
@@ -840,9 +812,6 @@ BoxDecoration onyxForensicSurfaceCardDecoration() {
     color: _onyxPanelTint,
     borderRadius: BorderRadius.circular(18),
     border: Border.all(color: _onyxPanelBorder),
-    boxShadow: const [
-      BoxShadow(color: Color(0x08081B33), blurRadius: 12, offset: Offset(0, 3)),
-    ],
   );
 }
 
@@ -853,15 +822,6 @@ BoxDecoration onyxForensicRowDecoration({required bool isSelected}) {
     border: Border.all(
       color: isSelected ? _onyxSelectedBorder : _onyxPanelBorder,
     ),
-    boxShadow: isSelected
-        ? const [
-            BoxShadow(
-              color: Color(0x08081B33),
-              blurRadius: 10,
-              offset: Offset(0, 3),
-            ),
-          ]
-        : null,
   );
 }
 
@@ -875,7 +835,7 @@ class OnyxEmptyState extends StatelessWidget {
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 420),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
         decoration: BoxDecoration(
           color: _onyxPanelColor,
           borderRadius: BorderRadius.circular(16),
@@ -885,9 +845,9 @@ class OnyxEmptyState extends StatelessWidget {
           label,
           style: GoogleFonts.inter(
             color: _onyxMutedColor,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            height: 1.4,
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            height: 1.5,
           ),
           textAlign: TextAlign.center,
         ),

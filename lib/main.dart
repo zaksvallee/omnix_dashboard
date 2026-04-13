@@ -20770,7 +20770,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title = normalizedDispatchId.isEmpty
             ? 'Track opened from Dispatch.'
             : 'Track opened for $normalizedDispatchId.';
-        accent = const Color(0xFF8FD1FF);
+        accent = const Color(0xFF9D4BFF);
         break;
       case 'dispatch_launched':
         title = normalizedDispatchId.isEmpty
@@ -20788,7 +20788,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title = normalizedDispatchId.isEmpty
             ? 'Client handoff opened from Dispatch.'
             : 'Client handoff opened for $normalizedDispatchId.';
-        accent = const Color(0xFF22D3EE);
+        accent = const Color(0xFF9D4BFF);
         break;
       case 'agent_handoff_opened':
         title = normalizedDispatchId.isEmpty
@@ -20806,7 +20806,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         title = normalizedDispatchId.isEmpty
             ? 'Reports workspace opened from Dispatch.'
             : 'Reports workspace opened for $normalizedDispatchId.';
-        accent = const Color(0xFF8FD1FF);
+        accent = const Color(0xFF9D4BFF);
         break;
       case 'alarm_cleared':
         title = normalizedDispatchId.isEmpty
@@ -20865,11 +20865,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     switch (normalizedAction) {
       case 'track_handoff_opened':
         title = 'Track opened from Live Ops.';
-        accent = const Color(0xFF8FD1FF);
+        accent = const Color(0xFF9D4BFF);
         break;
       case 'dispatch_handoff_opened':
         title = 'Dispatch board opened from Live Ops.';
-        accent = const Color(0xFF8FD1FF);
+        accent = const Color(0xFF9D4BFF);
         break;
       case 'agent_handoff_opened':
         title = 'AI Copilot opened from Live Ops.';
@@ -20877,7 +20877,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         break;
       case 'client_handoff_opened':
         title = 'Client handoff opened from Live Ops.';
-        accent = const Color(0xFF22D3EE);
+        accent = const Color(0xFF9D4BFF);
         break;
       case 'cctv_handoff_opened':
         title = 'CCTV opened from Live Ops.';
@@ -21057,7 +21057,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     switch (normalizedAction) {
       case 'site_builder_opened':
         title = 'Site builder opened from Sites.';
-        accent = const Color(0xFF8FD1FF);
+        accent = const Color(0xFF9D4BFF);
         break;
       case 'site_map_opened':
         title = 'Site map opened from Sites.';
@@ -34639,14 +34639,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             ? 'Returned from evidence to track-linked dispatch.'
             : 'Returned to track-linked dispatch for $normalizedDispatchId.',
         'The signed track handoff was verified in the ledger. Keep the tactical and dispatch views aligned.',
-        const Color(0xFF8FD1FF),
+        const Color(0xFF9D4BFF),
       ),
       _ => (
         normalizedDispatchId.isEmpty
             ? 'Returned from evidence to Dispatch.'
             : 'Returned to Dispatch for $normalizedDispatchId.',
         'The signed dispatch record was verified in the ledger and the active lane is pinned again.',
-        const Color(0xFF8FD1FF),
+        const Color(0xFF9D4BFF),
       ),
     };
     return DispatchEvidenceReturnReceipt(
@@ -34711,7 +34711,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               : 'Returned to dispatch board for $dispatchId.',
           detail:
               'The signed Live Ops dispatch handoff was verified in the ledger. Keep the same incident board pinned.',
-          accent: const Color(0xFF8FD1FF),
+          accent: const Color(0xFF9D4BFF),
         );
     }
     return null;
@@ -34866,7 +34866,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
               : 'Returned to Track for $dispatchId.',
           detail:
               'The signed track handoff was verified in the ledger. Keep the same tactical view pinned and finish verification from here.',
-          accent: const Color(0xFF8FD1FF),
+          accent: const Color(0xFF9D4BFF),
         );
       case 'live_ops_auto_audit':
         return TacticalEvidenceReturnReceipt(
@@ -34875,7 +34875,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           headline: 'Returned to Track from Live Ops evidence.',
           detail:
               'The signed Live Ops track handoff was verified in the ledger. Keep the same tactical focus pinned and continue from this board.',
-          accent: const Color(0xFF8FD1FF),
+          accent: const Color(0xFF9D4BFF),
         );
     }
     return null;
@@ -34908,7 +34908,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : 'Returned to the reports workspace for $dispatchId.',
       detail:
           'The signed report handoff was verified in the ledger. Keep the delivery rail pinned and finish the report from the same workspace.',
-      accent: const Color(0xFF8FD1FF),
+      accent: const Color(0xFF9D4BFF),
     );
   }
 
@@ -34961,7 +34961,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : 'Returned to client room for $dispatchId.',
       detail: '$sourceLabel • $sourceDetail',
       room: effectiveRoom,
-      accent: const Color(0xFF22D3EE),
+      accent: const Color(0xFF9D4BFF),
     );
   }
 
@@ -35762,9 +35762,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return switch (action) {
       'publish-roster' => const Color(0xFF63E6A1),
       'edit-roster' => const Color(0xFFFFC247),
-      'create-roster' => const Color(0xFF8FD1FF),
-      'open-month-planner' => const Color(0xFF8FD1FF),
-      _ => const Color(0xFF8FD1FF),
+      'create-roster' => const Color(0xFF9D4BFF),
+      'open-month-planner' => const Color(0xFF9D4BFF),
+      _ => const Color(0xFF9D4BFF),
     };
   }
 
@@ -35844,8 +35844,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'site_map_opened' => const Color(0xFF54C8FF),
       'site_settings_opened' => const Color(0xFFFFC247),
       'site_guard_roster_opened' => const Color(0xFF63E6A1),
-      'site_builder_opened' => const Color(0xFF8FD1FF),
-      _ => const Color(0xFF8FD1FF),
+      'site_builder_opened' => const Color(0xFF9D4BFF),
+      _ => const Color(0xFF9D4BFF),
     };
   }
 
@@ -36055,7 +36055,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           : 'Returned to client handoff for $dispatchId.',
       detail:
           'The signed client handoff was verified in the ledger. Keep the same lane open and finish the operator reply from this thread.',
-      accent: const Color(0xFF22D3EE),
+      accent: const Color(0xFF9D4BFF),
     );
   }
 

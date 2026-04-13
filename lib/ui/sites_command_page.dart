@@ -97,7 +97,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, viewport) {
-          const contentPadding = EdgeInsets.all(6);
+          const contentPadding = EdgeInsets.all(16);
           final useScrollFallback =
               isHandsetLayout(context) ||
               viewport.maxHeight < 700 ||
@@ -413,7 +413,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -462,7 +462,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           title: 'Sites & Deployment',
           subtitle: 'Pick the site, fix the weak point, and move.',
           icon: Icons.apartment_rounded,
-          gradientColors: const [Color(0xFFF5FAFF), Color(0xFFFFFFFF)],
+          gradientColors: const [Color(0xFF13131E), Color(0xFF1A1A2E)],
           metrics: [
             OnyxStoryMetric(
               value: selected.id,
@@ -502,7 +502,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               value: '$totalSites',
               label: 'sites',
               foreground: const Color(0xFF172638),
-              background: const Color(0xFFFFFFFF),
+              background: const Color(0xFF13131E),
               border: const Color(0xFFD6E1EC),
             ),
           ],
@@ -564,7 +564,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFFFFFFFF),
+          backgroundColor: const Color(0xFF13131E),
           title: Text(
             'Site Map Ready',
             style: GoogleFonts.inter(
@@ -696,7 +696,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
@@ -726,7 +726,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF),
+              color: const Color(0xFF13131E),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFD6E1EC)),
             ),
@@ -753,7 +753,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -787,13 +787,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               ? LinearGradient(
                   colors: [
                     status.withValues(alpha: 0.14),
-                    const Color(0xFFFFFFFF),
+                    const Color(0xFF1A1A2E),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: selected ? null : const Color(0xFFFFFFFF),
+          color: selected ? null : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected
@@ -1019,7 +1019,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             gradient: LinearGradient(
               colors: [
                 _statusColor(site.status).withValues(alpha: 0.14),
-                const Color(0xFFFFFFFF),
+                const Color(0xFF1A1A2E),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -1081,7 +1081,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               final directive = Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFFFF),
+                  color: const Color(0xFF13131E),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFD6E1EC)),
                 ),
@@ -1169,7 +1169,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Container(
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -1839,7 +1839,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEAF7FF) : const Color(0xFFFFFFFF),
+          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected ? const Color(0xFF7DB6D1) : const Color(0xFFD6E1EC),
@@ -1896,7 +1896,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEAF7FF) : const Color(0xFFFFFFFF),
+          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected ? const Color(0xFF7DB6D1) : const Color(0xFFD6E1EC),
@@ -2229,21 +2229,21 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: enabled
-              ? (primary ? const Color(0xFF3B82F6) : const Color(0xFFFFFFFF))
-              : const Color(0xFFF1F5F9),
+              ? (primary ? const Color(0xFF9D4BFF) : const Color(0xFF1A1A2E))
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: enabled
-                ? (primary ? const Color(0xFF4E8FFF) : const Color(0xFFD6E1EC))
-                : const Color(0xFFD6E1EC),
+                ? (primary ? const Color(0xFF9D4BFF) : const Color(0x269D4BFF))
+                : const Color(0x269D4BFF),
           ),
         ),
         child: Text(
           text,
           style: GoogleFonts.inter(
             color: enabled
-                ? (primary ? const Color(0xFFFFFFFF) : const Color(0xFF172638))
-                : const Color(0xFF94A3B8),
+                ? (primary ? Colors.white : const Color(0xFF9D4BFF))
+                : const Color(0x4DFFFFFF),
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
@@ -2263,7 +2263,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: width,
       padding: const EdgeInsets.fromLTRB(7, 7, 7, 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -2330,7 +2330,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -2439,7 +2439,7 @@ class _SitesAuditReceipt extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),

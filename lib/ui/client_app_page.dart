@@ -13,16 +13,16 @@ import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'ui_action_logger.dart';
 
-const _clientPanelColor = Color(0xFFFFFFFF);
-const _clientPanelTint = Color(0xFFF7FAFE);
-const _clientPanelMuted = Color(0xFFF0F5FB);
-const _clientSelectedPanelColor = Color(0xFFE8F1FF);
-const _clientBorderColor = Color(0xFFD7E1EC);
-const _clientStrongBorderColor = Color(0xFFB7CDE2);
-const _clientTitleColor = Color(0xFF142235);
-const _clientBodyColor = Color(0xFF516882);
-const _clientMutedColor = Color(0xFF6A7D93);
-const _clientAccentBlue = Color(0xFF5B86B1);
+const _clientPanelColor = Color(0xFF13131E);
+const _clientPanelTint = Color(0xFF1A1A2E);
+const _clientPanelMuted = Color(0xFF1A1A2E);
+const _clientSelectedPanelColor = Color(0x1A9D4BFF);
+const _clientBorderColor = Color(0x269D4BFF);
+const _clientStrongBorderColor = Color(0x4D9D4BFF);
+const _clientTitleColor = Color(0xFFE8E8F0);
+const _clientBodyColor = Color(0x80FFFFFF);
+const _clientMutedColor = Color(0x4DFFFFFF);
+const _clientAccentBlue = Color(0xFF9D4BFF);
 
 enum ClientAppLocale { en, zu, af }
 

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-const _queuePanelColor = Color(0xFFFFFFFF);
-const _queueBorderColor = Color(0xFFD7E1EC);
-const _queueStrongBorderColor = Color(0xFFBFD0EA);
-const _queueTitleColor = Color(0xFF142235);
-const _queueBodyColor = Color(0xFF6A7D93);
-const _queueMutedColor = Color(0xFF516882);
+const _queuePanelColor = Color(0xFF13131E);
+const _queueBorderColor = Color(0x269D4BFF);
+const _queueStrongBorderColor = Color(0x4D9D4BFF);
+const _queueTitleColor = Color(0xFFE8E8F0);
+const _queueBodyColor = Color(0x4DFFFFFF);
+const _queueMutedColor = Color(0x80FFFFFF);
 
 enum ClientCommsQueueSeverity { high, medium, low }
 

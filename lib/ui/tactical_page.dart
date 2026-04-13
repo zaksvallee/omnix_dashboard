@@ -488,7 +488,7 @@ class TacticalPage extends StatelessWidget {
               );
             }
             var wide = false;
-            final contentPadding = const EdgeInsets.fromLTRB(6, 6, 6, 8);
+            final contentPadding = const EdgeInsets.fromLTRB(16, 16, 16, 16);
             void showTacticalFeedback(
               String message, {
               String label = 'VERIFICATION RAIL',
@@ -3000,9 +3000,9 @@ class TacticalPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

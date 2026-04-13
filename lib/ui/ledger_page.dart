@@ -21,13 +21,13 @@ import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
-const _ledgerPanelColor = Color(0xFFFFFFFF);
-const _ledgerPanelTint = Color(0xFFF7FAFE);
-const _ledgerPanelMuted = Color(0xFFF0F5FB);
-const _ledgerBorderColor = Color(0xFFD7E1EC);
-const _ledgerTitleColor = Color(0xFF142235);
-const _ledgerBodyColor = Color(0xFF516882);
-const _ledgerMutedColor = Color(0xFF6A7D93);
+const _ledgerPanelColor = Color(0xFF13131E);
+const _ledgerPanelTint = Color(0xFF1A1A2E);
+const _ledgerPanelMuted = Color(0xFF1A1A2E);
+const _ledgerBorderColor = Color(0x269D4BFF);
+const _ledgerTitleColor = Color(0xFFE8E8F0);
+const _ledgerBodyColor = Color(0x80FFFFFF);
+const _ledgerMutedColor = Color(0x4DFFFFFF);
 
 class LedgerPage extends StatefulWidget {
   final String clientId;
@@ -176,7 +176,7 @@ class _LedgerPageState extends State<LedgerPage> {
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, viewport) {
-          const contentPadding = EdgeInsets.all(8);
+          const contentPadding = EdgeInsets.all(16);
           final useScrollFallback =
               isHandsetLayout(context) ||
               viewport.maxHeight < 720 ||
@@ -477,9 +477,9 @@ class _LedgerPageState extends State<LedgerPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F8FC),
+        color: const Color(0x1A9D4BFF),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD4DFEA)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: RichText(
         text: TextSpan(
@@ -1135,7 +1135,7 @@ class _LedgerPageState extends State<LedgerPage> {
         decoration: BoxDecoration(
           color: selected
               ? filter.accent.withValues(alpha: 0.16)
-              : const Color(0xFFFFFFFF),
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected

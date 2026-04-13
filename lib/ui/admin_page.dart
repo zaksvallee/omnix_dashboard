@@ -76,14 +76,14 @@ enum _AdminSystemLaunchTarget {
 
 enum _AdminCsvTarget { guards, sites, clients }
 
-const _adminDialogSurfaceColor = Color(0xFFFFFFFF);
-const _adminDialogAltColor = Color(0xFFF5F8FC);
-const _adminDialogRaisedColor = Color(0xFFFBFDFF);
-const _adminDialogBorderColor = Color(0xFFD4DFEA);
-const _adminDialogStrongBorderColor = Color(0xFFBDD0E2);
-const _adminDialogTitleColor = Color(0xFF172638);
-const _adminDialogBodyColor = Color(0xFF556B80);
-const _adminDialogMutedColor = Color(0xFF7A8FA4);
+const _adminDialogSurfaceColor = Color(0xFF13131E);
+const _adminDialogAltColor = Color(0xFF1A1A2E);
+const _adminDialogRaisedColor = Color(0xFF1A1A2E);
+const _adminDialogBorderColor = Color(0x269D4BFF);
+const _adminDialogStrongBorderColor = Color(0x4D9D4BFF);
+const _adminDialogTitleColor = Color(0xFFE8E8F0);
+const _adminDialogBodyColor = Color(0x80FFFFFF);
+const _adminDialogMutedColor = Color(0x4DFFFFFF);
 
 Color _adminAccentTextColor(Color accent, {double strength = 0.34}) {
   return Color.lerp(_adminDialogTitleColor, accent, strength) ??
@@ -1986,7 +1986,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: _adminDialogBorderColor),
             boxShadow: const [
@@ -2110,7 +2110,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         return Container(
           key: key,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _adminDialogBorderColor),
             boxShadow: const [
@@ -2242,7 +2242,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _adminDialogBorderColor),
         boxShadow: const [
@@ -2535,7 +2535,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: accent,
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xFF13131E),
           side: BorderSide(color: accent.withValues(alpha: 0.45)),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
@@ -2752,7 +2752,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             icon: const Icon(Icons.download_rounded, size: 16),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF8FD1FF),
-              backgroundColor: Colors.white,
+              backgroundColor: const Color(0xFF13131E),
               side: const BorderSide(color: Color(0xFF35506F)),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               shape: RoundedRectangleBorder(
@@ -2871,7 +2871,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       icon: Icon(icon, size: 14),
       style: FilledButton.styleFrom(
         backgroundColor: Color.alphaBlend(
-          Colors.white.withValues(alpha: 0.62),
+          const Color(0xFF13131E).withValues(alpha: 0.62),
           accent.withValues(alpha: 0.1),
         ),
         foregroundColor: onPressed == null
@@ -2899,7 +2899,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: Color.alphaBlend(
-          Colors.white.withValues(alpha: 0.54),
+          const Color(0xFF13131E).withValues(alpha: 0.54),
           accent.withValues(alpha: 0.08),
         ),
         borderRadius: BorderRadius.circular(999),
@@ -3065,7 +3065,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: BoxDecoration(
         color: Color.alphaBlend(
-          Colors.white.withValues(alpha: 0.46),
+          const Color(0xFF1A1A2E).withValues(alpha: 0.46),
           background,
         ),
         borderRadius: BorderRadius.circular(999),
@@ -5675,7 +5675,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: const Color(0xFF13131E),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(color: _adminDialogBorderColor),
                       ),
@@ -5707,7 +5707,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: const Color(0xFF13131E),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: _adminDialogBorderColor),
             ),
@@ -7817,7 +7817,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: _adminDialogBorderColor),
         ),
@@ -9911,7 +9911,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: selected ? accent.withValues(alpha: 0.12) : Colors.white,
+        color: selected ? accent.withValues(alpha: 0.12) : const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(
           color: selected
@@ -11117,7 +11117,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   decoration: BoxDecoration(
                     color: selected
                         ? tier.$4.withValues(alpha: 0.12)
-                        : Colors.white,
+                        : const Color(0xFF13131E),
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(
                       color: selected
@@ -11458,7 +11458,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   decoration: BoxDecoration(
                     color: selected
                         ? policy.$4.withValues(alpha: 0.12)
-                        : Colors.white,
+                        : const Color(0xFF13131E),
                     borderRadius: BorderRadius.circular(9),
                     border: Border.all(
                       color: selected
@@ -12611,8 +12611,8 @@ class _AdministrationPageState extends State<AdministrationPage> {
       'optional' => (
         label: 'OPTIONAL',
         accent: const Color(0xFF64748B),
-        fill: const Color(0xFFF3F6FA),
-        border: const Color(0xFFD4DFEA),
+        fill: const Color(0xFF1A1A2E),
+        border: const Color(0x269D4BFF),
       ),
       'missing' => (
         label: 'MISSING',
@@ -13058,7 +13058,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           ActionChip(
                             onPressed: () =>
                                 _copyTelegramChecklistCommand(entry.prompt),
-                            backgroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF13131E),
                             side: BorderSide(color: _adminDialogBorderColor),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(999),
@@ -13763,7 +13763,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           (selected
               ? _adminDialogTitleColor
               : _telegramAiAccentTextColor(accent, strength: 0.42)),
-      backgroundColor: selected ? accent.withValues(alpha: 0.12) : Colors.white,
+      backgroundColor: selected ? accent.withValues(alpha: 0.12) : const Color(0xFF13131E),
       side: BorderSide(
         color: selected
             ? accent.withValues(alpha: 0.5)
@@ -14232,7 +14232,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: accent.withValues(alpha: 0.35)),
       ),
@@ -15172,7 +15172,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -15257,7 +15257,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   foregroundColor: widget.telegramAiAssistantEnabled
                       ? const Color(0xFF34D399)
                       : _adminDialogBodyColor,
-                  backgroundColor: Colors.white,
+                  backgroundColor: const Color(0xFF13131E),
                   side: BorderSide(
                     color: widget.telegramAiAssistantEnabled
                         ? const Color(0xFF2F5949)
@@ -15291,7 +15291,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   foregroundColor: widget.telegramAiApprovalRequired
                       ? const Color(0xFFF59E0B)
                       : _adminDialogBodyColor,
-                  backgroundColor: Colors.white,
+                  backgroundColor: const Color(0xFF13131E),
                   side: BorderSide(
                     color: widget.telegramAiApprovalRequired
                         ? const Color(0xFF5B3A16)
@@ -15494,7 +15494,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                       (option.$2 == null &&
                                           profileSignal.isEmpty)
                                   ? accent.withValues(alpha: 0.12)
-                                  : Colors.white,
+                                  : const Color(0xFF13131E),
                               side: BorderSide(
                                 color:
                                     (option.$2 ?? '') == profileSignal ||
@@ -15736,7 +15736,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : () => _editTelegramAiDraft(draft),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: _adminDialogTitleColor,
-                            backgroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF13131E),
                             side: const BorderSide(
                               color: _adminDialogBorderColor,
                             ),
@@ -15761,7 +15761,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               : () => _rejectTelegramAiDraft(draft),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFFB24A4A),
-                            backgroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF13131E),
                             side: const BorderSide(color: Color(0xFFE5C1C1)),
                             padding: const EdgeInsets.symmetric(
                               horizontal: 10,
@@ -15797,7 +15797,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                 accent,
                                 strength: 0.42,
                               ),
-                              backgroundColor: Colors.white,
+                              backgroundColor: const Color(0xFF13131E),
                               side: BorderSide(
                                 color: accent.withValues(alpha: 0.4),
                               ),
@@ -15900,7 +15900,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(9),
           border: Border.all(color: _adminDialogBorderColor),
         ),
@@ -16122,7 +16122,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                                       (option.$2 == null &&
                                           profileSignal.isEmpty)
                                   ? accent.withValues(alpha: 0.12)
-                                  : Colors.white,
+                                  : const Color(0xFF13131E),
                               side: BorderSide(
                                 color:
                                     (option.$2 ?? '') == profileSignal ||
@@ -16417,7 +16417,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               accent,
                               strength: 0.42,
                             ),
-                            backgroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF13131E),
                             side: BorderSide(
                               color: accent.withValues(alpha: 0.4),
                             ),
@@ -16464,7 +16464,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(9),
             border: Border.all(color: _adminDialogBorderColor),
           ),
@@ -16714,7 +16714,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         : _resetOperatorId,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _adminDialogTitleColor,
-                      backgroundColor: Colors.white,
+                      backgroundColor: const Color(0xFF13131E),
                       side: const BorderSide(color: _adminDialogBorderColor),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -16788,7 +16788,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(9),
             border: Border.all(color: _adminDialogBorderColor),
           ),
@@ -17154,7 +17154,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           : _runPartnerRuntimeCheck,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: _adminDialogTitleColor,
-                        backgroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF13131E),
                         side: const BorderSide(color: _adminDialogBorderColor),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -17175,7 +17175,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           : _runPartnerRuntimeUnlink,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFFCA5A5),
-                        backgroundColor: Colors.white,
+                        backgroundColor: const Color(0xFF13131E),
                         side: const BorderSide(color: Color(0xFFF1BCBC)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -17803,7 +17803,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                   ? row.accent.withValues(alpha: 0.12)
                   : isWatchAuditRow || isListenerAlarmRow
                   ? const Color(0x1410B981)
-                  : Colors.white,
+                  : const Color(0xFF13131E),
               borderRadius: BorderRadius.circular(9),
               border: Border.all(
                 color: isSelected
@@ -18388,7 +18388,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -18755,7 +18755,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Color.alphaBlend(
-          Colors.white.withValues(alpha: 0.56),
+          const Color(0xFF13131E).withValues(alpha: 0.56),
           color.withValues(alpha: 0.08),
         ),
         borderRadius: BorderRadius.circular(999),
@@ -19379,7 +19379,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color(0xFF13131E),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: _adminDialogBorderColor),
               ),
@@ -19514,7 +19514,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -19756,7 +19756,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: const Color(0xFF13131E),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: const Color(0x59FFB36B)),
                           ),
@@ -19797,7 +19797,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         child: Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: const Color(0xFF13131E),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: const Color(0x594FD1C5)),
                           ),
@@ -19903,7 +19903,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 icon: const Icon(Icons.restart_alt_rounded, size: 16),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _adminDialogTitleColor,
-                  backgroundColor: Colors.white,
+                  backgroundColor: const Color(0xFF13131E),
                   side: const BorderSide(color: _adminDialogBorderColor),
                 ),
                 label: Text(
@@ -20380,7 +20380,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -20664,7 +20664,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         icon: const Icon(Icons.close_rounded, size: 16),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFFB24A4A),
-                          backgroundColor: Colors.white,
+                          backgroundColor: const Color(0xFF13131E),
                           side: const BorderSide(color: Color(0xFFE5C1C1)),
                         ),
                         label: Text(
@@ -20888,10 +20888,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          Colors.white.withValues(alpha: 0.62),
-          color.withValues(alpha: 0.08),
-        ),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.24)),
       ),
@@ -21430,7 +21427,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           ? openFleetDispatch
           : openFleetDetail,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -21464,7 +21461,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
       ),
@@ -21904,7 +21901,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       style: OutlinedButton.styleFrom(
         foregroundColor: color,
         side: BorderSide(color: color.withValues(alpha: 0.45)),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFF13131E),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
       ),
@@ -22048,10 +22045,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final badge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          Colors.white.withValues(alpha: isActive ? 0.56 : 0.68),
-          color.withValues(alpha: isActive ? 0.12 : 0.06),
-        ),
+        color: color.withValues(alpha: isActive ? 0.18 : 0.10),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: color.withValues(alpha: isActive ? 0.42 : 0.24),
@@ -22081,10 +22075,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     if (active == null) {
       return const SizedBox.shrink();
     }
-    final bannerBackground = Color.alphaBlend(
-      Colors.white.withValues(alpha: 0.72),
-      active.focusBannerBackgroundColor,
-    );
+    final bannerBackground = active.focusBannerBackgroundColor.withValues(alpha: 0.18);
     final bannerActionColor = _adminAccentTextColor(
       active.focusBannerActionColor,
       strength: 0.56,
@@ -22252,7 +22243,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: 220,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: _adminDialogBorderColor),
       ),
@@ -25035,7 +25026,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _adminDialogBorderColor),
         boxShadow: const [
@@ -26197,9 +26188,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ? 'Inspect handoffs'
         : primaryLabel;
     final actionCount = quickActions.length + (hasContinueAction ? 1 : 0);
-    const dialogSurface = Color(0xFFFFFFFF);
-    const dialogShell = Color(0xFFF5F8FC);
-    const dialogInset = Color(0xFFF8FBFF);
+    const dialogSurface = Color(0xFF13131E);
+    const dialogShell = Color(0xFF1A1A2E);
+    const dialogInset = Color(0xFF1A1A2E);
     const dialogTitleColor = _adminDialogTitleColor;
     const dialogBodyColor = _adminDialogBodyColor;
     const dialogMutedColor = _adminDialogMutedColor;
@@ -37278,7 +37269,7 @@ class _EmployeeOnboardingDialogState extends State<_EmployeeOnboardingDialog>
                     value: _assignedSiteId,
                     isExpanded: true,
                     iconEnabledColor: const Color(0xFF9FD6FF),
-                    dropdownColor: Colors.white,
+                    dropdownColor: const Color(0xFF13131E),
                     items: [
                       const DropdownMenuItem<String>(
                         value: '',
@@ -41222,10 +41213,7 @@ Widget _onboardingCommandChip(
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: Color.alphaBlend(
-        Colors.white.withValues(alpha: 0.56),
-        chip.color.withValues(alpha: 0.08),
-      ),
+      color: chip.color.withValues(alpha: 0.14),
       borderRadius: BorderRadius.circular(999),
       border: Border.all(color: chip.color.withValues(alpha: 0.18)),
     ),
@@ -43747,10 +43735,7 @@ Widget _readinessStatusChip({
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     decoration: BoxDecoration(
-      color: Color.alphaBlend(
-        Colors.white.withValues(alpha: 0.68),
-        ready ? const Color(0x2234D399) : accent.withValues(alpha: 0.12),
-      ),
+      color: ready ? const Color(0x2234D399) : accent.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(999),
       border: Border.all(
         color: ready ? const Color(0x8834D399) : accent.withValues(alpha: 0.34),
@@ -43792,7 +43777,7 @@ Widget _previewSnapshotCard({
     constraints: const BoxConstraints(minWidth: 132),
     padding: const EdgeInsets.fromLTRB(10, 9, 10, 9),
     decoration: BoxDecoration(
-      color: light ? Colors.white : _adminDialogAltColor,
+      color: light ? const Color(0xFF13131E) : _adminDialogAltColor,
       borderRadius: BorderRadius.circular(10),
       border: Border.all(color: accent.withValues(alpha: 0.18)),
     ),
@@ -44511,7 +44496,7 @@ Widget _stepTitle(
                   ? const Color(0x1634D399)
                   : active
                   ? const Color(0x145FAAFF)
-                  : Colors.white,
+                  : const Color(0xFF13131E),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
                 color: done
@@ -44866,7 +44851,7 @@ Widget _summaryChip({
       text = _adminDialogTitleColor;
       break;
     case _SummaryChipState.pending:
-      background = Colors.white;
+      background = const Color(0xFF13131E);
       border = _adminDialogBorderColor;
       text = _adminDialogTitleColor;
       break;

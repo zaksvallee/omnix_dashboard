@@ -1748,14 +1748,14 @@ class _ClientIntelligenceReportsPageState
           value: '${reviewedCount + pendingSceneCount}',
           label: 'review desk',
           foreground: const Color(0xFF172638),
-          background: const Color(0xFFF5F8FC),
+          background: const Color(0xFF1A1A2E),
           border: const Color(0xFFD4DFEA),
         ),
         OnyxStoryMetric(
           value: '$totalReceipts',
           label: 'reports',
           foreground: const Color(0xFF172638),
-          background: const Color(0xFFF5F8FC),
+          background: const Color(0xFF1A1A2E),
           border: const Color(0xFFD4DFEA),
         ),
       ],
@@ -2651,7 +2651,7 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF),
+              color: const Color(0xFF13131E),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFD6E1EC)),
             ),
@@ -5566,7 +5566,7 @@ class _ClientIntelligenceReportsPageState
       decoration: BoxDecoration(
         color: isActive
             ? accent.withValues(alpha: 0.12)
-            : const Color(0xFFFFFFFF),
+            : const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isActive
@@ -5834,7 +5834,7 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0x1418D39E) : const Color(0xFFFFFFFF),
+        color: isActive ? const Color(0x1418D39E) : const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isActive ? const Color(0xFF59D79B) : const Color(0xFFD6E1EC),
@@ -6674,7 +6674,7 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0x1418D39E) : const Color(0xFFFFFFFF),
+        color: isActive ? const Color(0x1418D39E) : const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isActive ? const Color(0xFF59D79B) : const Color(0xFFD6E1EC),
@@ -6778,7 +6778,7 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7FAFD),
+              color: const Color(0xFF1A1A2E),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: const Color(0xFFD6E1EC)),
             ),

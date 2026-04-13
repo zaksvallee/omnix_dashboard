@@ -367,7 +367,7 @@ class _ClientsPageState extends State<ClientsPage> {
           child: Text(
             'Client Communications needs a scoped client and site before the workspace can open.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF516882),
+              color: const Color(0x80FFFFFF),
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -786,9 +786,9 @@ class _ClientsPageState extends State<ClientsPage> {
         icon: const Icon(Icons.visibility_off_rounded, size: 15),
         label: const Text('Hide Detailed Workspace'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF365E94),
-          side: const BorderSide(color: Color(0xFFBFD0EA)),
-          backgroundColor: const Color(0xFFFFFFFF),
+          foregroundColor: const Color(0xFF9D4BFF),
+          side: const BorderSide(color: Color(0x4D9D4BFF)),
+          backgroundColor: const Color(0xFF13131E),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           textStyle: GoogleFonts.inter(
             fontSize: 11,
@@ -939,9 +939,9 @@ class _ClientsPageState extends State<ClientsPage> {
           key: key,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFD7E1EC)),
+            border: Border.all(color: const Color(0x269D4BFF)),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x120D1726),
@@ -958,7 +958,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 Text(
                   title,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF142235),
+                    color: const Color(0xFFE8E8F0),
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1020,7 +1020,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             evidenceReceipt.label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF142235),
+              color: const Color(0xFFE8E8F0),
               fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
@@ -1029,7 +1029,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             evidenceReceipt.headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFF142235),
+              color: const Color(0xFFE8E8F0),
               fontSize: 11,
               fontWeight: FontWeight.w700,
               height: 1.35,
@@ -1067,7 +1067,7 @@ class _ClientsPageState extends State<ClientsPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
+          color: const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: evidenceReceipt.accent.withValues(alpha: 0.34),
@@ -1085,7 +1085,7 @@ class _ClientsPageState extends State<ClientsPage> {
         Text(
           'What needs attention',
           style: GoogleFonts.inter(
-            color: const Color(0xFF516882),
+            color: const Color(0x80FFFFFF),
             fontSize: 10.5,
             fontWeight: FontWeight.w800,
           ),
@@ -1098,7 +1098,7 @@ class _ClientsPageState extends State<ClientsPage> {
             directUpdates: directUpdates,
           ),
           style: GoogleFonts.inter(
-            color: const Color(0xFF142235),
+            color: const Color(0xFFE8E8F0),
             fontSize: 15.5,
             fontWeight: FontWeight.w800,
           ),
@@ -1135,7 +1135,7 @@ class _ClientsPageState extends State<ClientsPage> {
             activeIncidents: activeIncidents,
           ),
           style: GoogleFonts.inter(
-            color: const Color(0xFF516882),
+            color: const Color(0x80FFFFFF),
             fontSize: 10,
             fontWeight: FontWeight.w700,
             height: 1.35,
@@ -1149,9 +1149,9 @@ class _ClientsPageState extends State<ClientsPage> {
               key: const ValueKey('clients-workspace-open-agent'),
               onPressed: () => openAgent(agentIncidentReference!.trim()),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF365E94),
-                side: const BorderSide(color: Color(0xFFBFD0EA)),
-                backgroundColor: const Color(0xFFF7FAFE),
+                foregroundColor: const Color(0xFF9D4BFF),
+                side: const BorderSide(color: Color(0x4D9D4BFF)),
+                backgroundColor: const Color(0xFF1A1A2E),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 10,
@@ -1182,9 +1182,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: content,
     );
@@ -1230,9 +1230,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1240,7 +1240,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'What needs attention',
             style: GoogleFonts.inter(
-              color: const Color(0xFF516882),
+              color: const Color(0x80FFFFFF),
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
             ),
@@ -1253,7 +1253,7 @@ class _ClientsPageState extends State<ClientsPage> {
               directUpdates: directUpdates,
             ),
             style: GoogleFonts.inter(
-              color: const Color(0xFF142235),
+              color: const Color(0xFFE8E8F0),
               fontSize: 15.2,
               fontWeight: FontWeight.w800,
             ),
@@ -1288,9 +1288,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1308,7 +1308,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 alignment: Alignment.center,
                 child: const Icon(
                   Icons.mark_chat_read_rounded,
-                  color: Color(0xFF325996),
+                  color: Color(0xFF9D4BFF),
                   size: 22,
                 ),
               ),
@@ -1320,7 +1320,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     Text(
                       'Client Communications',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF142235),
+                        color: const Color(0xFFE8E8F0),
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                       ),
@@ -1352,9 +1352,9 @@ class _ClientsPageState extends State<ClientsPage> {
                   key: const ValueKey('clients-open-agent-button'),
                   onPressed: () => openAgent(normalizedAgentIncidentReference),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF365E94),
-                    side: const BorderSide(color: Color(0xFFBFD0EA)),
-                    backgroundColor: const Color(0xFFF7FAFE),
+                    foregroundColor: const Color(0xFF9D4BFF),
+                    side: const BorderSide(color: Color(0x4D9D4BFF)),
+                    backgroundColor: const Color(0xFF1A1A2E),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 10,
@@ -1529,17 +1529,17 @@ class _ClientsPageState extends State<ClientsPage> {
     );
     final highlightsClientSide = row.type == _FeedType.update;
     final bubbleBackground = highlightsClientSide
-        ? const Color(0xFFE9F1FF)
-        : const Color(0xFFFFFFFF);
+        ? const Color(0x1A9D4BFF)
+        : const Color(0xFF13131E);
     final bubbleBorder = highlightsClientSide
-        ? const Color(0xFFC9D8F8)
+        ? const Color(0x4D9D4BFF)
         : const Color(0xFFD9E3EE);
     final labelColor = highlightsClientSide
         ? const Color(0xFF315A9A)
         : const Color(0xFF5B708B);
     final surfaceTextColor = highlightsClientSide
         ? const Color(0xFF1E355A)
-        : const Color(0xFF142235);
+        : const Color(0xFFE8E8F0);
     return InkWell(
       key: ValueKey('clients-incident-row-${row.title}-${row.timestampLabel}'),
       borderRadius: BorderRadius.circular(9),
@@ -1580,9 +1580,9 @@ class _ClientsPageState extends State<ClientsPage> {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF2F6FB),
+                      color: const Color(0xFF1A1A2E),
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFFD7E1EC)),
+                      border: Border.all(color: const Color(0x269D4BFF)),
                     ),
                     child: Icon(_feedIcon(row.type), color: rowColor, size: 18),
                   ),
@@ -1641,11 +1641,11 @@ class _ClientsPageState extends State<ClientsPage> {
                               onPressed: () =>
                                   openAgent(normalizedIncidentReference),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF365E94),
+                                foregroundColor: const Color(0xFF9D4BFF),
                                 side: const BorderSide(
-                                  color: Color(0xFFBFD0EA),
+                                  color: Color(0x4D9D4BFF),
                                 ),
-                                backgroundColor: const Color(0xFFF7FAFE),
+                                backgroundColor: const Color(0xFF1A1A2E),
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
                                   vertical: 8,
@@ -1688,7 +1688,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     alignment: Alignment.center,
                     child: const Icon(
                       Icons.mark_chat_read_rounded,
-                      color: Color(0xFF3B5F9A),
+                      color: Color(0xFF9D4BFF),
                       size: 18,
                     ),
                   ),
@@ -1716,9 +1716,9 @@ class _ClientsPageState extends State<ClientsPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
+          color: const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFD7E1EC)),
+          border: Border.all(color: const Color(0x269D4BFF)),
         ),
         child: Row(
           children: [
@@ -1729,8 +1729,8 @@ class _ClientsPageState extends State<ClientsPage> {
                 label,
                 style: GoogleFonts.inter(
                   color: enabled
-                      ? const Color(0xFF142235)
-                      : const Color(0xFF8EA1B8),
+                      ? const Color(0xFFE8E8F0)
+                      : const Color(0x80FFFFFF),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1756,7 +1756,7 @@ class _ClientsPageState extends State<ClientsPage> {
             const SizedBox(width: 8),
             const Icon(
               Icons.chevron_right_rounded,
-              color: Color(0xFF8EA1B8),
+              color: Color(0x80FFFFFF),
               size: 16,
             ),
           ],
@@ -1826,9 +1826,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1836,7 +1836,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Client chats',
             style: GoogleFonts.inter(
-              color: const Color(0xFF142235),
+              color: const Color(0xFFE8E8F0),
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -1855,9 +1855,9 @@ class _ClientsPageState extends State<ClientsPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF),
+              color: const Color(0xFF13131E),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFD7E1EC)),
+              border: Border.all(color: const Color(0x269D4BFF)),
             ),
             child: Row(
               children: [
@@ -1873,7 +1873,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF8EA1B8),
+                      color: const Color(0x80FFFFFF),
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1912,13 +1912,13 @@ class _ClientsPageState extends State<ClientsPage> {
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: lane.active
-                          ? const Color(0xFFFFFFFF)
-                          : const Color(0xFFF8FAFD),
+                          ? const Color(0xFF13131E)
+                          : const Color(0xFF1A1A2E),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: lane.active
-                            ? const Color(0xFFBFD0EA)
-                            : const Color(0xFFD7E1EC),
+                            ? const Color(0x4D9D4BFF)
+                            : const Color(0x269D4BFF),
                       ),
                       boxShadow: lane.active
                           ? const [
@@ -1965,7 +1965,7 @@ class _ClientsPageState extends State<ClientsPage> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: GoogleFonts.inter(
-                                        color: const Color(0xFF142235),
+                                        color: const Color(0xFFE8E8F0),
                                         fontSize: 12.8,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -2020,7 +2020,7 @@ class _ClientsPageState extends State<ClientsPage> {
                             child: Text(
                               badgeLabel,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF325996),
+                                color: const Color(0xFF9D4BFF),
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -2063,9 +2063,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2073,7 +2073,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Chat details',
             style: GoogleFonts.inter(
-              color: const Color(0xFF142235),
+              color: const Color(0xFFE8E8F0),
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
@@ -2190,9 +2190,9 @@ class _ClientsPageState extends State<ClientsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF),
+              color: const Color(0xFF13131E),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFD7E1EC)),
+              border: Border.all(color: const Color(0x269D4BFF)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2200,7 +2200,7 @@ class _ClientsPageState extends State<ClientsPage> {
                 Text(
                   'This chat is live',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF325996),
+                    color: const Color(0xFF9D4BFF),
                     fontSize: 11.4,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2222,9 +2222,9 @@ class _ClientsPageState extends State<ClientsPage> {
                     onPressed: () =>
                         openAgent(normalizedAgentIncidentReference),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF365E94),
-                      side: const BorderSide(color: Color(0xFFBFD0EA)),
-                      backgroundColor: const Color(0xFFF7FAFE),
+                      foregroundColor: const Color(0xFF9D4BFF),
+                      side: const BorderSide(color: Color(0x4D9D4BFF)),
+                      backgroundColor: const Color(0xFF1A1A2E),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
@@ -2259,9 +2259,9 @@ class _ClientsPageState extends State<ClientsPage> {
                       resumeTarget: _DetailedCommsResumeTarget.threadContext,
                     ),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF325996),
-                      side: const BorderSide(color: Color(0xFFBFD0EA)),
-                      backgroundColor: const Color(0xFFF7FAFE),
+                      foregroundColor: const Color(0xFF9D4BFF),
+                      side: const BorderSide(color: Color(0x4D9D4BFF)),
+                      backgroundColor: const Color(0xFF1A1A2E),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
@@ -2331,7 +2331,7 @@ class _ClientsPageState extends State<ClientsPage> {
             Text(
               'Room switching is view-only in this session.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA1B8),
+                color: const Color(0x80FFFFFF),
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -2351,9 +2351,9 @@ class _ClientsPageState extends State<ClientsPage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2371,10 +2371,10 @@ class _ClientsPageState extends State<ClientsPage> {
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              dropdownColor: const Color(0xFFFFFFFF),
-              iconEnabledColor: const Color(0xFF8EA1B8),
+              dropdownColor: const Color(0xFF13131E),
+              iconEnabledColor: const Color(0x80FFFFFF),
               style: GoogleFonts.inter(
-                color: const Color(0xFF142235),
+                color: const Color(0xFFE8E8F0),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -2397,9 +2397,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2460,9 +2460,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2470,7 +2470,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             'Delivery',
             style: GoogleFonts.inter(
-              color: const Color(0xFF142235),
+              color: const Color(0xFFE8E8F0),
               fontSize: 17,
               fontWeight: FontWeight.w800,
             ),
@@ -2497,9 +2497,9 @@ class _ClientsPageState extends State<ClientsPage> {
                     : const Color(0xFF2D7A5F),
                 background: telegramBlocked
                     ? const Color(0xFFFFF2F2)
-                    : const Color(0xFFF3FBF7),
+                    : const Color(0x1A00D4AA),
                 border: telegramBlocked
-                    ? const Color(0xFFF0CDD1)
+                    ? const Color(0x1AFF3B5C)
                     : const Color(0xFFCFE6DA),
               ),
               _channelChip(
@@ -2509,11 +2509,11 @@ class _ClientsPageState extends State<ClientsPage> {
                     ? const Color(0xFF9A6A19)
                     : const Color(0xFF6A7D93),
                 background: smsFallbackActive
-                    ? const Color(0xFFFFF7EA)
-                    : const Color(0xFFFFFFFF),
+                    ? const Color(0x1AF5A623)
+                    : const Color(0xFF13131E),
                 border: smsFallbackActive
-                    ? const Color(0xFFF1D9A7)
-                    : const Color(0xFFD7E1EC),
+                    ? const Color(0x4DF5A623)
+                    : const Color(0x269D4BFF),
               ),
               _channelChip(
                 label: !voipConfigured
@@ -2532,19 +2532,19 @@ class _ClientsPageState extends State<ClientsPage> {
                     ? const Color(0xFF2D7A5F)
                     : const Color(0xFF6A7D93),
                 background: !voipConfigured
-                    ? const Color(0xFFFFFFFF)
+                    ? const Color(0xFF13131E)
                     : voipStaged
-                    ? const Color(0xFFFFF7EA)
+                    ? const Color(0x1AF5A623)
                     : voipReady
-                    ? const Color(0xFFF3FBF7)
-                    : const Color(0xFFFFFFFF),
+                    ? const Color(0x1A00D4AA)
+                    : const Color(0xFF13131E),
                 border: !voipConfigured
-                    ? const Color(0xFFD7E1EC)
+                    ? const Color(0x269D4BFF)
                     : voipStaged
-                    ? const Color(0xFFF1D9A7)
+                    ? const Color(0x4DF5A623)
                     : voipReady
                     ? const Color(0xFFCFE6DA)
-                    : const Color(0xFFD7E1EC),
+                    : const Color(0x269D4BFF),
               ),
               _channelChip(
                 label: pushNeedsReview
@@ -2559,15 +2559,15 @@ class _ClientsPageState extends State<ClientsPage> {
                     ? const Color(0xFF6A7D93)
                     : const Color(0xFF6A7D93),
                 background: pushNeedsReview
-                    ? const Color(0xFFFFF7EA)
+                    ? const Color(0x1AF5A623)
                     : pushIdle
-                    ? const Color(0xFFFFFFFF)
-                    : const Color(0xFFFFFFFF),
+                    ? const Color(0xFF13131E)
+                    : const Color(0xFF13131E),
                 border: pushNeedsReview
-                    ? const Color(0xFFF1D9A7)
+                    ? const Color(0x4DF5A623)
                     : pushIdle
-                    ? const Color(0xFFD7E1EC)
-                    : const Color(0xFFD7E1EC),
+                    ? const Color(0x269D4BFF)
+                    : const Color(0x269D4BFF),
               ),
             ],
           ),
@@ -2577,9 +2577,9 @@ class _ClientsPageState extends State<ClientsPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
+                color: const Color(0xFF13131E),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFF1D9A7)),
+                border: Border.all(color: const Color(0x4DF5A623)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2680,13 +2680,13 @@ class _ClientsPageState extends State<ClientsPage> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: backendProbeHealthy
-                  ? const Color(0xFFF3FBF7)
+                  ? const Color(0x1A00D4AA)
                   : const Color(0xFFFFF2F2),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: backendProbeHealthy
                     ? const Color(0xFFCFE6DA)
-                    : const Color(0xFFF0CDD1),
+                    : const Color(0x1AFF3B5C),
               ),
             ),
             child: Column(
@@ -2725,12 +2725,12 @@ class _ClientsPageState extends State<ClientsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFFFF),
+                      color: const Color(0xFF13131E),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: pushRetryAvailable
-                            ? const Color(0xFFBFD0EA)
-                            : const Color(0xFFD7E1EC),
+                            ? const Color(0x4D9D4BFF)
+                            : const Color(0x269D4BFF),
                       ),
                     ),
                     child: Text(
@@ -2740,8 +2740,8 @@ class _ClientsPageState extends State<ClientsPage> {
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         color: pushRetryAvailable
-                            ? const Color(0xFF325996)
-                            : const Color(0xFF8EA1B8),
+                            ? const Color(0xFF9D4BFF)
+                            : const Color(0x80FFFFFF),
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
@@ -2758,15 +2758,15 @@ class _ClientsPageState extends State<ClientsPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF7FAFE),
+                        color: const Color(0xFF1A1A2E),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFD7E1EC)),
+                        border: Border.all(color: const Color(0x269D4BFF)),
                       ),
                       child: Text(
                         'Redraft with Junior Analyst',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF365E94),
+                          color: const Color(0xFF9D4BFF),
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2787,15 +2787,15 @@ class _ClientsPageState extends State<ClientsPage> {
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFFFFF),
+                        color: const Color(0xFF13131E),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFBFD0EA)),
+                        border: Border.all(color: const Color(0x4D9D4BFF)),
                       ),
                       child: Text(
                         'Open queued draft',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF325996),
+                          color: const Color(0xFF9D4BFF),
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                         ),
@@ -2829,23 +2829,23 @@ class _ClientsPageState extends State<ClientsPage> {
         decoration: BoxDecoration(
           color: filled
               ? enabled
-                    ? const Color(0xFFE8F1FF)
-                    : const Color(0xFFF5F7FB)
-              : const Color(0xFFFFFFFF),
+                    ? const Color(0x1A9D4BFF)
+                    : const Color(0xFF1A1A2E)
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: filled
                 ? enabled
-                      ? const Color(0xFFBFD0EA)
-                      : const Color(0xFFD7E1EC)
-                : const Color(0xFFD7E1EC),
+                      ? const Color(0x4D9D4BFF)
+                      : const Color(0x269D4BFF)
+                : const Color(0x269D4BFF),
           ),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: enabled ? accent : const Color(0xFF8EA1B8),
+            color: enabled ? accent : const Color(0x80FFFFFF),
             fontSize: 10,
             fontWeight: FontWeight.w800,
           ),
@@ -2904,9 +2904,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2939,7 +2939,7 @@ class _ClientsPageState extends State<ClientsPage> {
                     Text(
                       currentClient.name,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF142235),
+                        color: const Color(0xFFE8E8F0),
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                       ),
@@ -2964,7 +2964,7 @@ class _ClientsPageState extends State<ClientsPage> {
             child: Text(
               rows.isEmpty ? 'No messages yet' : 'Today',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA1B8),
+                color: const Color(0x80FFFFFF),
                 fontSize: 10.4,
                 fontWeight: FontWeight.w700,
               ),
@@ -2976,9 +2976,9 @@ class _ClientsPageState extends State<ClientsPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
+                color: const Color(0xFF13131E),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFD7E1EC)),
+                border: Border.all(color: const Color(0x269D4BFF)),
               ),
               child: Text(
                 'The thread is clear right now. New client messages and drafted replies will land here.',
@@ -3025,7 +3025,7 @@ class _ClientsPageState extends State<ClientsPage> {
           Text(
             '$pendingAsks',
             style: GoogleFonts.inter(
-              color: const Color(0xFF325996),
+              color: const Color(0xFF9D4BFF),
               fontSize: 30,
               fontWeight: FontWeight.w900,
             ),
@@ -3051,15 +3051,15 @@ class _ClientsPageState extends State<ClientsPage> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
+                color: const Color(0xFF13131E),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFBFD0EA)),
+                border: Border.all(color: const Color(0x4D9D4BFF)),
               ),
               child: Text(
                 opensQueuedDraft ? 'Open queued draft' : 'Review drafts',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF325996),
+                  color: const Color(0xFF9D4BFF),
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
                 ),
@@ -3076,15 +3076,15 @@ class _ClientsPageState extends State<ClientsPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7FAFE),
+                  color: const Color(0xFF1A1A2E),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD7E1EC)),
+                  border: Border.all(color: const Color(0x269D4BFF)),
                 ),
                 child: Text(
                   'Ask Junior Analyst',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF365E94),
+                    color: const Color(0xFF9D4BFF),
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
@@ -3097,15 +3097,15 @@ class _ClientsPageState extends State<ClientsPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFFFF),
+              color: const Color(0xFF13131E),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFD7E1EC)),
+              border: Border.all(color: const Color(0x269D4BFF)),
             ),
             child: Text(
               '$activeIncidents active thread${activeIncidents == 1 ? '' : 's'}',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
-                color: const Color(0xFF516882),
+                color: const Color(0x80FFFFFF),
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -3128,9 +3128,9 @@ class _ClientsPageState extends State<ClientsPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
+          color: const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFD7E1EC)),
+          border: Border.all(color: const Color(0x269D4BFF)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3138,7 +3138,7 @@ class _ClientsPageState extends State<ClientsPage> {
             Text(
               label,
               style: GoogleFonts.inter(
-                color: const Color(0xFF142235),
+                color: const Color(0xFFE8E8F0),
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
               ),
@@ -3199,17 +3199,17 @@ class _ClientsPageState extends State<ClientsPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE8F1FF) : const Color(0xFFFFFFFF),
+          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? const Color(0xFFBFD0EA) : const Color(0xFFD7E1EC),
+            color: selected ? const Color(0x4D9D4BFF) : const Color(0x269D4BFF),
           ),
         ),
         child: Text(
           label,
           textAlign: TextAlign.center,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFF325996) : const Color(0xFF516882),
+            color: selected ? const Color(0xFF9D4BFF) : const Color(0x80FFFFFF),
             fontSize: 11,
             fontWeight: FontWeight.w800,
           ),
@@ -3228,9 +3228,9 @@ class _ClientsPageState extends State<ClientsPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F7FB),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD7E1EC)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3245,7 +3245,7 @@ class _ClientsPageState extends State<ClientsPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF142235),
+                    color: const Color(0xFFE8E8F0),
                     fontSize: 11.4,
                     fontWeight: FontWeight.w800,
                   ),
@@ -3719,15 +3719,15 @@ class _ClientsPageState extends State<ClientsPage> {
             }
 
             return AlertDialog(
-              backgroundColor: const Color(0xFFFFFFFF),
+              backgroundColor: const Color(0xFF13131E),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
-                side: const BorderSide(color: Color(0xFFD7E1EC)),
+                side: const BorderSide(color: Color(0x269D4BFF)),
               ),
               title: Text(
                 'Edit Draft',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF142235),
+                  color: const Color(0xFFE8E8F0),
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
                 ),
@@ -3739,22 +3739,22 @@ class _ClientsPageState extends State<ClientsPage> {
                   maxLines: 8,
                   minLines: 6,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF142235),
+                    color: const Color(0xFFE8E8F0),
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
                   decoration: InputDecoration(
                     hintText: 'Refine the outgoing message',
                     hintStyle: GoogleFonts.inter(
-                      color: const Color(0xFF8EA1B8),
+                      color: const Color(0x80FFFFFF),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF7FAFE),
+                    fillColor: const Color(0xFF1A1A2E),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFD7E1EC)),
+                      borderSide: const BorderSide(color: Color(0x269D4BFF)),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),

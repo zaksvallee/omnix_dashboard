@@ -1856,7 +1856,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, viewport) {
-          const contentPadding = EdgeInsets.all(8);
+          const contentPadding = EdgeInsets.all(16);
           final useScrollFallback =
               isHandsetLayout(context) ||
               viewport.maxHeight < 700 ||
@@ -2127,7 +2127,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -2221,7 +2221,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -2246,7 +2246,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFFFFFFFF),
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
@@ -2287,7 +2287,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
@@ -2393,7 +2393,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: hasFeedback
@@ -2457,7 +2457,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       title: 'Events War Room',
       subtitle: 'Pick the lane, lock the facts, and move the case fast.',
       icon: Icons.timeline_rounded,
-      gradientColors: const [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
+      gradientColors: const [Color(0xFF13131E), Color(0xFF1A1A2E)],
       metrics: [
         OnyxStoryMetric(
           value: '$visibleEvents',
@@ -2470,7 +2470,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           value: '$totalEvents',
           label: 'events',
           foreground: const Color(0xFF172638),
-          background: const Color(0xFFFFFFFF),
+          background: const Color(0xFF13131E),
           border: const Color(0xFFD6E1EC),
         ),
         OnyxStoryMetric(
@@ -2512,7 +2512,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -4514,7 +4514,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -4556,7 +4556,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFFFFF),
+                    color: const Color(0xFF13131E),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: const Color(0xFFD6E1EC)),
                   ),
@@ -4688,7 +4688,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -4716,7 +4716,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         decoration: BoxDecoration(
           color: selected
               ? typeColor.withValues(alpha: 0.12)
-              : const Color(0xFFF7FAFD),
+              : const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? const Color(0xFF1B9CB7) : const Color(0xFFD6E1EC),
@@ -4832,7 +4832,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ? const ValueKey('events-detail-empty')
           : ValueKey('events-detail-${selected.eventId}'),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -5180,7 +5180,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7FAFD),
+                  color: const Color(0xFF1A1A2E),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFD6E1EC)),
                 ),
@@ -5290,7 +5290,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.12), const Color(0xFFFFFFFF)],
+          colors: [accent.withValues(alpha: 0.12), const Color(0xFF13131E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -5482,7 +5482,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -5563,7 +5563,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
+          color: const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: const Color(0xFFD6E1EC)),
         ),
@@ -5604,7 +5604,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         decoration: BoxDecoration(
           color: selected
               ? typeColor.withValues(alpha: 0.12)
-              : const Color(0xFFF7FAFD),
+              : const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected ? const Color(0xFF22D3EE) : const Color(0xFFD6E1EC),
@@ -5718,7 +5718,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       key: key,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -5747,7 +5747,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       decoration: BoxDecoration(
         color: reached
             ? color.withValues(alpha: 0.14)
-            : const Color(0xFFF7FAFD),
+            : const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: reached ? color : const Color(0xFFD6E1EC)),
       ),
@@ -6565,7 +6565,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFFFFFFFF),
+        backgroundColor: const Color(0xFF13131E),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -6620,10 +6620,10 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1A22D3EE) : const Color(0xFFFFFFFF),
+          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: selected ? const Color(0x803EA2FF) : const Color(0xFFD6E1EC),
+            color: selected ? const Color(0x669D4BFF) : const Color(0x269D4BFF),
           ),
         ),
         child: Text(

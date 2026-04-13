@@ -669,7 +669,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       return Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
+          color: const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: const Color(0xFFD6E1EC)),
         ),
@@ -705,7 +705,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: priorityStyle.border),
       ),
@@ -776,7 +776,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0x1A22D3EE),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0x6622D3EE)),
                     ),
                     child: Text(
@@ -807,7 +807,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         fontWeight: FontWeight.w700,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                   ),
@@ -833,7 +833,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                           fontWeight: FontWeight.w700,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                     ),
@@ -862,7 +862,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         fontWeight: FontWeight.w700,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                   ),
@@ -881,7 +881,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         fontWeight: FontWeight.w700,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
                     child: const Text('Dismiss'),
@@ -900,8 +900,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
@@ -935,7 +935,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -984,7 +984,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFEAF6FF) : const Color(0xFFF7FAFD),
+          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF1A1A2E),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: selected ? const Color(0xFF8FCBFF) : const Color(0xFFD4DFEA),
@@ -1035,9 +1035,9 @@ class _AIQueuePageState extends State<AIQueuePage> {
         icon: const Icon(Icons.open_in_new_rounded, size: 15),
         label: const Text('Open Detailed Workspace'),
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF315A86),
-          side: const BorderSide(color: Color(0xFFD4DFEA)),
-          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF9D4BFF),
+          side: const BorderSide(color: Color(0x4D9D4BFF)),
+          backgroundColor: const Color(0xFF13131E),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           textStyle: GoogleFonts.inter(
             fontSize: 11,
@@ -1289,7 +1289,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
               Text(
                 'AI Automation Queue',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFF6FBFF),
+                  color: const Color(0xFF1A1A2E),
                   fontSize: compact ? 12.2 : 13.0,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1645,7 +1645,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       padding: EdgeInsets.all(compactPresentation ? 1.35 : 1.55),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.12), const Color(0xFFFFFFFF)],
+          colors: [accent.withValues(alpha: 0.12), const Color(0xFF13131E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1886,7 +1886,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(4.9),
         gradient: const LinearGradient(
-          colors: [Color(0xFFF7FAFF), Color(0xFFFFFFFF)],
+          colors: [Color(0xFF13131E), Color(0xFF1A1A2E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -1935,7 +1935,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFFFFFFFF),
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
@@ -2110,7 +2110,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.16)
-              : const Color(0xFFFFFFFF),
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
@@ -2473,7 +2473,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.16)
-              : const Color(0xFFFFFFFF),
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
@@ -2790,7 +2790,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFFFFF),
+                      color: const Color(0xFF13131E),
                       borderRadius: BorderRadius.circular(9),
                       border: Border.all(color: const Color(0xFFD4DFEA)),
                     ),
@@ -2998,8 +2998,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFFF7FAFD),
-            borderRadius: BorderRadius.circular(10),
+            color: const Color(0xFF1A1A2E),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFD6E1EC)),
           ),
           child: Text(
@@ -3065,7 +3065,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7FAFD),
+              color: const Color(0xFF1A1A2E),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: const Color(0xFFD6E1EC)),
             ),
@@ -3102,7 +3102,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.18)),
       ),
@@ -3253,7 +3253,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(9),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -3266,7 +3266,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
+        color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
@@ -3549,7 +3549,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: const Color(0x3322D3EE),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.bolt_rounded,
@@ -3895,7 +3895,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: accent.withValues(alpha: 0.24)),
         boxShadow: [
@@ -4058,8 +4058,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
               width: double.infinity,
               padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                color: const Color(0xFFF7FAFD),
+                borderRadius: BorderRadius.circular(16),
+                color: const Color(0xFF1A1A2E),
                 border: Border.all(color: const Color(0xFFD6E1EC)),
               ),
               child: Column(
@@ -4106,7 +4106,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       padding: const EdgeInsets.all(5.5),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8),
-        color: const Color(0xFFF7FAFD),
+        color: const Color(0xFF1A1A2E),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: LayoutBuilder(
@@ -4559,7 +4559,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       context: context,
       builder: (dialogContext) {
         return Dialog(
-          backgroundColor: const Color(0xFFFFFFFF),
+          backgroundColor: const Color(0xFF13131E),
           insetPadding: const EdgeInsets.symmetric(
             horizontal: 24,
             vertical: 24,
@@ -4625,8 +4625,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF7FAFD),
-                            borderRadius: BorderRadius.circular(10),
+                            color: const Color(0xFF1A1A2E),
+                            borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: const Color(0xFFD6E1EC)),
                           ),
                           child: Column(
@@ -4764,7 +4764,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0x332C1144),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0x664C1D95)),
       ),
       child: Text(
@@ -4834,8 +4834,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Column(
@@ -4886,8 +4886,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFD),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFD6E1EC)),
       ),
       child: Row(
@@ -4989,8 +4989,8 @@ class _AIQueuePageState extends State<AIQueuePage> {
 
   BoxDecoration _panelDecoration({required Color border, bool glow = false}) {
     return BoxDecoration(
-      borderRadius: BorderRadius.circular(10),
-      color: const Color(0xFFFFFFFF),
+      borderRadius: BorderRadius.circular(16),
+      color: const Color(0xFF13131E),
       border: Border.all(color: border),
       boxShadow: glow
           ? const [
@@ -5145,7 +5145,7 @@ class _AIQueuePageState extends State<AIQueuePage> {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFFFFFFFF),
+        backgroundColor: const Color(0xFF13131E),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),

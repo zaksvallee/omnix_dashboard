@@ -797,7 +797,7 @@ class _ExecutiveSummary extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(0.62, 0.46, 0.62, 0.5),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(3.0),
             border: Border.all(color: const Color(0xFFD6E1EC)),
             boxShadow: const [
@@ -1179,9 +1179,9 @@ class _DashboardOperationsWorkspaceState
       width: double.infinity,
       padding: const EdgeInsets.all(0.24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(2.15),
-        border: Border.all(color: const Color(0xFFD4DFEA)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -2379,9 +2379,9 @@ class _DashboardOperationsWorkspaceState
       width: double.infinity,
       padding: const EdgeInsets.all(2.6),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(6.0),
-        border: Border.all(color: const Color(0xFFD4DFEA)),
+        border: Border.all(color: const Color(0x269D4BFF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5239,7 +5239,7 @@ class _HeaderStat extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 1.9, vertical: 1.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(5.8),
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         border: Border.all(color: const Color(0xFFD6E1EC)),
         boxShadow: const [
           BoxShadow(
@@ -5306,7 +5306,7 @@ class _DashboardCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(1.0),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
+        color: const Color(0xFF13131E),
         borderRadius: BorderRadius.circular(3.05),
         border: Border.all(color: const Color(0xFFD6E1EC)),
         boxShadow: const [

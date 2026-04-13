@@ -7298,7 +7298,7 @@ class _GovernancePageState extends State<GovernancePage> {
         decoration: BoxDecoration(
           color: isActive
               ? color.withValues(alpha: 0.16)
-              : const Color(0xFFF5F8FC),
+              : const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: isActive ? color : color.withValues(alpha: 0.55),
@@ -8991,9 +8991,9 @@ class _GovernancePageState extends State<GovernancePage> {
         key: ValueKey<String>('governance-partner-scope-$scopeLabel'),
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFFFFF),
+          color: const Color(0xFF13131E),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFD4DFEA)),
+          border: Border.all(color: const Color(0x269D4BFF)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -9034,9 +9034,9 @@ class _GovernancePageState extends State<GovernancePage> {
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFD4DFEA)),
+            border: Border.all(color: const Color(0x269D4BFF)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -9104,9 +9104,9 @@ class _GovernancePageState extends State<GovernancePage> {
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: const Color(0xFF13131E),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFD4DFEA)),
+            border: Border.all(color: const Color(0x269D4BFF)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

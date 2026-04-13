@@ -20,18 +20,18 @@ import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'onyx_surface.dart';
 
-const _obSurfaceFill = Color(0xFFFFFFFF);
-const _obSurfaceElevated = Color(0xFFFBFDFF);
-const _obSurfaceSoft = Color(0xFFF4F8FC);
-const _obInputFill = Color(0xFFF7FAFD);
-const _obBorder = Color(0xFFD6E1EC);
-const _obBorderStrong = Color(0xFFBFD1E2);
-const _obTextPrimary = Color(0xFF172638);
-const _obTextSecondary = Color(0xFF556B80);
-const _obTextMuted = Color(0xFF7A8FA4);
-const _obBlueAccent = Color(0xFF2F6AA3);
-const _obBlueAccentStrong = Color(0xFF1D9AD1);
-const _obButtonFill = Color(0xFF2F6AA3);
+const _obSurfaceFill = Color(0xFF13131E);
+const _obSurfaceElevated = Color(0xFF1A1A2E);
+const _obSurfaceSoft = Color(0xFF1A1A2E);
+const _obInputFill = Color(0xFF0D0D14);
+const _obBorder = Color(0x269D4BFF);
+const _obBorderStrong = Color(0x4D9D4BFF);
+const _obTextPrimary = Color(0xFFE8E8F0);
+const _obTextSecondary = Color(0x80FFFFFF);
+const _obTextMuted = Color(0x4DFFFFFF);
+const _obBlueAccent = Color(0xFF9D4BFF);
+const _obBlueAccentStrong = Color(0xFF9D4BFF);
+const _obButtonFill = Color(0xFF9D4BFF);
 
 class SovereignLedgerPinnedAuditEntry {
   final String auditId;
@@ -381,7 +381,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
             subtitle:
                 'One clean record, one clear next move, full chain in the background.',
             icon: Icons.menu_book_rounded,
-            gradientColors: const [Color(0xFFF5FAFF), Color(0xFFFFFFFF)],
+            gradientColors: const [Color(0xFF13131E), Color(0xFF1A1A2E)],
             metrics: [
               OnyxStoryMetric(
                 value: selected.recordCode,
@@ -421,7 +421,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 value: '$totalEntries',
                 label: 'entries',
                 foreground: _obTextPrimary,
-                background: const Color(0xFFFFFFFF),
+                background: const Color(0xFF13131E),
                 border: _obBorder,
               ),
             ],
@@ -2674,7 +2674,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   ButtonStyle _secondaryButtonStyle() {
     return OutlinedButton.styleFrom(
       foregroundColor: _obTextPrimary,
-      backgroundColor: Colors.white,
+      backgroundColor: _obSurfaceFill,
       side: const BorderSide(color: _obBorder),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -2889,7 +2889,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFFFFFFFF),
+        backgroundColor: _obSurfaceFill,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),

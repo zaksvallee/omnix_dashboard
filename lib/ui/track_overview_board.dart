@@ -353,6 +353,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
   late final ScrollController _leftRailScrollController;
   late final TextEditingController _searchController;
   Timer? _clockTimer;
+  bool _mapLoadFailed = false;
   bool _showSites = true;
   bool _showGuards = true;
   bool _showIncidents = true;
@@ -438,15 +439,17 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Expanded(
-                              child: _buildMapBoard(
-                                highlightedSite: effectiveHighlightedSite,
-                                sites: _visibleSites,
-                                guards: _visibleGuards,
-                                cameras: _visibleCameras,
-                                incidents: _visibleIncidents,
-                                highlightedGuards: highlightedGuards,
-                                highlightedIncidents: highlightedIncidents,
-                              ),
+                              child: _mapLoadFailed
+                                  ? _buildMapErrorFallback()
+                                  : _buildMapBoard(
+                                      highlightedSite: effectiveHighlightedSite,
+                                      sites: _visibleSites,
+                                      guards: _visibleGuards,
+                                      cameras: _visibleCameras,
+                                      incidents: _visibleIncidents,
+                                      highlightedGuards: highlightedGuards,
+                                      highlightedIncidents: highlightedIncidents,
+                                    ),
                             ),
                             const SizedBox(width: 10),
                             SizedBox(
@@ -919,6 +922,57 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
     }
     final second = now.second.toString().padLeft(2, '0');
     return '$hour:$minute:$second';
+  }
+
+  Widget _buildMapErrorFallback() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D14),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x269D4BFF)),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.map_outlined, color: Color(0x4DFFFFFF), size: 40),
+            const SizedBox(height: 12),
+            const Text(
+              'Tactical map unavailable',
+              style: TextStyle(
+                color: Color(0xFFE8E8F0),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Check network connection',
+              style: TextStyle(color: Color(0x4DFFFFFF), fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => setState(() => _mapLoadFailed = false),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF9D4BFF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Retry',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildMapBoard({
@@ -1804,7 +1858,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
   }) {
     return Container(
       key: key,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: emphasized ? const Color(0xD0182C4A) : _trackOverlaySurface,
         borderRadius: BorderRadius.circular(15),

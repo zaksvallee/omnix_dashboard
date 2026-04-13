@@ -23,29 +23,29 @@ class OnyxStatusColorSet {
 }
 
 abstract final class OnyxColorTokens {
-  static const Color shell = Color(0xFF0A0A0A);
-  static const Color backgroundPrimary = Color(0xFF0A0A0A);
-  static const Color backgroundSecondary = Color(0xFF111118);
-  static const Color card = Color(0xFF16161F);
-  static const Color surface = Color(0xFF16161F);
-  static const Color surfaceCard = Color(0xFF111111);
-  static const Color surfaceElevated = Color(0xFF1A1A1A);
-  static const Color surfaceInset = Color(0xFF0E1519);
-  static const Color surfaceEmphasis = Color(0xFF29233D);
+  static const Color shell = Color(0xFF0D0D14);
+  static const Color backgroundPrimary = Color(0xFF0D0D14);
+  static const Color backgroundSecondary = Color(0xFF13131E);
+  static const Color card = Color(0xFF13131E);
+  static const Color surface = Color(0xFF13131E);
+  static const Color surfaceCard = Color(0xFF0D0D14);
+  static const Color surfaceElevated = Color(0xFF1A1A2E);
+  static const Color surfaceInset = Color(0xFF1A1A2E);
+  static const Color surfaceEmphasis = Color(0xFF1A1A2E);
 
-  static const Color borderSubtle = Color(0xFF1F2937);
-  static const Color borderStrong = Color(0xFF313844);
-  static const Color divider = Color(0xFF1B2129);
+  static const Color borderSubtle = Color(0x269D4BFF);
+  static const Color borderStrong = Color(0x669D4BFF);
+  static const Color divider = Color(0x12FFFFFF);
 
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF9CA3AF);
-  static const Color textMuted = Color(0xFF737D8B);
-  static const Color textDisabled = Color(0xFF565F6B);
+  static const Color textPrimary = Color(0xFFE8E8F0);
+  static const Color textSecondary = Color(0x80FFFFFF);
+  static const Color textMuted = Color(0x4DFFFFFF);
+  static const Color textDisabled = Color(0x33FFFFFF);
 
   static const Color accentRed = Color(0xFFFF3B5C);
   static const Color accentGreen = Color(0xFF00D4AA);
   static const Color accentAmber = Color(0xFFF5A623);
-  static const Color accentCyan = Color(0xFF00B4D8);
+  static const Color accentCyan = Color(0xFF9D4BFF);       // PRIMARY ACCENT — ONYX brand purple
   static const Color accentSky = Color(0xFF8FD1FF);
   static const Color accentPurple = Color(0xFF7C3AED);
   static const Color accentTeal = Color(0xFF0D9488);
@@ -63,8 +63,8 @@ abstract final class OnyxColorTokens {
   static const Color redSurface = Color(0xFF341516);
   static const Color greenSurface = Color(0xFF11211E);
   static const Color amberSurface = Color(0xFF342216);
-  static const Color cyanSurface = Color(0xFF163440);
-  static const Color purpleSurface = Color(0xFF281C3E);
+  static const Color cyanSurface = Color(0x1A9D4BFF);
+  static const Color purpleSurface = Color(0x1A9D4BFF);
 
   static const Color redBanner = Color(0xFF5E1C19);
   static const Color greenBanner = Color(0xFF183E31);
@@ -74,8 +74,11 @@ abstract final class OnyxColorTokens {
   static const Color redBorder = Color(0xFF7F302E);
   static const Color greenBorder = Color(0xFF285546);
   static const Color amberBorder = Color(0xFF72501E);
-  static const Color cyanBorder = Color(0xFF295C6F);
-  static const Color purpleBorder = Color(0xFF5B2F96);
+  static const Color cyanBorder = Color(0x4D9D4BFF);
+  static const Color purpleBorder = Color(0x669D4BFF);
+
+  static const Color brand = Color(0xFF9D4BFF);
+  static const Color brandDark = Color(0xFF7B2FBE);
 }
 
 abstract final class OnyxTypographyTokens {
@@ -218,7 +221,7 @@ abstract final class OnyxStatusTokens {
     banner: OnyxColorTokens.cyanSurface,
     border: OnyxColorTokens.cyanBorder,
     meaning:
-        'Interactive, selected, actionable, or informational control state.',
+        'Interactive, selected, actionable, or informational control state (purple brand accent).',
   );
 
   /// Administrative, reporting, governance, and configuration context.
@@ -277,6 +280,9 @@ abstract final class OnyxDesignTokens {
   static const Color amberBorder = OnyxColorTokens.amberBorder;
   static const Color cyanBorder = OnyxColorTokens.cyanBorder;
   static const Color purpleBorder = OnyxColorTokens.purpleBorder;
+
+  static const Color brand = OnyxColorTokens.brand;
+  static const Color brandDark = OnyxColorTokens.brandDark;
 
   static const String fontFamily = OnyxTypographyTokens.sansFamily;
 }

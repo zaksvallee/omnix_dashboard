@@ -6,14 +6,14 @@ import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
-const _intelSurfaceColor = Color(0xFFFFFFFF);
-const _intelSurfaceAltColor = Color(0xFFF4F8FE);
-const _intelSurfaceTintColor = Color(0xFFEAF4FF);
-const _intelBorderColor = Color(0xFFD9E4F0);
-const _intelStrongBorderColor = Color(0xFFBED0E4);
-const _intelTitleColor = Color(0xFF162436);
-const _intelBodyColor = Color(0xFF3E5976);
-const _intelMutedColor = Color(0xFF7288A2);
+const _intelSurfaceColor = Color(0xFF13131E);
+const _intelSurfaceAltColor = Color(0xFF1A1A2E);
+const _intelSurfaceTintColor = Color(0x1A9D4BFF);
+const _intelBorderColor = Color(0x269D4BFF);
+const _intelStrongBorderColor = Color(0x4D9D4BFF);
+const _intelTitleColor = Color(0xFFE8E8F0);
+const _intelBodyColor = Color(0x80FFFFFF);
+const _intelMutedColor = Color(0x4DFFFFFF);
 
 String _intelKeySegment(String value) =>
     value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
