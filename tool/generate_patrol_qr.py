@@ -28,6 +28,10 @@ def main() -> int:
         "--checkpoint-name", required=True, help="Human label for the checkpoint"
     )
     parser.add_argument(
+        "--checkpoint-id",
+        help="Checkpoint UUID or stable checkpoint identifier used by the mobile scanner",
+    )
+    parser.add_argument(
         "--checkpoint-code", required=True, help="Unique QR checkpoint code"
     )
     parser.add_argument(
@@ -37,10 +41,8 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    payload = (
-        f"onyx://patrol/scan?site={args.site_id.strip()}"
-        f"&checkpoint={args.checkpoint_code.strip()}"
-    )
+    checkpoint_id = (args.checkpoint_id or args.checkpoint_code).strip()
+    payload = f"onyx://checkpoint/{args.site_id.strip()}/{checkpoint_id}"
     output_dir = pathlib.Path(args.output_dir).expanduser().resolve() / args.site_id
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{_slugify(args.checkpoint_name)}.png"

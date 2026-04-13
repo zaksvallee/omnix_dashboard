@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:http/http.dart' as http;
 import 'package:supabase/supabase.dart';
 
 import 'package:omnix_dashboard/application/onyx_patrol_monitor_service.dart';
@@ -25,6 +26,7 @@ const String _defaultHost = '127.0.0.1';
 const int _defaultPort = 8444;
 const Duration _freshnessWindow = Duration(minutes: 30);
 const Duration _saTimeOffset = Duration(hours: 2);
+const Duration _telegramSendTimeout = Duration(seconds: 10);
 
 Future<void> main() async {
   final supabaseUrl = Platform.environment['ONYX_SUPABASE_URL'] ?? '';
@@ -169,12 +171,15 @@ Future<void> _handlePatrolScanRequest(
   final payload = Map<String, dynamic>.from(decoded);
   final siteId = _asString(payload['site_id']) ?? '';
   final guardId = _asString(payload['guard_id']) ?? '';
+  final checkpointId = _asString(payload['checkpoint_id']) ?? '';
   final checkpointCode = _asString(payload['checkpoint_code']) ?? '';
-  final token =
-      _asString(payload['token']) ?? _extractApiToken(request) ?? '';
+  final method = (_asString(payload['method']) ?? 'qr').trim().toLowerCase();
+  final notes =
+      (_asString(payload['notes']) ?? _asString(payload['note']) ?? '').trim();
+  final token = _asString(payload['token']) ?? _extractApiToken(request) ?? '';
   if (siteId.isEmpty ||
       guardId.isEmpty ||
-      checkpointCode.isEmpty ||
+      (checkpointId.isEmpty && checkpointCode.isEmpty) ||
       token.isEmpty) {
     await _writeJsonResponse(request, HttpStatus.badRequest, <String, Object?>{
       'ok': false,
@@ -182,11 +187,7 @@ Future<void> _handlePatrolScanRequest(
     });
     return;
   }
-  final tokenId = await _validateToken(
-    supabase,
-    siteId: siteId,
-    token: token,
-  );
+  final tokenId = await _validateToken(supabase, siteId: siteId, token: token);
   if (tokenId == null) {
     await _writeJsonResponse(request, HttpStatus.forbidden, <String, Object?>{
       'ok': false,
@@ -202,7 +203,10 @@ Future<void> _handlePatrolScanRequest(
         'id,route_id,site_id,checkpoint_name,checkpoint_code,sequence_order,is_active',
       )
       .eq('site_id', siteId)
-      .eq('checkpoint_code', checkpointCode)
+      .eq(
+        checkpointId.isNotEmpty ? 'id' : 'checkpoint_code',
+        checkpointId.isNotEmpty ? checkpointId : checkpointCode,
+      )
       .eq('is_active', true)
       .limit(1);
   if (checkpointRows.isEmpty) {
@@ -216,16 +220,8 @@ Future<void> _handlePatrolScanRequest(
     Map<String, dynamic>.from(checkpointRows.first as Map),
   );
   final scannedAtUtc = DateTime.now().toUtc();
-  await supabase.from('patrol_scans').insert(<String, Object?>{
-    'site_id': siteId,
-    'guard_id': guardId,
-    'checkpoint_id': checkpoint.id,
-    'checkpoint_name': checkpoint.checkpointName,
-    'scanned_at': scannedAtUtc.toIso8601String(),
-    'lat': _doubleValue(payload['lat']),
-    'lon': _doubleValue(payload['lon']),
-    'note': _asString(payload['note']),
-  });
+  final latitude = _doubleValue(payload['lat']);
+  final longitude = _doubleValue(payload['lon']);
 
   final routeCheckpointRows = await supabase
       .from('patrol_checkpoints')
@@ -237,8 +233,148 @@ Future<void> _handlePatrolScanRequest(
       .eq('is_active', true)
       .order('sequence_order', ascending: true);
   final routeCheckpoints = routeCheckpointRows
-      .map((row) => OnyxPatrolCheckpoint.fromRow(Map<String, dynamic>.from(row as Map)))
+      .map(
+        (row) =>
+            OnyxPatrolCheckpoint.fromRow(Map<String, dynamic>.from(row as Map)),
+      )
       .toList(growable: false);
+  final siteRows = await supabase
+      .from('sites')
+      .select('site_id,name,client_id')
+      .eq('site_id', siteId)
+      .limit(1);
+  final siteRow = siteRows.isEmpty
+      ? const <String, dynamic>{}
+      : Map<String, dynamic>.from(siteRows.first as Map);
+  final siteName = (_asString(siteRow['name']) ?? siteId).trim();
+  final clientId =
+      (_asString(payload['client_id']) ?? _asString(siteRow['client_id']) ?? '')
+          .trim();
+  final assignmentRows = await supabase
+      .from('guard_assignments')
+      .select(
+        'id,site_id,guard_id,guard_name,route_id,shift_start,shift_end,patrol_interval_minutes,is_active',
+      )
+      .eq('site_id', siteId)
+      .eq('guard_id', guardId)
+      .eq('is_active', true)
+      .limit(1);
+  final assignment = assignmentRows.isEmpty
+      ? null
+      : OnyxGuardPatrolAssignment.fromRow(
+          Map<String, dynamic>.from(assignmentRows.first as Map),
+        );
+  final guardName = assignment?.guardName.trim().isNotEmpty == true
+      ? assignment!.guardName.trim()
+      : guardId;
+  final routeRows = await supabase
+      .from('patrol_routes')
+      .select('id,site_id,route_name,is_active')
+      .eq('id', checkpoint.routeId)
+      .limit(1);
+  final route = routeRows.isEmpty
+      ? null
+      : OnyxPatrolRoute.fromRow(
+          Map<String, dynamic>.from(routeRows.first as Map),
+        );
+  final shiftWindow = assignment == null
+      ? null
+      : _resolveShiftWindowForAssignment(
+          assignment,
+          scannedAtUtc.add(_saTimeOffset),
+        );
+  final scanRows = await supabase
+      .from('patrol_checkpoint_scans')
+      .select(
+        'id,site_id,client_id,guard_id,checkpoint_id,checkpoint_name,scanned_at,lat,lon,method,valid,notes',
+      )
+      .eq('site_id', siteId)
+      .eq('guard_id', guardId)
+      .order('scanned_at', ascending: true)
+      .limit(500);
+  final existingShiftScans = scanRows
+      .map(
+        (row) => OnyxPatrolScan.fromRow(Map<String, dynamic>.from(row as Map)),
+      )
+      .where((scan) {
+        if (!routeCheckpoints.any(
+          (routeCheckpoint) =>
+              routeCheckpoint.id.trim() == scan.checkpointId.trim(),
+        )) {
+          return false;
+        }
+        if (shiftWindow == null) {
+          return true;
+        }
+        final scanLocal = scan.scannedAtUtc.add(_saTimeOffset);
+        return !scanLocal.isBefore(shiftWindow.startLocal) &&
+            scanLocal.isBefore(shiftWindow.endLocal);
+      })
+      .toList(growable: false);
+  final validShiftScans = existingShiftScans
+      .where((scan) => scan.valid)
+      .toList(growable: false);
+  final expectedCheckpoint = _nextExpectedCheckpoint(
+    routeCheckpoints,
+    scans: validShiftScans,
+  );
+  final outOfSequence =
+      expectedCheckpoint != null &&
+      expectedCheckpoint.id.trim() != checkpoint.id.trim();
+  final validScan = !outOfSequence;
+  await supabase.from('patrol_checkpoint_scans').insert(<String, Object?>{
+    'guard_id': guardId,
+    'site_id': siteId,
+    'client_id': clientId,
+    'checkpoint_id': checkpoint.id,
+    'checkpoint_name': checkpoint.checkpointName,
+    'scanned_at': scannedAtUtc.toIso8601String(),
+    'lat': latitude,
+    'lon': longitude,
+    'method': method.isEmpty ? 'qr' : method,
+    'valid': validScan,
+    'notes': notes.isEmpty ? null : notes,
+  });
+  final scansAfterInsert = <OnyxPatrolScan>[
+    ...existingShiftScans,
+    OnyxPatrolScan(
+      id: 'pending',
+      siteId: siteId,
+      clientId: clientId,
+      guardId: guardId,
+      checkpointId: checkpoint.id,
+      checkpointName: checkpoint.checkpointName,
+      scannedAtUtc: scannedAtUtc,
+      latitude: latitude,
+      longitude: longitude,
+      method: method.isEmpty ? 'qr' : method,
+      valid: validScan,
+      notes: notes.isEmpty ? null : notes,
+    ),
+  ]..sort((left, right) => left.scannedAtUtc.compareTo(right.scannedAtUtc));
+  final validScansAfterInsert = scansAfterInsert
+      .where((scan) => scan.valid)
+      .toList(growable: false);
+  final routeCompleteBeforeInsert = _routeCompleted(
+    routeCheckpoints,
+    validShiftScans,
+  );
+  final routeCompleteAfterInsert = _routeCompleted(
+    routeCheckpoints,
+    validScansAfterInsert,
+  );
+  final cycleStartUtc = _cycleStartUtc(validScansAfterInsert);
+  final patrolWindowExpired =
+      cycleStartUtc != null &&
+      assignment != null &&
+      scannedAtUtc.isAfter(
+        cycleStartUtc.add(Duration(minutes: assignment.patrolIntervalMinutes)),
+      ) &&
+      !routeCompleteAfterInsert;
+  final missedCheckpointNames = _remainingCheckpointNames(
+    routeCheckpoints,
+    validScansAfterInsert,
+  );
   final nextCheckpoint = _nextPatrolCheckpoint(
     routeCheckpoints,
     currentCheckpointId: checkpoint.id,
@@ -250,13 +386,41 @@ Future<void> _handlePatrolScanRequest(
     guardId: guardId,
     nowUtc: scannedAtUtc,
   );
+  await _sendPatrolTelegramNotice(
+    text: outOfSequence
+        ? '⚠️ Checkpoint anomaly — $guardName scanned '
+              '${checkpoint.checkpointName} out of order'
+        : '✅ Checkpoint scanned — $guardName at ${checkpoint.checkpointName} '
+              '($siteName) — ${_formatTelegramTime(scannedAtUtc)}',
+  );
+  if (!routeCompleteBeforeInsert && routeCompleteAfterInsert && route != null) {
+    final duration = cycleStartUtc == null
+        ? Duration.zero
+        : scannedAtUtc.difference(cycleStartUtc);
+    await _sendPatrolTelegramNotice(
+      text:
+          '✅ Patrol complete — $guardName completed ${route.routeName} '
+          'in ${_formatDuration(duration)}',
+    );
+  } else if (patrolWindowExpired &&
+      route != null &&
+      missedCheckpointNames.isNotEmpty) {
+    await _sendPatrolTelegramNotice(
+      text:
+          '🔴 Patrol incomplete — $guardName missed: '
+          '${missedCheckpointNames.join(', ')}',
+    );
+  }
 
   await _writeJsonResponse(request, HttpStatus.ok, <String, Object?>{
     'ok': true,
     'checkpoint': checkpoint.checkpointName,
     'scanned_at': scannedAtUtc.toIso8601String(),
     'next_checkpoint': nextCheckpoint?.checkpointName,
-    'message': 'Checkpoint confirmed. Good work.',
+    'valid': validScan,
+    'message': outOfSequence
+        ? 'Checkpoint anomaly recorded.'
+        : 'Checkpoint confirmed. Good work.',
   });
 }
 
@@ -479,7 +643,11 @@ Future<void> _refreshPatrolComplianceForGuard(
     return;
   }
   final assignments = assignmentRows
-      .map((row) => OnyxGuardPatrolAssignment.fromRow(Map<String, dynamic>.from(row as Map)))
+      .map(
+        (row) => OnyxGuardPatrolAssignment.fromRow(
+          Map<String, dynamic>.from(row as Map),
+        ),
+      )
       .toList(growable: false);
   final routeIds = assignments
       .map((assignment) => assignment.routeId.trim())
@@ -497,19 +665,24 @@ Future<void> _refreshPatrolComplianceForGuard(
             .inFilter('route_id', routeIds)
             .eq('is_active', true);
   final checkpoints = checkpointRows
-      .map((row) => OnyxPatrolCheckpoint.fromRow(Map<String, dynamic>.from(row as Map)))
+      .map(
+        (row) =>
+            OnyxPatrolCheckpoint.fromRow(Map<String, dynamic>.from(row as Map)),
+      )
       .toList(growable: false);
   final scanRows = await supabase
-      .from('patrol_scans')
+      .from('patrol_checkpoint_scans')
       .select(
-        'id,site_id,guard_id,checkpoint_id,checkpoint_name,scanned_at,lat,lon,note',
+        'id,site_id,client_id,guard_id,checkpoint_id,checkpoint_name,scanned_at,lat,lon,method,valid,notes',
       )
       .eq('site_id', siteId)
       .eq('guard_id', guardId)
       .order('scanned_at', ascending: false)
       .limit(500);
   final scans = scanRows
-      .map((row) => OnyxPatrolScan.fromRow(Map<String, dynamic>.from(row as Map)))
+      .map(
+        (row) => OnyxPatrolScan.fromRow(Map<String, dynamic>.from(row as Map)),
+      )
       .toList(growable: false);
   final service = const OnyxPatrolMonitorService();
   final outcome = service.evaluate(
@@ -546,6 +719,188 @@ OnyxPatrolCheckpoint? _nextPatrolCheckpoint(
     return checkpoints.first;
   }
   return checkpoints[(index + 1) % checkpoints.length];
+}
+
+OnyxPatrolCheckpoint? _nextExpectedCheckpoint(
+  List<OnyxPatrolCheckpoint> checkpoints, {
+  required List<OnyxPatrolScan> scans,
+}) {
+  if (checkpoints.isEmpty) {
+    return null;
+  }
+  final scannedIds = scans
+      .map((scan) => scan.checkpointId.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet();
+  for (final checkpoint in checkpoints) {
+    if (!scannedIds.contains(checkpoint.id.trim())) {
+      return checkpoint;
+    }
+  }
+  return checkpoints.first;
+}
+
+bool _routeCompleted(
+  List<OnyxPatrolCheckpoint> checkpoints,
+  List<OnyxPatrolScan> scans,
+) {
+  if (checkpoints.isEmpty) {
+    return false;
+  }
+  final scannedIds = scans
+      .map((scan) => scan.checkpointId.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet();
+  return checkpoints.every(
+    (checkpoint) => scannedIds.contains(checkpoint.id.trim()),
+  );
+}
+
+List<String> _remainingCheckpointNames(
+  List<OnyxPatrolCheckpoint> checkpoints,
+  List<OnyxPatrolScan> scans,
+) {
+  final scannedIds = scans
+      .map((scan) => scan.checkpointId.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet();
+  return checkpoints
+      .where((checkpoint) => !scannedIds.contains(checkpoint.id.trim()))
+      .map((checkpoint) => checkpoint.checkpointName)
+      .toList(growable: false);
+}
+
+DateTime? _cycleStartUtc(List<OnyxPatrolScan> scans) {
+  if (scans.isEmpty) {
+    return null;
+  }
+  final ordered = scans.toList(growable: false)
+    ..sort((left, right) => left.scannedAtUtc.compareTo(right.scannedAtUtc));
+  return ordered.first.scannedAtUtc;
+}
+
+_ShiftWindow _resolveShiftWindowForAssignment(
+  OnyxGuardPatrolAssignment assignment,
+  DateTime nowLocal,
+) {
+  final todayStart = _dateWithOffset(nowLocal, assignment.shiftStartOffset);
+  final todayEnd = _dateWithOffset(nowLocal, assignment.shiftEndOffset);
+  final overnight = assignment.isOvernightShift;
+  final candidateWindows = <_ShiftWindow>[
+    _buildShiftWindow(
+      startLocal: todayStart,
+      endLocal: todayEnd,
+      overnight: overnight,
+      nowLocal: nowLocal,
+    ),
+    _buildShiftWindow(
+      startLocal: todayStart.subtract(const Duration(days: 1)),
+      endLocal: todayEnd.subtract(const Duration(days: 1)),
+      overnight: overnight,
+      nowLocal: nowLocal,
+    ),
+  ];
+  for (final candidate in candidateWindows) {
+    if (candidate.isCurrentShift) {
+      return candidate;
+    }
+  }
+  candidateWindows.sort(
+    (left, right) => right.endLocal.compareTo(left.endLocal),
+  );
+  return candidateWindows.first;
+}
+
+_ShiftWindow _buildShiftWindow({
+  required DateTime startLocal,
+  required DateTime endLocal,
+  required bool overnight,
+  required DateTime nowLocal,
+}) {
+  final normalizedEnd = overnight
+      ? endLocal.add(const Duration(days: 1))
+      : endLocal;
+  final isCurrentShift =
+      !nowLocal.isBefore(startLocal) && nowLocal.isBefore(normalizedEnd);
+  return _ShiftWindow(
+    startLocal: startLocal,
+    endLocal: normalizedEnd,
+    isCurrentShift: isCurrentShift,
+  );
+}
+
+DateTime _dateWithOffset(DateTime referenceLocal, Duration offset) {
+  final hours = offset.inHours;
+  final minutes = offset.inMinutes.remainder(60);
+  final seconds = offset.inSeconds.remainder(60);
+  return DateTime(
+    referenceLocal.year,
+    referenceLocal.month,
+    referenceLocal.day,
+    hours,
+    minutes,
+    seconds,
+  );
+}
+
+Future<void> _sendPatrolTelegramNotice({required String text}) async {
+  final botToken = Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
+  final chatId = Platform.environment['ONYX_TELEGRAM_ADMIN_CHAT_ID'] ?? '';
+  final threadId = int.tryParse(
+    (Platform.environment['ONYX_TELEGRAM_ADMIN_THREAD_ID'] ?? '').trim(),
+  );
+  if (botToken.trim().isEmpty || chatId.trim().isEmpty) {
+    return;
+  }
+  final uri = Uri.https(
+    'api.telegram.org',
+    '/bot${botToken.trim()}/sendMessage',
+  );
+  final payload = <String, Object?>{'chat_id': chatId.trim(), 'text': text};
+  if (threadId != null) {
+    payload['message_thread_id'] = threadId;
+  }
+  try {
+    final response = await http
+        .post(
+          uri,
+          headers: const <String, String>{
+            'content-type': 'application/json; charset=utf-8',
+          },
+          body: jsonEncode(payload),
+        )
+        .timeout(_telegramSendTimeout);
+    if (response.statusCode >= 400) {
+      stderr.writeln(
+        '[ONYX] Patrol Telegram notice failed: ${response.statusCode} ${response.body}',
+      );
+    }
+  } catch (error, stackTrace) {
+    stderr.writeln('[ONYX] Patrol Telegram notice failed: $error');
+    stderr.writeln(stackTrace);
+  }
+}
+
+String _formatTelegramTime(DateTime valueUtc) {
+  final local = valueUtc.add(_saTimeOffset);
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}
+
+String _formatDuration(Duration duration) {
+  if (duration.inMinutes <= 0) {
+    return 'under 1 minute';
+  }
+  final hours = duration.inHours;
+  final minutes = duration.inMinutes.remainder(60);
+  if (hours <= 0) {
+    return '$minutes min';
+  }
+  if (minutes == 0) {
+    return '$hours h';
+  }
+  return '$hours h ${minutes.toString().padLeft(2, '0')} min';
 }
 
 String _deriveStatus({
@@ -765,6 +1120,18 @@ class _StatusRoute {
   final bool json;
 
   const _StatusRoute({required this.siteId, required this.json});
+}
+
+class _ShiftWindow {
+  final DateTime startLocal;
+  final DateTime endLocal;
+  final bool isCurrentShift;
+
+  const _ShiftWindow({
+    required this.startLocal,
+    required this.endLocal,
+    required this.isCurrentShift,
+  });
 }
 
 class _StatusSummary {

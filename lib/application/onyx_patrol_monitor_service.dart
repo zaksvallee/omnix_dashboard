@@ -99,30 +99,37 @@ class OnyxGuardPatrolAssignment {
 class OnyxPatrolScan {
   final String id;
   final String siteId;
+  final String clientId;
   final String guardId;
   final String checkpointId;
   final String checkpointName;
   final DateTime scannedAtUtc;
   final double? latitude;
   final double? longitude;
-  final String? note;
+  final String method;
+  final bool valid;
+  final String? notes;
 
   const OnyxPatrolScan({
     required this.id,
     required this.siteId,
+    required this.clientId,
     required this.guardId,
     required this.checkpointId,
     required this.checkpointName,
     required this.scannedAtUtc,
     this.latitude,
     this.longitude,
-    this.note,
+    this.method = 'qr',
+    this.valid = true,
+    this.notes,
   });
 
   factory OnyxPatrolScan.fromRow(Map<String, dynamic> row) {
     return OnyxPatrolScan(
       id: _stringValue(row['id']),
       siteId: _stringValue(row['site_id']),
+      clientId: _stringValue(row['client_id']),
       guardId: _stringValue(row['guard_id']),
       checkpointId: _stringValue(row['checkpoint_id']),
       checkpointName: _stringValue(row['checkpoint_name']),
@@ -131,7 +138,13 @@ class OnyxPatrolScan {
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       latitude: _doubleValue(row['lat']),
       longitude: _doubleValue(row['lon']),
-      note: _nullableStringValue(row['note']),
+      method: _stringValue(row['method']).isEmpty
+          ? 'qr'
+          : _stringValue(row['method']),
+      valid: _boolValue(row['valid']) ?? true,
+      notes:
+          _nullableStringValue(row['notes']) ??
+          _nullableStringValue(row['note']),
     );
   }
 }
@@ -230,31 +243,43 @@ class OnyxPatrolMonitorService {
     final missedAlerts = <OnyxMissedPatrolAlert>[];
 
     for (final assignment in activeAssignments) {
-      final routeCheckpoints = checkpoints
-          .where(
-            (checkpoint) =>
-                checkpoint.isActive &&
-                checkpoint.siteId.trim() == normalizedSiteId &&
-                checkpoint.routeId.trim() == assignment.routeId.trim(),
-          )
-          .toList(growable: false)
-        ..sort((left, right) => left.sequenceOrder.compareTo(right.sequenceOrder));
-      final guardScans = scans
-          .where(
-            (scan) =>
-                scan.siteId.trim() == normalizedSiteId &&
-                scan.guardId.trim() == assignment.guardId.trim(),
-          )
-          .toList(growable: false)
-        ..sort((left, right) => right.scannedAtUtc.compareTo(left.scannedAtUtc));
+      final routeCheckpoints =
+          checkpoints
+              .where(
+                (checkpoint) =>
+                    checkpoint.isActive &&
+                    checkpoint.siteId.trim() == normalizedSiteId &&
+                    checkpoint.routeId.trim() == assignment.routeId.trim(),
+              )
+              .toList(growable: false)
+            ..sort(
+              (left, right) =>
+                  left.sequenceOrder.compareTo(right.sequenceOrder),
+            );
+      final guardScans =
+          scans
+              .where(
+                (scan) =>
+                    scan.siteId.trim() == normalizedSiteId &&
+                    scan.guardId.trim() == assignment.guardId.trim(),
+              )
+              .toList(growable: false)
+            ..sort(
+              (left, right) => right.scannedAtUtc.compareTo(left.scannedAtUtc),
+            );
 
       final shiftWindow = _resolveRelevantShiftWindow(assignment, nowLocal);
-      final shiftScans = guardScans.where((scan) {
-        final scanLocal = scan.scannedAtUtc.toLocal();
-        return !scanLocal.isBefore(shiftWindow.startLocal) &&
-            scanLocal.isBefore(shiftWindow.endLocal);
-      }).toList(growable: false)
-        ..sort((left, right) => right.scannedAtUtc.compareTo(left.scannedAtUtc));
+      final shiftScans =
+          guardScans
+              .where((scan) {
+                final scanLocal = scan.scannedAtUtc.toLocal();
+                return !scanLocal.isBefore(shiftWindow.startLocal) &&
+                    scanLocal.isBefore(shiftWindow.endLocal);
+              })
+              .toList(growable: false)
+            ..sort(
+              (left, right) => right.scannedAtUtc.compareTo(left.scannedAtUtc),
+            );
 
       final lastScan = shiftScans.isEmpty ? null : shiftScans.first;
       final elapsed = _clampShiftElapsed(
@@ -280,8 +305,8 @@ class OnyxPatrolMonitorService {
       final compliancePercent = expectedPatrols <= 0
           ? 0.0
           : ((math.min(completedPatrols, expectedPatrols) / denominator) *
-                  100.0)
-              .toDouble();
+                    100.0)
+                .toDouble();
 
       complianceSnapshots.add(
         OnyxPatrolComplianceSnapshot(
@@ -309,9 +334,10 @@ class OnyxPatrolMonitorService {
       if (!shiftWindow.isCurrentShift) {
         continue;
       }
-      final nextDueLocal = (lastScan?.scannedAtUtc.toLocal() ??
-              shiftWindow.startLocal)
-          .add(Duration(minutes: assignment.patrolIntervalMinutes));
+      final nextDueLocal =
+          (lastScan?.scannedAtUtc.toLocal() ?? shiftWindow.startLocal).add(
+            Duration(minutes: assignment.patrolIntervalMinutes),
+          );
       if (!nowLocal.isAfter(nextDueLocal)) {
         continue;
       }
@@ -334,8 +360,7 @@ class OnyxPatrolMonitorService {
       complianceSnapshots: List<OnyxPatrolComplianceSnapshot>.unmodifiable(
         complianceSnapshots,
       ),
-      missedAlerts:
-          List<OnyxMissedPatrolAlert>.unmodifiable(missedAlerts),
+      missedAlerts: List<OnyxMissedPatrolAlert>.unmodifiable(missedAlerts),
     );
   }
 
@@ -365,7 +390,9 @@ class OnyxPatrolMonitorService {
         return candidate;
       }
     }
-    candidateWindows.sort((left, right) => right.endLocal.compareTo(left.endLocal));
+    candidateWindows.sort(
+      (left, right) => right.endLocal.compareTo(left.endLocal),
+    );
     for (final candidate in candidateWindows) {
       if (!candidate.endLocal.isAfter(nowLocal)) {
         return candidate;
@@ -380,7 +407,9 @@ class OnyxPatrolMonitorService {
     required bool overnight,
     required DateTime nowLocal,
   }) {
-    final normalizedEnd = overnight ? endLocal.add(const Duration(days: 1)) : endLocal;
+    final normalizedEnd = overnight
+        ? endLocal.add(const Duration(days: 1))
+        : endLocal;
     final isCurrentShift =
         !nowLocal.isBefore(startLocal) && nowLocal.isBefore(normalizedEnd);
     return _ShiftWindow(
@@ -412,7 +441,9 @@ class OnyxPatrolMonitorService {
     if (nowLocal.isBefore(shiftStartLocal)) {
       return Duration.zero;
     }
-    final effectiveNow = nowLocal.isAfter(shiftEndLocal) ? shiftEndLocal : nowLocal;
+    final effectiveNow = nowLocal.isAfter(shiftEndLocal)
+        ? shiftEndLocal
+        : nowLocal;
     return effectiveNow.difference(shiftStartLocal);
   }
 
@@ -440,8 +471,10 @@ class OnyxPatrolMonitorService {
     }
     final buckets = <int>{};
     for (final scan in scans) {
-      final elapsedMinutes =
-          scan.scannedAtUtc.toLocal().difference(shiftStartLocal).inMinutes;
+      final elapsedMinutes = scan.scannedAtUtc
+          .toLocal()
+          .difference(shiftStartLocal)
+          .inMinutes;
       if (elapsedMinutes < 0) {
         continue;
       }
@@ -462,7 +495,9 @@ class OnyxPatrolMonitorService {
         .where((value) => value.isNotEmpty)
         .toSet();
     return checkpoints
-        .where((checkpoint) => !scannedCheckpointIds.contains(checkpoint.id.trim()))
+        .where(
+          (checkpoint) => !scannedCheckpointIds.contains(checkpoint.id.trim()),
+        )
         .map((checkpoint) => checkpoint.checkpointName)
         .toList(growable: false);
   }

@@ -81,10 +81,8 @@ class _OnyxTelegramAiProcessor {
   final TelegramAiAssistantService aiAssistant;
   final OnyxTelegramCommandRouter router;
   final Duration pollInterval;
-  final Map<String, _TelegramOperatorContextSession> _operatorContexts =
-      <String, _TelegramOperatorContextSession>{};
 
-  _OnyxTelegramAiProcessor({
+  const _OnyxTelegramAiProcessor({
     required this.supabase,
     required this.telegramBridge,
     required this.aiAssistant,
@@ -93,7 +91,6 @@ class _OnyxTelegramAiProcessor {
   });
 
   Future<void> run() async {
-    await _restoreOperatorContexts();
     while (true) {
       var processedCount = 0;
       try {
@@ -186,66 +183,9 @@ class _OnyxTelegramAiProcessor {
         }
 
         _logInfo('Sending row $rowId to AI/reply builder...');
-        final contextKey = _sessionKey(update.chatId, update.messageThreadId);
-        final seededSession = _sessionFor(
-          chatId: update.chatId,
-          threadId: update.messageThreadId,
-        );
-        final operatorSession = seededSession
-            .copyWith(
-              lastSiteOrZone:
-                  _resolvedSiteOrZoneReference(
-                    target: target,
-                    update: update,
-                    existing: seededSession.lastSiteOrZone,
-                  ) ??
-                  seededSession.lastSiteOrZone,
-              lastCameraReferenced:
-                  _resolvedCameraReference(
-                    update: update,
-                    existing: seededSession.lastCameraReferenced,
-                  ) ??
-                  seededSession.lastCameraReferenced,
-            )
-            .appendTurn(_operatorContextTurnLabelForUpdate(update));
-        _operatorContexts[contextKey] = operatorSession;
-        await _persistOperatorContext(operatorSession);
         final reply = _isOnyxAlertCallbackData(update.text)
-            ? await _handleOnyxAlertCallback(
-                update: update,
-                target: target,
-                session: operatorSession,
-              )
-            : await _buildReply(
-                update: update,
-                target: target,
-                session: operatorSession,
-              );
-        final currentSession = _operatorContexts[contextKey] ?? operatorSession;
-        final replySession = currentSession
-            .copyWith(
-              lastActiveIncidentId:
-                  _incidentIdFromReply(reply) ??
-                  currentSession.lastActiveIncidentId,
-              lastSiteOrZone:
-                  _resolvedSiteOrZoneReference(
-                    target: target,
-                    update: update,
-                    reply: reply,
-                    existing: currentSession.lastSiteOrZone,
-                  ) ??
-                  currentSession.lastSiteOrZone,
-              lastCameraReferenced:
-                  _resolvedCameraReference(
-                    update: update,
-                    reply: reply,
-                    existing: currentSession.lastCameraReferenced,
-                  ) ??
-                  currentSession.lastCameraReferenced,
-            )
-            .appendTurn('ONYX: ${_preview(reply, maxLength: 280)}');
-        _operatorContexts[contextKey] = replySession;
-        await _persistOperatorContext(replySession);
+            ? await _handleOnyxAlertCallback(update: update, target: target)
+            : await _buildReply(update: update, target: target);
         _logInfo('AI response for row $rowId: ${_preview(reply)}');
         if (reply.trim().isEmpty) {
           _logInfo('Row $rowId produced an empty reply.');
@@ -374,7 +314,6 @@ class _OnyxTelegramAiProcessor {
   Future<String> _buildReply({
     required TelegramBridgeInboundMessage update,
     required _ProcessorTarget target,
-    required _TelegramOperatorContextSession session,
   }) async {
     final commandType = router.classify(update.text);
     return switch (commandType) {
@@ -416,11 +355,7 @@ class _OnyxTelegramAiProcessor {
         '2. I’ll enroll them to the site gallery\n'
         '3. ONYX will then recognise them on site',
       ),
-      _ => _buildAiFallbackReply(
-        update: update,
-        target: target,
-        session: session,
-      ),
+      _ => _buildAiFallbackReply(update: update, target: target),
     };
   }
 
@@ -601,7 +536,7 @@ class _OnyxTelegramAiProcessor {
       return 'No guard is assigned at $siteLabel.';
     }
     final latestScanRows = await supabase
-        .from('patrol_scans')
+        .from('patrol_checkpoint_scans')
         .select('guard_id,checkpoint_name,scanned_at')
         .eq('site_id', siteId)
         .order('scanned_at', ascending: false)
@@ -760,7 +695,6 @@ class _OnyxTelegramAiProcessor {
   Future<String> _handleOnyxAlertCallback({
     required TelegramBridgeInboundMessage update,
     required _ProcessorTarget target,
-    required _TelegramOperatorContextSession session,
   }) async {
     final callback = _parseOnyxAlertCallback(update.text);
     if (callback == null) {
@@ -770,13 +704,6 @@ class _OnyxTelegramAiProcessor {
     final cameraLabel = await _readAlertCameraLabel(
       siteId: target.siteId,
       channelId: callback.channelId,
-    );
-    _operatorContexts[_sessionKey(
-      update.chatId,
-      update.messageThreadId,
-    )] = session.copyWith(
-      lastSiteOrZone: cameraLabel,
-      lastCameraReferenced: cameraLabel,
     );
     return switch (callback.action) {
       _OnyxAlertCallbackAction.armedResponse => _handleArmedResponseCallback(
@@ -965,7 +892,6 @@ class _OnyxTelegramAiProcessor {
   Future<String> _buildAiFallbackReply({
     required TelegramBridgeInboundMessage update,
     required _ProcessorTarget target,
-    required _TelegramOperatorContextSession session,
   }) async {
     final snapshot = await _readLatestSnapshot(target.siteId);
     final summary = snapshot == null
@@ -977,8 +903,6 @@ class _OnyxTelegramAiProcessor {
       clientId: target.clientId,
       siteId: target.siteId,
       deliveryMode: TelegramAiDeliveryMode.telegramLive,
-      recentConversationTurns: session.recentConversationTurns,
-      siteAwarenessContext: session.siteAwarenessContext,
       siteAwarenessSummary: summary,
     );
     return draft.text.trim().isEmpty
@@ -1066,66 +990,6 @@ class _OnyxTelegramAiProcessor {
         .where((row) => _incidentIsActive((row['status'] ?? '').toString()))
         .length;
   }
-
-  Future<void> _restoreOperatorContexts() async {
-    try {
-      final rows = await supabase
-          .from('telegram_operator_context')
-          .select('chat_id,thread_id,context_json,updated_at')
-          .order('updated_at', ascending: false)
-          .limit(5000);
-      _operatorContexts.clear();
-      for (final rawRow in rows) {
-        final row = Map<String, dynamic>.from(rawRow as Map);
-        final session = _TelegramOperatorContextSession.fromRow(row);
-        if (session == null) {
-          continue;
-        }
-        _operatorContexts[_sessionKey(session.chatId, session.threadId)] =
-            session;
-      }
-      _logInfo(
-        'Restored operator context for ${_operatorContexts.length} sessions',
-      );
-    } catch (error, stackTrace) {
-      _logError(
-        'WARNING: Failed to restore Telegram operator context on startup: $error',
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  _TelegramOperatorContextSession _sessionFor({
-    required String chatId,
-    required int? threadId,
-  }) {
-    final key = _sessionKey(chatId, threadId);
-    return _operatorContexts.putIfAbsent(
-      key,
-      () => _TelegramOperatorContextSession(
-        chatId: chatId.trim(),
-        threadId: _normalizedThreadId(threadId),
-      ),
-    );
-  }
-
-  Future<void> _persistOperatorContext(
-    _TelegramOperatorContextSession session,
-  ) async {
-    try {
-      await supabase.from('telegram_operator_context').upsert(<String, Object?>{
-        'chat_id': session.chatId,
-        'thread_id': session.threadId,
-        'context_json': session.toContextJson(),
-        'updated_at': DateTime.now().toUtc().toIso8601String(),
-      }, onConflict: 'chat_id,thread_id');
-    } catch (error, stackTrace) {
-      _logError(
-        'Failed to persist Telegram operator context for ${session.chatId}/${session.threadId}: $error',
-        stackTrace: stackTrace,
-      );
-    }
-  }
 }
 
 class _ProcessorTarget {
@@ -1142,106 +1006,6 @@ class _ProcessorTarget {
     required this.displayLabel,
     required this.endpointRole,
   });
-}
-
-class _TelegramOperatorContextSession {
-  final String chatId;
-  final int threadId;
-  final String? lastActiveIncidentId;
-  final String? lastSiteOrZone;
-  final String? lastCameraReferenced;
-  final List<String> recentConversationTurns;
-
-  const _TelegramOperatorContextSession({
-    required this.chatId,
-    required this.threadId,
-    this.lastActiveIncidentId,
-    this.lastSiteOrZone,
-    this.lastCameraReferenced,
-    this.recentConversationTurns = const <String>[],
-  });
-
-  static _TelegramOperatorContextSession? fromRow(Map<String, dynamic> row) {
-    final chatId = (row['chat_id'] ?? '').toString().trim();
-    if (chatId.isEmpty) {
-      return null;
-    }
-    final context =
-        _asObjectMap(row['context_json']) ?? const <String, Object?>{};
-    final rawTurns = context['conversation_summary'];
-    return _TelegramOperatorContextSession(
-      chatId: chatId,
-      threadId: _normalizedThreadId(_asInt(row['thread_id'])),
-      lastActiveIncidentId: _nullableTrimmedString(
-        context['last_active_incident_id'],
-      ),
-      lastSiteOrZone: _nullableTrimmedString(context['last_site_or_zone']),
-      lastCameraReferenced: _nullableTrimmedString(
-        context['last_camera_referenced'],
-      ),
-      recentConversationTurns: rawTurns is List
-          ? rawTurns
-                .map((value) => value.toString().trim())
-                .where((value) => value.isNotEmpty)
-                .take(5)
-                .toList(growable: false)
-          : const <String>[],
-    );
-  }
-
-  _TelegramOperatorContextSession copyWith({
-    String? lastActiveIncidentId,
-    String? lastSiteOrZone,
-    String? lastCameraReferenced,
-    List<String>? recentConversationTurns,
-  }) {
-    return _TelegramOperatorContextSession(
-      chatId: chatId,
-      threadId: threadId,
-      lastActiveIncidentId: lastActiveIncidentId ?? this.lastActiveIncidentId,
-      lastSiteOrZone: lastSiteOrZone ?? this.lastSiteOrZone,
-      lastCameraReferenced: lastCameraReferenced ?? this.lastCameraReferenced,
-      recentConversationTurns:
-          recentConversationTurns ?? this.recentConversationTurns,
-    );
-  }
-
-  _TelegramOperatorContextSession appendTurn(String turn) {
-    final normalizedTurn = turn.trim();
-    if (normalizedTurn.isEmpty) {
-      return this;
-    }
-    final nextTurns = <String>[...recentConversationTurns, normalizedTurn];
-    while (nextTurns.length > 5) {
-      nextTurns.removeAt(0);
-    }
-    return copyWith(
-      recentConversationTurns: List<String>.unmodifiable(nextTurns),
-    );
-  }
-
-  String get siteAwarenessContext {
-    final parts = <String>[];
-    if ((lastActiveIncidentId ?? '').trim().isNotEmpty) {
-      parts.add('active incident ${(lastActiveIncidentId ?? '').trim()}');
-    }
-    if ((lastSiteOrZone ?? '').trim().isNotEmpty) {
-      parts.add('last site/zone ${(lastSiteOrZone ?? '').trim()}');
-    }
-    if ((lastCameraReferenced ?? '').trim().isNotEmpty) {
-      parts.add('last camera ${(lastCameraReferenced ?? '').trim()}');
-    }
-    return parts.join(', ');
-  }
-
-  Map<String, Object?> toContextJson() {
-    return <String, Object?>{
-      'last_active_incident_id': _nullIfBlank(lastActiveIncidentId),
-      'last_site_or_zone': _nullIfBlank(lastSiteOrZone),
-      'last_camera_referenced': _nullIfBlank(lastCameraReferenced),
-      'conversation_summary': recentConversationTurns,
-    };
-  }
 }
 
 TelegramBridgeInboundMessage? _parseInboundMessage(Map<String, dynamic> row) {
@@ -1890,86 +1654,6 @@ String _preview(String value, {int maxLength = 220}) {
   return '${trimmed.substring(0, maxLength)}...';
 }
 
-String _sessionKey(String chatId, int? threadId) =>
-    '${chatId.trim()}:${_normalizedThreadId(threadId)}';
-
-int _normalizedThreadId(int? threadId) => threadId ?? 0;
-
-String? _incidentIdFromReply(String reply) {
-  final match = RegExp(
-    r'Incident\s+#([A-Z0-9_-]+)',
-    caseSensitive: false,
-  ).firstMatch(reply);
-  final incidentId = (match?.group(1) ?? '').trim();
-  return incidentId.isEmpty ? null : incidentId;
-}
-
-String? _resolvedCameraReference({
-  required TelegramBridgeInboundMessage update,
-  String? reply,
-  String? existing,
-}) {
-  final callback = _parseOnyxAlertCallback(update.text);
-  if (callback != null && callback.channelId.trim().isNotEmpty) {
-    return 'Channel ${callback.channelId.trim()}';
-  }
-  final combined = '${update.text}\n${reply ?? ''}';
-  final match = RegExp(
-    r'\b(?:camera|channel|ch)\s*#?\s*(\d+)\b',
-    caseSensitive: false,
-  ).firstMatch(combined);
-  final channelDigits = (match?.group(1) ?? '').trim();
-  if (channelDigits.isNotEmpty) {
-    return 'Channel $channelDigits';
-  }
-  return existing;
-}
-
-String? _resolvedSiteOrZoneReference({
-  required _ProcessorTarget target,
-  required TelegramBridgeInboundMessage update,
-  String? reply,
-  String? existing,
-}) {
-  final callback = _parseOnyxAlertCallback(update.text);
-  if (callback != null && callback.channelId.trim().isNotEmpty) {
-    return 'Channel ${callback.channelId.trim()}';
-  }
-  if ((reply ?? '').contains('Channel ')) {
-    final match = RegExp(
-      r'Channel\s+\d+',
-      caseSensitive: false,
-    ).firstMatch(reply!);
-    final zone = (match?.group(0) ?? '').trim();
-    if (zone.isNotEmpty) {
-      return zone;
-    }
-  }
-  final siteId = target.siteId.trim();
-  if (siteId.isNotEmpty) {
-    return siteId;
-  }
-  return existing;
-}
-
-String _operatorContextTurnLabelForUpdate(TelegramBridgeInboundMessage update) {
-  final callback = _parseOnyxAlertCallback(update.text);
-  if (callback == null) {
-    return 'Operator: ${_preview(update.text, maxLength: 280)}';
-  }
-  return 'Operator: ${callback.action.name} on CH${callback.channelId}';
-}
-
-String? _nullableTrimmedString(Object? value) {
-  final normalized = (value ?? '').toString().trim();
-  return normalized.isEmpty ? null : normalized;
-}
-
-Object? _nullIfBlank(String? value) {
-  final normalized = (value ?? '').trim();
-  return normalized.isEmpty ? null : normalized;
-}
-
 class OpenAiRuntimeConfig {
   final String apiKey;
   final String model;
@@ -2104,8 +1788,6 @@ abstract class TelegramAiAssistantService {
     String? clientId,
     String? siteId,
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
-    List<String> recentConversationTurns = const <String>[],
-    String? siteAwarenessContext,
     TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   });
 }
@@ -2124,17 +1806,12 @@ class UnconfiguredTelegramAiAssistantService
     String? clientId,
     String? siteId,
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
-    List<String> recentConversationTurns = const <String>[],
-    String? siteAwarenessContext,
     TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
     final siteLabel = _siteLabel(siteId ?? '');
     final summary = siteAwarenessSummary?.contextSummary;
-    final contextLine = (siteAwarenessContext ?? '').trim();
     final text = summary == null
-        ? contextLine.isEmpty
-              ? 'Message received for $siteLabel. Monitoring continues.'
-              : 'Message received for $siteLabel. Context: $contextLine.'
+        ? 'Message received for $siteLabel. Monitoring continues.'
         : 'Message received for $siteLabel. Current status: $summary.';
     return TelegramAiDraftReply(
       text: text,
@@ -2168,8 +1845,6 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     String? clientId,
     String? siteId,
     TelegramAiDeliveryMode deliveryMode = TelegramAiDeliveryMode.telegramLive,
-    List<String> recentConversationTurns = const <String>[],
-    String? siteAwarenessContext,
     TelegramAiSiteAwarenessSummary? siteAwarenessSummary,
   }) async {
     if (!isConfigured) {
@@ -2182,11 +1857,6 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
     final siteLabel = _siteLabel(siteId ?? '');
     final summary =
         siteAwarenessSummary?.contextSummary ?? 'no fresh site summary';
-    final recentTurns = recentConversationTurns
-        .map((turn) => turn.trim())
-        .where((turn) => turn.isNotEmpty)
-        .take(5)
-        .join('\n');
     final systemPrompt =
         'You are ONYX, a concise security operations assistant. '
         'Reply for a ${audience.name} Telegram audience. '
@@ -2197,8 +1867,6 @@ class OpenAiTelegramAiAssistantService implements TelegramAiAssistantService {
         'Client ID: ${(clientId ?? '').trim()}\n'
         'Delivery mode: ${deliveryMode.name}\n'
         'Site summary: $summary\n'
-        'Restored operator context: ${(siteAwarenessContext ?? '').trim().isEmpty ? 'none' : siteAwarenessContext!.trim()}\n'
-        'Recent conversation:\n${recentTurns.isEmpty ? 'none' : recentTurns}\n'
         'User message: ${messageText.trim()}';
     try {
       final response = await client
