@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:io' show Directory, Platform;
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:image/image.dart' as img;
@@ -104,10 +105,16 @@ import 'application/onyx_agent_client_draft_service.dart';
 import 'application/onyx_agent_local_brain_service.dart';
 import 'application/onyx_command_parser.dart';
 import 'application/onyx_elevenlabs_service.dart';
+import 'application/onyx_awareness_latency_service.dart';
+import 'application/onyx_client_trust_service.dart';
+import 'application/onyx_evidence_certificate_service.dart';
+import 'application/onyx_environment_engine.dart';
 import 'application/onyx_fr_service.dart';
+import 'application/onyx_operator_discipline_service.dart';
+import 'application/onyx_outcome_feedback_service.dart';
 import 'application/onyx_patrol_monitor_service.dart';
+import 'application/onyx_power_mode_service.dart';
 import 'application/onyx_behaviour_monitor_service.dart';
-import 'application/onyx_site_provisioning_service.dart';
 import 'application/onyx_site_profile_service.dart';
 import 'application/onyx_telegram_command_gateway.dart';
 import 'application/onyx_telegram_operational_command_service.dart';
@@ -969,6 +976,9 @@ class OnyxApp extends StatefulWidget {
 }
 
 class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
+  static const MethodChannel _guardCheckpointScanChannel = MethodChannel(
+    'onyx/guard_checkpoint_scan',
+  );
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   static const _liveFeeds = ConfiguredLiveFeedService();
   static const _monitoringShiftNotifications =
@@ -1029,6 +1039,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   static const _operatorIdEnv = String.fromEnvironment(
     'ONYX_OPERATOR_ID',
     defaultValue: 'OPERATOR-01',
+  );
+  static const _patrolStatusApiBaseUrlEnv = String.fromEnvironment(
+    'ONYX_PATROL_STATUS_API_BASE_URL',
+    defaultValue: 'http://127.0.0.1:8444',
+  );
+  static const _patrolStatusApiTokenEnv = String.fromEnvironment(
+    'ONYX_PATROL_STATUS_API_TOKEN',
   );
   static const _wearableProviderEnv = String.fromEnvironment(
     'ONYX_WEARABLE_PROVIDER',
@@ -1670,7 +1687,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final ClientAppLocale _clientAppLocale = ClientAppLocaleParser.fromCode(
     _clientAppLocaleEnv,
   );
-  late final InMemoryEventStore store;
+  final store = InMemoryEventStore();
   late DispatchApplicationService service;
   late final ClientLedgerRepository _clientLedgerRepository;
   late final ClientLedgerService _clientLedgerService;
@@ -2109,6 +2126,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   Timer? _siteAwarenessAlertPollTimer;
   Timer? _patrolMonitorTimer;
   Timer? _behaviourMonitorTimer;
+  Timer? _operatorDisciplineTimer;
+  Timer? _clientTrustSnapshotTimer;
   Timer? _monitoringWatchScheduleTimer;
   Timer? _monitoringContinuousVisualWatchTimer;
   Timer? _demoAutopilotRouteTimer;
@@ -2121,8 +2140,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   int _telegramDemoScriptIntervalSeconds = 20;
   bool _patrolMonitorInFlight = false;
   bool _behaviourMonitorInFlight = false;
+  bool _operatorDisciplineInFlight = false;
+  bool _clientTrustSnapshotInFlight = false;
   final Map<String, DateTime> _patrolMissedAlertSentAtUtcByKey =
       <String, DateTime>{};
+  String _operatorDisciplineLastWeeklyReportKey = '';
+  String _clientTrustLastWeeklySnapshotKey = '';
   String _telegramDemoScriptScopeLabel = '';
   String _telegramDemoScriptRunId = '';
   DateTime? _telegramDemoScriptStartedAtUtc;
@@ -3226,16 +3249,43 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   DateTime _telegramFlowNowLocal() => _telegramFlowNowUtc().toLocal();
 
+  OnyxEvidenceCertificateService get _evidenceCertificateService =>
+      OnyxEvidenceCertificateService(client: Supabase.instance.client);
+
+  OnyxPowerModeService get _powerModeService => OnyxPowerModeService(
+    siteId: _telegramAdminTargetSiteId,
+    supabaseClient: widget.supabaseReady ? Supabase.instance.client : null,
+    readHealth: () async => const OnyxPowerHealthSnapshot(
+      totalCameraCount: 0,
+      offlineCameraCount: 0,
+      dvrReachable: true,
+    ),
+  );
+
+  OnyxOperatorDisciplineService? get _operatorDisciplineServiceOrNull {
+    if (!widget.supabaseReady) {
+      return null;
+    }
+    return OnyxOperatorDisciplineService(client: Supabase.instance.client);
+  }
+
+  OnyxOutcomeFeedbackService? get _outcomeFeedbackServiceOrNull {
+    if (!widget.supabaseReady) {
+      return null;
+    }
+    return OnyxOutcomeFeedbackService(client: Supabase.instance.client);
+  }
+
+  OnyxClientTrustService? get _clientTrustServiceOrNull {
+    if (!widget.supabaseReady) {
+      return null;
+    }
+    return OnyxClientTrustService(client: Supabase.instance.client);
+  }
+
   @override
   void initState() {
     super.initState();
-    store = InMemoryEventStore(
-      supabaseClient: widget.supabaseReady ? Supabase.instance.client : null,
-      restoreSiteId: _selectedSite,
-    );
-    if (widget.supabaseReady) {
-      unawaited(store.restoreFromSupabase());
-    }
     if (widget.initialRouteOverride != null) {
       _route = widget.initialRouteOverride!;
     }
@@ -3249,6 +3299,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (widget.supabaseReady) {
       unawaited(_hydrateTemporaryIdentityApprovalsFromSupabase());
     }
+    unawaited(_configureGuardCheckpointScanChannel());
     WidgetsBinding.instance.addObserver(this);
     _telegramPollingTabLock = TelegramPollingTabLock(
       onPrimaryLost: _handleTelegramPollingPrimaryLost,
@@ -3452,11 +3503,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _startGuardOpsSyncLoop();
     _startOfflineIncidentSpoolSyncLoop();
     _startOpsIntegrationPollingLoop();
+    _startOperatorDisciplineLoop();
+    _startClientTrustSnapshotLoop();
     _startTelegramAdminControlLoop();
     _startSiteAwarenessAlertLoop();
     _startPatrolMonitorLoop();
     _startBehaviourMonitorLoop();
     _startMonitoringWatchScheduleLoop();
+    _startClientTrustSnapshotLoop();
     if (widget.initialTelegramInboundUpdatesOverride.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         unawaited(_processInitialTelegramInboundUpdatesForTest());
@@ -3651,6 +3705,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _guardCheckpointScanChannel.setMethodCallHandler(null);
     WidgetsBinding.instance.removeObserver(this);
     _livePollTimer?.cancel();
     _opsIntegrationPollTimer?.cancel();
@@ -3662,6 +3717,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _siteAwarenessAlertPollTimer?.cancel();
     _patrolMonitorTimer?.cancel();
     _behaviourMonitorTimer?.cancel();
+    _operatorDisciplineTimer?.cancel();
+    _clientTrustSnapshotTimer?.cancel();
     _telegramPollingTabLock.dispose();
     _monitoringWatchScheduleTimer?.cancel();
     _monitoringContinuousVisualWatchTimer?.cancel();
@@ -3721,6 +3778,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _patrolMonitorTimer = null;
           _behaviourMonitorTimer?.cancel();
           _behaviourMonitorTimer = null;
+          _operatorDisciplineTimer?.cancel();
+          _operatorDisciplineTimer = null;
           _telegramPollingTabLock.release();
           _telegramPollingPrimaryTab = false;
         }
@@ -6451,27 +6510,185 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     await _hydrateGuardSyncState();
   }
 
+  Future<void> _configureGuardCheckpointScanChannel() async {
+    try {
+      _guardCheckpointScanChannel.setMethodCallHandler(
+        _handleGuardCheckpointScanChannelCall,
+      );
+      final pendingPayload = await _guardCheckpointScanChannel
+          .invokeMethod<Map<Object?, Object?>?>('consumePendingCheckpointScan');
+      if (pendingPayload != null) {
+        await _handleGuardCheckpointDeepLinkPayload(pendingPayload);
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'ONYX guard checkpoint scan channel configuration failed',
+        name: 'GuardCheckpointScan',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<dynamic> _handleGuardCheckpointScanChannelCall(MethodCall call) async {
+    if (call.method != 'checkpointScanLink') {
+      return null;
+    }
+    await _handleGuardCheckpointDeepLinkPayload(call.arguments);
+    return null;
+  }
+
+  Future<void> _handleGuardCheckpointDeepLinkPayload(Object? payload) async {
+    final values = _stringMapFromPayload(payload);
+    final siteId = (values['site_id'] ?? values['siteId'] ?? '').trim();
+    final checkpointId =
+        (values['checkpoint_id'] ?? values['checkpointId'] ?? '').trim();
+    if (siteId.isEmpty || checkpointId.isEmpty) {
+      return;
+    }
+    try {
+      await _queueGuardCheckpoint(
+        checkpointId: checkpointId,
+        nfcTagId: 'QR:$checkpointId',
+        siteIdOverride: siteId,
+        scanMethod: 'qr',
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'ONYX checkpoint deep link handling failed',
+        name: 'GuardCheckpointScan',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Map<String, String> _stringMapFromPayload(Object? payload) {
+    if (payload is! Map) {
+      return const <String, String>{};
+    }
+    return payload.map(
+      (key, value) => MapEntry(key.toString(), value?.toString().trim() ?? ''),
+    );
+  }
+
+  Future<String> _resolveClientIdForSite(String siteId) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return _selectedClient;
+    }
+    if (normalizedSiteId == _selectedSite.trim()) {
+      return _selectedClient;
+    }
+    try {
+      final rows = await Supabase.instance.client
+          .from('sites')
+          .select('client_id')
+          .eq('site_id', normalizedSiteId)
+          .limit(1);
+      if (rows.isEmpty) {
+        return _selectedClient;
+      }
+      final row = Map<String, dynamic>.from(rows.first as Map);
+      return (row['client_id'] ?? _selectedClient).toString().trim();
+    } catch (_) {
+      return _selectedClient;
+    }
+  }
+
+  Future<void> _submitCheckpointScanToStatusApi({
+    required String siteId,
+    required String checkpointId,
+    required String guardId,
+    required String clientId,
+    required String method,
+    double? latitude,
+    double? longitude,
+    String? notes,
+  }) async {
+    final baseUrl = _patrolStatusApiBaseUrlEnv.trim();
+    final token = _patrolStatusApiTokenEnv.trim();
+    if (baseUrl.isEmpty || token.isEmpty) {
+      throw StateError(
+        'ONYX patrol scan API is not configured. Set ONYX_PATROL_STATUS_API_BASE_URL and ONYX_PATROL_STATUS_API_TOKEN.',
+      );
+    }
+    final uri = Uri.parse(baseUrl).resolve('/v1/patrol/scan');
+    final response = await http
+        .post(
+          uri,
+          headers: const <String, String>{
+            'content-type': 'application/json; charset=utf-8',
+          },
+          body: jsonEncode(<String, Object?>{
+            'site_id': siteId,
+            'client_id': clientId,
+            'guard_id': guardId,
+            'checkpoint_id': checkpointId,
+            'method': method,
+            'lat': latitude,
+            'lon': longitude,
+            'notes': notes,
+            'token': token,
+          }),
+        )
+        .timeout(const Duration(seconds: 12));
+    if (response.statusCode >= 400) {
+      final decoded = jsonDecode(response.body);
+      final error = decoded is Map ? decoded['error']?.toString().trim() : null;
+      throw StateError(
+        error?.isNotEmpty == true
+            ? error!
+            : 'Checkpoint scan API returned ${response.statusCode}.',
+      );
+    }
+  }
+
   Future<void> _queueGuardCheckpoint({
     required String checkpointId,
     required String nfcTagId,
+    String? siteIdOverride,
+    String scanMethod = 'nfc',
   }) async {
+    final siteId = (siteIdOverride ?? _selectedSite).trim();
+    final clientId = await _resolveClientIdForSite(siteId);
+    final scannedAtUtc = DateTime.now().toUtc();
+    final guardId = _defaultGuardAssignment.guardId;
+    const latitude = -26.1076;
+    const longitude = 28.0567;
+    await _submitCheckpointScanToStatusApi(
+      siteId: siteId,
+      checkpointId: checkpointId,
+      guardId: guardId,
+      clientId: clientId,
+      method: scanMethod,
+      latitude: latitude,
+      longitude: longitude,
+      notes: nfcTagId,
+    );
     final service = await _guardMobileOpsServiceFuture;
     await service.recordCheckpointScan(
       GuardCheckpointScan(
-        scanId: 'SCAN-${DateTime.now().toUtc().millisecondsSinceEpoch}',
-        guardId: 'GUARD-001',
-        clientId: _selectedClient,
-        siteId: _selectedSite,
+        scanId: 'SCAN-${scannedAtUtc.millisecondsSinceEpoch}',
+        guardId: guardId,
+        clientId: clientId,
+        siteId: siteId,
         checkpointId: checkpointId,
         nfcTagId: nfcTagId,
-        latitude: -26.1076,
-        longitude: 28.0567,
-        scannedAt: DateTime.now().toUtc(),
+        latitude: latitude,
+        longitude: longitude,
+        scannedAt: scannedAtUtc,
       ),
     );
     await _enqueueGuardOpsEvent(
       type: GuardOpsEventType.checkpointScanned,
-      payload: {'checkpoint_id': checkpointId, 'nfc_tag_id': nfcTagId},
+      payload: {
+        'checkpoint_id': checkpointId,
+        'nfc_tag_id': nfcTagId,
+        'site_id': siteId,
+        'client_id': clientId,
+        'method': scanMethod,
+      },
     );
     await _hydrateGuardSyncState();
   }
@@ -14302,6 +14519,19 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         _selectedSite.trim().isNotEmpty;
   }
 
+  bool get _operatorDisciplineEnabled {
+    return widget.supabaseReady &&
+        _selectedClient.trim().isNotEmpty &&
+        _selectedSite.trim().isNotEmpty &&
+        _resolvedTelegramAdminChatId().trim().isNotEmpty;
+  }
+
+  bool get _clientTrustSnapshotEnabled {
+    return widget.supabaseReady &&
+        _selectedClient.trim().isNotEmpty &&
+        _selectedSite.trim().isNotEmpty;
+  }
+
   void _startSiteAwarenessAlertLoop() {
     if (!_siteAwarenessAlertWatcherEnabled) {
       _siteAwarenessAlertPollTimer?.cancel();
@@ -14356,6 +14586,42 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return;
     }
     _scheduleNextBehaviourMonitorPoll(5);
+  }
+
+  void _startOperatorDisciplineLoop() {
+    if (!_operatorDisciplineEnabled) {
+      _operatorDisciplineTimer?.cancel();
+      _operatorDisciplineTimer = null;
+      return;
+    }
+    if (_operatorDisciplineTimer != null || _operatorDisciplineInFlight) {
+      return;
+    }
+    if (!_telegramPollingPrimaryTab) {
+      if (!_telegramPollingLockAcquisitionInFlight) {
+        unawaited(_ensureTelegramPollingPrimaryTab());
+      }
+      return;
+    }
+    _scheduleNextOperatorDisciplinePoll(60);
+  }
+
+  void _startClientTrustSnapshotLoop() {
+    if (!_clientTrustSnapshotEnabled) {
+      _clientTrustSnapshotTimer?.cancel();
+      _clientTrustSnapshotTimer = null;
+      return;
+    }
+    if (_clientTrustSnapshotTimer != null || _clientTrustSnapshotInFlight) {
+      return;
+    }
+    if (!_telegramPollingPrimaryTab) {
+      if (!_telegramPollingLockAcquisitionInFlight) {
+        unawaited(_ensureTelegramPollingPrimaryTab());
+      }
+      return;
+    }
+    _scheduleNextClientTrustSnapshotPoll(5 * 60);
   }
 
   Future<void> _ensureTelegramPollingPrimaryTab() async {
@@ -14434,6 +14700,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _startSiteAwarenessAlertLoop();
     _scheduleNextPatrolMonitorPoll(5);
+    _scheduleNextOperatorDisciplinePoll(5);
+    _scheduleNextClientTrustSnapshotPoll(5 * 60);
   }
 
   Future<void> _ensureTelegramPrimaryTabForBehaviourMonitor() async {
@@ -14455,6 +14723,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     _startSiteAwarenessAlertLoop();
     _scheduleNextBehaviourMonitorPoll(5);
+    _scheduleNextOperatorDisciplinePoll(5);
+    _scheduleNextClientTrustSnapshotPoll(5 * 60);
   }
 
   void _scheduleNextSiteAwarenessAlertPoll(int delaySeconds) {
@@ -14490,6 +14760,28 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     });
   }
 
+  void _scheduleNextOperatorDisciplinePoll(int delaySeconds) {
+    _operatorDisciplineTimer?.cancel();
+    if (!_operatorDisciplineEnabled || !_telegramPollingPrimaryTab) {
+      _operatorDisciplineTimer = null;
+      return;
+    }
+    _operatorDisciplineTimer = Timer(Duration(seconds: delaySeconds), () {
+      unawaited(_pollOperatorDisciplineOnce());
+    });
+  }
+
+  void _scheduleNextClientTrustSnapshotPoll(int delaySeconds) {
+    _clientTrustSnapshotTimer?.cancel();
+    if (!_clientTrustSnapshotEnabled || !_telegramPollingPrimaryTab) {
+      _clientTrustSnapshotTimer = null;
+      return;
+    }
+    _clientTrustSnapshotTimer = Timer(Duration(seconds: delaySeconds), () {
+      unawaited(_pollClientTrustSnapshotOnce());
+    });
+  }
+
   void _pruneSiteAwarenessAlertDeduplicationState(DateTime nowUtc) {
     _siteAwarenessLastDeliveredAlertAtByCameraType.removeWhere(
       (_, sentAtUtc) =>
@@ -14519,6 +14811,65 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             .difference(lastDeliveredAtUtc.toUtc())
             .abs() <
         const Duration(seconds: 60);
+  }
+
+  OnyxAwarenessLatencyService? get _awarenessLatencyServiceOrNull {
+    if (!widget.supabaseReady) {
+      return null;
+    }
+    return OnyxAwarenessLatencyService(client: Supabase.instance.client);
+  }
+
+  OnyxEnvironmentEngine? get _environmentEngineOrNull {
+    final outcomeService = _outcomeFeedbackServiceOrNull;
+    final latencyService = _awarenessLatencyServiceOrNull;
+    if (outcomeService == null || latencyService == null) {
+      return null;
+    }
+    return OnyxEnvironmentEngine(
+      powerModeService: _powerModeService,
+      outcomeFeedbackService: outcomeService,
+      awarenessLatencyService: latencyService,
+    );
+  }
+
+  Future<void> _recordSiteAwarenessLatency({
+    required _SiteAwarenessActiveAlertRecord alert,
+    required DateTime telegramAtUtc,
+  }) async {
+    final latency = alert.latency;
+    if (latency == null || latency.isEmpty) {
+      return;
+    }
+    final dvrEventAt = DateTime.tryParse(
+      (latency['dvr_event_at'] ?? '').toString(),
+    )?.toUtc();
+    if (dvrEventAt == null) {
+      return;
+    }
+    final service = _awarenessLatencyServiceOrNull;
+    if (service == null) {
+      return;
+    }
+    final record = OnyxLatencyRecord.fromJsonMap(<String, Object?>{
+      ...latency,
+      'alert_id': alert.alertId,
+      'site_id': _selectedSite,
+      'client_id': _selectedClient,
+      'telegram_at': telegramAtUtc.toUtc().toIso8601String(),
+      'total_ms': telegramAtUtc.toUtc().difference(dvrEventAt).inMilliseconds,
+    });
+    try {
+      await service.recordLatency(record);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to persist ONYX awareness latency for ${alert.alertId}.',
+        name: 'OnyxAwarenessLatency',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
   }
 
   Future<void> _pollSiteAwarenessAlertsOnce() async {
@@ -14590,9 +14941,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           if (dispatch.attemptStatus != 'telegram-ok') {
             continue;
           }
+          final telegramAtUtc = DateTime.now().toUtc();
           _siteAwarenessLastDeliveredAlertAtByCameraType[deliveryDeduplicationKey] =
               alert.detectedAt.toUtc();
           _siteAwarenessDeliveredAlertIds.add(alertId);
+          await _recordSiteAwarenessLatency(
+            alert: alert,
+            telegramAtUtc: telegramAtUtc,
+          );
           final autoResponseText = await _maybeAutoRespondToProactiveAlert(
             alert: alert,
             siteProfile: siteProfile,
@@ -14811,24 +15167,27 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       siteProfile: siteProfile,
     );
     final alertTypeLabel = _telegramAlertTypeLabel(alertKind);
+    final reasonBullets = _telegramAlertReasonBullets(alert);
     final markdownText = <String>[
       '⚠️ *${_telegramMarkdownEscape(alertTypeLabel)}* — ${_telegramMarkdownEscape(cameraLabel)}',
       '🕐 $timeLabel — Active $activeMinutes ${activeMinutes == 1 ? 'minute' : 'minutes'}',
       '👤 Detection: ${_telegramMarkdownEscape(subjectLabel)}',
       '📍 ${_telegramMarkdownEscape(zoneTypeLabel)} — ${_telegramMarkdownEscape(timeContextLabel)}',
-      _telegramAlertIdentityLine(alert),
+      if (reasonBullets.isNotEmpty) '📋 *Why this alert fired:*',
+      ...reasonBullets.map((bullet) => '• ${_telegramMarkdownEscape(bullet)}'),
     ].join('\n');
     final plainText = <String>[
       '⚠️ $alertTypeLabel — $cameraLabel',
       '🕐 $timeLabel — Active $activeMinutes ${activeMinutes == 1 ? 'minute' : 'minutes'}',
       '👤 Detection: $subjectLabel',
       '📍 $zoneTypeLabel — $timeContextLabel',
-      _telegramAlertIdentityLine(alert),
+      if (reasonBullets.isNotEmpty) '📋 Why this alert fired:',
+      ...reasonBullets.map((bullet) => '• $bullet'),
     ].join('\n');
     final replyMarkup = siteProfile.alertWithButtons
         ? _telegramInlineKeyboardForProactiveAlert(
             alertKind: alertKind,
-            channelId: alert.channelId,
+            alertTarget: alert.alertId,
           )
         : null;
     List<int>? photoBytes;
@@ -15034,23 +15393,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return 'human';
   }
 
-  String _telegramAlertIdentityLine(_SiteAwarenessActiveAlertRecord alert) {
-    final message = alert.message.trim().toLowerCase();
-    final subject = (alert.subjectLabel ?? '').trim().toLowerCase();
-    if (message.contains('flagged individual') || subject.contains('flagged')) {
-      return '⛔ FLAGGED INDIVIDUAL — Immediate attention required';
-    }
-    if (message.contains('known resident identified') ||
-        subject.contains('known resident')) {
-      return '✅ Known resident identified';
-    }
-    if (message.contains('known visitor identified') ||
-        subject.contains('known visitor')) {
-      return '✅ Known visitor identified';
-    }
-    return '❌ No resident or visitor match';
-  }
-
   String _telegramAlertZoneTypeLabel(_SiteAwarenessActiveAlertRecord alert) {
     final normalized = (alert.zoneType ?? '').trim().toLowerCase();
     if (normalized == 'perimeter') {
@@ -15084,6 +15426,41 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         : 'daytime';
   }
 
+  List<String> _telegramAlertReasonBullets(
+    _SiteAwarenessActiveAlertRecord alert,
+  ) {
+    final reason = alert.alertReason;
+    if (reason == null || reason.isEmpty) {
+      return const <String>[];
+    }
+    final signals = _telegramAlertReasonStringList(reason['signals']);
+    if (signals.isEmpty) {
+      return const <String>[];
+    }
+    final bullets = <String>[...signals.take(2)];
+    final ruleOrContext = <String>[
+      ..._telegramAlertReasonStringList(reason['rules_fired']),
+      (reason['context_note']?.toString().trim() ?? ''),
+    ].where((entry) => entry.isNotEmpty);
+    if (bullets.length < 3) {
+      final summary = ruleOrContext.join(' — ').trim();
+      if (summary.isNotEmpty) {
+        bullets.add(summary);
+      }
+    }
+    return bullets.take(3).toList(growable: false);
+  }
+
+  List<String> _telegramAlertReasonStringList(Object? value) {
+    if (value is! List) {
+      return const <String>[];
+    }
+    return value
+        .map((entry) => entry.toString().trim())
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: false);
+  }
+
   DateTime _telegramSiteProfileLocalTime(String timezone, DateTime utc) {
     final normalized = timezone.trim();
     if (normalized == 'Africa/Johannesburg') {
@@ -15107,11 +15484,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   Map<String, Object?> _telegramInlineKeyboardForProactiveAlert({
     required _TelegramProactiveAlertKind alertKind,
-    required String channelId,
+    required String alertTarget,
   }) {
     Map<String, String> button(String label, String action) => <String, String>{
       'text': label,
-      'callback_data': 'oa|$action|${channelId.trim()}',
+      'callback_data': 'oa|$action|${alertTarget.trim()}',
     };
     return <String, Object?>{
       'inline_keyboard': switch (alertKind) {
@@ -15323,6 +15700,158 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _pollOperatorDisciplineOnce() async {
+    if (!_operatorDisciplineEnabled ||
+        !_telegramPollingPrimaryTab ||
+        _operatorDisciplineInFlight) {
+      return;
+    }
+    _operatorDisciplineInFlight = true;
+    try {
+      final service = _operatorDisciplineServiceOrNull;
+      if (service == null) {
+        return;
+      }
+      final profile = await _siteProfileService.loadProfile(_selectedSite);
+      final nowUtc = _telegramFlowNowUtc();
+      final withinMonitoringHours = !_siteProfileService.isAfterHours(
+        profile: profile,
+        observedAtUtc: nowUtc,
+      );
+      final evaluation = await service.evaluatePendingSimulations(
+        siteId: _selectedSite,
+      );
+      for (final completed in evaluation.completed) {
+        final adminChatId = _resolvedTelegramAdminChatId();
+        if (adminChatId.isEmpty) {
+          continue;
+        }
+        await _sendTelegramMessageWithChunks(
+          messageKeyPrefix: 'tg-sim-reveal-${completed.id}',
+          chatId: adminChatId,
+          messageThreadId: _resolvedTelegramAdminThreadId(),
+          responseText:
+              '🧪 Simulation revealed — ${completed.operatorId} at ${completed.siteId}\n'
+              'Result: ${completed.resultLabel}\n'
+              'Response: ${(completed.responseSeconds ?? 0).toStringAsFixed(0)}s\n'
+              'Action: ${completed.actionTaken ?? 'reviewed'}',
+          failureContext: 'Operator simulation reveal',
+        );
+      }
+      await service.maybeInjectScheduledSimulation(
+        siteId: _selectedSite,
+        clientId: _selectedClient,
+        operatorId: _operatorId,
+        withinMonitoringHours: withinMonitoringHours,
+      );
+      await _maybeSendWeeklyOperatorReport(service);
+    } catch (error, stackTrace) {
+      developer.log(
+        'ONYX operator discipline poll failed',
+        name: 'OnyxOperatorDiscipline',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _operatorDisciplineInFlight = false;
+      _scheduleNextOperatorDisciplinePoll(20 * 60);
+    }
+  }
+
+  Future<void> _pollClientTrustSnapshotOnce() async {
+    if (!_clientTrustSnapshotEnabled ||
+        !_telegramPollingPrimaryTab ||
+        _clientTrustSnapshotInFlight) {
+      return;
+    }
+    _clientTrustSnapshotInFlight = true;
+    try {
+      await _maybePersistWeeklyClientTrustSnapshot();
+    } catch (error, stackTrace) {
+      developer.log(
+        'ONYX client trust snapshot poll failed',
+        name: 'OnyxClientTrust',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      _clientTrustSnapshotInFlight = false;
+      _scheduleNextClientTrustSnapshotPoll(5 * 60);
+    }
+  }
+
+  Future<void> _maybePersistWeeklyClientTrustSnapshot() async {
+    final service = _clientTrustServiceOrNull;
+    if (service == null) {
+      return;
+    }
+    final nowLocal = _telegramFlowNowLocal();
+    if (nowLocal.weekday != DateTime.sunday) {
+      return;
+    }
+    if (nowLocal.hour != 23 || nowLocal.minute < 55) {
+      return;
+    }
+    final weekKey =
+        '${_selectedClient.trim()}|${_selectedSite.trim()}|${nowLocal.year.toString().padLeft(4, '0')}-${nowLocal.month.toString().padLeft(2, '0')}-${nowLocal.day.toString().padLeft(2, '0')}';
+    if (_clientTrustLastWeeklySnapshotKey == weekKey) {
+      return;
+    }
+    final period = DateTimeRange(
+      start: nowLocal.subtract(const Duration(days: 30)),
+      end: nowLocal,
+    );
+    await service.persistWeeklySnapshot(
+      clientId: _selectedClient,
+      siteId: _selectedSite,
+      period: period,
+    );
+    _clientTrustLastWeeklySnapshotKey = weekKey;
+  }
+
+  Future<void> _maybeSendWeeklyOperatorReport(
+    OnyxOperatorDisciplineService service,
+  ) async {
+    final nowLocal = _telegramFlowNowLocal();
+    if (nowLocal.weekday != DateTime.monday || nowLocal.hour < 7) {
+      return;
+    }
+    final weekKey =
+        '${nowLocal.year.toString().padLeft(4, '0')}-${nowLocal.month.toString().padLeft(2, '0')}-${nowLocal.day.toString().padLeft(2, '0')}';
+    if (_operatorDisciplineLastWeeklyReportKey == weekKey) {
+      return;
+    }
+    final scores = await service.getCurrentScores(siteId: _selectedSite);
+    final adminChatId = _resolvedTelegramAdminChatId();
+    if (adminChatId.isEmpty) {
+      return;
+    }
+    var reportText = service.weeklyReportText(
+      weekOf: DateTime(nowLocal.year, nowLocal.month, nowLocal.day),
+      scores: scores,
+    );
+    final signalAccuracySummary = await _weeklySignalAccuracySummaryOrNull(
+      siteId: _selectedSite,
+      siteLabel: _deliverySiteLabelFor(
+        clientId: _selectedClient,
+        siteId: _selectedSite,
+      ),
+    );
+    if (signalAccuracySummary != null) {
+      reportText = '$reportText\n\n$signalAccuracySummary';
+    }
+    final delivered = await _sendTelegramMessageWithChunks(
+      messageKeyPrefix: 'tg-operator-weekly-$weekKey',
+      chatId: adminChatId,
+      messageThreadId: _resolvedTelegramAdminThreadId(),
+      responseText: reportText,
+      failureContext: 'Operator weekly report',
+    );
+    if (delivered) {
+      _operatorDisciplineLastWeeklyReportKey = weekKey;
+    }
+  }
+
   void _prunePatrolMissedAlertKeys() {
     if (_patrolMissedAlertSentAtUtcByKey.isEmpty) {
       return;
@@ -15400,12 +15929,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     String? failureContext,
     Map<String, Object?>? replyMarkup,
     String? parseMode,
-    TelegramBridgeMessageSource source = TelegramBridgeMessageSource.system,
-    TelegramBridgeMessageAudience audience =
-        TelegramBridgeMessageAudience.admin,
-    bool controllerAuthored = false,
-    bool isBulkOrBroadcast = false,
-    bool approvalGranted = false,
   }) async {
     final chunks = _splitTelegramAdminResponse(responseText);
     final stamp = DateTime.now().microsecondsSinceEpoch;
@@ -15418,11 +15941,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           text: chunks[index],
           replyMarkup: index == 0 ? replyMarkup : null,
           parseMode: parseMode,
-          source: source,
-          audience: audience,
-          controllerAuthored: controllerAuthored,
-          isBulkOrBroadcast: isBulkOrBroadcast,
-          approvalGranted: approvalGranted,
         ),
     ];
     final result = await _telegramBridge.sendMessages(messages: messages);
@@ -15457,12 +15975,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     String? failureContext,
     Map<String, Object?>? replyMarkup,
     String? parseMode,
-    TelegramBridgeMessageSource source = TelegramBridgeMessageSource.system,
-    TelegramBridgeMessageAudience audience =
-        TelegramBridgeMessageAudience.client,
-    bool controllerAuthored = false,
-    bool isBulkOrBroadcast = false,
-    bool approvalGranted = false,
   }) async {
     final result = await _telegramBridge.sendMessages(
       messages: <TelegramBridgeMessage>[
@@ -15475,11 +15987,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           photoFilename: photoFilename,
           replyMarkup: replyMarkup,
           parseMode: parseMode,
-          source: source,
-          audience: audience,
-          controllerAuthored: controllerAuthored,
-          isBulkOrBroadcast: isBulkOrBroadcast,
-          approvalGranted: approvalGranted,
         ),
       ],
     );
@@ -15691,6 +16198,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     _patrolMonitorTimer = null;
     _behaviourMonitorTimer?.cancel();
     _behaviourMonitorTimer = null;
+    _operatorDisciplineTimer?.cancel();
+    _operatorDisciplineTimer = null;
+    _clientTrustSnapshotTimer?.cancel();
+    _clientTrustSnapshotTimer = null;
     _telegramPollingPrimaryTab = false;
     if (!mounted) {
       return;
@@ -15709,12 +16220,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _startSiteAwarenessAlertLoop();
       _startPatrolMonitorLoop();
       _startBehaviourMonitorLoop();
+      _startOperatorDisciplineLoop();
+      _startClientTrustSnapshotLoop();
       return;
     }
     unawaited(_ensureTelegramPollingPrimaryTab());
     _startSiteAwarenessAlertLoop();
     _startPatrolMonitorLoop();
     _startBehaviourMonitorLoop();
+    _startOperatorDisciplineLoop();
+    _startClientTrustSnapshotLoop();
   }
 
   void _recordTelegramInboundUpdateFailure({
@@ -15827,6 +16342,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         (adminThreadId == null || update.messageThreadId == adminThreadId);
     if (!inAdminChat) {
       return false;
+    }
+    final handledProactiveCallback =
+        await _handleTelegramProactiveAlertCallback(update);
+    if (handledProactiveCallback) {
+      return true;
     }
     final parsed = _telegramAdminCommand(update.text);
     if (!_isTelegramAdminSenderAllowed(update)) {
@@ -16346,6 +16866,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     if (handledStructuredCommand) {
       return true;
     }
+    final handledTrustReport = await _handleTelegramClientTrustReportRequest(
+      update: update,
+      target: target,
+      siteId: siteId,
+    );
+    if (handledTrustReport) {
+      return true;
+    }
     final handledOnyxCommand = await _handleTelegramOnyxOperationalCommand(
       update: update,
       target: target,
@@ -16395,7 +16923,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             messageText: update.text,
             clientId: target.clientId,
             siteId: siteId,
-            deliveryMode: TelegramAiDeliveryMode.telegramLive,
+            deliveryMode: _telegramAiApprovalRequired && canNotifyAdmin
+                ? TelegramAiDeliveryMode.approvalDraft
+                : TelegramAiDeliveryMode.telegramLive,
             clientProfileSignals: aiContext.clientProfileSignals,
             preferredReplyExamples: aiContext.preferredReplyExamples,
             preferredReplyStyleTags: aiContext.preferredReplyStyleTags,
@@ -16421,14 +16951,74 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         providerLabel: 'timeout-fallback',
       );
     }
+    if (_telegramAiApprovalRequired && canNotifyAdmin) {
+      final pending = _TelegramAiPendingDraft(
+        inboundUpdateId: update.updateId,
+        chatId: update.chatId,
+        messageThreadId: update.messageThreadId,
+        audience: 'client',
+        clientId: target.clientId,
+        siteId: siteId,
+        sourceText: update.text.trim(),
+        originalDraftText: aiDraft.text,
+        draftText: aiDraft.text,
+        providerLabel: aiDraft.providerLabel,
+        usedLearnedApprovalStyle: aiDraft.usedLearnedApprovalStyle,
+        createdAtUtc: DateTime.now().toUtc(),
+      );
+      _telegramAiPendingDrafts = <_TelegramAiPendingDraft>[
+        pending,
+        ..._telegramAiPendingDrafts.where(
+          (entry) => entry.inboundUpdateId != pending.inboundUpdateId,
+        ),
+      ].take(100).toList(growable: false);
+      _telegramAiLastHandledAtUtc = pending.createdAtUtc;
+      _telegramAiLastHandledSummary = '${target.clientId}/$siteId • pending';
+      await _appendTelegramConversationMessage(
+        clientId: target.clientId,
+        siteId: siteId,
+        author: 'ONYX AI',
+        body: 'Pending approval reply draft: ${aiDraft.text}',
+        occurredAtUtc: pending.createdAtUtc,
+        roomKey: 'Security Desk',
+        viewerRole: ClientAppViewerRole.control.name,
+        incidentStatusLabel: 'Pending Approval',
+        messageSource: 'telegram',
+        messageProvider: aiDraft.providerLabel,
+      );
+      await _sendTelegramMessageWithChunks(
+        messageKeyPrefix: 'tg-admin-draft-${update.updateId}',
+        chatId: adminChatId,
+        messageThreadId: adminThreadId,
+        responseText:
+            'ONYX AI draft pending approval\n'
+            'update_id=${pending.inboundUpdateId}\n'
+            'scope=${pending.clientId}/${pending.siteId}\n'
+            'chat=${pending.chatId}${pending.messageThreadId == null ? '' : '#${pending.messageThreadId}'}\n'
+            'source=${_singleLine(pending.sourceText)}\n'
+            'draft=${_singleLine(pending.draftText)}\n'
+            'approve=/aiapprove ${pending.inboundUpdateId} • reject=/aireject ${pending.inboundUpdateId}',
+        failureContext: 'Admin draft relay',
+      );
+      await _appendTelegramAiLedger(
+        clientId: target.clientId,
+        siteId: siteId,
+        lane: 'client',
+        action: 'draft_pending',
+        inboundText: update.text,
+        outboundText: aiDraft.text,
+        providerLabel: aiDraft.providerLabel,
+        update: update,
+      );
+      unawaited(_persistTelegramAdminRuntimeState());
+      return true;
+    }
     final delivered = await _sendTelegramMessageWithChunks(
       messageKeyPrefix: 'tg-client-ai-${update.updateId}',
       chatId: update.chatId,
       messageThreadId: update.messageThreadId,
       responseText: aiDraft.text,
       failureContext: 'Client AI response',
-      source: TelegramBridgeMessageSource.ai,
-      audience: TelegramBridgeMessageAudience.client,
     );
     final nowUtc = DateTime.now().toUtc();
     _telegramAiLastHandledAtUtc = nowUtc;
@@ -16469,6 +17059,318 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       update: update,
     );
     return true;
+  }
+
+  Future<bool> _handleTelegramClientTrustReportRequest({
+    required TelegramBridgeInboundMessage update,
+    required _TelegramInboundClientTarget target,
+    required String siteId,
+  }) async {
+    if (!_isTelegramClientTrustReportRequest(update.text)) {
+      return false;
+    }
+    final service = _clientTrustServiceOrNull;
+    if (service == null) {
+      return false;
+    }
+    final period = DateTimeRange(
+      start: _telegramFlowNowUtc().subtract(const Duration(days: 30)),
+      end: _telegramFlowNowUtc(),
+    );
+    final report = await service.getClientTrustReport(
+      target.clientId,
+      siteId,
+      period,
+    );
+    final responseText = _formatClientTrustReportSummary(report);
+    final nowUtc = _telegramFlowNowUtc();
+    final delivered = await _sendTelegramMessageWithChunks(
+      messageKeyPrefix: 'tg-client-trust-${update.updateId}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      responseText: responseText,
+      failureContext: 'Client trust report',
+    );
+    _telegramAiLastHandledAtUtc = nowUtc;
+    _telegramAiLastHandledSummary =
+        '${target.clientId}/$siteId • trust-report/${delivered ? 'sent' : 'failed'}';
+    await _appendTelegramConversationMessage(
+      clientId: target.clientId,
+      siteId: siteId,
+      author: 'ONYX AI',
+      body: responseText,
+      occurredAtUtc: nowUtc,
+      roomKey: delivered ? 'Residents' : 'Security Desk',
+      viewerRole: delivered
+          ? ClientAppViewerRole.client.name
+          : ClientAppViewerRole.control.name,
+      incidentStatusLabel: delivered
+          ? 'Trust Report Sent'
+          : 'Trust Report Failed',
+      messageSource: 'telegram',
+      messageProvider: 'client_trust',
+    );
+    if (delivered) {
+      await _appendCriticalTelegramClientReplyControlMirror(
+        clientId: target.clientId,
+        siteId: siteId,
+        author: 'ONYX AI',
+        body: responseText,
+        occurredAtUtc: nowUtc,
+        messageProvider: 'client_trust',
+      );
+    }
+    _recordTelegramRecentPrompt(
+      roomLabel: _deliverySiteLabelFor(
+        clientId: target.clientId,
+        siteId: siteId,
+      ),
+      scopeLabel: '${target.clientId} / $siteId',
+      prompt: update.text,
+      outcomeLabel: delivered ? 'trust report' : 'trust report failed',
+      handledAtUtc: nowUtc,
+    );
+    await _appendTelegramAiLedger(
+      clientId: target.clientId,
+      siteId: siteId,
+      lane: 'client',
+      action: delivered ? 'trust_report_sent' : 'trust_report_failed',
+      inboundText: update.text,
+      outboundText: responseText,
+      providerLabel: 'client_trust',
+      update: update,
+    );
+    return true;
+  }
+
+  bool _isTelegramClientTrustReportRequest(String prompt) {
+    final normalized = normalizeTelegramClientPromptSignalText(prompt);
+    return normalized.contains('how am i doing') ||
+        normalized.contains('how are we doing') ||
+        normalized.contains('show my security report') ||
+        normalized.contains('show security report') ||
+        normalized.contains('security report') ||
+        normalized.contains('trust report');
+  }
+
+  String _formatClientTrustReportSummary(OnyxClientTrustReport report) {
+    final trendArrow = switch (report.saferScoreTrend) {
+      'improving' => '↑ Improving',
+      'declining' => '↓ Declining',
+      _ => '→ Stable',
+    };
+    return [
+      '🛡️ Your ONYX Security Report',
+      'Period: ${report.periodLabel}',
+      'Incidents handled: ${report.incidentsHandled}',
+      'Avg response time: ${report.avgResponseSeconds.toStringAsFixed(1)}s',
+      'False alarms reduced: ${report.falseAlarmsReduced.toStringAsFixed(0)}%',
+      'Guard patrol compliance: ${report.guardPatrolCompliance.toStringAsFixed(0)}%',
+      'System uptime: ${report.systemUptime.toStringAsFixed(1)}%',
+      'Safety score: ${report.saferScore}/100 $trendArrow',
+    ].join('\n');
+  }
+
+  Future<bool> _handleTelegramProactiveAlertCallback(
+    TelegramBridgeInboundMessage update,
+  ) async {
+    final callbackId = (update.callbackQueryId ?? '').trim();
+    final payload = update.text.trim();
+    if (callbackId.isEmpty || !payload.startsWith('oa|')) {
+      return false;
+    }
+    final parts = payload.split('|');
+    if (parts.length < 3) {
+      await _telegramBridge.answerCallbackQuery(
+        callbackQueryId: callbackId,
+        text: 'Alert action payload invalid.',
+      );
+      return true;
+    }
+    final action = parts[1].trim().toLowerCase();
+    final target = parts.sublist(2).join('|').trim();
+    final alert = await _latestActiveSiteAlertForCallbackTarget(target);
+    if (alert == null) {
+      await _telegramBridge.answerCallbackQuery(
+        callbackQueryId: callbackId,
+        text: 'Alert context expired.',
+      );
+      return true;
+    }
+    final siteLabel = _deliverySiteLabelFor(
+      clientId: _selectedClient,
+      siteId: _selectedSite,
+    );
+    final eventType = switch (action) {
+      'false_alarm' => 'telegram_false_alarm',
+      'armed_response' => 'telegram_armed_response',
+      'keep_watching' => 'telegram_keep_watching',
+      'all_good' => 'telegram_all_good',
+      'i_see_them' => 'telegram_true_threat',
+      'sound_warning' => 'telegram_sound_warning',
+      'register_vehicle' => 'telegram_register_vehicle',
+      'expected_vehicle' => 'telegram_expected_vehicle',
+      _ => 'telegram_unknown_action',
+    };
+    await _recordTelegramAlertActionEvent(
+      siteId: _selectedSite,
+      channelId: alert.channelId,
+      zoneName: alert.zoneName,
+      eventType: eventType,
+      occurredAtUtc: DateTime.now().toUtc(),
+      rawPayload: <String, Object?>{
+        'action': action,
+        'alert_id': alert.alertId,
+        'site_id': _selectedSite,
+        'client_id': _selectedClient,
+        'operator_id': _telegramOutcomeOperatorId(update),
+      },
+    );
+    final outcome = _outcomeForTelegramAlertAction(action);
+    if (outcome != null) {
+      final service = _outcomeFeedbackServiceOrNull;
+      if (service != null) {
+        try {
+          await service.recordOutcome(
+            alert.alertId,
+            outcome,
+            _telegramOutcomeOperatorId(update),
+            'Telegram quick action: $action',
+            siteId: _selectedSite,
+            clientId: _selectedClient,
+            zoneId: (alert.zoneName ?? '').trim(),
+            confidenceAtTime: alert.personConfidence,
+            powerModeAtTime: alert.powerMode,
+          );
+        } catch (error, stackTrace) {
+          developer.log(
+            'ONYX outcome feedback persistence failed',
+            name: 'OnyxOutcomeFeedback',
+            error: error,
+            stackTrace: stackTrace,
+          );
+        }
+      }
+    }
+    await _telegramBridge.answerCallbackQuery(
+      callbackQueryId: callbackId,
+      text: _telegramProactiveCallbackReply(
+        action: action,
+        siteLabel: siteLabel,
+      ),
+    );
+    return true;
+  }
+
+  Future<_SiteAwarenessActiveAlertRecord?>
+  _latestActiveSiteAlertForCallbackTarget(String target) async {
+    final normalizedTarget = target.trim();
+    if (normalizedTarget.isEmpty) {
+      return null;
+    }
+    final row = await _readLatestSiteAwarenessSnapshotRow(
+      siteId: _selectedSite,
+    );
+    if (row == null) {
+      return null;
+    }
+    final alerts = _siteAwarenessActiveAlertsFromRow(row);
+    for (final alert in alerts) {
+      if (alert.alertId == normalizedTarget) {
+        return alert;
+      }
+    }
+    for (final alert in alerts) {
+      if (alert.channelId.trim() == normalizedTarget) {
+        return alert;
+      }
+    }
+    return null;
+  }
+
+  OnyxAlertOutcome? _outcomeForTelegramAlertAction(String action) {
+    return switch (action.trim().toLowerCase()) {
+      'false_alarm' => OnyxAlertOutcome.falseAlarm,
+      'armed_response' => OnyxAlertOutcome.armedResponse,
+      'keep_watching' => OnyxAlertOutcome.unknown,
+      'all_good' => OnyxAlertOutcome.falseAlarm,
+      'i_see_them' => OnyxAlertOutcome.trueThreat,
+      _ => null,
+    };
+  }
+
+  String _telegramOutcomeOperatorId(TelegramBridgeInboundMessage update) {
+    final userId = update.fromUserId?.toString().trim() ?? '';
+    if (userId.isNotEmpty) {
+      return 'tg:$userId';
+    }
+    final username = update.fromUsername?.trim() ?? '';
+    if (username.isNotEmpty) {
+      return '@$username';
+    }
+    return _operatorId.trim().isEmpty ? 'ONYX-OPERATOR' : _operatorId.trim();
+  }
+
+  String _telegramProactiveCallbackReply({
+    required String action,
+    required String siteLabel,
+  }) {
+    return switch (action.trim().toLowerCase()) {
+      'false_alarm' => 'False alarm tagged for $siteLabel.',
+      'armed_response' => 'Armed response tagged for $siteLabel.',
+      'keep_watching' => 'Keep watching noted for $siteLabel.',
+      'all_good' => 'All good tagged for $siteLabel.',
+      'i_see_them' => 'Threat confirmed for $siteLabel.',
+      'sound_warning' => 'Sound warning noted for $siteLabel.',
+      'register_vehicle' => 'Vehicle registration noted for $siteLabel.',
+      'expected_vehicle' => 'Expected vehicle noted for $siteLabel.',
+      _ => 'Action recorded for $siteLabel.',
+    };
+  }
+
+  Future<String?> _weeklySignalAccuracySummaryOrNull({
+    required String siteId,
+    required String siteLabel,
+  }) async {
+    final service = _outcomeFeedbackServiceOrNull;
+    if (service == null || siteId.trim().isEmpty) {
+      return null;
+    }
+    try {
+      final snapshot = await service.getSignalAccuracy(siteId);
+      final falsePercent = (snapshot.falseAlarmRate * 100).toStringAsFixed(0);
+      final truePercent = (snapshot.trueThreatRate * 100).toStringAsFixed(0);
+      final topNoiseZone = snapshot.topFalsePositiveZones.isEmpty
+          ? 'none'
+          : snapshot.topFalsePositiveZones.first;
+      final adjustedEntry =
+          snapshot.zoneThresholds.entries
+              .where((entry) => (entry.value - 0.55).abs() >= 0.001)
+              .toList(growable: false)
+            ..sort(
+              (left, right) => (right.value - 0.55).abs().compareTo(
+                (left.value - 0.55).abs(),
+              ),
+            );
+      final adjustmentLabel = adjustedEntry.isEmpty
+          ? 'none'
+          : '${adjustedEntry.first.key} → ${adjustedEntry.first.value.toStringAsFixed(2)}';
+      return [
+        '📊 Signal Accuracy — $siteLabel',
+        'False alarm rate: $falsePercent%',
+        'True threat rate: $truePercent%',
+        'Top noise zone: $topNoiseZone',
+        'Threshold auto-adjusted: $adjustmentLabel',
+      ].join('\n');
+    } catch (error, stackTrace) {
+      developer.log(
+        'ONYX weekly signal accuracy summary failed',
+        name: 'OnyxOutcomeFeedback',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
   }
 
   Future<bool> _handleTelegramOnyxOperationalCommand({
@@ -24548,6 +25450,31 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'incident',
           arguments: arguments,
         );
+      case '/verify':
+        return _TelegramAdminCommandParseResult(
+          command: 'verify',
+          arguments: arguments,
+        );
+      case '/powermode':
+        return _TelegramAdminCommandParseResult(
+          command: 'powermode',
+          arguments: arguments,
+        );
+      case '/simulate':
+        return _TelegramAdminCommandParseResult(
+          command: 'simulate',
+          arguments: arguments,
+        );
+      case '/simresults':
+        return _TelegramAdminCommandParseResult(
+          command: 'simresults',
+          arguments: arguments,
+        );
+      case '/opscore':
+        return _TelegramAdminCommandParseResult(
+          command: 'opscore',
+          arguments: arguments,
+        );
       case '/critical':
         return _TelegramAdminCommandParseResult(
           command: 'critical',
@@ -24646,11 +25573,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case '/bindalarm':
         return _TelegramAdminCommandParseResult(
           command: 'bindalarm',
-          arguments: arguments,
-        );
-      case '/provision':
-        return _TelegramAdminCommandParseResult(
-          command: 'provision',
           arguments: arguments,
         );
       case '/linkchat':
@@ -24963,6 +25885,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         'ops',
         'incidents',
         'incident',
+        'verify',
+        'powermode',
+        'simulate',
+        'simresults',
+        'opscore',
         'history',
         'adminconfig',
         'pushcritical',
@@ -26046,6 +26973,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'alarmtest':
       case 'sendactivity':
       case 'setoperator':
+      case 'powermode':
       case 'demoflow':
       case 'autodemo':
       case 'demoscript':
@@ -26068,6 +26996,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       case 'ops':
       case 'incidents':
       case 'incident':
+      case 'verify':
+      case 'simresults':
+      case 'opscore':
       case 'critical':
       case 'history':
       case 'adminconfig':
@@ -26110,13 +27041,23 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
     switch (command) {
       case 'status':
-        return _telegramAdminStatusCommand(arguments);
+        return await _telegramAdminStatusCommand(arguments);
       case 'ops':
         return _telegramAdminOpsSnapshot();
       case 'incidents':
         return _telegramAdminIncidentsSnapshot();
       case 'incident':
         return _telegramAdminIncidentSnapshotCommand(arguments);
+      case 'verify':
+        return _telegramAdminVerifyCertificateCommand(arguments);
+      case 'powermode':
+        return _telegramAdminPowerModeCommand(arguments);
+      case 'simulate':
+        return _telegramAdminSimulateCommand(arguments);
+      case 'simresults':
+        return _telegramAdminSimResultsCommand(arguments);
+      case 'opscore':
+        return _telegramAdminOpScoreCommand(arguments);
       case 'critical':
         return _telegramAdminCriticalCommand(arguments);
       case 'syncguards':
@@ -26161,8 +27102,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminBindPartnerCommand(arguments, update);
       case 'bindalarm':
         return _telegramAdminBindAlarmCommand(arguments);
-      case 'provision':
-        return _telegramAdminProvisionCommand(arguments, update);
       case 'linkchat':
         return _telegramAdminLinkChatCommand(arguments, update);
       case 'unlinkchat':
@@ -26279,22 +27218,189 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     }
   }
 
-  String _telegramAdminStatusCommand(String arguments) {
+  Future<String> _telegramAdminVerifyCertificateCommand(
+    String arguments,
+  ) async {
+    final certificateId = arguments.trim();
+    if (certificateId.isEmpty) {
+      return 'ONYX EVIDENCE VERIFY\n'
+          'Usage: /verify <certificate_id>\n'
+          'Example: /verify 123e4567-e89b-12d3-a456-426614174000\n'
+          'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+    }
+    if (!widget.supabaseReady) {
+      return '❌ Certificate invalid — possible tampering detected\n'
+          'Supabase is not configured in this runtime, so verification is unavailable.';
+    }
+    try {
+      final result = await _evidenceCertificateService.verifyCertificate(
+        certificateId,
+      );
+      if (result.verified) {
+        return '✅ Certificate $certificateId verified — chain intact';
+      }
+      final detail = result.tamperedFields.isEmpty
+          ? ''
+          : '\nFields: ${result.tamperedFields.join(', ')}';
+      return '❌ Certificate invalid — possible tampering detected$detail';
+    } catch (error) {
+      return '❌ Certificate invalid — possible tampering detected\n$error';
+    }
+  }
+
+  Future<String> _telegramAdminPowerModeCommand(String arguments) async {
+    final normalized = arguments.trim().toLowerCase();
+    if (normalized.isEmpty || normalized == 'status') {
+      return 'ONYX POWER MODE\n'
+          'Usage: /powermode <normal|degraded|threat|auto>\n'
+          'Target site: ${_telegramAdminScopeLabel(_telegramAdminTargetSiteId)}\n'
+          'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+    }
+    if (!widget.supabaseReady) {
+      return 'ONYX POWER MODE\nSupabase is not configured, so persisted power overrides are unavailable.';
+    }
+    if (normalized == 'auto') {
+      await _powerModeService.recordManualOverride(
+        mode: null,
+        reason: 'manual_override:auto',
+      );
+      return 'ONYX POWER MODE\nAutomatic power monitoring restored for ${_telegramAdminScopeLabel(_telegramAdminTargetSiteId)}.';
+    }
+    final mode = OnyxPowerMode.values.firstWhere(
+      (candidate) => candidate.name == normalized,
+      orElse: () => OnyxPowerMode.normal,
+    );
+    if (mode.name != normalized) {
+      return 'ONYX POWER MODE\nUsage: /powermode <normal|degraded|threat|auto>';
+    }
+    await _powerModeService.recordManualOverride(
+      mode: mode,
+      reason: 'manual_override:${mode.name}',
+    );
+    return 'ONYX POWER MODE\nOverride set to ${mode.name.toUpperCase()} for ${_telegramAdminScopeLabel(_telegramAdminTargetSiteId)}.';
+  }
+
+  Future<String> _telegramAdminSimulateCommand(String arguments) async {
+    final service = _operatorDisciplineServiceOrNull;
+    if (service == null) {
+      return 'ONYX SIMULATE\nSupabase is not configured, so operator simulations are unavailable.';
+    }
+    final siteId = arguments.trim().isEmpty
+        ? _telegramAdminTargetSiteId
+        : arguments.trim();
+    if (siteId.trim().isEmpty) {
+      return 'ONYX SIMULATE\nUsage: /simulate [site_id]';
+    }
+    try {
+      final clientId = await _resolveClientIdForSite(siteId);
+      final simulation = await service.injectSimulatedIncident(
+        siteId,
+        clientId: clientId,
+        operatorId: _operatorId,
+      );
+      return 'ONYX SIMULATION\n'
+          'Injected simulated incident at ${simulation.siteId}\n'
+          'Scenario: ${simulation.scenarioType}\n'
+          'Expected decision: ${simulation.expectedDecision}\n'
+          'Simulation ID: ${simulation.id}';
+    } catch (error) {
+      return 'ONYX SIMULATE\n$error';
+    }
+  }
+
+  Future<String> _telegramAdminSimResultsCommand(String arguments) async {
+    final service = _operatorDisciplineServiceOrNull;
+    if (service == null) {
+      return 'ONYX SIMRESULTS\nSupabase is not configured, so simulation results are unavailable.';
+    }
+    final siteId = arguments.trim().isEmpty
+        ? _telegramAdminTargetSiteId
+        : arguments.trim();
+    final results = await service.recentSimulationResults(siteId: siteId);
+    if (results.isEmpty) {
+      return 'ONYX SIMRESULTS\nNo completed simulations recorded yet for ${_telegramAdminScopeLabel(siteId)}.';
+    }
+    final lines = <String>[
+      'ONYX SIMRESULTS',
+      'Site: ${_telegramAdminScopeLabel(siteId)}',
+    ];
+    for (final result in results.take(10)) {
+      lines.add(
+        '• ${result.operatorId} • ${result.resultLabel} • ${(result.responseSeconds ?? 0).toStringAsFixed(0)}s • ${result.injectedAt.toLocal().toIso8601String()}',
+      );
+    }
+    return lines.join('\n');
+  }
+
+  Future<String> _telegramAdminOpScoreCommand(String arguments) async {
+    final service = _operatorDisciplineServiceOrNull;
+    if (service == null) {
+      return 'ONYX OPSCORE\nSupabase is not configured, so operator scoring is unavailable.';
+    }
+    final siteId = arguments.trim().isEmpty
+        ? _telegramAdminTargetSiteId
+        : arguments.trim();
+    final scores = await service.getCurrentScores(siteId: siteId);
+    if (scores.isEmpty) {
+      return 'ONYX OPSCORE\nNo operator scores yet for ${_telegramAdminScopeLabel(siteId)}.';
+    }
+    final lines = <String>[
+      'ONYX OPSCORE',
+      'Site: ${_telegramAdminScopeLabel(siteId)}',
+    ];
+    for (final score in scores.take(5)) {
+      lines.add(
+        '${score.operatorId}: ${score.score.toStringAsFixed(0)}/100 • avg ${score.avgResponseSeconds.toStringAsFixed(0)}s • sims ${score.simulationsCompleted}',
+      );
+      if (score.weaknesses.isNotEmpty) {
+        lines.add('Weakness: ${score.weaknesses.first}');
+      }
+      if (score.recommendations.isNotEmpty) {
+        lines.add('Recommendation: ${score.recommendations.first}');
+      }
+    }
+    return lines.join('\n');
+  }
+
+  Future<String> _telegramAdminStatusCommand(String arguments) async {
     final mode = arguments.trim().toLowerCase();
+    final environmentSummary = await _telegramAdminEnvironmentSummary();
     if (mode.isEmpty ||
         mode == 'short' ||
         mode == 'compact' ||
         mode == 'exec') {
-      return _telegramAdminStatusExecutiveSnapshot();
+      final base = _telegramAdminStatusExecutiveSnapshot();
+      return environmentSummary == null ? base : '$base\n\n$environmentSummary';
     }
     if (_telegramAdminStatusArgumentsSelectFull(mode)) {
-      return _telegramAdminStatusSnapshot();
+      final base = _telegramAdminStatusSnapshot();
+      return environmentSummary == null ? base : '$base\n\n$environmentSummary';
     }
     return 'ONYX STATUS\n'
         'Usage: /status [full]\n'
         'Default: executive snapshot\n'
         'Use /status full for detailed diagnostics.\n'
         'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
+  Future<String?> _telegramAdminEnvironmentSummary() async {
+    final engine = _environmentEngineOrNull;
+    final targetSiteId = _telegramAdminTargetSiteId.trim();
+    if (engine == null || targetSiteId.isEmpty) {
+      return null;
+    }
+    try {
+      final context = await engine.getCurrentContext(targetSiteId);
+      return [
+        '🌍 Environment',
+        'Power mode: ${context.powerMode.name.toUpperCase()}',
+        'Base threshold: 0.55',
+        'Active adaptations: ${context.activeZoneOverrides.length} zones',
+        'Synthetic guard: ${context.syntheticGuardEnabled ? 'ON' : 'OFF'}',
+      ].join('\n');
+    } catch (error) {
+      return '🌍 Environment\nUnavailable: $error';
+    }
   }
 
   bool _telegramAdminStatusArgumentsSelectFull(String arguments) {
@@ -26315,6 +27421,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/critical [short]</code> - active critical risks\n'
         '• <code>/next</code> - next 5-minute action ladder\n'
         '• <code>/incidents</code> | <code>/incident &lt;dispatch_id&gt;</code>\n'
+        '• <code>/verify &lt;certificate_id&gt;</code> - verify evidence chain\n'
         '\n---\n\n'
         '<b>Operations</b>\n'
         '• <code>/syncguards</code> - force guard sync + queue health\n'
@@ -26327,6 +27434,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         '• <code>/ackcritical</code> | <code>/unackcritical</code>\n'
         '• <code>/snoozecritical [minutes]</code> | <code>/unsnoozecritical</code>\n'
         '• <code>/pushcritical</code> - force critical digest now\n'
+        '• <code>/powermode &lt;normal|degraded|threat|auto&gt;</code>\n'
+        '• <code>/simulate [site_id]</code> | <code>/simresults [site_id]</code> | <code>/opscore [site_id]</code>\n'
         '\n---\n\n'
         '<b>AI + Messaging</b>\n'
         '• <code>/ask &lt;question&gt;</code> - contextual operational answer\n'
@@ -28650,69 +29759,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return 'ONYX BINDCHAT\n'
         'default_target=$clientId/$siteId\n'
         '${linkResult.replaceFirst('ONYX LINKCHAT\n', '')}';
-  }
-
-  Future<String> _telegramAdminProvisionCommand(
-    String arguments,
-    TelegramBridgeInboundMessage update,
-  ) async {
-    if (!widget.supabaseReady) {
-      return 'ONYX PROVISION\nSupabase is required for site provisioning.';
-    }
-    final tokens = arguments
-        .split(RegExp(r'\s+'))
-        .map((value) => value.trim())
-        .where((value) => value.isNotEmpty)
-        .toList(growable: false);
-    if (tokens.length < 4) {
-      return 'ONYX PROVISION\nUsage: /provision <client_id> <site_id> <dvr_host> <channel_count>';
-    }
-    final clientId = tokens[0].trim().toUpperCase();
-    final siteId = tokens[1].trim().toUpperCase();
-    final dvrHost = tokens[2].trim();
-    final channelCount = int.tryParse(tokens[3].trim());
-    if (clientId.isEmpty ||
-        siteId.isEmpty ||
-        dvrHost.isEmpty ||
-        channelCount == null ||
-        channelCount < 1) {
-      return 'ONYX PROVISION\nUsage: /provision <client_id> <site_id> <dvr_host> <channel_count>';
-    }
-    try {
-      final service = OnyxSiteProvisioningService(
-        supabase: Supabase.instance.client,
-        workspaceRootPath: Directory.current.path,
-        defaultTelegramBotToken: _telegramBotTokenEnv.trim(),
-        httpClient: _telegramBridgeHttpClient,
-      );
-      final result = await service.provisionSite(
-        OnyxSiteProvisioningRequest(
-          clientId: clientId,
-          clientName: clientId,
-          regionId: _selectedRegion,
-          siteId: siteId,
-          siteName: siteId,
-          dvrHost: dvrHost,
-          dvrUsername: 'admin',
-          dvrPassword: '',
-          telegramChatId: update.chatId,
-          telegramBotToken: '',
-          channelCount: channelCount,
-        ),
-      );
-      _telegramAdminTargetClientIdOverride = clientId;
-      _telegramAdminTargetSiteIdOverride = siteId;
-      await _persistTelegramAdminRuntimeState();
-      return 'ONYX PROVISION\n'
-          'scope=${result.clientId}/${result.siteId}\n'
-          'gallery=${result.galleryPath}\n'
-          'config=${result.configPath}\n'
-          'welcome=${result.welcomeDelivered ? 'sent' : 'skipped'}\n'
-          'telegram_chat=${update.chatId}\n'
-          'UTC: ${DateTime.now().toUtc().toIso8601String()}';
-    } catch (error) {
-      return 'ONYX PROVISION\nFailed to provision site: $error';
-    }
   }
 
   Future<String> _telegramAdminLinkChatCommand(
@@ -35208,9 +36254,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         responseText: normalizedDraftText,
         failureContext: 'Client control reply',
         replyMarkup: replyMarkup,
-        source: TelegramBridgeMessageSource.human,
-        audience: TelegramBridgeMessageAudience.client,
-        controllerAuthored: true,
       );
       anyDelivered = anyDelivered || delivered;
     }
@@ -39454,6 +40497,10 @@ class _SiteAwarenessActiveAlertRecord {
   final String? alertKind;
   final String? subjectLabel;
   final String? timeContext;
+  final Map<String, Object?>? alertReason;
+  final Map<String, Object?>? latency;
+  final double? personConfidence;
+  final String? powerMode;
 
   const _SiteAwarenessActiveAlertRecord({
     required this.alertId,
@@ -39470,6 +40517,10 @@ class _SiteAwarenessActiveAlertRecord {
     this.alertKind,
     this.subjectLabel,
     this.timeContext,
+    this.alertReason,
+    this.latency,
+    this.personConfidence,
+    this.powerMode,
   });
 
   String get deliveryCameraKey {
@@ -39577,6 +40628,16 @@ List<_SiteAwarenessActiveAlertRecord> _siteAwarenessActiveAlertsFromRow(
         ),
         timeContext: _siteAwarenessSummaryString(
           alert['time_context'] ?? alert['timeContext'],
+        ),
+        alertReason: _siteAwarenessAsObjectMap(
+          alert['alert_reason'] ?? alert['alertReason'],
+        ),
+        latency: _siteAwarenessAsObjectMap(alert['latency']),
+        personConfidence: _siteAwarenessSummaryDouble(
+          alert['person_confidence'] ?? alert['personConfidence'],
+        ),
+        powerMode: _siteAwarenessSummaryString(
+          alert['power_mode'] ?? alert['powerMode'],
         ),
       ),
     );
@@ -40818,9 +41879,9 @@ Future<List<OnyxPatrolScan>> _readPatrolScansForSite({
   }
   try {
     final rows = await Supabase.instance.client
-        .from('patrol_scans')
+        .from('patrol_checkpoint_scans')
         .select(
-          'id,site_id,guard_id,checkpoint_id,checkpoint_name,scanned_at,lat,lon,note',
+          'id,site_id,client_id,guard_id,checkpoint_id,checkpoint_name,scanned_at,lat,lon,method,valid,notes',
         )
         .eq('site_id', siteId.trim())
         .order('scanned_at', ascending: false)
@@ -40876,6 +41937,16 @@ bool? _siteAwarenessSummaryBool(Object? value) {
     if (normalized == 'false' || normalized == '0' || normalized == 'no') {
       return false;
     }
+  }
+  return null;
+}
+
+double? _siteAwarenessSummaryDouble(Object? value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  if (value is String) {
+    return double.tryParse(value.trim());
   }
   return null;
 }

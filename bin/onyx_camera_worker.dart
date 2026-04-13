@@ -28,9 +28,18 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:omnix_dashboard/application/onyx_alert_reason_builder.dart';
+import 'package:omnix_dashboard/application/onyx_awareness_latency_service.dart';
+import 'package:omnix_dashboard/application/onyx_evidence_certificate_service.dart';
+import 'package:omnix_dashboard/application/onyx_environment_engine.dart';
 import 'package:omnix_dashboard/application/onyx_lpr_service.dart';
+import 'package:omnix_dashboard/application/onyx_outcome_feedback_service.dart';
+import 'package:omnix_dashboard/application/onyx_power_mode_service.dart';
 import 'package:omnix_dashboard/application/onyx_proactive_alert_service.dart';
+import 'package:omnix_dashboard/application/onyx_site_profile_service.dart';
 import 'package:omnix_dashboard/application/site_awareness/onyx_live_snapshot_yolo_service.dart';
+import 'package:omnix_dashboard/application/site_awareness/onyx_site_awareness_snapshot.dart'
+    as awareness;
 import 'package:supabase/supabase.dart';
 import 'package:xml/xml.dart' as xml;
 
@@ -258,6 +267,10 @@ class OnyxSiteAlert {
   final String? alertKind;
   final String? subjectLabel;
   final String? timeContext;
+  final Map<String, Object?>? alertReason;
+  final Map<String, Object?>? latency;
+  final double? personConfidence;
+  final String? powerMode;
 
   const OnyxSiteAlert({
     required this.alertId,
@@ -274,6 +287,10 @@ class OnyxSiteAlert {
     this.alertKind,
     this.subjectLabel,
     this.timeContext,
+    this.alertReason,
+    this.latency,
+    this.personConfidence,
+    this.powerMode,
   });
 
   String get deduplicationKey {
@@ -304,11 +321,21 @@ class OnyxSiteAlert {
       'alert_kind': alertKind,
       'subject_label': subjectLabel,
       'time_context': timeContext,
+      'alert_reason': alertReason == null
+          ? null
+          : Map<String, Object?>.from(alertReason!),
+      'latency': latency == null ? null : Map<String, Object?>.from(latency!),
+      'person_confidence': personConfidence,
+      'power_mode': powerMode,
     };
   }
 }
 
 class OnyxSiteAwarenessEvent {
+  final String eventId;
+  final String? siteId;
+  final String? clientId;
+  final String? cameraId;
   final String channelId;
   final OnyxEventType eventType;
   final DateTime detectedAt;
@@ -319,27 +346,47 @@ class OnyxSiteAwarenessEvent {
   final String? faceMatchName;
   final double? faceMatchConfidence;
   final double? faceMatchDistance;
+  final double? personConfidence;
   final Uint8List? snapshotBytes;
+  final String? zoneId;
+  final String? incidentId;
+  final String? certificateId;
+  final Map<String, Object?>? alertReason;
+  final OnyxLatencyRecord? latencyRecord;
   final bool unknownPerson;
   final bool isKnownFaultChannel;
 
   const OnyxSiteAwarenessEvent({
+    required this.eventId,
     required this.channelId,
     required this.eventType,
     required this.detectedAt,
     required this.rawEventType,
+    this.siteId,
+    this.clientId,
+    this.cameraId,
     this.targetType,
     this.plateNumber,
     this.faceMatchId,
     this.faceMatchName,
     this.faceMatchConfidence,
     this.faceMatchDistance,
+    this.personConfidence,
     this.snapshotBytes,
+    this.zoneId,
+    this.incidentId,
+    this.certificateId,
+    this.alertReason,
+    this.latencyRecord,
     this.unknownPerson = false,
     this.isKnownFaultChannel = false,
   });
 
   OnyxSiteAwarenessEvent copyWith({
+    String? eventId,
+    String? siteId,
+    String? clientId,
+    String? cameraId,
     String? channelId,
     OnyxEventType? eventType,
     DateTime? detectedAt,
@@ -350,11 +397,21 @@ class OnyxSiteAwarenessEvent {
     String? faceMatchName,
     double? faceMatchConfidence,
     double? faceMatchDistance,
+    double? personConfidence,
     Uint8List? snapshotBytes,
+    String? zoneId,
+    String? incidentId,
+    String? certificateId,
+    Map<String, Object?>? alertReason,
+    OnyxLatencyRecord? latencyRecord,
     bool? unknownPerson,
     bool? isKnownFaultChannel,
   }) {
     return OnyxSiteAwarenessEvent(
+      eventId: eventId ?? this.eventId,
+      siteId: siteId ?? this.siteId,
+      clientId: clientId ?? this.clientId,
+      cameraId: cameraId ?? this.cameraId,
       channelId: channelId ?? this.channelId,
       eventType: eventType ?? this.eventType,
       detectedAt: detectedAt ?? this.detectedAt,
@@ -365,7 +422,13 @@ class OnyxSiteAwarenessEvent {
       faceMatchName: faceMatchName ?? this.faceMatchName,
       faceMatchConfidence: faceMatchConfidence ?? this.faceMatchConfidence,
       faceMatchDistance: faceMatchDistance ?? this.faceMatchDistance,
+      personConfidence: personConfidence ?? this.personConfidence,
       snapshotBytes: snapshotBytes ?? this.snapshotBytes,
+      zoneId: zoneId ?? this.zoneId,
+      incidentId: incidentId ?? this.incidentId,
+      certificateId: certificateId ?? this.certificateId,
+      alertReason: alertReason ?? this.alertReason,
+      latencyRecord: latencyRecord ?? this.latencyRecord,
       unknownPerson: unknownPerson ?? this.unknownPerson,
       isKnownFaultChannel: isKnownFaultChannel ?? this.isKnownFaultChannel,
     );
@@ -396,6 +459,11 @@ class OnyxSiteAwarenessEvent {
         DateTime.tryParse(_readTag(document, 'dateTime'))?.toUtc() ??
         (clock ?? DateTime.now).call().toUtc();
     return OnyxSiteAwarenessEvent(
+      eventId: _defaultAwarenessEventId(
+        channelId: channelId.isEmpty ? 'unknown' : channelId,
+        eventType: rawEventType,
+        detectedAt: detectedAt,
+      ),
       channelId: channelId.isEmpty ? 'unknown' : channelId,
       eventType: mapOnyxEventType(
         rawEventType: rawEventType,
@@ -422,6 +490,17 @@ class OnyxSiteAwarenessEvent {
     }
     return !isKnownFaultChannel && eventType == OnyxEventType.humanDetected;
   }
+}
+
+String _defaultAwarenessEventId({
+  required String channelId,
+  required String eventType,
+  required DateTime detectedAt,
+}) {
+  final normalizedEventType = eventType.trim().isEmpty
+      ? 'unknown'
+      : eventType.trim();
+  return 'EVT-${detectedAt.toUtc().microsecondsSinceEpoch}-${channelId.trim()}-$normalizedEventType';
 }
 
 class OnyxSiteAwarenessProjector {
@@ -478,6 +557,7 @@ class OnyxSiteAwarenessProjector {
           eventType: event.eventType,
           detectedAt: event.detectedAt.toUtc(),
           isAcknowledged: false,
+          alertReason: event.alertReason,
         ),
       );
     }
@@ -598,6 +678,10 @@ class OnyxSiteAwarenessProjector {
         alertKind: _activeAlerts[i].alertKind,
         subjectLabel: _activeAlerts[i].subjectLabel,
         timeContext: _activeAlerts[i].timeContext,
+        alertReason: _activeAlerts[i].alertReason,
+        latency: _activeAlerts[i].latency,
+        personConfidence: _activeAlerts[i].personConfidence,
+        powerMode: _activeAlerts[i].powerMode,
       );
     }
     return snapshot();
@@ -632,6 +716,10 @@ class OnyxSiteAwarenessProjector {
         alertKind: alert.alertKind,
         subjectLabel: alert.subjectLabel,
         timeContext: alert.timeContext,
+        alertReason: alert.alertReason,
+        latency: alert.latency,
+        personConfidence: alert.personConfidence,
+        powerMode: alert.powerMode,
       );
       return;
     }
@@ -769,15 +857,6 @@ String _readTag(xml.XmlDocument document, String tagName) {
 String _normalizeToken(String value) {
   return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
-
-bool _isFlaggedFaceMatchId(String? value) =>
-    (value ?? '').trim().toUpperCase().contains('_FLAGGED_');
-
-bool _isResidentFaceMatchId(String? value) =>
-    (value ?? '').trim().toUpperCase().contains('_RESIDENT_');
-
-bool _isVisitorFaceMatchId(String? value) =>
-    (value ?? '').trim().toUpperCase().contains('_VISITOR_');
 
 String _uuidV4(math.Random random) {
   final bytes = List<int>.generate(16, (_) => random.nextInt(256));
@@ -2109,7 +2188,7 @@ http.Client _buildIsapiHttpClient() {
 }
 
 class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
-  static const double _yoloMinimumPersonConfidence = 0.55;
+  static const Duration _yoloStartupGracePeriod = Duration(seconds: 30);
   static const Duration _yoloHealthRetryDelay = Duration(seconds: 10);
   static const Duration _yoloHealthRecheckInterval = Duration(seconds: 30);
   static const int _yoloHealthFailureThreshold = 3;
@@ -2121,6 +2200,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final List<String> knownFaultChannels;
   final http.Client _client;
   final OnyxSiteAwarenessRepository? _repository;
+  final OnyxProactiveAlertService? _proactiveAlertService;
   final Duration requestTimeout;
   final Duration publishInterval;
   final Duration detectionWindow;
@@ -2136,11 +2216,17 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   onReconnectFailure;
   final OnyxLiveSnapshotYoloService? _liveSnapshotYoloService;
   final OnyxLprService? _lprService;
+  final OnyxEvidenceCertificateService? _evidenceCertificateService;
+  final OnyxAlertReasonBuilder _alertReasonBuilder =
+      const OnyxAlertReasonBuilder();
+  final OnyxPowerModeService? _powerModeService;
+  final OnyxEnvironmentEngine? _environmentEngine;
 
   final StreamController<OnyxSiteAwarenessSnapshot> _snapshotController =
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
 
   StreamSubscription<List<int>>? _streamSubscription;
+  StreamSubscription<OnyxProactiveAlertDecision>? _proactiveAlertSubscription;
   Timer? _publishTimer;
   Timer? _heartbeatTimer;
   Timer? _supabaseWatchdogTimer;
@@ -2152,10 +2238,18 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   bool _disconnectAlertSent = false;
   bool _isYoloHealthy = false;
   bool _yoloHealthCheckInFlight = false;
+  DateTime? _yoloStartupGraceUntilUtc;
   int _generation = 0;
   String _siteId = '';
   String _clientId = '';
   DateTime? _lastStreamEventAtUtc;
+  final Map<String, Map<String, Object?>> _pendingAlertReasonsByDetectionKey =
+      <String, Map<String, Object?>>{};
+  final Map<String, OnyxLatencyRecord> _pendingLatencyByDetectionKey =
+      <String, OnyxLatencyRecord>{};
+  final Map<String, double> _pendingConfidenceByDetectionKey =
+      <String, double>{};
+  OnyxPowerMode _currentPowerMode = OnyxPowerMode.normal;
 
   OnyxHikIsapiStreamAwarenessService({
     required this.host,
@@ -2165,6 +2259,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     this.knownFaultChannels = const <String>[],
     http.Client? client,
     OnyxSiteAwarenessRepository? repository,
+    OnyxProactiveAlertService? proactiveAlertService,
     this.requestTimeout = const Duration(seconds: 15),
     this.publishInterval = const Duration(seconds: 30),
     this.detectionWindow = const Duration(minutes: 5),
@@ -2175,12 +2270,19 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     this.onReconnectFailure,
     OnyxLiveSnapshotYoloService? liveSnapshotYoloService,
     OnyxLprService? lprService,
+    OnyxEvidenceCertificateService? evidenceCertificateService,
+    OnyxPowerModeService? powerModeService,
+    OnyxEnvironmentEngine? environmentEngine,
   }) : _client = client ?? _buildIsapiHttpClient(),
        _repository = repository,
+       _proactiveAlertService = proactiveAlertService,
        _clock = clock ?? DateTime.now,
        _sleep = sleep ?? Future<void>.delayed,
        _liveSnapshotYoloService = liveSnapshotYoloService,
-       _lprService = lprService;
+       _lprService = lprService,
+       _evidenceCertificateService = evidenceCertificateService,
+       _powerModeService = powerModeService,
+       _environmentEngine = environmentEngine;
 
   @override
   OnyxSiteAwarenessSnapshot? get latestSnapshot => _latestSnapshot;
@@ -2227,22 +2329,64 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       detectionWindow: detectionWindow,
       clock: _clock,
     );
+    _proactiveAlertService?.resetSite(_siteId);
+    await _proactiveAlertSubscription?.cancel();
+    _proactiveAlertSubscription = _proactiveAlertService?.alerts.listen((
+      decision,
+    ) {
+      if (decision.siteId.trim() != _siteId.trim()) {
+        return;
+      }
+      final projector = _projector;
+      if (projector == null) {
+        return;
+      }
+      final alertReason = _alertReasonForDecision(decision);
+      final alertLatency = _latencyRecordForDecision(decision);
+      final alertConfidence = _confidenceForDecision(decision);
+      final snapshot = projector.ingestSiteAlert(
+        OnyxSiteAlert(
+          alertId:
+              '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}',
+          channelId: '${decision.channelId}',
+          eventType: OnyxEventType.humanDetected,
+          detectedAt: decision.detectedAt,
+          zoneName: decision.zoneName,
+          zoneType: decision.zoneType,
+          message: decision.message,
+          isLoitering: decision.isLoitering,
+          isSequence: decision.isSequence,
+          alertSource: 'proactive_detection',
+          alertKind: decision.telegramAlertKind.name,
+          subjectLabel: decision.telegramSubjectLabel,
+          timeContext: decision.withinAlertWindow ? 'after_hours' : 'daytime',
+          alertReason: alertReason,
+          latency: alertLatency?.toJsonMap(),
+          personConfidence: alertConfidence,
+          powerMode: _currentPowerMode.name,
+        ),
+      );
+      _emitSnapshot(snapshot);
+    });
     _latestSnapshot = null;
     _isConnected = false;
     _disconnectAlertSent = false;
     _running = true;
     _generation += 1;
     _lastStreamEventAtUtc = _clock().toUtc();
+    _yoloStartupGraceUntilUtc = _clock().toUtc().add(_yoloStartupGracePeriod);
     _startYoloHealthMonitor(_generation);
-    _publishTimer = Timer.periodic(publishInterval, (_) {
-      _publishProjectedSnapshot();
-    });
+    _schedulePublishTimer();
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       unawaited(_sendKeepaliveHeartbeat(_generation));
     });
     _supabaseWatchdogTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       unawaited(_runSupabaseWatchdog(_generation));
     });
+    final powerModeService = _powerModeService;
+    if (powerModeService != null) {
+      unawaited(powerModeService.start());
+    }
     unawaited(_runConnectionLoop(_generation));
   }
 
@@ -2260,17 +2404,37 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _supabaseWatchdogTimer = null;
     _yoloHealthTimer?.cancel();
     _yoloHealthTimer = null;
+    final powerModeService = _powerModeService;
+    if (powerModeService != null) {
+      await powerModeService.stop();
+    }
     _isYoloHealthy = false;
     _yoloHealthCheckInFlight = false;
+    _yoloStartupGraceUntilUtc = null;
     _lastStreamEventAtUtc = null;
     final subscription = _streamSubscription;
     _streamSubscription = null;
+    final proactiveAlertSubscription = _proactiveAlertSubscription;
+    _proactiveAlertSubscription = null;
     if (subscription != null) {
       try {
         await subscription.cancel();
       } catch (error, stackTrace) {
         developer.log(
           'Failed to cancel Hikvision alert stream subscription cleanly.',
+          name: 'OnyxHikIsapiStream',
+          error: error,
+          stackTrace: stackTrace,
+          level: 1000,
+        );
+      }
+    }
+    if (proactiveAlertSubscription != null) {
+      try {
+        await proactiveAlertSubscription.cancel();
+      } catch (error, stackTrace) {
+        developer.log(
+          'Failed to cancel proactive alert subscription cleanly.',
           name: 'OnyxHikIsapiStream',
           error: error,
           stackTrace: stackTrace,
@@ -2291,12 +2455,111 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return;
     }
     _isYoloHealthy = false;
-    // ignore: avoid_print
-    print('[ONYX] YOLO health monitor started.');
     unawaited(_recheckYoloHealth(generation));
     _yoloHealthTimer = Timer.periodic(_yoloHealthRecheckInterval, (_) {
       unawaited(_recheckYoloHealth(generation));
     });
+  }
+
+  void _schedulePublishTimer() {
+    _publishTimer?.cancel();
+    _publishTimer = Timer.periodic(_publishIntervalForCurrentMode, (_) {
+      _publishProjectedSnapshot();
+    });
+  }
+
+  Duration get _publishIntervalForCurrentMode {
+    return switch (_currentPowerMode) {
+      OnyxPowerMode.normal => publishInterval,
+      OnyxPowerMode.degraded => Duration(
+        seconds: math.max(10, publishInterval.inSeconds ~/ 2),
+      ),
+      OnyxPowerMode.threat => const Duration(seconds: 5),
+    };
+  }
+
+  bool get _isThreatMode => _currentPowerMode == OnyxPowerMode.threat;
+
+  bool _isPriorityChannel(String channelId) {
+    final zone = _projector?.cameraZones[channelId.trim()];
+    if (zone == null) {
+      return false;
+    }
+    final zoneType = zone.zoneType.trim().toLowerCase();
+    return zone.isPerimeter ||
+        zoneType.contains('perimeter') ||
+        zoneType.contains('semi_perimeter') ||
+        zoneType.contains('semi-perimeter');
+  }
+
+  Future<OnyxPowerHealthSnapshot> _readPowerHealthSnapshot() async {
+    final projector = _projector;
+    final channels =
+        projector?.snapshot().channels ?? const <String, OnyxChannelStatus>{};
+    final totalCameraCount = math.max(
+      projector?.cameraZones.length ?? 0,
+      channels.length,
+    );
+    final offlineCameraCount = channels.values
+        .where((status) => status.status == OnyxChannelStatusType.videoloss)
+        .length;
+    return OnyxPowerHealthSnapshot(
+      totalCameraCount: totalCameraCount,
+      offlineCameraCount: offlineCameraCount,
+      dvrReachable:
+          _isConnected ||
+          (_lastStreamEventAtUtc != null &&
+              _clock().toUtc().difference(_lastStreamEventAtUtc!) <
+                  const Duration(seconds: 75)),
+      syntheticGuardConfigured: _envBool(
+        'ONYX_SYNTHETIC_GUARD_AUTO_ENABLE',
+        fallback: false,
+      ),
+      siteName: _siteId,
+    );
+  }
+
+  Future<OnyxPowerHealthSnapshot> readPowerHealthSnapshot() {
+    return _readPowerHealthSnapshot();
+  }
+
+  Future<void> _handlePowerModeChange(OnyxPowerModeChange change) async {
+    _currentPowerMode = change.mode;
+    _schedulePublishTimer();
+    switch (change.mode) {
+      case OnyxPowerMode.normal:
+        developer.log(
+          '[ONYX] Power mode: NORMAL — standard monitoring active',
+          name: 'OnyxHikIsapiStream',
+        );
+        break;
+      case OnyxPowerMode.degraded:
+        developer.log(
+          '[ONYX] Power mode: DEGRADED — priority monitoring active',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+        break;
+      case OnyxPowerMode.threat:
+        developer.log(
+          '[ONYX] Power mode: THREAT — aggressive monitoring active',
+          name: 'OnyxHikIsapiStream',
+          level: 1000,
+        );
+        if (_envBool('ONYX_SYNTHETIC_GUARD_AUTO_ENABLE', fallback: false)) {
+          developer.log(
+            '[ONYX] Synthetic Guard auto-enabled for threat mode.',
+            name: 'OnyxHikIsapiStream',
+            level: 900,
+          );
+        }
+        await _sendCameraWorkerThreatModeAlert(siteId: _siteId);
+        break;
+    }
+  }
+
+  Future<void> handlePowerModeChange(OnyxPowerModeChange change) {
+    return _handlePowerModeChange(change);
   }
 
   Future<void> _recheckYoloHealth(int generation) async {
@@ -2323,15 +2586,18 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         if (ready) {
           if (!_isYoloHealthy) {
             _isYoloHealthy = true;
-            // ignore: avoid_print
-            print('[ONYX] YOLO recovered — resuming enrichment');
+            developer.log(
+              '[ONYX] YOLO recovered — resuming enrichment',
+              name: 'OnyxHikIsapiStream',
+            );
           }
           return;
         }
         if (attempt < _yoloHealthFailureThreshold) {
-          // ignore: avoid_print
-          print(
+          developer.log(
             '[ONYX] YOLO unhealthy check $attempt/3 — waiting before marking dead',
+            name: 'OnyxHikIsapiStream',
+            level: 900,
           );
           await _sleep(_yoloHealthRetryDelay);
         }
@@ -2642,10 +2908,23 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     required String errorLabel,
   }) async {
     try {
-      var event = OnyxSiteAwarenessEvent.fromAlertXml(
+      final receivedAtUtc = _clock().toUtc();
+      final parsedEvent = OnyxSiteAwarenessEvent.fromAlertXml(
         payload,
         knownFaultChannels: knownFaultChannels.toSet(),
         clock: _clock,
+      );
+      var event = parsedEvent.copyWith(
+        siteId: _siteId,
+        clientId: _clientId,
+        cameraId: parsedEvent.channelId.trim(),
+        latencyRecord: OnyxLatencyRecord(
+          alertId: '',
+          eventId: parsedEvent.eventId,
+          siteId: _siteId,
+          clientId: _clientId,
+          dvrEventAt: receivedAtUtc,
+        ),
       );
       if (event.channelId.trim() == '0') {
         developer.log(
@@ -2657,13 +2936,27 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       if (event.eventType == OnyxEventType.humanDetected) {
         final channelId = event.channelId.trim();
+        if (_currentPowerMode == OnyxPowerMode.degraded &&
+            !_isPriorityChannel(channelId)) {
+          developer.log(
+            '[ONYX] Degraded power mode: skipping non-priority human detection on CH$channelId.',
+            name: 'OnyxHikIsapiStream',
+            level: 800,
+          );
+          event = event.copyWith(eventType: OnyxEventType.motionDetected);
+        }
         if (channelId.isNotEmpty &&
             channelId != 'unknown' &&
+            event.eventType == OnyxEventType.humanDetected &&
             (event.snapshotBytes == null || event.snapshotBytes!.isEmpty)) {
           final snapshotBytes = await fetchSnapshotBytes(channelId);
           if (snapshotBytes != null && snapshotBytes.isNotEmpty) {
             event = event.copyWith(
               snapshotBytes: Uint8List.fromList(snapshotBytes),
+              latencyRecord: _withSnapshotLatency(
+                event.latencyRecord,
+                _clock().toUtc(),
+              ),
             );
           }
         }
@@ -2684,11 +2977,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   }
 
   Future<void> _ingestEvent(OnyxSiteAwarenessEvent event) async {
+    event = _attachAlertReason(event);
     final projector = _projector;
     if (projector == null) {
       return;
     }
-    var snapshot = projector.ingest(event);
+    _cachePendingAlertReason(event);
+    final snapshot = projector.ingest(event);
     _latestSnapshot = snapshot;
     final repository = _repository;
     if (repository != null && event.eventType == OnyxEventType.humanDetected) {
@@ -2698,31 +2993,57 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         event.eventType == OnyxEventType.vehicleDetected) {
       unawaited(_persistVehiclePresence(repository, event));
     }
-    if (_shouldRaiseConfirmedHumanAlert(event)) {
-      final zone = projector.cameraZones[event.channelId];
-      final isFlagged = _isFlaggedFaceMatchId(event.faceMatchId);
-      snapshot = projector.ingestSiteAlert(
-        OnyxSiteAlert(
-          alertId:
-              '$_siteId:${event.channelId}:${event.detectedAt.microsecondsSinceEpoch}:${isFlagged ? 'flagged' : 'human'}:single',
-          channelId: event.channelId,
-          eventType: isFlagged
-              ? OnyxEventType.perimeterBreach
-              : OnyxEventType.humanDetected,
-          detectedAt: event.detectedAt,
-          zoneName: zone?.zoneName,
-          zoneType: zone?.zoneType,
-          message: _faceMatchAlertMessage(event),
-          alertSource: isFlagged
-              ? 'dvr_yolo_flagged_confirmed'
-              : 'dvr_yolo_confirmed',
-          alertKind: isFlagged ? 'perimeter_breach' : 'general_movement',
-          subjectLabel: _faceMatchAlertSubjectLabel(event),
-        ),
-      );
-      _latestSnapshot = snapshot;
+    final proactiveAlertService = _proactiveAlertService;
+    if (proactiveAlertService != null &&
+        (event.eventType == OnyxEventType.humanDetected ||
+            event.eventType == OnyxEventType.vehicleDetected)) {
+      if (event.eventType == OnyxEventType.humanDetected &&
+          (event.faceMatchId ?? '').trim().isNotEmpty &&
+          !_isThreatMode) {
+        developer.log(
+          '[ONYX] Suppressing proactive alert for known person '
+          '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
+          name: 'OnyxHikIsapiStream',
+        );
+      } else {
+        final zone = projector.cameraZones[event.channelId];
+        if (_currentPowerMode == OnyxPowerMode.degraded &&
+            !(zone?.isPerimeter ?? false) &&
+            !((zone?.zoneType ?? '').toLowerCase().contains('perimeter'))) {
+          developer.log(
+            '[ONYX] Degraded power mode: skipping proactive alert evaluation for non-priority channel ${event.channelId}.',
+            name: 'OnyxHikIsapiStream',
+            level: 800,
+          );
+        } else {
+          final channelId = int.tryParse(event.channelId.trim()) ?? 0;
+          if (channelId <= 0) {
+            developer.log(
+              '[ONYX] Skipping proactive alert evaluation for invalid channel ${event.channelId}.',
+              name: 'OnyxHikIsapiStream',
+              level: 800,
+            );
+            return;
+          }
+          unawaited(
+            proactiveAlertService.evaluateDetection(
+              siteId: _siteId,
+              channelId: channelId,
+              zoneType:
+                  zone?.zoneType ??
+                  (zone?.isPerimeter == true ? 'perimeter' : 'semi_perimeter'),
+              zoneName: zone?.zoneName ?? 'Channel ${event.channelId}',
+              isPerimeter: zone?.isPerimeter ?? false,
+              detectionKind: event.eventType == OnyxEventType.vehicleDetected
+                  ? OnyxProactiveDetectionKind.vehicle
+                  : OnyxProactiveDetectionKind.human,
+              detectedAt: event.detectedAt,
+            ),
+          );
+        }
+      }
     }
-    if (event.shouldPublishImmediately) {
+    if (event.shouldPublishImmediately || _isThreatMode) {
       _emitSnapshot(snapshot);
     }
   }
@@ -2731,9 +3052,39 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     OnyxSiteAwarenessEvent event,
   ) async {
     final liveSnapshotYoloService = _liveSnapshotYoloService;
+    // ignore: avoid_print
+    print(
+      '[ONYX-DEBUG] _enrichHumanDetectionEvent called for CH${event.channelId}',
+    );
+    // ignore: avoid_print
+    print(
+      '[ONYX-DEBUG] liveSnapshotYoloService configured: '
+      '${liveSnapshotYoloService?.isConfigured}',
+    );
     if (liveSnapshotYoloService == null ||
         !liveSnapshotYoloService.isConfigured ||
         !_isYoloHealthy) {
+      if (_isThreatMode) {
+        developer.log(
+          '[ONYX] Threat mode active — bypassing YOLO health suppression on CH${event.channelId}.',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+        return event.copyWith(
+          siteId: _siteId,
+          clientId: _clientId,
+          cameraId: event.channelId.trim(),
+          zoneId: _projector?.cameraZones[event.channelId.trim()]?.zoneName,
+        );
+      }
+      if (_shouldAllowUnverifiedHumanAlert(liveSnapshotYoloService)) {
+        developer.log(
+          '[ONYX] Human detected (unverified) on CH${event.channelId} during YOLO startup grace.',
+          name: 'OnyxHikIsapiStream',
+          level: 800,
+        );
+        return event;
+      }
       developer.log(
         '[ONYX] Alert suppressed — YOLO did not confirm human on CH${event.channelId}',
         name: 'OnyxHikIsapiStream',
@@ -2748,10 +3099,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         name: 'OnyxHikIsapiStream',
         level: 800,
       );
-      return event.copyWith(eventType: OnyxEventType.motionDetected);
+      return event;
     }
     final snapshotChannelId = _snapshotStreamChannelId(channelId);
     try {
+      // ignore: avoid_print
+      print('[ONYX-DEBUG] Attempting snapshot for CH$channelId...');
       developer.log(
         '[ONYX] Capturing snapshot from CH$snapshotChannelId for live FR...',
         name: 'OnyxHikIsapiStream',
@@ -2760,13 +3113,30 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           event.snapshotBytes != null && event.snapshotBytes!.isNotEmpty
           ? event.snapshotBytes!
           : await fetchSnapshotBytes(channelId);
+      final snapshotAtUtc = _clock().toUtc();
+      // ignore: avoid_print
+      print(
+        '[ONYX-DEBUG] Snapshot result: ${snapshotBytes?.length ?? 0} bytes',
+      );
       if (snapshotBytes == null || snapshotBytes.isEmpty) {
         developer.log(
           '[ONYX] FR snapshot capture failed for CH$snapshotChannelId.',
           name: 'OnyxHikIsapiStream',
           level: 900,
         );
-        return event.copyWith(eventType: OnyxEventType.motionDetected);
+        if (_isThreatMode) {
+          return event.copyWith(
+            siteId: _siteId,
+            clientId: _clientId,
+            cameraId: channelId,
+            latencyRecord: _withSnapshotLatency(
+              event.latencyRecord,
+              snapshotAtUtc,
+            ),
+            zoneId: _projector?.cameraZones[channelId]?.zoneName,
+          );
+        }
+        return event;
       }
       final zone = _projector?.cameraZones[channelId];
       developer.log(
@@ -2785,6 +3155,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         occurredAtUtc: event.detectedAt.toUtc(),
         imageBytes: snapshotBytes,
       );
+      final yoloAtUtc = _clock().toUtc();
+      // ignore: avoid_print
+      print('[ONYX-DEBUG] YOLO result: $result');
       if (result == null) {
         developer.log(
           '[ONYX] Alert suppressed — YOLO did not confirm human on CH$channelId',
@@ -2795,9 +3168,43 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       final primaryLabel = (result.primaryLabel ?? '').trim().toLowerCase();
       final personConfidence = result.personConfidence;
+      final thresholdDecision = await _environmentEngine?.getThresholdDecision(
+        _siteId,
+        zone?.zoneName ?? '',
+      );
+      final effectiveThreshold =
+          thresholdDecision?.adaptedThreshold ??
+          switch (_currentPowerMode) {
+            OnyxPowerMode.normal => 0.55,
+            OnyxPowerMode.degraded => 0.45,
+            OnyxPowerMode.threat => 0.40,
+          };
+      if (thresholdDecision != null) {
+        developer.log(
+          '[ONYX] Threshold for CH$channelId zone ${zone?.zoneName ?? 'unknown'}: '
+          'base=${thresholdDecision.baseThreshold.toStringAsFixed(2)} '
+          'power=${thresholdDecision.powerAdjustment >= 0 ? '+' : ''}${thresholdDecision.powerAdjustment.toStringAsFixed(2)} '
+          'zone=${thresholdDecision.zoneAdjustment >= 0 ? '+' : ''}${thresholdDecision.zoneAdjustment.toStringAsFixed(2)} '
+          'adapted=${thresholdDecision.adaptedThreshold.toStringAsFixed(2)} '
+          'mode=${thresholdDecision.powerMode.name}',
+          name: 'OnyxHikIsapiStream',
+        );
+      } else {
+        developer.log(
+          '[ONYX] Threshold for CH$channelId zone ${zone?.zoneName ?? 'unknown'}: '
+          'base=0.55 power=${_currentPowerMode == OnyxPowerMode.normal
+              ? '+0.00'
+              : _currentPowerMode == OnyxPowerMode.degraded
+              ? '-0.10'
+              : '-0.15'} '
+          'zone=+0.00 adapted=${effectiveThreshold.toStringAsFixed(2)} '
+          'mode=${_currentPowerMode.name}',
+          name: 'OnyxHikIsapiStream',
+        );
+      }
       if (!result.personDetected ||
           personConfidence == null ||
-          personConfidence < _yoloMinimumPersonConfidence) {
+          personConfidence < effectiveThreshold) {
         if (primaryLabel == 'animal') {
           developer.log(
             '[ONYX] Animal detected on CH$channelId — suppressed.',
@@ -2810,6 +3217,16 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           name: 'OnyxHikIsapiStream',
           level: 800,
         );
+        if (_isThreatMode) {
+          return event.copyWith(
+            siteId: _siteId,
+            clientId: _clientId,
+            cameraId: channelId,
+            personConfidence: personConfidence,
+            snapshotBytes: Uint8List.fromList(snapshotBytes),
+            zoneId: zone?.zoneName,
+          );
+        }
         return event.copyWith(eventType: OnyxEventType.motionDetected);
       }
       if (primaryLabel == 'animal') {
@@ -2843,20 +3260,24 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           'distance ${(result.faceDistance ?? 0).toStringAsFixed(2)})',
           name: 'OnyxHikIsapiStream',
         );
-        if (_isFlaggedFaceMatchId(faceMatchId)) {
-          developer.log(
-            '[ONYX] FLAGGED PERSON detected on CH$channelId: $faceMatchId',
-            name: 'OnyxHikIsapiStream',
-            level: 1000,
-          );
-        }
-        return event.copyWith(
+        final enrichedEvent = event.copyWith(
+          siteId: _siteId,
+          clientId: _clientId,
+          cameraId: channelId,
           faceMatchId: faceMatchId,
           faceMatchName: person?.displayName,
           faceMatchConfidence: result.faceConfidence ?? result.personConfidence,
           faceMatchDistance: result.faceDistance,
+          personConfidence: result.personConfidence,
+          snapshotBytes: Uint8List.fromList(snapshotBytes),
+          zoneId: zone?.zoneName,
+          latencyRecord: _withYoloLatency(
+            _withSnapshotLatency(event.latencyRecord, snapshotAtUtc),
+            yoloAtUtc,
+          ),
           unknownPerson: false,
         );
+        return _attachEvidenceCertificateIfRequired(enrichedEvent);
       }
       if (result.personDetected) {
         developer.log(
@@ -2864,10 +3285,21 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           '(confidence ${(result.personConfidence ?? 0).toStringAsFixed(2)})',
           name: 'OnyxHikIsapiStream',
         );
-        return event.copyWith(
+        final enrichedEvent = event.copyWith(
+          siteId: _siteId,
+          clientId: _clientId,
+          cameraId: channelId,
           unknownPerson: true,
+          personConfidence: result.personConfidence,
           faceMatchConfidence: result.personConfidence,
+          snapshotBytes: Uint8List.fromList(snapshotBytes),
+          zoneId: zone?.zoneName,
+          latencyRecord: _withYoloLatency(
+            _withSnapshotLatency(event.latencyRecord, snapshotAtUtc),
+            yoloAtUtc,
+          ),
         );
+        return _attachEvidenceCertificateIfRequired(enrichedEvent);
       }
       developer.log(
         '[ONYX] FR: No person confirmed in CH$channelId snapshot '
@@ -2879,8 +3311,24 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         name: 'OnyxHikIsapiStream',
         level: 800,
       );
+      if (_isThreatMode) {
+        return event.copyWith(
+          siteId: _siteId,
+          clientId: _clientId,
+          cameraId: channelId,
+          personConfidence: result.personConfidence,
+          snapshotBytes: Uint8List.fromList(snapshotBytes),
+          latencyRecord: _withYoloLatency(
+            _withSnapshotLatency(event.latencyRecord, snapshotAtUtc),
+            yoloAtUtc,
+          ),
+          zoneId: zone?.zoneName,
+        );
+      }
       return event.copyWith(eventType: OnyxEventType.motionDetected);
     } catch (error, stackTrace) {
+      // ignore: avoid_print
+      print('[ONYX-DEBUG] FR pipeline error on CH$channelId: $error');
       developer.log(
         '[ONYX] FR pipeline error on CH$channelId: $error',
         name: 'OnyxHikIsapiStream',
@@ -2888,58 +3336,269 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         error: error,
         stackTrace: stackTrace,
       );
-      return event.copyWith(eventType: OnyxEventType.motionDetected);
+      if (_isThreatMode) {
+        return event.copyWith(
+          siteId: _siteId,
+          clientId: _clientId,
+          cameraId: channelId,
+          zoneId: _projector?.cameraZones[channelId]?.zoneName,
+        );
+      }
+      return event;
     }
   }
 
-  bool _shouldRaiseConfirmedHumanAlert(OnyxSiteAwarenessEvent event) {
-    if (event.eventType != OnyxEventType.humanDetected ||
-        event.isKnownFaultChannel) {
-      return false;
+  Future<OnyxSiteAwarenessEvent> _attachEvidenceCertificateIfRequired(
+    OnyxSiteAwarenessEvent event,
+  ) async {
+    if (!_requiresEvidenceCertificate(event)) {
+      return event;
     }
-    if (_isFlaggedFaceMatchId(event.faceMatchId)) {
-      return true;
+    final service = _evidenceCertificateService;
+    if (service == null) {
+      return event;
     }
-    if ((event.faceMatchId ?? '').trim().isNotEmpty) {
-      developer.log(
-        '[ONYX] Suppressing direct alert for known person '
-        '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
-        name: 'OnyxHikIsapiStream',
+    try {
+      final certificate = await service.generateCertificate(
+        _toSharedAwarenessEvent(event),
       );
+      return event.copyWith(
+        certificateId: certificate.certificateId,
+        incidentId: certificate.incidentId,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        '[ONYX] Evidence certificate generation failed for ${event.eventId}: $error',
+        name: 'OnyxHikIsapiStream',
+        level: 1000,
+        error: error,
+        stackTrace: stackTrace,
+      );
+      return event;
+    }
+  }
+
+  bool _requiresEvidenceCertificate(OnyxSiteAwarenessEvent event) {
+    if (event.eventType != OnyxEventType.humanDetected) {
       return false;
     }
-    return true;
+    final faceMatchId = (event.faceMatchId ?? '').trim().toUpperCase();
+    if (faceMatchId.contains('_RESIDENT_')) {
+      return false;
+    }
+    return (event.siteId ?? '').trim().isNotEmpty &&
+        (event.clientId ?? '').trim().isNotEmpty &&
+        (event.cameraId ?? '').trim().isNotEmpty;
   }
 
-  String _faceMatchAlertMessage(OnyxSiteAwarenessEvent event) {
-    if (_isFlaggedFaceMatchId(event.faceMatchId)) {
-      return '⛔ FLAGGED INDIVIDUAL — Immediate attention required';
-    }
-    final faceMatchId = (event.faceMatchId ?? '').trim();
-    if (faceMatchId.isEmpty) {
-      return '❌ No resident or visitor match';
-    }
-    if (_isVisitorFaceMatchId(faceMatchId)) {
-      return '✅ Known visitor identified';
-    }
-    if (_isResidentFaceMatchId(faceMatchId)) {
-      return '✅ Known resident identified';
-    }
-    return '❌ No resident or visitor match';
+  awareness.OnyxSiteAwarenessEvent _toSharedAwarenessEvent(
+    OnyxSiteAwarenessEvent event,
+  ) {
+    return awareness.OnyxSiteAwarenessEvent(
+      eventId: event.eventId,
+      siteId: event.siteId,
+      clientId: event.clientId,
+      cameraId: event.cameraId,
+      channelId: event.channelId,
+      eventType: awareness.OnyxEventType.values.byName(event.eventType.name),
+      detectedAt: event.detectedAt,
+      rawEventType: event.rawEventType,
+      targetType: event.targetType,
+      plateNumber: event.plateNumber,
+      faceMatchId: event.faceMatchId,
+      faceMatchName: event.faceMatchName,
+      faceMatchConfidence: event.faceMatchConfidence,
+      faceMatchDistance: event.faceMatchDistance,
+      personConfidence: event.personConfidence,
+      snapshotBytes: event.snapshotBytes,
+      zoneId: event.zoneId,
+      incidentId: event.incidentId,
+      certificateId: event.certificateId,
+      alertReason: event.alertReason,
+      latencyRecord: event.latencyRecord,
+      unknownPerson: event.unknownPerson,
+      isKnownFaultChannel: event.isKnownFaultChannel,
+    );
   }
 
-  String _faceMatchAlertSubjectLabel(OnyxSiteAwarenessEvent event) {
-    final faceMatchId = (event.faceMatchId ?? '').trim();
-    if (_isFlaggedFaceMatchId(faceMatchId)) {
-      return 'flagged individual';
+  OnyxSiteAwarenessEvent _attachAlertReason(OnyxSiteAwarenessEvent event) {
+    if ((event.alertReason ?? const <String, Object?>{}).isNotEmpty) {
+      return event;
     }
-    if (_isVisitorFaceMatchId(faceMatchId)) {
-      return 'known visitor';
+    if (event.eventType != OnyxEventType.humanDetected &&
+        event.eventType != OnyxEventType.vehicleDetected &&
+        event.eventType != OnyxEventType.perimeterBreach) {
+      return event;
     }
-    if (_isResidentFaceMatchId(faceMatchId)) {
-      return 'known resident';
+    final reason = _alertReasonBuilder.buildReason(
+      _toSharedAwarenessEvent(event),
+    );
+    return event.copyWith(alertReason: reason.toJsonMap());
+  }
+
+  void _cachePendingAlertReason(OnyxSiteAwarenessEvent event) {
+    if (event.eventType != OnyxEventType.humanDetected &&
+        event.eventType != OnyxEventType.vehicleDetected) {
+      return;
     }
-    return 'human';
+    final reason = event.alertReason;
+    if (reason == null || reason.isEmpty) {
+      return;
+    }
+    _prunePendingAlertReasons(event.detectedAt);
+    _pendingAlertReasonsByDetectionKey[_alertReasonCacheKey(
+      channelId: event.channelId,
+      detectedAt: event.detectedAt,
+    )] = Map<String, Object?>.from(
+      reason,
+    );
+    final latency = event.latencyRecord;
+    if (latency != null) {
+      _pendingLatencyByDetectionKey[_alertReasonCacheKey(
+            channelId: event.channelId,
+            detectedAt: event.detectedAt,
+          )] =
+          latency;
+    }
+    final confidence = event.personConfidence;
+    if (confidence != null) {
+      _pendingConfidenceByDetectionKey[_alertReasonCacheKey(
+            channelId: event.channelId,
+            detectedAt: event.detectedAt,
+          )] =
+          confidence;
+    }
+  }
+
+  Map<String, Object?> _alertReasonForDecision(
+    OnyxProactiveAlertDecision decision,
+  ) {
+    final key = _alertReasonCacheKey(
+      channelId: '${decision.channelId}',
+      detectedAt: decision.detectedAt,
+    );
+    final reason = Map<String, Object?>.from(
+      _pendingAlertReasonsByDetectionKey.remove(key) ??
+          const <String, Object?>{},
+    );
+    final signals = _stringListFromReason(reason['signals']);
+    if (decision.isLoitering) {
+      signals.add('Presence for ${decision.loiterMinutes} minutes');
+    }
+    reason['signals'] = signals.toList(growable: false);
+    final rules = _stringListFromReason(reason['rules_fired']);
+    final zoneType = decision.zoneType.trim().toLowerCase();
+    if ((zoneType.contains('semi-perimeter') ||
+            zoneType.contains('semi_perimeter')) &&
+        !rules.contains('Semi-perimeter zone activity')) {
+      rules.add('Semi-perimeter zone activity');
+    } else if (zoneType.contains('perimeter') &&
+        !rules.contains('Perimeter zone violation')) {
+      rules.add('Perimeter zone violation');
+    }
+    reason['rules_fired'] = rules.toList(growable: false);
+    if ((reason['headline']?.toString().trim() ?? '').isEmpty) {
+      reason['headline'] = decision.telegramAlertKind.name;
+    }
+    if ((reason['context_note']?.toString().trim() ?? '').isEmpty) {
+      reason['context_note'] = decision.withinAlertWindow
+          ? 'Detected outside active hours'
+          : 'Detected during active hours';
+    }
+    return reason;
+  }
+
+  OnyxLatencyRecord? _latencyRecordForDecision(
+    OnyxProactiveAlertDecision decision,
+  ) {
+    final key = _alertReasonCacheKey(
+      channelId: '${decision.channelId}',
+      detectedAt: decision.detectedAt,
+    );
+    final record = _pendingLatencyByDetectionKey.remove(key);
+    if (record == null) {
+      return null;
+    }
+    return record.copyWith(
+      alertId:
+          '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}',
+      siteId: decision.siteId.trim().isEmpty ? _siteId : decision.siteId.trim(),
+      clientId: _clientId,
+    );
+  }
+
+  double? _confidenceForDecision(OnyxProactiveAlertDecision decision) {
+    final key = _alertReasonCacheKey(
+      channelId: '${decision.channelId}',
+      detectedAt: decision.detectedAt,
+    );
+    return _pendingConfidenceByDetectionKey.remove(key);
+  }
+
+  List<String> _stringListFromReason(Object? value) {
+    if (value is! List) {
+      return const <String>[];
+    }
+    return value
+        .map((entry) => entry.toString().trim())
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: true);
+  }
+
+  String _alertReasonCacheKey({
+    required String channelId,
+    required DateTime detectedAt,
+  }) {
+    return '${channelId.trim()}:${detectedAt.toUtc().microsecondsSinceEpoch}';
+  }
+
+  void _prunePendingAlertReasons(DateTime nowUtc) {
+    final cutoffMicros = nowUtc
+        .toUtc()
+        .subtract(detectionWindow)
+        .microsecondsSinceEpoch;
+    _pendingAlertReasonsByDetectionKey.removeWhere((key, _) {
+      final timestampPart = key.split(':').last;
+      final micros = int.tryParse(timestampPart);
+      final shouldRemove = micros == null || micros < cutoffMicros;
+      if (shouldRemove) {
+        _pendingLatencyByDetectionKey.remove(key);
+        _pendingConfidenceByDetectionKey.remove(key);
+      }
+      return shouldRemove;
+    });
+  }
+
+  OnyxLatencyRecord? _withSnapshotLatency(
+    OnyxLatencyRecord? record,
+    DateTime snapshotAtUtc,
+  ) {
+    if (record == null) {
+      return null;
+    }
+    return record.copyWith(snapshotAt: snapshotAtUtc.toUtc());
+  }
+
+  OnyxLatencyRecord? _withYoloLatency(
+    OnyxLatencyRecord? record,
+    DateTime yoloAtUtc,
+  ) {
+    if (record == null) {
+      return null;
+    }
+    return record.copyWith(yoloAt: yoloAtUtc.toUtc());
+  }
+
+  bool _shouldAllowUnverifiedHumanAlert(
+    OnyxLiveSnapshotYoloService? liveSnapshotYoloService,
+  ) {
+    if (liveSnapshotYoloService == null ||
+        !liveSnapshotYoloService.isConfigured ||
+        _isYoloHealthy) {
+      return false;
+    }
+    final graceUntilUtc = _yoloStartupGraceUntilUtc;
+    return graceUntilUtc != null && _clock().toUtc().isBefore(graceUntilUtc);
   }
 
   Future<OnyxSiteAwarenessEvent> _enrichVehicleDetectionEvent(
@@ -3075,7 +3734,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     final nowUtc = _clock().toUtc();
     final staleAfter = Duration(
-      seconds: math.max(publishInterval.inSeconds * 4, 180),
+      seconds: math.max(_publishIntervalForCurrentMode.inSeconds * 4, 180),
     );
     if (!repository.isSnapshotPersistenceStale(
       nowUtc: nowUtc,
@@ -3326,6 +3985,28 @@ Future<void> _sendCameraWorkerReconnectAlert({
   }
 }
 
+Future<void> _sendCameraWorkerThreatModeAlert({required String siteId}) async {
+  final botToken = Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
+  final chatId = Platform.environment['ONYX_TELEGRAM_ADMIN_CHAT_ID'] ?? '';
+  final threadId = (Platform.environment['ONYX_TELEGRAM_ADMIN_THREAD_ID'] ?? '')
+      .trim();
+  if (botToken.isEmpty || chatId.isEmpty) {
+    return;
+  }
+  final uri = Uri.https('api.telegram.org', '/bot$botToken/sendMessage');
+  final body = <String, String>{
+    'chat_id': chatId,
+    'text': '⚡ ONYX THREAT MODE — Grid event detected at $siteId',
+    'disable_notification': 'false',
+  };
+  if (threadId.isNotEmpty) {
+    body['message_thread_id'] = threadId;
+  }
+  try {
+    await http.post(uri, body: body).timeout(const Duration(seconds: 10));
+  } catch (_) {}
+}
+
 Future<void> main() async {
   // Password must come from the runtime environment — never compiled in.
   final password = Platform.environment['ONYX_HIK_PASSWORD'] ?? '';
@@ -3376,10 +4057,33 @@ Future<void> main() async {
   final supabaseKey = serviceKey.isNotEmpty ? serviceKey : anonKey;
 
   OnyxSiteAwarenessRepository? repository;
+  OnyxProactiveAlertService? proactiveAlertService;
+  OnyxEvidenceCertificateService? evidenceCertificateService;
+  OnyxOutcomeFeedbackService? outcomeFeedbackService;
+  OnyxAwarenessLatencyService? awarenessLatencyService;
+  OnyxPowerModeService? powerModeService;
+  OnyxEnvironmentEngine? environmentEngine;
   if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
     repository = OnyxSiteAwarenessRepository(
       supabaseUrl: supabaseUrl,
       supabaseKey: supabaseKey,
+    );
+    proactiveAlertService = OnyxProactiveAlertService(
+      readConfig: repository.readAlertConfig,
+      profileService: OnyxSiteProfileService(
+        readProfileRow: repository.readSiteProfileRow,
+        readZoneRuleRows: repository.readSiteZoneRuleRows,
+        readExpectedVisitorRows: repository.readExpectedVisitorRows,
+      ),
+    );
+    evidenceCertificateService = OnyxEvidenceCertificateService(
+      client: SupabaseClient(supabaseUrl, supabaseKey),
+    );
+    outcomeFeedbackService = OnyxOutcomeFeedbackService(
+      client: SupabaseClient(supabaseUrl, supabaseKey),
+    );
+    awarenessLatencyService = OnyxAwarenessLatencyService(
+      client: SupabaseClient(supabaseUrl, supabaseKey),
     );
     stdout.writeln(
       '[ONYX] Supabase: $supabaseUrl '
@@ -3408,14 +4112,37 @@ Future<void> main() async {
           rtspFrameServerBaseUri: rtspFrameServerEndpoint,
         );
 
-  final service = OnyxHikIsapiStreamAwarenessService(
+  late final OnyxHikIsapiStreamAwarenessService service;
+  powerModeService = supabaseUrl.isEmpty || supabaseKey.isEmpty
+      ? null
+      : OnyxPowerModeService(
+          siteId: siteId,
+          supabaseClient: SupabaseClient(supabaseUrl, supabaseKey),
+          readHealth: () => service.readPowerHealthSnapshot(),
+          onModeChanged: (change) => service.handlePowerModeChange(change),
+        );
+  environmentEngine =
+      powerModeService == null ||
+          outcomeFeedbackService == null ||
+          awarenessLatencyService == null
+      ? null
+      : OnyxEnvironmentEngine(
+          powerModeService: powerModeService,
+          outcomeFeedbackService: outcomeFeedbackService,
+          awarenessLatencyService: awarenessLatencyService,
+        );
+  service = OnyxHikIsapiStreamAwarenessService(
     host: host,
     port: port,
     username: username,
     password: password,
     knownFaultChannels: knownFaultChannels,
     repository: repository,
+    proactiveAlertService: proactiveAlertService,
     liveSnapshotYoloService: liveSnapshotYoloService,
+    evidenceCertificateService: evidenceCertificateService,
+    powerModeService: powerModeService,
+    environmentEngine: environmentEngine,
     lprService: liveSnapshotYoloService == null
         ? null
         : OnyxLprService(detector: liveSnapshotYoloService),
@@ -3466,6 +4193,7 @@ Future<void> main() async {
       await subscription.cancel();
       await service.stop();
       yoloHttpClient.close();
+      await proactiveAlertService?.dispose();
     } catch (error) {
       stderr.writeln('[ONYX] Error during shutdown: $error');
     }

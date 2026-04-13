@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:xml/xml.dart' as xml;
 
+import '../onyx_awareness_latency_service.dart';
+
 enum OnyxChannelStatusType { active, idle, videoloss, unknown }
 
 enum OnyxEventType {
@@ -225,6 +227,10 @@ class OnyxSiteAlert {
   final String? alertKind;
   final String? subjectLabel;
   final String? timeContext;
+  final Map<String, Object?>? alertReason;
+  final Map<String, Object?>? latency;
+  final double? personConfidence;
+  final String? powerMode;
 
   const OnyxSiteAlert({
     required this.alertId,
@@ -241,6 +247,10 @@ class OnyxSiteAlert {
     this.alertKind,
     this.subjectLabel,
     this.timeContext,
+    this.alertReason,
+    this.latency,
+    this.personConfidence,
+    this.powerMode,
   });
 
   String get deduplicationKey {
@@ -271,11 +281,21 @@ class OnyxSiteAlert {
       'alert_kind': alertKind,
       'subject_label': subjectLabel,
       'time_context': timeContext,
+      'alert_reason': alertReason == null
+          ? null
+          : Map<String, Object?>.from(alertReason!),
+      'latency': latency == null ? null : Map<String, Object?>.from(latency!),
+      'person_confidence': personConfidence,
+      'power_mode': powerMode,
     };
   }
 }
 
 class OnyxSiteAwarenessEvent {
+  final String eventId;
+  final String? siteId;
+  final String? clientId;
+  final String? cameraId;
   final String channelId;
   final OnyxEventType eventType;
   final DateTime detectedAt;
@@ -286,27 +306,47 @@ class OnyxSiteAwarenessEvent {
   final String? faceMatchName;
   final double? faceMatchConfidence;
   final double? faceMatchDistance;
+  final double? personConfidence;
   final Uint8List? snapshotBytes;
+  final String? zoneId;
+  final String? incidentId;
+  final String? certificateId;
+  final Map<String, Object?>? alertReason;
+  final OnyxLatencyRecord? latencyRecord;
   final bool unknownPerson;
   final bool isKnownFaultChannel;
 
   const OnyxSiteAwarenessEvent({
+    required this.eventId,
     required this.channelId,
     required this.eventType,
     required this.detectedAt,
     required this.rawEventType,
+    this.siteId,
+    this.clientId,
+    this.cameraId,
     this.targetType,
     this.plateNumber,
     this.faceMatchId,
     this.faceMatchName,
     this.faceMatchConfidence,
     this.faceMatchDistance,
+    this.personConfidence,
     this.snapshotBytes,
+    this.zoneId,
+    this.incidentId,
+    this.certificateId,
+    this.alertReason,
+    this.latencyRecord,
     this.unknownPerson = false,
     this.isKnownFaultChannel = false,
   });
 
   OnyxSiteAwarenessEvent copyWith({
+    String? eventId,
+    String? siteId,
+    String? clientId,
+    String? cameraId,
     String? channelId,
     OnyxEventType? eventType,
     DateTime? detectedAt,
@@ -317,11 +357,21 @@ class OnyxSiteAwarenessEvent {
     String? faceMatchName,
     double? faceMatchConfidence,
     double? faceMatchDistance,
+    double? personConfidence,
     Uint8List? snapshotBytes,
+    String? zoneId,
+    String? incidentId,
+    String? certificateId,
+    Map<String, Object?>? alertReason,
+    OnyxLatencyRecord? latencyRecord,
     bool? unknownPerson,
     bool? isKnownFaultChannel,
   }) {
     return OnyxSiteAwarenessEvent(
+      eventId: eventId ?? this.eventId,
+      siteId: siteId ?? this.siteId,
+      clientId: clientId ?? this.clientId,
+      cameraId: cameraId ?? this.cameraId,
       channelId: channelId ?? this.channelId,
       eventType: eventType ?? this.eventType,
       detectedAt: detectedAt ?? this.detectedAt,
@@ -332,7 +382,13 @@ class OnyxSiteAwarenessEvent {
       faceMatchName: faceMatchName ?? this.faceMatchName,
       faceMatchConfidence: faceMatchConfidence ?? this.faceMatchConfidence,
       faceMatchDistance: faceMatchDistance ?? this.faceMatchDistance,
+      personConfidence: personConfidence ?? this.personConfidence,
       snapshotBytes: snapshotBytes ?? this.snapshotBytes,
+      zoneId: zoneId ?? this.zoneId,
+      incidentId: incidentId ?? this.incidentId,
+      certificateId: certificateId ?? this.certificateId,
+      alertReason: alertReason ?? this.alertReason,
+      latencyRecord: latencyRecord ?? this.latencyRecord,
       unknownPerson: unknownPerson ?? this.unknownPerson,
       isKnownFaultChannel: isKnownFaultChannel ?? this.isKnownFaultChannel,
     );
@@ -363,6 +419,11 @@ class OnyxSiteAwarenessEvent {
         DateTime.tryParse(_readTag(document, 'dateTime'))?.toUtc() ??
         (clock ?? DateTime.now).call().toUtc();
     return OnyxSiteAwarenessEvent(
+      eventId: _defaultAwarenessEventId(
+        channelId: channelId.isEmpty ? 'unknown' : channelId,
+        eventType: rawEventType,
+        detectedAt: detectedAt,
+      ),
       channelId: channelId.isEmpty ? 'unknown' : channelId,
       eventType: mapOnyxEventType(
         rawEventType: rawEventType,
@@ -389,6 +450,17 @@ class OnyxSiteAwarenessEvent {
     }
     return !isKnownFaultChannel && eventType == OnyxEventType.humanDetected;
   }
+}
+
+String _defaultAwarenessEventId({
+  required String channelId,
+  required String eventType,
+  required DateTime detectedAt,
+}) {
+  final normalizedEventType = eventType.trim().isEmpty
+      ? 'unknown'
+      : eventType.trim();
+  return 'EVT-${detectedAt.toUtc().microsecondsSinceEpoch}-${channelId.trim()}-$normalizedEventType';
 }
 
 class OnyxSiteAwarenessProjector {
@@ -445,6 +517,7 @@ class OnyxSiteAwarenessProjector {
           eventType: event.eventType,
           detectedAt: event.detectedAt.toUtc(),
           isAcknowledged: false,
+          alertReason: event.alertReason,
         ),
       );
     }
@@ -565,6 +638,10 @@ class OnyxSiteAwarenessProjector {
         alertKind: _activeAlerts[i].alertKind,
         subjectLabel: _activeAlerts[i].subjectLabel,
         timeContext: _activeAlerts[i].timeContext,
+        alertReason: _activeAlerts[i].alertReason,
+        latency: _activeAlerts[i].latency,
+        personConfidence: _activeAlerts[i].personConfidence,
+        powerMode: _activeAlerts[i].powerMode,
       );
     }
     return snapshot();
@@ -599,6 +676,10 @@ class OnyxSiteAwarenessProjector {
         alertKind: alert.alertKind,
         subjectLabel: alert.subjectLabel,
         timeContext: alert.timeContext,
+        alertReason: alert.alertReason,
+        latency: alert.latency,
+        personConfidence: alert.personConfidence,
+        powerMode: alert.powerMode,
       );
       return;
     }
