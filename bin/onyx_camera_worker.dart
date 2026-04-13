@@ -255,6 +255,9 @@ class OnyxSiteAlert {
   final bool isLoitering;
   final bool isSequence;
   final String? alertSource;
+  final String? alertKind;
+  final String? subjectLabel;
+  final String? timeContext;
 
   const OnyxSiteAlert({
     required this.alertId,
@@ -268,6 +271,9 @@ class OnyxSiteAlert {
     this.isLoitering = false,
     this.isSequence = false,
     this.alertSource,
+    this.alertKind,
+    this.subjectLabel,
+    this.timeContext,
   });
 
   String get deduplicationKey {
@@ -295,6 +301,9 @@ class OnyxSiteAlert {
       'is_loitering': isLoitering,
       'is_sequence': isSequence,
       'alert_source': alertSource,
+      'alert_kind': alertKind,
+      'subject_label': subjectLabel,
+      'time_context': timeContext,
     };
   }
 }
@@ -586,6 +595,9 @@ class OnyxSiteAwarenessProjector {
         isLoitering: _activeAlerts[i].isLoitering,
         isSequence: _activeAlerts[i].isSequence,
         alertSource: _activeAlerts[i].alertSource,
+        alertKind: _activeAlerts[i].alertKind,
+        subjectLabel: _activeAlerts[i].subjectLabel,
+        timeContext: _activeAlerts[i].timeContext,
       );
     }
     return snapshot();
@@ -617,6 +629,9 @@ class OnyxSiteAwarenessProjector {
         isLoitering: alert.isLoitering,
         isSequence: alert.isSequence,
         alertSource: alert.alertSource,
+        alertKind: alert.alertKind,
+        subjectLabel: alert.subjectLabel,
+        timeContext: alert.timeContext,
       );
       return;
     }
@@ -754,6 +769,15 @@ String _readTag(xml.XmlDocument document, String tagName) {
 String _normalizeToken(String value) {
   return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
+
+bool _isFlaggedFaceMatchId(String? value) =>
+    (value ?? '').trim().toUpperCase().contains('_FLAGGED_');
+
+bool _isResidentFaceMatchId(String? value) =>
+    (value ?? '').trim().toUpperCase().contains('_RESIDENT_');
+
+bool _isVisitorFaceMatchId(String? value) =>
+    (value ?? '').trim().toUpperCase().contains('_VISITOR_');
 
 String _uuidV4(math.Random random) {
   final bytes = List<int>.generate(16, (_) => random.nextInt(256));
@@ -2287,7 +2311,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     _yoloHealthCheckInFlight = true;
     try {
-      for (var attempt = 1; attempt <= _yoloHealthFailureThreshold; attempt += 1) {
+      for (
+        var attempt = 1;
+        attempt <= _yoloHealthFailureThreshold;
+        attempt += 1
+      ) {
         final ready = await _isYoloReady(liveSnapshotYoloService);
         if (!_running || generation != _generation) {
           return;
@@ -2672,16 +2700,24 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     if (_shouldRaiseConfirmedHumanAlert(event)) {
       final zone = projector.cameraZones[event.channelId];
+      final isFlagged = _isFlaggedFaceMatchId(event.faceMatchId);
       snapshot = projector.ingestSiteAlert(
         OnyxSiteAlert(
           alertId:
-              '$_siteId:${event.channelId}:${event.detectedAt.microsecondsSinceEpoch}:human:single',
+              '$_siteId:${event.channelId}:${event.detectedAt.microsecondsSinceEpoch}:${isFlagged ? 'flagged' : 'human'}:single',
           channelId: event.channelId,
-          eventType: OnyxEventType.humanDetected,
+          eventType: isFlagged
+              ? OnyxEventType.perimeterBreach
+              : OnyxEventType.humanDetected,
           detectedAt: event.detectedAt,
           zoneName: zone?.zoneName,
           zoneType: zone?.zoneType,
-          alertSource: 'dvr_yolo_confirmed',
+          message: _faceMatchAlertMessage(event),
+          alertSource: isFlagged
+              ? 'dvr_yolo_flagged_confirmed'
+              : 'dvr_yolo_confirmed',
+          alertKind: isFlagged ? 'perimeter_breach' : 'general_movement',
+          subjectLabel: _faceMatchAlertSubjectLabel(event),
         ),
       );
       _latestSnapshot = snapshot;
@@ -2807,6 +2843,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           'distance ${(result.faceDistance ?? 0).toStringAsFixed(2)})',
           name: 'OnyxHikIsapiStream',
         );
+        if (_isFlaggedFaceMatchId(faceMatchId)) {
+          developer.log(
+            '[ONYX] FLAGGED PERSON detected on CH$channelId: $faceMatchId',
+            name: 'OnyxHikIsapiStream',
+            level: 1000,
+          );
+        }
         return event.copyWith(
           faceMatchId: faceMatchId,
           faceMatchName: person?.displayName,
@@ -2854,6 +2897,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         event.isKnownFaultChannel) {
       return false;
     }
+    if (_isFlaggedFaceMatchId(event.faceMatchId)) {
+      return true;
+    }
     if ((event.faceMatchId ?? '').trim().isNotEmpty) {
       developer.log(
         '[ONYX] Suppressing direct alert for known person '
@@ -2863,6 +2909,37 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return false;
     }
     return true;
+  }
+
+  String _faceMatchAlertMessage(OnyxSiteAwarenessEvent event) {
+    if (_isFlaggedFaceMatchId(event.faceMatchId)) {
+      return '⛔ FLAGGED INDIVIDUAL — Immediate attention required';
+    }
+    final faceMatchId = (event.faceMatchId ?? '').trim();
+    if (faceMatchId.isEmpty) {
+      return '❌ No resident or visitor match';
+    }
+    if (_isVisitorFaceMatchId(faceMatchId)) {
+      return '✅ Known visitor identified';
+    }
+    if (_isResidentFaceMatchId(faceMatchId)) {
+      return '✅ Known resident identified';
+    }
+    return '❌ No resident or visitor match';
+  }
+
+  String _faceMatchAlertSubjectLabel(OnyxSiteAwarenessEvent event) {
+    final faceMatchId = (event.faceMatchId ?? '').trim();
+    if (_isFlaggedFaceMatchId(faceMatchId)) {
+      return 'flagged individual';
+    }
+    if (_isVisitorFaceMatchId(faceMatchId)) {
+      return 'known visitor';
+    }
+    if (_isResidentFaceMatchId(faceMatchId)) {
+      return 'known resident';
+    }
+    return 'human';
   }
 
   Future<OnyxSiteAwarenessEvent> _enrichVehicleDetectionEvent(

@@ -14808,14 +14808,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       '🕐 $timeLabel — Active $activeMinutes ${activeMinutes == 1 ? 'minute' : 'minutes'}',
       '👤 Detection: ${_telegramMarkdownEscape(subjectLabel)}',
       '📍 ${_telegramMarkdownEscape(zoneTypeLabel)} — ${_telegramMarkdownEscape(timeContextLabel)}',
-      '❌ No resident or visitor match',
+      _telegramAlertIdentityLine(alert),
     ].join('\n');
     final plainText = <String>[
       '⚠️ $alertTypeLabel — $cameraLabel',
       '🕐 $timeLabel — Active $activeMinutes ${activeMinutes == 1 ? 'minute' : 'minutes'}',
       '👤 Detection: $subjectLabel',
       '📍 $zoneTypeLabel — $timeContextLabel',
-      '❌ No resident or visitor match',
+      _telegramAlertIdentityLine(alert),
     ].join('\n');
     final replyMarkup = siteProfile.alertWithButtons
         ? _telegramInlineKeyboardForProactiveAlert(
@@ -14920,18 +14920,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return;
     }
     try {
-      await Supabase.instance.client.from('site_alarm_events').insert(
-        <String, Object?>{
-          'site_id': siteId.trim(),
-          'device_id': channelId.trim().isEmpty
-              ? 'telegram-inline'
-              : 'camera-ch${channelId.trim()}',
-          'event_type': eventType,
-          'zone_name': (zoneName ?? '').trim().isEmpty ? null : zoneName!.trim(),
-          'occurred_at': occurredAtUtc.toUtc().toIso8601String(),
-          'raw_payload': rawPayload,
-        },
-      );
+      await Supabase.instance.client
+          .from('site_alarm_events')
+          .insert(<String, Object?>{
+            'site_id': siteId.trim(),
+            'device_id': channelId.trim().isEmpty
+                ? 'telegram-inline'
+                : 'camera-ch${channelId.trim()}',
+            'event_type': eventType,
+            'zone_name': (zoneName ?? '').trim().isEmpty
+                ? null
+                : zoneName!.trim(),
+            'occurred_at': occurredAtUtc.toUtc().toIso8601String(),
+            'raw_payload': rawPayload,
+          });
     } catch (_) {}
   }
 
@@ -15022,6 +15024,23 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return 'animal';
     }
     return 'human';
+  }
+
+  String _telegramAlertIdentityLine(_SiteAwarenessActiveAlertRecord alert) {
+    final message = alert.message.trim().toLowerCase();
+    final subject = (alert.subjectLabel ?? '').trim().toLowerCase();
+    if (message.contains('flagged individual') || subject.contains('flagged')) {
+      return '⛔ FLAGGED INDIVIDUAL — Immediate attention required';
+    }
+    if (message.contains('known resident identified') ||
+        subject.contains('known resident')) {
+      return '✅ Known resident identified';
+    }
+    if (message.contains('known visitor identified') ||
+        subject.contains('known visitor')) {
+      return '✅ Known visitor identified';
+    }
+    return '❌ No resident or visitor match';
   }
 
   String _telegramAlertZoneTypeLabel(_SiteAwarenessActiveAlertRecord alert) {

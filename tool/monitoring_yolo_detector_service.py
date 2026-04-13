@@ -420,8 +420,22 @@ class MockBackend(DetectorBackend):
                 else "Mock backend found no supported objects."
             ),
             "detections": detections,
-            "face_match_id": "RESIDENT-01" if "resident" in text else None,
-            "face_confidence": 0.88 if "resident" in text else None,
+            "face_match_id": (
+                "MSVALLEE_FLAGGED_EXAMPLE"
+                if "flagged" in text
+                else "MSVALLEE_VISITOR_EXAMPLE"
+                if "visitor" in text
+                else "MSVALLEE_RESIDENT_EXAMPLE"
+                if "resident" in text
+                else None
+            ),
+            "face_confidence": (
+                0.88
+                if any(word in text for word in ("resident", "visitor", "flagged"))
+                else None
+            ),
+            "flagged": "flagged" in text,
+            "threat_level": "high" if "flagged" in text else None,
             "plate_number": "CA123456" if "plate" in text else None,
             "plate_confidence": 0.81 if "plate" in text else None,
         }
@@ -555,11 +569,14 @@ class FaceRecognitionModule:
             return None
 
         confidence = max(0.0, min(1.0 - best_distance, 1.0))
+        flagged = "_FLAGGED_" in best_match_id
         return {
             "face_match_id": best_match_id,
             "face_confidence": confidence,
             "face_distance": max(0.0, min(best_distance, 1.0)),
             "matched": True,
+            "flagged": flagged,
+            "threat_level": "high" if flagged else None,
         }
 
     def _ensure_models(self):
@@ -1166,10 +1183,14 @@ class UltralyticsBackend(DetectorBackend):
                 "confidence": face_match["face_confidence"],
                 "distance": face_match.get("face_distance"),
                 "matched": True,
+                "flagged": face_match.get("flagged", False),
+                "threat_level": face_match.get("threat_level"),
             },
             "face_match_id": None if face_match is None else face_match["face_match_id"],
             "face_confidence": None if face_match is None else face_match["face_confidence"],
             "face_distance": None if face_match is None else face_match.get("face_distance"),
+            "flagged": False if face_match is None else face_match.get("flagged", False),
+            "threat_level": None if face_match is None else face_match.get("threat_level"),
             "plate_number": None if plate_match is None else plate_match["plate_number"],
             "plate_confidence": None if plate_match is None else plate_match["plate_confidence"],
         }

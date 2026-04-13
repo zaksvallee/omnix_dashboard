@@ -562,6 +562,9 @@ class OnyxSiteAwarenessProjector {
         isLoitering: _activeAlerts[i].isLoitering,
         isSequence: _activeAlerts[i].isSequence,
         alertSource: _activeAlerts[i].alertSource,
+        alertKind: _activeAlerts[i].alertKind,
+        subjectLabel: _activeAlerts[i].subjectLabel,
+        timeContext: _activeAlerts[i].timeContext,
       );
     }
     return snapshot();
@@ -593,6 +596,9 @@ class OnyxSiteAwarenessProjector {
         isLoitering: alert.isLoitering,
         isSequence: alert.isSequence,
         alertSource: alert.alertSource,
+        alertKind: alert.alertKind,
+        subjectLabel: alert.subjectLabel,
+        timeContext: alert.timeContext,
       );
       return;
     }
