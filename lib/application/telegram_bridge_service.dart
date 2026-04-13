@@ -4,6 +4,10 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+enum TelegramBridgeMessageSource { human, ai, system }
+
+enum TelegramBridgeMessageAudience { client, admin, internal }
+
 class TelegramBridgeMessage {
   final String messageKey;
   final String chatId;
@@ -13,6 +17,11 @@ class TelegramBridgeMessage {
   final String? photoFilename;
   final Map<String, Object?>? replyMarkup;
   final String? parseMode;
+  final TelegramBridgeMessageSource source;
+  final TelegramBridgeMessageAudience audience;
+  final bool controllerAuthored;
+  final bool isBulkOrBroadcast;
+  final bool approvalGranted;
 
   const TelegramBridgeMessage({
     required this.messageKey,
@@ -23,9 +32,26 @@ class TelegramBridgeMessage {
     this.photoFilename,
     this.replyMarkup,
     this.parseMode,
+    this.source = TelegramBridgeMessageSource.system,
+    this.audience = TelegramBridgeMessageAudience.client,
+    this.controllerAuthored = false,
+    this.isBulkOrBroadcast = false,
+    this.approvalGranted = false,
   });
 
   bool get isPhoto => photoBytes != null && photoBytes!.isNotEmpty;
+
+  bool get requiresApproval {
+    if (source == TelegramBridgeMessageSource.ai ||
+        source == TelegramBridgeMessageSource.system) {
+      return false;
+    }
+    if (isBulkOrBroadcast) {
+      return true;
+    }
+    return controllerAuthored &&
+        audience == TelegramBridgeMessageAudience.client;
+  }
 }
 
 class TelegramBridgeInboundMessage {
@@ -189,6 +215,12 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       if (chatId.isEmpty) {
         failed.add(message);
         failureReasons[message.messageKey] = 'Missing Telegram chat_id.';
+        continue;
+      }
+      if (message.requiresApproval && !message.approvalGranted) {
+        failed.add(message);
+        failureReasons[message.messageKey] =
+            'Approval required for human-drafted client or bulk Telegram messages.';
         continue;
       }
       try {

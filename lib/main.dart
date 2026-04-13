@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:io' show Platform;
+import 'dart:io' show Directory, Platform;
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -107,6 +107,7 @@ import 'application/onyx_elevenlabs_service.dart';
 import 'application/onyx_fr_service.dart';
 import 'application/onyx_patrol_monitor_service.dart';
 import 'application/onyx_behaviour_monitor_service.dart';
+import 'application/onyx_site_provisioning_service.dart';
 import 'application/onyx_site_profile_service.dart';
 import 'application/onyx_telegram_command_gateway.dart';
 import 'application/onyx_telegram_operational_command_service.dart';
@@ -1669,7 +1670,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   late final ClientAppLocale _clientAppLocale = ClientAppLocaleParser.fromCode(
     _clientAppLocaleEnv,
   );
-  final store = InMemoryEventStore();
+  late final InMemoryEventStore store;
   late DispatchApplicationService service;
   late final ClientLedgerRepository _clientLedgerRepository;
   late final ClientLedgerService _clientLedgerService;
@@ -3228,6 +3229,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    store = InMemoryEventStore(
+      supabaseClient: widget.supabaseReady ? Supabase.instance.client : null,
+      restoreSiteId: _selectedSite,
+    );
+    if (widget.supabaseReady) {
+      unawaited(store.restoreFromSupabase());
+    }
     if (widget.initialRouteOverride != null) {
       _route = widget.initialRouteOverride!;
     }
@@ -15392,6 +15400,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     String? failureContext,
     Map<String, Object?>? replyMarkup,
     String? parseMode,
+    TelegramBridgeMessageSource source = TelegramBridgeMessageSource.system,
+    TelegramBridgeMessageAudience audience =
+        TelegramBridgeMessageAudience.admin,
+    bool controllerAuthored = false,
+    bool isBulkOrBroadcast = false,
+    bool approvalGranted = false,
   }) async {
     final chunks = _splitTelegramAdminResponse(responseText);
     final stamp = DateTime.now().microsecondsSinceEpoch;
@@ -15404,6 +15418,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           text: chunks[index],
           replyMarkup: index == 0 ? replyMarkup : null,
           parseMode: parseMode,
+          source: source,
+          audience: audience,
+          controllerAuthored: controllerAuthored,
+          isBulkOrBroadcast: isBulkOrBroadcast,
+          approvalGranted: approvalGranted,
         ),
     ];
     final result = await _telegramBridge.sendMessages(messages: messages);
@@ -15438,6 +15457,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     String? failureContext,
     Map<String, Object?>? replyMarkup,
     String? parseMode,
+    TelegramBridgeMessageSource source = TelegramBridgeMessageSource.system,
+    TelegramBridgeMessageAudience audience =
+        TelegramBridgeMessageAudience.client,
+    bool controllerAuthored = false,
+    bool isBulkOrBroadcast = false,
+    bool approvalGranted = false,
   }) async {
     final result = await _telegramBridge.sendMessages(
       messages: <TelegramBridgeMessage>[
@@ -15450,6 +15475,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           photoFilename: photoFilename,
           replyMarkup: replyMarkup,
           parseMode: parseMode,
+          source: source,
+          audience: audience,
+          controllerAuthored: controllerAuthored,
+          isBulkOrBroadcast: isBulkOrBroadcast,
+          approvalGranted: approvalGranted,
         ),
       ],
     );
@@ -16365,9 +16395,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             messageText: update.text,
             clientId: target.clientId,
             siteId: siteId,
-            deliveryMode: _telegramAiApprovalRequired && canNotifyAdmin
-                ? TelegramAiDeliveryMode.approvalDraft
-                : TelegramAiDeliveryMode.telegramLive,
+            deliveryMode: TelegramAiDeliveryMode.telegramLive,
             clientProfileSignals: aiContext.clientProfileSignals,
             preferredReplyExamples: aiContext.preferredReplyExamples,
             preferredReplyStyleTags: aiContext.preferredReplyStyleTags,
@@ -16393,74 +16421,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         providerLabel: 'timeout-fallback',
       );
     }
-    if (_telegramAiApprovalRequired && canNotifyAdmin) {
-      final pending = _TelegramAiPendingDraft(
-        inboundUpdateId: update.updateId,
-        chatId: update.chatId,
-        messageThreadId: update.messageThreadId,
-        audience: 'client',
-        clientId: target.clientId,
-        siteId: siteId,
-        sourceText: update.text.trim(),
-        originalDraftText: aiDraft.text,
-        draftText: aiDraft.text,
-        providerLabel: aiDraft.providerLabel,
-        usedLearnedApprovalStyle: aiDraft.usedLearnedApprovalStyle,
-        createdAtUtc: DateTime.now().toUtc(),
-      );
-      _telegramAiPendingDrafts = <_TelegramAiPendingDraft>[
-        pending,
-        ..._telegramAiPendingDrafts.where(
-          (entry) => entry.inboundUpdateId != pending.inboundUpdateId,
-        ),
-      ].take(100).toList(growable: false);
-      _telegramAiLastHandledAtUtc = pending.createdAtUtc;
-      _telegramAiLastHandledSummary = '${target.clientId}/$siteId • pending';
-      await _appendTelegramConversationMessage(
-        clientId: target.clientId,
-        siteId: siteId,
-        author: 'ONYX AI',
-        body: 'Pending approval reply draft: ${aiDraft.text}',
-        occurredAtUtc: pending.createdAtUtc,
-        roomKey: 'Security Desk',
-        viewerRole: ClientAppViewerRole.control.name,
-        incidentStatusLabel: 'Pending Approval',
-        messageSource: 'telegram',
-        messageProvider: aiDraft.providerLabel,
-      );
-      await _sendTelegramMessageWithChunks(
-        messageKeyPrefix: 'tg-admin-draft-${update.updateId}',
-        chatId: adminChatId,
-        messageThreadId: adminThreadId,
-        responseText:
-            'ONYX AI draft pending approval\n'
-            'update_id=${pending.inboundUpdateId}\n'
-            'scope=${pending.clientId}/${pending.siteId}\n'
-            'chat=${pending.chatId}${pending.messageThreadId == null ? '' : '#${pending.messageThreadId}'}\n'
-            'source=${_singleLine(pending.sourceText)}\n'
-            'draft=${_singleLine(pending.draftText)}\n'
-            'approve=/aiapprove ${pending.inboundUpdateId} • reject=/aireject ${pending.inboundUpdateId}',
-        failureContext: 'Admin draft relay',
-      );
-      await _appendTelegramAiLedger(
-        clientId: target.clientId,
-        siteId: siteId,
-        lane: 'client',
-        action: 'draft_pending',
-        inboundText: update.text,
-        outboundText: aiDraft.text,
-        providerLabel: aiDraft.providerLabel,
-        update: update,
-      );
-      unawaited(_persistTelegramAdminRuntimeState());
-      return true;
-    }
     final delivered = await _sendTelegramMessageWithChunks(
       messageKeyPrefix: 'tg-client-ai-${update.updateId}',
       chatId: update.chatId,
       messageThreadId: update.messageThreadId,
       responseText: aiDraft.text,
       failureContext: 'Client AI response',
+      source: TelegramBridgeMessageSource.ai,
+      audience: TelegramBridgeMessageAudience.client,
     );
     final nowUtc = DateTime.now().toUtc();
     _telegramAiLastHandledAtUtc = nowUtc;
@@ -24680,6 +24648,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'bindalarm',
           arguments: arguments,
         );
+      case '/provision':
+        return _TelegramAdminCommandParseResult(
+          command: 'provision',
+          arguments: arguments,
+        );
       case '/linkchat':
         return _TelegramAdminCommandParseResult(
           command: 'linkchat',
@@ -26188,6 +26161,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return _telegramAdminBindPartnerCommand(arguments, update);
       case 'bindalarm':
         return _telegramAdminBindAlarmCommand(arguments);
+      case 'provision':
+        return _telegramAdminProvisionCommand(arguments, update);
       case 'linkchat':
         return _telegramAdminLinkChatCommand(arguments, update);
       case 'unlinkchat':
@@ -28675,6 +28650,69 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return 'ONYX BINDCHAT\n'
         'default_target=$clientId/$siteId\n'
         '${linkResult.replaceFirst('ONYX LINKCHAT\n', '')}';
+  }
+
+  Future<String> _telegramAdminProvisionCommand(
+    String arguments,
+    TelegramBridgeInboundMessage update,
+  ) async {
+    if (!widget.supabaseReady) {
+      return 'ONYX PROVISION\nSupabase is required for site provisioning.';
+    }
+    final tokens = arguments
+        .split(RegExp(r'\s+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList(growable: false);
+    if (tokens.length < 4) {
+      return 'ONYX PROVISION\nUsage: /provision <client_id> <site_id> <dvr_host> <channel_count>';
+    }
+    final clientId = tokens[0].trim().toUpperCase();
+    final siteId = tokens[1].trim().toUpperCase();
+    final dvrHost = tokens[2].trim();
+    final channelCount = int.tryParse(tokens[3].trim());
+    if (clientId.isEmpty ||
+        siteId.isEmpty ||
+        dvrHost.isEmpty ||
+        channelCount == null ||
+        channelCount < 1) {
+      return 'ONYX PROVISION\nUsage: /provision <client_id> <site_id> <dvr_host> <channel_count>';
+    }
+    try {
+      final service = OnyxSiteProvisioningService(
+        supabase: Supabase.instance.client,
+        workspaceRootPath: Directory.current.path,
+        defaultTelegramBotToken: _telegramBotTokenEnv.trim(),
+        httpClient: _telegramBridgeHttpClient,
+      );
+      final result = await service.provisionSite(
+        OnyxSiteProvisioningRequest(
+          clientId: clientId,
+          clientName: clientId,
+          regionId: _selectedRegion,
+          siteId: siteId,
+          siteName: siteId,
+          dvrHost: dvrHost,
+          dvrUsername: 'admin',
+          dvrPassword: '',
+          telegramChatId: update.chatId,
+          telegramBotToken: '',
+          channelCount: channelCount,
+        ),
+      );
+      _telegramAdminTargetClientIdOverride = clientId;
+      _telegramAdminTargetSiteIdOverride = siteId;
+      await _persistTelegramAdminRuntimeState();
+      return 'ONYX PROVISION\n'
+          'scope=${result.clientId}/${result.siteId}\n'
+          'gallery=${result.galleryPath}\n'
+          'config=${result.configPath}\n'
+          'welcome=${result.welcomeDelivered ? 'sent' : 'skipped'}\n'
+          'telegram_chat=${update.chatId}\n'
+          'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+    } catch (error) {
+      return 'ONYX PROVISION\nFailed to provision site: $error';
+    }
   }
 
   Future<String> _telegramAdminLinkChatCommand(
@@ -35170,6 +35208,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         responseText: normalizedDraftText,
         failureContext: 'Client control reply',
         replyMarkup: replyMarkup,
+        source: TelegramBridgeMessageSource.human,
+        audience: TelegramBridgeMessageAudience.client,
+        controllerAuthored: true,
       );
       anyDelivered = anyDelivered || delivered;
     }

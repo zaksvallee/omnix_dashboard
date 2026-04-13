@@ -31,6 +31,22 @@ class TelegramClientApprovalService {
 
   const TelegramClientApprovalService();
 
+  bool requiresOutboundApproval({
+    required String source,
+    required String audience,
+    bool controllerAuthored = false,
+    bool isBulkOrBroadcast = false,
+  }) {
+    final normalizedSource = source.trim().toLowerCase();
+    if (normalizedSource == 'ai' || normalizedSource == 'system') {
+      return false;
+    }
+    if (isBulkOrBroadcast) {
+      return true;
+    }
+    return controllerAuthored && audience.trim().toLowerCase() == 'client';
+  }
+
   bool requiresClientApproval({
     required IntelligenceReceived event,
     required MonitoringWatchSceneAssessment assessment,

@@ -1,4 +1,5 @@
 import '../ui/client_app_page.dart';
+import 'telegram_client_approval_service.dart';
 import 'telegram_bridge_delivery_memory.dart';
 import 'telegram_bridge_resolver.dart';
 import 'telegram_bridge_service.dart';
@@ -54,6 +55,7 @@ class TelegramPushCoordinator {
   isFreshExternalPushCandidate;
   final bool Function(String raw) isBlockedReason;
   final DateTime Function() nowUtc;
+  final TelegramClientApprovalService approvalService;
 
   const TelegramPushCoordinator({
     required this.telegramBridge,
@@ -64,6 +66,7 @@ class TelegramPushCoordinator {
     required this.isFreshExternalPushCandidate,
     required this.isBlockedReason,
     required this.nowUtc,
+    this.approvalService = const TelegramClientApprovalService(),
   });
 
   List<ClientAppPushDeliveryItem> selectNewTelegramBridgeCandidates({
@@ -104,6 +107,12 @@ class TelegramPushCoordinator {
     required String Function(String clientId, String siteId) scopeKeyFor,
     required Set<String> Function(String clientId, String siteId)
     deliveredMessageKeysForScope,
+    TelegramBridgeMessageSource source = TelegramBridgeMessageSource.system,
+    TelegramBridgeMessageAudience audience =
+        TelegramBridgeMessageAudience.client,
+    bool controllerAuthored = false,
+    bool approvalGranted = false,
+    bool isBulkOrBroadcast = false,
   }) async {
     if (!telegramBridge.isConfigured) {
       return TelegramPushDispatchResult(
@@ -120,6 +129,27 @@ class TelegramPushCoordinator {
     }
     if (candidates.isEmpty) {
       return TelegramPushDispatchResult.noop();
+    }
+    if (approvalService.requiresOutboundApproval(
+          source: source.name,
+          audience: audience.name,
+          controllerAuthored: controllerAuthored,
+          isBulkOrBroadcast: isBulkOrBroadcast,
+        ) &&
+        !approvalGranted) {
+      return TelegramPushDispatchResult(
+        noop: false,
+        healthLabel: 'blocked',
+        healthDetail:
+            'Approval required for human-drafted client or bulk Telegram messages.',
+        fallbackToInApp: false,
+        occurredAtUtc: nowUtc(),
+        attemptStatus: 'telegram-blocked',
+        attemptFailureReason:
+            'Approval required for human-drafted client or bulk Telegram messages.',
+        attemptQueueSize: candidates.length,
+        smsFallbackCandidates: const <ClientAppPushDeliveryItem>[],
+      );
     }
 
     final targetCache = <String, List<TelegramBridgeTarget>>{};
@@ -173,6 +203,11 @@ class TelegramPushCoordinator {
             messageThreadId: target.threadId,
             text: messageBodyForItem(item),
             replyMarkup: replyMarkupForItem(item),
+            source: source,
+            audience: audience,
+            controllerAuthored: controllerAuthored,
+            isBulkOrBroadcast: isBulkOrBroadcast,
+            approvalGranted: approvalGranted,
           ),
         );
       }
@@ -281,6 +316,12 @@ class TelegramPushCoordinator {
     String? parseMode,
     List<int>? photoBytes,
     String? photoFilename,
+    TelegramBridgeMessageSource source = TelegramBridgeMessageSource.system,
+    TelegramBridgeMessageAudience audience =
+        TelegramBridgeMessageAudience.client,
+    bool controllerAuthored = false,
+    bool approvalGranted = false,
+    bool isBulkOrBroadcast = false,
   }) async {
     final normalizedClientId = clientId.trim();
     final normalizedSiteId = siteId.trim();
@@ -301,6 +342,27 @@ class TelegramPushCoordinator {
         normalizedSiteId.isEmpty ||
         normalizedText.isEmpty) {
       return TelegramPushDispatchResult.noop();
+    }
+    if (approvalService.requiresOutboundApproval(
+          source: source.name,
+          audience: audience.name,
+          controllerAuthored: controllerAuthored,
+          isBulkOrBroadcast: isBulkOrBroadcast,
+        ) &&
+        !approvalGranted) {
+      return TelegramPushDispatchResult(
+        noop: false,
+        healthLabel: 'blocked',
+        healthDetail:
+            'Approval required for human-drafted client or bulk Telegram messages.',
+        fallbackToInApp: false,
+        occurredAtUtc: nowUtc(),
+        attemptStatus: 'telegram-blocked',
+        attemptFailureReason:
+            'Approval required for human-drafted client or bulk Telegram messages.',
+        attemptQueueSize: 0,
+        smsFallbackCandidates: const <ClientAppPushDeliveryItem>[],
+      );
     }
     final targets = await telegramBridgeResolver.resolveClientTargets(
       clientId: normalizedClientId,
@@ -331,6 +393,11 @@ class TelegramPushCoordinator {
           photoFilename: photoFilename,
           replyMarkup: replyMarkup,
           parseMode: parseMode,
+          source: source,
+          audience: audience,
+          controllerAuthored: controllerAuthored,
+          isBulkOrBroadcast: isBulkOrBroadcast,
+          approvalGranted: approvalGranted,
         ),
     ];
     final sentAt = nowUtc();
