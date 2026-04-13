@@ -102,6 +102,10 @@ set_optional_env ONYX_TELEGRAM_ADMIN_CHAT_ID "$(json_value_any ONYX_TELEGRAM_ADM
 set_optional_env ONYX_TELEGRAM_ADMIN_THREAD_ID "$(json_value_any ONYX_TELEGRAM_ADMIN_THREAD_ID || true)"
 set_optional_env ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED "$(json_value_any ONYX_TELEGRAM_ADMIN_CONTROL_ENABLED || true)"
 set_optional_env ONYX_TELEGRAM_ADMIN_CRITICAL_PUSH_ENABLED "$(json_value_any ONYX_TELEGRAM_ADMIN_CRITICAL_PUSH_ENABLED || true)"
+set_optional_env ONYX_DVR_EVENTS_URL "$(json_value_any ONYX_DVR_EVENTS_URL || true)"
+set_optional_env ONYX_DVR_AUTH_MODE "$(json_value_any ONYX_DVR_AUTH_MODE || true)"
+set_optional_env ONYX_DVR_USERNAME "$(json_value_any ONYX_DVR_USERNAME || true)"
+set_optional_env ONYX_DVR_PASSWORD "$(json_value_any ONYX_DVR_PASSWORD || true)"
 set_optional_env ONYX_HIK_HOST "$(json_value_any ONYX_HIK_HOST || true)"
 if [[ -z "${ONYX_HIK_HOST:-}" ]]; then
   set_optional_env ONYX_HIK_HOST "$(json_url_part ONYX_DVR_PROXY_UPSTREAM_URL host || true)"

@@ -40,6 +40,7 @@ import 'package:omnix_dashboard/application/onyx_site_profile_service.dart';
 import 'package:omnix_dashboard/application/site_awareness/onyx_live_snapshot_yolo_service.dart';
 import 'package:omnix_dashboard/application/site_awareness/onyx_site_awareness_snapshot.dart'
     as awareness;
+import 'package:omnix_dashboard/application/telegram_bridge_service.dart';
 import 'package:supabase/supabase.dart';
 import 'package:xml/xml.dart' as xml;
 
@@ -329,6 +330,27 @@ class OnyxSiteAlert {
       'power_mode': powerMode,
     };
   }
+}
+
+class _RelayableSiteAlert {
+  final String alertId;
+  final DateTime detectedAt;
+  final bool isAcknowledged;
+  final String message;
+
+  const _RelayableSiteAlert({
+    required this.alertId,
+    required this.detectedAt,
+    required this.isAcknowledged,
+    required this.message,
+  });
+}
+
+class _TelegramRelayTarget {
+  final String chatId;
+  final int? threadId;
+
+  const _TelegramRelayTarget({required this.chatId, this.threadId});
 }
 
 class OnyxSiteAwarenessEvent {
@@ -2206,6 +2228,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final Duration detectionWindow;
   final Duration initialRetryDelay;
   final Duration maxRetryDelay;
+  final Uri? alertStreamUriOverride;
+  final DvrHttpAuthConfig? alertStreamAuthOverride;
   final DateTime Function() _clock;
   final Future<void> Function(Duration duration) _sleep;
   final Future<void> Function(
@@ -2221,6 +2245,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       const OnyxAlertReasonBuilder();
   final OnyxPowerModeService? _powerModeService;
   final OnyxEnvironmentEngine? _environmentEngine;
+  final SupabaseClient? _telegramRelayClient;
+  final TelegramBridgeService? _telegramBridgeService;
+  final bool _telegramRelayEnabled;
 
   final StreamController<OnyxSiteAwarenessSnapshot> _snapshotController =
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
@@ -2231,6 +2258,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   Timer? _heartbeatTimer;
   Timer? _supabaseWatchdogTimer;
   Timer? _yoloHealthTimer;
+  Timer? _telegramRelayTimer;
   OnyxSiteAwarenessProjector? _projector;
   OnyxSiteAwarenessSnapshot? _latestSnapshot;
   bool _isConnected = false;
@@ -2238,11 +2266,16 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   bool _disconnectAlertSent = false;
   bool _isYoloHealthy = false;
   bool _yoloHealthCheckInFlight = false;
+  bool _telegramRelayPollInFlight = false;
   DateTime? _yoloStartupGraceUntilUtc;
   int _generation = 0;
   String _siteId = '';
   String _clientId = '';
   DateTime? _lastStreamEventAtUtc;
+  DateTime? _lastAlertPayloadAtUtc;
+  DateTime? _telegramRelayBootCutoffUtc;
+  bool _telegramRelayOwnershipNoticeLogged = false;
+  final Set<String> _relayedAlertIds = <String>{};
   final Map<String, Map<String, Object?>> _pendingAlertReasonsByDetectionKey =
       <String, Map<String, Object?>>{};
   final Map<String, OnyxLatencyRecord> _pendingLatencyByDetectionKey =
@@ -2265,6 +2298,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     this.detectionWindow = const Duration(minutes: 5),
     this.initialRetryDelay = const Duration(seconds: 1),
     this.maxRetryDelay = const Duration(seconds: 60),
+    this.alertStreamUriOverride,
+    this.alertStreamAuthOverride,
     DateTime Function()? clock,
     Future<void> Function(Duration duration)? sleep,
     this.onReconnectFailure,
@@ -2273,6 +2308,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     OnyxEvidenceCertificateService? evidenceCertificateService,
     OnyxPowerModeService? powerModeService,
     OnyxEnvironmentEngine? environmentEngine,
+    SupabaseClient? telegramRelayClient,
+    TelegramBridgeService? telegramBridgeService,
+    bool telegramRelayEnabled = true,
   }) : _client = client ?? _buildIsapiHttpClient(),
        _repository = repository,
        _proactiveAlertService = proactiveAlertService,
@@ -2282,7 +2320,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
        _lprService = lprService,
        _evidenceCertificateService = evidenceCertificateService,
        _powerModeService = powerModeService,
-       _environmentEngine = environmentEngine;
+       _environmentEngine = environmentEngine,
+       _telegramRelayClient = telegramRelayClient,
+       _telegramBridgeService = telegramBridgeService,
+       _telegramRelayEnabled = telegramRelayEnabled;
 
   @override
   OnyxSiteAwarenessSnapshot? get latestSnapshot => _latestSnapshot;
@@ -2302,6 +2343,18 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
 
   Uri get _systemStatusUri =>
       Uri(scheme: 'http', host: host, port: port, path: '/ISAPI/System/status');
+
+  Uri get _resolvedAlertStreamUri => alertStreamUriOverride ?? _alertStreamUri;
+
+  Uri get _resolvedKeepaliveUri {
+    final override = alertStreamUriOverride;
+    if (override == null) {
+      return _systemStatusUri;
+    }
+    final isProxyLikePath =
+        override.path.trim() == '/ISAPI/Event/notification/alertStream';
+    return isProxyLikePath ? override.resolve('/health') : override;
+  }
 
   Uri _snapshotUriForChannel(String channelId) {
     final normalizedChannelId = _snapshotStreamChannelId(channelId);
@@ -2374,6 +2427,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _running = true;
     _generation += 1;
     _lastStreamEventAtUtc = _clock().toUtc();
+    _lastAlertPayloadAtUtc = null;
+    _telegramRelayBootCutoffUtc = _clock().toUtc();
+    _telegramRelayOwnershipNoticeLogged = false;
+    _relayedAlertIds.clear();
     _yoloStartupGraceUntilUtc = _clock().toUtc().add(_yoloStartupGracePeriod);
     _startYoloHealthMonitor(_generation);
     _schedulePublishTimer();
@@ -2386,6 +2443,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final powerModeService = _powerModeService;
     if (powerModeService != null) {
       unawaited(powerModeService.start());
+    }
+    _telegramRelayTimer?.cancel();
+    if (_telegramRelayEnabled) {
+      _telegramRelayTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+        unawaited(_pollTelegramRelaySnapshot(_generation));
+      });
+      unawaited(_pollTelegramRelaySnapshot(_generation));
     }
     unawaited(_runConnectionLoop(_generation));
   }
@@ -2404,6 +2468,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _supabaseWatchdogTimer = null;
     _yoloHealthTimer?.cancel();
     _yoloHealthTimer = null;
+    _telegramRelayTimer?.cancel();
+    _telegramRelayTimer = null;
     final powerModeService = _powerModeService;
     if (powerModeService != null) {
       await powerModeService.stop();
@@ -2412,6 +2478,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _yoloHealthCheckInFlight = false;
     _yoloStartupGraceUntilUtc = null;
     _lastStreamEventAtUtc = null;
+    _lastAlertPayloadAtUtc = null;
+    _telegramRelayBootCutoffUtc = null;
+    _telegramRelayOwnershipNoticeLogged = false;
+    _telegramRelayPollInFlight = false;
+    _relayedAlertIds.clear();
     final subscription = _streamSubscription;
     _streamSubscription = null;
     final proactiveAlertSubscription = _proactiveAlertSubscription;
@@ -2698,14 +2769,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       var disconnectLogLevel = 1000;
       try {
         await _primeSocketConnection();
-        final response = await _auth
+        final response = await _streamAuth
             .send(
               _client,
               'GET',
-              _alertStreamUri,
-              headers: const <String, String>{
-                'Accept':
-                    'multipart/x-mixed-replace, application/xml, text/xml',
+            _resolvedAlertStreamUri,
+            headers: const <String, String>{
+              'Accept':
+                  'multipart/x-mixed-replace, application/xml, text/xml',
               },
             )
             .timeout(requestTimeout);
@@ -2811,6 +2882,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         final extraction = _extractAlertXml(buffer);
         buffer = extraction.remainder;
         for (final payload in extraction.payloads) {
+          _lastAlertPayloadAtUtc = _clock().toUtc();
+          _telegramRelayOwnershipNoticeLogged = false;
           await _ingestAlertPayload(
             payload,
             errorLabel:
@@ -2831,6 +2904,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       _isConnected = false;
       final extraction = _extractAlertXml(buffer);
       for (final payload in extraction.payloads) {
+        _lastAlertPayloadAtUtc = _clock().toUtc();
+        _telegramRelayOwnershipNoticeLogged = false;
         await _ingestAlertPayload(
           payload,
           errorLabel: 'Failed to parse trailing Hikvision alert payload.',
@@ -2854,10 +2929,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     try {
       await _primeSocketConnection();
-      final response = await _auth
+      final response = await _streamAuth
           .head(
             _client,
-            _systemStatusUri,
+            _resolvedKeepaliveUri,
             headers: const <String, String>{'Accept': '*/*'},
           )
           .timeout(const Duration(seconds: 10));
@@ -3724,6 +3799,253 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
   }
 
+  bool get _shouldUseTelegramRelayFallback {
+    if (!_telegramRelayEnabled) {
+      return false;
+    }
+    final relayClient = _telegramRelayClient;
+    final bridgeService = _telegramBridgeService;
+    if (relayClient == null || bridgeService == null || !bridgeService.isConfigured) {
+      return false;
+    }
+    final lastPayloadAtUtc = _lastAlertPayloadAtUtc;
+    if (lastPayloadAtUtc == null) {
+      return true;
+    }
+    return _clock().toUtc().difference(lastPayloadAtUtc) >=
+        const Duration(seconds: 75);
+  }
+
+  Future<void> _pollTelegramRelaySnapshot(int generation) async {
+    if (!_running ||
+        generation != _generation ||
+        _telegramRelayPollInFlight ||
+        !_shouldUseTelegramRelayFallback) {
+      return;
+    }
+    final relayClient = _telegramRelayClient;
+    final bridgeService = _telegramBridgeService;
+    if (relayClient == null || bridgeService == null) {
+      return;
+    }
+    _telegramRelayPollInFlight = true;
+    try {
+      final row = await _readLatestRelaySnapshotRow(relayClient, _siteId);
+      if (row == null) {
+        return;
+      }
+      final snapshotAtUtc = _summaryDate(row['snapshot_at'])?.toUtc();
+      if (snapshotAtUtc == null ||
+          _clock().toUtc().difference(snapshotAtUtc) >
+              const Duration(minutes: 5)) {
+        return;
+      }
+      if (!_telegramRelayOwnershipNoticeLogged) {
+        _telegramRelayOwnershipNoticeLogged = true;
+        developer.log(
+          '[ONYX] Local alert stream is idle; passive Telegram relay is active. Another edge likely owns the Hikvision alert stream.',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+      }
+      final bootCutoffUtc = _telegramRelayBootCutoffUtc ?? _clock().toUtc();
+      final alerts = _relayableSiteAlertsFromRow(row)
+          .where((alert) => !alert.isAcknowledged)
+          .where((alert) => alert.message.trim().isNotEmpty)
+          .where((alert) => !alert.detectedAt.toUtc().isBefore(bootCutoffUtc))
+          .where((alert) => !_relayedAlertIds.contains(alert.alertId))
+          .toList(growable: false)
+        ..sort((left, right) => left.detectedAt.compareTo(right.detectedAt));
+      if (alerts.isEmpty) {
+        return;
+      }
+      final targets = await _readTelegramRelayTargets(relayClient);
+      if (targets.isEmpty) {
+        developer.log(
+          '[ONYX] Passive Telegram relay skipped — no active Telegram endpoints for $_clientId/$_siteId.',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+        return;
+      }
+      final outbound = <TelegramBridgeMessage>[];
+      for (final alert in alerts) {
+        for (final target in targets) {
+          outbound.add(
+            TelegramBridgeMessage(
+              messageKey:
+                  'tg-passive-relay:${alert.alertId}:${target.chatId}:${target.threadId ?? ''}',
+              chatId: target.chatId,
+              messageThreadId: target.threadId,
+              text: alert.message.trim(),
+              source: TelegramBridgeMessageSource.system,
+              audience: TelegramBridgeMessageAudience.client,
+            ),
+          );
+        }
+      }
+      final result = await bridgeService.sendMessages(messages: outbound);
+      if (result.sentCount == 0) {
+        final reasons = result.failureReasonsByMessageKey.values
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .join(' | ');
+        developer.log(
+          '[ONYX] Passive Telegram relay failed for ${alerts.length} alert(s). ${reasons.isEmpty ? 'No Telegram messages were accepted.' : reasons}',
+          name: 'OnyxHikIsapiStream',
+          level: 1000,
+        );
+        return;
+      }
+      for (final alert in alerts) {
+        final alertPrefix = 'tg-passive-relay:${alert.alertId}:';
+        final deliveredForAlert = result.sent.any(
+          (message) => message.messageKey.startsWith(alertPrefix),
+        );
+        if (deliveredForAlert) {
+          _relayedAlertIds.add(alert.alertId);
+        }
+      }
+      developer.log(
+        '[ONYX] Passive Telegram relay delivered ${result.sentCount} message(s) for ${alerts.where((alert) => _relayedAlertIds.contains(alert.alertId)).length} alert(s).',
+        name: 'OnyxHikIsapiStream',
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        '[ONYX] Passive Telegram relay failed.',
+        name: 'OnyxHikIsapiStream',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    } finally {
+      _telegramRelayPollInFlight = false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _readLatestRelaySnapshotRow(
+    SupabaseClient client,
+    String siteId,
+  ) async {
+    final normalizedSiteId = siteId.trim();
+    if (normalizedSiteId.isEmpty) {
+      return null;
+    }
+    final rows = await client
+        .from('site_awareness_snapshots')
+        .select('site_id,snapshot_at,active_alerts')
+        .eq('site_id', normalizedSiteId)
+        .order('snapshot_at', ascending: false)
+        .limit(1);
+    if (rows.isEmpty) {
+      return null;
+    }
+    return Map<String, dynamic>.from(rows.first as Map);
+  }
+
+  Future<List<_TelegramRelayTarget>> _readTelegramRelayTargets(
+    SupabaseClient client,
+  ) async {
+    final rowsRaw = await client
+        .from('client_messaging_endpoints')
+        .select('telegram_chat_id, telegram_thread_id, site_id')
+        .eq('client_id', _clientId)
+        .eq('provider', 'telegram')
+        .eq('is_active', true)
+        .order('created_at');
+    final rows = List<Map<String, dynamic>>.from(rowsRaw);
+    final normalizedSiteId = _siteId.trim();
+    final scoped = <_TelegramRelayTarget>[];
+    final global = <_TelegramRelayTarget>[];
+    final dedupe = <String>{};
+    for (final row in rows) {
+      final chatId = (row['telegram_chat_id'] ?? '').toString().trim();
+      if (chatId.isEmpty) {
+        continue;
+      }
+      final rowSiteId = (row['site_id'] ?? '').toString().trim();
+      final threadRaw = (row['telegram_thread_id'] ?? '').toString().trim();
+      final threadId = threadRaw.isEmpty ? null : int.tryParse(threadRaw);
+      final dedupeKey = '$chatId:${threadId ?? ''}:${rowSiteId.isEmpty ? '*' : rowSiteId}';
+      if (!dedupe.add(dedupeKey)) {
+        continue;
+      }
+      final target = _TelegramRelayTarget(chatId: chatId, threadId: threadId);
+      if (rowSiteId.isEmpty) {
+        global.add(target);
+      } else if (rowSiteId == normalizedSiteId) {
+        scoped.add(target);
+      }
+    }
+    return scoped.isNotEmpty ? scoped : global;
+  }
+
+  List<_RelayableSiteAlert> _relayableSiteAlertsFromRow(Map<String, dynamic> row) {
+    final rawAlerts = row['active_alerts'];
+    if (rawAlerts is! List) {
+      return const <_RelayableSiteAlert>[];
+    }
+    final alerts = <_RelayableSiteAlert>[];
+    for (final rawAlert in rawAlerts) {
+      if (rawAlert is! Map) {
+        continue;
+      }
+      final alert = rawAlert.cast<Object?, Object?>();
+      final alertId = (alert['alert_id'] ?? '').toString().trim();
+      final detectedAt = _summaryDate(alert['detected_at']);
+      final message = (alert['message'] ?? '').toString().trim();
+      if (alertId.isEmpty || detectedAt == null || message.isEmpty) {
+        continue;
+      }
+      alerts.add(
+        _RelayableSiteAlert(
+          alertId: alertId,
+          detectedAt: detectedAt.toUtc(),
+          isAcknowledged: _summaryBool(
+                alert['is_acknowledged'] ?? alert['isAcknowledged'],
+              ) ??
+              false,
+          message: message,
+        ),
+      );
+    }
+    return alerts;
+  }
+
+  DateTime? _summaryDate(Object? value) {
+    if (value is DateTime) {
+      return value.toUtc();
+    }
+    if (value is String) {
+      return DateTime.tryParse(value)?.toUtc();
+    }
+    return null;
+  }
+
+  bool? _summaryBool(Object? value) {
+    if (value is bool) {
+      return value;
+    }
+    if (value is num) {
+      return value != 0;
+    }
+    final normalized = value?.toString().trim().toLowerCase();
+    switch (normalized) {
+      case 'true':
+      case '1':
+      case 'yes':
+      case 'on':
+        return true;
+      case 'false':
+      case '0':
+      case 'no':
+      case 'off':
+        return false;
+    }
+    return null;
+  }
+
   Future<void> _runSupabaseWatchdog(int generation) async {
     final repository = _repository;
     if (!_running ||
@@ -3861,6 +4183,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     username: username,
     password: password,
   );
+
+  DvrHttpAuthConfig get _streamAuth => alertStreamAuthOverride ?? _auth;
 }
 
 // ─── Non-secret config baked in at compile time via dart-define ───
@@ -4027,6 +4351,13 @@ Future<void> main() async {
       Platform.environment['ONYX_HIK_USERNAME'] ?? _defaultUsername;
   final clientId = Platform.environment['ONYX_CLIENT_ID'] ?? _defaultClientId;
   final siteId = Platform.environment['ONYX_SITE_ID'] ?? _defaultSiteId;
+  final dvrEventsUrlRaw = Platform.environment['ONYX_DVR_EVENTS_URL'] ?? '';
+  final dvrEventsUri = dvrEventsUrlRaw.trim().isEmpty
+      ? null
+      : Uri.tryParse(dvrEventsUrlRaw.trim());
+  final dvrAuthModeRaw = Platform.environment['ONYX_DVR_AUTH_MODE'] ?? '';
+  final dvrUsername = Platform.environment['ONYX_DVR_USERNAME'] ?? '';
+  final dvrPassword = Platform.environment['ONYX_DVR_PASSWORD'] ?? '';
   final yoloEndpointRaw =
       Platform.environment['ONYX_MONITORING_YOLO_ENDPOINT'] ??
       _defaultYoloEndpoint;
@@ -4063,11 +4394,13 @@ Future<void> main() async {
   OnyxAwarenessLatencyService? awarenessLatencyService;
   OnyxPowerModeService? powerModeService;
   OnyxEnvironmentEngine? environmentEngine;
+  SupabaseClient? telegramRelayClient;
   if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
     repository = OnyxSiteAwarenessRepository(
       supabaseUrl: supabaseUrl,
       supabaseKey: supabaseKey,
     );
+    telegramRelayClient = SupabaseClient(supabaseUrl, supabaseKey);
     proactiveAlertService = OnyxProactiveAlertService(
       readConfig: repository.readAlertConfig,
       profileService: OnyxSiteProfileService(
@@ -4099,10 +4432,29 @@ Future<void> main() async {
   stdout.writeln('[ONYX] Target: $host:$port  user=$username');
   stdout.writeln('[ONYX] Scope:  client=$clientId  site=$siteId');
   stdout.writeln('[ONYX] Fault channels: ${knownFaultChannels.join(', ')}');
+  if (dvrEventsUri != null) {
+    stdout.writeln('[ONYX] DVR events endpoint override: $dvrEventsUri');
+  }
   stdout.writeln(
     '[ONYX] YOLO/FR: ${yoloEndpoint == null ? 'disabled' : yoloEndpoint.toString()}',
   );
   final yoloHttpClient = http.Client();
+  final telegramBotToken = Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
+  final telegramApiBaseRaw =
+      Platform.environment['ONYX_TELEGRAM_API_BASE_URL'] ?? '';
+  final telegramApiBase = telegramApiBaseRaw.trim().isEmpty
+      ? null
+      : Uri.tryParse(telegramApiBaseRaw.trim());
+  final telegramBridgeService = telegramBotToken.trim().isEmpty
+      ? const UnconfiguredTelegramBridgeService()
+      : HttpTelegramBridgeService(
+          client: http.Client(),
+          botToken: telegramBotToken.trim(),
+          apiBaseUri: telegramApiBase,
+        );
+  stdout.writeln(
+    '[ONYX] Telegram relay: ${telegramBridgeService.isConfigured && telegramRelayClient != null ? 'enabled (passive fallback)' : 'disabled'}',
+  );
   final liveSnapshotYoloService = yoloEndpoint == null
       ? null
       : OnyxLiveSnapshotYoloService(
@@ -4143,6 +4495,16 @@ Future<void> main() async {
     evidenceCertificateService: evidenceCertificateService,
     powerModeService: powerModeService,
     environmentEngine: environmentEngine,
+    telegramRelayClient: telegramRelayClient,
+    telegramBridgeService: telegramBridgeService,
+    alertStreamUriOverride: dvrEventsUri,
+    alertStreamAuthOverride: dvrEventsUri == null
+        ? null
+        : DvrHttpAuthConfig(
+            mode: parseDvrHttpAuthMode(dvrAuthModeRaw),
+            username: dvrUsername.trim().isEmpty ? null : dvrUsername.trim(),
+            password: dvrPassword.trim().isEmpty ? null : dvrPassword,
+          ),
     lprService: liveSnapshotYoloService == null
         ? null
         : OnyxLprService(detector: liveSnapshotYoloService),
@@ -4193,6 +4555,9 @@ Future<void> main() async {
       await subscription.cancel();
       await service.stop();
       yoloHttpClient.close();
+      if (telegramBridgeService is HttpTelegramBridgeService) {
+        (telegramBridgeService.client).close();
+      }
       await proactiveAlertService?.dispose();
     } catch (error) {
       stderr.writeln('[ONYX] Error during shutdown: $error');
