@@ -2320,6 +2320,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return;
     }
     _isYoloHealthy = false;
+    // ignore: avoid_print
+    print('[ONYX] YOLO health monitor started.');
     unawaited(_recheckYoloHealth(generation));
     _yoloHealthTimer = Timer.periodic(_yoloHealthRecheckInterval, (_) {
       unawaited(_recheckYoloHealth(generation));
@@ -2346,18 +2348,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         if (ready) {
           if (!_isYoloHealthy) {
             _isYoloHealthy = true;
-            developer.log(
-              '[ONYX] YOLO recovered — resuming enrichment',
-              name: 'OnyxHikIsapiStream',
-            );
+            // ignore: avoid_print
+            print('[ONYX] YOLO recovered — resuming enrichment');
           }
           return;
         }
         if (attempt < _yoloHealthFailureThreshold) {
-          developer.log(
+          // ignore: avoid_print
+          print(
             '[ONYX] YOLO unhealthy check $attempt/3 — waiting before marking dead',
-            name: 'OnyxHikIsapiStream',
-            level: 900,
           );
           await _sleep(_yoloHealthRetryDelay);
         }
@@ -2785,10 +2784,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         !liveSnapshotYoloService.isConfigured ||
         !_isYoloHealthy) {
       if (_shouldAllowUnverifiedHumanAlert(liveSnapshotYoloService)) {
-        developer.log(
+        // ignore: avoid_print
+        print(
           '[ONYX] Human detected (unverified) on CH${event.channelId} during YOLO startup grace.',
-          name: 'OnyxHikIsapiStream',
-          level: 800,
         );
         return event;
       }
