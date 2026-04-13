@@ -30,7 +30,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:omnix_dashboard/application/onyx_lpr_service.dart';
 import 'package:omnix_dashboard/application/onyx_proactive_alert_service.dart';
-import 'package:omnix_dashboard/application/onyx_site_profile_service.dart';
 import 'package:omnix_dashboard/application/site_awareness/onyx_live_snapshot_yolo_service.dart';
 import 'package:supabase/supabase.dart';
 import 'package:xml/xml.dart' as xml;
@@ -2087,7 +2086,6 @@ http.Client _buildIsapiHttpClient() {
 
 class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   static const double _yoloMinimumPersonConfidence = 0.55;
-  static const Duration _yoloStartupGracePeriod = Duration(seconds: 30);
   static const Duration _yoloHealthRetryDelay = Duration(seconds: 10);
   static const Duration _yoloHealthRecheckInterval = Duration(seconds: 30);
   static const int _yoloHealthFailureThreshold = 3;
@@ -2099,7 +2097,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   final List<String> knownFaultChannels;
   final http.Client _client;
   final OnyxSiteAwarenessRepository? _repository;
-  final OnyxProactiveAlertService? _proactiveAlertService;
   final Duration requestTimeout;
   final Duration publishInterval;
   final Duration detectionWindow;
@@ -2120,7 +2117,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       StreamController<OnyxSiteAwarenessSnapshot>.broadcast();
 
   StreamSubscription<List<int>>? _streamSubscription;
-  StreamSubscription<OnyxProactiveAlertDecision>? _proactiveAlertSubscription;
   Timer? _publishTimer;
   Timer? _heartbeatTimer;
   Timer? _supabaseWatchdogTimer;
@@ -2132,7 +2128,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   bool _disconnectAlertSent = false;
   bool _isYoloHealthy = false;
   bool _yoloHealthCheckInFlight = false;
-  DateTime? _yoloStartupGraceUntilUtc;
   int _generation = 0;
   String _siteId = '';
   String _clientId = '';
@@ -2146,7 +2141,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     this.knownFaultChannels = const <String>[],
     http.Client? client,
     OnyxSiteAwarenessRepository? repository,
-    OnyxProactiveAlertService? proactiveAlertService,
     this.requestTimeout = const Duration(seconds: 15),
     this.publishInterval = const Duration(seconds: 30),
     this.detectionWindow = const Duration(minutes: 5),
@@ -2159,7 +2153,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     OnyxLprService? lprService,
   }) : _client = client ?? _buildIsapiHttpClient(),
        _repository = repository,
-       _proactiveAlertService = proactiveAlertService,
        _clock = clock ?? DateTime.now,
        _sleep = sleep ?? Future<void>.delayed,
        _liveSnapshotYoloService = liveSnapshotYoloService,
@@ -2210,42 +2203,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       detectionWindow: detectionWindow,
       clock: _clock,
     );
-    _proactiveAlertService?.resetSite(_siteId);
-    await _proactiveAlertSubscription?.cancel();
-    _proactiveAlertSubscription = _proactiveAlertService?.alerts.listen((
-      decision,
-    ) {
-      if (decision.siteId.trim() != _siteId.trim()) {
-        return;
-      }
-      final projector = _projector;
-      if (projector == null) {
-        return;
-      }
-      final snapshot = projector.ingestSiteAlert(
-        OnyxSiteAlert(
-          alertId:
-              '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}',
-          channelId: '${decision.channelId}',
-          eventType: OnyxEventType.humanDetected,
-          detectedAt: decision.detectedAt,
-          zoneName: decision.zoneName,
-          zoneType: decision.zoneType,
-          message: decision.message,
-          isLoitering: decision.isLoitering,
-          isSequence: decision.isSequence,
-          alertSource: 'proactive_detection',
-        ),
-      );
-      _emitSnapshot(snapshot);
-    });
     _latestSnapshot = null;
     _isConnected = false;
     _disconnectAlertSent = false;
     _running = true;
     _generation += 1;
     _lastStreamEventAtUtc = _clock().toUtc();
-    _yoloStartupGraceUntilUtc = _clock().toUtc().add(_yoloStartupGracePeriod);
     _startYoloHealthMonitor(_generation);
     _publishTimer = Timer.periodic(publishInterval, (_) {
       _publishProjectedSnapshot();
@@ -2275,31 +2238,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _yoloHealthTimer = null;
     _isYoloHealthy = false;
     _yoloHealthCheckInFlight = false;
-    _yoloStartupGraceUntilUtc = null;
     _lastStreamEventAtUtc = null;
     final subscription = _streamSubscription;
     _streamSubscription = null;
-    final proactiveAlertSubscription = _proactiveAlertSubscription;
-    _proactiveAlertSubscription = null;
     if (subscription != null) {
       try {
         await subscription.cancel();
       } catch (error, stackTrace) {
         developer.log(
           'Failed to cancel Hikvision alert stream subscription cleanly.',
-          name: 'OnyxHikIsapiStream',
-          error: error,
-          stackTrace: stackTrace,
-          level: 1000,
-        );
-      }
-    }
-    if (proactiveAlertSubscription != null) {
-      try {
-        await proactiveAlertSubscription.cancel();
-      } catch (error, stackTrace) {
-        developer.log(
-          'Failed to cancel proactive alert subscription cleanly.',
           name: 'OnyxHikIsapiStream',
           error: error,
           stackTrace: stackTrace,
@@ -2713,7 +2660,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (projector == null) {
       return;
     }
-    final snapshot = projector.ingest(event);
+    var snapshot = projector.ingest(event);
     _latestSnapshot = snapshot;
     final repository = _repository;
     if (repository != null && event.eventType == OnyxEventType.humanDetected) {
@@ -2723,44 +2670,21 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         event.eventType == OnyxEventType.vehicleDetected) {
       unawaited(_persistVehiclePresence(repository, event));
     }
-    final proactiveAlertService = _proactiveAlertService;
-    if (proactiveAlertService != null &&
-        (event.eventType == OnyxEventType.humanDetected ||
-            event.eventType == OnyxEventType.vehicleDetected)) {
-      if (event.eventType == OnyxEventType.humanDetected &&
-          (event.faceMatchId ?? '').trim().isNotEmpty) {
-        developer.log(
-          '[ONYX] Suppressing proactive alert for known person '
-          '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
-          name: 'OnyxHikIsapiStream',
-        );
-      } else {
-        final zone = projector.cameraZones[event.channelId];
-        final channelId = int.tryParse(event.channelId.trim()) ?? 0;
-        if (channelId <= 0) {
-          developer.log(
-            '[ONYX] Skipping proactive alert evaluation for invalid channel ${event.channelId}.',
-            name: 'OnyxHikIsapiStream',
-            level: 800,
-          );
-          return;
-        }
-        unawaited(
-          proactiveAlertService.evaluateDetection(
-            siteId: _siteId,
-            channelId: channelId,
-            zoneType:
-                zone?.zoneType ??
-                (zone?.isPerimeter == true ? 'perimeter' : 'semi_perimeter'),
-            zoneName: zone?.zoneName ?? 'Channel ${event.channelId}',
-            isPerimeter: zone?.isPerimeter ?? false,
-            detectionKind: event.eventType == OnyxEventType.vehicleDetected
-                ? OnyxProactiveDetectionKind.vehicle
-                : OnyxProactiveDetectionKind.human,
-            detectedAt: event.detectedAt,
-          ),
-        );
-      }
+    if (_shouldRaiseConfirmedHumanAlert(event)) {
+      final zone = projector.cameraZones[event.channelId];
+      snapshot = projector.ingestSiteAlert(
+        OnyxSiteAlert(
+          alertId:
+              '$_siteId:${event.channelId}:${event.detectedAt.microsecondsSinceEpoch}:human:single',
+          channelId: event.channelId,
+          eventType: OnyxEventType.humanDetected,
+          detectedAt: event.detectedAt,
+          zoneName: zone?.zoneName,
+          zoneType: zone?.zoneType,
+          alertSource: 'dvr_yolo_confirmed',
+        ),
+      );
+      _latestSnapshot = snapshot;
     }
     if (event.shouldPublishImmediately) {
       _emitSnapshot(snapshot);
@@ -2771,25 +2695,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     OnyxSiteAwarenessEvent event,
   ) async {
     final liveSnapshotYoloService = _liveSnapshotYoloService;
-    // ignore: avoid_print
-    print(
-      '[ONYX-DEBUG] _enrichHumanDetectionEvent called for CH${event.channelId}',
-    );
-    // ignore: avoid_print
-    print(
-      '[ONYX-DEBUG] liveSnapshotYoloService configured: '
-      '${liveSnapshotYoloService?.isConfigured}',
-    );
     if (liveSnapshotYoloService == null ||
         !liveSnapshotYoloService.isConfigured ||
         !_isYoloHealthy) {
-      if (_shouldAllowUnverifiedHumanAlert(liveSnapshotYoloService)) {
-        // ignore: avoid_print
-        print(
-          '[ONYX] Human detected (unverified) on CH${event.channelId} during YOLO startup grace.',
-        );
-        return event;
-      }
       developer.log(
         '[ONYX] Alert suppressed — YOLO did not confirm human on CH${event.channelId}',
         name: 'OnyxHikIsapiStream',
@@ -2804,12 +2712,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         name: 'OnyxHikIsapiStream',
         level: 800,
       );
-      return event;
+      return event.copyWith(eventType: OnyxEventType.motionDetected);
     }
     final snapshotChannelId = _snapshotStreamChannelId(channelId);
     try {
-      // ignore: avoid_print
-      print('[ONYX-DEBUG] Attempting snapshot for CH$channelId...');
       developer.log(
         '[ONYX] Capturing snapshot from CH$snapshotChannelId for live FR...',
         name: 'OnyxHikIsapiStream',
@@ -2818,17 +2724,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           event.snapshotBytes != null && event.snapshotBytes!.isNotEmpty
           ? event.snapshotBytes!
           : await fetchSnapshotBytes(channelId);
-      // ignore: avoid_print
-      print(
-        '[ONYX-DEBUG] Snapshot result: ${snapshotBytes?.length ?? 0} bytes',
-      );
       if (snapshotBytes == null || snapshotBytes.isEmpty) {
         developer.log(
           '[ONYX] FR snapshot capture failed for CH$snapshotChannelId.',
           name: 'OnyxHikIsapiStream',
           level: 900,
         );
-        return event;
+        return event.copyWith(eventType: OnyxEventType.motionDetected);
       }
       final zone = _projector?.cameraZones[channelId];
       developer.log(
@@ -2847,8 +2749,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         occurredAtUtc: event.detectedAt.toUtc(),
         imageBytes: snapshotBytes,
       );
-      // ignore: avoid_print
-      print('[ONYX-DEBUG] YOLO result: $result');
       if (result == null) {
         developer.log(
           '[ONYX] Alert suppressed — YOLO did not confirm human on CH$channelId',
@@ -2938,8 +2838,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       );
       return event.copyWith(eventType: OnyxEventType.motionDetected);
     } catch (error, stackTrace) {
-      // ignore: avoid_print
-      print('[ONYX-DEBUG] FR pipeline error on CH$channelId: $error');
       developer.log(
         '[ONYX] FR pipeline error on CH$channelId: $error',
         name: 'OnyxHikIsapiStream',
@@ -2947,20 +2845,24 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         error: error,
         stackTrace: stackTrace,
       );
-      return event;
+      return event.copyWith(eventType: OnyxEventType.motionDetected);
     }
   }
 
-  bool _shouldAllowUnverifiedHumanAlert(
-    OnyxLiveSnapshotYoloService? liveSnapshotYoloService,
-  ) {
-    if (liveSnapshotYoloService == null ||
-        !liveSnapshotYoloService.isConfigured ||
-        _isYoloHealthy) {
+  bool _shouldRaiseConfirmedHumanAlert(OnyxSiteAwarenessEvent event) {
+    if (event.eventType != OnyxEventType.humanDetected ||
+        event.isKnownFaultChannel) {
       return false;
     }
-    final graceUntilUtc = _yoloStartupGraceUntilUtc;
-    return graceUntilUtc != null && _clock().toUtc().isBefore(graceUntilUtc);
+    if ((event.faceMatchId ?? '').trim().isNotEmpty) {
+      developer.log(
+        '[ONYX] Suppressing direct alert for known person '
+        '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
+        name: 'OnyxHikIsapiStream',
+      );
+      return false;
+    }
+    return true;
   }
 
   Future<OnyxSiteAwarenessEvent> _enrichVehicleDetectionEvent(
@@ -3397,19 +3299,10 @@ Future<void> main() async {
   final supabaseKey = serviceKey.isNotEmpty ? serviceKey : anonKey;
 
   OnyxSiteAwarenessRepository? repository;
-  OnyxProactiveAlertService? proactiveAlertService;
   if (supabaseUrl.isNotEmpty && supabaseKey.isNotEmpty) {
     repository = OnyxSiteAwarenessRepository(
       supabaseUrl: supabaseUrl,
       supabaseKey: supabaseKey,
-    );
-    proactiveAlertService = OnyxProactiveAlertService(
-      readConfig: repository.readAlertConfig,
-      profileService: OnyxSiteProfileService(
-        readProfileRow: repository.readSiteProfileRow,
-        readZoneRuleRows: repository.readSiteZoneRuleRows,
-        readExpectedVisitorRows: repository.readExpectedVisitorRows,
-      ),
     );
     stdout.writeln(
       '[ONYX] Supabase: $supabaseUrl '
@@ -3445,7 +3338,6 @@ Future<void> main() async {
     password: password,
     knownFaultChannels: knownFaultChannels,
     repository: repository,
-    proactiveAlertService: proactiveAlertService,
     liveSnapshotYoloService: liveSnapshotYoloService,
     lprService: liveSnapshotYoloService == null
         ? null
@@ -3497,7 +3389,6 @@ Future<void> main() async {
       await subscription.cancel();
       await service.stop();
       yoloHttpClient.close();
-      await proactiveAlertService?.dispose();
     } catch (error) {
       stderr.writeln('[ONYX] Error during shutdown: $error');
     }
