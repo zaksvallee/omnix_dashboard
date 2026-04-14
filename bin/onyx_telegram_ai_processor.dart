@@ -156,7 +156,9 @@ class _OnyxTelegramAiProcessor {
           continue;
         }
 
-        if ((update.callbackQueryId ?? '').trim().isNotEmpty) {
+        final isOnyxAlertCallback = _isOnyxAlertCallbackData(update.text);
+        if ((update.callbackQueryId ?? '').trim().isNotEmpty &&
+            !isOnyxAlertCallback) {
           final answered = await telegramBridge.answerCallbackQuery(
             callbackQueryId: update.callbackQueryId!.trim(),
           );
@@ -183,7 +185,7 @@ class _OnyxTelegramAiProcessor {
         }
 
         _logInfo('Sending row $rowId to AI/reply builder...');
-        final reply = _isOnyxAlertCallbackData(update.text)
+        final reply = isOnyxAlertCallback
             ? await _handleOnyxAlertCallback(update: update, target: target)
             : await _buildReply(update: update, target: target);
         _logInfo('AI response for row $rowId: ${_preview(reply)}');
@@ -705,7 +707,31 @@ class _OnyxTelegramAiProcessor {
       siteId: target.siteId,
       channelId: callback.channelId,
     );
-    return switch (callback.action) {
+    final response = await switch (callback.action) {
+      _OnyxAlertCallbackAction.view => _handleViewCallback(
+        update: update,
+        target: target,
+        callback: callback,
+        nowUtc: nowUtc,
+      ),
+      _OnyxAlertCallbackAction.dispatch => _handleDispatchCallback(
+        update: update,
+        target: target,
+        callback: callback,
+        nowUtc: nowUtc,
+      ),
+      _OnyxAlertCallbackAction.acknowledge => _handleAcknowledgeCallback(
+        update: update,
+        target: target,
+        callback: callback,
+        nowUtc: nowUtc,
+      ),
+      _OnyxAlertCallbackAction.dismiss => _handleDismissCallback(
+        update: update,
+        target: target,
+        callback: callback,
+        nowUtc: nowUtc,
+      ),
       _OnyxAlertCallbackAction.armedResponse => _handleArmedResponseCallback(
         target: target,
         callback: callback,
@@ -733,6 +759,229 @@ class _OnyxTelegramAiProcessor {
           nowUtc: nowUtc,
         ),
     };
+    if (response.trim().isNotEmpty) {
+      await _answerCallbackQuerySafe(
+        callbackQueryId: update.callbackQueryId,
+        text: response.length > 180 ? 'Action recorded.' : response,
+      );
+    }
+    return response;
+  }
+
+  Future<String> _handleViewCallback({
+    required TelegramBridgeInboundMessage update,
+    required _ProcessorTarget target,
+    required _OnyxAlertCallback callback,
+    required DateTime nowUtc,
+  }) async {
+    final channelId = callback.channelId.trim().isEmpty
+        ? '0'
+        : callback.channelId.trim();
+    final responseText =
+        '📷 Camera $channelId — tap the RTSP link to view live: '
+        '${_telegramCameraViewUrl(channelId)}';
+    await _answerCallbackQuerySafe(
+      callbackQueryId: update.callbackQueryId,
+      text: responseText,
+    );
+    await _recordAlertActionEvent(
+      siteId: target.siteId,
+      channelId: channelId,
+      zoneName: null,
+      eventType: 'telegram_view_camera',
+      occurredAtUtc: nowUtc,
+      rawPayload: <String, Object?>{
+        'source': 'telegram_inline_button',
+        'alert_id': callback.alertId.trim().isEmpty ? null : callback.alertId,
+        'operator_id': _telegramOperatorLabel(update),
+        'chat_id': update.chatId,
+        'message_id': update.messageId,
+      },
+    );
+    await _sendCameraViewReply(
+      update: update,
+      channelId: channelId,
+      responseText: responseText,
+    );
+    return '';
+  }
+
+  Future<String> _handleDispatchCallback({
+    required TelegramBridgeInboundMessage update,
+    required _ProcessorTarget target,
+    required _OnyxAlertCallback callback,
+    required DateTime nowUtc,
+  }) async {
+    final siteId = callback.siteId.trim().isEmpty
+        ? target.siteId
+        : callback.siteId.trim();
+    try {
+      await supabase.from('dispatches').insert(<String, Object?>{
+        'site_id': siteId,
+        'event_id': callback.alertId,
+        'triggered_by': 'telegram_button',
+        'status': 'active',
+        'created_at': nowUtc.toUtc().toIso8601String(),
+      });
+      await _markSnapshotAlertHandled(
+        siteId: siteId,
+        alertId: callback.alertId,
+        removeAlert: false,
+      );
+      await _recordAlertActionEvent(
+        siteId: siteId,
+        channelId: callback.channelId,
+        zoneName: null,
+        eventType: 'telegram_dispatch_requested',
+        occurredAtUtc: nowUtc,
+        rawPayload: <String, Object?>{
+          'source': 'telegram_inline_button',
+          'alert_id': callback.alertId,
+          'operator_id': _telegramOperatorLabel(update),
+          'chat_id': update.chatId,
+          'message_id': update.messageId,
+        },
+      );
+      await _answerCallbackQuerySafe(
+        callbackQueryId: update.callbackQueryId,
+        text: '🚨 Dispatch logged for $siteId. Guard notified.',
+      );
+      await _editAlertMessageForAction(
+        update: update,
+        actionLine:
+            '🚨 Dispatch logged by operator — ${_formatLocalTime(nowUtc)}',
+        removeInlineKeyboard: true,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Telegram dispatch callback failed.',
+        name: 'OnyxTelegramAiProcessor',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await _answerCallbackQuerySafe(
+        callbackQueryId: update.callbackQueryId,
+        text: 'Dispatch could not be logged right now.',
+      );
+    }
+    return '';
+  }
+
+  Future<String> _handleAcknowledgeCallback({
+    required TelegramBridgeInboundMessage update,
+    required _ProcessorTarget target,
+    required _OnyxAlertCallback callback,
+    required DateTime nowUtc,
+  }) async {
+    try {
+      await _updateEventRow(
+        alertId: callback.alertId,
+        values: <String, Object?>{
+          'status': 'acknowledged',
+          'acknowledged_at': nowUtc.toUtc().toIso8601String(),
+          'acknowledged_by': 'telegram',
+        },
+      );
+      await _markSnapshotAlertHandled(
+        siteId: target.siteId,
+        alertId: callback.alertId,
+        removeAlert: false,
+      );
+      await _recordAlertActionEvent(
+        siteId: target.siteId,
+        channelId: callback.channelId,
+        zoneName: null,
+        eventType: 'telegram_acknowledged',
+        occurredAtUtc: nowUtc,
+        rawPayload: <String, Object?>{
+          'source': 'telegram_inline_button',
+          'alert_id': callback.alertId,
+          'operator_id': _telegramOperatorLabel(update),
+          'chat_id': update.chatId,
+          'message_id': update.messageId,
+        },
+      );
+      await _answerCallbackQuerySafe(
+        callbackQueryId: update.callbackQueryId,
+        text: '✅ Acknowledged.',
+      );
+      await _editAlertMessageForAction(
+        update: update,
+        actionLine:
+            '✅ Acknowledged by operator — ${_formatLocalTime(nowUtc)}',
+        removeInlineKeyboard: true,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Telegram acknowledge callback failed.',
+        name: 'OnyxTelegramAiProcessor',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await _answerCallbackQuerySafe(
+        callbackQueryId: update.callbackQueryId,
+        text: 'Acknowledgement could not be saved right now.',
+      );
+    }
+    return '';
+  }
+
+  Future<String> _handleDismissCallback({
+    required TelegramBridgeInboundMessage update,
+    required _ProcessorTarget target,
+    required _OnyxAlertCallback callback,
+    required DateTime nowUtc,
+  }) async {
+    try {
+      await _updateEventRow(
+        alertId: callback.alertId,
+        values: <String, Object?>{
+          'status': 'false_alarm',
+          'resolved_at': nowUtc.toUtc().toIso8601String(),
+        },
+      );
+      await _markSnapshotAlertHandled(
+        siteId: target.siteId,
+        alertId: callback.alertId,
+        removeAlert: true,
+      );
+      await _recordAlertActionEvent(
+        siteId: target.siteId,
+        channelId: callback.channelId,
+        zoneName: null,
+        eventType: 'telegram_false_alarm',
+        occurredAtUtc: nowUtc,
+        rawPayload: <String, Object?>{
+          'source': 'telegram_inline_button',
+          'alert_id': callback.alertId,
+          'operator_id': _telegramOperatorLabel(update),
+          'chat_id': update.chatId,
+          'message_id': update.messageId,
+        },
+      );
+      await _answerCallbackQuerySafe(
+        callbackQueryId: update.callbackQueryId,
+        text: '🔕 Marked as false alarm.',
+      );
+      await _editAlertMessageForAction(
+        update: update,
+        actionLine:
+            '🔕 Marked as false alarm — ${_formatLocalTime(nowUtc)}',
+        removeInlineKeyboard: true,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Telegram false-alarm callback failed.',
+        name: 'OnyxTelegramAiProcessor',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await _answerCallbackQuerySafe(
+        callbackQueryId: update.callbackQueryId,
+        text: 'False alarm could not be saved right now.',
+      );
+    }
+    return '';
   }
 
   Future<String> _handleArmedResponseCallback({
@@ -844,6 +1093,241 @@ class _OnyxTelegramAiProcessor {
       'occurred_at': occurredAtUtc.toUtc().toIso8601String(),
       'raw_payload': rawPayload,
     });
+  }
+
+  Future<void> _answerCallbackQuerySafe({
+    required String? callbackQueryId,
+    required String text,
+  }) async {
+    final normalized = (callbackQueryId ?? '').trim();
+    if (normalized.isEmpty) {
+      return;
+    }
+    try {
+      await telegramBridge.answerCallbackQuery(
+        callbackQueryId: normalized,
+        text: text,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to answer Telegram callback query.',
+        name: 'OnyxTelegramAiProcessor',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<void> _sendCameraViewReply({
+    required TelegramBridgeInboundMessage update,
+    required String channelId,
+    required String responseText,
+  }) async {
+    final snapshotBytes = await _fetchLatestSnapshotBytes(channelId);
+    final message = TelegramBridgeMessage(
+      messageKey:
+          'telegram-view-${update.updateId}-${channelId.trim().isEmpty ? '0' : channelId.trim()}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      replyToMessageId: update.messageId,
+      text: snapshotBytes == null || snapshotBytes.isEmpty
+          ? '📷 Camera ${channelId.trim().isEmpty ? '0' : channelId.trim()} snapshot unavailable right now.\n$responseText'
+          : responseText,
+      photoBytes: snapshotBytes,
+      photoFilename: snapshotBytes == null || snapshotBytes.isEmpty
+          ? null
+          : 'onyx-camera-${channelId.trim().isEmpty ? '0' : channelId.trim()}.jpg',
+    );
+    await telegramBridge.sendMessages(messages: <TelegramBridgeMessage>[message]);
+  }
+
+  Future<List<int>?> _fetchLatestSnapshotBytes(String channelId) async {
+    final normalizedChannelId = channelId.trim();
+    if (normalizedChannelId.isEmpty) {
+      return null;
+    }
+    const base = String.fromEnvironment(
+      'ONYX_RTSP_FRAME_SERVER_BASE_URL',
+      defaultValue: 'http://127.0.0.1:11638',
+    );
+    final baseUri = Uri.tryParse(base);
+    if (baseUri == null) {
+      return null;
+    }
+    final frameUri = baseUri.replace(
+      path:
+          '${baseUri.path.endsWith('/') ? baseUri.path.substring(0, baseUri.path.length - 1) : baseUri.path}/frame/$normalizedChannelId',
+    );
+    final client = http.Client();
+    try {
+      final response = await client
+          .get(frameUri, headers: const <String, String>{'Accept': 'image/*'})
+          .timeout(const Duration(seconds: 5));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+      return response.bodyBytes.isEmpty ? null : response.bodyBytes;
+    } catch (_) {
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
+  Future<void> _updateEventRow({
+    required String alertId,
+    required Map<String, Object?> values,
+  }) async {
+    var updated = false;
+    Object? lastError;
+    try {
+      final byEventId = await supabase
+          .from('events')
+          .update(values)
+          .eq('event_id', alertId.trim())
+          .select('event_id');
+      updated = byEventId.isNotEmpty;
+    } catch (error) {
+      lastError = error;
+    }
+    if (!updated) {
+      try {
+        final byId = await supabase
+            .from('events')
+            .update(values)
+            .eq('id', alertId.trim())
+            .select('id');
+        updated = byId.isNotEmpty;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!updated) {
+      throw lastError ?? StateError('No matching event row found for $alertId.');
+    }
+  }
+
+  Future<void> _markSnapshotAlertHandled({
+    required String siteId,
+    required String alertId,
+    required bool removeAlert,
+  }) async {
+    final rows = await supabase
+        .from('site_awareness_snapshots')
+        .select('site_id,active_alerts')
+        .eq('site_id', siteId.trim())
+        .limit(1);
+    if (rows.isEmpty) {
+      return;
+    }
+    final row = Map<String, dynamic>.from(rows.first as Map);
+    final rawAlerts = row['active_alerts'];
+    if (rawAlerts is! List) {
+      return;
+    }
+    final updatedAlerts = <Object?>[];
+    for (final entry in rawAlerts) {
+      if (entry is! Map) {
+        updatedAlerts.add(entry);
+        continue;
+      }
+      final alertMap = Map<String, Object?>.from(entry.cast<Object?, Object?>());
+      final entryAlertId = (alertMap['alert_id'] ?? '').toString().trim();
+      if (entryAlertId != alertId.trim()) {
+        updatedAlerts.add(alertMap);
+        continue;
+      }
+      if (removeAlert) {
+        continue;
+      }
+      updatedAlerts.add(<String, Object?>{
+        ...alertMap,
+        'is_acknowledged': true,
+      });
+    }
+    await supabase
+        .from('site_awareness_snapshots')
+        .update(<String, Object?>{'active_alerts': updatedAlerts})
+        .eq('site_id', row['site_id']);
+  }
+
+  Future<void> _editAlertMessageForAction({
+    required TelegramBridgeInboundMessage update,
+    required String actionLine,
+    required bool removeInlineKeyboard,
+  }) async {
+    final messageId = update.messageId;
+    final originalText = (update.messageText ?? '').trim();
+    if (messageId == null || messageId <= 0 || originalText.isEmpty) {
+      return;
+    }
+    final updatedText = _appendActionLine(
+      originalText: originalText,
+      actionLine: actionLine,
+    );
+    final replyMarkup = removeInlineKeyboard
+        ? const <String, Object?>{
+            'inline_keyboard': <List<Map<String, String>>>[],
+          }
+        : null;
+    if (update.messageHasPhoto) {
+      await telegramBridge.editMessageCaption(
+        chatId: update.chatId,
+        messageId: messageId,
+        caption: updatedText,
+        replyMarkup: replyMarkup,
+      );
+      return;
+    }
+    await telegramBridge.editMessageText(
+      chatId: update.chatId,
+      messageId: messageId,
+      text: updatedText,
+      replyMarkup: replyMarkup,
+    );
+  }
+
+  String _appendActionLine({
+    required String originalText,
+    required String actionLine,
+  }) {
+    final normalizedOriginal = originalText.trimRight();
+    final normalizedActionLine = actionLine.trim();
+    if (normalizedOriginal.isEmpty || normalizedActionLine.isEmpty) {
+      return normalizedOriginal;
+    }
+    if (normalizedOriginal
+        .split('\n')
+        .map((line) => line.trimRight())
+        .contains(normalizedActionLine)) {
+      return normalizedOriginal;
+    }
+    return '$normalizedOriginal\n\n$normalizedActionLine';
+  }
+
+  String _telegramCameraViewUrl(String channelId) {
+    final normalizedChannelId = channelId.trim().isEmpty
+        ? '0'
+        : channelId.trim();
+    return 'http://192.168.0.67:11638/snapshot/$normalizedChannelId';
+  }
+
+  String _telegramOperatorLabel(TelegramBridgeInboundMessage update) {
+    final userId = update.fromUserId?.toString().trim() ?? '';
+    if (userId.isNotEmpty) {
+      return 'tg:$userId';
+    }
+    final username = update.fromUsername?.trim() ?? '';
+    if (username.isNotEmpty) {
+      return '@$username';
+    }
+    return 'telegram';
+  }
+
+  String _formatLocalTime(DateTime instantUtc) {
+    final local = instantUtc.toLocal();
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(local.hour)}:${two(local.minute)}';
   }
 
   Future<String> _readAlertCameraLabel({
@@ -1022,12 +1506,17 @@ TelegramBridgeInboundMessage? _parseInboundMessage(Map<String, dynamic> row) {
   Map<Object?, Object?>? message;
   String? callbackQueryId;
   String text = '';
+  String? messageText;
+  var messageHasPhoto = false;
   Map<Object?, Object?> from = const <Object?, Object?>{};
 
   final messageRaw = telegramUpdate['message'];
   if (messageRaw is Map) {
     message = messageRaw.cast<Object?, Object?>();
     text = (message['text'] ?? '').toString().trim();
+    messageText = text;
+    messageHasPhoto =
+        message['photo'] is List && (message['photo'] as List).isNotEmpty;
     final fromRaw = message['from'];
     if (fromRaw is Map) {
       from = fromRaw.cast<Object?, Object?>();
@@ -1049,6 +1538,11 @@ TelegramBridgeInboundMessage? _parseInboundMessage(Map<String, dynamic> row) {
       return null;
     }
     message = callbackMessageRaw.cast<Object?, Object?>();
+    messageText = (message['caption'] ?? message['text'] ?? '')
+        .toString()
+        .trim();
+    messageHasPhoto =
+        message['photo'] is List && (message['photo'] as List).isNotEmpty;
   }
 
   if (text.isEmpty) {
@@ -1088,6 +1582,8 @@ TelegramBridgeInboundMessage? _parseInboundMessage(Map<String, dynamic> row) {
         : (from['username'] ?? '').toString().trim(),
     fromIsBot: from['is_bot'] == true,
     text: text,
+    messageText: messageText,
+    messageHasPhoto: messageHasPhoto,
     sentAtUtc: sentAtSeconds == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(
@@ -1319,10 +1815,23 @@ bool _visitorLeaveNotificationRequested(String prompt) {
 }
 
 bool _isOnyxAlertCallbackData(String text) {
-  return text.trim().toLowerCase().startsWith('oa|');
+  final normalized = text.trim().toLowerCase();
+  return normalized.startsWith('oa|') ||
+      normalized.startsWith('view:') ||
+      normalized.startsWith('dispatch:') ||
+      normalized.startsWith('ack:') ||
+      normalized.startsWith('dismiss:') ||
+      normalized.startsWith('view_cam_') ||
+      normalized.startsWith('dispatch_') ||
+      normalized.startsWith('ack_') ||
+      normalized.startsWith('dismiss_');
 }
 
 enum _OnyxAlertCallbackAction {
+  view,
+  dispatch,
+  acknowledge,
+  dismiss,
   armedResponse,
   soundWarning,
   falseAlarm,
@@ -1332,12 +1841,93 @@ enum _OnyxAlertCallbackAction {
 
 class _OnyxAlertCallback {
   final _OnyxAlertCallbackAction action;
+  final String alertId;
+  final String siteId;
   final String channelId;
 
-  const _OnyxAlertCallback({required this.action, required this.channelId});
+  const _OnyxAlertCallback({
+    required this.action,
+    this.alertId = '',
+    this.siteId = '',
+    this.channelId = '',
+  });
 }
 
 _OnyxAlertCallback? _parseOnyxAlertCallback(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+  if (trimmed.startsWith('view:')) {
+    final parts = trimmed.split(':');
+    if (parts.length != 3) {
+      return null;
+    }
+    return _OnyxAlertCallback(
+      action: _OnyxAlertCallbackAction.view,
+      alertId: parts[1].trim(),
+      channelId: parts[2].trim(),
+    );
+  }
+  if (trimmed.startsWith('dispatch:')) {
+    final parts = trimmed.split(':');
+    if (parts.length != 3) {
+      return null;
+    }
+    return _OnyxAlertCallback(
+      action: _OnyxAlertCallbackAction.dispatch,
+      alertId: parts[1].trim(),
+      siteId: parts[2].trim(),
+    );
+  }
+  if (trimmed.startsWith('ack:')) {
+    return _OnyxAlertCallback(
+      action: _OnyxAlertCallbackAction.acknowledge,
+      alertId: trimmed.substring('ack:'.length).trim(),
+    );
+  }
+  if (trimmed.startsWith('dismiss:')) {
+    return _OnyxAlertCallback(
+      action: _OnyxAlertCallbackAction.dismiss,
+      alertId: trimmed.substring('dismiss:'.length).trim(),
+    );
+  }
+  if (trimmed.startsWith('view_cam_')) {
+    final rawValue = trimmed.substring('view_cam_'.length);
+    final separator = rawValue.indexOf('_');
+    if (separator <= 0 || separator >= rawValue.length - 1) {
+      return null;
+    }
+    return _OnyxAlertCallback(
+      action: _OnyxAlertCallbackAction.view,
+      channelId: rawValue.substring(0, separator),
+      siteId: rawValue.substring(separator + 1),
+    );
+  }
+  if (trimmed.startsWith('dispatch_')) {
+    final rawValue = trimmed.substring('dispatch_'.length);
+    final separator = rawValue.lastIndexOf('_');
+    if (separator <= 0 || separator >= rawValue.length - 1) {
+      return null;
+    }
+    return _OnyxAlertCallback(
+      action: _OnyxAlertCallbackAction.dispatch,
+      siteId: rawValue.substring(0, separator),
+      alertId: rawValue.substring(separator + 1),
+    );
+  }
+  if (trimmed.startsWith('ack_')) {
+    return _OnyxAlertCallback(
+      action: _OnyxAlertCallbackAction.acknowledge,
+      alertId: trimmed.substring('ack_'.length).trim(),
+    );
+  }
+  if (trimmed.startsWith('dismiss_')) {
+    return _OnyxAlertCallback(
+      action: _OnyxAlertCallbackAction.dismiss,
+      alertId: trimmed.substring('dismiss_'.length).trim(),
+    );
+  }
   final parts = raw
       .trim()
       .split('|')
@@ -1966,6 +2556,7 @@ class TelegramBridgeMessage {
   final String messageKey;
   final String chatId;
   final int? messageThreadId;
+  final int? replyToMessageId;
   final String text;
   final List<int>? photoBytes;
   final String? photoFilename;
@@ -1976,6 +2567,7 @@ class TelegramBridgeMessage {
     required this.messageKey,
     required this.chatId,
     this.messageThreadId,
+    this.replyToMessageId,
     required this.text,
     this.photoBytes,
     this.photoFilename,
@@ -2000,6 +2592,8 @@ class TelegramBridgeInboundMessage {
   final String? fromUsername;
   final bool fromIsBot;
   final String text;
+  final String? messageText;
+  final bool messageHasPhoto;
   final DateTime? sentAtUtc;
 
   const TelegramBridgeInboundMessage({
@@ -2016,6 +2610,8 @@ class TelegramBridgeInboundMessage {
     this.fromUsername,
     this.fromIsBot = false,
     required this.text,
+    this.messageText,
+    this.messageHasPhoto = false,
     this.sentAtUtc,
   });
 }
@@ -2044,6 +2640,22 @@ abstract class TelegramBridgeService {
   Future<bool> answerCallbackQuery({
     required String callbackQueryId,
     String? text,
+  });
+
+  Future<bool> editMessageText({
+    required String chatId,
+    required int messageId,
+    required String text,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  });
+
+  Future<bool> editMessageCaption({
+    required String chatId,
+    required int messageId,
+    required String caption,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
   });
 }
 
@@ -2104,6 +2716,8 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
                       'chat_id': chatId,
                       if (message.messageThreadId != null)
                         'message_thread_id': message.messageThreadId,
+                      if (message.replyToMessageId != null)
+                        'reply_to_message_id': message.replyToMessageId,
                       'text': message.text,
                       if ((message.parseMode ?? '').trim().isNotEmpty)
                         'parse_mode': message.parseMode!.trim(),
@@ -2148,6 +2762,9 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     if (message.messageThreadId != null) {
       request.fields['message_thread_id'] = '${message.messageThreadId!}';
     }
+    if (message.replyToMessageId != null) {
+      request.fields['reply_to_message_id'] = '${message.replyToMessageId!}';
+    }
     if (message.text.trim().isNotEmpty) {
       request.fields['caption'] = message.text.trim();
     }
@@ -2191,6 +2808,91 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
               'callback_query_id': callbackQueryId.trim(),
               if ((text ?? '').trim().isNotEmpty) 'text': text!.trim(),
             }),
+          )
+          .timeout(requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return false;
+      }
+      final decoded = jsonDecode(response.body);
+      return decoded is Map && decoded['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> editMessageText({
+    required String chatId,
+    required int messageId,
+    required String text,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) {
+    return _editMessage(
+      method: 'editMessageText',
+      chatId: chatId,
+      messageId: messageId,
+      bodyKey: 'text',
+      bodyValue: text,
+      parseMode: parseMode,
+      replyMarkup: replyMarkup,
+    );
+  }
+
+  @override
+  Future<bool> editMessageCaption({
+    required String chatId,
+    required int messageId,
+    required String caption,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) {
+    return _editMessage(
+      method: 'editMessageCaption',
+      chatId: chatId,
+      messageId: messageId,
+      bodyKey: 'caption',
+      bodyValue: caption,
+      parseMode: parseMode,
+      replyMarkup: replyMarkup,
+    );
+  }
+
+  Future<bool> _editMessage({
+    required String method,
+    required String chatId,
+    required int messageId,
+    required String bodyKey,
+    required String bodyValue,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) async {
+    if (!isConfigured || chatId.trim().isEmpty || messageId <= 0) {
+      return false;
+    }
+    final normalizedBody = bodyValue.trim();
+    if (normalizedBody.isEmpty) {
+      return false;
+    }
+    final payload = <String, Object?>{
+      'chat_id': chatId.trim(),
+      'message_id': messageId,
+      bodyKey: normalizedBody,
+      if ((parseMode ?? '').trim().isNotEmpty)
+        'parse_mode': parseMode!.trim(),
+    };
+    if (replyMarkup != null) {
+      payload['reply_markup'] = replyMarkup;
+    }
+    try {
+      final response = await client
+          .post(
+            _buildEndpoint(method),
+            headers: const <String, String>{
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(payload),
           )
           .timeout(requestTimeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {

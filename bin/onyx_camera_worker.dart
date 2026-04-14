@@ -4543,18 +4543,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     return <String, Object?>{
       'inline_keyboard': <List<Map<String, String>>>[
         <Map<String, String>>[
-          button(
-            '👁 View camera',
-            'view_cam_${normalizedChannelId}_$normalizedSiteId',
-          ),
-          button(
-            '🚨 Dispatch',
-            'dispatch_${normalizedSiteId}_$normalizedAlertId',
-          ),
+          button('👁 View camera', 'view:$normalizedAlertId:$normalizedChannelId'),
+          button('🚨 Dispatch', 'dispatch:$normalizedAlertId:$normalizedSiteId'),
         ],
         <Map<String, String>>[
-          button('✅ Acknowledge', 'ack_$normalizedAlertId'),
-          button('❌ False alarm', 'dismiss_$normalizedAlertId'),
+          button('✅ Acknowledge', 'ack:$normalizedAlertId'),
+          button('❌ False alarm', 'dismiss:$normalizedAlertId'),
         ],
       ],
     };

@@ -15571,12 +15571,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     return <String, Object?>{
       'inline_keyboard': <List<Map<String, String>>>[
         <Map<String, String>>[
-          button('👁 View camera', 'view_cam_${channelId}_$siteId'),
-          button('🚨 Dispatch', 'dispatch_${siteId}_$alertId'),
+          button('👁 View camera', 'view:$alertId:$channelId'),
+          button('🚨 Dispatch', 'dispatch:$alertId:$siteId'),
         ],
         <Map<String, String>>[
-          button('✅ Acknowledge', 'ack_$alertId'),
-          button('❌ False alarm', 'dismiss_$alertId'),
+          button('✅ Acknowledge', 'ack:$alertId'),
+          button('❌ False alarm', 'dismiss:$alertId'),
         ],
       ],
     };
@@ -16324,6 +16324,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String adminChatId,
     required int? adminThreadId,
   }) async {
+    final handledProactiveCallback =
+        await _handleTelegramProactiveAlertCallback(update);
+    if (handledProactiveCallback) {
+      if (mounted) {
+        setState(() {});
+      }
+      return true;
+    }
     final handledAdmin = await _handleTelegramAdminInboundUpdate(
       update,
       adminChatId: adminChatId,
@@ -16370,11 +16378,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         (adminThreadId == null || update.messageThreadId == adminThreadId);
     if (!inAdminChat) {
       return false;
-    }
-    final handledProactiveCallback =
-        await _handleTelegramProactiveAlertCallback(update);
-    if (handledProactiveCallback) {
-      return true;
     }
     final parsed = _telegramAdminCommand(update.text);
     if (!_isTelegramAdminSenderAllowed(update)) {
@@ -17212,36 +17215,18 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       return false;
     }
     if (callback.isMalformed) {
-      await _telegramBridge.answerCallbackQuery(
+      await _answerTelegramCallbackSafe(
         callbackQueryId: callbackId,
         text: 'Alert action payload invalid.',
       );
       return true;
     }
-    if (callback.action == 'view_cam') {
-      final siteId = callback.siteId.trim().isEmpty
-          ? _selectedSite.trim()
-          : callback.siteId.trim();
-      final channelId = callback.channelId.trim().isEmpty
-          ? '0'
-          : callback.channelId.trim();
-      await _recordTelegramAlertActionEvent(
-        siteId: siteId,
-        channelId: channelId,
-        zoneName: null,
-        eventType: 'telegram_view_camera',
-        occurredAtUtc: DateTime.now().toUtc(),
-        rawPayload: <String, Object?>{
-          'action': callback.action,
-          'site_id': siteId,
-          'channel_id': channelId,
-          'operator_id': _telegramOutcomeOperatorId(update),
-        },
-      );
-      await _telegramBridge.answerCallbackQuery(
-        callbackQueryId: callbackId,
-        text:
-            'Camera CH$channelId selected for ${siteId.isEmpty ? _selectedSite : siteId}.',
+    final nowUtc = DateTime.now().toUtc();
+    if (callback.action == 'view') {
+      await _handleTelegramViewAlertCallback(
+        update: update,
+        callback: callback,
+        nowUtc: nowUtc,
       );
       return true;
     }
@@ -17255,9 +17240,35 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             siteId: callback.siteId,
           );
     if (alert == null) {
-      await _telegramBridge.answerCallbackQuery(
+      await _answerTelegramCallbackSafe(
         callbackQueryId: callbackId,
         text: 'Alert context expired.',
+      );
+      return true;
+    }
+    if (callback.action == 'dispatch') {
+      await _handleTelegramDispatchAlertCallback(
+        update: update,
+        alert: alert,
+        nowUtc: nowUtc,
+      );
+      return true;
+    }
+    if (callback.action == 'ack') {
+      await _handleTelegramResolutionAlertCallback(
+        update: update,
+        alert: alert,
+        nowUtc: nowUtc,
+        falseAlarm: false,
+      );
+      return true;
+    }
+    if (callback.action == 'dismiss' || callback.action == 'false_alarm') {
+      await _handleTelegramResolutionAlertCallback(
+        update: update,
+        alert: alert,
+        nowUtc: nowUtc,
+        falseAlarm: true,
       );
       return true;
     }
@@ -17287,42 +17298,23 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       channelId: alert.channelId,
       zoneName: alert.zoneName,
       eventType: eventType,
-      occurredAtUtc: DateTime.now().toUtc(),
+      occurredAtUtc: nowUtc,
       rawPayload: <String, Object?>{
         'action': callback.action,
         'alert_id': alert.alertId,
         'site_id': siteId,
         'client_id': clientId,
         'operator_id': _telegramOutcomeOperatorId(update),
+        'chat_id': update.chatId,
+        'message_id': update.messageId,
       },
     );
-    final outcome = _outcomeForTelegramAlertAction(callback.action);
-    if (outcome != null) {
-      final service = _outcomeFeedbackServiceOrNull;
-      if (service != null) {
-        try {
-          await service.recordOutcome(
-            alert.alertId,
-            outcome,
-            _telegramOutcomeOperatorId(update),
-            'Telegram quick action: ${callback.action}',
-            siteId: siteId,
-            clientId: clientId,
-            zoneId: (alert.zoneName ?? '').trim(),
-            confidenceAtTime: alert.personConfidence,
-            powerModeAtTime: alert.powerMode,
-          );
-        } catch (error, stackTrace) {
-          developer.log(
-            'ONYX outcome feedback persistence failed',
-            name: 'OnyxOutcomeFeedback',
-            error: error,
-            stackTrace: stackTrace,
-          );
-        }
-      }
-    }
-    await _telegramBridge.answerCallbackQuery(
+    await _recordTelegramAlertOutcomeFeedback(
+      alert: alert,
+      action: callback.action,
+      update: update,
+    );
+    await _answerTelegramCallbackSafe(
       callbackQueryId: callbackId,
       text: _telegramProactiveCallbackReply(
         action: callback.action,
@@ -17330,6 +17322,474 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       ),
     );
     return true;
+  }
+
+  Future<void> _handleTelegramViewAlertCallback({
+    required TelegramBridgeInboundMessage update,
+    required _TelegramProactiveAlertCallback callback,
+    required DateTime nowUtc,
+  }) async {
+    final callbackId = (update.callbackQueryId ?? '').trim();
+    final alert = callback.alertId.trim().isEmpty
+        ? null
+        : await _latestActiveSiteAlertForAlertId(
+            callback.alertId,
+            siteId: callback.siteId,
+          );
+    final siteId = callback.siteId.trim().isNotEmpty
+        ? callback.siteId.trim()
+        : (alert?.siteId.trim().isNotEmpty ?? false)
+        ? alert!.siteId.trim()
+        : _selectedSite.trim();
+    final channelId = callback.channelId.trim().isNotEmpty
+        ? callback.channelId.trim()
+        : (alert?.channelId.trim().isNotEmpty ?? false)
+        ? alert!.channelId.trim()
+        : '0';
+    final responseText =
+        '📷 Camera $channelId — tap the RTSP link to view live: '
+        '${_telegramCameraViewUrl(channelId)}';
+    await _answerTelegramCallbackSafe(
+      callbackQueryId: callbackId,
+      text: responseText,
+    );
+    unawaited(
+      _recordTelegramAlertActionEvent(
+        siteId: siteId,
+        channelId: channelId,
+        zoneName: alert?.zoneName,
+        eventType: 'telegram_view_camera',
+        occurredAtUtc: nowUtc,
+        rawPayload: <String, Object?>{
+          'action': callback.action,
+          'alert_id': callback.alertId.trim().isEmpty ? null : callback.alertId,
+          'site_id': siteId,
+          'channel_id': channelId,
+          'operator_id': _telegramOutcomeOperatorId(update),
+          'chat_id': update.chatId,
+          'message_id': update.messageId,
+        },
+      ),
+    );
+    unawaited(
+      _sendTelegramCameraViewReply(
+        update: update,
+        channelId: channelId,
+        responseText: responseText,
+      ),
+    );
+  }
+
+  Future<void> _handleTelegramDispatchAlertCallback({
+    required TelegramBridgeInboundMessage update,
+    required _SiteAwarenessActiveAlertRecord alert,
+    required DateTime nowUtc,
+  }) async {
+    final callbackId = (update.callbackQueryId ?? '').trim();
+    final siteId = alert.siteId.trim().isEmpty ? _selectedSite : alert.siteId;
+    try {
+      await _insertTelegramDispatchRecord(alert: alert, nowUtc: nowUtc);
+      await _recordTelegramAlertActionEvent(
+        siteId: siteId,
+        channelId: alert.channelId,
+        zoneName: alert.zoneName,
+        eventType: 'telegram_dispatch_requested',
+        occurredAtUtc: nowUtc,
+        rawPayload: <String, Object?>{
+          'action': 'dispatch',
+          'alert_id': alert.alertId,
+          'site_id': siteId,
+          'client_id': alert.clientId,
+          'operator_id': _telegramOutcomeOperatorId(update),
+          'chat_id': update.chatId,
+          'message_id': update.messageId,
+        },
+      );
+      await _recordTelegramAlertOutcomeFeedback(
+        alert: alert,
+        action: 'dispatch',
+        update: update,
+      );
+      await _markSiteAwarenessAlertHandled(
+        alert: alert,
+        removeAlert: false,
+      );
+      await _answerTelegramCallbackSafe(
+        callbackQueryId: callbackId,
+        text: '🚨 Dispatch logged for $siteId. Guard notified.',
+      );
+      await _appendTelegramAlertActionToOriginalMessage(
+        update: update,
+        actionLine:
+            '🚨 Dispatch logged by operator — '
+            '${_telegramCommandLocalTimeLabel(nowUtc)}',
+        removeInlineKeyboard: true,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Telegram dispatch callback persistence failed.',
+        name: 'TelegramBridge',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await _answerTelegramCallbackSafe(
+        callbackQueryId: callbackId,
+        text: 'Dispatch could not be logged right now.',
+      );
+    }
+  }
+
+  Future<void> _handleTelegramResolutionAlertCallback({
+    required TelegramBridgeInboundMessage update,
+    required _SiteAwarenessActiveAlertRecord alert,
+    required DateTime nowUtc,
+    required bool falseAlarm,
+  }) async {
+    final callbackId = (update.callbackQueryId ?? '').trim();
+    final action = falseAlarm ? 'dismiss' : 'ack';
+    final eventType = falseAlarm ? 'telegram_false_alarm' : 'telegram_acknowledged';
+    final successText = falseAlarm
+        ? '🔕 Marked as false alarm.'
+        : '✅ Acknowledged.';
+    final failureText = falseAlarm
+        ? 'False alarm could not be saved right now.'
+        : 'Acknowledgement could not be saved right now.';
+    try {
+      await _updateTelegramEventRecord(
+        alertId: alert.alertId,
+        values: <String, Object?>{
+          'status': falseAlarm ? 'false_alarm' : 'acknowledged',
+          if (falseAlarm) 'resolved_at': nowUtc.toIso8601String(),
+          if (!falseAlarm) 'acknowledged_at': nowUtc.toIso8601String(),
+          if (!falseAlarm) 'acknowledged_by': 'telegram',
+        },
+      );
+      await _recordTelegramAlertActionEvent(
+        siteId: alert.siteId.trim().isEmpty ? _selectedSite : alert.siteId,
+        channelId: alert.channelId,
+        zoneName: alert.zoneName,
+        eventType: eventType,
+        occurredAtUtc: nowUtc,
+        rawPayload: <String, Object?>{
+          'action': action,
+          'alert_id': alert.alertId,
+          'site_id': alert.siteId,
+          'client_id': alert.clientId,
+          'operator_id': _telegramOutcomeOperatorId(update),
+          'chat_id': update.chatId,
+          'message_id': update.messageId,
+        },
+      );
+      await _recordTelegramAlertOutcomeFeedback(
+        alert: alert,
+        action: falseAlarm ? 'dismiss' : 'ack',
+        update: update,
+      );
+      await _markSiteAwarenessAlertHandled(
+        alert: alert,
+        removeAlert: falseAlarm,
+      );
+      await _answerTelegramCallbackSafe(
+        callbackQueryId: callbackId,
+        text: successText,
+      );
+      await _appendTelegramAlertActionToOriginalMessage(
+        update: update,
+        actionLine: falseAlarm
+            ? '🔕 Marked as false alarm — ${_telegramCommandLocalTimeLabel(nowUtc)}'
+            : '✅ Acknowledged by operator — ${_telegramCommandLocalTimeLabel(nowUtc)}',
+        removeInlineKeyboard: true,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Telegram alert resolution callback persistence failed.',
+        name: 'TelegramBridge',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await _answerTelegramCallbackSafe(
+        callbackQueryId: callbackId,
+        text: failureText,
+      );
+    }
+  }
+
+  Future<void> _sendTelegramCameraViewReply({
+    required TelegramBridgeInboundMessage update,
+    required String channelId,
+    required String responseText,
+  }) async {
+    final normalizedChannelId = channelId.trim();
+    if (normalizedChannelId.isEmpty) {
+      return;
+    }
+    final snapshotBytes = await _fetchProactiveAlertSnapshotBytes(
+      normalizedChannelId,
+    );
+    final message = TelegramBridgeMessage(
+      messageKey:
+          'tg-view-camera-${update.updateId}-$normalizedChannelId-${DateTime.now().toUtc().millisecondsSinceEpoch}',
+      chatId: update.chatId,
+      messageThreadId: update.messageThreadId,
+      replyToMessageId: update.messageId,
+      text: snapshotBytes == null || snapshotBytes.isEmpty
+          ? '📷 Camera $normalizedChannelId snapshot unavailable right now.\n$responseText'
+          : responseText,
+      photoBytes: snapshotBytes,
+      photoFilename: snapshotBytes == null || snapshotBytes.isEmpty
+          ? null
+          : 'onyx-view-$normalizedChannelId.jpg',
+      source: TelegramBridgeMessageSource.system,
+      audience: TelegramBridgeMessageAudience.client,
+    );
+    final result = await _telegramBridge.sendMessages(messages: [message]);
+    if (result.sentCount <= 0) {
+      developer.log(
+        'Telegram camera view follow-up failed for CH$normalizedChannelId.',
+        name: 'TelegramBridge',
+        error:
+            result.failureReasonsByMessageKey[message.messageKey] ?? 'unknown failure',
+      );
+    }
+  }
+
+  Future<void> _answerTelegramCallbackSafe({
+    required String callbackQueryId,
+    required String text,
+  }) async {
+    if (callbackQueryId.trim().isEmpty) {
+      return;
+    }
+    try {
+      await _telegramBridge.answerCallbackQuery(
+        callbackQueryId: callbackQueryId,
+        text: text,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Telegram answerCallbackQuery failed.',
+        name: 'TelegramBridge',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<void> _insertTelegramDispatchRecord({
+    required _SiteAwarenessActiveAlertRecord alert,
+    required DateTime nowUtc,
+  }) async {
+    if (!widget.supabaseReady) {
+      throw StateError('Supabase is not ready.');
+    }
+    await Supabase.instance.client.from('dispatches').insert(<String, Object?>{
+      'site_id': alert.siteId.trim().isEmpty ? _selectedSite : alert.siteId,
+      'event_id': alert.alertId,
+      'triggered_by': 'telegram_button',
+      'status': 'active',
+      'created_at': nowUtc.toIso8601String(),
+    });
+  }
+
+  Future<void> _updateTelegramEventRecord({
+    required String alertId,
+    required Map<String, Object?> values,
+  }) async {
+    if (!widget.supabaseReady) {
+      throw StateError('Supabase is not ready.');
+    }
+    final client = Supabase.instance.client;
+    var updated = false;
+    Object? lastError;
+    try {
+      final byEventId = await client
+          .from('events')
+          .update(values)
+          .eq('event_id', alertId.trim())
+          .select('event_id');
+      updated = byEventId.isNotEmpty;
+    } catch (error) {
+      lastError = error;
+    }
+    if (!updated) {
+      try {
+        final byId = await client
+            .from('events')
+            .update(values)
+            .eq('id', alertId.trim())
+            .select('id');
+        updated = byId.isNotEmpty;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!updated) {
+      throw lastError ?? StateError('No matching event row found for $alertId.');
+    }
+  }
+
+  Future<void> _markSiteAwarenessAlertHandled({
+    required _SiteAwarenessActiveAlertRecord alert,
+    required bool removeAlert,
+  }) async {
+    if (!widget.supabaseReady) {
+      return;
+    }
+    try {
+      final rows = await Supabase.instance.client
+          .from('site_awareness_snapshots')
+          .select('site_id,active_alerts')
+          .eq('site_id', alert.siteId.trim().isEmpty ? _selectedSite : alert.siteId)
+          .limit(1);
+      if (rows.isEmpty) {
+        return;
+      }
+      final row = Map<String, dynamic>.from(rows.first as Map);
+      final rawAlerts = row['active_alerts'];
+      if (rawAlerts is! List) {
+        return;
+      }
+      final updatedAlerts = <Object?>[];
+      for (final entry in rawAlerts) {
+        if (entry is! Map) {
+          updatedAlerts.add(entry);
+          continue;
+        }
+        final alertMap = Map<String, Object?>.from(entry.cast<Object?, Object?>());
+        final entryAlertId = (alertMap['alert_id'] ?? '').toString().trim();
+        if (entryAlertId != alert.alertId.trim()) {
+          updatedAlerts.add(alertMap);
+          continue;
+        }
+        if (removeAlert) {
+          continue;
+        }
+        updatedAlerts.add(<String, Object?>{
+          ...alertMap,
+          'is_acknowledged': true,
+        });
+      }
+      await Supabase.instance.client
+          .from('site_awareness_snapshots')
+          .update(<String, Object?>{'active_alerts': updatedAlerts})
+          .eq('site_id', row['site_id']);
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to update site awareness snapshot alert state.',
+        name: 'TelegramBridge',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<void> _recordTelegramAlertOutcomeFeedback({
+    required _SiteAwarenessActiveAlertRecord alert,
+    required String action,
+    required TelegramBridgeInboundMessage update,
+  }) async {
+    final outcome = _outcomeForTelegramAlertAction(action);
+    if (outcome == null) {
+      return;
+    }
+    final service = _outcomeFeedbackServiceOrNull;
+    if (service == null) {
+      return;
+    }
+    final clientId = alert.clientId.trim().isEmpty
+        ? _selectedClient
+        : alert.clientId.trim();
+    final siteId = alert.siteId.trim().isEmpty
+        ? _selectedSite
+        : alert.siteId.trim();
+    try {
+      await service.recordOutcome(
+        alert.alertId,
+        outcome,
+        _telegramOutcomeOperatorId(update),
+        'Telegram quick action: $action',
+        siteId: siteId,
+        clientId: clientId,
+        zoneId: (alert.zoneName ?? '').trim(),
+        confidenceAtTime: alert.personConfidence,
+        powerModeAtTime: alert.powerMode,
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'ONYX outcome feedback persistence failed',
+        name: 'OnyxOutcomeFeedback',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<void> _appendTelegramAlertActionToOriginalMessage({
+    required TelegramBridgeInboundMessage update,
+    required String actionLine,
+    required bool removeInlineKeyboard,
+  }) async {
+    final messageId = update.messageId;
+    final originalText = (update.messageText ?? '').trim();
+    if (messageId == null || messageId <= 0 || originalText.isEmpty) {
+      return;
+    }
+    final updatedText = _telegramAlertMessageWithActionLine(
+      originalText: originalText,
+      actionLine: actionLine,
+    );
+    final clearedMarkup = removeInlineKeyboard
+        ? const <String, Object?>{
+            'inline_keyboard': <List<Map<String, String>>>[],
+          }
+        : null;
+    final edited = update.messageHasPhoto
+        ? await _telegramBridge.editMessageCaption(
+            chatId: update.chatId,
+            messageId: messageId,
+            caption: updatedText,
+            replyMarkup: clearedMarkup,
+          )
+        : await _telegramBridge.editMessageText(
+            chatId: update.chatId,
+            messageId: messageId,
+            text: updatedText,
+            replyMarkup: clearedMarkup,
+          );
+    if (!edited) {
+      developer.log(
+        'Failed to edit Telegram alert message after callback action.',
+        name: 'TelegramBridge',
+        error:
+            'chat=${update.chatId} message_id=$messageId has_photo=${update.messageHasPhoto}',
+      );
+    }
+  }
+
+  String _telegramAlertMessageWithActionLine({
+    required String originalText,
+    required String actionLine,
+  }) {
+    final normalizedOriginal = originalText.trimRight();
+    final normalizedActionLine = actionLine.trim();
+    if (normalizedOriginal.isEmpty || normalizedActionLine.isEmpty) {
+      return normalizedOriginal;
+    }
+    final lines = normalizedOriginal
+        .split('\n')
+        .map((line) => line.trimRight())
+        .toList(growable: false);
+    if (lines.contains(normalizedActionLine)) {
+      return normalizedOriginal;
+    }
+    return '$normalizedOriginal\n\n$normalizedActionLine';
+  }
+
+  String _telegramCameraViewUrl(String channelId) {
+    final normalizedChannelId = channelId.trim().isEmpty
+        ? '0'
+        : channelId.trim();
+    return 'http://192.168.0.67:11638/snapshot/$normalizedChannelId';
   }
 
   _TelegramProactiveAlertCallback? _parseTelegramProactiveAlertCallback(
@@ -17356,6 +17816,52 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         legacyTarget: parts.sublist(2).join('|'),
       );
     }
+    if (trimmed.startsWith('view:')) {
+      final parts = trimmed.split(':');
+      if (parts.length != 3) {
+        return const _TelegramProactiveAlertCallback(
+          action: '',
+          malformed: true,
+        );
+      }
+      return _TelegramProactiveAlertCallback(
+        action: 'view',
+        alertId: parts[1].trim(),
+        channelId: parts[2].trim(),
+        malformed: parts[1].trim().isEmpty || parts[2].trim().isEmpty,
+      );
+    }
+    if (trimmed.startsWith('dispatch:')) {
+      final parts = trimmed.split(':');
+      if (parts.length != 3) {
+        return const _TelegramProactiveAlertCallback(
+          action: '',
+          malformed: true,
+        );
+      }
+      return _TelegramProactiveAlertCallback(
+        action: 'dispatch',
+        alertId: parts[1].trim(),
+        siteId: parts[2].trim(),
+        malformed: parts[1].trim().isEmpty || parts[2].trim().isEmpty,
+      );
+    }
+    if (trimmed.startsWith('ack:')) {
+      final alertId = trimmed.substring('ack:'.length).trim();
+      return _TelegramProactiveAlertCallback(
+        action: 'ack',
+        alertId: alertId,
+        malformed: alertId.isEmpty,
+      );
+    }
+    if (trimmed.startsWith('dismiss:')) {
+      final alertId = trimmed.substring('dismiss:'.length).trim();
+      return _TelegramProactiveAlertCallback(
+        action: 'dismiss',
+        alertId: alertId,
+        malformed: alertId.isEmpty,
+      );
+    }
     if (trimmed.startsWith('view_cam_')) {
       final raw = trimmed.substring('view_cam_'.length);
       final separator = raw.indexOf('_');
@@ -17366,7 +17872,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         );
       }
       return _TelegramProactiveAlertCallback(
-        action: 'view_cam',
+        action: 'view',
         channelId: raw.substring(0, separator),
         siteId: raw.substring(separator + 1),
       );

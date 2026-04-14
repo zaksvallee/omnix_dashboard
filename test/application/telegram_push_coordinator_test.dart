@@ -221,6 +221,28 @@ class _ConfiguredTelegramBridgeStub implements TelegramBridgeService {
   }
 
   @override
+  Future<bool> editMessageText({
+    required String chatId,
+    required int messageId,
+    required String text,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) async {
+    return true;
+  }
+
+  @override
+  Future<bool> editMessageCaption({
+    required String chatId,
+    required int messageId,
+    required String caption,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) async {
+    return true;
+  }
+
+  @override
   Future<bool> setMyCommands({
     required List<TelegramBotCommand> commands,
   }) async {

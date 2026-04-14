@@ -12,6 +12,7 @@ class TelegramBridgeMessage {
   final String messageKey;
   final String chatId;
   final int? messageThreadId;
+  final int? replyToMessageId;
   final String text;
   final List<int>? photoBytes;
   final String? photoFilename;
@@ -27,6 +28,7 @@ class TelegramBridgeMessage {
     required this.messageKey,
     required this.chatId,
     this.messageThreadId,
+    this.replyToMessageId,
     required this.text,
     this.photoBytes,
     this.photoFilename,
@@ -75,6 +77,8 @@ class TelegramBridgeInboundMessage {
   final String? fromUsername;
   final bool fromIsBot;
   final String text;
+  final String? messageText;
+  final bool messageHasPhoto;
   final DateTime? sentAtUtc;
 
   const TelegramBridgeInboundMessage({
@@ -91,6 +95,8 @@ class TelegramBridgeInboundMessage {
     this.fromUsername,
     this.fromIsBot = false,
     required this.text,
+    this.messageText,
+    this.messageHasPhoto = false,
     this.sentAtUtc,
   });
 }
@@ -128,6 +134,22 @@ abstract class TelegramBridgeService {
   Future<bool> answerCallbackQuery({
     required String callbackQueryId,
     String? text,
+  });
+
+  Future<bool> editMessageText({
+    required String chatId,
+    required int messageId,
+    required String text,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  });
+
+  Future<bool> editMessageCaption({
+    required String chatId,
+    required int messageId,
+    required String caption,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
   });
 
   Future<bool> setMyCommands({required List<TelegramBotCommand> commands});
@@ -172,6 +194,28 @@ class UnconfiguredTelegramBridgeService implements TelegramBridgeService {
   Future<bool> answerCallbackQuery({
     required String callbackQueryId,
     String? text,
+  }) async {
+    return false;
+  }
+
+  @override
+  Future<bool> editMessageText({
+    required String chatId,
+    required int messageId,
+    required String text,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) async {
+    return false;
+  }
+
+  @override
+  Future<bool> editMessageCaption({
+    required String chatId,
+    required int messageId,
+    required String caption,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
   }) async {
     return false;
   }
@@ -253,6 +297,8 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
                       'chat_id': chatId,
                       if (message.messageThreadId != null)
                         'message_thread_id': message.messageThreadId,
+                      if (message.replyToMessageId != null)
+                        'reply_to_message_id': message.replyToMessageId,
                       'text': message.text,
                       if ((message.parseMode ?? '').trim().isNotEmpty)
                         'parse_mode': message.parseMode!.trim(),
@@ -304,6 +350,9 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       ..fields['chat_id'] = message.chatId.trim();
     if (message.messageThreadId != null) {
       request.fields['message_thread_id'] = '${message.messageThreadId!}';
+    }
+    if (message.replyToMessageId != null) {
+      request.fields['reply_to_message_id'] = '${message.replyToMessageId!}';
     }
     if (message.text.trim().isNotEmpty) {
       request.fields['caption'] = message.text.trim();
@@ -369,10 +418,14 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
       Map<Object?, Object?>? message;
       String? callbackQueryId;
       String text = '';
+      String? messageText;
+      var messageHasPhoto = false;
       Map<Object?, Object?> from = const <Object?, Object?>{};
       if (messageRaw is Map) {
         message = messageRaw.cast<Object?, Object?>();
         text = (message['text'] ?? '').toString().trim();
+        messageText = text;
+        messageHasPhoto = message['photo'] is List && (message['photo'] as List).isNotEmpty;
         final fromRaw = message['from'];
         from = fromRaw is Map
             ? fromRaw.cast<Object?, Object?>()
@@ -391,6 +444,11 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
         final callbackMessageRaw = callback['message'];
         if (callbackMessageRaw is! Map) continue;
         message = callbackMessageRaw.cast<Object?, Object?>();
+        messageText = (message['caption'] ?? message['text'] ?? '')
+            .toString()
+            .trim();
+        messageHasPhoto =
+            message['photo'] is List && (message['photo'] as List).isNotEmpty;
       }
       if (text.isEmpty) continue;
       final chatRaw = message['chat'];
@@ -424,6 +482,8 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
               : (from['username'] ?? '').toString().trim(),
           fromIsBot: from['is_bot'] == true,
           text: text,
+          messageText: messageText,
+          messageHasPhoto: messageHasPhoto,
           sentAtUtc: sentAtSeconds == null
               ? null
               : DateTime.fromMillisecondsSinceEpoch(
@@ -458,6 +518,92 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
               'callback_query_id': callbackQueryId.trim(),
               if ((text ?? '').trim().isNotEmpty) 'text': text!.trim(),
             }),
+          )
+          .timeout(requestTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return false;
+      }
+      final decoded = jsonDecode(response.body);
+      return decoded is Map && decoded['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> editMessageText({
+    required String chatId,
+    required int messageId,
+    required String text,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) {
+    return _editMessage(
+      method: 'editMessageText',
+      chatId: chatId,
+      messageId: messageId,
+      bodyKey: 'text',
+      bodyValue: text,
+      parseMode: parseMode,
+      replyMarkup: replyMarkup,
+    );
+  }
+
+  @override
+  Future<bool> editMessageCaption({
+    required String chatId,
+    required int messageId,
+    required String caption,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) {
+    return _editMessage(
+      method: 'editMessageCaption',
+      chatId: chatId,
+      messageId: messageId,
+      bodyKey: 'caption',
+      bodyValue: caption,
+      parseMode: parseMode,
+      replyMarkup: replyMarkup,
+    );
+  }
+
+  Future<bool> _editMessage({
+    required String method,
+    required String chatId,
+    required int messageId,
+    required String bodyKey,
+    required String bodyValue,
+    String? parseMode,
+    Map<String, Object?>? replyMarkup,
+  }) async {
+    if (!isConfigured || chatId.trim().isEmpty || messageId <= 0) {
+      return false;
+    }
+    final normalizedBody = bodyValue.trim();
+    if (normalizedBody.isEmpty) {
+      return false;
+    }
+    final endpoint = _buildEndpoint(method);
+    try {
+      final payload = <String, Object?>{
+        'chat_id': chatId.trim(),
+        'message_id': messageId,
+        bodyKey: normalizedBody,
+        if ((parseMode ?? '').trim().isNotEmpty)
+          'parse_mode': parseMode!.trim(),
+      };
+      if (replyMarkup != null) {
+        payload['reply_markup'] = replyMarkup;
+      }
+      final response = await client
+          .post(
+            endpoint,
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode(payload),
           )
           .timeout(requestTimeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
