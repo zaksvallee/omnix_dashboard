@@ -54,6 +54,13 @@ class TelegramBridgeMessage {
   }
 }
 
+class TelegramBotCommand {
+  final String command;
+  final String description;
+
+  const TelegramBotCommand({required this.command, required this.description});
+}
+
 class TelegramBridgeInboundMessage {
   final int updateId;
   final String? callbackQueryId;
@@ -123,6 +130,8 @@ abstract class TelegramBridgeService {
     String? text,
   });
 
+  Future<bool> setMyCommands({required List<TelegramBotCommand> commands});
+
   Future<void> sendVoiceMessage(
     String chatId,
     Uint8List audioBytes, {
@@ -163,6 +172,13 @@ class UnconfiguredTelegramBridgeService implements TelegramBridgeService {
   Future<bool> answerCallbackQuery({
     required String callbackQueryId,
     String? text,
+  }) async {
+    return false;
+  }
+
+  @override
+  Future<bool> setMyCommands({
+    required List<TelegramBotCommand> commands,
   }) async {
     return false;
   }
@@ -452,6 +468,50 @@ class HttpTelegramBridgeService implements TelegramBridgeService {
     } catch (_) {
       return false;
     }
+  }
+
+  @override
+  Future<bool> setMyCommands({
+    required List<TelegramBotCommand> commands,
+  }) async {
+    if (!isConfigured) {
+      return false;
+    }
+    final endpoint = _buildEndpoint('setMyCommands');
+    final response = await client
+        .post(
+          endpoint,
+          headers: const {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({
+            'commands': commands
+                .map(
+                  (command) => <String, String>{
+                    'command': command.command.trim(),
+                    'description': command.description.trim(),
+                  },
+                )
+                .where(
+                  (command) =>
+                      command['command']!.isNotEmpty &&
+                      command['description']!.isNotEmpty,
+                )
+                .toList(growable: false),
+          }),
+        )
+        .timeout(requestTimeout);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      developer.log(
+        'Telegram setMyCommands failed with HTTP ${response.statusCode}.',
+        name: 'TelegramBridge',
+        error: response.body,
+      );
+      return false;
+    }
+    final decoded = jsonDecode(response.body);
+    return decoded is Map && decoded['ok'] == true;
   }
 
   @override

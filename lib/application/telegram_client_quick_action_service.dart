@@ -66,21 +66,7 @@ class TelegramClientQuickActionService {
   }
 
   Map<String, Object?> replyKeyboardMarkup() {
-    return const <String, Object?>{
-      'keyboard': <List<Map<String, String>>>[
-        <Map<String, String>>[
-          <String, String>{'text': 'Status'},
-          <String, String>{'text': 'Details'},
-        ],
-        <Map<String, String>>[
-          <String, String>{'text': 'Sleep check'},
-        ],
-      ],
-      'resize_keyboard': true,
-      'one_time_keyboard': false,
-      'is_persistent': true,
-      'input_field_placeholder': 'Tap Status, Details, or Sleep check',
-    };
+    return const <String, Object?>{'remove_keyboard': true};
   }
 
   TelegramClientQuickAction? parseActionText(String text) {
@@ -448,14 +434,14 @@ class TelegramClientQuickActionService {
   }) {
     if (monitoringUnavailable || monitoringLimited) {
       final lead =
-          cameraHealthFactPacket?.safeClientExplanation.trim().isNotEmpty == true
+          cameraHealthFactPacket?.safeClientExplanation.trim().isNotEmpty ==
+              true
           ? cameraHealthFactPacket!.safeClientExplanation.trim()
           : monitoringUnavailable
           ? 'Live camera visibility at ${site.siteName} is unavailable right now.'
           : 'Live camera visibility at ${site.siteName} is limited right now.';
       final issueLabel = cameraHealthFactPacket?.operatorIssueSignalLabel();
-      final currentSignalLine =
-          issueLabel == null || issueLabel.trim().isEmpty
+      final currentSignalLine = issueLabel == null || issueLabel.trim().isEmpty
           ? ''
           : 'Current signal: ${issueLabel.trim()}. ';
       return '$lead $currentSignalLine${_nextStepLine(active: active, monitoringUnavailable: monitoringUnavailable, monitoringLimited: monitoringLimited, unresolvedActions: unresolvedActions, tonePack: tonePack)}';

@@ -228,6 +228,13 @@ class _ConfiguredTelegramBridgeStub implements TelegramBridgeService {
   }
 
   @override
+  Future<bool> setMyCommands({
+    required List<TelegramBotCommand> commands,
+  }) async {
+    return false;
+  }
+
+  @override
   Future<List<TelegramBridgeInboundMessage>> fetchUpdates({
     int? offset,
     int limit = 30,
@@ -268,6 +275,13 @@ class _DelayedFailingTelegramBridgeStub implements TelegramBridgeService {
   Future<bool> answerCallbackQuery({
     required String callbackQueryId,
     String? text,
+  }) async {
+    return false;
+  }
+
+  @override
+  Future<bool> setMyCommands({
+    required List<TelegramBotCommand> commands,
   }) async {
     return false;
   }
@@ -502,6 +516,13 @@ class _RecordingTelegramBridgeStub implements TelegramBridgeService {
     String? text,
   }) async {
     return true;
+  }
+
+  @override
+  Future<bool> setMyCommands({
+    required List<TelegramBotCommand> commands,
+  }) async {
+    return false;
   }
 
   @override

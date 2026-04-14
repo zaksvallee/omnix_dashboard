@@ -334,12 +334,14 @@ class OnyxSiteAlert {
 
 class _RelayableSiteAlert {
   final String alertId;
+  final String channelId;
   final DateTime detectedAt;
   final bool isAcknowledged;
   final String message;
 
   const _RelayableSiteAlert({
     required this.alertId,
+    required this.channelId,
     required this.detectedAt,
     required this.isAcknowledged,
     required this.message,
@@ -536,7 +538,6 @@ class OnyxSiteAwarenessProjector {
   final Map<String, OnyxCameraZone> cameraZones;
   final Duration detectionWindow;
   final DateTime Function() clock;
-  final math.Random _random;
 
   final Map<String, OnyxChannelStatus> _channels =
       <String, OnyxChannelStatus>{};
@@ -550,13 +551,11 @@ class OnyxSiteAwarenessProjector {
     Map<String, OnyxCameraZone> cameraZones = const <String, OnyxCameraZone>{},
     this.detectionWindow = const Duration(minutes: 5),
     DateTime Function()? clock,
-    math.Random? random,
   }) : knownFaultChannels = Set<String>.from(knownFaultChannels),
        cameraZones = Map<String, OnyxCameraZone>.unmodifiable(
          Map<String, OnyxCameraZone>.from(cameraZones),
        ),
-       clock = clock ?? DateTime.now,
-       _random = random ?? math.Random.secure();
+       clock = clock ?? DateTime.now;
 
   OnyxSiteAwarenessSnapshot ingest(OnyxSiteAwarenessEvent event) {
     _prune(event.detectedAt);
@@ -578,7 +577,12 @@ class OnyxSiteAwarenessProjector {
     if (event.shouldRaiseAlert) {
       _upsertAlert(
         OnyxSiteAlert(
-          alertId: _uuidV4(_random),
+          alertId: _compactAlertId(
+            siteId: siteId,
+            channelId: event.channelId,
+            detectedAt: event.detectedAt,
+            variant: _alertVariantLabel(eventType: event.eventType),
+          ),
           channelId: event.channelId,
           eventType: event.eventType,
           detectedAt: event.detectedAt.toUtc(),
@@ -882,22 +886,6 @@ String _readTag(xml.XmlDocument document, String tagName) {
 
 String _normalizeToken(String value) {
   return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
-}
-
-String _uuidV4(math.Random random) {
-  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  final hex = bytes
-      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-      .join();
-  return [
-    hex.substring(0, 8),
-    hex.substring(8, 12),
-    hex.substring(12, 16),
-    hex.substring(16, 20),
-    hex.substring(20, 32),
-  ].join('-');
 }
 
 // ─── Inlined from lib/application/site_awareness/onyx_site_awareness_service.dart ───
@@ -2206,6 +2194,46 @@ String _snapshotStreamChannelId(String channelId) {
   return '${parsed}01';
 }
 
+String _alertVariantLabel({
+  required OnyxEventType eventType,
+  bool isLoitering = false,
+  bool isSequence = false,
+}) {
+  if (isLoitering) {
+    return isSequence ? 'lseq' : 'loiter';
+  }
+  if (isSequence) {
+    return 'seq';
+  }
+  return eventType.name;
+}
+
+String _compactAlertId({
+  required String siteId,
+  required String channelId,
+  required DateTime detectedAt,
+  required String variant,
+}) {
+  String compactToken(String value, {required int maxLength}) {
+    final normalized = value.trim().toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]+'),
+      '',
+    );
+    if (normalized.isEmpty) {
+      return 'x';
+    }
+    return normalized.length <= maxLength
+        ? normalized
+        : normalized.substring(normalized.length - maxLength);
+  }
+
+  final siteToken = compactToken(siteId, maxLength: 8);
+  final channelToken = compactToken(channelId, maxLength: 3);
+  final variantToken = compactToken(variant, maxLength: 4);
+  final timeToken = detectedAt.toUtc().microsecondsSinceEpoch.toRadixString(36);
+  return 'al$siteToken$channelToken$variantToken$timeToken';
+}
+
 // ─── Inlined from lib/application/site_awareness/onyx_hik_isapi_stream_awareness_service.dart ───
 
 http.Client _buildIsapiHttpClient() {
@@ -3158,8 +3186,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       );
       return;
     }
-    final alertId =
-        '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}';
+    final alertId = _compactAlertId(
+      siteId: decision.siteId.trim().isEmpty ? _siteId : decision.siteId.trim(),
+      channelId: '${decision.channelId}',
+      detectedAt: decision.detectedAt,
+      variant: decision.isLoitering
+          ? (decision.isSequence ? 'lseq' : 'loiter')
+          : (decision.isSequence ? 'seq' : decision.telegramAlertKind.name),
+    );
     final alertReason = _alertReasonForDecision(decision);
     final alertLatency = _latencyRecordForDecision(decision);
     final alertConfidence = _confidenceForDecision(decision);
@@ -3250,6 +3284,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
 
     final hasSnapshot = snapshotBytes != null && snapshotBytes.isNotEmpty;
+    final replyMarkup = _telegramInlineKeyboardForAlert(
+      channelId: '${decision.channelId}',
+      siteId: decision.siteId.trim().isEmpty ? _siteId : decision.siteId.trim(),
+      alertId: alertId,
+    );
     final outbound = <TelegramBridgeMessage>[];
     for (final target in targets) {
       developer.log(
@@ -3269,6 +3308,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           photoFilename: hasSnapshot
               ? 'onyx-ch${decision.channelId}-${decision.detectedAt.toUtc().millisecondsSinceEpoch}.jpg'
               : null,
+          replyMarkup: replyMarkup,
           source: TelegramBridgeMessageSource.system,
           audience: TelegramBridgeMessageAudience.client,
         ),
@@ -3922,8 +3962,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return null;
     }
     return record.copyWith(
-      alertId:
-          '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}',
+      alertId: _compactAlertId(
+        siteId: decision.siteId,
+        channelId: '${decision.channelId}',
+        detectedAt: decision.detectedAt,
+        variant: decision.isLoitering
+            ? (decision.isSequence ? 'lseq' : 'loiter')
+            : (decision.isSequence ? 'seq' : decision.telegramAlertKind.name),
+      ),
       siteId: decision.siteId.trim().isEmpty ? _siteId : decision.siteId.trim(),
       clientId: _clientId,
     );
@@ -4282,6 +4328,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       final outbound = <TelegramBridgeMessage>[];
       for (final alert in alerts) {
+        final replyMarkup = _telegramInlineKeyboardForAlert(
+          channelId: alert.channelId,
+          siteId: _siteId,
+          alertId: alert.alertId,
+        );
         for (final target in targets) {
           outbound.add(
             TelegramBridgeMessage(
@@ -4290,6 +4341,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
               chatId: target.chatId,
               messageThreadId: target.threadId,
               text: alert.message.trim(),
+              replyMarkup: replyMarkup,
               source: TelegramBridgeMessageSource.system,
               audience: TelegramBridgeMessageAudience.client,
             ),
@@ -4408,14 +4460,19 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       final alert = rawAlert.cast<Object?, Object?>();
       final alertId = (alert['alert_id'] ?? '').toString().trim();
+      final channelId = (alert['channel_id'] ?? '').toString().trim();
       final detectedAt = _summaryDate(alert['detected_at']);
       final message = (alert['message'] ?? '').toString().trim();
-      if (alertId.isEmpty || detectedAt == null || message.isEmpty) {
+      if (alertId.isEmpty ||
+          channelId.isEmpty ||
+          detectedAt == null ||
+          message.isEmpty) {
         continue;
       }
       alerts.add(
         _RelayableSiteAlert(
           alertId: alertId,
+          channelId: channelId,
           detectedAt: detectedAt.toUtc(),
           isAcknowledged:
               _summaryBool(
@@ -4460,6 +4517,38 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         return false;
     }
     return null;
+  }
+
+  Map<String, Object?> _telegramInlineKeyboardForAlert({
+    required String channelId,
+    required String siteId,
+    required String alertId,
+  }) {
+    final normalizedChannelId = channelId.trim().isEmpty
+        ? '0'
+        : channelId.trim();
+    final normalizedSiteId = siteId.trim().isEmpty ? _siteId : siteId.trim();
+    final normalizedAlertId = alertId.trim();
+    Map<String, String> button(String label, String callbackData) =>
+        <String, String>{'text': label, 'callback_data': callbackData};
+    return <String, Object?>{
+      'inline_keyboard': <List<Map<String, String>>>[
+        <Map<String, String>>[
+          button(
+            '👁 View camera',
+            'view_cam_${normalizedChannelId}_$normalizedSiteId',
+          ),
+          button(
+            '🚨 Dispatch',
+            'dispatch_${normalizedSiteId}_$normalizedAlertId',
+          ),
+        ],
+        <Map<String, String>>[
+          button('✅ Acknowledge', 'ack_$normalizedAlertId'),
+          button('❌ False alarm', 'dismiss_$normalizedAlertId'),
+        ],
+      ],
+    };
   }
 
   Future<void> _runSupabaseWatchdog(int generation) async {

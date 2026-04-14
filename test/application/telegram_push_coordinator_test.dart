@@ -221,6 +221,13 @@ class _ConfiguredTelegramBridgeStub implements TelegramBridgeService {
   }
 
   @override
+  Future<bool> setMyCommands({
+    required List<TelegramBotCommand> commands,
+  }) async {
+    return false;
+  }
+
+  @override
   Future<List<TelegramBridgeInboundMessage>> fetchUpdates({
     int? offset,
     int limit = 30,

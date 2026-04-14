@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:xml/xml.dart' as xml;
@@ -470,7 +469,6 @@ class OnyxSiteAwarenessProjector {
   final Map<String, OnyxCameraZone> cameraZones;
   final Duration detectionWindow;
   final DateTime Function() clock;
-  final math.Random _random;
 
   final Map<String, OnyxChannelStatus> _channels =
       <String, OnyxChannelStatus>{};
@@ -484,13 +482,11 @@ class OnyxSiteAwarenessProjector {
     Map<String, OnyxCameraZone> cameraZones = const <String, OnyxCameraZone>{},
     this.detectionWindow = const Duration(minutes: 5),
     DateTime Function()? clock,
-    math.Random? random,
   }) : knownFaultChannels = Set<String>.from(knownFaultChannels),
        cameraZones = Map<String, OnyxCameraZone>.unmodifiable(
          Map<String, OnyxCameraZone>.from(cameraZones),
        ),
-       clock = clock ?? DateTime.now,
-       _random = random ?? math.Random.secure();
+       clock = clock ?? DateTime.now;
 
   OnyxSiteAwarenessSnapshot ingest(OnyxSiteAwarenessEvent event) {
     _prune(event.detectedAt);
@@ -512,7 +508,12 @@ class OnyxSiteAwarenessProjector {
     if (event.shouldRaiseAlert) {
       _upsertAlert(
         OnyxSiteAlert(
-          alertId: _uuidV4(_random),
+          alertId: _compactAlertId(
+            siteId: siteId,
+            channelId: event.channelId,
+            detectedAt: event.detectedAt,
+            variant: _alertVariantLabel(eventType: event.eventType),
+          ),
           channelId: event.channelId,
           eventType: event.eventType,
           detectedAt: event.detectedAt.toUtc(),
@@ -813,18 +814,42 @@ String _normalizeToken(String value) {
   return value.trim().toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
 
-String _uuidV4(math.Random random) {
-  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  final hex = bytes
-      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
-      .join();
-  return [
-    hex.substring(0, 8),
-    hex.substring(8, 12),
-    hex.substring(12, 16),
-    hex.substring(16, 20),
-    hex.substring(20, 32),
-  ].join('-');
+String _alertVariantLabel({
+  required OnyxEventType eventType,
+  bool isLoitering = false,
+  bool isSequence = false,
+}) {
+  if (isLoitering) {
+    return isSequence ? 'lseq' : 'loiter';
+  }
+  if (isSequence) {
+    return 'seq';
+  }
+  return eventType.name;
+}
+
+String _compactAlertId({
+  required String siteId,
+  required String channelId,
+  required DateTime detectedAt,
+  required String variant,
+}) {
+  String compactToken(String value, {required int maxLength}) {
+    final normalized = value.trim().toLowerCase().replaceAll(
+      RegExp(r'[^a-z0-9]+'),
+      '',
+    );
+    if (normalized.isEmpty) {
+      return 'x';
+    }
+    return normalized.length <= maxLength
+        ? normalized
+        : normalized.substring(normalized.length - maxLength);
+  }
+
+  final siteToken = compactToken(siteId, maxLength: 8);
+  final channelToken = compactToken(channelId, maxLength: 3);
+  final variantToken = compactToken(variant, maxLength: 4);
+  final timeToken = detectedAt.toUtc().microsecondsSinceEpoch.toRadixString(36);
+  return 'al$siteToken$channelToken$variantToken$timeToken';
 }

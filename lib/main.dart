@@ -1924,6 +1924,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   bool _telegramAdminOffsetBootstrapped = false;
   bool _telegramPollingLockAcquisitionInFlight = false;
   bool _telegramPollingPrimaryTab = false;
+  bool _telegramBotCommandsRegistered = false;
+  Future<void>? _telegramBotCommandsRegistrationFuture;
   bool _siteAwarenessAlertPollInFlight = false;
   DateTime? _telegramAdminOffsetBootstrappedAtUtc;
   DateTime? _siteAwarenessAlertBootCutoffUtc;
@@ -1958,6 +1960,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   int? _telegramAdminCriticalReminderSecondsOverride;
   bool? _telegramAdminExecutionEnabledOverride;
   List<int>? _telegramAdminAllowedUserIdsOverride;
+  static const List<TelegramBotCommand>
+  _telegramPrimaryBotCommands = <TelegramBotCommand>[
+    TelegramBotCommand(command: 'status', description: 'Site status overview'),
+    TelegramBotCommand(command: 'alerts', description: 'Active alerts summary'),
+    TelegramBotCommand(
+      command: 'guards',
+      description: 'Guard roster and check-ins',
+    ),
+    TelegramBotCommand(command: 'dispatch', description: 'Active dispatches'),
+    TelegramBotCommand(command: 'cameras', description: 'Camera health check'),
+    TelegramBotCommand(command: 'report', description: 'Generate shift report'),
+    TelegramBotCommand(command: 'sleep', description: 'Sleep check all sites'),
+    TelegramBotCommand(command: 'help', description: 'Available commands'),
+  ];
   String? _telegramAdminTargetClientIdOverride;
   String? _telegramAdminTargetSiteIdOverride;
   String _telegramAdminCriticalAlertFingerprint = '';
@@ -14655,8 +14671,58 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       'tab=${_telegramPollingPrimaryTab ? 'primary' : 'secondary'} '
       'bridge=${_telegramBridge.isConfigured ? 'configured' : 'disabled'}',
     );
+    unawaited(_registerTelegramBotCommandsIfNeeded());
     _scheduleNextTelegramAdminPoll(1);
     _startSiteAwarenessAlertLoop();
+  }
+
+  Future<void> _registerTelegramBotCommandsIfNeeded() async {
+    if (_telegramBotCommandsRegistered ||
+        !_telegramPollingPrimaryTab ||
+        !_telegramBridge.isConfigured) {
+      return;
+    }
+    final inFlight = _telegramBotCommandsRegistrationFuture;
+    if (inFlight != null) {
+      await inFlight;
+      return;
+    }
+    final future = () async {
+      try {
+        final registered = await _telegramBridge.setMyCommands(
+          commands: _telegramPrimaryBotCommands,
+        );
+        if (registered) {
+          _telegramBotCommandsRegistered = true;
+          developer.log(
+            'Telegram command menu registered for primary ONYX bot.',
+            name: 'TelegramBridge',
+          );
+          return;
+        }
+        developer.log(
+          'Telegram command menu registration was not accepted by Telegram.',
+          name: 'TelegramBridge',
+          level: 900,
+        );
+      } catch (error, stackTrace) {
+        developer.log(
+          'Telegram command menu registration failed.',
+          name: 'TelegramBridge',
+          error: error,
+          stackTrace: stackTrace,
+          level: 1000,
+        );
+      }
+    }();
+    _telegramBotCommandsRegistrationFuture = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_telegramBotCommandsRegistrationFuture, future)) {
+        _telegramBotCommandsRegistrationFuture = null;
+      }
+    }
   }
 
   Future<void> _ensureTelegramPrimaryTabForSiteAwarenessAlerts() async {
@@ -14793,7 +14859,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   String _siteAwarenessAlertDeliveryDeduplicationKey(
     _SiteAwarenessActiveAlertRecord alert,
   ) {
-    return '${_selectedSite.trim()}|${alert.deliveryDeduplicationKey}';
+    final siteId = alert.siteId.trim().isEmpty
+        ? _selectedSite.trim()
+        : alert.siteId.trim();
+    return '$siteId|${alert.deliveryDeduplicationKey}';
   }
 
   bool _shouldSkipSiteAwarenessAlertDelivery(
@@ -14854,8 +14923,10 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     final record = OnyxLatencyRecord.fromJsonMap(<String, Object?>{
       ...latency,
       'alert_id': alert.alertId,
-      'site_id': _selectedSite,
-      'client_id': _selectedClient,
+      'site_id': alert.siteId.trim().isEmpty ? _selectedSite : alert.siteId,
+      'client_id': alert.clientId.trim().isEmpty
+          ? _selectedClient
+          : alert.clientId,
       'telegram_at': telegramAtUtc.toUtc().toIso8601String(),
       'total_ms': telegramAtUtc.toUtc().difference(dvrEventAt).inMilliseconds,
     });
@@ -14919,10 +14990,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             siteProfile: siteProfile,
             nowUtc: nowUtc,
           );
+          final alertClientId = alert.clientId.trim().isEmpty
+              ? _selectedClient
+              : alert.clientId.trim();
+          final alertSiteId = alert.siteId.trim().isEmpty
+              ? _selectedSite
+              : alert.siteId.trim();
           final dispatch = await _telegramPushCoordinator
               .sendProactiveSiteAlert(
-                clientId: _selectedClient,
-                siteId: _selectedSite,
+                clientId: alertClientId,
+                siteId: alertSiteId,
                 alertId: alertId,
                 text: presentation.markdownText,
                 replyMarkup: presentation.replyMarkup,
@@ -14966,8 +15043,8 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             );
           }
           await _appendTelegramConversationMessage(
-            clientId: _selectedClient,
-            siteId: _selectedSite,
+            clientId: alertClientId,
+            siteId: alertSiteId,
             author: 'ONYX Watch',
             body: presentation.plainText,
             occurredAtUtc: alert.detectedAt,
@@ -15186,12 +15263,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       if (reasonBullets.isNotEmpty) '📋 Why this alert fired:',
       ...reasonBullets.map((bullet) => '• $bullet'),
     ].join('\n');
-    final replyMarkup = siteProfile.alertWithButtons
-        ? _telegramInlineKeyboardForProactiveAlert(
-            alertKind: alertKind,
-            alertTarget: alert.alertId,
-          )
-        : null;
+    final replyMarkup = _telegramInlineKeyboardForProactiveAlert(alert: alert);
     List<int>? photoBytes;
     if (siteProfile.alertWithSnapshot) {
       photoBytes = await _fetchProactiveAlertSnapshotBytes(
@@ -15485,55 +15557,28 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   Map<String, Object?> _telegramInlineKeyboardForProactiveAlert({
-    required _TelegramProactiveAlertKind alertKind,
-    required String alertTarget,
+    required _SiteAwarenessActiveAlertRecord alert,
   }) {
-    Map<String, String> button(String label, String action) => <String, String>{
-      'text': label,
-      'callback_data': 'oa|$action|${alertTarget.trim()}',
-    };
+    final channelId = alert.channelId.trim().isEmpty
+        ? '0'
+        : alert.channelId.trim();
+    final siteId = alert.siteId.trim().isEmpty
+        ? _selectedSite.trim()
+        : alert.siteId.trim();
+    final alertId = alert.alertId.trim();
+    Map<String, String> button(String label, String callbackData) =>
+        <String, String>{'text': label, 'callback_data': callbackData};
     return <String, Object?>{
-      'inline_keyboard': switch (alertKind) {
-        _TelegramProactiveAlertKind.perimeterBreach =>
-          <List<Map<String, String>>>[
-            <Map<String, String>>[
-              button('📞 Armed Response', 'armed_response'),
-              button('🔊 Sound Warning', 'sound_warning'),
-            ],
-            <Map<String, String>>[
-              button('✅ False Alarm', 'false_alarm'),
-              button('👁 Keep Watching', 'keep_watching'),
-            ],
-          ],
-        _TelegramProactiveAlertKind.unknownVehicleAtGate =>
-          <List<Map<String, String>>>[
-            <Map<String, String>>[
-              button('📞 Armed Response', 'armed_response'),
-              button('🚗 Register Vehicle', 'register_vehicle'),
-            ],
-            <Map<String, String>>[
-              button('✅ Expected', 'expected_vehicle'),
-              button('👁 Monitor', 'keep_watching'),
-            ],
-          ],
-        _TelegramProactiveAlertKind.loitering => <List<Map<String, String>>>[
-          <Map<String, String>>[
-            button('📞 Armed Response', 'armed_response'),
-            button('🔊 Sound Warning', 'sound_warning'),
-          ],
-          <Map<String, String>>[
-            button('✅ False Alarm', 'false_alarm'),
-            button('👁 Monitor', 'keep_watching'),
-          ],
+      'inline_keyboard': <List<Map<String, String>>>[
+        <Map<String, String>>[
+          button('👁 View camera', 'view_cam_${channelId}_$siteId'),
+          button('🚨 Dispatch', 'dispatch_${siteId}_$alertId'),
         ],
-        _TelegramProactiveAlertKind.generalMovement =>
-          <List<Map<String, String>>>[
-            <Map<String, String>>[
-              button('✅ All Good', 'all_good'),
-              button('👁 I See Them', 'i_see_them'),
-            ],
-          ],
-      },
+        <Map<String, String>>[
+          button('✅ Acknowledge', 'ack_$alertId'),
+          button('❌ False alarm', 'dismiss_$alertId'),
+        ],
+      ],
     };
   }
 
@@ -16065,26 +16110,7 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   }
 
   Map<String, Object?> _telegramAdminQuickReplyMarkup() {
-    return const <String, Object?>{
-      'keyboard': <List<Map<String, String>>>[
-        <Map<String, String>>[
-          <String, String>{'text': 'Brief'},
-          <String, String>{'text': 'Critical risks'},
-        ],
-        <Map<String, String>>[
-          <String, String>{'text': 'Next 5'},
-          <String, String>{'text': 'Status'},
-        ],
-        <Map<String, String>>[
-          <String, String>{'text': 'Ack critical'},
-          <String, String>{'text': 'Status full'},
-        ],
-      ],
-      'resize_keyboard': true,
-      'one_time_keyboard': false,
-      'is_persistent': true,
-      'input_field_placeholder': 'Ask ONYX: what should I do next?',
-    };
+    return const <String, Object?>{'remove_keyboard': true};
   }
 
   Future<void> _pollTelegramAdminCommandsOnce() async {
@@ -17178,20 +17204,56 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   ) async {
     final callbackId = (update.callbackQueryId ?? '').trim();
     final payload = update.text.trim();
-    if (callbackId.isEmpty || !payload.startsWith('oa|')) {
+    if (callbackId.isEmpty) {
       return false;
     }
-    final parts = payload.split('|');
-    if (parts.length < 3) {
+    final callback = _parseTelegramProactiveAlertCallback(payload);
+    if (callback == null) {
+      return false;
+    }
+    if (callback.isMalformed) {
       await _telegramBridge.answerCallbackQuery(
         callbackQueryId: callbackId,
         text: 'Alert action payload invalid.',
       );
       return true;
     }
-    final action = parts[1].trim().toLowerCase();
-    final target = parts.sublist(2).join('|').trim();
-    final alert = await _latestActiveSiteAlertForCallbackTarget(target);
+    if (callback.action == 'view_cam') {
+      final siteId = callback.siteId.trim().isEmpty
+          ? _selectedSite.trim()
+          : callback.siteId.trim();
+      final channelId = callback.channelId.trim().isEmpty
+          ? '0'
+          : callback.channelId.trim();
+      await _recordTelegramAlertActionEvent(
+        siteId: siteId,
+        channelId: channelId,
+        zoneName: null,
+        eventType: 'telegram_view_camera',
+        occurredAtUtc: DateTime.now().toUtc(),
+        rawPayload: <String, Object?>{
+          'action': callback.action,
+          'site_id': siteId,
+          'channel_id': channelId,
+          'operator_id': _telegramOutcomeOperatorId(update),
+        },
+      );
+      await _telegramBridge.answerCallbackQuery(
+        callbackQueryId: callbackId,
+        text:
+            'Camera CH$channelId selected for ${siteId.isEmpty ? _selectedSite : siteId}.',
+      );
+      return true;
+    }
+    final alert = callback.legacyTarget.trim().isNotEmpty
+        ? await _latestActiveSiteAlertForCallbackTarget(
+            callback.legacyTarget,
+            siteId: callback.siteId,
+          )
+        : await _latestActiveSiteAlertForAlertId(
+            callback.alertId,
+            siteId: callback.siteId,
+          );
     if (alert == null) {
       await _telegramBridge.answerCallbackQuery(
         callbackQueryId: callbackId,
@@ -17199,11 +17261,17 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       );
       return true;
     }
-    final siteLabel = _deliverySiteLabelFor(
-      clientId: _selectedClient,
-      siteId: _selectedSite,
-    );
-    final eventType = switch (action) {
+    final clientId = alert.clientId.trim().isEmpty
+        ? _selectedClient
+        : alert.clientId.trim();
+    final siteId = alert.siteId.trim().isEmpty
+        ? _selectedSite
+        : alert.siteId.trim();
+    final siteLabel = _deliverySiteLabelFor(clientId: clientId, siteId: siteId);
+    final eventType = switch (callback.action) {
+      'dispatch' => 'telegram_dispatch_requested',
+      'ack' => 'telegram_acknowledged',
+      'dismiss' => 'telegram_false_alarm',
       'false_alarm' => 'telegram_false_alarm',
       'armed_response' => 'telegram_armed_response',
       'keep_watching' => 'telegram_keep_watching',
@@ -17215,20 +17283,20 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       _ => 'telegram_unknown_action',
     };
     await _recordTelegramAlertActionEvent(
-      siteId: _selectedSite,
+      siteId: siteId,
       channelId: alert.channelId,
       zoneName: alert.zoneName,
       eventType: eventType,
       occurredAtUtc: DateTime.now().toUtc(),
       rawPayload: <String, Object?>{
-        'action': action,
+        'action': callback.action,
         'alert_id': alert.alertId,
-        'site_id': _selectedSite,
-        'client_id': _selectedClient,
+        'site_id': siteId,
+        'client_id': clientId,
         'operator_id': _telegramOutcomeOperatorId(update),
       },
     );
-    final outcome = _outcomeForTelegramAlertAction(action);
+    final outcome = _outcomeForTelegramAlertAction(callback.action);
     if (outcome != null) {
       final service = _outcomeFeedbackServiceOrNull;
       if (service != null) {
@@ -17237,9 +17305,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
             alert.alertId,
             outcome,
             _telegramOutcomeOperatorId(update),
-            'Telegram quick action: $action',
-            siteId: _selectedSite,
-            clientId: _selectedClient,
+            'Telegram quick action: ${callback.action}',
+            siteId: siteId,
+            clientId: clientId,
             zoneId: (alert.zoneName ?? '').trim(),
             confidenceAtTime: alert.personConfidence,
             powerModeAtTime: alert.powerMode,
@@ -17257,24 +17325,104 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     await _telegramBridge.answerCallbackQuery(
       callbackQueryId: callbackId,
       text: _telegramProactiveCallbackReply(
-        action: action,
+        action: callback.action,
         siteLabel: siteLabel,
       ),
     );
     return true;
   }
 
+  _TelegramProactiveAlertCallback? _parseTelegramProactiveAlertCallback(
+    String payload,
+  ) {
+    final trimmed = payload.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    if (trimmed.startsWith('oa|')) {
+      final parts = trimmed
+          .split('|')
+          .map((part) => part.trim())
+          .where((part) => part.isNotEmpty)
+          .toList(growable: false);
+      if (parts.length < 3) {
+        return const _TelegramProactiveAlertCallback(
+          action: '',
+          malformed: true,
+        );
+      }
+      return _TelegramProactiveAlertCallback(
+        action: parts[1].toLowerCase(),
+        legacyTarget: parts.sublist(2).join('|'),
+      );
+    }
+    if (trimmed.startsWith('view_cam_')) {
+      final raw = trimmed.substring('view_cam_'.length);
+      final separator = raw.indexOf('_');
+      if (separator <= 0 || separator >= raw.length - 1) {
+        return const _TelegramProactiveAlertCallback(
+          action: '',
+          malformed: true,
+        );
+      }
+      return _TelegramProactiveAlertCallback(
+        action: 'view_cam',
+        channelId: raw.substring(0, separator),
+        siteId: raw.substring(separator + 1),
+      );
+    }
+    if (trimmed.startsWith('dispatch_')) {
+      final raw = trimmed.substring('dispatch_'.length);
+      final separator = raw.lastIndexOf('_');
+      if (separator <= 0 || separator >= raw.length - 1) {
+        return const _TelegramProactiveAlertCallback(
+          action: '',
+          malformed: true,
+        );
+      }
+      return _TelegramProactiveAlertCallback(
+        action: 'dispatch',
+        siteId: raw.substring(0, separator),
+        alertId: raw.substring(separator + 1),
+      );
+    }
+    if (trimmed.startsWith('ack_')) {
+      final alertId = trimmed.substring('ack_'.length).trim();
+      return _TelegramProactiveAlertCallback(
+        action: 'ack',
+        alertId: alertId,
+        malformed: alertId.isEmpty,
+      );
+    }
+    if (trimmed.startsWith('dismiss_')) {
+      final alertId = trimmed.substring('dismiss_'.length).trim();
+      return _TelegramProactiveAlertCallback(
+        action: 'dismiss',
+        alertId: alertId,
+        malformed: alertId.isEmpty,
+      );
+    }
+    return null;
+  }
+
   Future<_SiteAwarenessActiveAlertRecord?>
-  _latestActiveSiteAlertForCallbackTarget(String target) async {
+  _latestActiveSiteAlertForCallbackTarget(
+    String target, {
+    String siteId = '',
+  }) async {
     final normalizedTarget = target.trim();
     if (normalizedTarget.isEmpty) {
       return null;
     }
+    final normalizedSiteId = siteId.trim();
     final row = await _readLatestSiteAwarenessSnapshotRow(
-      siteId: _selectedSite,
+      siteId: normalizedSiteId.isEmpty ? _selectedSite : normalizedSiteId,
     );
     if (row == null) {
-      return null;
+      return _latestActiveSiteAlertForAlertId(
+        normalizedTarget,
+        siteId: normalizedSiteId,
+      );
     }
     final alerts = _siteAwarenessActiveAlertsFromRow(row);
     for (final alert in alerts) {
@@ -17287,11 +17435,66 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         return alert;
       }
     }
+    return _latestActiveSiteAlertForAlertId(
+      normalizedTarget,
+      siteId: normalizedSiteId,
+    );
+  }
+
+  Future<_SiteAwarenessActiveAlertRecord?> _latestActiveSiteAlertForAlertId(
+    String alertId, {
+    String siteId = '',
+  }) async {
+    final normalizedAlertId = alertId.trim();
+    if (normalizedAlertId.isEmpty || !widget.supabaseReady) {
+      return null;
+    }
+    try {
+      final normalizedSiteId = siteId.trim();
+      final rows = normalizedSiteId.isEmpty
+          ? await Supabase.instance.client
+                .from('site_awareness_snapshots')
+                .select('site_id,client_id,snapshot_at,active_alerts')
+                .order('snapshot_at', ascending: false)
+                .limit(24)
+          : await Supabase.instance.client
+                .from('site_awareness_snapshots')
+                .select('site_id,client_id,snapshot_at,active_alerts')
+                .eq('site_id', normalizedSiteId)
+                .order('snapshot_at', ascending: false)
+                .limit(4);
+      final latestRowsBySite = <String, Map<String, dynamic>>{};
+      for (final rawRow in rows) {
+        final row = Map<String, dynamic>.from(rawRow as Map);
+        final rowSiteId = (row['site_id'] ?? '').toString().trim();
+        if (rowSiteId.isEmpty || latestRowsBySite.containsKey(rowSiteId)) {
+          continue;
+        }
+        latestRowsBySite[rowSiteId] = row;
+      }
+      for (final row in latestRowsBySite.values) {
+        final alerts = _siteAwarenessActiveAlertsFromRow(row);
+        for (final alert in alerts) {
+          if (alert.alertId.trim() == normalizedAlertId) {
+            return alert;
+          }
+        }
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'Failed to resolve Telegram proactive alert callback context.',
+        name: 'TelegramBridge',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
     return null;
   }
 
   OnyxAlertOutcome? _outcomeForTelegramAlertAction(String action) {
     return switch (action.trim().toLowerCase()) {
+      'dispatch' => OnyxAlertOutcome.armedResponse,
+      'dismiss' => OnyxAlertOutcome.falseAlarm,
       'false_alarm' => OnyxAlertOutcome.falseAlarm,
       'armed_response' => OnyxAlertOutcome.armedResponse,
       'keep_watching' => OnyxAlertOutcome.unknown,
@@ -17318,6 +17521,9 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     required String siteLabel,
   }) {
     return switch (action.trim().toLowerCase()) {
+      'dispatch' => 'Dispatch tagged for $siteLabel.',
+      'ack' => 'Alert acknowledged for $siteLabel.',
+      'dismiss' => 'False alarm tagged for $siteLabel.',
       'false_alarm' => 'False alarm tagged for $siteLabel.',
       'armed_response' => 'Armed response tagged for $siteLabel.',
       'keep_watching' => 'Keep watching noted for $siteLabel.',
@@ -25437,6 +25643,31 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           command: 'status',
           arguments: arguments,
         );
+      case '/alerts':
+        return _TelegramAdminCommandParseResult(
+          command: 'alerts',
+          arguments: arguments,
+        );
+      case '/dispatch':
+        return _TelegramAdminCommandParseResult(
+          command: 'dispatch',
+          arguments: arguments,
+        );
+      case '/cameras':
+        return _TelegramAdminCommandParseResult(
+          command: 'cameras',
+          arguments: arguments,
+        );
+      case '/report':
+        return _TelegramAdminCommandParseResult(
+          command: 'report',
+          arguments: arguments,
+        );
+      case '/sleep':
+        return _TelegramAdminCommandParseResult(
+          command: 'sleep',
+          arguments: arguments,
+        );
       case '/ops':
         return _TelegramAdminCommandParseResult(
           command: 'ops',
@@ -25878,6 +26109,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       final args = tokens.length > 1 ? tokens.sublist(1).join(' ').trim() : '';
       const exactWordCommands = <String>{
         'status',
+        'alerts',
+        'dispatch',
+        'cameras',
+        'report',
+        'sleep',
         'brief',
         'sites',
         'next',
@@ -26993,6 +27229,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     switch (command) {
       case 'help':
       case 'status':
+      case 'alerts':
+      case 'dispatch':
+      case 'cameras':
+      case 'report':
+      case 'sleep':
       case 'brief':
       case 'sites':
       case 'ops':
@@ -27044,6 +27285,16 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     switch (command) {
       case 'status':
         return await _telegramAdminStatusCommand(arguments);
+      case 'alerts':
+        return _telegramAdminAlertsSnapshot();
+      case 'dispatch':
+        return _telegramAdminDispatchSnapshot();
+      case 'cameras':
+        return _telegramAdminCamerasSnapshot();
+      case 'report':
+        return _telegramAdminReportSnapshot();
+      case 'sleep':
+        return _telegramAdminSleepCheckSnapshot();
       case 'ops':
         return _telegramAdminOpsSnapshot();
       case 'incidents':
@@ -27414,8 +27665,90 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
         mode == 'long';
   }
 
+  String _telegramAdminMenuTargetClientId() {
+    final targetClientId = _telegramAdminTargetClientId.trim();
+    return targetClientId.isEmpty ? _selectedClient : targetClientId;
+  }
+
+  String _telegramAdminMenuTargetSiteId() {
+    final targetSiteId = _telegramAdminTargetSiteId.trim();
+    return targetSiteId.isEmpty ? _selectedSite : targetSiteId;
+  }
+
+  String _telegramAdminAlertsSnapshot() {
+    final critical = _telegramAdminCriticalAlerts();
+    final nowUtc = DateTime.now().toUtc();
+    if (critical.isEmpty) {
+      return 'ONYX ALERTS\nNo active alerts.\nUTC: ${nowUtc.toIso8601String()}';
+    }
+    final lines = critical
+        .take(6)
+        .map((entry) => '• ${_singleLine(entry, maxLength: 180)}')
+        .join('\n');
+    final extra = critical.length > 6 ? '\n• +${critical.length - 6} more' : '';
+    return 'ONYX ALERTS\n$lines$extra\nUTC: ${nowUtc.toIso8601String()}';
+  }
+
+  Future<String> _telegramAdminDispatchSnapshot() async {
+    return _telegramDispatchReply(
+      clientId: _telegramAdminMenuTargetClientId(),
+      siteId: _telegramAdminMenuTargetSiteId(),
+      prompt: 'show dispatches today',
+    );
+  }
+
+  Future<String> _telegramAdminCamerasSnapshot() async {
+    return _telegramCameraReply(
+      clientId: _telegramAdminMenuTargetClientId(),
+      siteId: _telegramAdminMenuTargetSiteId(),
+    );
+  }
+
+  Future<String> _telegramAdminReportSnapshot() async {
+    final clientId = _telegramAdminMenuTargetClientId();
+    final siteId = _telegramAdminMenuTargetSiteId();
+    final occupancyConfigRow = await _readSiteOccupancyConfigRow(
+      siteId: siteId,
+    );
+    return _telegramGuardPatrolReportReply(
+      clientId: clientId,
+      siteId: siteId,
+      siteLabel: _deliverySiteLabelFor(clientId: clientId, siteId: siteId),
+      occupancyConfigRow: occupancyConfigRow,
+    );
+  }
+
+  String _telegramAdminSleepCheckSnapshot() {
+    final critical = _telegramAdminCriticalAlerts();
+    final activeDispatches = _activeIncidentDispatchesByOpenedAt().length;
+    final guardsOnline = _guardsOnlineCount(store.allEvents());
+    final posture = critical.isEmpty && activeDispatches == 0
+        ? 'STEADY'
+        : 'ATTENTION';
+    final action = critical.isEmpty && activeDispatches == 0
+        ? 'Monitor with /status or /cameras if you want another pass.'
+        : 'Review /alerts and /dispatch before standing down.';
+    return 'ONYX SLEEP CHECK\n'
+        'Posture: $posture\n'
+        'Active alerts: ${critical.length}\n'
+        'Active dispatches: $activeDispatches\n'
+        'Guards online: $guardsOnline\n'
+        'Next: $action\n'
+        'UTC: ${DateTime.now().toUtc().toIso8601String()}';
+  }
+
   String _telegramAdminHelpText() {
     return '🧭 <b>ONYX COMMANDS</b>\n\n'
+        '<b>Command Menu</b>\n'
+        '• <code>/status</code> - site status overview\n'
+        '• <code>/alerts</code> - active alerts summary\n'
+        '• <code>/guards</code> - guard roster and check-ins\n'
+        '• <code>/dispatch</code> - active dispatches\n'
+        '• <code>/cameras</code> - camera health check\n'
+        '• <code>/report</code> - generate shift report\n'
+        '• <code>/sleep</code> - sleep check all sites\n'
+        '• <code>/help</code> - available commands\n'
+        '\n---\n\n'
         '<b>Core</b>\n'
         '• <code>/brief</code> - executive one-screen posture\n'
         '• <code>/status</code> - live executive card\n'
@@ -40376,7 +40709,7 @@ Future<Map<String, dynamic>?> _readLatestSiteAwarenessSnapshotRow({
     final rows = await Supabase.instance.client
         .from('site_awareness_snapshots')
         .select(
-          'site_id,snapshot_at,perimeter_clear,detections,known_faults,active_alerts,channels',
+          'site_id,client_id,snapshot_at,perimeter_clear,detections,known_faults,active_alerts,channels',
         )
         .eq('site_id', siteId.trim())
         .order('snapshot_at', ascending: false)
@@ -40484,7 +40817,29 @@ TelegramAiSiteAwarenessSummary? _telegramAiSiteAwarenessSummaryFromRow(
   );
 }
 
+class _TelegramProactiveAlertCallback {
+  final String action;
+  final String legacyTarget;
+  final String siteId;
+  final String channelId;
+  final String alertId;
+  final bool malformed;
+
+  const _TelegramProactiveAlertCallback({
+    required this.action,
+    this.legacyTarget = '',
+    this.siteId = '',
+    this.channelId = '',
+    this.alertId = '',
+    this.malformed = false,
+  });
+
+  bool get isMalformed => malformed || action.trim().isEmpty;
+}
+
 class _SiteAwarenessActiveAlertRecord {
+  final String siteId;
+  final String clientId;
   final String alertId;
   final String channelId;
   final String eventType;
@@ -40505,6 +40860,8 @@ class _SiteAwarenessActiveAlertRecord {
   final String? powerMode;
 
   const _SiteAwarenessActiveAlertRecord({
+    required this.siteId,
+    required this.clientId,
     required this.alertId,
     required this.channelId,
     required this.eventType,
@@ -40584,6 +40941,8 @@ List<_SiteAwarenessActiveAlertRecord> _siteAwarenessActiveAlertsFromRow(
     if (alert == null) {
       continue;
     }
+    final siteId = _siteAwarenessSummaryString(row['site_id']) ?? '';
+    final clientId = _siteAwarenessSummaryString(row['client_id']) ?? '';
     final alertId = _siteAwarenessSummaryString(alert['alert_id']) ?? '';
     final channelId = _siteAwarenessSummaryString(alert['channel_id']) ?? '';
     final detectedAt = _siteAwarenessSummaryDate(alert['detected_at']);
@@ -40592,6 +40951,8 @@ List<_SiteAwarenessActiveAlertRecord> _siteAwarenessActiveAlertsFromRow(
     }
     alerts.add(
       _SiteAwarenessActiveAlertRecord(
+        siteId: siteId,
+        clientId: clientId,
         alertId: alertId,
         channelId: channelId,
         eventType:
