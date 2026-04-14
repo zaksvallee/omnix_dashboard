@@ -31,7 +31,6 @@ import '../domain/events/listener_alarm_advisory_recorded.dart';
 import '../domain/events/listener_alarm_feed_cycle_recorded.dart';
 import '../domain/events/listener_alarm_parity_cycle_recorded.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_camera_bridge_actions.dart';
 import 'onyx_camera_bridge_shell_panel.dart';
@@ -77,14 +76,14 @@ enum _AdminSystemLaunchTarget {
 
 enum _AdminCsvTarget { guards, sites, clients }
 
-const _adminDialogSurfaceColor = Color(0xFF13131E);
-const _adminDialogAltColor = Color(0xFF1A1A2E);
-const _adminDialogRaisedColor = Color(0xFF1A1A2E);
-const _adminDialogBorderColor = Color(0x269D4BFF);
-const _adminDialogStrongBorderColor = Color(0x4D9D4BFF);
-const _adminDialogTitleColor = Color(0xFFE8E8F0);
-const _adminDialogBodyColor = Color(0x80FFFFFF);
-const _adminDialogMutedColor = Color(0x4DFFFFFF);
+const _adminDialogSurfaceColor = OnyxColorTokens.backgroundSecondary;
+const _adminDialogAltColor = OnyxColorTokens.surfaceElevated;
+const _adminDialogRaisedColor = OnyxColorTokens.surfaceElevated;
+const _adminDialogBorderColor = OnyxColorTokens.borderSubtle;
+const _adminDialogStrongBorderColor = OnyxColorTokens.cyanBorder;
+const _adminDialogTitleColor = OnyxColorTokens.textPrimary;
+const _adminDialogBodyColor = OnyxColorTokens.textSecondary;
+const _adminDialogMutedColor = OnyxColorTokens.textMuted;
 
 Color _adminAccentTextColor(Color accent, {double strength = 0.34}) {
   return Color.lerp(_adminDialogTitleColor, accent, strength) ??
@@ -1791,10 +1790,6 @@ class _AdministrationPageState extends State<AdministrationPage> {
               ? constraints.maxWidth * 0.94
               : 1520.0;
           final entityTotal = _guards.length + _sites.length + _clients.length;
-          final bridgeHealthLabel = widget.telegramBridgeHealthLabel.trim();
-          final systemStatus = bridgeHealthLabel.isEmpty
-              ? 'System nominal'
-              : 'System status: $bridgeHealthLabel';
           return OnyxViewportWorkspaceLayout(
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
             maxWidth: surfaceMaxWidth,
@@ -1802,11 +1797,6 @@ class _AdministrationPageState extends State<AdministrationPage> {
             header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OnyxStatusBanner(
-                  message: systemStatus,
-                  severity: OnyxSeverity.info,
-                ),
-                const SizedBox(height: 8),
                 _adminHeroHeader(
                   workspaceBanner: useDesktopWorkspace
                       ? _adminWorkspaceStatusBanner(
@@ -1927,7 +1917,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: _adminDialogSurfaceColor,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(color: _adminDialogBorderColor),
             boxShadow: const [

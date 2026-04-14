@@ -365,7 +365,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             _workspaceStatusPill(
               icon: Icons.apartment_rounded,
               label: '${visibleSites.length} Visible',
-              accent: const Color(0xFF63BDFF),
+              accent: OnyxColorTokens.accentSky,
             ),
             _workspaceStatusPill(
               icon: Icons.radar_outlined,
@@ -381,13 +381,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               icon: Icons.warning_amber_rounded,
               label: '$watchCount Watch',
               accent: watchCount > 0
-                  ? const Color(0xFFF59E0B)
-                  : const Color(0xFF94A3B8),
+                  ? OnyxColorTokens.accentAmber
+                  : OnyxColorTokens.textMuted,
             ),
             _workspaceStatusPill(
               icon: Icons.verified_outlined,
               label: '$strongCount Strong',
-              accent: const Color(0xFF22D3EE),
+              accent: OnyxColorTokens.accentCyanTrue,
             ),
           ],
         ),
@@ -425,7 +425,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         key: const ValueKey('sites-view-tactical-button'),
         icon: Icons.map_outlined,
         label: 'OPEN SITE MAP',
-        accent: const Color(0xFF93C5FD),
+        accent: OnyxColorTokens.accentSky,
         onPressed: () => _openTacticalForSite(context, selected),
       ),
       if (widget.onOpenSiteSettings != null)
@@ -433,7 +433,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           key: const ValueKey('sites-hero-edit-site-button'),
           icon: Icons.edit_outlined,
           label: 'OPEN SITE SETTINGS',
-          accent: const Color(0xFF7FD8A5),
+          accent: OnyxColorTokens.accentGreenTrue,
           onPressed: () => _openSiteSettings(selected),
         ),
       if (widget.onOpenGuardRoster != null)
@@ -441,7 +441,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           key: const ValueKey('sites-hero-assign-guards-button'),
           icon: Icons.badge_outlined,
           label: 'OPEN GUARD ROSTER',
-          accent: const Color(0xFFF6C067),
+          accent: OnyxColorTokens.accentAmber,
           onPressed: () => _openGuardRoster(selected),
         ),
     ];
@@ -543,14 +543,14 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           title: Text(
             'Site Map Ready',
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontWeight: FontWeight.w800,
             ),
           ),
           content: Text(
             'Use Site Map to inspect watch posture, limited coverage, and deployment context for the selected site.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               height: 1.45,
             ),
           ),
@@ -580,7 +580,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             Text(
               'SITE ROSTER',
               style: GoogleFonts.inter(
-                color: const Color(0xFF7B8FA8),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.0,
@@ -595,21 +595,21 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
                   color: widget.onAddSite == null
-                      ? const Color(0xFFF1F5F9)
-                      : const Color(0xFF3B82F6),
+                      ? OnyxColorTokens.surfaceElevated
+                      : OnyxColorTokens.accentCyan,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: widget.onAddSite == null
                         ? OnyxColorTokens.divider
-                        : const Color(0x80448FFF),
+                        : OnyxColorTokens.cyanBorder,
                   ),
                 ),
                 child: Text(
                   'OPEN SITE DESK',
                   style: GoogleFonts.inter(
                     color: widget.onAddSite == null
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFFEAF1FB),
+                        ? OnyxColorTokens.textMuted
+                        : OnyxColorTokens.textPrimary,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -669,7 +669,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 child: _rosterSignal(
                   label: 'WATCH POSTS',
                   value: '$watchingCount',
-                  accent: const Color(0xFFF59E0B),
+                  accent: OnyxColorTokens.accentAmber,
                 ),
               ),
               const SizedBox(width: 5),
@@ -677,7 +677,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 child: _rosterSignal(
                   label: 'VISIBLE NOW',
                   value: '$visibleCount',
-                  accent: const Color(0xFF38BDF8),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
               ),
             ],
@@ -696,7 +696,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             child: Text(
               'No sites are currently in this scope. Choose another scope to continue issuing commands.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
                 height: 1.5,
@@ -783,7 +783,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       Text(
                         site.displayName,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF172638),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
@@ -792,7 +792,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       Text(
                         site.location,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF556B80),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -801,7 +801,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       Text(
                         site.id,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF7A8FA4),
+                          color: OnyxColorTokens.textMuted,
                           fontSize: 9.5,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.8,
@@ -834,7 +834,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   child: _progressMeter(
                     label: 'Coverage',
                     percent: guardFill,
-                    color: const Color(0xFF22D3EE),
+                    color: OnyxColorTokens.accentCyanTrue,
                   ),
                 ),
                 const SizedBox(width: 7),
@@ -879,7 +879,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 Text(
                   'SITE DESK',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF7B8FA8),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.0,
@@ -892,7 +892,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       child: Text(
                         site.displayName,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF172638),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 20,
                           fontWeight: FontWeight.w700,
                         ),
@@ -906,7 +906,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 Text(
                   '${site.location}  •  ${site.id}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF556B80),
+                    color: OnyxColorTokens.textSecondary,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -974,7 +974,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             gradient: LinearGradient(
               colors: [
                 _statusColor(site.status).withValues(alpha: 0.14),
-                const Color(0xFF1A1A2E),
+                OnyxColorTokens.surfaceElevated,
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -1001,7 +1001,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   Text(
                     _siteNextMoveLabel(site),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF172638),
+                      color: OnyxColorTokens.textPrimary,
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                       height: 0.92,
@@ -1011,7 +1011,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   Text(
                     _siteNextMoveDetail(site),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF556B80),
+                      color: OnyxColorTokens.textSecondary,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
                       height: 1.5,
@@ -1052,13 +1052,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                     _commandDetailRow(
                       label: 'Desk View',
                       value: _workspaceViewTitle(_workspaceView),
-                      accent: const Color(0xFF38BDF8),
+                      accent: OnyxColorTokens.accentCyanTrue,
                     ),
                     const SizedBox(height: 6),
                     _commandDetailRow(
                       label: 'Watchline',
                       value: _siteRiskNarrative(site),
-                      accent: const Color(0xFFF59E0B),
+                      accent: OnyxColorTokens.accentAmber,
                     ),
                   ],
                 ),
@@ -1181,28 +1181,28 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             value: '${site.guardsActive}/${site.guardsTotal}',
             helper: guardFill >= 95 ? 'Full strength' : '$guardFill% staffed',
             helperColor: guardFill >= 95
-                ? const Color(0xFF00D084)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentAmber,
           ),
           _WorkspaceKpi(
             title: 'INCIDENTS TODAY',
             value: '${site.incidentsToday}',
             helper: 'Last: ${site.lastIncident}',
             helperColor: site.incidentsToday <= 1
-                ? const Color(0xFF8EA4C2)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.textMuted
+                : OnyxColorTokens.accentAmber,
           ),
           _WorkspaceKpi(
             title: 'RESPONSE RATE',
             value: '${site.responseRate.toStringAsFixed(0)}%',
             helper: '$visibleSiteCount of $totalSiteCount visible',
-            helperColor: const Color(0xFF38BDF8),
+            helperColor: OnyxColorTokens.accentCyanTrue,
           ),
           _WorkspaceKpi(
             title: 'CHECKPOINTS',
             value: '${site.checkpointsCompleted}/${site.checkpointsTotal}',
             helper: '$checkpointFill% complete',
-            helperColor: const Color(0xFF8EA4C2),
+            helperColor: OnyxColorTokens.textMuted,
           ),
         ]),
         const SizedBox(height: 10),
@@ -1225,7 +1225,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       child: _progressMeter(
                         label: 'Guard fill',
                         percent: guardFill,
-                        color: const Color(0xFF22D3EE),
+                        color: OnyxColorTokens.accentCyanTrue,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1255,7 +1255,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 Text(
                   _siteRiskNarrative(site),
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFD6E2F2),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     height: 1.5,
@@ -1272,13 +1272,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 _outcomeBar(
                   'False Alarms',
                   site.mixFalseAlarms,
-                  const Color(0xFFF59E0B),
+                  OnyxColorTokens.accentAmber,
                 ),
                 const SizedBox(height: 8),
                 _outcomeBar(
                   'Resolved On-Site',
                   site.mixResolvedOnsite,
-                  const Color(0xFF10B981),
+                  OnyxColorTokens.accentGreen,
                 ),
                 const SizedBox(height: 8),
                 _outcomeBar(
@@ -1290,7 +1290,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 _outcomeBar(
                   'Preventative Action',
                   site.mixPreventative,
-                  const Color(0xFF22D3EE),
+                  OnyxColorTokens.accentCyanTrue,
                 ),
               ],
             ),
@@ -1308,20 +1308,20 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   'Patrol Coverage',
                   '$guardFill%',
                   guardFill >= 95
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFF59E0B),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentAmber,
                 ),
                 _PulseMetric(
                   'Checkpoint Compliance',
                   '$checkpointFill%',
                   checkpointFill >= 95
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFF38BDF8),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentCyanTrue,
                 ),
                 _PulseMetric(
                   'Avg Response Tempo',
                   '${(6.4 - (site.responseRate / 100) * 2.1).toStringAsFixed(1)} min',
-                  const Color(0xFF38BDF8),
+                  OnyxColorTokens.accentCyanTrue,
                 ),
               ]);
               final right = _pulseColumn([
@@ -1329,8 +1329,8 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   'Client Confidence',
                   site.incidentsToday >= 3 ? 'Watching' : 'Stable',
                   site.incidentsToday >= 3
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF10B981),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
                 _PulseMetric(
                   'Guard Vigilance',
@@ -1340,7 +1340,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 _PulseMetric(
                   'Visible Sites',
                   '$visibleSiteCount/$totalSiteCount',
-                  const Color(0xFF8EA4C2),
+                  OnyxColorTokens.textMuted,
                 ),
               ]);
               if (stacked) {
@@ -1394,13 +1394,13 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             title: 'COVERAGE ARC',
             value: '$perimeterCoverage%',
             helper: 'Perimeter stabilized',
-            helperColor: const Color(0xFF38BDF8),
+            helperColor: OnyxColorTokens.accentCyanTrue,
           ),
           _WorkspaceKpi(
             title: 'ACTIVE POSTS',
             value: '${site.guardsActive}',
             helper: '${site.guardsTotal} total assigned',
-            helperColor: const Color(0xFF8EA4C2),
+            helperColor: OnyxColorTokens.textMuted,
           ),
           _WorkspaceKpi(
             title: 'MOBILE UNITS',
@@ -1409,14 +1409,14 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 ? 'No reserve slack'
                 : 'Reserve available',
             helperColor: reserveUnits == 0
-                ? const Color(0xFFF59E0B)
-                : const Color(0xFF00D084),
+                ? OnyxColorTokens.accentAmber
+                : OnyxColorTokens.accentGreen,
           ),
           _WorkspaceKpi(
             title: 'VISIBLE SITES',
             value: '$visibleSiteCount/$totalSiteCount',
             helper: 'Network scope',
-            helperColor: const Color(0xFF8EA4C2),
+            helperColor: OnyxColorTokens.textMuted,
           ),
         ]),
         const SizedBox(height: 10),
@@ -1429,27 +1429,27 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 _progressMeter(
                   label: 'Perimeter watch',
                   percent: perimeterCoverage,
-                  color: const Color(0xFF22D3EE),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 const SizedBox(height: 10),
                 _progressMeter(
                   label: 'Access control',
                   percent: accessCoverage,
-                  color: const Color(0xFF10B981),
+                  color: OnyxColorTokens.accentGreen,
                 ),
                 const SizedBox(height: 10),
                 _progressMeter(
                   label: 'Mobile patrol sweep',
                   percent: mobileCoverage,
-                  color: const Color(0xFF38BDF8),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 const SizedBox(height: 10),
                 _progressMeter(
                   label: 'Reserve buffer',
                   percent: reserveCoverage,
                   color: reserveCoverage == 0
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF10B981),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
               ],
             ),
@@ -1464,7 +1464,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   label: 'Primary watch',
                   value:
                       '${site.guardsActive} guards covering the main response ring',
-                  accent: const Color(0xFF38BDF8),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
                 const SizedBox(height: 10),
                 _commandDetailRow(
@@ -1473,8 +1473,8 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       ? 'No spare guard buffer for relief rotation.'
                       : '$reserveUnits reserve guard(s) can reinforce the watchline.',
                   accent: reserveUnits == 0
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF10B981),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
                 const SizedBox(height: 10),
                 _commandDetailRow(
@@ -1498,27 +1498,27 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   'Guard Fill',
                   '$guardFill%',
                   guardFill >= 95
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFF59E0B),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentAmber,
                 ),
                 _PulseMetric(
                   'Checkpoint Carry',
                   '$checkpointFill%',
-                  const Color(0xFF38BDF8),
+                  OnyxColorTokens.accentCyanTrue,
                 ),
                 _PulseMetric(
                   'Response Support',
                   reserveUnits == 0 ? 'Tight' : 'Available',
                   reserveUnits == 0
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF10B981),
+                      ? OnyxColorTokens.accentAmber
+                      : OnyxColorTokens.accentGreen,
                 ),
               ]);
               final right = _pulseColumn([
                 _PulseMetric(
                   'Command Scope',
                   '$visibleSiteCount/$totalSiteCount',
-                  const Color(0xFF8EA4C2),
+                  OnyxColorTokens.textMuted,
                 ),
                 _PulseMetric(
                   'Status',
@@ -1578,7 +1578,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             title: 'COMPLETED',
             value: '${site.checkpointsCompleted}',
             helper: '${site.checkpointsTotal} scheduled',
-            helperColor: const Color(0xFF8EA4C2),
+            helperColor: OnyxColorTokens.textMuted,
           ),
           _WorkspaceKpi(
             title: 'REMAINING',
@@ -1587,20 +1587,20 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 ? 'No backlog'
                 : 'Pending field closeout',
             helperColor: remainingCheckpoints == 0
-                ? const Color(0xFF00D084)
-                : const Color(0xFFF59E0B),
+                ? OnyxColorTokens.accentGreen
+                : OnyxColorTokens.accentAmber,
           ),
           _WorkspaceKpi(
             title: 'ASSURANCE',
             value: '$assuranceScore%',
             helper: '$visibleSiteCount/$totalSiteCount in scope',
-            helperColor: const Color(0xFF38BDF8),
+            helperColor: OnyxColorTokens.accentCyanTrue,
           ),
           _WorkspaceKpi(
             title: 'LAST INCIDENT',
             value: site.lastIncident,
             helper: 'Most recent alert',
-            helperColor: const Color(0xFF8EA4C2),
+            helperColor: OnyxColorTokens.textMuted,
           ),
         ]),
         const SizedBox(height: 10),
@@ -1613,19 +1613,19 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 _progressMeter(
                   label: 'Completed route',
                   percent: checkpointFill,
-                  color: const Color(0xFF10B981),
+                  color: OnyxColorTokens.accentGreen,
                 ),
                 const SizedBox(height: 10),
                 _progressMeter(
                   label: 'Remaining route',
                   percent: exceptionRate,
-                  color: const Color(0xFFF59E0B),
+                  color: OnyxColorTokens.accentAmber,
                 ),
                 const SizedBox(height: 10),
                 _progressMeter(
                   label: 'Assurance confidence',
                   percent: assuranceScore,
-                  color: const Color(0xFF38BDF8),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -1633,7 +1633,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       ? 'All checkpoints are closed. Hold the current cadence and keep the watchline in place.'
                       : '$remainingCheckpoints checkpoint(s) still need a physical closeout before the route is considered sealed.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFD6E2F2),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     height: 1.5,
@@ -1654,8 +1654,8 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                       ? 'Closed and verified'
                       : 'Active follow-through required',
                   accent: checkpointFill >= 95
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFF59E0B),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentAmber,
                 ),
                 const SizedBox(height: 10),
                 _commandDetailRow(
@@ -1668,7 +1668,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   label: 'Checkpoint scope',
                   value:
                       '$visibleSiteCount of $totalSiteCount sites are visible in this checkpoint scope.',
-                  accent: const Color(0xFF38BDF8),
+                  accent: OnyxColorTokens.accentCyanTrue,
                 ),
               ],
             ),
@@ -1686,18 +1686,18 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   'Completion',
                   '$checkpointFill%',
                   checkpointFill >= 95
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFFF59E0B),
+                      ? OnyxColorTokens.accentGreen
+                      : OnyxColorTokens.accentAmber,
                 ),
                 _PulseMetric(
                   'Exceptions',
                   '$exceptionRate%',
-                  const Color(0xFFF59E0B),
+                  OnyxColorTokens.accentAmber,
                 ),
                 _PulseMetric(
                   'Response Overlay',
                   '${site.responseRate.round()}%',
-                  const Color(0xFF38BDF8),
+                  OnyxColorTokens.accentCyanTrue,
                 ),
               ]);
               final right = _pulseColumn([
@@ -1714,7 +1714,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 _PulseMetric(
                   'Visible Scope',
                   '$visibleSiteCount/$totalSiteCount',
-                  const Color(0xFF8EA4C2),
+                  OnyxColorTokens.textMuted,
                 ),
               ]);
               if (stacked) {
@@ -1808,7 +1808,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               style: GoogleFonts.inter(
                 color: selected
                     ? const Color(0xFF2F6AA3)
-                    : const Color(0xFF556B80),
+                    : OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -1825,7 +1825,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               child: Text(
                 '$count',
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF172638),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -1860,7 +1860,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFF2F6AA3) : const Color(0xFF556B80),
+            color: selected ? const Color(0xFF2F6AA3) : OnyxColorTokens.textSecondary,
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
@@ -1934,7 +1934,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             TextSpan(
               text: '$label ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF7A8FA4),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -1942,7 +1942,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 9,
                 fontWeight: FontWeight.w700,
               ),
@@ -1967,7 +1967,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               child: Text(
                 label,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 9.5,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1976,7 +1976,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             Text(
               '$percent%',
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -2020,7 +2020,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         Text(
           value,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontSize: 10.5,
             fontWeight: FontWeight.w700,
             height: 1.45,
@@ -2059,7 +2059,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 9,
               fontWeight: FontWeight.w700,
             ),
@@ -2080,9 +2080,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
 
   Color _laneAccent(_SiteLaneFilter filter) {
     return switch (filter) {
-      _SiteLaneFilter.all => const Color(0xFF63BDFF),
-      _SiteLaneFilter.healthy => const Color(0xFF22D3EE),
-      _SiteLaneFilter.watch => const Color(0xFFF59E0B),
+      _SiteLaneFilter.all => OnyxColorTokens.accentSky,
+      _SiteLaneFilter.healthy => OnyxColorTokens.accentCyanTrue,
+      _SiteLaneFilter.watch => OnyxColorTokens.accentAmber,
       _SiteLaneFilter.strong => const Color(0xFF34D399),
     };
   }
@@ -2184,7 +2184,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: enabled
-              ? (primary ? const Color(0xFF9D4BFF) : const Color(0xFF1A1A2E))
+              ? (primary ? const Color(0xFF9D4BFF) : OnyxColorTokens.surfaceElevated)
               : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
@@ -2228,7 +2228,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
@@ -2238,7 +2238,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 30,
               height: 0.95,
               fontWeight: FontWeight.w300,
@@ -2270,7 +2270,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
@@ -2295,7 +2295,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9.5,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8,
@@ -2316,7 +2316,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             Text(
               label,
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -2325,7 +2325,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             Text(
               '$percent%',
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -2358,7 +2358,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 child: Text(
                   metric.label,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF556B80),
+                    color: OnyxColorTokens.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
@@ -2432,7 +2432,7 @@ class _SitesAuditReceipt extends StatelessWidget {
           Text(
             receipt.headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 24,
               fontWeight: FontWeight.w700,
               height: 0.96,
@@ -2442,7 +2442,7 @@ class _SitesAuditReceipt extends StatelessWidget {
           Text(
             receipt.detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
               height: 1.45,
@@ -2703,9 +2703,9 @@ List<_SiteViewModel> _siteRowsFromEvents(List<DispatchEvent> events) {
 
 Color _statusColor(_SiteStatus status) {
   return switch (status) {
-    _SiteStatus.strong => const Color(0xFF10B981),
+    _SiteStatus.strong => OnyxColorTokens.accentGreen,
     _SiteStatus.stable => const Color(0xFF06B6D4),
-    _SiteStatus.atRisk => const Color(0xFFF59E0B),
+    _SiteStatus.atRisk => OnyxColorTokens.accentAmber,
     _SiteStatus.critical => const Color(0xFFEF4444),
   };
 }

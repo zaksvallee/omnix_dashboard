@@ -493,14 +493,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x1406B6D4),
+              color: OnyxColorTokens.cyanSurface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x4406B6D4)),
+              border: Border.all(color: OnyxColorTokens.cyanBorder),
             ),
             child: Text(
               partnerScopeSummary.bannerText,
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
+                color: OnyxColorTokens.accentSky,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -512,9 +512,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x1410B981),
+              color: OnyxColorTokens.greenSurface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x4410B981)),
+              border: Border.all(color: OnyxColorTokens.greenBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -522,7 +522,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   readinessScopeSummary.bannerText,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -531,7 +531,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   readinessScopeSummary.summaryLine,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFAFC2DB),
+                    color: OnyxColorTokens.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -541,7 +541,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     readinessScopeSummary.focusSummary,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD9F99D),
+                      color: OnyxColorTokens.accentGreenTrue,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -554,7 +554,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Postural echo: ${readinessScopeSummary.posturalEchoSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF86EFAC),
+                      color: OnyxColorTokens.accentGreen,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -567,7 +567,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Top intent: ${readinessScopeSummary.topIntentSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFBBF7D0),
+                      color: OnyxColorTokens.accentGreenTrue,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -578,7 +578,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Hazard lane: ${readinessScopeSummary.hazardSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFCA5A5),
+                      color: OnyxColorTokens.accentRed,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -589,7 +589,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Evidence refs: ${readinessScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -635,9 +635,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x14F59E0B),
+              color: OnyxColorTokens.amberSurface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x44F59E0B)),
+              border: Border.all(color: OnyxColorTokens.amberBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -645,7 +645,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   tomorrowScopeSummary.bannerText,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -654,7 +654,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   tomorrowScopeSummary.summaryLine,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFFDE68A),
+                    color: OnyxColorTokens.accentAmber,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -664,7 +664,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     tomorrowScopeSummary.focusSummary,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFFF7ED),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -677,7 +677,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     tomorrowScopeSummary.leadDraftDescription,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -688,7 +688,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Learning: ${tomorrowScopeSummary.learningSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFFEDD5),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -701,7 +701,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     tomorrowScopeSummary.learningMemorySummary,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFCD34D),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -712,7 +712,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Shadow draft: ${tomorrowScopeSummary.shadowSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFCD34D),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -725,7 +725,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Shadow posture: ${tomorrowScopeSummary.shadowPostureSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFBFDBFE),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -736,7 +736,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Urgency: ${tomorrowScopeSummary.urgencySummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -749,7 +749,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Promotion pressure: ${tomorrowScopeSummary.promotionPressureSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -762,7 +762,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Promotion execution: ${tomorrowScopeSummary.promotionExecutionSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFFEDD5),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -773,7 +773,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Hazard draft: ${tomorrowScopeSummary.hazardSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFCA5A5),
+                      color: OnyxColorTokens.accentRed,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -784,7 +784,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Evidence refs: ${tomorrowScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -797,8 +797,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0x44F59E0B)),
-                      color: const Color(0xFFFFF7EA),
+                      border: Border.all(color: OnyxColorTokens.amberBorder),
+                      color: OnyxColorTokens.amberSurface,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -806,7 +806,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           tomorrowScopeSummary.history!.headline,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFFDE68A),
+                            color: OnyxColorTokens.accentAmber,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -815,7 +815,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           tomorrowScopeSummary.history!.summary,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
+                            color: OnyxColorTokens.textSecondary,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -831,7 +831,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             '${point.promotionPressureSummary.isEmpty ? '' : ' • promotion ${point.promotionPressureSummary}'}'
                             '${point.promotionExecutionSummary.isEmpty ? '' : ' • execution ${point.promotionExecutionSummary}'}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF2C3E50),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -881,9 +881,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x148B5CF6),
+              color: OnyxColorTokens.purpleSurface,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x448B5CF6)),
+              border: Border.all(color: OnyxColorTokens.purpleBorder),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -891,7 +891,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   syntheticScopeSummary.bannerText,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -900,7 +900,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   syntheticScopeSummary.summaryLine,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFAFC2DB),
+                    color: OnyxColorTokens.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -910,7 +910,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     syntheticScopeSummary.focusSummary,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD9F99D),
+                      color: OnyxColorTokens.accentGreenTrue,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -921,7 +921,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Policy: ${syntheticScopeSummary.policySummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE9D5FF),
+                      color: OnyxColorTokens.accentCyan,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -934,7 +934,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Top intent: ${syntheticScopeSummary.topIntentSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFC4B5FD),
+                      color: OnyxColorTokens.accentPurple,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -945,7 +945,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Hazard rehearsal: ${syntheticScopeSummary.hazardSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFE9D5FF),
+                      color: OnyxColorTokens.accentCyan,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -956,7 +956,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Evidence refs: ${syntheticScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -967,7 +967,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Learning: ${syntheticScopeSummary.learningSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFDDD6FE),
+                      color: OnyxColorTokens.accentCyan,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -978,7 +978,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Shadow learning: ${syntheticScopeSummary.shadowLearningSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFBFDBFE),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -989,7 +989,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Shadow posture: ${syntheticScopeSummary.shadowPostureSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFBFDBFE),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1014,7 +1014,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     Text(
                       'Shadow validation history: ${syntheticScopeSummary.shadowValidationHistorySummary}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFBFDBFE),
+                        color: OnyxColorTokens.accentSky,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1028,7 +1028,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Shadow tomorrow urgency: ${syntheticScopeSummary.shadowTomorrowUrgencySummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1041,7 +1041,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Previous shadow tomorrow urgency: ${syntheticScopeSummary.previousShadowTomorrowUrgencySummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFCD34D),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1054,7 +1054,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Promotion pressure: ${syntheticScopeSummary.promotionPressureSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF86EFAC),
+                      color: OnyxColorTokens.accentGreen,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1067,7 +1067,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Promotion execution: ${syntheticScopeSummary.promotionExecutionSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF86EFAC),
+                      color: OnyxColorTokens.accentGreen,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1078,7 +1078,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     syntheticScopeSummary.learningMemorySummary,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFC4B5FD),
+                      color: OnyxColorTokens.accentPurple,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1100,7 +1100,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Promotion: ${syntheticScopeSummary.promotionSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF86EFAC),
+                      color: OnyxColorTokens.accentGreen,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1115,11 +1115,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         color:
                             syntheticScopeSummary.promotionDecisionStatus ==
                                 'accepted'
-                            ? const Color(0xFF86EFAC)
+                            ? OnyxColorTokens.accentGreen
                             : syntheticScopeSummary.promotionDecisionStatus ==
                                   'rejected'
-                            ? const Color(0xFFFCA5A5)
-                            : const Color(0xFFFDE68A),
+                            ? OnyxColorTokens.accentRed
+                            : OnyxColorTokens.accentAmber,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                       ),
@@ -1154,7 +1154,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Bias: ${syntheticScopeSummary.biasSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1167,7 +1167,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Shadow posture bias: ${syntheticScopeSummary.shadowPostureBiasSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1189,7 +1189,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           syntheticScopeSummary.history!.headline,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFFC4B5FD),
+                            color: OnyxColorTokens.accentPurple,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1198,7 +1198,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           syntheticScopeSummary.history!.summary,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
+                            color: OnyxColorTokens.textSecondary,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1209,7 +1209,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           Text(
                             '${point.date} • ${point.summaryLine}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF2C3E50),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1219,7 +1219,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               point.biasSummary,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFFDE68A),
+                                color: OnyxColorTokens.accentAmber,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1230,7 +1230,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               'Shadow posture bias: ${point.shadowPostureBiasSummary}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFFDE68A),
+                                color: OnyxColorTokens.accentAmber,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1241,7 +1241,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               'Shadow posture: ${point.shadowPostureSummary}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFBFDBFE),
+                                color: OnyxColorTokens.accentSky,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1265,7 +1265,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               'Shadow tomorrow urgency: ${point.shadowTomorrowUrgencySummary}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFFFDE68A),
+                                color: OnyxColorTokens.accentAmber,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1276,7 +1276,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               'Promotion pressure: ${point.promotionPressureSummary}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF86EFAC),
+                                color: OnyxColorTokens.accentGreen,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1287,7 +1287,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               'Promotion execution: ${point.promotionExecutionSummary}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF86EFAC),
+                                color: OnyxColorTokens.accentGreen,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1298,7 +1298,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                             Text(
                               'Promotion: ${point.promotionSummary}',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF86EFAC),
+                                color: OnyxColorTokens.accentGreen,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1311,11 +1311,11 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                               style: GoogleFonts.inter(
                                 color:
                                     point.promotionDecisionStatus == 'accepted'
-                                    ? const Color(0xFF86EFAC)
+                                    ? OnyxColorTokens.accentGreen
                                     : point.promotionDecisionStatus ==
                                           'rejected'
-                                    ? const Color(0xFFFCA5A5)
-                                    : const Color(0xFFFDE68A),
+                                    ? OnyxColorTokens.accentRed
+                                    : OnyxColorTokens.accentAmber,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1376,7 +1376,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   shadowScopeSummary.bannerText,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1395,7 +1395,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     shadowScopeSummary.focusSummary,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD9F99D),
+                      color: OnyxColorTokens.accentGreenTrue,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1406,7 +1406,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Validation: ${shadowScopeSummary.validationSummary}',
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1417,7 +1417,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Strength: ${shadowScopeSummary.strengthSummary}',
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFFBFDBFE),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1430,7 +1430,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Tomorrow urgency: ${shadowScopeSummary.tomorrowUrgencySummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1443,7 +1443,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Previous tomorrow urgency: ${shadowScopeSummary.previousTomorrowUrgencySummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFCD34D),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1454,7 +1454,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     shadowScopeSummary.history!.headline,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFD9F99D),
+                      color: OnyxColorTokens.accentGreenTrue,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1463,7 +1463,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     shadowScopeSummary.history!.summary,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFAFC2DB),
+                      color: OnyxColorTokens.textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1475,7 +1475,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     Text(
                       'Strength drift: ${shadowScopeSummary.history!.strengthSummary}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFBFDBFE),
+                        color: OnyxColorTokens.accentSky,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1495,7 +1495,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         'Validation ${point.validationSummary}',
                         style: GoogleFonts.robotoMono(
-                          color: const Color(0xFF8FD1FF),
+                          color: OnyxColorTokens.accentSky,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1504,7 +1504,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         'Strength ${point.strengthSummary}',
                         style: GoogleFonts.robotoMono(
-                          color: const Color(0xFFBFDBFE),
+                          color: OnyxColorTokens.accentSky,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1513,7 +1513,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         'Tomorrow urgency ${point.tomorrowUrgencySummary}',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFFDE68A),
+                          color: OnyxColorTokens.accentAmber,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1525,7 +1525,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     '${site.siteId} • ${site.moShadowSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFEAF1FB),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1535,7 +1535,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     Text(
                       '${match.title} • ${match.matchedIndicators.join(', ')}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFAFC2DB),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1544,7 +1544,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         'Strength ${shadowMoStrengthSummary(match)}',
                         style: GoogleFonts.robotoMono(
-                          color: const Color(0xFF8FD1FF),
+                          color: OnyxColorTokens.accentSky,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1556,7 +1556,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Evidence refs: ${shadowScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1610,7 +1610,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   activityScopeSummary.bannerText,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1619,7 +1619,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 Text(
                   activityScopeSummary.summaryLine,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFAFC2DB),
+                    color: OnyxColorTokens.textSecondary,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1644,7 +1644,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Long presence: ${activityScopeSummary.topLongPresenceSummary}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFFDE68A),
+                      color: OnyxColorTokens.accentAmber,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1668,7 +1668,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     'Evidence refs: ${activityScopeSummary.reviewRefs.join(', ')}',
                     style: GoogleFonts.robotoMono(
-                      color: const Color(0xFF8FD1FF),
+                      color: OnyxColorTokens.accentSky,
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1690,7 +1690,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           activityScopeSummary.history!.headline,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF8FD1FF),
+                            color: OnyxColorTokens.accentSky,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -1699,7 +1699,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                         Text(
                           activityScopeSummary.history!.summary,
                           style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
+                            color: OnyxColorTokens.textSecondary,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1710,7 +1710,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                           Text(
                             '${point.date} • ${point.summaryLine}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF2C3E50),
+                              color: OnyxColorTokens.textPrimary,
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1759,7 +1759,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             child: Text(
               'Events Scope narrowed to ${scopedEventIds.length} linked event${scopedEventIds.length == 1 ? '' : 's'} for this visit.',
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
+                color: OnyxColorTokens.accentSky,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -2029,7 +2029,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           Text(
             subtitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -2122,7 +2122,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFF556B80),
+            color: selected ? accent : OnyxColorTokens.textSecondary,
             fontSize: 9.5,
             fontWeight: FontWeight.w800,
           ),
@@ -4230,7 +4230,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       'FORENSIC FILTERS:',
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF556B80),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.7,
@@ -4264,7 +4264,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       Text(
                         'RESET',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF556B80),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
@@ -4488,7 +4488,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   Text(
                     _eventMetaLine(event),
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF556B80),
+                      color: OnyxColorTokens.textSecondary,
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
@@ -5065,7 +5065,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           Text(
             '${_eventMetaLine(selected)}  •  ${_fullTimestamp(selected.occurredAt)}',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -5090,7 +5090,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 ? 'Governance Desk, Sovereign Ledger, and export are ready from this focused event.'
                 : 'Scene evidence is attached, so Governance Desk and Sovereign Ledger can open directly from this event.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -5101,7 +5101,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             Text(
               'Governance Desk, Sovereign Ledger, and export stay pinned beside this focused event, so the card can stay loud on desktop.',
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -5152,7 +5152,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   key: const ValueKey('events-selected-focus-copy'),
                   label: 'Copy',
                   selected: false,
-                  accent: const Color(0xFF8FD1FF),
+                  accent: OnyxColorTokens.accentSky,
                   onTap: () => _exportEventData(selected),
                 ),
                 _reviewWorkspaceBannerAction(
@@ -5404,7 +5404,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
   Widget _visitBadge(
     String label, {
     Key? key,
-    Color textColor = const Color(0xFF556B80),
+    Color textColor = OnyxColorTokens.textSecondary,
   }) {
     return Container(
       key: key,
@@ -6321,7 +6321,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFF22D3EE) : const Color(0xFF556B80),
+            color: selected ? const Color(0xFF22D3EE) : OnyxColorTokens.textSecondary,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),

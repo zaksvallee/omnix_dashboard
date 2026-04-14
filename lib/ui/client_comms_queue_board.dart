@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-const _queuePanelColor = Color(0xFF13131E);
-const _queueBorderColor = Color(0x269D4BFF);
-const _queueStrongBorderColor = Color(0x4D9D4BFF);
-const _queueTitleColor = Color(0xFFE8E8F0);
-const _queueBodyColor = Color(0x4DFFFFFF);
-const _queueMutedColor = Color(0x80FFFFFF);
+import 'theme/onyx_design_tokens.dart';
+
+const _queuePanelColor = OnyxColorTokens.backgroundSecondary;
+const _queueBorderColor = OnyxColorTokens.borderSubtle;
+const _queueStrongBorderColor = OnyxColorTokens.cyanBorder;
+const _queueTitleColor = OnyxColorTokens.textPrimary;
+const _queueBodyColor = OnyxColorTokens.textMuted;
+const _queueMutedColor = OnyxColorTokens.textSecondary;
 
 enum ClientCommsQueueSeverity { high, medium, low }
 
@@ -101,26 +103,62 @@ class ClientCommsQueueBoard extends StatelessWidget {
         const SizedBox(height: 10),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
               Text(
-                'Client Communications',
+                'Client comms',
                 style: GoogleFonts.inter(
-                  color: _queueTitleColor,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  height: 0.96,
+                  color: OnyxColorTokens.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                'AI-generated messages awaiting approval',
-                style: GoogleFonts.inter(
-                  color: _queueBodyColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: items.isNotEmpty
+                      ? OnyxColorTokens.amberSurface
+                      : OnyxColorTokens.backgroundSecondary,
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: items.isNotEmpty
+                        ? OnyxColorTokens.amberBorder
+                        : OnyxColorTokens.divider,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: items.isNotEmpty
+                            ? OnyxColorTokens.accentAmber
+                            : OnyxColorTokens.accentGreen,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      items.isNotEmpty
+                          ? '${items.length} pending'
+                          : 'Queue clear',
+                      style: GoogleFonts.inter(
+                        color: items.isNotEmpty
+                            ? OnyxColorTokens.accentAmber
+                            : OnyxColorTokens.accentGreen,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -156,7 +194,7 @@ class ClientCommsQueueBoard extends StatelessWidget {
                   : 'Open Detailed Workspace',
             ),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF365E94),
+              foregroundColor: OnyxColorTokens.accentSky,
               side: const BorderSide(color: _queueStrongBorderColor),
               backgroundColor: _queuePanelColor,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -180,47 +218,51 @@ class ClientCommsQueueBoard extends StatelessWidget {
         : '$totalCount PENDING MESSAGES';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF2F2),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFF0CDD1)),
+        color: OnyxColorTokens.amberSurface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: OnyxColorTokens.amberBorder),
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.chat_bubble_outline_rounded,
-            color: Color(0xFFCC5B67),
-            size: 18,
+          Container(
+            width: 5,
+            height: 5,
+            decoration: const BoxDecoration(
+              color: OnyxColorTokens.accentAmber,
+              shape: BoxShape.circle,
+            ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               headline,
               style: GoogleFonts.inter(
-                color: const Color(0xFF8C3B43),
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.5,
+                color: OnyxColorTokens.accentAmber,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
               ),
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0x1AFCA5A5),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: const Color(0x55FCA5A5)),
-            ),
-            child: Text(
-              urgentCount == 1 ? '1 Urgent' : '$urgentCount Urgent',
-              style: GoogleFonts.inter(
-                color: const Color(0xFFFECACA),
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
+          if (urgentCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.redSurface,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: OnyxColorTokens.redBorder),
+              ),
+              child: Text(
+                urgentCount == 1 ? '1 Urgent' : '$urgentCount Urgent',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.accentRed,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -274,10 +316,14 @@ class ClientCommsQueueBoard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: urgent ? const Color(0xFFFFF2F2) : const Color(0xFFF2F8FF),
-        borderRadius: BorderRadius.circular(18),
+        color: urgent
+            ? OnyxColorTokens.redSurface
+            : OnyxColorTokens.cyanSurface,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: urgent ? const Color(0xFFF0CDD1) : const Color(0xFFC9DCF6),
+          color: urgent
+              ? OnyxColorTokens.redBorder
+              : OnyxColorTokens.cyanBorder,
         ),
       ),
       child: Column(
@@ -290,8 +336,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
                   'LATEST SENT FOLLOW-UP',
                   style: GoogleFonts.inter(
                     color: urgent
-                        ? const Color(0xFF8C3B43)
-                        : const Color(0xFF365E94),
+                        ? OnyxColorTokens.accentRed
+                        : OnyxColorTokens.accentCyan,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w900,
                     letterSpacing: 0.8,
@@ -305,14 +351,14 @@ class ClientCommsQueueBoard extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0x1AFCA5A5),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: const Color(0x55FCA5A5)),
+                    color: OnyxColorTokens.redSurface,
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: OnyxColorTokens.redBorder),
                   ),
                   child: Text(
                     'HIGH PRIORITY',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFFCC5B67),
+                      color: OnyxColorTokens.accentRed,
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
                     ),
@@ -361,11 +407,11 @@ class ClientCommsQueueBoard extends StatelessWidget {
                               ? 'PREPARE URGENT REPLY'
                               : 'PREPARE REPLY'),
                     foreground: urgent
-                        ? const Color(0xFF8C3B43)
-                        : const Color(0xFF365E94),
+                        ? OnyxColorTokens.accentRed
+                        : OnyxColorTokens.accentCyan,
                     background: _queuePanelColor,
                     border: urgent
-                        ? const Color(0xFFF0CDD1)
+                        ? OnyxColorTokens.redBorder
                         : _queueStrongBorderColor,
                     onPressed: preparingLatestSentFollowUpReply
                         ? null
