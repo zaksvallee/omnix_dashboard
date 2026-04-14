@@ -1297,24 +1297,6 @@ class _DispatchPageState extends State<DispatchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0x1422D3EE),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0x553FAEEB)),
-          ),
-          child: Text(
-            'Dispatch Board',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF9FD8FF),
-              fontSize: 8.8,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.48,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
         Text(
           'Dispatch Board',
           style: GoogleFonts.inter(
@@ -1322,15 +1304,6 @@ class _DispatchPageState extends State<DispatchPage> {
             fontSize: 32,
             fontWeight: FontWeight.w700,
             height: 0.94,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'One alarm. One move. No guesswork.',
-          style: GoogleFonts.inter(
-            color: const Color(0xFF95A3B7),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 10),
@@ -1524,86 +1497,111 @@ class _DispatchPageState extends State<DispatchPage> {
 
   Widget _alarmActionRow(_DispatchItem dispatch) {
     final cleared = dispatch.status == _DispatchStatus.cleared;
-    final actionButtons = <Widget>[
-      _alarmActionButton(
-        key: const ValueKey('dispatch-action-track-officer'),
-        label: 'TRACK OFFICER',
-        icon: Icons.location_on_outlined,
-        background: const Color(0xFFEAF8FB),
-        border: const Color(0xFF9DD3E4),
-        foreground: const Color(0xFF0F6D84),
-        onPressed: () => _trackOfficer(dispatch),
-      ),
-      _alarmActionButton(
-        key: const ValueKey('dispatch-action-view-camera'),
-        label: 'OPEN CCTV REVIEW',
-        icon: Icons.videocam_outlined,
-        background: const Color(0xFFF2F6FC),
-        border: const Color(0xFFBBD0E8),
-        foreground: const Color(0xFF345A87),
-        onPressed: () => _viewCamera(dispatch),
-      ),
-      _alarmActionButton(
-        key: const ValueKey('dispatch-action-call-client'),
-        label: 'OPEN CLIENT COMMS',
-        icon: Icons.call_outlined,
-        background: const Color(0xFFF8F2FF),
-        border: const Color(0xFFD8C3F5),
-        foreground: const Color(0xFF6E3EB5),
-        onPressed: () => _callClient(dispatch),
-      ),
-      _alarmActionButton(
-        key: const ValueKey('dispatch-action-open-agent'),
-        label: 'ASK AGENT',
-        icon: Icons.psychology_alt_rounded,
-        background: const Color(0xFFF7F1FF),
-        border: const Color(0xFFCDB7F7),
-        foreground: const Color(0xFF6C42BC),
-        onPressed: () => _openAgent(dispatch),
-      ),
-      _alarmActionButton(
-        key: const ValueKey('dispatch-action-clear-alarm'),
-        label: cleared ? 'OPEN CLIENT COMMS' : 'CLEAR ALARM',
-        icon: cleared ? Icons.mark_chat_read_rounded : Icons.verified_rounded,
-        background: cleared ? const Color(0xFFEAF8F3) : const Color(0xFFF0FBF3),
-        border: cleared ? const Color(0xFFA8D9C2) : const Color(0xFFB1D7BF),
-        foreground: cleared ? const Color(0xFF176B4A) : const Color(0xFF1F7A53),
-        onPressed: () =>
-            cleared ? _callClient(dispatch) : _clearAlarm(dispatch),
-      ),
-    ];
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: _dispatchPanelTintColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _dispatchBorderStrongColor),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth < 820) {
-            final buttonWidth = (constraints.maxWidth - 10) / 2;
-            return Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final button in actionButtons)
-                  SizedBox(width: buttonWidth, child: button),
-              ],
-            );
-          }
-          return Row(
-            children: [
-              for (var index = 0; index < actionButtons.length; index++) ...[
-                Expanded(child: actionButtons[index]),
-                if (index != actionButtons.length - 1)
-                  const SizedBox(width: 10),
-              ],
-            ],
-          );
-        },
-      ),
+    return Row(
+      children: [
+        Expanded(
+          child: _alarmActionButton(
+            key: const ValueKey('dispatch-action-track-officer'),
+            label: 'Track Officer',
+            icon: Icons.location_on_outlined,
+            background: _dispatchPanelTintColor,
+            border: _dispatchBorderColor,
+            foreground: _dispatchAccentSky,
+            onPressed: () => _trackOfficer(dispatch),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _alarmActionButton(
+            key: const ValueKey('dispatch-action-clear-alarm'),
+            label: cleared ? 'Client Comms' : 'Clear Alarm',
+            icon: cleared ? Icons.mark_chat_read_rounded : Icons.verified_rounded,
+            background: _dispatchPanelTintColor,
+            border: _dispatchBorderColor,
+            foreground: cleared
+                ? OnyxDesignTokens.accentPurple
+                : OnyxDesignTokens.greenNominal,
+            onPressed: () =>
+                cleared ? _callClient(dispatch) : _clearAlarm(dispatch),
+          ),
+        ),
+        const SizedBox(width: 8),
+        PopupMenuButton<String>(
+          key: const ValueKey('dispatch-action-overflow'),
+          padding: EdgeInsets.zero,
+          tooltip: 'More actions',
+          onSelected: (value) {
+            switch (value) {
+              case 'cctv':
+                _viewCamera(dispatch);
+              case 'comms':
+                _callClient(dispatch);
+              case 'agent':
+                _openAgent(dispatch);
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'cctv',
+              child: Row(children: [
+                const Icon(Icons.videocam_outlined, size: 16),
+                const SizedBox(width: 10),
+                Text(
+                  'CCTV Review',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ]),
+            ),
+            PopupMenuItem(
+              value: 'comms',
+              child: Row(children: [
+                const Icon(Icons.call_outlined, size: 16),
+                const SizedBox(width: 10),
+                Text(
+                  'Client Comms',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ]),
+            ),
+            PopupMenuItem(
+              value: 'agent',
+              child: Row(children: [
+                const Icon(Icons.psychology_alt_rounded, size: 16),
+                const SizedBox(width: 10),
+                Text(
+                  'Ask Agent',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ]),
+            ),
+          ],
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: _dispatchPanelTintColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _dispatchBorderColor),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.more_horiz_rounded,
+                size: 18,
+                color: _dispatchMutedColor,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

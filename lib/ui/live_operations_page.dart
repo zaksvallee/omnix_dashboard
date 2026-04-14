@@ -5030,7 +5030,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final featured = priorityRank == 0;
     final emphasized = priorityRank < 3;
     final (accent, surface, border, text) = _commandDecisionTone(item.severity);
-    final nextMove = item.actions.isEmpty ? null : item.actions.first.label;
     final detailMaxLines = featured
         ? 1
         : emphasized
@@ -5073,7 +5072,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           if (emphasized) ...[
             Container(
               width: featured ? 8 : 6,
-              height: item.actions.isEmpty ? 96 : 132,
+              height: item.actions.isEmpty ? 48 : 64,
               decoration: BoxDecoration(
                 color: accent,
                 borderRadius: BorderRadius.circular(999),
@@ -5092,31 +5091,23 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (priorityRank < 3) ...[
+                if (priorityRank == 0) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: featured ? accent : accent.withValues(alpha: 0.16),
+                      color: accent,
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: featured
-                            ? accent.withValues(alpha: 0.92)
-                            : accent.withValues(alpha: 0.36),
+                        color: accent.withValues(alpha: 0.92),
                       ),
                     ),
                     child: Text(
-                      switch (priorityRank) {
-                        0 => 'Priority',
-                        1 => 'UP NEXT',
-                        _ => 'THEN',
-                      },
+                      'Priority',
                       style: GoogleFonts.inter(
-                        color: featured
-                            ? OnyxDesignTokens.backgroundPrimary
-                            : accent,
+                        color: OnyxDesignTokens.backgroundPrimary,
                         fontSize: 8.3,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.4,
@@ -5200,20 +5191,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                               height: 1.08,
                             ),
                           ),
-                          if (nextMove != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              'NEXT MOVE: ${nextMove.toUpperCase()}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                color: accent.withValues(alpha: 0.96),
-                                fontSize: featured ? 10.1 : 9.8,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.16,
-                              ),
-                            ),
-                          ],
                           const SizedBox(height: 4),
                           Text(
                             item.detail,
@@ -5369,7 +5346,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'SOVEREIGN LEDGER',
+                      'Ledger',
                       style: GoogleFonts.inter(
                         color: OnyxDesignTokens.cyanInteractive,
                         fontSize: 8.6,
@@ -12169,7 +12146,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       key: _actionLadderPanelGlobalKey,
       child: _panel(
         title: 'Action Ladder',
-        subtitle: 'One incident. One move. No guesswork.',
+        subtitle: '',
         shellless: wide,
         child: Column(
           children: [
@@ -16134,7 +16111,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'SOVEREIGN LEDGER',
+                      'Ledger',
                       style: GoogleFonts.inter(
                         color: _commandTitleColor,
                         fontSize: 15,
@@ -16607,16 +16584,18 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                   letterSpacing: -0.1,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: GoogleFonts.inter(
-                  color: _commandBodyColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  height: 1.4,
+              if (subtitle.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    color: _commandBodyColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    height: 1.4,
+                  ),
                 ),
-              ),
+              ],
               const SizedBox(height: 16),
               if (boundedHeight) Expanded(child: child) else child,
             ],

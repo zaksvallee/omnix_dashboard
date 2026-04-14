@@ -2175,24 +2175,6 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.cloudAssistAvailable
-                        ? (_localBrainConfigured
-                              ? (_cloudBoostConfigured
-                                    ? 'Local stays first. Summon OpenAI only when you want a deeper second pass.'
-                                    : 'Local stays first. Add an OpenAI runtime key later if you want a deeper second pass.')
-                              : _cloudBoostConfigured
-                              ? 'OpenAI is available for this login, but the page still keeps the main brain local by default.'
-                              : 'This login can use OpenAI later, but no runtime key is configured yet. Local tools and handoffs still work normally.')
-                        : 'This login is locked to local-only mode. Device work and reply drafting still stay inside ONYX.',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF9CB0C8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
@@ -2239,34 +2221,12 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Ask in plain language. ONYX will pull in the right specialist when the thread needs it.',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF9CB0C8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      height: 1.45,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: _personas
                         .map((persona) => _coverageChip(persona.label))
                         .toList(growable: false),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _localBrainConfigured
-                        ? 'Offline model provider: ${widget.localBrainService.runtimeType.toString()}'
-                        : 'Offline model provider not configured yet. The page still uses local ONYX heuristics and scoped handoffs.',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF7F93AD),
-                      fontSize: 11.3,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
-                    ),
                   ),
                 ],
               ),
@@ -2277,16 +2237,6 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'These tools can act behind the buttons without throwing the controller back into old pages.',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFF9CB0C8),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
