@@ -2805,6 +2805,24 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
+  String _humaniseSiteId(String raw) {
+    var normalized = raw.trim();
+    if (normalized.toUpperCase().startsWith('SITE-')) {
+      normalized = normalized.substring(5);
+    }
+    return normalized
+        .split('-')
+        .map(
+          (word) => word.isEmpty
+              ? ''
+              : (word == word.toUpperCase()
+                    ? word
+                    : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'),
+        )
+        .join(' ')
+        .trim();
+  }
+
   @override
   Widget build(BuildContext context) {
     final scopeClientId = (widget.initialScopeClientId ?? '').trim();
@@ -2902,13 +2920,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                                 // Priority queue is now embedded in _commandCenterHero.
                                 if (showDetailedWorkspace) ...[
                                   const SizedBox(height: 20),
-                                  if (hasScopeFocus) ...[
-                                    _scopeFocusBanner(
-                                      clientId: scopeClientId,
-                                      siteId: scopeSiteId,
-                                    ),
-                                    const SizedBox(height: 20),
-                                  ],
                                   if (controlInboxSnapshot != null ||
                                       ledger.isNotEmpty) ...[
                                     _operationsDecisionDeck(
@@ -3185,7 +3196,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         .map((i) => i.site)
         .where((s) => s.isNotEmpty)
         .toSet();
-    final siteCount = siteSet.isEmpty ? 1 : siteSet.length;
+    final hasScopeHint = (widget.initialScopeSiteId ?? '').trim().isNotEmpty;
+    final siteCount = siteSet.isEmpty ? (hasScopeHint ? 1 : 0) : siteSet.length;
     final unresolvedCount = _incidents
         .where((i) => i.status != _IncidentStatus.resolved)
         .length;
@@ -3598,14 +3610,34 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         ),
         const SizedBox(height: 10),
         if (decisionItems.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              'No items require attention',
-              style: GoogleFonts.inter(
-                fontSize: 12,
-                color: _commandMutedColor,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: OnyxDesignTokens.greenSpec.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: OnyxDesignTokens.greenSpec.withValues(alpha: 0.12),
               ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: OnyxDesignTokens.greenSpec,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'All clear — no items need attention',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: OnyxDesignTokens.greenSpec,
+                  ),
+                ),
+              ],
             ),
           )
         else
@@ -3634,13 +3666,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               const Spacer(),
               Row(
                 children: [
-                  Text(
-                    '$siteCount ${siteCount == 1 ? "site" : "sites"} · ',
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: _commandMutedColor,
+                  if (siteCount > 0)
+                    Text(
+                      '$siteCount ${siteCount == 1 ? "site" : "sites"} · ',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: _commandMutedColor,
+                      ),
                     ),
-                  ),
                   Container(
                     width: 6,
                     height: 6,
@@ -3807,7 +3840,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                site.name,
+                _humaniseSiteId(site.name),
                 style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,

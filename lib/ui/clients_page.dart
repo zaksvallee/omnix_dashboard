@@ -10,9 +10,9 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
 import 'client_comms_queue_board.dart';
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
 
 class ClientsAgentDraftHandoff {
@@ -672,20 +672,59 @@ class _ClientsPageState extends State<ClientsPage> {
             header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OnyxPageHeader(
-                  icon: Icons.groups_rounded,
-                  iconColor: Theme.of(context).colorScheme.primary,
-                  title: 'Client Communications',
-                  subtitle: 'Client accounts and activity.',
-                ),
-                const SizedBox(height: 10),
-                OnyxStatusBanner(
-                  message: pendingAsks > 0
-                      ? '$pendingAsks pending messages'
-                      : 'No pending messages',
-                  severity: pendingAsks > 0
-                      ? OnyxSeverity.info
-                      : OnyxSeverity.success,
+                Row(
+                  children: [
+                    Text(
+                      'Clients',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: OnyxDesignTokens.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (pendingAsks + unreadAlerts > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: OnyxDesignTokens.cyanInfo.withValues(
+                            alpha: 0.08,
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: OnyxDesignTokens.cyanInfo.withValues(
+                              alpha: 0.15,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: OnyxDesignTokens.cyanInfo,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              '${pendingAsks + unreadAlerts} active',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: OnyxDesignTokens.cyanInfo,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 _heroHeader(

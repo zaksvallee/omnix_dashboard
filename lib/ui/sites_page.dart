@@ -10,9 +10,9 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/projection/operations_health_projection.dart';
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 // Fallback response scores used when averageResponseMinutes has not yet been
 // sampled (e.g. a new site or a very recent shift start).
@@ -43,6 +43,36 @@ class _SitesPageState extends State<SitesPage> {
   _SiteLaneFilter _siteLaneFilter = _SiteLaneFilter.all;
   _SiteWorkspaceView _workspaceView = _SiteWorkspaceView.command;
   bool get _desktopEmbeddedScroll => allowEmbeddedPanelScroll(context);
+
+  Widget _siteStatusPill(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,45 +131,43 @@ class _SitesPageState extends State<SitesPage> {
         _SiteLaneFilter.watch,
       );
       final anyAlert = criticalCount > 0 || atRiskCount > 0;
-      final sitePostureSummary = allSites.isEmpty
-          ? 'Posture nominal'
-          : anyAlert
-          ? '$atRiskCount sites need posture review'
-          : 'All sites monitored';
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          OnyxPageHeader(
-            icon: Icons.location_on_rounded,
-            iconColor: Theme.of(context).colorScheme.primary,
-            title: 'Sites & Deployment',
-            subtitle: 'Site coverage and posture.',
+          Row(
+            children: [
+              Text(
+                'Sites',
+                style: GoogleFonts.inter(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: OnyxDesignTokens.textPrimary,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const Spacer(),
+              Wrap(
+                spacing: 6,
+                children: [
+                  _siteStatusPill(
+                    anyAlert
+                        ? '$atRiskCount sites need review'
+                        : 'All sites monitored',
+                    anyAlert
+                        ? OnyxDesignTokens.amberWarning
+                        : OnyxDesignTokens.greenSpec,
+                  ),
+                  if (activeDispatches > 0)
+                    _siteStatusPill(
+                      '$activeDispatches active dispatch${activeDispatches == 1 ? '' : 'es'}',
+                      OnyxDesignTokens.redCritical,
+                    ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 10),
-          OnyxStatusBanner(
-            message: sitePostureSummary,
-            severity: anyAlert ? OnyxSeverity.warning : OnyxSeverity.info,
-          ),
-          const SizedBox(height: 10),
-          _heroHeader(
-            context,
-            sites: allSites,
-            selected: selected,
-            activeDispatches: activeDispatches,
-            averageHealth: averageHealth,
-            workspaceBanner: mergeWorkspaceBannerIntoHero
-                ? _workspaceStatusBanner(
-                    context,
-                    allSites: allSites,
-                    visibleSites: sites,
-                    selected: selected,
-                    shellless: true,
-                    summaryOnly: true,
-                  )
-                : null,
-          ),
           if (!compactForViewport) ...[
-            const SizedBox(height: 1.0),
             _overviewGrid(
               sites: allSites,
               activeDispatches: activeDispatches,
@@ -318,6 +346,7 @@ class _SitesPageState extends State<SitesPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _heroHeader(
     BuildContext context, {
     required List<_SiteDrillSnapshot> sites,

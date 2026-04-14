@@ -14,7 +14,6 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/partner_dispatch_status_declared.dart';
 import '../domain/events/response_arrived.dart';
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
@@ -796,6 +795,7 @@ class _DispatchPageState extends State<DispatchPage> {
               dispatch.status == _DispatchStatus.pending,
         )
         .length;
+    final activeDispatchCount = activeDispatches + pendingDispatches;
     final visibleDispatches = _visibleDispatches();
     final selectedDispatch = visibleDispatches.isEmpty
         ? null
@@ -1009,9 +1009,6 @@ class _DispatchPageState extends State<DispatchPage> {
         ],
       );
     }
-
-    final totalActiveAlarms = activeDispatches + pendingDispatches;
-
     return OnyxPageScaffold(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -1067,32 +1064,10 @@ class _DispatchPageState extends State<DispatchPage> {
             padding: contentPadding,
             maxWidth: surfaceMaxWidth,
             lockToViewport: desktopOverview ? false : boundedDesktopSurface,
-            header: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                OnyxStatusBanner(
-                  message: totalActiveAlarms > 0
-                      ? '$totalActiveAlarms active alarms'
-                      : 'No active alarms',
-                  severity: totalActiveAlarms > 0
-                      ? OnyxSeverity.critical
-                      : OnyxSeverity.success,
-                ),
-                const SizedBox(height: 8),
-                if (desktopOverview) ...[
-                  _alarmAttentionStrip(
-                    totalActiveAlarms: totalActiveAlarms,
-                    pendingDispatches: pendingDispatches,
-                    dispatchedDispatches: activeDispatches,
-                  ),
-                  if ((widget.guardRosterSignalHeadline ?? '').trim().isNotEmpty)
-                    ...[
-                      const SizedBox(height: 3.0),
-                      _guardRosterSignalBanner(),
-                    ],
-                ] else
-                  _header(workspaceBanner: workspaceStatusBanner),
-              ],
+            header: _header(
+              activeDispatchCount: activeDispatchCount,
+              redCount: pendingDispatches,
+              outCount: activeDispatches,
             ),
             body: desktopOverview
                 ? _desktopAlarmOverview(
@@ -1106,6 +1081,7 @@ class _DispatchPageState extends State<DispatchPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _alarmAttentionStrip({
     required int totalActiveAlarms,
     required int pendingDispatches,
@@ -1245,6 +1221,7 @@ class _DispatchPageState extends State<DispatchPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _alarmTopCountChip({
     required String label,
     required String value,
@@ -1297,16 +1274,6 @@ class _DispatchPageState extends State<DispatchPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Dispatch Board',
-          style: GoogleFonts.inter(
-            color: const Color(0xFFF5F7FA),
-            fontSize: 32,
-            fontWeight: FontWeight.w700,
-            height: 0.94,
-          ),
-        ),
-        const SizedBox(height: 10),
         if (primaryDispatch == null)
           _alarmEmptyState()
         else ...[
@@ -3126,266 +3093,61 @@ class _DispatchPageState extends State<DispatchPage> {
     );
   }
 
-  Widget _header({Widget? workspaceBanner}) {
-    final selectedDispatch = _dispatches.cast<_DispatchItem?>().firstWhere(
-      (dispatch) => dispatch?.id == _selectedDispatchId,
-      orElse: () => _dispatches.isNotEmpty ? _dispatches.first : null,
-    );
-    final rosterSignalBanner =
-        (widget.guardRosterSignalHeadline ?? '').trim().isEmpty
+  Widget _header({
+    required int activeDispatchCount,
+    required int redCount,
+    required int outCount,
+  }) {
+    final postureColor = activeDispatchCount > 0
+        ? OnyxDesignTokens.redCritical
+        : OnyxDesignTokens.greenSpec;
+    final rosterSignalBanner = (widget.guardRosterSignalHeadline ?? '').trim().isEmpty
         ? null
         : _guardRosterSignalBanner(compact: true);
-    final openReportAvailable =
-        widget.onOpenReportForDispatch != null &&
-        selectedDispatch != null &&
-        !selectedDispatch.isSeededPlaceholder;
-    final fleetScopeCount = widget.fleetScopeHealth.length;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 1120;
-        final actionButton = OutlinedButton.icon(
-          key: const ValueKey('dispatch-open-report-button'),
-          onPressed: !openReportAvailable
-              ? null
-              : () => _openReport(selectedDispatch),
-          icon: const Icon(Icons.description_rounded, size: 14.5),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF315C86),
-            backgroundColor: _dispatchPanelAltColor,
-            side: BorderSide(
-              color: openReportAvailable
-                  ? const Color(0xFF7E9EC0)
-                  : _dispatchBorderStrongColor,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Dispatch board',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: OnyxDesignTokens.textPrimary,
+                letterSpacing: -0.3,
+              ),
             ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 2.75,
-              vertical: 1.05,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4.5),
-            ),
-          ),
-          label: Text(
-            'OPEN REPORTS WORKSPACE',
-            style: GoogleFonts.inter(
-              fontSize: 7.6,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        );
-        final titleBlock = Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 16.8,
-                height: 16.8,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFDC2626), Color(0xFFEA580C)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(4.5),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x33DC2626),
-                      blurRadius: 18,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.radio_rounded,
-                  size: 7.8,
-                  color: OnyxDesignTokens.textPrimary,
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: postureColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(
+                  color: postureColor.withValues(alpha: 0.15),
                 ),
               ),
-              const SizedBox(width: 1.8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'DISPATCH COMMAND',
-                      style: GoogleFonts.inter(
-                        color: _dispatchTitleColor,
-                        fontSize: compact ? 11.8 : 13.0,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 0.34),
-                    Text(
-                      '${widget.clientId} / ${widget.regionId} / ${widget.siteId.trim().isEmpty ? 'all sites' : widget.siteId}',
-                      style: GoogleFonts.inter(
-                        color: _dispatchMutedColor,
-                        fontSize: 6.6,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 0.4),
-                    if (workspaceBanner == null) ...[
-                      Wrap(
-                        spacing: 0.72,
-                        runSpacing: 0.56,
-                        children: [
-                          _heroChip(
-                            label: widget.livePolling
-                                ? 'Live Poll Active'
-                                : 'Live Poll Paused',
-                            foreground: widget.livePolling
-                                ? const Color(0xFF22D3EE)
-                                : const Color(0xFF94A3B8),
-                            background: widget.livePolling
-                                ? const Color(0x1A22D3EE)
-                                : const Color(0x1A94A3B8),
-                            border: widget.livePolling
-                                ? const Color(0x6622D3EE)
-                                : const Color(0x6694A3B8),
-                          ),
-                          _heroChip(
-                            label: widget.radioQueueHasPending
-                                ? 'Radio Queue Pending'
-                                : 'Radio Queue Clear',
-                            foreground: widget.radioQueueHasPending
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFF34D399),
-                            background: widget.radioQueueHasPending
-                                ? const Color(0x1AF59E0B)
-                                : const Color(0x1A34D399),
-                            border: widget.radioQueueHasPending
-                                ? const Color(0x66F59E0B)
-                                : const Color(0x6634D399),
-                          ),
-                          _heroChip(
-                            label: 'Fleet $fleetScopeCount',
-                            foreground: _dispatchAccentSky,
-                            background: OnyxDesignTokens.cyanSurface,
-                            border: OnyxDesignTokens.cyanBorder,
-                          ),
-                          if (_resolvedFocusReference.trim().isNotEmpty)
-                            _focusPill(_resolvedFocusReference.trim()),
-                        ],
-                      ),
-                    ] else ...[
-                      Wrap(
-                        spacing: 0.88,
-                        runSpacing: 0.24,
-                        children: [
-                          Text(
-                            widget.livePolling
-                                ? 'Live poll active'
-                                : 'Live poll paused',
-                            style: GoogleFonts.inter(
-                              color: widget.livePolling
-                                  ? const Color(0xFF22D3EE)
-                                  : const Color(0xFF94A3B8),
-                              fontSize: 5.9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            widget.radioQueueHasPending
-                                ? 'Radio queue pending'
-                                : 'Radio queue clear',
-                            style: GoogleFonts.inter(
-                              color: widget.radioQueueHasPending
-                                  ? const Color(0xFFF59E0B)
-                                  : const Color(0xFF34D399),
-                              fontSize: 5.9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            'Fleet $fleetScopeCount',
-                            style: GoogleFonts.inter(
-                              color: _dispatchAccentSky,
-                              fontSize: 5.9,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          if (_resolvedFocusReference.trim().isNotEmpty)
-                            Text(
-                              'Focus ${switch (_focusState) {
-                                _DispatchFocusState.exact => 'Linked',
-                                _DispatchFocusState.scopeBacked => 'Scope-backed',
-                                _DispatchFocusState.seeded => 'Seeded',
-                                _DispatchFocusState.none => 'Idle',
-                              }}: ${_resolvedFocusReference.trim()}',
-                              style: GoogleFonts.inter(
-                                color: switch (_focusState) {
-                                  _DispatchFocusState.exact => const Color(
-                                    0xFF22D3EE,
-                                  ),
-                                  _DispatchFocusState.scopeBacked =>
-                                    _dispatchAccentSky,
-                                  _DispatchFocusState.seeded => const Color(
-                                    0xFFFACC15,
-                                  ),
-                                  _DispatchFocusState.none => const Color(
-                                    0xFF9AB1CF,
-                                  ),
-                                },
-                                fontSize: 5.9,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
+              child: Text(
+                activeDispatchCount > 0 ? '$activeDispatchCount live' : 'All clear',
+                style: GoogleFonts.inter(fontSize: 11, color: postureColor),
               ),
-            ],
-          ),
-        );
-        return Container(
-          width: double.infinity,
-          padding: EdgeInsets.all(workspaceBanner == null ? 0.84 : 0.72),
-          decoration: BoxDecoration(
-            color: _dispatchPanelColor,
-            borderRadius: BorderRadius.circular(4.25),
-            border: Border.all(color: _dispatchBorderColor),
-            boxShadow: const [
-              BoxShadow(
-                color: _dispatchShadowColor,
-                blurRadius: 14,
-                offset: Offset(0, 8),
+            ),
+            const Spacer(),
+            Text(
+              '$redCount red · $outCount out',
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                color: OnyxDesignTokens.textMuted,
               ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              compact
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [titleBlock]),
-                        const SizedBox(height: 0.15),
-                        actionButton,
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        titleBlock,
-                        const SizedBox(width: 1.75),
-                        actionButton,
-                      ],
-                    ),
-              if (workspaceBanner != null) ...[
-                const SizedBox(height: 0.42),
-                workspaceBanner,
-              ],
-              if (rosterSignalBanner != null) ...[
-                const SizedBox(height: 0.42),
-                rosterSignalBanner,
-              ],
-            ],
-          ),
-        );
-      },
+            ),
+          ],
+        ),
+        if (rosterSignalBanner != null) ...[
+          const SizedBox(height: 8),
+          rosterSignalBanner,
+        ],
+      ],
     );
   }
 
@@ -3516,6 +3278,7 @@ class _DispatchPageState extends State<DispatchPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _focusPill(String focusReference) {
     final color = switch (_focusState) {
       _DispatchFocusState.exact => const Color(0xFF22D3EE),
@@ -3812,69 +3575,12 @@ class _DispatchPageState extends State<DispatchPage> {
               ),
             ),
           ],
-          const SizedBox(height: 1.75),
-          FilledButton.icon(
-            onPressed: widget.onGenerate,
-            icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFEAF3FF),
-              foregroundColor: const Color(0xFF315F95),
-              side: const BorderSide(color: Color(0xFFBDD4EE)),
-              minimumSize: const Size.fromHeight(23),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(5.5),
-              ),
-            ),
-            label: Text(
-              'Generate Dispatch',
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w800,
-                fontSize: 8.6,
-              ),
-            ),
-          ),
-          const SizedBox(height: 1.75),
-          Wrap(
-            spacing: 2.0,
-            runSpacing: 2.0,
-            children: [
-              _secondaryActionButton(
-                label: 'Ingest Live Feeds',
-                icon: Icons.stream_rounded,
-                onPressed: widget.onIngestFeeds,
-              ),
-              _secondaryActionButton(
-                label: 'Ingest Radio Ops',
-                icon: Icons.hearing_rounded,
-                onPressed: widget.onIngestRadioOps,
-              ),
-              _secondaryActionButton(
-                label: 'Ingest ${widget.videoOpsLabel} Events',
-                icon: Icons.videocam_rounded,
-                onPressed: widget.onIngestCctvEvents,
-              ),
-              _secondaryActionButton(
-                label: 'Ingest Wearable Ops',
-                icon: Icons.watch_rounded,
-                onPressed: widget.onIngestWearableOps,
-              ),
-              _secondaryActionButton(
-                label: 'Ingest News Intel',
-                icon: Icons.newspaper_rounded,
-                onPressed: widget.onIngestNews,
-              ),
-              _secondaryActionButton(
-                label: 'Load Feed File',
-                icon: Icons.upload_file_rounded,
-                onPressed: widget.onLoadFeedFile,
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
+  // ignore: unused_element
   Widget _secondaryActionButton({
     required String label,
     required IconData icon,
@@ -5247,27 +4953,9 @@ class _DispatchPageState extends State<DispatchPage> {
                   detail: widget.radioOpsDetail,
                 ),
                 _BulletLine(
-                  title: 'Radio Queue',
-                  detail: widget.radioOpsQueueHealth,
-                ),
-                _BulletLine(
-                  title: 'Radio Queue Intent Mix',
-                  detail: widget.radioQueueIntentMix,
-                ),
-                _BulletLine(
                   title: 'Radio ACK Recent',
                   detail: widget.radioAckRecentSummary,
                 ),
-                _BulletLine(
-                  title: 'Radio Queue Failure',
-                  detail: widget.radioQueueFailureDetail,
-                ),
-                _BulletLine(
-                  title: 'Radio Queue Manual',
-                  detail: widget.radioQueueManualActionDetail,
-                ),
-                const SizedBox(height: 4),
-                _radioQueueActions(),
                 _BulletLine(
                   title:
                       '${widget.videoOpsLabel} Ops • ${widget.cctvOpsReadiness}',
@@ -6108,10 +5796,10 @@ class _DispatchPageState extends State<DispatchPage> {
         fontSize: 11,
         fontWeight: FontWeight.w600,
       ),
-      primaryGroupLabel: 'COMMAND POSTURE',
+      primaryGroupLabel: null,
       primaryGroupAccent: commandAccent,
       primaryGroupKey: ValueKey('dispatch-fleet-scope-posture-${scope.siteId}'),
-      contextGroupLabel: 'WATCH CONTEXT',
+      contextGroupLabel: null,
       contextGroupAccent: const Color(0xFFFDE68A),
       contextGroupKey: ValueKey('dispatch-fleet-scope-context-${scope.siteId}'),
       latestGroupLabel: 'LATEST SIGNAL',
@@ -7192,6 +6880,7 @@ class _DispatchPageState extends State<DispatchPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _radioQueueActions() {
     final hasPending = widget.radioQueueHasPending;
     final retryAction = hasPending ? widget.onRetryRadioQueue : null;

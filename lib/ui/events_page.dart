@@ -19,9 +19,9 @@ import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import '../application/report_entry_context.dart';
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 const _eventsPanelColor = Color(0xFF13131E);
 const _eventsPanelTint = Color(0xFF1A1A2E);
@@ -152,20 +152,70 @@ class _EventsPageState extends State<EventsPage> {
             final hero = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OnyxPageHeader(
-                  title: 'Events Scope',
-                  subtitle: 'Event security and chain integrity.',
-                  icon: Icons.event_note_rounded,
-                  iconColor: Theme.of(context).colorScheme.primary,
+                Row(
+                  children: [
+                    Text(
+                      'Events',
+                      style: GoogleFonts.inter(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: OnyxDesignTokens.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const Spacer(),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (chainIntact
+                                    ? OnyxDesignTokens.greenSpec
+                                    : OnyxDesignTokens.redCritical)
+                                .withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: (chainIntact
+                                      ? OnyxDesignTokens.greenSpec
+                                      : OnyxDesignTokens.redCritical)
+                                  .withValues(alpha: 0.15),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: chainIntact
+                                      ? OnyxDesignTokens.greenSpec
+                                      : OnyxDesignTokens.redCritical,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                chainIntegrityMessage,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  color: chainIntact
+                                      ? OnyxDesignTokens.greenSpec
+                                      : OnyxDesignTokens.redCritical,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: _spaceSm),
-                OnyxStatusBanner(
-                  message: chainIntegrityMessage,
-                  severity: chainIntact
-                      ? OnyxSeverity.success
-                      : OnyxSeverity.critical,
-                ),
-                const SizedBox(height: _spaceSm),
+                const SizedBox(height: 10),
                 _heroHeader(
                   context,
                   totalCount: forensicRows.length,

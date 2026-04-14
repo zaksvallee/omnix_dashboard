@@ -7,9 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../application/guard_sync_repository.dart';
 import '../domain/events/dispatch_event.dart';
 import '../domain/guard/guard_mobile_ops.dart';
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
 
 const _guardsPanelColor = Color(0xFF13131E);
@@ -642,26 +642,10 @@ class _GuardsPageState extends State<GuardsPage> {
     final filteredGuards = _filteredGuards();
     final selectedGuard = _selectedGuard(filteredGuards);
     final effectiveGuards = _effectiveGuards;
-    final totalGuards = effectiveGuards.length;
-    final onDutyCount = effectiveGuards
-        .where((g) => g.status == _GuardStatus.onDuty)
-        .length;
-    final syncIssues = effectiveGuards
-        .where((g) => g.hasSyncIssue)
-        .length;
-    final allDeployed = totalGuards > 0 && onDutyCount == totalGuards;
-    final workforceSummary = syncIssues > 0
-        ? '$syncIssues workforce gaps need review'
-        : totalGuards == 0
-        ? 'No guard workforce data'
-        : allDeployed
-        ? 'All $totalGuards guards deployed'
-        : '$onDutyCount of $totalGuards guards deployed';
-    final workforceSeverity = syncIssues > 0
-        ? OnyxSeverity.warning
-        : allDeployed
-        ? OnyxSeverity.success
-        : OnyxSeverity.info;
+    final onDutyGuards = _guards
+        .where((guard) => guard.status == _GuardStatus.onDuty)
+        .toList(growable: false);
+    final syncIssueCount = _guards.where((guard) => guard.hasSyncIssue).length;
 
     return OnyxPageScaffold(
       child: LayoutBuilder(
@@ -687,16 +671,33 @@ class _GuardsPageState extends State<GuardsPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    OnyxPageHeader(
-                      icon: Icons.shield_rounded,
-                      iconColor: Theme.of(context).colorScheme.primary,
-                      title: 'Guards & Workforce',
-                      subtitle: 'Guard workforce status.',
-                    ),
-                    const SizedBox(height: 10),
-                    OnyxStatusBanner(
-                      message: workforceSummary,
-                      severity: workforceSeverity,
+                    Row(
+                      children: [
+                        Text(
+                          'Guards',
+                          style: GoogleFonts.inter(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: OnyxDesignTokens.textPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const Spacer(),
+                        Wrap(
+                          spacing: 6,
+                          children: [
+                            _guardStatusPill(
+                              '${onDutyGuards.length} on duty',
+                              OnyxDesignTokens.greenSpec,
+                            ),
+                            if (syncIssueCount > 0)
+                              _guardStatusPill(
+                                '$syncIssueCount sync issue${syncIssueCount == 1 ? '' : 's'}',
+                                OnyxDesignTokens.amberWarning,
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
                     _pageHeader(context),
@@ -758,6 +759,36 @@ class _GuardsPageState extends State<GuardsPage> {
         Expanded(child: const SizedBox.shrink()),
         if (exportEnabled) exportButton,
       ],
+    );
+  }
+
+  Widget _guardStatusPill(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1015,18 +1046,22 @@ class _GuardsPageState extends State<GuardsPage> {
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${guards.length} GUARDS',
-                      style: GoogleFonts.inter(
-                        color: _guardsBodyColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'ROSTER',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: OnyxDesignTokens.textMuted,
+                    letterSpacing: 0.7,
+                  ),
+                ),
+              ),
+              Text(
+                '${guards.length}',
+                style: GoogleFonts.inter(
+                  color: OnyxDesignTokens.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
