@@ -2351,9 +2351,31 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (override == null) {
       return _systemStatusUri;
     }
-    final isProxyLikePath =
-        override.path.trim() == '/ISAPI/Event/notification/alertStream';
-    return isProxyLikePath ? override.resolve('/health') : override;
+    final normalizedPath = override.path.trim();
+    final isIsapiAlertStreamPath =
+        normalizedPath == '/ISAPI/Event/notification/alertStream';
+    if (!isIsapiAlertStreamPath) {
+      return override;
+    }
+    if (_shouldUseRelayHealthEndpoint(override)) {
+      return override.resolve('/health');
+    }
+    return override.replace(
+      path: '/ISAPI/System/status',
+      query: null,
+      fragment: null,
+    );
+  }
+
+  bool _shouldUseRelayHealthEndpoint(Uri uri) {
+    if (_streamAuth.mode != DvrHttpAuthMode.none) {
+      return false;
+    }
+    final host = uri.host.trim().toLowerCase();
+    return host == '127.0.0.1' ||
+        host == 'localhost' ||
+        host == '::1' ||
+        host == '[::1]';
   }
 
   Uri _snapshotUriForChannel(String channelId) {
@@ -2785,11 +2807,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           break;
         }
         if (response.statusCode < 200 || response.statusCode >= 300) {
+          final errorResponse = await http.Response.fromStream(response);
+          final responseBody = _singleLineLogSnippet(errorResponse.body);
           _isConnected = false;
           disconnectReason =
-              'Alert stream returned HTTP ${response.statusCode}.';
+              'Alert stream returned HTTP ${errorResponse.statusCode} from '
+              '$_resolvedAlertStreamUri'
+              '${responseBody.isEmpty ? '.' : ' — $responseBody'}';
           disconnectLogLevel = 900;
-          await response.stream.drain<void>();
         } else {
           final resumedAfterFailures = retryAttempt > 0 || _disconnectAlertSent;
           _isConnected = true;
@@ -4200,6 +4225,17 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   DvrHttpAuthConfig get _streamAuth => alertStreamAuthOverride ?? _auth;
 }
 
+String _singleLineLogSnippet(
+  String raw, {
+  int maxLength = 240,
+}) {
+  final normalized = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return '${normalized.substring(0, maxLength)}...';
+}
+
 // ─── Non-secret config baked in at compile time via dart-define ───
 
 const String _defaultHost = String.fromEnvironment(
@@ -4371,6 +4407,10 @@ Future<void> main() async {
   final dvrAuthModeRaw = Platform.environment['ONYX_DVR_AUTH_MODE'] ?? '';
   final dvrUsername = Platform.environment['ONYX_DVR_USERNAME'] ?? '';
   final dvrPassword = Platform.environment['ONYX_DVR_PASSWORD'] ?? '';
+  final dvrProxyUpstreamUsername =
+      Platform.environment['ONYX_DVR_PROXY_UPSTREAM_USERNAME'] ?? '';
+  final dvrProxyUpstreamPassword =
+      Platform.environment['ONYX_DVR_PROXY_UPSTREAM_PASSWORD'] ?? '';
   final yoloEndpointRaw =
       Platform.environment['ONYX_MONITORING_YOLO_ENDPOINT'] ??
       _defaultYoloEndpoint;
@@ -4448,6 +4488,23 @@ Future<void> main() async {
   if (dvrEventsUri != null) {
     stdout.writeln('[ONYX] DVR events endpoint override: $dvrEventsUri');
   }
+  final resolvedDvrAuthMode = parseDvrHttpAuthMode(dvrAuthModeRaw);
+  final resolvedDvrUsername = dvrUsername.trim().isNotEmpty
+      ? dvrUsername.trim()
+      : dvrProxyUpstreamUsername.trim().isNotEmpty
+      ? dvrProxyUpstreamUsername.trim()
+      : username.trim();
+  final resolvedDvrPassword = dvrPassword.trim().isNotEmpty
+      ? dvrPassword
+      : dvrProxyUpstreamPassword.trim().isNotEmpty
+      ? dvrProxyUpstreamPassword
+      : password;
+  if (dvrEventsUri != null) {
+    stdout.writeln(
+      '[ONYX] DVR auth mode: ${resolvedDvrAuthMode.name}'
+      '${resolvedDvrAuthMode == DvrHttpAuthMode.digest ? ' (credentials resolved)' : ''}',
+    );
+  }
   stdout.writeln(
     '[ONYX] YOLO/FR: ${yoloEndpoint == null ? 'disabled' : yoloEndpoint.toString()}',
   );
@@ -4514,9 +4571,13 @@ Future<void> main() async {
     alertStreamAuthOverride: dvrEventsUri == null
         ? null
         : DvrHttpAuthConfig(
-            mode: parseDvrHttpAuthMode(dvrAuthModeRaw),
-            username: dvrUsername.trim().isEmpty ? null : dvrUsername.trim(),
-            password: dvrPassword.trim().isEmpty ? null : dvrPassword,
+            mode: resolvedDvrAuthMode,
+            username: resolvedDvrAuthMode == DvrHttpAuthMode.digest
+                ? resolvedDvrUsername
+                : null,
+            password: resolvedDvrAuthMode == DvrHttpAuthMode.digest
+                ? resolvedDvrPassword
+                : null,
           ),
     lprService: liveSnapshotYoloService == null
         ? null
