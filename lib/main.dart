@@ -14945,9 +14945,11 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
           _siteAwarenessLastDeliveredAlertAtByCameraType[deliveryDeduplicationKey] =
               alert.detectedAt.toUtc();
           _siteAwarenessDeliveredAlertIds.add(alertId);
-          await _recordSiteAwarenessLatency(
-            alert: alert,
-            telegramAtUtc: telegramAtUtc,
+          unawaited(
+            _recordSiteAwarenessLatency(
+              alert: alert,
+              telegramAtUtc: telegramAtUtc,
+            ),
           );
           final autoResponseText = await _maybeAutoRespondToProactiveAlert(
             alert: alert,

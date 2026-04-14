@@ -3243,10 +3243,23 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
       final primaryLabel = (result.primaryLabel ?? '').trim().toLowerCase();
       final personConfidence = result.personConfidence;
-      final thresholdDecision = await _environmentEngine?.getThresholdDecision(
-        _siteId,
-        zone?.zoneName ?? '',
-      );
+      OnyxEnvironmentThresholdDecision? thresholdDecision;
+      try {
+        thresholdDecision = await _environmentEngine?.getThresholdDecision(
+          _siteId,
+          zone?.zoneName ?? '',
+        );
+      } catch (error, stackTrace) {
+        developer.log(
+          '[ONYX] Adaptive threshold lookup failed on CH$channelId — using '
+          'fallback threshold so alert delivery is not blocked by '
+          'observability data.',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
       final effectiveThreshold =
           thresholdDecision?.adaptedThreshold ??
           switch (_currentPowerMode) {
