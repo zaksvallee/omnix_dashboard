@@ -3069,7 +3069,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           (event.faceMatchId ?? '').trim().isNotEmpty &&
           !_isThreatMode) {
         developer.log(
-          '[ONYX] Suppressing proactive alert for known person '
+          '[ONYX-TELEGRAM] Gate check: suppressed=known face match '
           '${event.faceMatchName ?? event.faceMatchId} on CH${event.channelId}.',
           name: 'OnyxHikIsapiStream',
         );
@@ -3079,7 +3079,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             !(zone?.isPerimeter ?? false) &&
             !((zone?.zoneType ?? '').toLowerCase().contains('perimeter'))) {
           developer.log(
-            '[ONYX] Degraded power mode: skipping proactive alert evaluation for non-priority channel ${event.channelId}.',
+            '[ONYX-TELEGRAM] Gate check: suppressed=degraded non-priority '
+            'channel ${event.channelId}.',
             name: 'OnyxHikIsapiStream',
             level: 800,
           );
@@ -3087,12 +3088,20 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           final channelId = int.tryParse(event.channelId.trim()) ?? 0;
           if (channelId <= 0) {
             developer.log(
-              '[ONYX] Skipping proactive alert evaluation for invalid channel ${event.channelId}.',
+              '[ONYX-TELEGRAM] Gate check: suppressed=invalid channel '
+              '${event.channelId}.',
               name: 'OnyxHikIsapiStream',
               level: 800,
             );
             return;
           }
+          developer.log(
+            '[ONYX-TELEGRAM] Gate check: proceeding to proactive evaluation '
+            'channel=${event.channelId} zone=${zone?.zoneName ?? 'Channel ${event.channelId}'} '
+            'unknown_human=${event.unknownPerson} '
+            'face=${(event.faceMatchId ?? '').trim().isEmpty ? 'null' : event.faceMatchId}',
+            name: 'OnyxHikIsapiStream',
+          );
           unawaited(
             proactiveAlertService.evaluateDetection(
               siteId: _siteId,
@@ -3106,6 +3115,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
                   ? OnyxProactiveDetectionKind.vehicle
                   : OnyxProactiveDetectionKind.human,
               detectedAt: event.detectedAt,
+              unknownHuman:
+                  event.eventType == OnyxEventType.humanDetected &&
+                  event.unknownPerson,
             ),
           );
         }
@@ -3121,7 +3133,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   ) async {
     if (decision.siteId.trim() != _siteId.trim()) {
       developer.log(
-        '[ONYX] Telegram alert skipped: decision site ${decision.siteId} '
+        '[ONYX-TELEGRAM] Gate check: suppressed=decision site ${decision.siteId} '
         'does not match active site $_siteId.',
         name: 'OnyxHikIsapiStream',
         level: 800,
@@ -3131,7 +3143,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final projector = _projector;
     if (projector == null) {
       developer.log(
-        '[ONYX] Telegram alert skipped: projector is not ready for CH${decision.channelId}.',
+        '[ONYX-TELEGRAM] Gate check: suppressed=projector not ready '
+        'for CH${decision.channelId}.',
         name: 'OnyxHikIsapiStream',
         level: 900,
       );
@@ -3164,6 +3177,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       ),
     );
     _emitSnapshot(snapshot);
+    developer.log(
+      '[ONYX-TELEGRAM] Gate check: proceeding to send '
+      'channel=${decision.channelId} alert_id=$alertId',
+      name: 'OnyxHikIsapiStream',
+    );
     await _sendImmediateTelegramAlert(
       decision,
       alertId: alertId,
@@ -3176,7 +3194,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   }) async {
     if (!_envBool('ONYX_TELEGRAM_BRIDGE_ENABLED', fallback: true)) {
       developer.log(
-        '[ONYX] Telegram alert skipped: ONYX_TELEGRAM_BRIDGE_ENABLED is false.',
+        '[ONYX-TELEGRAM] Gate check: suppressed=ONYX_TELEGRAM_BRIDGE_ENABLED false.',
         name: 'OnyxHikIsapiStream',
         level: 900,
       );
@@ -3185,7 +3203,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final bridgeService = _telegramBridgeService;
     if (bridgeService == null || !bridgeService.isConfigured) {
       developer.log(
-        '[ONYX] Telegram alert skipped: bridge service is not configured.',
+        '[ONYX-TELEGRAM] Gate check: suppressed=bridge service not configured.',
         name: 'OnyxHikIsapiStream',
         level: 900,
       );
@@ -3194,7 +3212,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final message = decision.message.trim();
     if (message.isEmpty) {
       developer.log(
-        '[ONYX] Telegram alert skipped: empty message for CH${decision.channelId}.',
+        '[ONYX-TELEGRAM] Gate check: suppressed=empty message '
+        'for CH${decision.channelId}.',
         name: 'OnyxHikIsapiStream',
         level: 900,
       );
@@ -3204,7 +3223,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final targets = await _resolveTelegramAlertTargets();
     if (targets.isEmpty) {
       developer.log(
-        '[ONYX] Telegram alert skipped: no Telegram targets for '
+        '[ONYX-TELEGRAM] Gate check: suppressed=no Telegram targets for '
         '$_clientId/$_siteId.',
         name: 'OnyxHikIsapiStream',
         level: 900,
@@ -3215,7 +3234,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final outbound = <TelegramBridgeMessage>[];
     for (final target in targets) {
       developer.log(
-        '[ONYX] Telegram alert: sending to ${target.chatId} '
+        '[ONYX-TELEGRAM] Sending alert to ${target.chatId} '
         'for CH${decision.channelId}.',
         name: 'OnyxHikIsapiStream',
       );
@@ -3241,7 +3260,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             .toSet()
             .join(' | ');
         developer.log(
-          '[ONYX] Telegram alert skipped: delivery failed for CH${decision.channelId}. '
+          '[ONYX-TELEGRAM] Failed: CH${decision.channelId} '
           '${reasons.isEmpty ? 'No Telegram messages were accepted.' : reasons}',
           name: 'OnyxHikIsapiStream',
           level: 1000,
@@ -3249,7 +3268,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         return;
       }
       developer.log(
-        '[ONYX] Telegram alert delivered for CH${decision.channelId} '
+        '[ONYX-TELEGRAM] Sent OK for CH${decision.channelId} '
         '(${result.sent.length}/${outbound.length} target(s)).',
         name: 'OnyxHikIsapiStream',
       );
@@ -3260,7 +3279,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             .toSet()
             .join(' | ');
         developer.log(
-          '[ONYX] Telegram alert partial failure for CH${decision.channelId}: '
+          '[ONYX-TELEGRAM] Failed: partial delivery for CH${decision.channelId}: '
           '${reasons.isEmpty ? '${result.failed.length} target(s) failed.' : reasons}',
           name: 'OnyxHikIsapiStream',
           level: 900,
@@ -3268,8 +3287,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       }
     } catch (error, stackTrace) {
       developer.log(
-        '[ONYX] Telegram alert skipped: exception while sending for '
-        'CH${decision.channelId}.',
+        '[ONYX-TELEGRAM] Failed: exception while sending for CH${decision.channelId}.',
         name: 'OnyxHikIsapiStream',
         level: 1000,
         error: error,
@@ -3288,7 +3306,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         }
       } catch (error, stackTrace) {
         developer.log(
-          '[ONYX] Telegram alert target lookup failed for $_clientId/$_siteId. '
+          '[ONYX-TELEGRAM] Gate check: managed target lookup failed for $_clientId/$_siteId. '
           'Falling back to environment targets.',
           name: 'OnyxHikIsapiStream',
           level: 900,
@@ -3524,6 +3542,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         );
       }
       final faceMatchId = (result.faceMatchId ?? '').trim().toUpperCase();
+      developer.log(
+        '[ONYX-TELEGRAM] YOLO detected '
+        '${primaryLabel.isEmpty ? (result.personDetected ? 'person' : 'unknown') : primaryLabel} '
+        'on CH$channelId confidence='
+        '${(result.faceConfidence ?? result.personConfidence ?? 0).toStringAsFixed(2)} '
+        'face=${faceMatchId.isEmpty ? 'null' : faceMatchId}',
+        name: 'OnyxHikIsapiStream',
+      );
       if (faceMatchId.isNotEmpty) {
         final person = _repository == null
             ? null

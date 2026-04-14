@@ -63,6 +63,7 @@ class DetectionEvent {
   final int observedDistinctPresenceCount;
   final bool frEvaluated;
   final OnyxFrMatchContext? frMatch;
+  final bool unknownHuman;
 
   const DetectionEvent({
     required this.siteId,
@@ -78,6 +79,7 @@ class DetectionEvent {
     required this.observedDistinctPresenceCount,
     this.frEvaluated = false,
     this.frMatch,
+    this.unknownHuman = false,
   });
 }
 
@@ -542,6 +544,22 @@ class OnyxSiteProfileService {
         : 'Note: Expected visitor '
               '(${_expectedVisitorLabel(activeExpectedVisitors)}) '
               'on site during these hours.';
+
+    if (event.unknownHuman &&
+        event.detectionKind == OnyxProactiveDetectionKind.human) {
+      return AlertDecision(
+        shouldAlert: true,
+        alertLevel: afterHours || event.isPerimeter
+            ? AlertLevel.critical
+            : AlertLevel.warning,
+        reason: 'Unknown person detected with no face match.',
+        suggestedAction: profile.hasArmedResponse
+            ? 'Review live cameras and verify whether response is needed.'
+            : 'Review live cameras and notify the client.',
+        contextNote: !afterHours ? expectedVisitorNote : null,
+        afterHours: afterHours,
+      );
+    }
 
     if (event.isIndoor && profile.industryType == 'residential') {
       return AlertDecision.noAlert(

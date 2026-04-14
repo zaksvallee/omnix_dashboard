@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 
 import 'onyx_site_profile_service.dart';
@@ -196,9 +197,16 @@ class OnyxProactiveAlertService {
     required bool isPerimeter,
     required OnyxProactiveDetectionKind detectionKind,
     required DateTime detectedAt,
+    bool unknownHuman = false,
   }) async {
     final normalizedSiteId = siteId.trim();
     if (normalizedSiteId.isEmpty || channelId <= 0) {
+      developer.log(
+        '[ONYX-TELEGRAM] Gate check: suppressed=invalid site/channel '
+        'site=$siteId channel=$channelId',
+        name: 'OnyxProactiveAlertService',
+        level: 900,
+      );
       return;
     }
     final config =
@@ -257,10 +265,19 @@ class OnyxProactiveAlertService {
         isLoitering: loitering,
         isPerimeterSequence: sequence,
         observedDistinctPresenceCount: observedDistinctPresenceCount,
+        unknownHuman: unknownHuman,
       ),
       profile: profile,
     );
     if (!profileDecision.shouldAlert) {
+      developer.log(
+        '[ONYX-TELEGRAM] Gate check: suppressed=${profileDecision.reason} '
+        'site=$normalizedSiteId channel=$channelId '
+        'zone=$normalizedZoneName after_hours=${profileDecision.afterHours} '
+        'unknown_human=$unknownHuman',
+        name: 'OnyxProactiveAlertService',
+        level: 900,
+      );
       return;
     }
     final afterHours = profileDecision.afterHours;
@@ -314,10 +331,23 @@ class OnyxProactiveAlertService {
         _lastAlertAtByDeduplicationKey[decision.deduplicationKey];
     if (lastAlertAt != null &&
         detectedAt.toUtc().difference(lastAlertAt) < alertCooldown) {
+      developer.log(
+        '[ONYX-TELEGRAM] Gate check: suppressed=cooldown active '
+        'site=$normalizedSiteId channel=$channelId key=${decision.deduplicationKey}',
+        name: 'OnyxProactiveAlertService',
+        level: 900,
+      );
       return;
     }
     _lastAlertAtByDeduplicationKey[decision.deduplicationKey] = detectedAt
         .toUtc();
+    developer.log(
+      '[ONYX-TELEGRAM] Gate check: proceeding to send '
+      'site=$normalizedSiteId channel=$channelId '
+      'zone=$normalizedZoneName alert_kind=${decision.telegramAlertKind.name} '
+      'unknown_human=$unknownHuman',
+      name: 'OnyxProactiveAlertService',
+    );
     if (!_alertController.isClosed) {
       _alertController.add(decision);
     }
