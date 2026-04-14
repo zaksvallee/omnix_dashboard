@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'layout_breakpoints.dart';
+import 'theme/onyx_design_tokens.dart';
 
-const _onyxCanvasColor = Color(0xFF0D0D14);
-const _onyxPanelColor = Color(0xFF13131E);
-const _onyxPanelTint = Color(0xFF1A1A2E);
-const _onyxPanelBorder = Color(0x269D4BFF);
-const _onyxSelectedPanel = Color(0x1A9D4BFF);
-const _onyxSelectedBorder = Color(0x669D4BFF);
-const _onyxTitleColor = Color(0xFFE8E8F0);
-const _onyxBodyColor = Color(0x80FFFFFF);
-const _onyxMutedColor = Color(0x4DFFFFFF);
-const _onyxAccentBlue = Color(0xFF9D4BFF);
+const _onyxCanvasColor = OnyxColorTokens.backgroundPrimary;
+const _onyxPanelColor = OnyxColorTokens.backgroundSecondary;
+const _onyxPanelTint = OnyxColorTokens.surfaceElevated;
+const _onyxPanelBorder = OnyxColorTokens.borderSubtle;
+const _onyxSelectedPanel = OnyxColorTokens.cyanSurface;
+const _onyxSelectedBorder = OnyxColorTokens.purpleBorder;
+const _onyxTitleColor = OnyxColorTokens.textPrimary;
+const _onyxBodyColor = OnyxColorTokens.textSecondary;
+const _onyxMutedColor = OnyxColorTokens.textMuted;
+const _onyxAccentBlue = OnyxColorTokens.brand;
 
 Color _softenHeroColor(Color color) {
-  return Color.lerp(color, const Color(0xFF0D0D14), 0.82)!;
+  return Color.lerp(color, OnyxColorTokens.backgroundPrimary, 0.82)!;
 }
 
 class OnyxPageScaffold extends StatelessWidget {

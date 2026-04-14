@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'onyx_camera_bridge_shell_card.dart';
+import 'theme/onyx_design_tokens.dart';
 
 enum OnyxCameraBridgeShellSurfaceVariant { agent, admin }
 
@@ -27,8 +28,10 @@ class OnyxCameraBridgeShellSurface extends StatelessWidget {
         OnyxCameraBridgeShellSurfaceVariant.admin => const EdgeInsets.all(18),
       },
       backgroundColor: switch (variant) {
-        OnyxCameraBridgeShellSurfaceVariant.agent => const Color(0xFF1A1A2E),
-        OnyxCameraBridgeShellSurfaceVariant.admin => const Color(0xFF13131E),
+        OnyxCameraBridgeShellSurfaceVariant.agent =>
+          OnyxColorTokens.surfaceElevated,
+        OnyxCameraBridgeShellSurfaceVariant.admin =>
+          OnyxColorTokens.backgroundSecondary,
       },
       borderRadius: switch (variant) {
         OnyxCameraBridgeShellSurfaceVariant.agent => 12,
@@ -38,7 +41,7 @@ class OnyxCameraBridgeShellSurface extends StatelessWidget {
         OnyxCameraBridgeShellSurfaceVariant.agent => accent.withValues(
           alpha: 0.28,
         ),
-        OnyxCameraBridgeShellSurfaceVariant.admin => const Color(0xFFD4DFEA),
+        OnyxCameraBridgeShellSurfaceVariant.admin => OnyxColorTokens.divider,
       },
       child: child,
     );

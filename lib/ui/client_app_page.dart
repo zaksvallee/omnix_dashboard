@@ -11,18 +11,19 @@ import '../domain/events/intelligence_received.dart';
 import '../domain/events/response_arrived.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
 
-const _clientPanelColor = Color(0xFF13131E);
-const _clientPanelTint = Color(0xFF1A1A2E);
-const _clientPanelMuted = Color(0xFF1A1A2E);
-const _clientSelectedPanelColor = Color(0x1A9D4BFF);
-const _clientBorderColor = Color(0x269D4BFF);
-const _clientStrongBorderColor = Color(0x4D9D4BFF);
-const _clientTitleColor = Color(0xFFE8E8F0);
-const _clientBodyColor = Color(0x80FFFFFF);
-const _clientMutedColor = Color(0x4DFFFFFF);
-const _clientAccentBlue = Color(0xFF9D4BFF);
+const _clientPanelColor = OnyxColorTokens.backgroundSecondary;
+const _clientPanelTint = OnyxColorTokens.surfaceElevated;
+const _clientPanelMuted = OnyxColorTokens.surfaceElevated;
+const _clientSelectedPanelColor = OnyxColorTokens.cyanSurface;
+const _clientBorderColor = OnyxColorTokens.borderSubtle;
+const _clientStrongBorderColor = OnyxColorTokens.cyanBorder;
+const _clientTitleColor = OnyxColorTokens.textPrimary;
+const _clientBodyColor = OnyxColorTokens.textSecondary;
+const _clientMutedColor = OnyxColorTokens.textMuted;
+const _clientAccentBlue = OnyxColorTokens.brand;
 
 enum ClientAppLocale { en, zu, af }
 
@@ -98,7 +99,7 @@ class ClientAppEvidenceReturnReceipt {
     required this.headline,
     required this.detail,
     this.room = '',
-    this.accent = const Color(0xFF22D3EE),
+    this.accent = OnyxColorTokens.accentCyanTrue,
   });
 
   bool matchesScope(String candidateClientId, String candidateSiteId) {
@@ -615,7 +616,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: widget.backendSyncEnabled
-                ? const Color(0xFF7EA7D3).withValues(alpha: 0.75)
+                ? OnyxColorTokens.borderSubtle
                 : _clientBorderColor,
           ),
           boxShadow: const [
@@ -1027,7 +1028,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             receipt.headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w800,
               height: 1.35,
@@ -1041,7 +1042,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
           Text(
             receipt.detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -1334,7 +1335,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
             Text(
               title,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE5F1FF),
+                color: OnyxColorTokens.accentSky,
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
               ),

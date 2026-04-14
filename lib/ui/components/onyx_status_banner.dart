@@ -74,23 +74,23 @@ class OnyxStatusBanner extends StatelessWidget {
       switch (severity) {
         OnyxSeverity.critical => const _BannerColors(
           accent: OnyxDesignTokens.statusCritical,
-          background: Color(0x1AEF4444),
-          text: Color(0xFFFCA5A5),
+          background: OnyxColorTokens.redSurface,
+          text: OnyxColorTokens.accentRed,
         ),
         OnyxSeverity.warning => const _BannerColors(
           accent: OnyxDesignTokens.statusWarning,
-          background: Color(0x1AF59E0B),
-          text: Color(0xFFFCD34D),
+          background: OnyxColorTokens.amberSurface,
+          text: OnyxColorTokens.accentAmber,
         ),
         OnyxSeverity.info => const _BannerColors(
           accent: OnyxDesignTokens.statusInfo,
-          background: Color(0x1A3B82F6),
-          text: Color(0xFF93C5FD),
+          background: OnyxColorTokens.cyanSurface,
+          text: OnyxColorTokens.accentSky,
         ),
         OnyxSeverity.success => const _BannerColors(
           accent: OnyxDesignTokens.statusSuccess,
-          background: Color(0x1A10B981),
-          text: Color(0xFF6EE7B7),
+          background: OnyxColorTokens.greenSurface,
+          text: OnyxColorTokens.accentGreen,
         ),
       };
 }

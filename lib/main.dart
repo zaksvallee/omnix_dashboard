@@ -211,6 +211,7 @@ import 'ui/risk_intelligence_page.dart';
 import 'ui/sites_command_page.dart';
 import 'ui/sovereign_ledger_page.dart';
 import 'ui/tactical_page.dart';
+import 'ui/theme/onyx_design_tokens.dart';
 import 'ui/theme/onyx_theme.dart';
 import 'ui/vip_protection_page.dart';
 import 'ui/video_fleet_scope_health_sections.dart';
@@ -37562,12 +37563,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF0F1419),
+        backgroundColor: OnyxColorTokens.backgroundPrimary,
         behavior: SnackBarBehavior.floating,
         content: Text(
           'Demo Autopilot started: $title ($ref)',
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF4FF),
+            color: OnyxColorTokens.accentSky,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -37645,12 +37646,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
       doneMessenger?.hideCurrentSnackBar();
       doneMessenger?.showSnackBar(
         SnackBar(
-          backgroundColor: const Color(0xFF0F1419),
+          backgroundColor: OnyxColorTokens.backgroundPrimary,
           behavior: SnackBarBehavior.floating,
           content: Text(
             'Demo Autopilot complete: $completionLabel $ref',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF4FF),
+              color: OnyxColorTokens.accentSky,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -37726,13 +37727,13 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF0F1419),
+        backgroundColor: OnyxColorTokens.backgroundPrimary,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 3),
         content: Text(
           'Step $step/$total • ${route.autopilotLabel}: $narration',
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF4FF),
+            color: OnyxColorTokens.accentSky,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -37763,14 +37764,14 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF0F1419),
+        backgroundColor: OnyxColorTokens.backgroundPrimary,
         behavior: SnackBarBehavior.floating,
         content: Text(
           _demoAutopilotPaused
               ? 'Demo Autopilot paused.'
               : 'Demo Autopilot resumed.',
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF4FF),
+            color: OnyxColorTokens.accentSky,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -37795,12 +37796,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF0F1419),
+        backgroundColor: OnyxColorTokens.backgroundPrimary,
         behavior: SnackBarBehavior.floating,
         content: Text(
           'Demo Autopilot skipped ahead to $targetLabel.',
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF4FF),
+            color: OnyxColorTokens.accentSky,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -37817,12 +37818,12 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     messenger?.hideCurrentSnackBar();
     messenger?.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF0F1419),
+        backgroundColor: OnyxColorTokens.backgroundPrimary,
         behavior: SnackBarBehavior.floating,
         content: Text(
           'Demo Autopilot stopped.',
           style: GoogleFonts.inter(
-            color: const Color(0xFFEAF4FF),
+            color: OnyxColorTokens.accentSky,
             fontWeight: FontWeight.w700,
           ),
         ),
