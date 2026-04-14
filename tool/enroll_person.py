@@ -13,6 +13,17 @@ from PIL import Image, ImageOps
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CONFIG = ROOT / "config" / "onyx.local.json"
 DEFAULT_GALLERY = ROOT / "tool" / "face_gallery"
+_FR_ENABLED_ENV_RAW = os.getenv("ONYX_FR_ENABLED")
+FR_ENABLED = (_FR_ENABLED_ENV_RAW or "false").strip().lower() == "true"
+_FACE_RECOGNITION_MODULE = None
+_FACE_RECOGNITION_IMPORT_ERROR = ""
+
+if FR_ENABLED:
+    try:
+        import face_recognition as _FACE_RECOGNITION_MODULE
+    except ImportError as exc:
+        FR_ENABLED = False
+        _FACE_RECOGNITION_IMPORT_ERROR = str(exc)
 
 
 def _load_config(path: Path) -> dict:
@@ -31,13 +42,20 @@ def _config_string(config: dict, key: str, fallback: str = "") -> str:
     return str(config.get(key, fallback)).strip()
 
 
-def _validate_face(path: Path) -> None:
-    try:
-        import face_recognition
-    except ImportError as exc:
+def _require_face_recognition():
+    if _FACE_RECOGNITION_MODULE is not None:
+        return _FACE_RECOGNITION_MODULE
+    if _FACE_RECOGNITION_IMPORT_ERROR:
         raise RuntimeError(
             "face_recognition is not installed. Run: pip3 install face_recognition pillow"
-        ) from exc
+        ) from None
+    raise RuntimeError(
+        "Face recognition is disabled. Set ONYX_FR_ENABLED=true to validate enrollment photos."
+    )
+
+
+def _validate_face(path: Path) -> None:
+    face_recognition = _require_face_recognition()
     image = face_recognition.load_image_file(str(path))
     locations = face_recognition.face_locations(image)
     if not locations:

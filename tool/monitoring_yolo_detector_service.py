@@ -30,6 +30,17 @@ _DEFAULT_FACE_RECOGNIZER_URL = (
 )
 _DEFAULT_PLATE_REGEX = r"^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{5,10}$"
 _DEFAULT_LPR_ALLOWLIST = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+_FR_ENABLED_ENV_RAW = os.getenv("ONYX_FR_ENABLED")
+FR_ENABLED = (_FR_ENABLED_ENV_RAW or "false").strip().lower() == "true"
+_FACE_RECOGNITION_MODULE = None
+_FACE_RECOGNITION_IMPORT_ERROR = ""
+
+if FR_ENABLED:
+    try:
+        import face_recognition as _FACE_RECOGNITION_MODULE
+    except ImportError as exc:
+        FR_ENABLED = False
+        _FACE_RECOGNITION_IMPORT_ERROR = str(exc)
 
 
 def _read_config(path: Path) -> Dict[str, Any]:
@@ -100,6 +111,30 @@ def _read_string_list(
             if str(item).strip()
         ]
     return [part.strip() for part in raw_text.split(",") if part.strip()]
+
+
+def _fr_override_present() -> bool:
+    return _FR_ENABLED_ENV_RAW is not None
+
+
+def _resolved_fr_enabled(configured_enabled: bool) -> bool:
+    if _fr_override_present():
+        return FR_ENABLED
+    return configured_enabled
+
+
+def _load_face_recognition_module() -> Optional[Any]:
+    global _FACE_RECOGNITION_MODULE, _FACE_RECOGNITION_IMPORT_ERROR
+    if _FACE_RECOGNITION_MODULE is not None:
+        return _FACE_RECOGNITION_MODULE
+    try:
+        import face_recognition as module
+    except ImportError as exc:
+        _FACE_RECOGNITION_IMPORT_ERROR = str(exc)
+        return None
+    _FACE_RECOGNITION_MODULE = module
+    _FACE_RECOGNITION_IMPORT_ERROR = ""
+    return module
 
 
 def _contains_any(haystack: str, needles: Sequence[str]) -> bool:
@@ -452,7 +487,7 @@ class FaceRecognitionModule:
         match_threshold: float,
         cache_dir: str,
     ) -> None:
-        self.enabled = enabled
+        self.enabled = _resolved_fr_enabled(enabled)
         self.gallery_dir = Path(gallery_dir).expanduser().resolve() if gallery_dir.strip() else None
         self.detector_model_path = (
             Path(detector_model).expanduser().resolve()
@@ -480,7 +515,19 @@ class FaceRecognitionModule:
 
     def module_state(self) -> Dict[str, Any]:
         if not self.enabled:
-            return _module_state(enabled=False, configured=False, ready=False)
+            detail = ""
+            if _fr_override_present():
+                detail = (
+                    "Face recognition disabled by ONYX_FR_ENABLED."
+                    if not FR_ENABLED
+                    else ""
+                )
+            return _module_state(
+                enabled=False,
+                configured=self.gallery_dir is not None,
+                ready=False,
+                detail=detail,
+            )
         ready, detail = self.is_ready()
         return _module_state(
             enabled=True,
@@ -503,10 +550,16 @@ class FaceRecognitionModule:
         if not self.gallery_dir.exists():
             self._last_error = f"Face recognition gallery not found: {self.gallery_dir}"
             return False, self._last_error
+        face_recognition = _load_face_recognition_module()
+        if face_recognition is None:
+            self._last_error = (
+                _FACE_RECOGNITION_IMPORT_ERROR
+                or "face_recognition is not installed."
+            )
+            return False, self._last_error
         try:
-            import face_recognition  # noqa: F401
             self._ensure_models()
-            self._refresh_gallery()
+            self._refresh_gallery(face_recognition)
         except Exception as exc:
             self._last_error = str(exc)
             return False, self._last_error
@@ -523,10 +576,15 @@ class FaceRecognitionModule:
     ) -> Optional[Dict[str, Any]]:
         if not self.enabled:
             return None
+        face_recognition = _load_face_recognition_module()
+        if face_recognition is None:
+            self._last_error = (
+                _FACE_RECOGNITION_IMPORT_ERROR
+                or "face_recognition is not installed."
+            )
+            return None
         try:
-            import face_recognition
-
-            self._refresh_gallery()
+            self._refresh_gallery(face_recognition)
         except Exception as exc:
             self._last_error = str(exc)
             return None
@@ -623,10 +681,9 @@ class FaceRecognitionModule:
         temporary.replace(target)
         return target
 
-    def _refresh_gallery(self) -> None:
+    def _refresh_gallery(self, face_recognition: Any) -> None:
         assert self.gallery_dir is not None
         detector, recognizer = self._ensure_models()
-        import face_recognition
         files = sorted(
             path
             for path in self.gallery_dir.rglob("*")

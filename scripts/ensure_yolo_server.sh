@@ -120,7 +120,10 @@ import PIL  # noqa: F401
 import pi_heif  # noqa: F401
 import ultralytics  # noqa: F401
 if sys.argv[1] == "true":
-    import face_recognition  # noqa: F401
+    try:
+        import face_recognition  # noqa: F401
+    except ImportError:
+        sys.exit(1)
 if sys.argv[2] == "true":
     import easyocr  # noqa: F401
 PY
