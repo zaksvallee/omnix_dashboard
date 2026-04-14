@@ -2423,13 +2423,9 @@ class _DashboardOperationsWorkspaceState
       width: double.infinity,
       padding: const EdgeInsets.all(3.35),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF102337), Color(0xFF0C131C)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: OnyxColorTokens.surfaceCard,
         borderRadius: BorderRadius.circular(6.2),
-        border: Border.all(color: const Color(0xFF28415B)),
+        border: Border.all(color: OnyxDesignTokens.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

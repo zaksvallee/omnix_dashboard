@@ -1124,7 +1124,6 @@ class _CommandCenterModule {
   final Color accent;
   final Color surface;
   final Color border;
-  final LinearGradient? gradient;
   final Future<void> Function()? onTap;
 
   const _CommandCenterModule({
@@ -1135,7 +1134,6 @@ class _CommandCenterModule {
     required this.accent,
     required this.surface,
     required this.border,
-    this.gradient,
     this.onTap,
   });
 }
@@ -4071,8 +4069,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         width: double.infinity,
                         height: double.infinity,
                         decoration: BoxDecoration(
-                          gradient: m.gradient,
-                          color: m.gradient == null ? m.surface : null,
+                          color: m.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: m.border),
                         ),
@@ -4321,19 +4318,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       Container(
                         padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
                         decoration: BoxDecoration(
-                          gradient:
-                              module.gradient ??
-                              LinearGradient(
-                                colors: [
-                                  Color.alphaBlend(
-                                    module.accent.withValues(alpha: 0.18),
-                                    module.surface,
-                                  ),
-                                  module.surface,
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
+                          color: module.surface,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: module.border),
                           boxShadow: [
@@ -4509,11 +4494,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         border: unresolvedIncidents.isNotEmpty
             ? OnyxDesignTokens.redBorder
             : _commandBorderColor,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2D1515), Color(0xFF1A0A0A)],
-        ),
         onTap: () async {
           if (widget.onOpenAlarms != null) {
             widget.onOpenAlarms!.call();
@@ -4540,11 +4520,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         accent: OnyxDesignTokens.greenNominal,
         surface: OnyxDesignTokens.cardSurface,
         border: OnyxDesignTokens.borderSubtle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0D2D1A), Color(0xFF0A1A0F)],
-        ),
         onTap: () async {
           if (widget.onOpenGuards != null) {
             widget.onOpenGuards!.call();
@@ -4573,11 +4548,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         border: visualAlertCount > 0
             ? OnyxDesignTokens.amberBorder
             : _commandBorderColor,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2D1E0A), Color(0xFF1A1205)],
-        ),
         onTap: () async {
           if (widget.onOpenCctv != null) {
             widget.onOpenCctv!.call();
@@ -4601,11 +4571,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         accent: OnyxDesignTokens.greenNominal,
         surface: OnyxDesignTokens.cardSurface,
         border: OnyxDesignTokens.borderSubtle,
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0D2D1A), Color(0xFF0A1A0F)],
-        ),
         onTap: () async {
           if (widget.onOpenVipProtection != null) {
             widget.onOpenVipProtection!.call();
@@ -4626,13 +4591,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         metricLabel: 'THREAT LEVEL: LOW',
         icon: Icons.trending_up_rounded,
         accent: OnyxDesignTokens.accentTeal,
-        surface: const Color(0xFF0D2420),
-        border: const Color(0xFF1A4A40),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0A2020), Color(0xFF051515)],
-        ),
+        surface: OnyxDesignTokens.cardSurface,
+        border: OnyxDesignTokens.borderSubtle,
         onTap: () async {
           if (widget.onOpenRiskIntel != null) {
             widget.onOpenRiskIntel!.call();
@@ -4661,17 +4621,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         border: pendingMessageCount > 0
             ? OnyxDesignTokens.redBorder
             : _commandBorderColor,
-        gradient: pendingMessageCount > 0
-            ? const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF2D1515), Color(0xFF1A0A0A)],
-              )
-            : const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF0D2D1A), Color(0xFF0A1A0F)],
-              ),
         onTap: () async {
           if (clientLaneAction != null) {
             clientLaneAction();
