@@ -223,7 +223,7 @@ class _LedgerPageState extends State<LedgerPage> {
                 );
                 if (!useTwoColumnLayout) {
                   return OnyxSectionCard(
-                    title: 'DO THIS NOW',
+                    title: 'Priority',
                     subtitle:
                         'Pick the row, check the chain, and move the case forward.',
                     flexibleChild: embedScroll,
@@ -377,7 +377,7 @@ class _LedgerPageState extends State<LedgerPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'WAR ROOM',
+                          'Command Board',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF63E6BE),
                             fontSize: 9.5,
@@ -1408,7 +1408,7 @@ class _LedgerPageState extends State<LedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'DO THIS NOW',
+            'Priority',
             style: GoogleFonts.inter(
               color: row.color,
               fontSize: 9.5,

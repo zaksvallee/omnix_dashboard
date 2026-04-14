@@ -2192,7 +2192,7 @@ class _SitesPageState extends State<SitesPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'SITE COMMAND FOCUS',
+                'Site Focus',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF7A8FA4),
                   fontSize: 6.3,

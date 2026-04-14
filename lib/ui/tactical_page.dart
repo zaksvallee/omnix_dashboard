@@ -2414,7 +2414,7 @@ class TacticalPage extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'FLEET COMMAND FOCUS',
+                          'Fleet Focus',
                           style: GoogleFonts.inter(
                             color: focusAccent,
                             fontSize: 9.5,

@@ -20,6 +20,7 @@ import '../domain/projection/operations_health_projection.dart';
 import '../domain/store/in_memory_event_store.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 class DashboardPage extends StatelessWidget {
   static const _siteActivityService = SiteActivityIntelligenceService();
@@ -2960,17 +2961,10 @@ class _WorkspaceListCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(3.95),
         decoration: BoxDecoration(
-          gradient: selected
-              ? const LinearGradient(
-                  colors: [Color(0xFF11273A), Color(0xFF0D1620)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: selected ? null : const Color(0xFF111C2B),
+          color: selected ? OnyxColorTokens.surfaceInset : OnyxColorTokens.surfaceCard,
           borderRadius: BorderRadius.circular(8.0),
           border: Border.all(
-            color: selected ? accent : const Color(0xFF243549),
+            color: selected ? accent : OnyxDesignTokens.borderSubtle,
           ),
         ),
         child: Row(
@@ -5450,7 +5444,7 @@ class _MixBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: fraction,
             minHeight: 3.0,
-            backgroundColor: const Color(0xFF13253E),
+            backgroundColor: OnyxDesignTokens.borderSubtle,
             valueColor: AlwaysStoppedAnimation<Color>(accent),
           ),
         ),

@@ -1305,7 +1305,7 @@ class _DispatchPageState extends State<DispatchPage> {
             border: Border.all(color: const Color(0x553FAEEB)),
           ),
           child: Text(
-            'DISPATCH WAR ROOM',
+            'Dispatch Board',
             style: GoogleFonts.inter(
               color: const Color(0xFF9FD8FF),
               fontSize: 8.8,
@@ -1805,7 +1805,7 @@ class _DispatchPageState extends State<DispatchPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'DO THIS NOW',
+                      'Priority',
                       style: GoogleFonts.inter(
                         color: commandAccent,
                         fontSize: 7.9,
@@ -3734,7 +3734,7 @@ class _DispatchPageState extends State<DispatchPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'DO THIS NOW',
+                    'Priority',
                     style: GoogleFonts.inter(
                       color: rosterSignalAccent,
                       fontSize: 7.3,

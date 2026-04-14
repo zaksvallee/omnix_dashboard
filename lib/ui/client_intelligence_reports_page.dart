@@ -585,7 +585,7 @@ class _ClientIntelligenceReportsPageState
         );
         final selectedBoard = _workspaceDeckPanel(
           key: const ValueKey('reports-workspace-panel-selected'),
-          title: 'DO THIS NOW',
+          title: 'Priority',
           subtitle: 'Keep one receipt in focus and decide the next move.',
           shellless: !stacked,
           child: Column(
@@ -1331,7 +1331,7 @@ class _ClientIntelligenceReportsPageState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'DO THIS NOW',
+                          'Priority',
                           style: GoogleFonts.inter(
                             color: activeAccent,
                             fontSize: 9,
@@ -1704,7 +1704,7 @@ class _ClientIntelligenceReportsPageState
       siteId: widget.selectedSite,
     );
     return OnyxStoryHero(
-      eyebrow: 'WAR ROOM',
+      eyebrow: 'Command',
       title: 'Reports & Documentation',
       subtitle: 'Pick the right receipt, preview it, and move it out cleanly.',
       icon: Icons.description_rounded,

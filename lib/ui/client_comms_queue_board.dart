@@ -231,9 +231,9 @@ class ClientCommsQueueBoard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3FBF7),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFCFE6DA)),
+        color: _queuePanelColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _queueBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,8 +241,8 @@ class ClientCommsQueueBoard extends StatelessWidget {
           Text(
             'Queue clear',
             style: GoogleFonts.inter(
-              color: const Color(0xFF215D47),
-              fontSize: 24,
+              color: _queueTitleColor,
+              fontSize: 20,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -250,9 +250,9 @@ class ClientCommsQueueBoard extends StatelessWidget {
           Text(
             'There are no pending client approvals right now.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF4E816A),
+              color: _queueMutedColor,
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],

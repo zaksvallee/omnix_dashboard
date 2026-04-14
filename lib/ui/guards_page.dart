@@ -1855,7 +1855,7 @@ class _GuardsPageState extends State<GuardsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'DO THIS NOW',
+                'Priority',
                 style: GoogleFonts.inter(
                   color: accent,
                   fontSize: 10,

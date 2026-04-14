@@ -375,108 +375,63 @@ class _VipEmptyState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(24, 36, 24, 36),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF7FCF9), Color(0xFFEAF7EF)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
+        color: _vipSurfaceColor,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _vipStrongBorderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
       ),
       child: Column(
         children: [
           Container(
-            width: 80,
-            height: 80,
+            width: 64,
+            height: 64,
             decoration: BoxDecoration(
-              color: _vipSurfaceColor,
-              borderRadius: BorderRadius.circular(20),
+              color: const Color(0xFF1A1A2E),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: _vipStrongBorderColor),
             ),
             child: const Icon(
               Icons.shield_outlined,
-              color: Color(0xFF218B5A),
-              size: 40,
+              color: Color(0xFF9D4BFF),
+              size: 32,
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Text(
             'No Live VIP Run',
             style: GoogleFonts.inter(
               color: _vipTitleColor,
-              fontSize: 30,
+              fontSize: 22,
               fontWeight: FontWeight.w700,
-              height: 0.96,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            'Board clear right now. Stage the next package before movement starts.',
+            'Board clear. Stage the next package before movement starts.',
             style: GoogleFonts.inter(
               color: _vipBodyColor,
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 18),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: _vipSurfaceColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _vipStrongBorderColor),
-            ),
-            child: Row(
-              children: [
-                Text(
-                  'DO THIS NOW',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF5BE2A3),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  'OPEN PACKAGE DESK',
-                  style: GoogleFonts.inter(
-                    color: _vipMutedColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
             key: const ValueKey('vip-create-detail-button'),
             onPressed: onCreateDetail,
-            icon: const Icon(Icons.add_rounded, size: 18),
-            label: const Text('OPEN PACKAGE DESK'),
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Open Package Desk'),
             style: FilledButton.styleFrom(
               foregroundColor: Colors.white,
-              backgroundColor: const Color(0xFF218B5A),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              backgroundColor: const Color(0xFF9D4BFF),
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
               textStyle: GoogleFonts.inter(
                 fontSize: 13,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.3,
+                fontWeight: FontWeight.w700,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
@@ -717,7 +672,7 @@ class _VipScheduleCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Text(
-                      'DO THIS NOW',
+                      'Priority',
                       style: GoogleFonts.inter(
                         color: detail.badgeForeground,
                         fontSize: 11,

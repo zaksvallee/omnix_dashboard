@@ -656,8 +656,8 @@ class _ShellTopBar extends StatelessWidget {
               _TopChip(
                 label: 'READY',
                 foreground: OnyxDesignTokens.greenNominal,
-                background: OnyxDesignTokens.greenSurface,
-                border: OnyxDesignTokens.greenBorder,
+                background: OnyxDesignTokens.cardSurface,
+                border: OnyxDesignTokens.borderSubtle,
               ),
               const SizedBox(width: 10),
               _TopBarActionIcon(

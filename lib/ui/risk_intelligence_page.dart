@@ -369,7 +369,7 @@ class RiskIntelligencePage extends StatelessWidget {
                         border: Border.all(color: const Color(0xFFBED8F2)),
                       ),
                       child: Text(
-                        'WAR ROOM',
+                        'Command Board',
                         style: GoogleFonts.inter(
                           color: const Color(0xFF2A6F8A),
                           fontSize: 10.5,
@@ -803,7 +803,7 @@ class _IntelPriorityPanel extends StatelessWidget {
             child: Row(
               children: [
                 Text(
-                  'DO THIS NOW',
+                  'Priority',
                   style: GoogleFonts.inter(
                     color: accent,
                     fontSize: 11,

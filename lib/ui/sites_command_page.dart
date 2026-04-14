@@ -1034,7 +1034,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'DO THIS NOW',
+                    'Priority',
                     style: GoogleFonts.inter(
                       color: _statusColor(site.status),
                       fontSize: 10,

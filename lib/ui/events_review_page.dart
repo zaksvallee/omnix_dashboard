@@ -2047,7 +2047,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         );
         final detailBoard = _reviewWorkspacePanel(
           key: const ValueKey('events-workspace-panel-detail'),
-          title: 'DO THIS NOW',
+          title: 'Priority',
           subtitle:
               'Keep the selected event ready for Governance Desk, Sovereign Ledger, and export.',
           shellless: true,
@@ -2381,7 +2381,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final label = hasFeedback
         ? 'LATEST COMMAND'
         : selected == null
-        ? 'WAR ROOM'
+        ? 'Command Board'
         : 'YOU ARE HERE';
     final detail = hasFeedback
         ? 'The last routed move stays pinned while Events Scope and the focus card stay hot.'
@@ -2453,8 +2453,8 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         ? null
         : () => widget.onOpenLedger!(selected.eventId);
     return OnyxStoryHero(
-      eyebrow: 'WAR ROOM',
-      title: 'Events War Room',
+      eyebrow: 'Command',
+      title: 'Events Board',
       subtitle: 'Pick the lane, lock the facts, and move the case fast.',
       icon: Icons.timeline_rounded,
       gradientColors: const [Color(0xFF13131E), Color(0xFF1A1A2E)],
@@ -5318,7 +5318,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'DO THIS NOW',
+                      'Priority',
                       style: GoogleFonts.inter(
                         color: accent,
                         fontSize: 10,

@@ -4765,7 +4765,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       return _scopeActionPill(
         key: const ValueKey('onyx-agent-resume-operations-button'),
         icon: Icons.reply_all_rounded,
-        label: 'RESUME WAR ROOM',
+        label: 'Resume Board',
         onPressed: _openOperationsRoute,
         foreground: const Color(0xFFFDE68A),
         background: const Color(0xFFFFF8E7),
@@ -5631,7 +5631,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             _action(
               id: 'telemetry-summary',
               kind: _AgentActionKind.summarizeIncident,
-              label: 'BUILD WAR ROOM HANDOFF',
+              label: 'Build Handoff',
               detail: 'Package the signal into a War Room-ready handoff.',
               payload: incident,
               personaId: 'intel',

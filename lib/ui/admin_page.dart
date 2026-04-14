@@ -37,6 +37,7 @@ import 'onyx_camera_bridge_actions.dart';
 import 'onyx_camera_bridge_shell_panel.dart';
 import 'onyx_camera_bridge_tone_resolver.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'video_fleet_scope_health_card.dart';
 import 'video_fleet_scope_health_panel.dart';
 import 'video_fleet_scope_health_sections.dart';
@@ -1410,7 +1411,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     final label = widget.initialCommandLabel?.trim();
     final detail = widget.initialCommandDetail?.trim();
     return _AdminCommandReceipt(
-      label: (label == null || label.isEmpty) ? 'GUARDS WAR ROOM' : label,
+      label: (label == null || label.isEmpty) ? 'Guards Board' : label,
       headline: headline,
       detail: (detail == null || detail.isEmpty)
           ? 'Planner intent stays pinned here while you make the change.'
@@ -2565,7 +2566,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'COMMAND FOCUS',
+                'Focus',
                 style: GoogleFonts.inter(
                   color: _adminDialogMutedColor,
                   fontSize: 9,
@@ -2609,7 +2610,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ),
         const SizedBox(height: 6),
         Text(
-          'BOARD PIVOTS',
+          'Actions',
           style: GoogleFonts.inter(
             color: _adminDialogMutedColor,
             fontSize: 9,
@@ -5084,10 +5085,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFF132946) : const Color(0xFF0E141B),
+          color: active ? OnyxColorTokens.surfaceInset : OnyxColorTokens.surfaceCard,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: active ? const Color(0xFF1C7FB6) : const Color(0xFF212C39),
+            color: active ? OnyxDesignTokens.cyanInteractive.withValues(alpha: 0.4) : OnyxDesignTokens.borderSubtle,
           ),
           boxShadow: active
               ? const [
@@ -5282,7 +5283,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _systemCategoryFrame(
-          title: 'SYSTEM WAR ROOM',
+          title: 'System Health',
           subtitle: 'Health, queues, and live controls.',
           icon: Icons.settings_rounded,
           accent: const Color(0xFFF59E0B),
@@ -9946,7 +9947,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                     border: Border.all(color: accent.withValues(alpha: 0.35)),
                   ),
                   child: Text(
-                    'CURRENT FOCUS',
+                    'Focus',
                     style: GoogleFonts.inter(
                       color: accent,
                       fontSize: 8.5,
@@ -16519,7 +16520,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'OPERATOR COMMAND FOCUS',
+                                'Operator',
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF67E8F9),
                                   fontSize: 9.5,
@@ -18662,7 +18663,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                               ),
                             ),
                             child: Text(
-                              'CURRENT FOCUS',
+                              'Focus',
                               style: GoogleFonts.inter(
                                 color: rowAccent,
                                 fontSize: 8.5,
@@ -19590,7 +19591,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'IDENTITY COMMAND FOCUS',
+                              'Identity',
                               style: GoogleFonts.inter(
                                 color: activeAccent,
                                 fontSize: 9.5,
@@ -25172,7 +25173,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                         ),
                         if (launchedFromHandoff)
                           _adminHeaderChip(
-                            label: 'OPENED FROM WAR ROOM',
+                            label: 'Handoff Entry',
                             foreground: const Color(0xFF7FD8A5),
                             background: const Color(0x1A10B981),
                             border: const Color(0x6610B981),

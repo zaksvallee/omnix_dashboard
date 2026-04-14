@@ -350,7 +350,7 @@ class _EventsPageState extends State<EventsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'EVENT WAR ROOM',
+                          'Event Board',
                           style: GoogleFonts.inter(
                             color: _eventsTitleColor,
                             fontSize: compact ? 14 : 16,
@@ -694,7 +694,7 @@ class _EventsPageState extends State<EventsPage> {
                 const SizedBox(width: 5),
                 Expanded(
                   child: Text(
-                    selected == null ? 'GET FOCUS BACK' : 'DO THIS NOW',
+                    selected == null ? 'Focus' : 'Priority',
                     style: GoogleFonts.inter(
                       color: accent,
                       fontSize: 8,
@@ -1683,7 +1683,7 @@ class _EventsPageState extends State<EventsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'DO THIS NOW',
+            'Priority',
             style: GoogleFonts.inter(
               color: row.info.color,
               fontSize: 8.5,

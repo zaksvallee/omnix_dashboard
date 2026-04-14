@@ -1176,7 +1176,7 @@ class _GovernancePageState extends State<GovernancePage> {
           flex: 9,
           child: _governanceWorkspacePanel(
             key: const ValueKey('governance-workspace-panel-board'),
-            title: 'DO THIS NOW',
+            title: 'Priority',
             subtitle:
                 'See blockers, partner posture, and the next report move in one desk.',
             flexibleChild: useEmbeddedPanels,

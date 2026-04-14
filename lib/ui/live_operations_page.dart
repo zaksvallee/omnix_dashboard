@@ -3399,19 +3399,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               clientCommsSnapshot: clientCommsSnapshot,
             ),
             icon: const Icon(Icons.keyboard_command_key_rounded, size: 14),
-            label: const Text('ROUTE COMMAND'),
+            label: const Text('Route'),
             style: FilledButton.styleFrom(
               backgroundColor: OnyxDesignTokens.cyanSurface,
               foregroundColor: OnyxDesignTokens.cyanInteractive,
               side: const BorderSide(color: OnyxDesignTokens.cyanBorder),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               textStyle: GoogleFonts.inter(
-                fontSize: 10.6,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.28,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
               ),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           );
@@ -3455,7 +3456,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               if (stacked) ...[
                 inputField,
                 const SizedBox(height: 10),
-                SizedBox(width: double.infinity, child: routeButton),
+                routeButton,
               ] else
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -3657,7 +3658,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     final primaryActionLabel = rosterAttentionFocus
         ? 'OPEN MONTH PLANNER'
         : activeIncident == null
-        ? 'OPEN WAR ROOM'
+        ? 'Open Board'
         : displayedRecommendation?.nextMoveLabel ?? 'OPEN DISPATCH BOARD';
     final primaryActionAccent = rosterAttentionFocus
         ? rosterAccent
@@ -3733,10 +3734,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 ),
                 child: Text(
                   rosterAttentionFocus
-                      ? 'DO THIS FIRST'
+                      ? 'Priority'
                       : activeIncident == null
                       ? 'READY'
-                      : 'DO THIS FIRST',
+                      : 'Priority',
                   style: GoogleFonts.inter(
                     color: rosterAttentionFocus
                         ? OnyxDesignTokens.backgroundPrimary
@@ -3751,7 +3752,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               ),
               if (!streamlined)
                 Text(
-                  'CURRENT FOCUS',
+                  'Focus',
                   style: GoogleFonts.inter(
                     color: _commandTitleColor,
                     fontSize: 15,
@@ -3886,69 +3887,63 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             ),
           ],
           SizedBox(height: streamlined ? 10 : 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.tonalIcon(
-              key: const ValueKey('live-operations-command-open-board'),
-              onPressed: rosterAttentionFocus
-                  ? _openRosterPlannerFromCommand
-                  : activeIncident == null
-                  ? () {
-                      setState(() {
-                        _showDetailedWorkspace = true;
-                      });
+          FilledButton.tonalIcon(
+            key: const ValueKey('live-operations-command-open-board'),
+            onPressed: rosterAttentionFocus
+                ? _openRosterPlannerFromCommand
+                : activeIncident == null
+                ? () {
+                    setState(() {
+                      _showDetailedWorkspace = true;
+                    });
+                  }
+                : () async {
+                    if (typedDecision != null) {
+                      await _executeTypedCommandDecision(
+                        incident: activeIncident,
+                        decision: typedDecision,
+                        clientCommsSnapshot: clientCommsSnapshot,
+                      );
+                      return;
                     }
-                  : () async {
-                      if (typedDecision != null) {
-                        await _executeTypedCommandDecision(
-                          incident: activeIncident,
-                          decision: typedDecision,
-                          clientCommsSnapshot: clientCommsSnapshot,
-                        );
-                        return;
-                      }
-                      await _openCommandAlarmBoard(activeIncident);
-                    },
-              icon: Icon(primaryActionIcon, size: 16),
-              label: Text(primaryActionLabel),
-              style: FilledButton.styleFrom(
-                backgroundColor: rosterAttentionFocus
-                    ? rosterAccent.withValues(alpha: 0.18)
+                    await _openCommandAlarmBoard(activeIncident);
+                  },
+            icon: Icon(primaryActionIcon, size: 14),
+            label: Text(primaryActionLabel),
+            style: FilledButton.styleFrom(
+              backgroundColor: rosterAttentionFocus
+                  ? rosterAccent.withValues(alpha: 0.18)
+                  : activeIncident == null
+                  ? OnyxDesignTokens.redSurface
+                  : primaryActionAccent.withValues(
+                      alpha:
+                          primaryActionAccent == OnyxDesignTokens.redCritical
+                          ? 1
+                          : 0.94,
+                    ),
+              foregroundColor: rosterAttentionFocus
+                  ? rosterAccent
+                  : activeIncident == null
+                  ? OnyxDesignTokens.redCritical
+                  : primaryActionAccent.computeLuminance() > 0.55
+                  ? OnyxDesignTokens.backgroundPrimary
+                  : OnyxDesignTokens.textPrimary,
+              side: BorderSide(
+                color: rosterAttentionFocus
+                    ? rosterAccent.withValues(alpha: 0.52)
                     : activeIncident == null
-                    ? OnyxDesignTokens.redSurface
-                    : primaryActionAccent.withValues(
-                        alpha:
-                            primaryActionAccent == OnyxDesignTokens.redCritical
-                            ? 1
-                            : 0.94,
-                      ),
-                foregroundColor: rosterAttentionFocus
-                    ? rosterAccent
-                    : activeIncident == null
-                    ? OnyxDesignTokens.redCritical
-                    : primaryActionAccent.computeLuminance() > 0.55
-                    ? OnyxDesignTokens.backgroundPrimary
-                    : OnyxDesignTokens.textPrimary,
-                side: BorderSide(
-                  color: rosterAttentionFocus
-                      ? rosterAccent.withValues(alpha: 0.52)
-                      : activeIncident == null
-                      ? OnyxDesignTokens.redBorder
-                      : primaryActionAccent.withValues(alpha: 0.62),
-                ),
-                minimumSize: const Size.fromHeight(48),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                textStyle: GoogleFonts.inter(
-                  fontSize: 11.8,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.35,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    ? OnyxDesignTokens.redBorder
+                    : primaryActionAccent.withValues(alpha: 0.62),
+              ),
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              textStyle: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
@@ -3993,7 +3988,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                     onPressed: openClientLaneAction,
                     icon: const Icon(Icons.mark_chat_read_rounded, size: 14),
-                    label: const Text('OPEN CLIENT COMMS'),
+                    label: const Text('Client Comms'),
                     style: FilledButton.styleFrom(
                       backgroundColor: OnyxDesignTokens.cyanSurface,
                       foregroundColor: OnyxDesignTokens.cyanInteractive,
@@ -4543,8 +4538,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             : 'ON DUTY ($onDutyCount TOTAL)',
         icon: Icons.groups_2_rounded,
         accent: OnyxDesignTokens.greenNominal,
-        surface: OnyxDesignTokens.greenSurface,
-        border: OnyxDesignTokens.greenBorder,
+        surface: OnyxDesignTokens.cardSurface,
+        border: OnyxDesignTokens.borderSubtle,
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -4604,8 +4599,8 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         metricLabel: 'ACTIVE CONVOYS',
         icon: Icons.shield_outlined,
         accent: OnyxDesignTokens.greenNominal,
-        surface: OnyxDesignTokens.greenSurface,
-        border: OnyxDesignTokens.greenBorder,
+        surface: OnyxDesignTokens.cardSurface,
+        border: OnyxDesignTokens.borderSubtle,
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -4977,9 +4972,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: OnyxDesignTokens.greenSurface,
+              color: OnyxDesignTokens.cardSurface,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: OnyxDesignTokens.greenBorder),
+              border: Border.all(color: OnyxDesignTokens.borderSubtle),
             ),
             child: Text(
               'Queue clear. Hold watch.',
@@ -5165,7 +5160,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                     child: Text(
                       switch (priorityRank) {
-                        0 => 'DO THIS NOW',
+                        0 => 'Priority',
                         1 => 'UP NEXT',
                         _ => 'THEN',
                       },
@@ -5290,14 +5285,10 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                 if (item.actions.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   if (emphasized) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: _commandDecisionActionButton(
-                        item.actions.first,
-                        emphasized: emphasized,
-                        primary: true,
-                        fullWidth: true,
-                      ),
+                    _commandDecisionActionButton(
+                      item.actions.first,
+                      emphasized: emphasized,
+                      primary: true,
                     ),
                     if (item.actions.length > 1) ...[
                       const SizedBox(height: 8),
@@ -5359,7 +5350,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     _CommandDecisionAction action, {
     bool emphasized = false,
     bool primary = false,
-    bool fullWidth = false,
   }) {
     final highEmphasis = emphasized && primary;
     final highEmphasisForeground = action.accent.computeLuminance() > 0.55
@@ -5389,17 +5379,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         side: BorderSide(
           color: action.accent.withValues(alpha: highEmphasis ? 0.62 : 0.24),
         ),
+        minimumSize: const Size(0, 36),
         padding: EdgeInsets.symmetric(
-          horizontal: highEmphasis ? 12 : 10,
-          vertical: highEmphasis ? 10 : 8,
+          horizontal: highEmphasis ? 14 : 10,
+          vertical: 8,
         ),
         textStyle: GoogleFonts.inter(
-          fontSize: highEmphasis ? 10.8 : 10.2,
-          fontWeight: FontWeight.w800,
+          fontSize: highEmphasis ? 13 : 11,
+          fontWeight: highEmphasis ? FontWeight.w700 : FontWeight.w600,
         ),
-        minimumSize: fullWidth ? const Size.fromHeight(46) : null,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(fullWidth ? 12 : 10),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
@@ -5589,9 +5579,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: OnyxDesignTokens.greenSurface,
+                color: OnyxDesignTokens.cardSurface,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: OnyxDesignTokens.greenBorder),
+                border: Border.all(color: OnyxDesignTokens.borderSubtle),
               ),
               child: Text(
                 'AUTO-AUDIT ARMED. The next controller decision will seal here automatically.',

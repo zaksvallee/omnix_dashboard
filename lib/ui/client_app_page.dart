@@ -2581,7 +2581,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       children: [
         if (!shellless) ...[
           Text(
-            'DO THIS NOW',
+            'Priority',
             style: GoogleFonts.inter(
               color: const Color(0xFF8A5A1C),
               fontSize: 9.5,
@@ -3526,7 +3526,7 @@ class _ClientAppPageState extends State<ClientAppPage> {
       children: [
         if (!shellless) ...[
           Text(
-            'DO THIS NOW',
+            'Priority',
             style: GoogleFonts.inter(
               color: const Color(0xFFFFD6A5),
               fontSize: 10,

@@ -19,6 +19,7 @@ import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
 import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 const _obSurfaceFill = Color(0xFF13131E);
 const _obSurfaceElevated = Color(0xFF1A1A2E);
@@ -376,7 +377,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           OnyxStoryHero(
-            eyebrow: 'WAR ROOM',
+            eyebrow: 'Command',
             title: 'Sovereign Ledger',
             subtitle:
                 'One clean record, one clear next move, full chain in the background.',
@@ -1303,7 +1304,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'DO THIS NOW',
+            'Priority',
             style: GoogleFonts.inter(
               color: _obTextPrimary,
               fontSize: 20,
@@ -1494,8 +1495,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF14301F),
-                    foregroundColor: const Color(0xFF6EE7B7),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxDesignTokens.greenNominal,
                   ),
                   icon: const Icon(Icons.videocam_outlined, size: 18),
                   label: const Text('OPEN CCTV REVIEW'),
@@ -1512,8 +1513,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           riskIntelSelectedEventId,
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF1B1530),
-                    foregroundColor: const Color(0xFFC084FC),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxDesignTokens.accentPurple,
                   ),
                   icon: const Icon(Icons.timeline_rounded, size: 18),
                   label: const Text('OPEN EVENTS SCOPE'),
@@ -1523,8 +1524,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   key: const ValueKey('ledger-entry-open-manual-intel'),
                   onPressed: widget.onOpenManualIntelFromAudit,
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF14304A),
-                    foregroundColor: const Color(0xFF54C8FF),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxDesignTokens.accentSky,
                   ),
                   icon: const Icon(Icons.add_comment_rounded, size: 18),
                   label: const Text('OPEN INTEL INTAKE'),
@@ -1620,8 +1621,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                           ),
                         ),
                   style: _primaryButtonStyle(
-                    backgroundColor: const Color(0xFF14301F),
-                    foregroundColor: const Color(0xFF6EE7B7),
+                    backgroundColor: OnyxColorTokens.surfaceInset,
+                    foregroundColor: OnyxDesignTokens.greenNominal,
                   ),
                   icon: const Icon(Icons.videocam_outlined, size: 18),
                   label: const Text('OPEN CCTV REVIEW'),
@@ -2096,11 +2097,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
   }
 
   Color _dispatchAuditPrimaryButtonBackground(String action) {
-    return switch (action.trim()) {
-      'dispatch_launched' => const Color(0xFF2B1804),
-      'dispatch_resolved' || 'alarm_cleared' => const Color(0xFF14301F),
-      _ => const Color(0xFF102338),
-    };
+    return OnyxColorTokens.surfaceInset;
   }
 
   String? _liveOpsAuditIncidentReferenceForSelected(_ObEntryView selected) {
