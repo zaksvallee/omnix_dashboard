@@ -34,6 +34,10 @@ _FR_ENABLED_ENV_RAW = os.getenv("ONYX_FR_ENABLED")
 FR_ENABLED = (_FR_ENABLED_ENV_RAW or "false").strip().lower() == "true"
 _FACE_RECOGNITION_MODULE = None
 _FACE_RECOGNITION_IMPORT_ERROR = ""
+_LPR_ENABLED_ENV_RAW = os.getenv("ONYX_LPR_ENABLED")
+LPR_ENABLED = (_LPR_ENABLED_ENV_RAW or "false").strip().lower() == "true"
+_EASYOCR_MODULE = None
+_EASYOCR_IMPORT_ERROR = ""
 
 if FR_ENABLED:
     try:
@@ -41,6 +45,13 @@ if FR_ENABLED:
     except ImportError as exc:
         FR_ENABLED = False
         _FACE_RECOGNITION_IMPORT_ERROR = str(exc)
+
+if LPR_ENABLED:
+    try:
+        import easyocr as _EASYOCR_MODULE
+    except ImportError as exc:
+        LPR_ENABLED = False
+        _EASYOCR_IMPORT_ERROR = str(exc)
 
 
 def _read_config(path: Path) -> Dict[str, Any]:
@@ -123,6 +134,16 @@ def _resolved_fr_enabled(configured_enabled: bool) -> bool:
     return configured_enabled
 
 
+def _lpr_override_present() -> bool:
+    return _LPR_ENABLED_ENV_RAW is not None
+
+
+def _resolved_lpr_enabled(configured_enabled: bool) -> bool:
+    if _lpr_override_present():
+        return LPR_ENABLED
+    return configured_enabled
+
+
 def _load_face_recognition_module() -> Optional[Any]:
     global _FACE_RECOGNITION_MODULE, _FACE_RECOGNITION_IMPORT_ERROR
     if _FACE_RECOGNITION_MODULE is not None:
@@ -134,6 +155,20 @@ def _load_face_recognition_module() -> Optional[Any]:
         return None
     _FACE_RECOGNITION_MODULE = module
     _FACE_RECOGNITION_IMPORT_ERROR = ""
+    return module
+
+
+def _load_easyocr_module() -> Optional[Any]:
+    global _EASYOCR_MODULE, _EASYOCR_IMPORT_ERROR
+    if _EASYOCR_MODULE is not None:
+        return _EASYOCR_MODULE
+    try:
+        import easyocr as module
+    except ImportError as exc:
+        _EASYOCR_IMPORT_ERROR = str(exc)
+        return None
+    _EASYOCR_MODULE = module
+    _EASYOCR_IMPORT_ERROR = ""
     return module
 
 
@@ -874,7 +909,7 @@ class PlateRecognitionModule:
         allowlist: str,
         plate_regex: str,
     ) -> None:
-        self.enabled = enabled
+        self.enabled = _resolved_lpr_enabled(enabled)
         self.languages = [item for item in languages if item.strip()] or ["en"]
         self.minimum_confidence = minimum_confidence
         self.allowlist = allowlist.strip() or _DEFAULT_LPR_ALLOWLIST
@@ -884,7 +919,13 @@ class PlateRecognitionModule:
 
     def module_state(self) -> Dict[str, Any]:
         if not self.enabled:
-            return _module_state(enabled=False, configured=False, ready=False)
+            detail = ""
+            if _lpr_override_present():
+                detail = (
+                    _EASYOCR_IMPORT_ERROR
+                    or "License plate recognition disabled by ONYX_LPR_ENABLED."
+                )
+            return _module_state(enabled=False, configured=False, ready=False, detail=detail)
         ready, detail = self.is_ready()
         return _module_state(
             enabled=True,
@@ -900,10 +941,12 @@ class PlateRecognitionModule:
     def is_ready(self) -> Tuple[bool, str]:
         if not self.enabled:
             return False, ""
-        try:
-            import easyocr  # noqa: F401
-        except Exception as exc:
-            self._last_error = str(exc)
+        easyocr = _load_easyocr_module()
+        if easyocr is None:
+            self._last_error = (
+                _EASYOCR_IMPORT_ERROR
+                or "easyocr is not installed."
+            )
             return False, self._last_error
         self._last_error = ""
         return True, ""
@@ -995,12 +1038,12 @@ class PlateRecognitionModule:
     def _ensure_reader(self):
         if self._reader is not None:
             return self._reader
-        try:
-            import easyocr
-        except Exception as exc:
+        easyocr = _load_easyocr_module()
+        if easyocr is None:
             raise RuntimeError(
-                "EasyOCR is required for the ONYX LPR pipeline."
-            ) from exc
+                _EASYOCR_IMPORT_ERROR
+                or "EasyOCR is required for the ONYX LPR pipeline."
+            )
         self._reader = easyocr.Reader(self.languages, gpu=False, verbose=False)
         return self._reader
 
@@ -1582,7 +1625,11 @@ class DetectorRuntime:
                 ),
             )
         face_module = FaceRecognitionModule(
-            enabled=_read_bool(config, "ONYX_MONITORING_FR_ENABLED", fallback=False),
+            enabled=_read_bool(
+                config,
+                "ONYX_FR_ENABLED",
+                fallback=_read_bool(config, "ONYX_MONITORING_FR_ENABLED", fallback=False),
+            ),
             gallery_dir=_read_string(config, "ONYX_MONITORING_FR_GALLERY_DIR"),
             detector_model=_read_string(config, "ONYX_MONITORING_FR_DETECTOR_MODEL"),
             recognizer_model=_read_string(config, "ONYX_MONITORING_FR_RECOGNIZER_MODEL"),
@@ -1598,7 +1645,11 @@ class DetectorRuntime:
             ),
         )
         plate_module = PlateRecognitionModule(
-            enabled=_read_bool(config, "ONYX_MONITORING_LPR_ENABLED", fallback=False),
+            enabled=_read_bool(
+                config,
+                "ONYX_LPR_ENABLED",
+                fallback=_read_bool(config, "ONYX_MONITORING_LPR_ENABLED", fallback=False),
+            ),
             languages=_read_string_list(config, "ONYX_MONITORING_LPR_LANGS", fallback=["en"]),
             minimum_confidence=_read_float(
                 config,

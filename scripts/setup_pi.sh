@@ -187,9 +187,11 @@ if os.environ.get("SUPABASE_SERVICE_KEY") and not os.environ.get("ONYX_SUPABASE_
     config["ONYX_SUPABASE_SERVICE_KEY"] = os.environ["SUPABASE_SERVICE_KEY"]
 
 defaults = {
-    "ONYX_FR_ENABLED": "false",
+    "ONYX_FR_ENABLED": "true",
+    "ONYX_LPR_ENABLED": "true",
     "ONYX_MONITORING_YOLO_ENABLED": "true",
-    "ONYX_MONITORING_FR_ENABLED": "false",
+    "ONYX_MONITORING_FR_ENABLED": "true",
+    "ONYX_MONITORING_LPR_ENABLED": "true",
     "ONYX_MONITORING_YOLO_HOST": "127.0.0.1",
     "ONYX_MONITORING_YOLO_PORT": "11636",
     "ONYX_MONITORING_YOLO_ENDPOINT": "http://127.0.0.1:11636/detect",

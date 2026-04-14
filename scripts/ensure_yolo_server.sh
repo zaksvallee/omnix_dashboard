@@ -53,9 +53,31 @@ print("" if value is None else value)
 PY
 }
 
+normalized_bool() {
+  printf '%s' "$1" | tr -d '\r' | tr '[:upper:]' '[:lower:]'
+}
+
+resolved_flag() {
+  local primary_key="$1"
+  local fallback_key="$2"
+  local primary_value="${!primary_key:-}"
+  if [[ -z "$primary_value" ]]; then
+    primary_value="$(json_value "$primary_key")"
+  fi
+  if [[ -n "$primary_value" ]]; then
+    normalized_bool "$primary_value"
+    return 0
+  fi
+  local fallback_value="${!fallback_key:-}"
+  if [[ -z "$fallback_value" ]]; then
+    fallback_value="$(json_value "$fallback_key")"
+  fi
+  normalized_bool "$fallback_value"
+}
+
 yolo_enabled="$(json_value "ONYX_MONITORING_YOLO_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
-yolo_fr_enabled="$(json_value "ONYX_MONITORING_FR_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
-yolo_lpr_enabled="$(json_value "ONYX_MONITORING_LPR_ENABLED" | tr -d '\r' | tr '[:upper:]' '[:lower:]')"
+yolo_fr_enabled="$(resolved_flag "ONYX_FR_ENABLED" "ONYX_MONITORING_FR_ENABLED")"
+yolo_lpr_enabled="$(resolved_flag "ONYX_LPR_ENABLED" "ONYX_MONITORING_LPR_ENABLED")"
 yolo_host="$(json_value "ONYX_MONITORING_YOLO_HOST" | tr -d '\r')"
 yolo_port="$(json_value "ONYX_MONITORING_YOLO_PORT" | tr -d '\r')"
 yolo_warmup_seconds="${ONYX_MONITORING_YOLO_WARMUP_SECONDS:-$(json_value "ONYX_MONITORING_YOLO_WARMUP_SECONDS" | tr -d '\r')}"
