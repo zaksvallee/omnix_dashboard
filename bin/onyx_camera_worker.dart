@@ -377,6 +377,7 @@ class OnyxSiteAwarenessEvent {
   final OnyxLatencyRecord? latencyRecord;
   final bool unknownPerson;
   final bool isKnownFaultChannel;
+  final String? telegramCaptionNote;
 
   const OnyxSiteAwarenessEvent({
     required this.eventId,
@@ -402,6 +403,7 @@ class OnyxSiteAwarenessEvent {
     this.latencyRecord,
     this.unknownPerson = false,
     this.isKnownFaultChannel = false,
+    this.telegramCaptionNote,
   });
 
   OnyxSiteAwarenessEvent copyWith({
@@ -428,6 +430,7 @@ class OnyxSiteAwarenessEvent {
     OnyxLatencyRecord? latencyRecord,
     bool? unknownPerson,
     bool? isKnownFaultChannel,
+    String? telegramCaptionNote,
   }) {
     return OnyxSiteAwarenessEvent(
       eventId: eventId ?? this.eventId,
@@ -453,6 +456,7 @@ class OnyxSiteAwarenessEvent {
       latencyRecord: latencyRecord ?? this.latencyRecord,
       unknownPerson: unknownPerson ?? this.unknownPerson,
       isKnownFaultChannel: isKnownFaultChannel ?? this.isKnownFaultChannel,
+      telegramCaptionNote: telegramCaptionNote ?? this.telegramCaptionNote,
     );
   }
 
@@ -2282,6 +2286,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       <String, OnyxLatencyRecord>{};
   final Map<String, double> _pendingConfidenceByDetectionKey =
       <String, double>{};
+  final Map<String, Uint8List> _pendingSnapshotBytesByDetectionKey =
+      <String, Uint8List>{};
+  final Map<String, String> _pendingTelegramCaptionNotesByDetectionKey =
+      <String, String>{};
   OnyxPowerMode _currentPowerMode = OnyxPowerMode.normal;
 
   OnyxHikIsapiStreamAwarenessService({
@@ -2763,10 +2771,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
             .send(
               _client,
               'GET',
-            _resolvedAlertStreamUri,
-            headers: const <String, String>{
-              'Accept':
-                  'multipart/x-mixed-replace, application/xml, text/xml',
+              _resolvedAlertStreamUri,
+              headers: const <String, String>{
+                'Accept':
+                    'multipart/x-mixed-replace, application/xml, text/xml',
               },
             )
             .timeout(requestTimeout);
@@ -3155,6 +3163,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     final alertReason = _alertReasonForDecision(decision);
     final alertLatency = _latencyRecordForDecision(decision);
     final alertConfidence = _confidenceForDecision(decision);
+    final snapshotBytes = _snapshotBytesForDecision(decision);
+    final telegramCaptionNote = _telegramCaptionNoteForDecision(decision);
     final snapshot = projector.ingestSiteAlert(
       OnyxSiteAlert(
         alertId: alertId,
@@ -3179,18 +3189,23 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _emitSnapshot(snapshot);
     developer.log(
       '[ONYX-TELEGRAM] Gate check: proceeding to send '
-      'channel=${decision.channelId} alert_id=$alertId',
+      'channel=${decision.channelId} alert_id=$alertId '
+      'snapshot=${snapshotBytes != null && snapshotBytes.isNotEmpty}',
       name: 'OnyxHikIsapiStream',
     );
     await _sendImmediateTelegramAlert(
       decision,
       alertId: alertId,
+      snapshotBytes: snapshotBytes,
+      telegramCaptionNote: telegramCaptionNote,
     );
   }
 
   Future<void> _sendImmediateTelegramAlert(
     OnyxProactiveAlertDecision decision, {
     required String alertId,
+    Uint8List? snapshotBytes,
+    String? telegramCaptionNote,
   }) async {
     if (!_envBool('ONYX_TELEGRAM_BRIDGE_ENABLED', fallback: true)) {
       developer.log(
@@ -3209,7 +3224,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       );
       return;
     }
-    final message = decision.message.trim();
+    final message = _telegramAlertCaption(
+      decision.message,
+      telegramCaptionNote: telegramCaptionNote,
+    );
     if (message.isEmpty) {
       developer.log(
         '[ONYX-TELEGRAM] Gate check: suppressed=empty message '
@@ -3231,11 +3249,13 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return;
     }
 
+    final hasSnapshot = snapshotBytes != null && snapshotBytes.isNotEmpty;
     final outbound = <TelegramBridgeMessage>[];
     for (final target in targets) {
       developer.log(
         '[ONYX-TELEGRAM] Sending alert to ${target.chatId} '
-        'for CH${decision.channelId}.',
+        'for CH${decision.channelId} '
+        '${hasSnapshot ? 'with snapshot.' : 'without snapshot.'}',
         name: 'OnyxHikIsapiStream',
       );
       outbound.add(
@@ -3245,6 +3265,10 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
           chatId: target.chatId,
           messageThreadId: target.threadId,
           text: message,
+          photoBytes: hasSnapshot ? snapshotBytes : null,
+          photoFilename: hasSnapshot
+              ? 'onyx-ch${decision.channelId}-${decision.detectedAt.toUtc().millisecondsSinceEpoch}.jpg'
+              : null,
           source: TelegramBridgeMessageSource.system,
           audience: TelegramBridgeMessageAudience.client,
         ),
@@ -3297,13 +3321,26 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   }
 
   Future<List<_TelegramRelayTarget>> _resolveTelegramAlertTargets() async {
+    final mergedTargets = <_TelegramRelayTarget>[];
+    final dedupeKeys = <String>{};
+    void addTargets(Iterable<_TelegramRelayTarget> targets) {
+      for (final target in targets) {
+        final chatId = target.chatId.trim();
+        if (chatId.isEmpty) {
+          continue;
+        }
+        final dedupeKey = '$chatId:${target.threadId ?? ''}';
+        if (!dedupeKeys.add(dedupeKey)) {
+          continue;
+        }
+        mergedTargets.add(target);
+      }
+    }
+
     final relayClient = _telegramRelayClient;
     if (relayClient != null) {
       try {
-        final targets = await _readTelegramRelayTargets(relayClient);
-        if (targets.isNotEmpty) {
-          return targets;
-        }
+        addTargets(await _readTelegramRelayTargets(relayClient));
       } catch (error, stackTrace) {
         developer.log(
           '[ONYX-TELEGRAM] Gate check: managed target lookup failed for $_clientId/$_siteId. '
@@ -3315,28 +3352,44 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         );
       }
     }
-    return _fallbackTelegramAlertTargets();
+    addTargets(_fallbackTelegramAlertTargets());
+    return mergedTargets;
   }
 
   List<_TelegramRelayTarget> _fallbackTelegramAlertTargets() {
-    final chatId = (Platform.environment['ONYX_TELEGRAM_CHAT_ID'] ?? '').trim();
-    if (chatId.isEmpty) {
-      return const <_TelegramRelayTarget>[];
+    final targets = <_TelegramRelayTarget>[];
+    void addEnvTarget(String chatEnvName, String threadEnvName) {
+      final chatId = (Platform.environment[chatEnvName] ?? '').trim();
+      if (chatId.isEmpty) {
+        return;
+      }
+      final threadRaw = (Platform.environment[threadEnvName] ?? '').trim();
+      targets.add(
+        _TelegramRelayTarget(
+          chatId: chatId,
+          threadId: threadRaw.isEmpty ? null : int.tryParse(threadRaw),
+        ),
+      );
     }
-    final threadRaw =
-        (Platform.environment['ONYX_TELEGRAM_MESSAGE_THREAD_ID'] ?? '').trim();
-    return <_TelegramRelayTarget>[
-      _TelegramRelayTarget(
-        chatId: chatId,
-        threadId: threadRaw.isEmpty ? null : int.tryParse(threadRaw),
-      ),
-    ];
+
+    addEnvTarget('ONYX_TELEGRAM_CHAT_ID', 'ONYX_TELEGRAM_MESSAGE_THREAD_ID');
+    addEnvTarget(
+      'ONYX_TELEGRAM_ADMIN_CHAT_ID',
+      'ONYX_TELEGRAM_ADMIN_THREAD_ID',
+    );
+    return targets;
   }
 
   Future<OnyxSiteAwarenessEvent> _enrichHumanDetectionEvent(
     OnyxSiteAwarenessEvent event,
   ) async {
     final liveSnapshotYoloService = _liveSnapshotYoloService;
+    final channelId = event.channelId.trim();
+    final zone = _projector?.cameraZones[channelId];
+    final existingSnapshotBytes =
+        event.snapshotBytes != null && event.snapshotBytes!.isNotEmpty
+        ? Uint8List.fromList(event.snapshotBytes!)
+        : null;
     // ignore: avoid_print
     print(
       '[ONYX-DEBUG] _enrichHumanDetectionEvent called for CH${event.channelId}',
@@ -3346,9 +3399,45 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       '[ONYX-DEBUG] liveSnapshotYoloService configured: '
       '${liveSnapshotYoloService?.isConfigured}',
     );
+    if (channelId.isEmpty || channelId == 'unknown') {
+      developer.log(
+        '[ONYX] FR snapshot skipped: human detection has no usable channel ID.',
+        name: 'OnyxHikIsapiStream',
+        level: 800,
+      );
+      return event;
+    }
     if (liveSnapshotYoloService == null ||
         !liveSnapshotYoloService.isConfigured ||
         !_isYoloHealthy) {
+      if (existingSnapshotBytes != null && existingSnapshotBytes.isNotEmpty) {
+        final unavailableReason =
+            liveSnapshotYoloService == null ||
+                !liveSnapshotYoloService.isConfigured
+            ? 'service not configured'
+            : _isThreatMode
+            ? 'threat mode fallback while YOLO is unhealthy'
+            : _shouldAllowUnverifiedHumanAlert(liveSnapshotYoloService)
+            ? 'startup grace or health check not ready'
+            : 'service unavailable';
+        if (_isThreatMode ||
+            _shouldAllowUnverifiedHumanAlert(liveSnapshotYoloService)) {
+          return _withRawSnapshotTelegramFallback(
+            event,
+            channelId: channelId,
+            snapshotBytes: existingSnapshotBytes,
+            reason: unavailableReason,
+            zoneId: zone?.zoneName,
+          );
+        }
+        return _withRawSnapshotTelegramFallback(
+          event,
+          channelId: channelId,
+          snapshotBytes: existingSnapshotBytes,
+          reason: 'service unavailable',
+          zoneId: zone?.zoneName,
+        );
+      }
       if (_isThreatMode) {
         developer.log(
           '[ONYX] Threat mode active — bypassing YOLO health suppression on CH${event.channelId}.',
@@ -3377,16 +3466,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       );
       return event.copyWith(eventType: OnyxEventType.motionDetected);
     }
-    final channelId = event.channelId.trim();
-    if (channelId.isEmpty || channelId == 'unknown') {
-      developer.log(
-        '[ONYX] FR snapshot skipped: human detection has no usable channel ID.',
-        name: 'OnyxHikIsapiStream',
-        level: 800,
-      );
-      return event;
-    }
     final snapshotChannelId = _snapshotStreamChannelId(channelId);
+    Uint8List? capturedSnapshotBytes = existingSnapshotBytes;
+    DateTime? snapshotAtUtc;
     try {
       // ignore: avoid_print
       print('[ONYX-DEBUG] Attempting snapshot for CH$channelId...');
@@ -3395,10 +3477,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         name: 'OnyxHikIsapiStream',
       );
       final snapshotBytes =
-          event.snapshotBytes != null && event.snapshotBytes!.isNotEmpty
-          ? event.snapshotBytes!
-          : await fetchSnapshotBytes(channelId);
-      final snapshotAtUtc = _clock().toUtc();
+          capturedSnapshotBytes ?? await fetchSnapshotBytes(channelId);
+      snapshotAtUtc = _clock().toUtc();
+      if (snapshotBytes != null && snapshotBytes.isNotEmpty) {
+        capturedSnapshotBytes = Uint8List.fromList(snapshotBytes);
+      }
       // ignore: avoid_print
       print(
         '[ONYX-DEBUG] Snapshot result: ${snapshotBytes?.length ?? 0} bytes',
@@ -3423,7 +3506,6 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         }
         return event;
       }
-      final zone = _projector?.cameraZones[channelId];
       developer.log(
         '[ONYX] Sending CH$snapshotChannelId snapshot to YOLO/FR (${snapshotBytes.length} bytes)...',
         name: 'OnyxHikIsapiStream',
@@ -3444,12 +3526,15 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       // ignore: avoid_print
       print('[ONYX-DEBUG] YOLO result: $result');
       if (result == null) {
-        developer.log(
-          '[ONYX] Alert suppressed — YOLO did not confirm human on CH$channelId',
-          name: 'OnyxHikIsapiStream',
-          level: 800,
+        return _withRawSnapshotTelegramFallback(
+          event,
+          channelId: channelId,
+          snapshotBytes: capturedSnapshotBytes!,
+          reason: 'detectSnapshot returned no result',
+          snapshotAtUtc: snapshotAtUtc,
+          yoloAtUtc: yoloAtUtc,
+          zoneId: zone?.zoneName,
         );
-        return event.copyWith(eventType: OnyxEventType.motionDetected);
       }
       final primaryLabel = (result.primaryLabel ?? '').trim().toLowerCase();
       final personConfidence = result.personConfidence;
@@ -3642,6 +3727,16 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         error: error,
         stackTrace: stackTrace,
       );
+      if (capturedSnapshotBytes != null && capturedSnapshotBytes.isNotEmpty) {
+        return _withRawSnapshotTelegramFallback(
+          event,
+          channelId: channelId,
+          snapshotBytes: capturedSnapshotBytes,
+          reason: 'FR pipeline error: $error',
+          snapshotAtUtc: snapshotAtUtc,
+          zoneId: zone?.zoneName,
+        );
+      }
       if (_isThreatMode) {
         return event.copyWith(
           siteId: _siteId,
@@ -3752,27 +3847,28 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return;
     }
     _prunePendingAlertReasons(event.detectedAt);
-    _pendingAlertReasonsByDetectionKey[_alertReasonCacheKey(
+    final key = _alertReasonCacheKey(
       channelId: event.channelId,
       detectedAt: event.detectedAt,
-    )] = Map<String, Object?>.from(
-      reason,
     );
+    _pendingAlertReasonsByDetectionKey[key] = Map<String, Object?>.from(reason);
     final latency = event.latencyRecord;
     if (latency != null) {
-      _pendingLatencyByDetectionKey[_alertReasonCacheKey(
-            channelId: event.channelId,
-            detectedAt: event.detectedAt,
-          )] =
-          latency;
+      _pendingLatencyByDetectionKey[key] = latency;
     }
     final confidence = event.personConfidence;
     if (confidence != null) {
-      _pendingConfidenceByDetectionKey[_alertReasonCacheKey(
-            channelId: event.channelId,
-            detectedAt: event.detectedAt,
-          )] =
-          confidence;
+      _pendingConfidenceByDetectionKey[key] = confidence;
+    }
+    final snapshotBytes = event.snapshotBytes;
+    if (snapshotBytes != null && snapshotBytes.isNotEmpty) {
+      _pendingSnapshotBytesByDetectionKey[key] = Uint8List.fromList(
+        snapshotBytes,
+      );
+    }
+    final telegramCaptionNote = (event.telegramCaptionNote ?? '').trim();
+    if (telegramCaptionNote.isNotEmpty) {
+      _pendingTelegramCaptionNotesByDetectionKey[key] = telegramCaptionNote;
     }
   }
 
@@ -3841,6 +3937,45 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     return _pendingConfidenceByDetectionKey.remove(key);
   }
 
+  Uint8List? _snapshotBytesForDecision(OnyxProactiveAlertDecision decision) {
+    final key = _alertReasonCacheKey(
+      channelId: '${decision.channelId}',
+      detectedAt: decision.detectedAt,
+    );
+    final snapshotBytes = _pendingSnapshotBytesByDetectionKey.remove(key);
+    if (snapshotBytes == null || snapshotBytes.isEmpty) {
+      return null;
+    }
+    return Uint8List.fromList(snapshotBytes);
+  }
+
+  String? _telegramCaptionNoteForDecision(OnyxProactiveAlertDecision decision) {
+    final key = _alertReasonCacheKey(
+      channelId: '${decision.channelId}',
+      detectedAt: decision.detectedAt,
+    );
+    final note = _pendingTelegramCaptionNotesByDetectionKey.remove(key);
+    if (note == null || note.trim().isEmpty) {
+      return null;
+    }
+    return note.trim();
+  }
+
+  String _telegramAlertCaption(String message, {String? telegramCaptionNote}) {
+    final baseMessage = message.trim();
+    final captionNote = (telegramCaptionNote ?? '').trim();
+    if (captionNote.isEmpty) {
+      return baseMessage;
+    }
+    if (baseMessage.isEmpty) {
+      return captionNote;
+    }
+    if (baseMessage.contains(captionNote)) {
+      return baseMessage;
+    }
+    return '$baseMessage\n\n$captionNote';
+  }
+
   List<String> _stringListFromReason(Object? value) {
     if (value is! List) {
       return const <String>[];
@@ -3870,6 +4005,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       if (shouldRemove) {
         _pendingLatencyByDetectionKey.remove(key);
         _pendingConfidenceByDetectionKey.remove(key);
+        _pendingSnapshotBytesByDetectionKey.remove(key);
+        _pendingTelegramCaptionNotesByDetectionKey.remove(key);
       }
       return shouldRemove;
     });
@@ -3893,6 +4030,43 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return null;
     }
     return record.copyWith(yoloAt: yoloAtUtc.toUtc());
+  }
+
+  OnyxSiteAwarenessEvent _withRawSnapshotTelegramFallback(
+    OnyxSiteAwarenessEvent event, {
+    required String channelId,
+    required Uint8List snapshotBytes,
+    required String reason,
+    DateTime? snapshotAtUtc,
+    DateTime? yoloAtUtc,
+    String? zoneId,
+    double? personConfidence,
+  }) {
+    var latencyRecord = event.latencyRecord;
+    if (snapshotAtUtc != null) {
+      latencyRecord = _withSnapshotLatency(latencyRecord, snapshotAtUtc);
+    }
+    if (yoloAtUtc != null) {
+      latencyRecord = _withYoloLatency(latencyRecord, yoloAtUtc);
+    }
+    developer.log(
+      '[ONYX-TELEGRAM] YOLO unavailable on CH$channelId '
+      '($reason) — sending raw snapshot fallback.',
+      name: 'OnyxHikIsapiStream',
+      level: 900,
+    );
+    return event.copyWith(
+      siteId: _siteId,
+      clientId: _clientId,
+      cameraId: channelId,
+      eventType: OnyxEventType.humanDetected,
+      unknownPerson: true,
+      personConfidence: personConfidence,
+      snapshotBytes: Uint8List.fromList(snapshotBytes),
+      zoneId: zoneId ?? _projector?.cameraZones[channelId]?.zoneName,
+      latencyRecord: latencyRecord,
+      telegramCaptionNote: 'YOLO unavailable — raw snapshot attached.',
+    );
   }
 
   bool _shouldAllowUnverifiedHumanAlert(
@@ -4036,7 +4210,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
     final relayClient = _telegramRelayClient;
     final bridgeService = _telegramBridgeService;
-    if (relayClient == null || bridgeService == null || !bridgeService.isConfigured) {
+    if (relayClient == null ||
+        bridgeService == null ||
+        !bridgeService.isConfigured) {
       return false;
     }
     final lastPayloadAtUtc = _lastAlertPayloadAtUtc;
@@ -4080,13 +4256,18 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         );
       }
       final bootCutoffUtc = _telegramRelayBootCutoffUtc ?? _clock().toUtc();
-      final alerts = _relayableSiteAlertsFromRow(row)
-          .where((alert) => !alert.isAcknowledged)
-          .where((alert) => alert.message.trim().isNotEmpty)
-          .where((alert) => !alert.detectedAt.toUtc().isBefore(bootCutoffUtc))
-          .where((alert) => !_relayedAlertIds.contains(alert.alertId))
-          .toList(growable: false)
-        ..sort((left, right) => left.detectedAt.compareTo(right.detectedAt));
+      final alerts =
+          _relayableSiteAlertsFromRow(row)
+              .where((alert) => !alert.isAcknowledged)
+              .where((alert) => alert.message.trim().isNotEmpty)
+              .where(
+                (alert) => !alert.detectedAt.toUtc().isBefore(bootCutoffUtc),
+              )
+              .where((alert) => !_relayedAlertIds.contains(alert.alertId))
+              .toList(growable: false)
+            ..sort(
+              (left, right) => left.detectedAt.compareTo(right.detectedAt),
+            );
       if (alerts.isEmpty) {
         return;
       }
@@ -4198,7 +4379,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       final rowSiteId = (row['site_id'] ?? '').toString().trim();
       final threadRaw = (row['telegram_thread_id'] ?? '').toString().trim();
       final threadId = threadRaw.isEmpty ? null : int.tryParse(threadRaw);
-      final dedupeKey = '$chatId:${threadId ?? ''}:${rowSiteId.isEmpty ? '*' : rowSiteId}';
+      final dedupeKey =
+          '$chatId:${threadId ?? ''}:${rowSiteId.isEmpty ? '*' : rowSiteId}';
       if (!dedupe.add(dedupeKey)) {
         continue;
       }
@@ -4212,7 +4394,9 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     return scoped.isNotEmpty ? scoped : global;
   }
 
-  List<_RelayableSiteAlert> _relayableSiteAlertsFromRow(Map<String, dynamic> row) {
+  List<_RelayableSiteAlert> _relayableSiteAlertsFromRow(
+    Map<String, dynamic> row,
+  ) {
     final rawAlerts = row['active_alerts'];
     if (rawAlerts is! List) {
       return const <_RelayableSiteAlert>[];
@@ -4233,7 +4417,8 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         _RelayableSiteAlert(
           alertId: alertId,
           detectedAt: detectedAt.toUtc(),
-          isAcknowledged: _summaryBool(
+          isAcknowledged:
+              _summaryBool(
                 alert['is_acknowledged'] ?? alert['isAcknowledged'],
               ) ??
               false,
@@ -4418,10 +4603,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   DvrHttpAuthConfig get _streamAuth => alertStreamAuthOverride ?? _auth;
 }
 
-String _singleLineLogSnippet(
-  String raw, {
-  int maxLength = 240,
-}) {
+String _singleLineLogSnippet(String raw, {int maxLength = 240}) {
   final normalized = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (normalized.length <= maxLength) {
     return normalized;
@@ -4702,7 +4884,8 @@ Future<void> main() async {
     '[ONYX] YOLO/FR: ${yoloEndpoint == null ? 'disabled' : yoloEndpoint.toString()}',
   );
   final yoloHttpClient = http.Client();
-  final telegramBotToken = Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
+  final telegramBotToken =
+      Platform.environment['ONYX_TELEGRAM_BOT_TOKEN'] ?? '';
   final telegramApiBaseRaw =
       Platform.environment['ONYX_TELEGRAM_API_BASE_URL'] ?? '';
   final telegramApiBase = telegramApiBaseRaw.trim().isEmpty
