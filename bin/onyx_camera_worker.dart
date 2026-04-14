@@ -2409,39 +2409,7 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     _proactiveAlertSubscription = _proactiveAlertService?.alerts.listen((
       decision,
     ) {
-      if (decision.siteId.trim() != _siteId.trim()) {
-        return;
-      }
-      final projector = _projector;
-      if (projector == null) {
-        return;
-      }
-      final alertReason = _alertReasonForDecision(decision);
-      final alertLatency = _latencyRecordForDecision(decision);
-      final alertConfidence = _confidenceForDecision(decision);
-      final snapshot = projector.ingestSiteAlert(
-        OnyxSiteAlert(
-          alertId:
-              '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}',
-          channelId: '${decision.channelId}',
-          eventType: OnyxEventType.humanDetected,
-          detectedAt: decision.detectedAt,
-          zoneName: decision.zoneName,
-          zoneType: decision.zoneType,
-          message: decision.message,
-          isLoitering: decision.isLoitering,
-          isSequence: decision.isSequence,
-          alertSource: 'proactive_detection',
-          alertKind: decision.telegramAlertKind.name,
-          subjectLabel: decision.telegramSubjectLabel,
-          timeContext: decision.withinAlertWindow ? 'after_hours' : 'daytime',
-          alertReason: alertReason,
-          latency: alertLatency?.toJsonMap(),
-          personConfidence: alertConfidence,
-          powerMode: _currentPowerMode.name,
-        ),
-      );
-      _emitSnapshot(snapshot);
+      unawaited(_handleProactiveAlertDecision(decision));
     });
     _latestSnapshot = null;
     _isConnected = false;
@@ -3146,6 +3114,205 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     if (event.shouldPublishImmediately || _isThreatMode) {
       _emitSnapshot(snapshot);
     }
+  }
+
+  Future<void> _handleProactiveAlertDecision(
+    OnyxProactiveAlertDecision decision,
+  ) async {
+    if (decision.siteId.trim() != _siteId.trim()) {
+      developer.log(
+        '[ONYX] Telegram alert skipped: decision site ${decision.siteId} '
+        'does not match active site $_siteId.',
+        name: 'OnyxHikIsapiStream',
+        level: 800,
+      );
+      return;
+    }
+    final projector = _projector;
+    if (projector == null) {
+      developer.log(
+        '[ONYX] Telegram alert skipped: projector is not ready for CH${decision.channelId}.',
+        name: 'OnyxHikIsapiStream',
+        level: 900,
+      );
+      return;
+    }
+    final alertId =
+        '${decision.siteId}:${decision.channelId}:${decision.detectedAt.microsecondsSinceEpoch}:${decision.isLoitering ? 'loiter' : 'motion'}:${decision.isSequence ? 'sequence' : 'single'}';
+    final alertReason = _alertReasonForDecision(decision);
+    final alertLatency = _latencyRecordForDecision(decision);
+    final alertConfidence = _confidenceForDecision(decision);
+    final snapshot = projector.ingestSiteAlert(
+      OnyxSiteAlert(
+        alertId: alertId,
+        channelId: '${decision.channelId}',
+        eventType: OnyxEventType.humanDetected,
+        detectedAt: decision.detectedAt,
+        zoneName: decision.zoneName,
+        zoneType: decision.zoneType,
+        message: decision.message,
+        isLoitering: decision.isLoitering,
+        isSequence: decision.isSequence,
+        alertSource: 'proactive_detection',
+        alertKind: decision.telegramAlertKind.name,
+        subjectLabel: decision.telegramSubjectLabel,
+        timeContext: decision.withinAlertWindow ? 'after_hours' : 'daytime',
+        alertReason: alertReason,
+        latency: alertLatency?.toJsonMap(),
+        personConfidence: alertConfidence,
+        powerMode: _currentPowerMode.name,
+      ),
+    );
+    _emitSnapshot(snapshot);
+    await _sendImmediateTelegramAlert(
+      decision,
+      alertId: alertId,
+    );
+  }
+
+  Future<void> _sendImmediateTelegramAlert(
+    OnyxProactiveAlertDecision decision, {
+    required String alertId,
+  }) async {
+    if (!_envBool('ONYX_TELEGRAM_BRIDGE_ENABLED', fallback: true)) {
+      developer.log(
+        '[ONYX] Telegram alert skipped: ONYX_TELEGRAM_BRIDGE_ENABLED is false.',
+        name: 'OnyxHikIsapiStream',
+        level: 900,
+      );
+      return;
+    }
+    final bridgeService = _telegramBridgeService;
+    if (bridgeService == null || !bridgeService.isConfigured) {
+      developer.log(
+        '[ONYX] Telegram alert skipped: bridge service is not configured.',
+        name: 'OnyxHikIsapiStream',
+        level: 900,
+      );
+      return;
+    }
+    final message = decision.message.trim();
+    if (message.isEmpty) {
+      developer.log(
+        '[ONYX] Telegram alert skipped: empty message for CH${decision.channelId}.',
+        name: 'OnyxHikIsapiStream',
+        level: 900,
+      );
+      return;
+    }
+
+    final targets = await _resolveTelegramAlertTargets();
+    if (targets.isEmpty) {
+      developer.log(
+        '[ONYX] Telegram alert skipped: no Telegram targets for '
+        '$_clientId/$_siteId.',
+        name: 'OnyxHikIsapiStream',
+        level: 900,
+      );
+      return;
+    }
+
+    final outbound = <TelegramBridgeMessage>[];
+    for (final target in targets) {
+      developer.log(
+        '[ONYX] Telegram alert: sending to ${target.chatId} '
+        'for CH${decision.channelId}.',
+        name: 'OnyxHikIsapiStream',
+      );
+      outbound.add(
+        TelegramBridgeMessage(
+          messageKey:
+              'tg-live-site-alert:$alertId:${target.chatId}:${target.threadId ?? ''}',
+          chatId: target.chatId,
+          messageThreadId: target.threadId,
+          text: message,
+          source: TelegramBridgeMessageSource.system,
+          audience: TelegramBridgeMessageAudience.client,
+        ),
+      );
+    }
+
+    try {
+      final result = await bridgeService.sendMessages(messages: outbound);
+      if (result.sent.isEmpty) {
+        final reasons = result.failureReasonsByMessageKey.values
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .join(' | ');
+        developer.log(
+          '[ONYX] Telegram alert skipped: delivery failed for CH${decision.channelId}. '
+          '${reasons.isEmpty ? 'No Telegram messages were accepted.' : reasons}',
+          name: 'OnyxHikIsapiStream',
+          level: 1000,
+        );
+        return;
+      }
+      developer.log(
+        '[ONYX] Telegram alert delivered for CH${decision.channelId} '
+        '(${result.sent.length}/${outbound.length} target(s)).',
+        name: 'OnyxHikIsapiStream',
+      );
+      if (result.failed.isNotEmpty) {
+        final reasons = result.failureReasonsByMessageKey.values
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .join(' | ');
+        developer.log(
+          '[ONYX] Telegram alert partial failure for CH${decision.channelId}: '
+          '${reasons.isEmpty ? '${result.failed.length} target(s) failed.' : reasons}',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+        );
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        '[ONYX] Telegram alert skipped: exception while sending for '
+        'CH${decision.channelId}.',
+        name: 'OnyxHikIsapiStream',
+        level: 1000,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<List<_TelegramRelayTarget>> _resolveTelegramAlertTargets() async {
+    final relayClient = _telegramRelayClient;
+    if (relayClient != null) {
+      try {
+        final targets = await _readTelegramRelayTargets(relayClient);
+        if (targets.isNotEmpty) {
+          return targets;
+        }
+      } catch (error, stackTrace) {
+        developer.log(
+          '[ONYX] Telegram alert target lookup failed for $_clientId/$_siteId. '
+          'Falling back to environment targets.',
+          name: 'OnyxHikIsapiStream',
+          level: 900,
+          error: error,
+          stackTrace: stackTrace,
+        );
+      }
+    }
+    return _fallbackTelegramAlertTargets();
+  }
+
+  List<_TelegramRelayTarget> _fallbackTelegramAlertTargets() {
+    final chatId = (Platform.environment['ONYX_TELEGRAM_CHAT_ID'] ?? '').trim();
+    if (chatId.isEmpty) {
+      return const <_TelegramRelayTarget>[];
+    }
+    final threadRaw =
+        (Platform.environment['ONYX_TELEGRAM_MESSAGE_THREAD_ID'] ?? '').trim();
+    return <_TelegramRelayTarget>[
+      _TelegramRelayTarget(
+        chatId: chatId,
+        threadId: threadRaw.isEmpty ? null : int.tryParse(threadRaw),
+      ),
+    ];
   }
 
   Future<OnyxSiteAwarenessEvent> _enrichHumanDetectionEvent(
