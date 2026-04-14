@@ -311,13 +311,10 @@ class OnyxProactiveAlertService {
       message: _buildAlertMessage(
         profile: profile,
         zoneName: normalizedZoneName,
-        zoneType: normalizedZoneType,
-        isPerimeter: isPerimeter,
+        channelId: channelId,
         detectionKind: detectionKind,
         detectedAt: detectedAt.toUtc(),
         isLoitering: loitering,
-        isSequence: sequence,
-        alertDecision: profileDecision,
         loiterMinutes: _loiteringDurationMinutes(
           normalizedSiteId,
           channelId,
@@ -469,42 +466,26 @@ class OnyxProactiveAlertService {
   String _buildAlertMessage({
     required SiteIntelligenceProfile profile,
     required String zoneName,
-    required String zoneType,
-    required bool isPerimeter,
+    required int channelId,
     required OnyxProactiveDetectionKind detectionKind,
     required DateTime detectedAt,
     required bool isLoitering,
-    required bool isSequence,
-    required AlertDecision alertDecision,
     required int loiterMinutes,
     required OnyxTelegramAlertKind telegramAlertKind,
   }) {
     final local = _siteLocalTime(profile.timezone, detectedAt.toUtc());
     final timeLabel =
         '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+    final cameraLabel = _cameraLabelForAlert(zoneName, channelId);
     final lines = <String>[
-      '⚠️ ${_telegramAlertTypeLabel(telegramAlertKind)} — $zoneName',
+      '⚠️ ${_telegramAlertTypeLabel(telegramAlertKind, detectionKind: detectionKind)} — $cameraLabel',
       '🕐 $timeLabel',
+      _clientAlertDescription(
+        detectionKind: detectionKind,
+        isLoitering: isLoitering,
+        loiterMinutes: loiterMinutes,
+      ),
     ];
-    final subjectLabel = _telegramSubjectLabelFor(detectionKind);
-    final zoneLabel = _humanizeZoneType(zoneType, isPerimeter: isPerimeter);
-    lines.add(
-      '${zoneLabel[0].toUpperCase()}${zoneLabel.substring(1)} camera detected $subjectLabel.',
-    );
-    if (isLoitering) {
-      lines.add('Same area active for $loiterMinutes minutes.');
-    }
-    if (isSequence) {
-      lines.add('Movement detected across multiple perimeter points.');
-    }
-    if (alertDecision.suggestedAction != null &&
-        alertDecision.suggestedAction!.trim().isNotEmpty) {
-      lines.add(alertDecision.suggestedAction!.trim());
-    }
-    if (alertDecision.contextNote != null &&
-        alertDecision.contextNote!.trim().isNotEmpty) {
-      lines.add(alertDecision.contextNote!.trim());
-    }
     return lines.join('\n');
   }
 
@@ -531,13 +512,17 @@ class OnyxProactiveAlertService {
     return OnyxTelegramAlertKind.generalMovement;
   }
 
-  String _telegramAlertTypeLabel(OnyxTelegramAlertKind kind) {
-    return switch (kind) {
-      OnyxTelegramAlertKind.perimeterBreach => 'Perimeter Breach',
-      OnyxTelegramAlertKind.unknownVehicleAtGate => 'Unknown Vehicle',
-      OnyxTelegramAlertKind.loitering => 'Loitering',
-      OnyxTelegramAlertKind.generalMovement => 'Movement Alert',
-    };
+  String _telegramAlertTypeLabel(
+    OnyxTelegramAlertKind kind, {
+    required OnyxProactiveDetectionKind detectionKind,
+  }) {
+    if (kind == OnyxTelegramAlertKind.loitering) {
+      return 'Loitering alert';
+    }
+    if (detectionKind == OnyxProactiveDetectionKind.vehicle) {
+      return 'Vehicle detected';
+    }
+    return 'Movement detected';
   }
 
   String _telegramSubjectLabelFor(OnyxProactiveDetectionKind detectionKind) {
@@ -547,14 +532,37 @@ class OnyxProactiveAlertService {
     };
   }
 
-  String _humanizeZoneType(String zoneType, {required bool isPerimeter}) {
-    final normalized = _normalizeZoneType(zoneType, isPerimeter);
-    return switch (normalized) {
-      'perimeter' => 'perimeter',
-      'indoor' => 'indoor',
-      'semi_perimeter' => 'semi-perimeter',
-      _ => 'camera zone',
-    };
+  String _cameraLabelForAlert(String zoneName, int channelId) {
+    final trimmed = zoneName.trim();
+    if (trimmed.isEmpty) {
+      return 'Camera CH-$channelId';
+    }
+    final normalized = trimmed.toLowerCase();
+    if (normalized == 'unknown' ||
+        RegExp(r'^channel\s+\d+$', caseSensitive: false).hasMatch(trimmed)) {
+      return 'Camera CH-$channelId';
+    }
+    return trimmed;
+  }
+
+  String _clientAlertDescription({
+    required OnyxProactiveDetectionKind detectionKind,
+    required bool isLoitering,
+    required int loiterMinutes,
+  }) {
+    if (detectionKind == OnyxProactiveDetectionKind.vehicle) {
+      return isLoitering
+          ? 'Vehicle detected, area active for ${_loiterMinutesLabel(loiterMinutes)}.'
+          : 'Vehicle detected on camera.';
+    }
+    return isLoitering
+        ? 'Person detected, area active for ${_loiterMinutesLabel(loiterMinutes)}.'
+        : 'Person detected on camera.';
+  }
+
+  String _loiterMinutesLabel(int minutes) {
+    final normalizedMinutes = math.max(1, minutes);
+    return '$normalizedMinutes min';
   }
 
   DateTime _siteLocalTime(String timezone, DateTime utc) {

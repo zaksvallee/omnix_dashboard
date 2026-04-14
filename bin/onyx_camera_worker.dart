@@ -3363,10 +3363,12 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
   Future<List<_TelegramRelayTarget>> _resolveTelegramAlertTargets() async {
     final mergedTargets = <_TelegramRelayTarget>[];
     final dedupeKeys = <String>{};
+    final adminChatId = _adminTelegramChatId();
     void addTargets(Iterable<_TelegramRelayTarget> targets) {
       for (final target in targets) {
         final chatId = target.chatId.trim();
-        if (chatId.isEmpty) {
+        if (chatId.isEmpty ||
+            (adminChatId.isNotEmpty && chatId == adminChatId)) {
           continue;
         }
         final dedupeKey = '$chatId:${target.threadId ?? ''}';
@@ -3413,11 +3415,11 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
     }
 
     addEnvTarget('ONYX_TELEGRAM_CHAT_ID', 'ONYX_TELEGRAM_MESSAGE_THREAD_ID');
-    addEnvTarget(
-      'ONYX_TELEGRAM_ADMIN_CHAT_ID',
-      'ONYX_TELEGRAM_ADMIN_THREAD_ID',
-    );
     return targets;
+  }
+
+  String _adminTelegramChatId() {
+    return (Platform.environment['ONYX_TELEGRAM_ADMIN_CHAT_ID'] ?? '').trim();
   }
 
   Future<OnyxSiteAwarenessEvent> _enrichHumanDetectionEvent(
@@ -4014,12 +4016,35 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
       return baseMessage;
     }
     if (baseMessage.isEmpty) {
-      return captionNote;
+      return _clientFacingTelegramCaptionNote(captionNote);
     }
     if (baseMessage.contains(captionNote)) {
       return baseMessage;
     }
-    return '$baseMessage\n\n$captionNote';
+    final lines = baseMessage
+        .split('\n')
+        .map((line) => line.trimRight())
+        .where((line) => line.trim().isNotEmpty)
+        .toList(growable: true);
+    if (lines.isEmpty) {
+      return _clientFacingTelegramCaptionNote(captionNote);
+    }
+    final normalizedNote = _clientFacingTelegramCaptionNote(captionNote);
+    final lastLine = lines.removeLast().trimRight();
+    final separator = lastLine.endsWith('.') ? ' ' : '. ';
+    lines.add('$lastLine$separator$normalizedNote');
+    return lines.join('\n');
+  }
+
+  String _clientFacingTelegramCaptionNote(String captionNote) {
+    final normalized = captionNote.trim();
+    if (normalized.isEmpty) {
+      return '';
+    }
+    if (normalized.toLowerCase().contains('yolo unavailable')) {
+      return 'Snapshot attached (YOLO unavailable).';
+    }
+    return normalized.endsWith('.') ? normalized : '$normalized.';
   }
 
   List<String> _stringListFromReason(Object? value) {
@@ -4420,12 +4445,14 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
         .order('created_at');
     final rows = List<Map<String, dynamic>>.from(rowsRaw);
     final normalizedSiteId = _siteId.trim();
+    final adminChatId = _adminTelegramChatId();
     final scoped = <_TelegramRelayTarget>[];
     final global = <_TelegramRelayTarget>[];
     final dedupe = <String>{};
     for (final row in rows) {
       final chatId = (row['telegram_chat_id'] ?? '').toString().trim();
-      if (chatId.isEmpty) {
+      if (chatId.isEmpty ||
+          (adminChatId.isNotEmpty && chatId == adminChatId)) {
         continue;
       }
       final rowSiteId = (row['site_id'] ?? '').toString().trim();
