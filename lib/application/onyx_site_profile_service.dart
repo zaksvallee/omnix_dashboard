@@ -539,11 +539,9 @@ class OnyxSiteProfileService {
       timezone: profile.timezone,
       atUtc: event.detectedAtUtc,
     );
-    final expectedVisitorNote = activeExpectedVisitors.isEmpty
+    final scheduledDaytimeActivityNote = activeExpectedVisitors.isEmpty
         ? null
-        : 'Note: Expected visitor '
-              '(${_expectedVisitorLabel(activeExpectedVisitors)}) '
-              'on site during these hours.';
+        : 'Daytime activity aligns with the site schedule.';
 
     if (event.unknownHuman &&
         event.detectionKind == OnyxProactiveDetectionKind.human) {
@@ -554,9 +552,9 @@ class OnyxSiteProfileService {
             : AlertLevel.warning,
         reason: 'Unknown person detected with no face match.',
         suggestedAction: profile.hasArmedResponse
-            ? 'Review live cameras and verify whether response is needed.'
-            : 'Review live cameras and notify the client.',
-        contextNote: !afterHours ? expectedVisitorNote : null,
+            ? 'Response escalation is available if verification is needed.'
+            : null,
+        contextNote: !afterHours ? scheduledDaytimeActivityNote : null,
         afterHours: afterHours,
       );
     }
@@ -608,7 +606,7 @@ class OnyxSiteProfileService {
           alertLevel: AlertLevel.info,
           reason:
               'Recognized ${frMatch.person.role} detected outside expected hours.',
-          suggestedAction: 'Verify whether this visit is expected.',
+          suggestedAction: 'Verify the visit if needed.',
           afterHours: afterHours,
         );
       }
@@ -629,8 +627,8 @@ class OnyxSiteProfileService {
           alertLevel: AlertLevel.critical,
           reason: 'Unknown person detected on the perimeter after hours.',
           suggestedAction: profile.hasArmedResponse
-              ? 'Escalate for response verification.'
-              : 'Review live cameras and contact the client.',
+              ? 'Response escalation is available if needed.'
+              : null,
           afterHours: afterHours,
         );
       }
@@ -649,14 +647,14 @@ class OnyxSiteProfileService {
         activeExpectedVisitors.isNotEmpty) {
       if (event.zoneType == 'semi_perimeter' || event.isIndoor) {
         return AlertDecision.noAlert(
-          reason: 'Expected visitor is scheduled on site during daytime hours.',
+          reason: 'Daytime activity aligns with the site schedule.',
           afterHours: afterHours,
         );
       }
       if (event.zoneType == 'perimeter' &&
           !_isStreetFacingPerimeterZone(event.zoneName)) {
         return AlertDecision.noAlert(
-          reason: 'Expected visitor is scheduled on site during daytime hours.',
+          reason: 'Daytime activity aligns with the site schedule.',
           afterHours: afterHours,
         );
       }
@@ -666,8 +664,8 @@ class OnyxSiteProfileService {
           shouldAlert: true,
           alertLevel: AlertLevel.warning,
           reason:
-              'Street-facing perimeter movement detected while an expected visitor is on site.',
-          contextNote: expectedVisitorNote,
+              'Street-facing perimeter movement detected during scheduled daytime activity.',
+          contextNote: scheduledDaytimeActivityNote,
           afterHours: afterHours,
         );
       }
@@ -746,7 +744,7 @@ class OnyxSiteProfileService {
       alertLevel: sensitivityLevel,
       reason: _reasonForDetection(profile, event, afterHours),
       suggestedAction: _suggestedActionForProfile(profile, event, afterHours),
-      contextNote: !afterHours ? expectedVisitorNote : null,
+      contextNote: !afterHours ? scheduledDaytimeActivityNote : null,
       afterHours: afterHours,
     );
   }
@@ -922,24 +920,6 @@ class OnyxSiteProfileService {
       'log' => 'Record the event for audit review.',
       _ => 'Alert the control channel for review.',
     };
-  }
-
-  String _expectedVisitorLabel(List<SiteExpectedVisitor> visitors) {
-    if (visitors.isEmpty) {
-      return 'visitor';
-    }
-    final labels = visitors
-        .map((visitor) => visitor.displayName.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList(growable: false);
-    if (labels.isEmpty) {
-      return 'visitor';
-    }
-    if (labels.length == 1) {
-      return labels.first;
-    }
-    return '${labels.first} and ${labels.length - 1} more';
   }
 
   bool _isStreetFacingPerimeterZone(String zoneName) {

@@ -4011,40 +4011,22 @@ class OnyxHikIsapiStreamAwarenessService implements OnyxSiteAwarenessService {
 
   String _telegramAlertCaption(String message, {String? telegramCaptionNote}) {
     final baseMessage = message.trim();
-    final captionNote = (telegramCaptionNote ?? '').trim();
-    if (captionNote.isEmpty) {
-      return baseMessage;
-    }
     if (baseMessage.isEmpty) {
-      return _clientFacingTelegramCaptionNote(captionNote);
+      final captionNote = (telegramCaptionNote ?? '').trim();
+      if (captionNote.isEmpty) {
+        return '';
+      }
+      return _clientFacingTelegramCaptionFallback(captionNote);
     }
-    if (baseMessage.contains(captionNote)) {
-      return baseMessage;
-    }
-    final lines = baseMessage
-        .split('\n')
-        .map((line) => line.trimRight())
-        .where((line) => line.trim().isNotEmpty)
-        .toList(growable: true);
-    if (lines.isEmpty) {
-      return _clientFacingTelegramCaptionNote(captionNote);
-    }
-    final normalizedNote = _clientFacingTelegramCaptionNote(captionNote);
-    final lastLine = lines.removeLast().trimRight();
-    final separator = lastLine.endsWith('.') ? ' ' : '. ';
-    lines.add('$lastLine$separator$normalizedNote');
-    return lines.join('\n');
+    return baseMessage;
   }
 
-  String _clientFacingTelegramCaptionNote(String captionNote) {
+  String _clientFacingTelegramCaptionFallback(String captionNote) {
     final normalized = captionNote.trim();
     if (normalized.isEmpty) {
       return '';
     }
-    if (normalized.toLowerCase().contains('yolo unavailable')) {
-      return 'Snapshot attached (YOLO unavailable).';
-    }
-    return normalized.endsWith('.') ? normalized : '$normalized.';
+    return 'Security event captured.';
   }
 
   List<String> _stringListFromReason(Object? value) {
