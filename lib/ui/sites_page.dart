@@ -287,9 +287,7 @@ class _SitesPageState extends State<SitesPage> {
             return sectionBody;
           }
           return OnyxSectionCard(
-            title: 'Site Operations Workspace',
-            subtitle:
-                'Hold a selected site in focus and inspect command, outcome, or trace context.',
+            title: 'SITES',
             padding: const EdgeInsets.all(20),
             flexibleChild: lockToViewport,
             child: sectionBody,
@@ -330,146 +328,30 @@ class _SitesPageState extends State<SitesPage> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF13131E), Color(0xFF1A1A2E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        color: const Color(0xFF13131E),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x12FFFFFF)),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 980;
-          final showHeroChipRow = compact;
-          final heroSummaryLine =
-              '${sites.length} sites • ${_laneLabel(_siteLaneFilter)} lane • '
-              '$activeDispatches dispatches • health ${averageHealth.toStringAsFixed(1)}';
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF9D4BFF), Color(0xFF7B2FBE)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.business_outlined,
-                      color: Colors.white,
-                      size: 9.4,
-                    ),
-                  ),
-                  const SizedBox(width: 2.25),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Sites & Deployment',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF172638),
-                            fontSize: compact ? 10.9 : 12.2,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 0.4),
-                        Text(
-                          'Site management, watch posture, and operational readiness.',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF556B80),
-                            fontSize: 5.9,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 0.18),
-                        Text(
-                          heroSummaryLine,
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF7A8FA4),
-                            fontSize: 5.6,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              if (showHeroChipRow) ...[
-                const SizedBox(height: 0.5),
-                Wrap(
-                  spacing: 0.55,
-                  runSpacing: 0.55,
-                  children: [
-                    _heroChip('Sites', '${sites.length}'),
-                    _heroChip('Lane', _laneLabel(_siteLaneFilter)),
-                    _heroChip('Dispatches', '$activeDispatches'),
-                    _heroChip('Health', averageHealth.toStringAsFixed(1)),
-                  ],
-                ),
-              ],
+              _heroChip('Sites', '${sites.length}'),
+              _heroChip('Lane', _laneLabel(_siteLaneFilter)),
+              _heroChip('Dispatches', '$activeDispatches'),
+              _heroChip('Health', averageHealth.toStringAsFixed(1)),
             ],
-          );
-          final actions = Wrap(
-            spacing: 2,
-            runSpacing: 2,
-            alignment: WrapAlignment.end,
-            children: [
-              _heroActionButton(
-                key: const ValueKey('sites-view-tactical-button'),
-                icon: Icons.open_in_new,
-                label: 'View Tactical',
-                accent: const Color(0xFF9D4BFF),
-                onPressed: () => _showTacticalLinkDialog(context),
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleBlock,
-                const SizedBox(height: 0.85),
-                actions,
-                if (workspaceBanner != null) ...[
-                  const SizedBox(height: 1.0),
-                  workspaceBanner,
-                ],
-              ],
-            );
-          }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: titleBlock),
-                  const SizedBox(width: 0.75),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 98),
-                    child: actions,
-                  ),
-                ],
-              ),
-              if (workspaceBanner != null) ...[
-                const SizedBox(height: 1.0),
-                workspaceBanner,
-              ],
-            ],
-          );
-        },
+          ),
+          if (workspaceBanner != null) ...[
+            const SizedBox(height: 6),
+            workspaceBanner,
+          ],
+        ],
       ),
     );
   }
@@ -502,34 +384,6 @@ class _SitesPageState extends State<SitesPage> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _heroActionButton({
-    required Key key,
-    required IconData icon,
-    required String label,
-    required Color accent,
-    required VoidCallback onPressed,
-  }) {
-    return FilledButton.tonalIcon(
-      key: key,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 9.5),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: accent.withValues(alpha: 0.12),
-        foregroundColor: accent,
-        side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 3.25, vertical: 2.2),
-        textStyle: GoogleFonts.inter(
-          fontSize: 7.0,
-          fontWeight: FontWeight.w700,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(5.25),
         ),
       ),
     );
@@ -921,16 +775,6 @@ class _SitesPageState extends State<SitesPage> {
                                         : const Color(0xFF94A3B8),
                                   ),
                                 ],
-                              ),
-                              const SizedBox(height: 0.9),
-                              Text(
-                                'Lane pivots stay pinned in the site roster, while command, outcomes, trace, and tactical handoff stay anchored to the selected-site board below.',
-                                style: GoogleFonts.inter(
-                                  color: const Color(0xFF556B80),
-                                  fontSize: 6.7,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.35,
-                                ),
                               ),
                             ],
                           ),

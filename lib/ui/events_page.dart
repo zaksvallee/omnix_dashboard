@@ -320,120 +320,21 @@ class _EventsPageState extends State<EventsPage> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 920;
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          final statsRow = Wrap(
+            spacing: 4,
+            runSpacing: 4,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.timeline_rounded,
-                      color: Colors.white,
-                      size: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Event Board',
-                          style: GoogleFonts.inter(
-                            color: _eventsTitleColor,
-                            fontSize: compact ? 14 : 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Pick the event. Check proof. Move fast.',
-                          style: GoogleFonts.inter(
-                            color: _eventsBodyColor,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: [
-                  _heroChip('Window', windowLabel),
-                  _heroChip('Lane', laneLabel),
-                  _heroChip('Filtered', '$filteredCount of $totalCount'),
-                  _heroChip('Selected', '$selectedCount'),
-                  _heroChip('Filters', '${_activeFilterCount()} active'),
-                ],
-              ),
+              _heroChip('Window', windowLabel),
+              _heroChip('Lane', laneLabel),
+              _heroChip('Filtered', '$filteredCount of $totalCount'),
+              _heroChip('Selected', '$selectedCount'),
+              _heroChip('Filters', '${_activeFilterCount()} active'),
             ],
           );
-          final actions = Wrap(
-            spacing: 5,
-            runSpacing: 5,
-            alignment: WrapAlignment.end,
-            children: [
-              _heroActionButton(
-                key: const ValueKey('events-view-governance-button'),
-                icon: Icons.open_in_new,
-                label: 'OPEN GOVERNANCE DESK',
-                accent: const Color(0xFF93C5FD),
-                onPressed: () => _openGovernanceDialog(context),
-              ),
-              _heroActionButton(
-                key: const ValueKey('events-view-ledger-button'),
-                icon: Icons.account_tree_outlined,
-                label: 'OPEN SOVEREIGN LEDGER',
-                accent: const Color(0xFFA78BFA),
-                onPressed: () => _openLedgerDialog(context),
-              ),
-            ],
-          );
-          if (compact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                titleBlock,
-                const SizedBox(height: 4),
-                actions,
-                if (workspaceBanner != null) ...[
-                  const SizedBox(height: 4),
-                  workspaceBanner,
-                ],
-              ],
-            );
-          }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: titleBlock),
-                  const SizedBox(width: 4),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 208),
-                    child: actions,
-                  ),
-                ],
-              ),
+              statsRow,
               if (workspaceBanner != null) ...[
                 const SizedBox(height: 4),
                 workspaceBanner,
@@ -474,29 +375,6 @@ class _EventsPageState extends State<EventsPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _heroActionButton({
-    required Key key,
-    required IconData icon,
-    required String label,
-    required Color accent,
-    required VoidCallback onPressed,
-  }) {
-    return FilledButton.tonalIcon(
-      key: key,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 15),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: accent.withValues(alpha: 0.12),
-        foregroundColor: accent,
-        side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        textStyle: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
       ),
     );
   }
@@ -661,15 +539,11 @@ class _EventsPageState extends State<EventsPage> {
 
     return Container(
       key: const ValueKey('events-overview-selected-card'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [accent.withValues(alpha: 0.12), _eventsPanelColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accent.withValues(alpha: 0.34)),
+        color: _eventsPanelColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -882,15 +756,6 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
-  void _openGovernanceDialog(BuildContext context) {
-    _showSurfaceLinkDialog(
-      context,
-      title: 'Governance Desk Ready',
-      message:
-          'Use Governance Desk to review blocker posture, sovereign readiness, and compliance detail for the selected forensic scope.',
-    );
-  }
-
   void _openLedgerDialog(BuildContext context) {
     _showSurfaceLinkDialog(
       context,
@@ -948,16 +813,6 @@ class _EventsPageState extends State<EventsPage> {
               accent: const Color(0xFFF6C067),
             ),
           ],
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Pick one event. Check proof, check chain, then route to governance or ledger.',
-          style: GoogleFonts.inter(
-            color: _eventsBodyColor,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w600,
-            height: 1.35,
-          ),
         ),
       ],
     );
@@ -1145,34 +1000,6 @@ class _EventsPageState extends State<EventsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 3,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3C79BB),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: _spaceSm),
-          Text(
-            'Review Lanes',
-            style: GoogleFonts.inter(
-              color: _eventsTitleColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Lane-focused cards keep the triage rail readable while the selected event expands into a deeper case file.',
-            style: GoogleFonts.inter(
-              color: const Color(0xFF7E95B4),
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: _spaceSm),
           Wrap(
             spacing: 5,
             runSpacing: 5,
@@ -1409,33 +1236,13 @@ class _EventsPageState extends State<EventsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 24,
-            height: 3,
-            decoration: BoxDecoration(
-              color: const Color(0xFF7FD0FF),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 5),
           Text(
-            'Scope Snapshot',
+            'SCOPE',
             style: GoogleFonts.inter(
-              color: _eventsTitleColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            selected == null
-                ? 'Select a row to pull site, dispatch, and evidence context into this rail.'
-                : 'The current forensic focus keeps its lane, scope, and related chain within reach.',
-            style: GoogleFonts.inter(
-              color: _eventsBodyColor,
-              fontSize: 8.5,
+              color: _eventsMutedColor,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
-              height: 1.3,
+              letterSpacing: 0.6,
             ),
           ),
           const SizedBox(height: 4),
@@ -1603,25 +1410,6 @@ class _EventsPageState extends State<EventsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'YOU ARE HERE',
-            style: GoogleFonts.inter(
-              color: _eventsTitleColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'One event. One proof trail. One next move.',
-            style: GoogleFonts.inter(
-              color: _eventsMutedColor,
-              fontSize: 8.5,
-              fontWeight: FontWeight.w600,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 4),
           _selectedEventBanner(row, relatedRows),
           const SizedBox(height: 4),
           Wrap(
@@ -1669,14 +1457,10 @@ class _EventsPageState extends State<EventsPage> {
     final dispatchId = _dispatchIdForEvent(row.event);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [row.info.color.withValues(alpha: 0.12), _eventsPanelColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(9),
+        color: _eventsPanelColor,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: row.info.color.withValues(alpha: 0.28)),
       ),
       child: Column(
@@ -2301,83 +2085,39 @@ class _EventsPageState extends State<EventsPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 3,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3C79BB),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 6),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compactHeader = constraints.maxWidth < 720;
-              if (!compactHeader) {
-                return Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        "Forensic Filters",
-                        style: GoogleFonts.inter(
-                          color: _eventsTitleColor,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    _pill("$filteredCount visible"),
-                    const SizedBox(width: 6),
-                    _pill("${_activeFilterCount()} active"),
-                    const SizedBox(width: 6),
-                    TextButton(
-                      onPressed: _resetForensicFilters,
-                      child: Text(
-                        "Reset Filters",
-                        style: GoogleFonts.inter(
-                          color: _eventsAccentBlue,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Forensic Filters",
-                    style: GoogleFonts.inter(
-                      color: _eventsTitleColor,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
+          Row(
+            children: [
+              Text(
+                'FILTERS',
+                style: GoogleFonts.inter(
+                  color: _eventsMutedColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const Spacer(),
+              _pill('$filteredCount visible'),
+              const SizedBox(width: 4),
+              _pill('${_activeFilterCount()} active'),
+              const SizedBox(width: 4),
+              TextButton(
+                onPressed: _resetForensicFilters,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  foregroundColor: _eventsAccentBlue,
+                ),
+                child: Text(
+                  'Reset',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
                   ),
-                  const SizedBox(height: 5),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _pill("$filteredCount visible"),
-                      _pill("${_activeFilterCount()} active"),
-                      TextButton(
-                        onPressed: _resetForensicFilters,
-                        child: Text(
-                          "Reset Filters",
-                          style: GoogleFonts.inter(
-                            color: _eventsAccentBlue,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 6),
           Theme(

@@ -50,6 +50,8 @@ abstract final class OnyxColorTokens {
   static const Color accentPurple = Color(0xFF7C3AED);
   static const Color accentTeal = Color(0xFF0D9488);
   static const Color accentBlue = Color(0xFF2A5D95);
+  static const Color accentCyanTrue = Color(0xFF06B6D4); // Real cyan — distinct from accentCyan (brand purple)
+  static const Color accentGreenTrue = Color(0xFF22C55E); // Spec green-500
 
   static const Color statusSuccess = Color(0xFF10B981);
   static const Color statusWarning = Color(0xFFF59E0B);
@@ -259,6 +261,8 @@ abstract final class OnyxDesignTokens {
   static const Color cyanInteractive = OnyxColorTokens.accentCyan;
   static const Color accentSky = OnyxColorTokens.accentSky;
   static const Color accentBlue = OnyxColorTokens.accentBlue;
+  static const Color cyanInfo = OnyxColorTokens.accentCyanTrue;   // #06B6D4
+  static const Color greenSpec = OnyxColorTokens.accentGreenTrue; // #22C55E
 
   static const Color statusSuccess = OnyxColorTokens.statusSuccess;
   static const Color statusWarning = OnyxColorTokens.statusWarning;

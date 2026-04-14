@@ -11,6 +11,7 @@ import '../domain/events/patrol_completed.dart';
 import '../domain/events/response_arrived.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'ui_action_logger.dart';
 
 class SitesAutoAuditReceipt {
@@ -390,16 +391,6 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             ),
           ],
         ),
-        const SizedBox(height: 5),
-        Text(
-          'Pick one site. Push Site Map, Site Settings, or Guard Roster fast.',
-          style: GoogleFonts.inter(
-            color: const Color(0xFF556B80),
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            height: 1.35,
-          ),
-        ),
       ],
     );
     if (shellless) {
@@ -413,9 +404,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: content,
     );
@@ -457,57 +448,41 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        OnyxStoryHero(
-          eyebrow: 'SITE POSTURE',
-          title: 'Sites & Deployment',
-          subtitle: 'Pick the site, fix the weak point, and move.',
-          icon: Icons.apartment_rounded,
-          gradientColors: const [Color(0xFF13131E), Color(0xFF1A1A2E)],
-          metrics: [
-            OnyxStoryMetric(
-              value: selected.id,
-              label: 'focus',
-              foreground: Color(0xFF2F6AA3),
-              background: Color(0x142F6AA3),
-              border: Color(0x332F6AA3),
-            ),
-            OnyxStoryMetric(
-              value: '$strongCount',
-              label: 'strong',
-              foreground: const Color(0xFF34D399),
-              background: const Color(0x1A34D399),
-              border: const Color(0x6634D399),
-            ),
-            OnyxStoryMetric(
-              value: '$atRiskCount',
-              label: 'need review',
-              foreground: atRiskCount > 0
-                  ? const Color(0xFFF59E0B)
-                  : const Color(0xFF9AB1CF),
-              background: atRiskCount > 0
-                  ? const Color(0x1AF59E0B)
-                  : const Color(0x1A94A3B8),
-              border: atRiskCount > 0
-                  ? const Color(0x66F59E0B)
-                  : const Color(0x6694A3B8),
-            ),
-            OnyxStoryMetric(
-              value: '$totalGuards',
-              label: 'on site',
-              foreground: const Color(0xFF22D3EE),
-              background: const Color(0x1A22D3EE),
-              border: const Color(0x6622D3EE),
-            ),
-            OnyxStoryMetric(
-              value: '$totalSites',
-              label: 'sites',
-              foreground: const Color(0xFF172638),
-              background: const Color(0xFF13131E),
-              border: const Color(0xFFD6E1EC),
-            ),
-          ],
-          actions: heroActions,
-          banner: workspaceBanner,
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.backgroundSecondary,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: OnyxColorTokens.divider),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 5,
+                runSpacing: 5,
+                children: [
+                  _siteMetricChip('Focus', selected.id),
+                  _siteMetricChip('Strong', '$strongCount'),
+                  _siteMetricChip(
+                    'Review',
+                    '$atRiskCount',
+                  ),
+                  _siteMetricChip('Guards', '$totalGuards'),
+                  _siteMetricChip('Sites', '$totalSites'),
+                ],
+              ),
+              if (heroActions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(spacing: 6, runSpacing: 6, children: heroActions),
+              ],
+              if (workspaceBanner != null) ...[
+                const SizedBox(height: 6),
+                workspaceBanner,
+              ],
+            ],
+          ),
         ),
         if (widget.latestAutoAuditReceipt != null) ...[
           const SizedBox(height: 8),
@@ -564,7 +539,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF13131E),
+          backgroundColor: OnyxColorTokens.backgroundSecondary,
           title: Text(
             'Site Map Ready',
             style: GoogleFonts.inter(
@@ -625,7 +600,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: widget.onAddSite == null
-                        ? const Color(0xFFD6E1EC)
+                        ? OnyxColorTokens.divider
                         : const Color(0x80448FFF),
                   ),
                 ),
@@ -642,18 +617,6 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          visibleCount == 0
-              ? 'No sites match the active scope. Switch scopes to recover the roster.'
-              : '$visibleCount of ${allSites.length} sites are in the active site scope.',
-          style: GoogleFonts.inter(
-            color: const Color(0xFF556B80),
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            height: 1.35,
-          ),
         ),
         const SizedBox(height: 6),
         Wrap(
@@ -696,9 +659,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: OnyxColorTokens.backgroundSecondary,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFD6E1EC)),
+            border: Border.all(color: OnyxColorTokens.divider),
           ),
           child: Row(
             children: [
@@ -726,9 +689,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF13131E),
+              color: OnyxColorTokens.backgroundSecondary,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFD6E1EC)),
+              border: Border.all(color: OnyxColorTokens.divider),
             ),
             child: Text(
               'No sites are currently in this scope. Choose another scope to continue issuing commands.',
@@ -753,9 +716,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: body,
     );
@@ -783,22 +746,14 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          gradient: selected
-              ? LinearGradient(
-                  colors: [
-                    status.withValues(alpha: 0.14),
-                    const Color(0xFF1A1A2E),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : null,
-          color: selected ? null : const Color(0xFF13131E),
+          color: selected
+              ? status.withValues(alpha: 0.08)
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: selected
-                ? status.withValues(alpha: 0.48)
-                : const Color(0xFFD6E1EC),
+                ? status.withValues(alpha: 0.40)
+                : OnyxColorTokens.divider,
           ),
         ),
         child: Column(
@@ -1025,7 +980,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFD6E1EC)),
+            border: Border.all(color: OnyxColorTokens.divider),
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -1081,9 +1036,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
               final directive = Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF13131E),
+                  color: OnyxColorTokens.backgroundSecondary,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFD6E1EC)),
+                  border: Border.all(color: OnyxColorTokens.divider),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1169,9 +1124,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
     return Container(
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: body,
     );
@@ -1839,10 +1794,10 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
+          color: selected ? const Color(0x1A9D4BFF) : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF7DB6D1) : const Color(0xFFD6E1EC),
+            color: selected ? const Color(0xFF7DB6D1) : OnyxColorTokens.divider,
           ),
         ),
         child: Row(
@@ -1896,10 +1851,10 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1A9D4BFF) : const Color(0xFF13131E),
+          color: selected ? const Color(0x1A9D4BFF) : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF7DB6D1) : const Color(0xFFD6E1EC),
+            color: selected ? const Color(0xFF7DB6D1) : OnyxColorTokens.divider,
           ),
         ),
         child: Text(
@@ -1971,7 +1926,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       decoration: BoxDecoration(
         color: const Color(0xFFF7FAFD),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: RichText(
         text: TextSpan(
@@ -2230,7 +2185,7 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
         decoration: BoxDecoration(
           color: enabled
               ? (primary ? const Color(0xFF9D4BFF) : const Color(0xFF1A1A2E))
-              : const Color(0xFF13131E),
+              : OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: enabled
@@ -2263,9 +2218,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: width,
       padding: const EdgeInsets.fromLTRB(7, 7, 7, 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2330,9 +2285,9 @@ class _SitesCommandPageState extends State<SitesCommandPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2439,9 +2394,9 @@ class _SitesAuditReceipt extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

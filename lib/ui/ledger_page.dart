@@ -17,7 +17,6 @@ import '../domain/events/incident_closed.dart';
 import '../domain/events/patrol_completed.dart';
 import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 
@@ -290,18 +289,9 @@ class _LedgerPageState extends State<LedgerPage> {
             header: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OnyxPageHeader(
-                  title: 'Audit Ledger',
-                  subtitle: 'Audit ledger and records.',
-                  icon: Icons.receipt_long_rounded,
-                  iconColor: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(height: 8),
-                OnyxStatusBanner(
-                  message: chainIntegrityMessage,
-                  severity: chainIntact
-                      ? OnyxSeverity.success
-                      : OnyxSeverity.critical,
+                _ledgerPageHeader(
+                  chainIntegrityMessage: chainIntegrityMessage,
+                  chainIntact: chainIntact,
                 ),
                 const SizedBox(height: 8),
                 _heroHeader(
@@ -327,6 +317,62 @@ class _LedgerPageState extends State<LedgerPage> {
     );
   }
 
+  Widget _ledgerPageHeader({
+    required String chainIntegrityMessage,
+    required bool chainIntact,
+  }) {
+    final statusColor = chainIntact
+        ? const Color(0xFF10B981)
+        : const Color(0xFFEF4444);
+    return Row(
+      children: [
+        Text(
+          'Ledger',
+          style: GoogleFonts.inter(
+            color: _ledgerTitleColor,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: _ledgerPanelColor,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: statusColor.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 5,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                chainIntegrityMessage,
+                style: GoogleFonts.inter(
+                  color: statusColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _heroHeader(BuildContext context, {Widget? workspaceBanner}) {
     final integrityLabel = _verificationResult == null
         ? 'Pending'
@@ -335,117 +381,44 @@ class _LedgerPageState extends State<LedgerPage> {
         : 'Failed';
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF12342E), Color(0xFF0E1D1A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF295147)),
+        color: _ledgerPanelColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _ledgerBorderColor),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 920;
-          final titleBlock = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          final chips = Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF10B981), Color(0xFF14B8A6)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: const Icon(
-                      Icons.account_tree_outlined,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Command Board',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF63E6BE),
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Sovereign Ledger',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFFF6FBFF),
-                            fontSize: compact ? 17 : 20,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Pick the row. Check the chain. Move fast.',
-                          style: GoogleFonts.inter(
-                            color: const Color(0xFF95A9C7),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+              _heroChip('Client', widget.clientId),
+              _heroChip(
+                'Source',
+                widget.supabaseEnabled ? 'Supabase + Fallback' : 'EventStore',
               ),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _heroChip('Client', widget.clientId),
-                  _heroChip(
-                    'Source',
-                    widget.supabaseEnabled
-                        ? 'Supabase + Fallback'
-                        : 'EventStore',
-                  ),
-                  _heroChip('Integrity', integrityLabel),
-                  _heroChip('Verification', 'Replay Safe'),
-                ],
-              ),
-              if (workspaceBanner != null) ...[
-                const SizedBox(height: 8),
-                workspaceBanner,
-              ],
+              _heroChip('Integrity', integrityLabel),
             ],
           );
           final actions = Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 5,
+            runSpacing: 5,
             alignment: WrapAlignment.end,
             children: [
               _heroActionButton(
                 key: const ValueKey('ledger-view-events-button'),
                 icon: Icons.open_in_new,
-                label: 'OPEN EVENTS SCOPE',
+                label: 'Events',
                 accent: const Color(0xFF93C5FD),
                 onPressed: () => _showEventsLinkDialog(context),
               ),
               _heroActionButton(
                 key: const ValueKey('ledger-verify-chain-hero-button'),
                 icon: Icons.verified_rounded,
-                label: 'Check Chain',
+                label: 'Verify',
                 accent: const Color(0xFF34D399),
                 onPressed: _verifyChain,
               ),
@@ -454,18 +427,25 @@ class _LedgerPageState extends State<LedgerPage> {
           if (compact) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: [titleBlock, const SizedBox(height: 8), actions],
+              children: [
+                chips,
+                const SizedBox(height: 6),
+                if (workspaceBanner != null) ...[workspaceBanner, const SizedBox(height: 6)],
+                actions,
+              ],
             );
           }
-          return Row(
+          return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: titleBlock),
-              const SizedBox(width: 10),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 280),
-                child: actions,
+              Row(
+                children: [
+                  Expanded(child: chips),
+                  const SizedBox(width: 8),
+                  actions,
+                ],
               ),
+              if (workspaceBanner != null) ...[const SizedBox(height: 8), workspaceBanner],
             ],
           );
         },
@@ -473,13 +453,14 @@ class _LedgerPageState extends State<LedgerPage> {
     );
   }
 
+
   Widget _heroChip(String label, String value) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0x1A9D4BFF),
+        color: _ledgerPanelColor,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: _ledgerBorderColor),
       ),
       child: RichText(
         text: TextSpan(
@@ -487,17 +468,17 @@ class _LedgerPageState extends State<LedgerPage> {
             TextSpan(
               text: '$label: ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: _ledgerMutedColor,
                 fontSize: 10,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             TextSpan(
               text: value,
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
+                color: _ledgerTitleColor,
                 fontSize: 10,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ],
@@ -513,18 +494,21 @@ class _LedgerPageState extends State<LedgerPage> {
     required Color accent,
     required VoidCallback onPressed,
   }) {
-    return FilledButton.tonalIcon(
-      key: key,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 16),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: accent.withValues(alpha: 0.12),
-        foregroundColor: accent,
-        side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return SizedBox(
+      height: 28,
+      child: FilledButton.tonalIcon(
+        key: key,
+        onPressed: onPressed,
+        icon: Icon(icon, size: 13),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          backgroundColor: accent.withValues(alpha: 0.10),
+          foregroundColor: accent,
+          side: BorderSide(color: accent.withValues(alpha: 0.28)),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+          textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
     );
   }
@@ -542,9 +526,9 @@ class _LedgerPageState extends State<LedgerPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2FBF7),
+        color: _ledgerPanelColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFB9DEC8)),
+        border: Border.all(color: _ledgerBorderColor),
       ),
       child: Wrap(
         spacing: 8,

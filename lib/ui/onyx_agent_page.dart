@@ -24,6 +24,7 @@ import 'onyx_camera_bridge_actions.dart';
 import 'onyx_camera_bridge_shell_panel.dart';
 import 'onyx_camera_bridge_tone_resolver.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 class OnyxAgentEvidenceReturnReceipt {
   final String auditId;
@@ -1414,9 +1415,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     return Container(
       key: const ValueKey('onyx-agent-page'),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Column(
         children: [
@@ -1433,20 +1434,10 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                     Text(
                       'Junior Analyst',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF172638),
-                        fontSize: 34,
+                        color: OnyxColorTokens.textPrimary,
+                        fontSize: 22,
                         fontWeight: FontWeight.w700,
                         height: 0.95,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Talk to ONYX like a teammate. Keep the thread here and open a desk only when the work actually needs it.',
-                      style: GoogleFonts.inter(
-                        color: const Color(0xFF556B80),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.45,
                       ),
                     ),
                   ],
@@ -1514,10 +1505,10 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                     Text(
                       _brainStatusSummaryText(),
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF556B80),
-                        fontSize: 11.4,
-                        fontWeight: FontWeight.w600,
-                        height: 1.45,
+                        color: OnyxColorTokens.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        height: 1.4,
                       ),
                     ),
                     if (operatorFocusBanner != null) ...[
@@ -1572,9 +1563,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     final orderedThreads = _orderedThreadsForRail(plannerConflictReport);
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -1586,35 +1577,31 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                 Expanded(
                   child: Text(
                     'CONVERSATIONS',
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF172638),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
+                      color: OnyxColorTokens.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.9,
                     ),
                   ),
                 ),
                 FilledButton.tonalIcon(
                   key: const ValueKey('onyx-agent-new-thread-button'),
                   onPressed: _createThread,
-                  icon: const Icon(Icons.add_comment_rounded, size: 16),
+                  icon: const Icon(Icons.add_comment_rounded, size: 14),
                   label: Text(
                     compact ? 'New' : 'New Chat',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                    style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700),
+                  ),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: const Size(0, 28),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              'Keep one thread per problem in front of you.',
-              style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
-                fontSize: 12.2,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 12),
             Expanded(
               child: ListView.separated(
                 itemCount: orderedThreads.length,
@@ -1650,16 +1637,16 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                       _selectThread(thread.id);
                     },
                     child: Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: selected
-                            ? const Color(0x1A9D4BFF)
-                            : const Color(0xFF13131E),
-                        borderRadius: BorderRadius.circular(16),
+                            ? OnyxColorTokens.surfaceInset
+                            : OnyxColorTokens.backgroundSecondary,
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: selected
-                              ? const Color(0xFF8FCBFF)
-                              : const Color(0xFFD4DFEA),
+                              ? OnyxColorTokens.accentCyan.withValues(alpha: 0.4)
+                              : OnyxColorTokens.divider,
                         ),
                       ),
                       child: Column(
@@ -1670,20 +1657,20 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF172638),
-                              fontSize: 13.2,
-                              fontWeight: FontWeight.w800,
+                              color: OnyxColorTokens.textPrimary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 3),
                           Text(
                             _visibleThreadSummary(thread),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF556B80),
-                              fontSize: 11.4,
-                              fontWeight: FontWeight.w600,
+                              color: OnyxColorTokens.textSecondary,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w500,
                               height: 1.35,
                             ),
                           ),
@@ -1868,9 +1855,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           Text(
             receipt.headline,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 13,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               height: 1.3,
             ),
           ),
@@ -1878,9 +1865,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           Text(
             receipt.detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
+              color: OnyxColorTokens.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
               height: 1.4,
             ),
           ),
@@ -1968,7 +1955,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       decoration: BoxDecoration(
         color: const Color(0xFFF4F8FC),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2011,10 +1998,10 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             Text(
               orderedContextHighlights.join('\n'),
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
-                fontSize: 11.4,
-                fontWeight: FontWeight.w600,
-                height: 1.45,
+                color: OnyxColorTokens.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.4,
               ),
             ),
           ],
@@ -2151,9 +2138,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     final plannerConflictReport = _plannerConflictReport();
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: SingleChildScrollView(
         controller: _networkRailScrollController,
@@ -2163,10 +2150,12 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           children: [
             Text(
               'ANALYST NOTES',
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
+                color: OnyxColorTokens.textMuted,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.9,
               ),
             ),
             const SizedBox(height: 8),
@@ -2471,9 +2460,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2505,7 +2494,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF172638),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 12.2,
                     fontWeight: FontWeight.w800,
                   ),
@@ -2519,9 +2508,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             maxLines: 3,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
-              fontSize: 11.3,
-              fontWeight: FontWeight.w600,
+              color: OnyxColorTokens.textSecondary,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
               height: 1.35,
             ),
           ),
@@ -2544,7 +2533,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -2632,7 +2621,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           decoration: BoxDecoration(
             color: const Color(0xFF1A1A2E),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0x269D4BFF)),
+            border: Border.all(color: OnyxColorTokens.borderSubtle),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.end,
@@ -2645,7 +2634,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   maxLines: 5,
                   enabled: !_reasoningInFlight,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF172638),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -2685,7 +2674,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                 ? 'OpenAI is helping with a deeper second pass.'
                 : 'ONYX is thinking through the thread now.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
             ),
@@ -2713,7 +2702,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
         ? const Color(0x4D9D4BFF)
         : isTool
         ? const Color(0x40EF9F27)
-        : const Color(0x269D4BFF);
+        : OnyxColorTokens.borderSubtle;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -2795,7 +2784,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                     Text(
                       message.headline,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF172638),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         height: 0.95,
@@ -2864,7 +2853,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2900,7 +2889,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           Text(
             action.label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 13.2,
               fontWeight: FontWeight.w800,
             ),
@@ -2909,7 +2898,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           Text(
             action.detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -2958,9 +2947,9 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Text(
         label,
@@ -2994,7 +2983,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             Text(
               'Last logged: ${_conflictTelemetryTimestampLabel(memory.lastSecondLookConflictAt!)}',
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 11.2,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
@@ -3005,7 +2994,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           Text(
             'Typed desk rules still win routing, but this thread keeps a lightweight count of model disagreements so we can tune planner gaps later.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 11.4,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -3052,7 +3041,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                 );
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF556B80),
+                foregroundColor: OnyxColorTokens.textSecondary,
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -3061,7 +3050,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
               child: Text(
                 _plannerMostRegressedRuleLabel(report, topMaintenanceAlert),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 11.4,
                   fontWeight: FontWeight.w600,
                   height: 1.45,
@@ -3082,7 +3071,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                 );
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF556B80),
+                foregroundColor: OnyxColorTokens.textSecondary,
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -3094,7 +3083,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   count: topModelTarget.count,
                 ),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 11.4,
                   fontWeight: FontWeight.w600,
                   height: 1.45,
@@ -3115,7 +3104,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                 );
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF556B80),
+                foregroundColor: OnyxColorTokens.textSecondary,
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -3127,7 +3116,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   count: topTypedTarget.count,
                 ),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 11.4,
                   fontWeight: FontWeight.w600,
                   height: 1.45,
@@ -3148,7 +3137,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                 );
               },
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF556B80),
+                foregroundColor: OnyxColorTokens.textSecondary,
                 padding: EdgeInsets.zero,
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -3159,7 +3148,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   count: report.routeClosedConflictCount,
                 ),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 11.4,
                   fontWeight: FontWeight.w600,
                   height: 1.45,
@@ -3253,7 +3242,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                         ? 'Route safety guardrails held 1 route closed while second-look pressure disagreed.'
                         : 'Route safety guardrails held ${report.routeClosedConflictCount} routes closed while second-look pressure disagreed.',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF556B80),
+                      color: OnyxColorTokens.textSecondary,
                       fontSize: 11.4,
                       fontWeight: FontWeight.w600,
                       height: 1.45,
@@ -3356,7 +3345,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                             Text(
                               _plannerMaintenanceAlertMessage(report, alert),
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF556B80),
+                                color: OnyxColorTokens.textSecondary,
                                 fontSize: 11.4,
                                 fontWeight: FontWeight.w600,
                                 height: 1.45,
@@ -3382,7 +3371,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                           Text(
                             '${alert.reviewReopened ? 'Review reopened after worsening' : 'Queued for rule review'}: ${_conflictTelemetryTimestampLabel(alert.reviewQueuedAt!)}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF556B80),
+                              color: OnyxColorTokens.textSecondary,
                               fontSize: 11.2,
                               fontWeight: FontWeight.w600,
                               height: 1.45,
@@ -3394,7 +3383,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                           Text(
                             'Review completed: ${_conflictTelemetryTimestampLabel(alert.reviewCompletedAt!)}',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF556B80),
+                              color: OnyxColorTokens.textSecondary,
                               fontSize: 11.2,
                               fontWeight: FontWeight.w600,
                               height: 1.45,
@@ -3420,7 +3409,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                                 ? 'Review reopened after completion 1 time.'
                                 : 'Review reopened after completion ${alert.staleAgainCount} times. Rule keeps regressing after repeated review cycles.',
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF556B80),
+                              color: OnyxColorTokens.textSecondary,
                               fontSize: 11.2,
                               fontWeight: FontWeight.w600,
                               height: 1.45,
@@ -3442,7 +3431,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                           Text(
                             _plannerMaintenanceLineageMessage(lineageEntry),
                             style: GoogleFonts.inter(
-                              color: const Color(0xFF556B80),
+                              color: OnyxColorTokens.textSecondary,
                               fontSize: 11.2,
                               fontWeight: FontWeight.w600,
                               height: 1.45,
@@ -3508,7 +3497,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                       return Text(
                         signal,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF556B80),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 11.4,
                           fontWeight: FontWeight.w600,
                           height: 1.45,
@@ -3562,7 +3551,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                       return Text(
                         suggestion,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF556B80),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 11.4,
                           fontWeight: FontWeight.w600,
                           height: 1.45,
@@ -3657,7 +3646,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                             Text(
                               message,
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF556B80),
+                                color: OnyxColorTokens.textSecondary,
                                 fontSize: 11.4,
                                 fontWeight: FontWeight.w600,
                                 height: 1.45,
@@ -3693,7 +3682,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                   archivedReviewedCount: report.archivedReviewedCount,
                 ),
                 style: GoogleFonts.inter(
-                  color: const Color(0xFF556B80),
+                  color: OnyxColorTokens.textSecondary,
                   fontSize: 11.4,
                   fontWeight: FontWeight.w600,
                   height: 1.45,
@@ -3786,7 +3775,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                                 Text(
                                   _plannerArchivedMessage(entry),
                                   style: GoogleFonts.inter(
-                                    color: const Color(0xFF556B80),
+                                    color: OnyxColorTokens.textSecondary,
                                     fontSize: 11.4,
                                     fontWeight: FontWeight.w600,
                                     height: 1.45,
@@ -3878,7 +3867,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
                               Text(
                                 'Priority ${entry.score} · ${entry.active ? 'hot now' : 'watch'} · ${entry.label}',
                                 style: GoogleFonts.inter(
-                                  color: const Color(0xFF556B80),
+                                  color: OnyxColorTokens.textSecondary,
                                   fontSize: 11.4,
                                   fontWeight: FontWeight.w600,
                                   height: 1.45,
@@ -4395,13 +4384,13 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           padding: EdgeInsets.zero,
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          foregroundColor: const Color(0xFF556B80),
+          foregroundColor: OnyxColorTokens.textSecondary,
         ),
         child: Text(
           label,
           textAlign: TextAlign.left,
           style: GoogleFonts.inter(
-            color: const Color(0xFF556B80),
+            color: OnyxColorTokens.textSecondary,
             fontSize: 11.4,
             fontWeight: FontWeight.w600,
             height: 1.45,
@@ -4425,7 +4414,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
             style: OutlinedButton.styleFrom(
               foregroundColor: isActive
                   ? const Color(0xFF2D6CDF)
-                  : const Color(0xFF556B80),
+                  : OnyxColorTokens.textSecondary,
               backgroundColor: isActive
                   ? const Color(0xFFEAF2FC)
                   : const Color(0xFF1A1A2E),
@@ -4600,7 +4589,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
       decoration: BoxDecoration(
         color: const Color(0xFF1A1A2E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -4608,7 +4597,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 12.2,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.4,
@@ -4819,7 +4808,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
     }
     messenger.showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF13131E),
+        backgroundColor: OnyxColorTokens.backgroundSecondary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
@@ -4828,7 +4817,7 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
         content: Text(
           message,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),

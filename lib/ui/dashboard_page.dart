@@ -673,9 +673,9 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(4.5, 2.3, 4.5, 1.7),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0A0D14),
-        border: Border(bottom: BorderSide(color: Color(0xFF24354A))),
+      decoration: BoxDecoration(
+        color: OnyxColorTokens.backgroundPrimary,
+        border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -689,9 +689,9 @@ class _TopBar extends StatelessWidget {
             ),
           );
           final headerSubtitle = Text(
-            'Real-time operational control • AI-powered human-parallel execution.',
+            'Real-time ops control',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: OnyxColorTokens.textMuted,
               fontSize: 6.8,
               fontWeight: FontWeight.w600,
             ),
@@ -798,16 +798,9 @@ class _ExecutiveSummary extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(0.62, 0.46, 0.62, 0.5),
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
+            color: OnyxColorTokens.backgroundSecondary,
             borderRadius: BorderRadius.circular(3.0),
-            border: Border.all(color: const Color(0xFFD6E1EC)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x08000000),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
+            border: Border.all(color: OnyxColorTokens.divider),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -818,11 +811,12 @@ class _ExecutiveSummary extends StatelessWidget {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
-                    'KPI Band',
+                    'KPI BAND',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF172638),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: compact ? 6.7 : 7.0,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.6,
                     ),
                   ),
                   Text(
@@ -841,8 +835,8 @@ class _ExecutiveSummary extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(0.34, 0.2, 0.34, 0.2),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(2.45),
-                  border: Border.all(color: const Color(0xFFD6E1EC)),
-                  color: const Color(0xFFF7FAFD),
+                  border: Border.all(color: OnyxColorTokens.divider),
+                  color: OnyxColorTokens.surfaceCard,
                 ),
                 child: Wrap(
                   spacing: 0.12,
@@ -882,7 +876,7 @@ class _ExecutiveSummary extends StatelessWidget {
                   Text(
                     'High-risk intel ${snapshot.highRiskIntelligence}',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF6B7F93),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: 4.0,
                       fontWeight: FontWeight.w700,
                     ),
@@ -890,7 +884,7 @@ class _ExecutiveSummary extends StatelessWidget {
                   Text(
                     'Field ${snapshot.totalCheckIns} check-ins • ${snapshot.totalPatrols} patrols',
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF6B7F93),
+                      color: OnyxColorTokens.textMuted,
                       fontSize: 4.0,
                       fontWeight: FontWeight.w700,
                     ),
@@ -902,7 +896,7 @@ class _ExecutiveSummary extends StatelessWidget {
                 Text(
                   'Top triage signals: ${triage.topSignalsSummary}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF556B80),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 4.2,
                     fontWeight: FontWeight.w600,
                     height: 1.35,
@@ -940,7 +934,7 @@ class _SummaryStripItem extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF6B7F93),
+              color: OnyxColorTokens.textMuted,
               fontSize: 3.7,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,
@@ -950,7 +944,7 @@ class _SummaryStripItem extends StatelessWidget {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 7.8,
               height: 0.88,
               fontWeight: FontWeight.w700,
@@ -1351,18 +1345,18 @@ class _DashboardOperationsWorkspaceState
         decoration: BoxDecoration(
           color: selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFF10273D),
+              : OnyxColorTokens.surfaceCard,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? accent.withValues(alpha: 0.5)
-                : const Color(0xFF27425D),
+                : OnyxColorTokens.divider,
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? accent : const Color(0xFFEAF2FF),
+            color: selected ? accent : OnyxColorTokens.textSecondary,
             fontSize: 4.2,
             fontWeight: FontWeight.w800,
           ),
@@ -2308,7 +2302,7 @@ class _DashboardOperationsWorkspaceState
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 0.5, vertical: 0.2),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5F8FC),
+        color: OnyxColorTokens.surfaceCard,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: metric.accent.withValues(alpha: 0.45)),
       ),
@@ -2318,7 +2312,7 @@ class _DashboardOperationsWorkspaceState
             TextSpan(
               text: '${metric.label} ',
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 3.6,
                 fontWeight: FontWeight.w700,
               ),
@@ -2352,21 +2346,12 @@ class _DashboardOperationsWorkspaceState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
+              title.toUpperCase(),
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF2FF),
+                color: OnyxColorTokens.textMuted,
                 fontSize: 9.9,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 0.24),
-            Text(
-              subtitle,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF7D93B1),
-                fontSize: 5.5,
                 fontWeight: FontWeight.w600,
-                height: 1.3,
+                letterSpacing: 0.6,
               ),
             ),
             const SizedBox(height: 1.5),
@@ -2380,29 +2365,20 @@ class _DashboardOperationsWorkspaceState
       width: double.infinity,
       padding: const EdgeInsets.all(2.6),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(6.0),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            title.toUpperCase(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textMuted,
               fontSize: 9.9,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 0.24),
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
-              fontSize: 5.5,
               fontWeight: FontWeight.w600,
-              height: 1.3,
+              letterSpacing: 0.6,
             ),
           ),
           const SizedBox(height: 1.5),
@@ -2506,9 +2482,9 @@ class _DashboardOperationsWorkspaceState
       width: width,
       padding: const EdgeInsets.all(2.45),
       decoration: BoxDecoration(
-        color: const Color(0xFF111C2B),
+        color: OnyxColorTokens.surfaceCard,
         borderRadius: BorderRadius.circular(5.9),
-        border: Border.all(color: const Color(0xFF243549)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2516,7 +2492,7 @@ class _DashboardOperationsWorkspaceState
           Text(
             metric.label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8AA2C0),
+              color: OnyxColorTokens.textMuted,
               fontSize: 5.1,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,
@@ -2526,7 +2502,7 @@ class _DashboardOperationsWorkspaceState
           Text(
             metric.value,
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF2FF),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 11.9,
               height: 0.95,
               fontWeight: FontWeight.w800,
@@ -2576,9 +2552,9 @@ class _DashboardOperationsWorkspaceState
       width: double.infinity,
       padding: const EdgeInsets.all(2.5),
       decoration: BoxDecoration(
-        color: const Color(0xFF111C2B),
+        color: OnyxColorTokens.surfaceCard,
         borderRadius: BorderRadius.circular(5.9),
-        border: Border.all(color: const Color(0xFF243549)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2586,7 +2562,7 @@ class _DashboardOperationsWorkspaceState
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 6.0,
               fontWeight: FontWeight.w700,
             ),
@@ -2595,7 +2571,7 @@ class _DashboardOperationsWorkspaceState
           Text(
             body,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8BA1BF),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 5.5,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -2615,9 +2591,9 @@ class _DashboardOperationsWorkspaceState
       width: double.infinity,
       padding: const EdgeInsets.all(2.6),
       decoration: BoxDecoration(
-        color: const Color(0xFF111C2B),
+        color: OnyxColorTokens.surfaceCard,
         borderRadius: BorderRadius.circular(6.1),
-        border: Border.all(color: const Color(0xFF243549)),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2625,7 +2601,7 @@ class _DashboardOperationsWorkspaceState
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFFE8F1FF),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 6.2,
               fontWeight: FontWeight.w700,
             ),
@@ -2651,8 +2627,8 @@ class _DashboardOperationsWorkspaceState
           width: 1.6,
           height: 1.6,
           margin: const EdgeInsets.only(top: 1.1),
-          decoration: const BoxDecoration(
-            color: Color(0xFF63BDFF),
+          decoration: BoxDecoration(
+            color: OnyxColorTokens.accentCyan,
             shape: BoxShape.circle,
           ),
         ),
@@ -2661,7 +2637,7 @@ class _DashboardOperationsWorkspaceState
           child: Text(
             row,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD7E4F7),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 6.1,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -2834,16 +2810,16 @@ class _WorkspaceModeChip extends StatelessWidget {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 1.7, vertical: 0.86),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF123244) : const Color(0xFF111C2B),
+          color: selected ? OnyxColorTokens.cyanSurface : OnyxColorTokens.surfaceCard,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF3F87C9) : const Color(0xFF243549),
+            color: selected ? OnyxColorTokens.cyanBorder : OnyxColorTokens.divider,
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
-            color: selected ? const Color(0xFFEAF2FF) : const Color(0xFF8EA4C2),
+            color: selected ? OnyxColorTokens.accentCyan : OnyxColorTokens.textSecondary,
             fontSize: 5.0,
             fontWeight: FontWeight.w700,
           ),
@@ -2878,10 +2854,10 @@ class _WorkspaceFilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 160),
         padding: const EdgeInsets.symmetric(horizontal: 1.8, vertical: 0.95),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF10273A) : const Color(0xFF111C2B),
+          color: selected ? OnyxColorTokens.cyanSurface : OnyxColorTokens.surfaceCard,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? const Color(0xFF3F87C9) : const Color(0xFF243549),
+            color: selected ? OnyxColorTokens.cyanBorder : OnyxColorTokens.divider,
           ),
         ),
         child: Row(
@@ -2891,8 +2867,8 @@ class _WorkspaceFilterChip extends StatelessWidget {
               label,
               style: GoogleFonts.inter(
                 color: selected
-                    ? const Color(0xFFEAF2FF)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentCyan
+                    : OnyxColorTokens.textSecondary,
                 fontSize: 4.9,
                 fontWeight: FontWeight.w700,
               ),
@@ -2904,15 +2880,13 @@ class _WorkspaceFilterChip extends StatelessWidget {
                 vertical: 0.34,
               ),
               decoration: BoxDecoration(
-                color: selected
-                    ? const Color(0xFF0E1C2A)
-                    : const Color(0xFF0B1421),
+                color: OnyxColorTokens.backgroundPrimary,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 value,
                 style: GoogleFonts.inter(
-                  color: const Color(0xFFEAF2FF),
+                  color: OnyxColorTokens.textPrimary,
                   fontSize: 5.1,
                   fontWeight: FontWeight.w700,
                 ),
@@ -5229,32 +5203,16 @@ class _HeaderStat extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 1.9, vertical: 1.0),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(5.8),
-        color: const Color(0xFF13131E),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          ),
-        ],
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 7.4,
-            height: 1.28,
-            decoration: BoxDecoration(
-              color: const Color(0xFF56B9FF),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 0.92),
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF6B7F93),
+              color: OnyxColorTokens.textMuted,
               fontSize: 4.9,
               fontWeight: FontWeight.w700,
             ),
@@ -5263,7 +5221,7 @@ class _HeaderStat extends StatelessWidget {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 7.6,
               fontWeight: FontWeight.w800,
             ),
@@ -5296,49 +5254,24 @@ class _DashboardCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(1.0),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(3.05),
-        border: Border.all(color: const Color(0xFFD6E1EC)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 10.4,
-            height: 1.32,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3C79BB),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 0.14),
           Text(
-            title,
+            title.toUpperCase(),
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textMuted,
               fontSize: 7.4,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.6,
             ),
           ),
           if (subtitle.isNotEmpty) ...[
             const SizedBox(height: 0.1),
-            Text(
-              subtitle,
-              style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
-                fontSize: 4.2,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 0.22),
           ] else
             const SizedBox(height: 0.12),
           child,

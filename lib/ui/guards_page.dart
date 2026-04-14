@@ -731,93 +731,32 @@ class _GuardsPageState extends State<GuardsPage> {
 
   Widget _pageHeader(BuildContext context) {
     final exportEnabled = widget.onOpenGuardReportsForSite != null;
-    final titleBlock = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFF7A18), Color(0xFFE11D48)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0x44FFFFFF)),
-          ),
-          child: const Icon(
-            Icons.groups_rounded,
-            color: Colors.white,
-            size: 30,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Guards & Workforce',
-                style: GoogleFonts.inter(
-                  color: _guardsTitleColor,
-                  fontSize: MediaQuery.sizeOf(context).width >= 900 ? 34 : 30,
-                  fontWeight: FontWeight.w700,
-                  height: 0.92,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Who is on now, who is missing, and who works next.',
-                style: GoogleFonts.inter(
-                  color: _guardsBodyColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-    final exportButton = FilledButton.tonalIcon(
+    final exportButton = OutlinedButton.icon(
       key: const ValueKey('guards-view-reports-button'),
       onPressed: exportEnabled
           ? () => _openReportsForSelectedSite(context)
           : null,
-      icon: const Icon(Icons.download_rounded, size: 18),
-      label: const Text('OPEN REPORTS WORKSPACE'),
-      style: FilledButton.styleFrom(
-        backgroundColor: _guardsPanelColor,
+      icon: const Icon(Icons.download_rounded, size: 16),
+      label: const Text('Reports'),
+      style: OutlinedButton.styleFrom(
         foregroundColor: _guardsTitleColor,
-        disabledBackgroundColor: _guardsPanelTint,
         disabledForegroundColor: const Color(0xFF66778E),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        textStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        minimumSize: const Size(0, 28),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+        side: const BorderSide(color: _guardsStrongBorderColor),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: _guardsStrongBorderColor),
+          borderRadius: BorderRadius.circular(8),
         ),
       ),
     );
 
-    if (MediaQuery.sizeOf(context).width >= 900) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: titleBlock),
-          const SizedBox(width: 16),
-          exportButton,
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        titleBlock,
-        const SizedBox(height: 14),
-        SizedBox(width: double.infinity, child: exportButton),
+        Expanded(child: const SizedBox.shrink()),
+        if (exportEnabled) exportButton,
       ],
     );
   }
@@ -881,10 +820,10 @@ class _GuardsPageState extends State<GuardsPage> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _guardsPanelTint,
-        borderRadius: BorderRadius.circular(18),
+        color: _guardsPanelColor,
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: _guardsBorderColor),
       ),
       child: LayoutBuilder(
@@ -968,52 +907,60 @@ class _GuardsPageState extends State<GuardsPage> {
   }
 
   Widget _viewTabs() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _guardsPanelTint,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _guardsBorderColor),
-      ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 500;
-          return Row(
-            children: [
-              Expanded(
-                child: _viewTab(
-                  key: const ValueKey('guards-view-tab-active'),
-                  label: 'Active Now',
-                  icon: Icons.groups_rounded,
-                  compact: compact,
-                  selected: _selectedView == _GuardsView.active,
-                  onTap: () => _setView(_GuardsView.active),
-                ),
-              ),
-              Expanded(
-                child: _viewTab(
-                  key: const ValueKey('guards-view-tab-roster'),
-                  label: 'Month Planner',
-                  icon: Icons.calendar_month_rounded,
-                  compact: compact,
-                  selected: _selectedView == _GuardsView.roster,
-                  onTap: () => _setView(_GuardsView.roster),
-                ),
-              ),
-              Expanded(
-                child: _viewTab(
-                  key: const ValueKey('guards-view-tab-history'),
-                  label: 'History',
-                  icon: Icons.history_rounded,
-                  compact: compact,
-                  selected: _selectedView == _GuardsView.history,
-                  onTap: () => _setView(_GuardsView.history),
-                ),
-              ),
-            ],
-          );
-        },
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        _viewPillTab(
+          key: const ValueKey('guards-view-tab-active'),
+          label: 'Active Now',
+          selected: _selectedView == _GuardsView.active,
+          onTap: () => _setView(_GuardsView.active),
+        ),
+        _viewPillTab(
+          key: const ValueKey('guards-view-tab-roster'),
+          label: 'Month Planner',
+          selected: _selectedView == _GuardsView.roster,
+          onTap: () => _setView(_GuardsView.roster),
+        ),
+        _viewPillTab(
+          key: const ValueKey('guards-view-tab-history'),
+          label: 'History',
+          selected: _selectedView == _GuardsView.history,
+          onTap: () => _setView(_GuardsView.history),
+        ),
+      ],
+    );
+  }
+
+  Widget _viewPillTab({
+    required Key key,
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? _guardsSelectedPanelColor : _guardsPanelColor,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: selected ? _guardsStrongBorderColor : _guardsBorderColor,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? _guardsAccentBlue : _guardsBodyColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
     );
   }
@@ -1067,35 +1014,12 @@ class _GuardsPageState extends State<GuardsPage> {
         children: [
           Row(
             children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: const Color(0x1A9A3412),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.badge_outlined,
-                  color: Color(0xFFF6C067),
-                  size: 16,
-                ),
-              ),
-              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'GUARD ROSTER',
-                      style: GoogleFonts.inter(
-                        color: _guardsTitleColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.7,
-                      ),
-                    ),
-                    Text(
-                      '${guards.length} guards',
+                      '${guards.length} GUARDS',
                       style: GoogleFonts.inter(
                         color: _guardsBodyColor,
                         fontSize: 11,
@@ -1134,111 +1058,104 @@ class _GuardsPageState extends State<GuardsPage> {
         (_selectedGuard(_filteredGuards())?.id == guard.id &&
             _selectedGuardId.isEmpty);
     final active = guard.status == _GuardStatus.onDuty;
-    final statusForeground = active
+    final statusColor = active
         ? const Color(0xFF63E6A1)
         : const Color(0xFF98A6BA);
-    final statusBackground = active
-        ? const Color(0x1A10B981)
-        : const Color(0x1A64748B);
-    final statusBorder = active
-        ? const Color(0x5510B981)
-        : const Color(0x5564748B);
+    final initials = guard.displayName
+        .split(' ')
+        .take(2)
+        .map((part) => part.isNotEmpty ? part[0] : '')
+        .join()
+        .toUpperCase();
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         key: ValueKey('guards-roster-card-${guard.id}'),
         onTap: () => _selectGuard(guard.id),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: selected ? _guardsSelectedPanelColor : _guardsPanelColor,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: selected ? _guardsStrongBorderColor : _guardsBorderColor,
             ),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
+              // 32px avatar circle
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: _guardsAccentBlue.withValues(alpha: 0.18),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _guardsAccentBlue.withValues(alpha: 0.4)),
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: GoogleFonts.inter(
+                      color: _guardsAccentBlue,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Name + ID + site
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
                       guard.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         color: _guardsTitleColor,
-                        fontSize: 26 / 2,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                  ),
-                  if (guard.hasSyncIssue)
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Color(0xFFF6C067),
-                      size: 16,
-                    )
-                  else if (guard.status == _GuardStatus.onDuty)
-                    const Icon(
-                      Icons.wifi_rounded,
-                      color: Color(0xFF63E6A1),
-                      size: 16,
-                    ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusBackground,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: statusBorder),
-                    ),
-                    child: Text(
-                      active ? 'ON DUTY' : 'OFF DUTY',
+                    Text(
+                      '${guard.employeeId} • ${guard.siteCode == '--' ? 'Unassigned' : guard.siteCode}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
-                        color: statusForeground,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        color: _guardsMutedColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                guard.employeeId,
-                style: GoogleFonts.robotoMono(
-                  color: _guardsMutedColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  ],
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(width: 8),
+              // Status dot
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
               Text(
-                guard.siteCode == '--'
-                    ? guard.assignmentNote ?? 'No active assignment'
-                    : '${guard.siteCode} • ${guard.siteName}',
+                active ? 'ON' : 'OFF',
                 style: GoogleFonts.inter(
-                  color: _guardsBodyColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+                  color: statusColor,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              if (guard.assignmentNote != null && guard.siteCode != '--') ...[
-                const SizedBox(height: 4),
-                Text(
-                  guard.assignmentNote!,
-                  style: GoogleFonts.inter(
-                    color: _guardsMutedColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
             ],
           ),
         ),
@@ -1258,7 +1175,12 @@ class _GuardsPageState extends State<GuardsPage> {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final compactHeader = constraints.maxWidth < 760;
+                  final guardInitials = guard.displayName
+                      .split(' ')
+                      .take(2)
+                      .map((p) => p.isNotEmpty ? p[0] : '')
+                      .join()
+                      .toUpperCase();
                   final identityBlock = Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1266,16 +1188,19 @@ class _GuardsPageState extends State<GuardsPage> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFF7A18), Color(0xFFFF4D15)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(14),
+                          color: _guardsAccentBlue.withValues(alpha: 0.18),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: _guardsAccentBlue.withValues(alpha: 0.4)),
                         ),
-                        child: const Icon(
-                          Icons.person_outline_rounded,
-                          color: Colors.white,
+                        child: Center(
+                          child: Text(
+                            guardInitials,
+                            style: GoogleFonts.inter(
+                              color: _guardsAccentBlue,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -1342,7 +1267,7 @@ class _GuardsPageState extends State<GuardsPage> {
                   final actionButton = FilledButton.icon(
                     key: const ValueKey('guards-clock-out-button'),
                     onPressed: active ? () => _showClockOutNotice(guard) : null,
-                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    icon: const Icon(Icons.logout_rounded, size: 16),
                     label: const Text('Clock Out'),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFFFF5B2D),
@@ -1350,29 +1275,20 @@ class _GuardsPageState extends State<GuardsPage> {
                       disabledBackgroundColor: _guardsPanelTint,
                       disabledForegroundColor: const Color(0xFF66778E),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
+                        horizontal: 12,
+                        vertical: 6,
                       ),
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       textStyle: GoogleFonts.inter(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                   );
-
-                  if (compactHeader) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        identityBlock,
-                        const SizedBox(height: 14),
-                        SizedBox(width: double.infinity, child: actionButton),
-                      ],
-                    );
-                  }
 
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1384,10 +1300,10 @@ class _GuardsPageState extends State<GuardsPage> {
                   );
                 },
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final stacked = constraints.maxWidth < 820;
+                  final stacked = constraints.maxWidth < 640;
                   final items = [
                     _detailTile(
                       title: 'CURRENT SITE',
@@ -1397,16 +1313,34 @@ class _GuardsPageState extends State<GuardsPage> {
                     _detailTile(
                       title: 'CLOCKED IN',
                       value: guard.clockIn,
-                      detail: guard.shiftWindow,
+                      detail: '',
+                    ),
+                    _detailTile(
+                      title: 'SHIFT WINDOW',
+                      value: guard.shiftWindow,
+                      detail: guard.shiftLabel,
+                    ),
+                    _detailTile(
+                      title: 'LAST SYNC',
+                      value: guard.lastSync,
+                      detail: guard.hasSyncIssue ? 'Watch' : 'Healthy',
                     ),
                   ];
 
                   if (stacked) {
                     return Column(
                       children: [
-                        items[0],
-                        const SizedBox(height: 14),
-                        items[1],
+                        Row(children: [
+                          Expanded(child: items[0]),
+                          const SizedBox(width: 10),
+                          Expanded(child: items[1]),
+                        ]),
+                        const SizedBox(height: 10),
+                        Row(children: [
+                          Expanded(child: items[2]),
+                          const SizedBox(width: 10),
+                          Expanded(child: items[3]),
+                        ]),
                       ],
                     );
                   }
@@ -1414,8 +1348,12 @@ class _GuardsPageState extends State<GuardsPage> {
                   return Row(
                     children: [
                       Expanded(child: items[0]),
-                      const SizedBox(width: 14),
+                      const SizedBox(width: 10),
                       Expanded(child: items[1]),
+                      const SizedBox(width: 10),
+                      Expanded(child: items[2]),
+                      const SizedBox(width: 10),
+                      Expanded(child: items[3]),
                     ],
                   );
                 },
@@ -1423,69 +1361,38 @@ class _GuardsPageState extends State<GuardsPage> {
               const SizedBox(height: 14),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3FBF7),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFCFE6DA)),
+                  color: _guardsPanelColor,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _guardsBorderColor),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.wifi_rounded,
-                      color: Color(0xFF63E6A1),
-                      size: 18,
+                    Icon(
+                      guard.hasSyncIssue ? Icons.warning_amber_rounded : Icons.wifi_rounded,
+                      color: guard.hasSyncIssue ? const Color(0xFFF6C067) : const Color(0xFF63E6A1),
+                      size: 16,
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            guard.hasSyncIssue ? 'Sync Watch' : 'Sync Healthy',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF215D47),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            'Last sync: ${guard.lastSync}',
-                            style: GoogleFonts.inter(
-                              color: const Color(0xFF4E816A),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        guard.hasSyncIssue ? 'Sync Watch' : 'Sync Healthy',
+                        style: GoogleFonts.inter(
+                          color: _guardsTitleColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
+                      width: 6,
+                      height: 6,
                       decoration: BoxDecoration(
                         color: guard.hasSyncIssue
-                            ? const Color(0x1AF59E0B)
-                            : const Color(0x1A10B981),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: guard.hasSyncIssue
-                              ? const Color(0x55F59E0B)
-                              : const Color(0x5510B981),
-                        ),
-                      ),
-                      child: Text(
-                        guard.hasSyncIssue ? 'WATCH' : 'HEALTHY',
-                        style: GoogleFonts.inter(
-                          color: guard.hasSyncIssue
-                              ? const Color(0xFFF6C067)
-                              : const Color(0xFF63E6A1),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
+                            ? const Color(0xFFF6C067)
+                            : const Color(0xFF63E6A1),
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ],
@@ -1501,24 +1408,15 @@ class _GuardsPageState extends State<GuardsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'PERFORMANCE METRICS',
+                'PERFORMANCE',
                 style: GoogleFonts.inter(
-                  color: _guardsTitleColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.7,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                'Current period operational stats',
-                style: GoogleFonts.inter(
-                  color: _guardsBodyColor,
-                  fontSize: 12,
+                  color: _guardsMutedColor,
+                  fontSize: 10,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               LayoutBuilder(
                 builder: (context, constraints) {
                   final stacked = constraints.maxWidth < 620;
@@ -1575,84 +1473,52 @@ class _GuardsPageState extends State<GuardsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'QUICK ACTIONS',
+                'ACTIONS',
                 style: GoogleFonts.inter(
-                  color: _guardsTitleColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.7,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                'Operational controls',
-                style: GoogleFonts.inter(
-                  color: _guardsBodyColor,
-                  fontSize: 12,
+                  color: _guardsMutedColor,
+                  fontSize: 10,
                   fontWeight: FontWeight.w600,
+                  letterSpacing: 0.6,
                 ),
               ),
-              const SizedBox(height: 16),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 860;
-                  final actions = [
-                    _quickActionTile(
-                      key: const ValueKey('guards-quick-schedule'),
-                      icon: Icons.calendar_month_rounded,
-                      label: 'Month Planner',
-                      onTap: !_canOpenGuardSchedule ? null : _openGuardSchedule,
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _compactActionButton(
+                    key: const ValueKey('guards-quick-schedule'),
+                    icon: Icons.calendar_month_rounded,
+                    label: 'Planner',
+                    onTap: !_canOpenGuardSchedule ? null : _openGuardSchedule,
+                  ),
+                  _compactActionButton(
+                    key: const ValueKey('guards-quick-reports'),
+                    icon: Icons.description_outlined,
+                    label: 'Reports',
+                    onTap: widget.onOpenGuardReportsForSite == null
+                        ? null
+                        : () => _openReportsForSite(context, guard),
+                  ),
+                  _compactActionButton(
+                    key: const ValueKey('guards-quick-client-lane'),
+                    icon: Icons.forum_outlined,
+                    label: 'Contact',
+                    onTap: () => _showGuardContactSheet(
+                      guard,
+                      initialMode: _GuardContactMode.message,
                     ),
-                    _quickActionTile(
-                      key: const ValueKey('guards-quick-reports'),
-                      icon: Icons.description_outlined,
-                      label: 'Reports Workspace',
-                      onTap: widget.onOpenGuardReportsForSite == null
-                          ? null
-                          : () => _openReportsForSite(context, guard),
+                  ),
+                  _compactActionButton(
+                    key: const ValueKey('guards-quick-stage-voip'),
+                    icon: Icons.phone_forwarded_rounded,
+                    label: 'VoIP',
+                    onTap: () => _showGuardContactSheet(
+                      guard,
+                      initialMode: _GuardContactMode.call,
                     ),
-                    _quickActionTile(
-                      key: const ValueKey('guards-quick-client-lane'),
-                      icon: Icons.forum_outlined,
-                      label: 'Client Comms',
-                      onTap: () => _showGuardContactSheet(
-                        guard,
-                        initialMode: _GuardContactMode.message,
-                      ),
-                    ),
-                    _quickActionTile(
-                      key: const ValueKey('guards-quick-stage-voip'),
-                      icon: Icons.phone_forwarded_rounded,
-                      label: 'Stage VoIP',
-                      onTap: () => _showGuardContactSheet(
-                        guard,
-                        initialMode: _GuardContactMode.call,
-                      ),
-                    ),
-                  ];
-
-                  if (compact) {
-                    return Column(
-                      children: [
-                        for (int i = 0; i < actions.length; i++) ...[
-                          actions[i],
-                          if (i != actions.length - 1)
-                            const SizedBox(height: 12),
-                        ],
-                      ],
-                    );
-                  }
-
-                  return GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                    childAspectRatio: 3.2,
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    children: actions,
-                  );
-                },
+                  ),
+                ],
               ),
             ],
           ),
@@ -1705,19 +1571,10 @@ class _GuardsPageState extends State<GuardsPage> {
                     Text(
                       'MONTH PLANNER',
                       style: GoogleFonts.inter(
-                        color: _guardsTitleColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.7,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Fill gaps, move guards, and publish the month.',
-                      style: GoogleFonts.inter(
-                        color: _guardsBodyColor,
-                        fontSize: 12,
+                        color: _guardsMutedColor,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
+                        letterSpacing: 0.6,
                       ),
                     ),
                   ],
@@ -1836,16 +1693,13 @@ class _GuardsPageState extends State<GuardsPage> {
   }) {
     final ready = openPosts == 0;
     final accent = ready ? const Color(0xFF63E6A1) : const Color(0xFFFFC247);
-    final background = ready
-        ? const Color(0x1A10B981)
-        : const Color(0x1AF59E0B);
     final border = ready ? const Color(0x5510B981) : const Color(0x55F59E0B);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(16),
+        color: _guardsPanelColor,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: border),
       ),
       child: LayoutBuilder(
@@ -1874,17 +1728,15 @@ class _GuardsPageState extends State<GuardsPage> {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                ready
-                    ? 'All required posts are covered. Publish the month or keep editing the selected day.'
-                    : '$gapDays day${gapDays == 1 ? '' : 's'} still have coverage gaps. Open the planner and fix the shortfalls fast.',
-                style: GoogleFonts.inter(
-                  color: _guardsBodyColor,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  height: 1.35,
+              if (!ready)
+                Text(
+                  '$gapDays day${gapDays == 1 ? '' : 's'} with gaps',
+                  style: GoogleFonts.inter(
+                    color: _guardsBodyColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
             ],
           );
           final actions = Wrap(
@@ -1985,16 +1837,7 @@ class _GuardsPageState extends State<GuardsPage> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Month view for controller planning, conflict detection, and shift publishing.',
-            style: GoogleFonts.inter(
-              color: _guardsBodyColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           GridView.builder(
             itemCount: weekdayLabels.length,
             physics: const NeverScrollableScrollPhysics(),
@@ -2292,24 +2135,15 @@ class _GuardsPageState extends State<GuardsPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'CURRENT WEEK SNAPSHOT',
+            'CURRENT WEEK',
             style: GoogleFonts.inter(
-              color: _guardsTitleColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.7,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'Keep the week matrix visible while the month calendar drives planning.',
-            style: GoogleFonts.inter(
-              color: _guardsBodyColor,
-              fontSize: 12,
+              color: _guardsMutedColor,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.6,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
@@ -2375,9 +2209,9 @@ class _GuardsPageState extends State<GuardsPage> {
     bool emphasized = false,
   }) {
     final foreground = emphasized ? Colors.white : _guardsTitleColor;
-    final background = emphasized ? const Color(0xFF356CFF) : _guardsPanelColor;
+    final background = emphasized ? _guardsAccentBlue : _guardsPanelColor;
     final disabledBackground = emphasized
-        ? const Color(0xFFBFD0EA)
+        ? _guardsAccentBlue.withValues(alpha: 0.4)
         : _guardsPanelTint;
     return FilledButton.tonalIcon(
       key: key,
@@ -2427,21 +2261,12 @@ class _GuardsPageState extends State<GuardsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'SHIFT HISTORY & TIMESHEETS',
+                      'SHIFT HISTORY',
                       style: GoogleFonts.inter(
-                        color: _guardsTitleColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.7,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'All clock in/out events and shift records',
-                      style: GoogleFonts.inter(
-                        color: _guardsBodyColor,
-                        fontSize: 12,
+                        color: _guardsMutedColor,
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
+                        letterSpacing: 0.6,
                       ),
                     ),
                   ],
@@ -2608,69 +2433,6 @@ class _GuardsPageState extends State<GuardsPage> {
     );
   }
 
-  Widget _viewTab({
-    required Key key,
-    required String label,
-    required IconData icon,
-    required bool compact,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 8 : 14,
-            vertical: compact ? 16 : 18,
-          ),
-          decoration: BoxDecoration(
-            color: selected ? _guardsSelectedPanelColor : Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected ? _guardsStrongBorderColor : Colors.transparent,
-            ),
-          ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final hideIcon = compact || constraints.maxWidth < 132;
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (!hideIcon) ...[
-                    Icon(
-                      icon,
-                      size: 18,
-                      color: selected ? _guardsAccentBlue : _guardsBodyColor,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        color: selected ? _guardsAccentBlue : _guardsBodyColor,
-                        fontSize: compact ? 12 : 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _detailTile({
     required String title,
     required String value,
@@ -2754,53 +2516,42 @@ class _GuardsPageState extends State<GuardsPage> {
     );
   }
 
-  Widget _quickActionTile({
+  Widget _compactActionButton({
     required Key key,
     required IconData icon,
     required String label,
     required VoidCallback? onTap,
   }) {
     final enabled = onTap != null;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: key,
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          decoration: BoxDecoration(
-            color: _guardsPanelColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _guardsBorderColor),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: enabled ? _guardsAccentBlue : const Color(0xFF66778E),
+    return InkWell(
+      key: key,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: _guardsPanelColor,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _guardsBorderColor),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 14,
+              color: enabled ? _guardsAccentBlue : const Color(0xFF66778E),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: enabled ? _guardsTitleColor : const Color(0xFF66778E),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: GoogleFonts.inter(
-                    color: enabled
-                        ? _guardsTitleColor
-                        : const Color(0xFF66778E),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Icon(
-                Icons.chevron_right_rounded,
-                size: 18,
-                color: enabled ? _guardsBodyColor : const Color(0xFF556273),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

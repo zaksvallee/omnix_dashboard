@@ -1397,6 +1397,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
       _ListenerAlarmSummaryFocus.advisory;
   _OpsPollHealthFocus _activeOpsPollHealthFocus = _OpsPollHealthFocus.queue;
   int _selectedWatchAuditEntryIndex = 0;
+  // ignore: unused_field
   _AdminCommandReceipt _commandReceipt = _defaultCommandReceipt;
   _GuardRosterPlannerMode? _pendingGuardsPlannerMode;
   DateTime? _pendingGuardsPlannerDate;
@@ -1844,17 +1845,18 @@ class _AdministrationPageState extends State<AdministrationPage> {
             OutlinedButton.icon(
               key: _adminExportDataButtonKey,
               onPressed: _openAdminExportFlow,
-              icon: const Icon(Icons.download_rounded, size: 14),
+              icon: const Icon(Icons.download_rounded, size: 13),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF8FD1FF),
-                side: const BorderSide(color: Color(0xFF35506F)),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                foregroundColor: OnyxColorTokens.accentSky,
+                side: BorderSide(color: OnyxColorTokens.divider),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(0, 28),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
               label: Text(
-                'Export Data',
+                'Export',
                 style: GoogleFonts.inter(
                   fontSize: 9.5,
                   fontWeight: FontWeight.w700,
@@ -1864,13 +1866,14 @@ class _AdministrationPageState extends State<AdministrationPage> {
             FilledButton.icon(
               key: _adminImportCsvButtonKey,
               onPressed: _directorySaving ? null : _openAdminImportCsvFlow,
-              icon: const Icon(Icons.upload_rounded, size: 14),
+              icon: const Icon(Icons.upload_rounded, size: 13),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2B5E93),
-                foregroundColor: const Color(0xFFEAF4FF),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+                backgroundColor: OnyxColorTokens.accentBlue,
+                foregroundColor: OnyxColorTokens.textPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(0, 28),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
               label: Text(
@@ -1886,98 +1889,35 @@ class _AdministrationPageState extends State<AdministrationPage> {
 
         final titleBlock = Expanded(
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFFEAF2FB), Color(0xFFD9E6F5)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x14334155),
-                      blurRadius: 14,
-                      spreadRadius: 0.5,
-                    ),
-                  ],
-                  border: Border.all(color: _adminDialogBorderColor),
-                ),
-                child: const Icon(
-                  Icons.settings_rounded,
-                  size: 20,
-                  color: Color(0xFF365E94),
+              Text(
+                'Administration',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textPrimary,
+                  fontSize: compact ? 13 : 14,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Administration',
-                      style: GoogleFonts.inter(
-                        color: _adminDialogTitleColor,
-                        fontSize: compact ? 20 : 22,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'System configuration, AI training, and operational controls',
-                      style: GoogleFonts.inter(
-                        color: _adminDialogBodyColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: [
-                        _adminHeaderChip(
-                          label: bridgeTone.$1,
-                          foreground: bridgeTone.$2,
-                          background: bridgeTone.$3,
-                          border: bridgeTone.$4,
-                        ),
-                        _adminHeaderChip(
-                          label: widget.supabaseReady
-                              ? 'Directory Sync Ready'
-                              : 'Directory Sync Offline',
-                          foreground: widget.supabaseReady
-                              ? const Color(0xFF34D399)
-                              : const Color(0xFFF59E0B),
-                          background: widget.supabaseReady
-                              ? const Color(0x1A34D399)
-                              : const Color(0x1AF59E0B),
-                          border: widget.supabaseReady
-                              ? const Color(0x6634D399)
-                              : const Color(0x66F59E0B),
-                        ),
-                        _adminHeaderChip(
-                          label:
-                              '${widget.telegramAiPendingDrafts.length} Pending AI Draft${widget.telegramAiPendingDrafts.length == 1 ? '' : 's'}',
-                          foreground: widget.telegramAiPendingDrafts.isNotEmpty
-                              ? const Color(0xFFF59E0B)
-                              : const Color(0xFF8FD1FF),
-                          background: widget.telegramAiPendingDrafts.isNotEmpty
-                              ? const Color(0x1AF59E0B)
-                              : const Color(0x1A8FD1FF),
-                          border: widget.telegramAiPendingDrafts.isNotEmpty
-                              ? const Color(0x66F59E0B)
-                              : const Color(0x668FD1FF),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              _adminHeaderChip(
+                label: bridgeTone.$1,
+                foreground: bridgeTone.$2,
+                background: bridgeTone.$3,
+                border: bridgeTone.$4,
+              ),
+              const SizedBox(width: 4),
+              _adminHeaderChip(
+                label: widget.supabaseReady ? 'Sync Ready' : 'Sync Offline',
+                foreground: widget.supabaseReady
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.accentAmber,
+                background: widget.supabaseReady
+                    ? OnyxColorTokens.greenSurface
+                    : OnyxColorTokens.amberSurface,
+                border: widget.supabaseReady
+                    ? OnyxColorTokens.greenBorder
+                    : OnyxColorTokens.amberBorder,
               ),
             ],
           ),
@@ -2067,18 +2007,6 @@ class _AdministrationPageState extends State<AdministrationPage> {
             child: _activeTabBody(useDesktopWorkspace: useDesktopWorkspace),
           ),
         ),
-        const SizedBox(width: 5),
-        SizedBox(
-          width: 260,
-          child: _adminWorkspacePanel(
-            key: const ValueKey('admin-workspace-panel-context'),
-            title: 'Context Rail',
-            subtitle:
-                'Keep bridge posture, queue pressure, and the next pivots visible while Admin Desk stays locked in focus.',
-            shellless: useEmbeddedPanels,
-            child: _adminWorkspaceContextRail(),
-          ),
-        ),
       ],
     );
     return Column(
@@ -2111,16 +2039,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
         return Container(
           key: key,
           decoration: BoxDecoration(
-            color: const Color(0xFF13131E),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _adminDialogBorderColor),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x140F172A),
-                blurRadius: 18,
-                offset: Offset(0, 8),
-              ),
-            ],
+            color: OnyxColorTokens.backgroundSecondary,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: OnyxColorTokens.divider),
           ),
           child: Padding(
             padding: const EdgeInsets.all(8),
@@ -2130,19 +2051,10 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 Text(
                   title,
                   style: GoogleFonts.inter(
-                    color: _adminDialogTitleColor,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    color: _adminDialogBodyColor,
-                    fontSize: 9.5,
+                    color: OnyxColorTokens.textMuted,
+                    fontSize: 10,
                     fontWeight: FontWeight.w600,
-                    height: 1.35,
+                    letterSpacing: 0.9,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -2176,59 +2088,39 @@ class _AdministrationPageState extends State<AdministrationPage> {
           runSpacing: 4,
           children: [
             _adminWorkspaceChip(
-              'Current Focus: ${_adminWorkspaceTitle()}',
-              accent: const Color(0xFF8FD1FF),
+              'Focus: ${_adminWorkspaceTitle()}',
+              accent: OnyxColorTokens.accentSky,
             ),
             _adminWorkspaceChip(
-              '$entityTotal Directory Footprint',
-              accent: const Color(0xFF7FD8A5),
+              '$entityTotal Directory',
+              accent: OnyxColorTokens.accentGreen,
             ),
             _adminWorkspaceChip(
-              '$aiDraftCount AI Draft${aiDraftCount == 1 ? '' : 's'} Queued',
+              '$aiDraftCount AI Draft${aiDraftCount == 1 ? '' : 's'}',
               accent: aiDraftCount > 0
-                  ? const Color(0xFFF1B872)
-                  : const Color(0xFF8FD1FF),
+                  ? OnyxColorTokens.accentAmber
+                  : OnyxColorTokens.textMuted,
             ),
             _adminWorkspaceChip(
-              '$auditCount Client Audit${auditCount == 1 ? '' : 's'} Queued',
+              '$auditCount Audit${auditCount == 1 ? '' : 's'}',
               accent: auditCount > 0
-                  ? const Color(0xFF67E8F9)
-                  : const Color(0xFF8EA4C2),
+                  ? OnyxColorTokens.accentCyanTrue
+                  : OnyxColorTokens.textMuted,
             ),
             _adminWorkspaceChip(
-              '$intakeCount Identity Intake${intakeCount == 1 ? '' : 's'} Queued',
+              '$intakeCount Intake${intakeCount == 1 ? '' : 's'}',
               accent: intakeCount > 0
-                  ? const Color(0xFFF59E0B)
-                  : const Color(0xFF94A3B8),
+                  ? OnyxColorTokens.accentAmber
+                  : OnyxColorTokens.textMuted,
             ),
             _adminWorkspaceChip(
-              '$watchScopeCount Recovery Scope${watchScopeCount == 1 ? '' : 's'} Queued',
+              '$watchScopeCount Recovery Scope${watchScopeCount == 1 ? '' : 's'}',
               accent: watchScopeCount > 0
-                  ? const Color(0xFF22D3EE)
-                  : const Color(0xFF8EA4C2),
+                  ? OnyxColorTokens.accentCyanTrue
+                  : OnyxColorTokens.textMuted,
             ),
             _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
           ],
-        ),
-        const SizedBox(height: 5),
-        Text(
-          '${_adminWorkspaceSubtitle()} ${widget.telegramBridgeHealthDetail ?? _telegramBridgeUpdatedAtLabel()}',
-          style: GoogleFonts.inter(
-            color: _adminDialogBodyColor,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w600,
-            height: 1.38,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Directory pivots, AI review, and watch recovery now stay pinned in the left command rail so the hero banner can stay summary-first.',
-          style: GoogleFonts.inter(
-            color: _adminDialogMutedColor,
-            fontSize: 9.5,
-            fontWeight: FontWeight.w600,
-            height: 1.38,
-          ),
         ),
       ],
     );
@@ -2243,309 +2135,11 @@ class _AdministrationPageState extends State<AdministrationPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _adminDialogBorderColor),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x140F172A),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: bannerChild,
-    );
-  }
-
-  Widget _adminWorkspaceContextRail() {
-    final bridgeTone = _telegramBridgeTone();
-    final aiDraftCount = widget.telegramAiPendingDrafts.length;
-    final intakeCount = widget.initialTelegramIdentityIntakes.length;
-    final watchCount = widget.fleetScopeHealth.length;
-    final auditCount = widget.clientCommsAuditViews.length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(7),
-          decoration: BoxDecoration(
-            color: _adminDialogAltColor,
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: _adminDialogBorderColor),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'CONTEXT SNAPSHOT',
-                style: GoogleFonts.inter(
-                  color: _adminDialogMutedColor,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _adminWorkspaceTitle(),
-                style: GoogleFonts.inter(
-                  color: _adminDialogTitleColor,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _adminWorkspaceSubtitle(),
-                style: GoogleFonts.inter(
-                  color: _adminDialogBodyColor,
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: [
-                  _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
-                  _adminWorkspaceChip(
-                    _telegramBridgeContextChipLabel(),
-                    accent: const Color(0xFF8EA4C2),
-                  ),
-                  _adminWorkspaceChip(
-                    'Command Operator: ${widget.operatorId}',
-                    accent: const Color(0xFFB6C3D6),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
-        _adminWorkspaceContextMetric(
-          label: 'AI Draft Queue',
-          value: aiDraftCount.toString(),
-          detail: aiDraftCount > 0
-              ? 'Learned approval and queue review need operator attention.'
-              : 'No draft approvals are waiting right now.',
-          accent: aiDraftCount > 0
-              ? const Color(0xFFF1B872)
-              : const Color(0xFF8FD1FF),
-        ),
-        const SizedBox(height: 5),
-        _adminWorkspaceContextMetric(
-          label: 'Identity Intake Queue',
-          value: intakeCount.toString(),
-          detail: intakeCount > 0
-              ? 'Telegram identity requests are ready for watch policy review.'
-              : 'No pending identity intake records are waiting for action.',
-          accent: intakeCount > 0
-              ? const Color(0xFFF59E0B)
-              : const Color(0xFF94A3B8),
-        ),
-        const SizedBox(height: 5),
-        _adminWorkspaceContextMetric(
-          label: 'Recovery Scope Queue',
-          value: watchCount.toString(),
-          detail: watchCount > 0
-              ? 'Recovery and scene review scopes are ready for desktop drilldown.'
-              : 'No active watch-recovery scopes are currently pinned.',
-          accent: watchCount > 0
-              ? const Color(0xFF22D3EE)
-              : const Color(0xFF8EA4C2),
-        ),
-        const SizedBox(height: 5),
-        _adminWorkspaceContextMetric(
-          label: 'Client Audit Queue',
-          value: auditCount.toString(),
-          detail: auditCount > 0
-              ? 'Client communication audits can be opened from the AI Queue.'
-              : 'No client communication audits are waiting in the queue.',
-          accent: auditCount > 0
-              ? const Color(0xFF67E8F9)
-              : const Color(0xFF8EA4C2),
-        ),
-        const SizedBox(height: 6),
-        _adminWorkspaceCommandReceiptCard(),
-        const SizedBox(height: 6),
-        Text(
-          'COMMAND PIVOTS',
-          style: GoogleFonts.inter(
-            color: _adminDialogMutedColor,
-            fontSize: 9,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 5),
-        _adminWorkspaceContextQuickAction(
-          key: const ValueKey('admin-workspace-context-open-guards'),
-          label: 'Open Guard Roster',
-          accent: const Color(0xFF8FD1FF),
-          onPressed: () => _setActiveTab(AdministrationPageTab.guards),
-        ),
-        const SizedBox(height: 5),
-        _adminWorkspaceContextQuickAction(
-          key: const ValueKey('admin-workspace-context-open-sites'),
-          label: 'Open Site Footprint',
-          accent: const Color(0xFF7FD8A5),
-          onPressed: () => _setActiveTab(AdministrationPageTab.sites),
-        ),
-        const SizedBox(height: 5),
-        _adminWorkspaceContextQuickAction(
-          key: const ValueKey('admin-workspace-context-open-ai-comms'),
-          label: 'Open AI Queue',
-          accent: const Color(0xFFF1B872),
-          onPressed: () =>
-              _focusAdminSystemSection(_AdminSystemSection.aiCommunications),
-        ),
-      ],
-    );
-  }
-
-  Widget _adminWorkspaceContextMetric({
-    required String label,
-    required String value,
-    required String detail,
-    required Color accent,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-        color: _adminDialogAltColor,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: _adminDialogBorderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: _adminDialogMutedColor,
-              fontSize: 8.8,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.22,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: GoogleFonts.inter(
-              color: accent,
-              fontSize: 15.8,
-              fontWeight: FontWeight.w700,
-              height: 0.96,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            detail,
-            style: GoogleFonts.inter(
-              color: _adminDialogBodyColor,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
-              height: 1.32,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _adminWorkspaceCommandReceiptCard() {
-    final receipt = _commandReceipt;
-    return Container(
-      key: const ValueKey('admin-workspace-command-receipt'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-        color: _adminDialogAltColor,
-        borderRadius: BorderRadius.circular(9),
-        border: Border.all(color: receipt.accent.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'LATEST COMMAND',
-            style: GoogleFonts.inter(
-              color: _adminDialogMutedColor,
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-            decoration: BoxDecoration(
-              color: receipt.accent.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: receipt.accent.withValues(alpha: 0.5)),
-            ),
-            child: Text(
-              receipt.label,
-              style: GoogleFonts.inter(
-                color: receipt.accent,
-                fontSize: 9,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            receipt.headline,
-            style: GoogleFonts.inter(
-              color: _adminDialogTitleColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            receipt.detail,
-            style: GoogleFonts.inter(
-              color: _adminDialogBodyColor,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _adminWorkspaceContextQuickAction({
-    required Key key,
-    required String label,
-    required Color accent,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        key: key,
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: accent,
-          backgroundColor: const Color(0xFF13131E),
-          side: BorderSide(color: accent.withValues(alpha: 0.45)),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w700),
-        ),
-      ),
     );
   }
 
@@ -2556,31 +2150,31 @@ class _AdministrationPageState extends State<AdministrationPage> {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
-            color: _adminDialogAltColor,
-            borderRadius: BorderRadius.circular(9),
-            border: Border.all(color: _adminDialogBorderColor),
+            color: OnyxColorTokens.backgroundSecondary,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: OnyxColorTokens.divider),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Focus',
+                'FOCUS',
                 style: GoogleFonts.inter(
-                  color: _adminDialogMutedColor,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
+                  color: OnyxColorTokens.textMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.9,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 3),
               Text(
                 _adminWorkspaceTitle(),
                 style: GoogleFonts.inter(
-                  color: _adminDialogTitleColor,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
+                  color: OnyxColorTokens.textPrimary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 4),
@@ -2589,20 +2183,12 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 runSpacing: 4,
                 children: [
                   _adminWorkspaceChip(
-                    'Seed Source: ${_directoryLoadedFromSupabase ? 'Supabase' : 'Local'}',
+                    _directoryLoadedFromSupabase ? 'Supabase' : 'Local',
                     accent: _directoryLoadedFromSupabase
-                        ? const Color(0xFF67E8F9)
-                        : const Color(0xFF9AB1CF),
+                        ? OnyxColorTokens.accentCyanTrue
+                        : OnyxColorTokens.textMuted,
                   ),
                   _adminWorkspaceChip(bridgeTone.$1, accent: bridgeTone.$2),
-                  _adminWorkspaceChip(
-                    _demoMode
-                        ? 'Route Posture: Live'
-                        : 'Route Posture: Standby',
-                    accent: _demoMode
-                        ? const Color(0xFF67E8F9)
-                        : const Color(0xFF8EA4C2),
-                  ),
                 ],
               ),
             ],
@@ -2675,28 +2261,26 @@ class _AdministrationPageState extends State<AdministrationPage> {
         ),
         const SizedBox(height: 5),
         if (_activeTab == AdministrationPageTab.system) ...[
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              key: const ValueKey('admin-workspace-launch-system-flow'),
-              onPressed: _directorySaving ? null : _openSystemLaunchFlow,
-              icon: const Icon(Icons.add_rounded, size: 16),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF245B72),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+          FilledButton.icon(
+            key: const ValueKey('admin-workspace-launch-system-flow'),
+            onPressed: _directorySaving ? null : _openSystemLaunchFlow,
+            icon: const Icon(Icons.add_rounded, size: 14),
+            style: FilledButton.styleFrom(
+              backgroundColor: OnyxColorTokens.accentBlue,
+              foregroundColor: OnyxColorTokens.textPrimary,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: const Size(0, 28),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-              label: Text(
-                'Launch Command Flow',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
+            ),
+            label: Text(
+              'Launch Command Flow',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
@@ -2709,7 +2293,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 key: const ValueKey('admin-workspace-quick-add-client'),
                 label: 'Add Client',
                 icon: Icons.business_center_rounded,
-                accent: const Color(0xFFF1B872),
+                accent: OnyxColorTokens.accentAmber,
                 onPressed: _directorySaving
                     ? null
                     : () async {
@@ -2721,7 +2305,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 key: const ValueKey('admin-workspace-quick-add-site'),
                 label: 'Add Site',
                 icon: Icons.apartment_rounded,
-                accent: const Color(0xFF7FD8A5),
+                accent: OnyxColorTokens.accentGreen,
                 onPressed: _directorySaving || _clients.isEmpty
                     ? null
                     : () async {
@@ -2733,7 +2317,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
                 key: const ValueKey('admin-workspace-quick-add-staff'),
                 label: 'Add Staff',
                 icon: Icons.badge_rounded,
-                accent: const Color(0xFF8FD1FF),
+                accent: OnyxColorTokens.accentSky,
                 onPressed: _directorySaving || _clients.isEmpty
                     ? null
                     : () async {
@@ -2745,57 +2329,58 @@ class _AdministrationPageState extends State<AdministrationPage> {
           ),
           const SizedBox(height: 5),
         ],
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            key: const ValueKey('admin-workspace-export-directory'),
-            onPressed: _openAdminExportFlow,
-            icon: const Icon(Icons.download_rounded, size: 16),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF8FD1FF),
-              backgroundColor: const Color(0xFF13131E),
-              side: const BorderSide(color: Color(0xFF35506F)),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+        Wrap(
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            OutlinedButton.icon(
+              key: const ValueKey('admin-workspace-export-directory'),
+              onPressed: _openAdminExportFlow,
+              icon: const Icon(Icons.download_rounded, size: 13),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: OnyxColorTokens.accentSky,
+                backgroundColor: OnyxColorTokens.backgroundSecondary,
+                side: BorderSide(color: OnyxColorTokens.divider),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(0, 28),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              label: Text(
+                'Export',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-            label: Text(
-              'Export Directory Snapshot',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+            FilledButton.icon(
+              key: const ValueKey('admin-workspace-import-directory'),
+              onPressed: _directorySaving ? null : _openAdminImportCsvFlow,
+              icon: const Icon(Icons.upload_rounded, size: 13),
+              style: FilledButton.styleFrom(
+                backgroundColor: OnyxColorTokens.accentBlue,
+                foregroundColor: OnyxColorTokens.textPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                minimumSize: const Size(0, 28),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              label: Text(
+                'Import CSV',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
-        ),
-        const SizedBox(height: 5),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            key: const ValueKey('admin-workspace-import-directory'),
-            onPressed: _directorySaving ? null : _openAdminImportCsvFlow,
-            icon: const Icon(Icons.upload_rounded, size: 16),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2B5E93),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            label: Text(
-              'Import Directory CSV',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          ],
         ),
       ],
     );
@@ -2819,40 +2404,27 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return InkWell(
       key: key,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(8),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration: const Duration(milliseconds: 150),
         width: double.infinity,
-        padding: const EdgeInsets.all(9),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFF1FAFC) : _adminDialogAltColor,
-          borderRadius: BorderRadius.circular(12),
+          color: selected ? OnyxColorTokens.surfaceInset : OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected ? const Color(0xFFBEDAE1) : _adminDialogBorderColor,
+            color: selected
+                ? OnyxColorTokens.accentCyan.withValues(alpha: 0.4)
+                : OnyxColorTokens.divider,
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                color: _adminDialogTitleColor,
-                fontSize: 10.0,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              detail,
-              style: GoogleFonts.inter(
-                color: _adminDialogBodyColor,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-                height: 1.46,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: selected ? OnyxColorTokens.accentCyan : OnyxColorTokens.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -2954,16 +2526,16 @@ class _AdministrationPageState extends State<AdministrationPage> {
   Color _adminWorkspaceAccent() {
     if (_activeTab != AdministrationPageTab.system) {
       return switch (_activeTab) {
-        AdministrationPageTab.guards => const Color(0xFF8FD1FF),
-        AdministrationPageTab.sites => const Color(0xFF7FD8A5),
-        AdministrationPageTab.clients => const Color(0xFFF1B872),
-        AdministrationPageTab.system => const Color(0xFF8FD1FF),
+        AdministrationPageTab.guards => OnyxColorTokens.accentSky,
+        AdministrationPageTab.sites => OnyxColorTokens.accentGreen,
+        AdministrationPageTab.clients => OnyxColorTokens.accentAmber,
+        AdministrationPageTab.system => OnyxColorTokens.accentSky,
       };
     }
     return switch (_activeSystemSection) {
-      _AdminSystemSection.aiCommunications => const Color(0xFFF1B872),
-      _AdminSystemSection.systemControls => const Color(0xFF7FD8A5),
-      _AdminSystemSection.watchIdentity => const Color(0xFF22D3EE),
+      _AdminSystemSection.aiCommunications => OnyxColorTokens.accentAmber,
+      _AdminSystemSection.systemControls => OnyxColorTokens.accentGreen,
+      _AdminSystemSection.watchIdentity => OnyxColorTokens.accentCyanTrue,
     };
   }
 
@@ -3004,7 +2576,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
     required String message,
     required String detail,
     String sourceLabel = 'SYSTEM RUNTIME',
-    Color accent = const Color(0xFF7FD8A5),
+    Color accent = OnyxColorTokens.accentGreen,
   }) {
     final targetContext = targetKey.currentContext;
     if (targetContext != null) {
@@ -3050,7 +2622,7 @@ class _AdministrationPageState extends State<AdministrationPage> {
         sourceLabel: 'AI DRAFT QUEUE',
         detail:
             'Pending client comms drafts stay pinned in the audit panel so review can continue without hunting through admin surfaces.',
-        accent: const Color(0xFF00D4FF),
+        accent: OnyxColorTokens.accentCyanTrue,
       );
     });
   }
@@ -3061,23 +2633,19 @@ class _AdministrationPageState extends State<AdministrationPage> {
     required Color background,
     required Color border,
   }) {
-    final softenedForeground = _adminAccentTextColor(foreground, strength: 0.5);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          const Color(0xFF1A1A2E).withValues(alpha: 0.46),
-          background,
-        ),
+        color: background.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: border.withValues(alpha: 0.58)),
+        border: Border.all(color: border.withValues(alpha: 0.4)),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
-          color: softenedForeground,
-          fontSize: 8.7,
-          fontWeight: FontWeight.w700,
+          color: foreground,
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -4536,14 +4104,6 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return 'Updated $hh:$mm';
   }
 
-  String _telegramBridgeContextChipLabel() {
-    final at = widget.telegramBridgeHealthUpdatedAtUtc?.toLocal();
-    if (at == null) return 'Bridge Pulse: idle';
-    final hh = at.hour.toString().padLeft(2, '0');
-    final mm = at.minute.toString().padLeft(2, '0');
-    return 'Bridge Pulse: $hh:$mm';
-  }
-
   Widget _toolbar() {
     final label = switch (_activeTab) {
       AdministrationPageTab.guards => 'Employee',
@@ -4989,9 +4549,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
       children: [
         _systemCategoryFrame(
           title: 'PEOPLE / SITES / CLIENTS',
-          subtitle: 'Add and edit guards, sites, and clients fast.',
+          subtitle: '',
           icon: Icons.business_rounded,
-          accent: const Color(0xFF00D4FF),
+          accent: OnyxColorTokens.accentCyan,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -5012,214 +4572,95 @@ class _AdministrationPageState extends State<AdministrationPage> {
   }
 
   Widget _entityManagementCards() {
-    final cards = [
+    final tabs = [
       (
         tab: AdministrationPageTab.guards,
-        title: 'Guards',
-        subtitle: 'Edit staff and roster',
-        icon: Icons.groups_2_outlined,
+        label: 'Guards',
         count: _guards.length,
       ),
       (
         tab: AdministrationPageTab.sites,
-        title: 'Sites',
-        subtitle: 'Add sites and coverage',
-        icon: Icons.apartment_rounded,
+        label: 'Sites',
         count: _sites.length,
       ),
       (
         tab: AdministrationPageTab.clients,
-        title: 'Clients',
-        subtitle: 'Add clients and link sites',
-        icon: Icons.business_center_rounded,
+        label: 'Clients',
         count: _clients.length,
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1180
-            ? 3
-            : constraints.maxWidth >= 760
-            ? 2
-            : 1;
-        return GridView.count(
-          crossAxisCount: columns,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: columns == 1 ? 2.8 : 2.15,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: [
-            for (final card in cards)
-              _entityManagementCard(
-                title: card.title,
-                subtitle: card.subtitle,
-                icon: card.icon,
-                count: card.count,
-                active: _activeTab == card.tab,
-                onTap: () => _setActiveTab(card.tab),
-              ),
-          ],
-        );
-      },
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final t in tabs)
+          _entityNavTab(
+            label: t.label,
+            count: t.count,
+            active: _activeTab == t.tab,
+            onTap: () => _setActiveTab(t.tab),
+          ),
+      ],
     );
   }
 
-  Widget _entityManagementCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
+  Widget _entityNavTab({
+    required String label,
     required int count,
     required bool active,
     required VoidCallback onTap,
   }) {
-    final foreground = active
-        ? const Color(0xFFEAF7FF)
-        : const Color(0xFFF5F7FA);
-    final muted = active ? const Color(0xFFA9D7FF) : const Color(0xFF8D99A8);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(8),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.all(20),
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? OnyxColorTokens.surfaceInset : OnyxColorTokens.surfaceCard,
-          borderRadius: BorderRadius.circular(18),
+          color: active ? OnyxColorTokens.surfaceInset : OnyxColorTokens.backgroundSecondary,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: active ? OnyxDesignTokens.cyanInteractive.withValues(alpha: 0.4) : OnyxDesignTokens.borderSubtle,
+            color: active
+                ? OnyxColorTokens.accentCyan.withValues(alpha: 0.5)
+                : OnyxColorTokens.divider,
           ),
-          boxShadow: active
-              ? const [
-                  BoxShadow(
-                    color: Color(0x2600BFFF),
-                    blurRadius: 22,
-                    offset: Offset(0, 8),
-                  ),
-                ]
-              : const [],
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxHeight < 108;
-            if (compact) {
-              return Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: active
-                          ? const Color(0x1A00D4FF)
-                          : const Color(0x1400D4FF),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, color: const Color(0xFF00D4FF), size: 20),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: foreground,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            color: muted,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '$count',
-                    style: GoogleFonts.inter(
-                      color: active
-                          ? const Color(0xFF00D4FF)
-                          : const Color(0xFF8EA4C2),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: active
-                            ? const Color(0x1A00D4FF)
-                            : const Color(0x1400D4FF),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        icon,
-                        color: const Color(0xFF00D4FF),
-                        size: 22,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '$count',
-                      style: GoogleFonts.inter(
-                        color: active
-                            ? const Color(0xFF00D4FF)
-                            : const Color(0xFF8EA4C2),
-                        fontSize: 28,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: active ? OnyxColorTokens.accentCyan : OnyxColorTokens.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: active
+                    ? OnyxColorTokens.accentCyan.withValues(alpha: 0.15)
+                    : OnyxColorTokens.divider,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.inter(
+                  color: active ? OnyxColorTokens.accentCyan : OnyxColorTokens.textMuted,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
                 ),
-                const Spacer(),
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    color: foreground,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    color: muted,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            );
-          },
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
 
   Widget _activeEntityWorkspace() {
     return switch (_activeTab) {
@@ -5247,28 +4688,30 @@ class _AdministrationPageState extends State<AdministrationPage> {
       children: [
         _systemCategoryFrame(
           title: 'AI STYLE MEMORY',
-          subtitle: 'What AI learned from your approvals.',
+          subtitle: '',
           icon: Icons.psychology_alt_rounded,
-          accent: const Color(0xFF8B5CF6),
+          accent: OnyxColorTokens.accentPurple,
           badge: '$activePatterns ACTIVE PATTERNS',
           child: _telegramAiAssistantPanel(),
         ),
         const SizedBox(height: 14),
         _systemCategoryFrame(
           title: 'AI DRAFT QUEUE',
-          subtitle: 'Drafts waiting for your yes or no.',
+          subtitle: '',
           icon: Icons.chat_bubble_outline_rounded,
-          accent: const Color(0xFF00D4FF),
+          accent: OnyxColorTokens.accentCyanTrue,
           trailing: OutlinedButton(
             onPressed: widget.onOpenAiQueue,
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF00D4FF),
-              side: const BorderSide(color: Color(0xFF245B72)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              foregroundColor: OnyxColorTokens.accentCyanTrue,
+              side: BorderSide(color: OnyxColorTokens.divider),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              minimumSize: const Size(0, 28),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: Text(
-              'JUMP TO QUEUE',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+              'Jump to Queue',
+              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700),
             ),
           ),
           child: _clientCommsAuditPanel(),
@@ -5284,9 +4727,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
       children: [
         _systemCategoryFrame(
           title: 'System Health',
-          subtitle: 'Health, queues, and live controls.',
+          subtitle: '',
           icon: Icons.settings_rounded,
-          accent: const Color(0xFFF59E0B),
+          accent: OnyxColorTokens.accentAmber,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -6153,9 +5596,9 @@ class _AdministrationPageState extends State<AdministrationPage> {
       children: [
         _systemCategoryFrame(
           title: 'WATCH / IDENTITY',
-          subtitle: 'Fleet watch health and temporary approvals.',
+          subtitle: '',
           icon: Icons.shield_outlined,
-          accent: const Color(0xFFA855F7),
+          accent: OnyxColorTokens.accentPurple,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -6205,81 +5648,55 @@ class _AdministrationPageState extends State<AdministrationPage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _adminDialogRaisedColor,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _adminDialogBorderColor),
+        color: OnyxColorTokens.backgroundSecondary,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: OnyxColorTokens.divider),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: accent.withValues(alpha: 0.4)),
-                  ),
-                  child: Icon(icon, color: accent, size: 24),
-                ),
-                const SizedBox(width: 18),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: GoogleFonts.inter(
-                          color: _adminDialogTitleColor,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: GoogleFonts.inter(
-                          color: _adminDialogBodyColor,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    color: OnyxColorTokens.textMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.9,
                   ),
                 ),
-                if (badge != null)
+                if (badge != null) ...[
+                  const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0FDF4),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF9AD9B0)),
+                      color: OnyxColorTokens.greenSurface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: OnyxColorTokens.greenBorder),
                     ),
                     child: Text(
                       badge,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF34D399),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
+                        color: OnyxColorTokens.accentGreen,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.4,
                       ),
                     ),
-                  )
-                else if (trailing != null) ...<Widget>[trailing],
+                  ),
+                ] else if (trailing != null) ...[
+                  const Spacer(),
+                  trailing,
+                ],
               ],
             ),
           ),
-          Divider(color: _adminDialogBorderColor, height: 1),
-          Padding(padding: const EdgeInsets.all(18), child: child),
+          Divider(color: OnyxColorTokens.divider, height: 1),
+          Padding(padding: const EdgeInsets.all(12), child: child),
         ],
       ),
     );

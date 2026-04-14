@@ -345,163 +345,187 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     required String focusReference,
     required List<_GuardPreset> guardPresets,
   }) {
-    final heroBannerChildren = <Widget>[
-      _buildHeroStatusChip(label: _integrity.label, color: _integrity.color),
-      if (focusReference.isNotEmpty)
-        _buildContextChip(
-          label: 'Focus: $focusReference',
-          color: const Color(0xFF6A63FF),
-        ),
-      if (hasScopeFocus)
-        Container(
-          key: const ValueKey('ledger-scope-banner'),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: _obSurfaceElevated,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _obBorder),
-          ),
-          child: Text(
-            '${_displayClientLabel(scopeClientId)} / ${_displaySiteLabel(scopeSiteId)}',
-            style: GoogleFonts.inter(
-              color: _obBlueAccent,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-    ];
+    final chainStatusLabel =
+        '$totalEntries ${totalEntries == 1 ? 'entry' : 'entries'} · ${_integrity.label}';
 
     return _surfacePanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          OnyxStoryHero(
-            eyebrow: 'Command',
-            title: 'Sovereign Ledger',
-            subtitle:
-                'One clean record, one clear next move, full chain in the background.',
-            icon: Icons.menu_book_rounded,
-            gradientColors: const [Color(0xFF13131E), Color(0xFF1A1A2E)],
-            metrics: [
-              OnyxStoryMetric(
-                value: selected.recordCode,
-                label: 'focus',
-                foreground: const Color(0xFF2F6AA3),
-                background: const Color(0x142F6AA3),
-                border: const Color(0x332F6AA3),
-              ),
-              OnyxStoryMetric(
-                value: '$todayEntries',
-                label: 'today',
-                foreground: const Color(0xFF5B5CE2),
-                background: const Color(0x145B5CE2),
-                border: const Color(0x335B5CE2),
-              ),
-              OnyxStoryMetric(
-                value: '$incidentEntries',
-                label: 'incident',
-                foreground: const Color(0xFFF87171),
-                background: const Color(0x1AF87171),
-                border: const Color(0x66F87171),
-              ),
-              OnyxStoryMetric(
-                value: '$flaggedEntries',
-                label: 'flagged',
-                foreground: flaggedEntries > 0
-                    ? const Color(0xFFFBBF24)
-                    : const Color(0xFF9AB1CF),
-                background: flaggedEntries > 0
-                    ? const Color(0x1AF59E0B)
-                    : const Color(0x1494A3B8),
-                border: flaggedEntries > 0
-                    ? const Color(0x66F59E0B)
-                    : const Color(0x6694A3B8),
-              ),
-              OnyxStoryMetric(
-                value: '$totalEntries',
-                label: 'entries',
-                foreground: _obTextPrimary,
-                background: const Color(0xFF13131E),
-                border: _obBorder,
-              ),
-            ],
-            actions: [
-              OutlinedButton.icon(
-                key: const ValueKey('ledger-hero-view-events-button'),
-                onPressed:
-                    selected.linkedEventIds.isEmpty ||
-                        widget.onOpenEventsForScope == null
-                    ? null
-                    : () => _openSelectedEvents(
-                        selected,
-                        label: 'OPEN EVENTS SCOPE',
-                      ),
-                style: _secondaryButtonStyle(),
-                icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                label: const Text('OPEN EVENTS SCOPE'),
-              ),
-              OutlinedButton.icon(
-                key: const ValueKey('ledger-hero-verify-button'),
-                onPressed: () => _runIntegrityCheck(
-                  _manualEntries.isNotEmpty
-                      ? <_ObEntryView>[..._manualEntries, selected]
-                      : <_ObEntryView>[selected],
+          // Compact one-line header row
+          Row(
+            children: [
+              Text(
+                'Ledger',
+                style: GoogleFonts.inter(
+                  color: OnyxColorTokens.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
                 ),
-                style: _secondaryButtonStyle(),
-                icon: const Icon(Icons.verified_rounded, size: 18),
-                label: const Text('Check Chain'),
               ),
-              FilledButton.icon(
-                key: const ValueKey('ledger-open-composer'),
-                onPressed: () => _openComposer(guardPresets),
-                style: _primaryButtonStyle(),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Add Entry Now'),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: OnyxColorTokens.backgroundSecondary,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: _integrity.color.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: _integrity.color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      chainStatusLabel,
+                      style: GoogleFonts.inter(
+                        color: _integrity.color,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasScopeFocus) ...[
+                const SizedBox(width: 6),
+                Container(
+                  key: const ValueKey('ledger-scope-banner'),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: OnyxColorTokens.divider),
+                  ),
+                  child: Text(
+                    '${_displayClientLabel(scopeClientId)} / ${_displaySiteLabel(scopeSiteId)}',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+              const Spacer(),
+              // Action buttons — compact
+              Wrap(
+                spacing: 5,
+                children: [
+                  SizedBox(
+                    height: 28,
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('ledger-hero-view-events-button'),
+                      onPressed:
+                          selected.linkedEventIds.isEmpty ||
+                              widget.onOpenEventsForScope == null
+                          ? null
+                          : () => _openSelectedEvents(
+                              selected,
+                              label: 'OPEN EVENTS SCOPE',
+                            ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: OnyxColorTokens.textSecondary,
+                        side: const BorderSide(color: OnyxColorTokens.divider),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 13),
+                      label: const Text('Events'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 28,
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('ledger-hero-verify-button'),
+                      onPressed: () => _runIntegrityCheck(
+                        _manualEntries.isNotEmpty
+                            ? <_ObEntryView>[..._manualEntries, selected]
+                            : <_ObEntryView>[selected],
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: OnyxColorTokens.textSecondary,
+                        side: const BorderSide(color: OnyxColorTokens.divider),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                      icon: const Icon(Icons.verified_rounded, size: 13),
+                      label: const Text('Verify'),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 28,
+                    child: FilledButton.icon(
+                      key: const ValueKey('ledger-open-composer'),
+                      onPressed: () => _openComposer(guardPresets),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: OnyxColorTokens.brand,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                      icon: const Icon(Icons.add_rounded, size: 13),
+                      label: const Text('Add Entry'),
+                    ),
+                  ),
+                ],
               ),
             ],
-            banner: heroBannerChildren.isEmpty
-                ? null
-                : Wrap(spacing: 8, runSpacing: 8, children: heroBannerChildren),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
+          // Compact search bar
           Container(
+            height: 38,
             decoration: BoxDecoration(
-              color: _obInputFill,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: _obBorder),
+              color: OnyxColorTokens.backgroundPrimary,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: OnyxColorTokens.divider),
             ),
             child: TextField(
               controller: _searchController,
               onChanged: (value) => setState(() => _searchQuery = value.trim()),
               style: GoogleFonts.inter(
                 color: _obTextPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
               decoration: InputDecoration(
                 hintText: 'Search entries...',
                 hintStyle: GoogleFonts.inter(
                   color: _obTextMuted,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
                 ),
                 border: InputBorder.none,
                 prefixIcon: const Icon(
                   Icons.search_rounded,
                   color: _obTextMuted,
+                  size: 16,
                 ),
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 16,
+                  horizontal: 12,
+                  vertical: 0,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
+          // Filter pills
           Wrap(
-            spacing: 10,
-            runSpacing: 10,
+            spacing: 6,
+            runSpacing: 6,
             children: _ObCategory.values
                 .map(
                   (category) => _buildFilterChip(
@@ -1150,13 +1174,11 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
           Container(
             key: const ValueKey('ledger-workspace-command-receipt'),
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _commandReceipt.accent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: _commandReceipt.accent.withValues(alpha: 0.24),
-              ),
+              color: OnyxColorTokens.backgroundSecondary,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: OnyxColorTokens.divider),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2308,25 +2330,6 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     };
   }
 
-  Widget _buildContextChip({required String label, required Color color}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.22)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-
   Widget _buildFilterChip({
     required _ObCategory category,
     required bool selected,
@@ -2662,20 +2665,9 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
     return FilledButton.styleFrom(
       backgroundColor: backgroundColor,
       foregroundColor: foregroundColor,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800),
-    );
-  }
-
-  ButtonStyle _secondaryButtonStyle() {
-    return OutlinedButton.styleFrom(
-      foregroundColor: _obTextPrimary,
-      backgroundColor: _obSurfaceFill,
-      side: const BorderSide(color: _obBorder),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w800),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
     );
   }
 

@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'theme/onyx_design_tokens.dart';
+
 import '../application/export_coordinator.dart';
 import '../application/morning_sovereign_report_service.dart';
 import '../application/monitoring_global_posture_service.dart';
@@ -333,30 +335,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     final openGovernanceAction = _openGovernanceActionForEvents(
       scopedTimelineEvents,
     );
-    final openFocusedFallbackGovernanceAction =
-        !hasFocusedFallback || openGovernanceAction == null
-        ? null
-        : () {
-            openGovernanceAction();
-            if (focusedFallbackScope == null) {
-              _showActionMessage(
-                'Governance Desk opened for the reconstructed evidence.',
-              );
-              return;
-            }
-            _showActionMessage(
-              'Governance Desk opened for ${focusedFallbackScope.clientId}/${focusedFallbackScope.siteId}.',
-            );
-          };
-    final openFocusedFallbackLedgerAction =
-        !hasFocusedFallback || widget.onOpenLedger == null
-        ? null
-        : () {
-            widget.onOpenLedger!(requestedSelectedId);
-            _showActionMessage(
-              'Sovereign Ledger opened for $requestedSelectedId.',
-            );
-          };
     final scopeFilteredBase = scopedEventIdsWithFocusedFallback.isEmpty
         ? filtered
         : filtered
@@ -456,9 +434,9 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x223C79BB),
+              color: OnyxColorTokens.backgroundSecondary,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x665FAAFF)),
+              border: Border.all(color: OnyxColorTokens.borderSubtle),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,48 +447,23 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                     focusedFallbackScope,
                   ),
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFEAF1FB),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
                 Text(
                   _focusedFallbackBannerDetail(
                     requestedSelectedId,
                     focusedFallbackScope,
                   ),
                   style: GoogleFonts.inter(
-                    color: const Color(0xFFAFC2DB),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+                    color: OnyxColorTokens.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
                     height: 1.35,
                   ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _heroActionButton(
-                      key: const ValueKey(
-                        'events-focused-fallback-open-governance',
-                      ),
-                      icon: Icons.verified_user_outlined,
-                      label: 'OPEN GOVERNANCE DESK',
-                      accent: const Color(0xFF8FD1FF),
-                      onPressed: openFocusedFallbackGovernanceAction,
-                    ),
-                    _heroActionButton(
-                      key: const ValueKey(
-                        'events-focused-fallback-open-ledger',
-                      ),
-                      icon: Icons.account_balance_wallet_outlined,
-                      label: 'OPEN SOVEREIGN LEDGER',
-                      accent: const Color(0xFFF1B872),
-                      onPressed: openFocusedFallbackLedgerAction,
-                    ),
-                  ],
                 ),
               ],
             ),
@@ -521,16 +474,16 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: const Color(0x221F3A5A),
+              color: OnyxColorTokens.backgroundSecondary,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0x6635506F)),
+              border: Border.all(color: OnyxColorTokens.divider),
             ),
             child: Text(
-              'Focused reference $requestedSelectedId is outside the current filters. Clear filters or use the desk targets above to reopen the right scope.',
+              'Focused reference $requestedSelectedId is outside the current filters. Clear filters to reopen the right scope.',
               style: GoogleFonts.inter(
-                color: const Color(0xFFEAF1FB),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -1901,32 +1854,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                       scopedEventCount: scopedEventIds.length,
                       governanceReady: openGovernanceAction != null,
                       onResetFilters: _resetFilters,
-                      onFocusAiDecisions: () =>
-                          setState(() => _activeFilter = 'AI DECISION'),
-                      onFocusAlarmTriggers: () =>
-                          setState(() => _activeFilter = 'ALARM TRIGGERED'),
-                      onOpenGovernanceScope:
-                          openGovernanceAction ??
-                          () => _showActionMessage(
-                            'Governance Desk opens once Events Scope narrows to a single scope.',
-                          ),
-                      onOpenLedgerFocus: selected == null
-                          ? () => _showActionMessage(
-                              'Pick one event to open Sovereign Ledger.',
-                            )
-                          : () {
-                              logUiAction(
-                                'events.workspace_open_ledger',
-                                context: {'event_id': selected.eventId},
-                              );
-                              if (widget.onOpenLedger != null) {
-                                widget.onOpenLedger!.call(selected.eventId);
-                                return;
-                              }
-                              _showActionMessage(
-                                'Sovereign Ledger is ready for ${selected.eventId}.',
-                              );
-                            },
                       shellless: true,
                     )
                   : null,
@@ -1961,42 +1888,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
         if (_desktopWorkspaceActive != desktopWorkspace) {
           _queueDesktopWorkspaceSync(desktopWorkspace);
         }
-        void focusAiDecisions() {
-          setState(() => _activeFilter = 'AI DECISION');
-        }
-
-        void focusAlarmTriggers() {
-          setState(() => _activeFilter = 'ALARM TRIGGERED');
-        }
-
-        void openGovernanceScope() {
-          if (openGovernanceAction != null) {
-            openGovernanceAction();
-            return;
-          }
-          _showActionMessage(
-            'Governance Desk opens once Events Scope narrows to a single scope.',
-          );
-        }
-
-        void openLedgerFocus() {
-          if (selected == null) {
-            _showActionMessage('Pick one event to open Sovereign Ledger.');
-            return;
-          }
-          logUiAction(
-            'events.workspace_open_ledger',
-            context: {'event_id': selected.eventId},
-          );
-          if (widget.onOpenLedger != null) {
-            widget.onOpenLedger!.call(selected.eventId);
-            return;
-          }
-          _showActionMessage(
-            'Sovereign Ledger is ready for ${selected.eventId}.',
-          );
-        }
-
         if (!desktopWorkspace) {
           return Column(
             children: [
@@ -2029,10 +1920,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               latestSequence: latestSequence,
               scopedEventCount: scopedEventCount,
               onResetFilters: _resetFilters,
-              onFocusAiDecisions: focusAiDecisions,
-              onFocusAlarmTriggers: focusAlarmTriggers,
-              onOpenGovernanceScope: openGovernanceScope,
-              onOpenLedgerFocus: openLedgerFocus,
             ),
           ),
         );
@@ -2071,10 +1958,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
                 scopedEventCount: scopedEventCount,
                 governanceReady: openGovernanceAction != null,
                 onResetFilters: _resetFilters,
-                onFocusAiDecisions: focusAiDecisions,
-                onFocusAlarmTriggers: focusAlarmTriggers,
-                onOpenGovernanceScope: openGovernanceScope,
-                onOpenLedgerFocus: openLedgerFocus,
               ),
               const SizedBox(height: 5),
             ],
@@ -2167,10 +2050,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required int scopedEventCount,
     required bool governanceReady,
     required VoidCallback onResetFilters,
-    required VoidCallback onFocusAiDecisions,
-    required VoidCallback onFocusAlarmTriggers,
-    required VoidCallback onOpenGovernanceScope,
-    required VoidCallback onOpenLedgerFocus,
     bool shellless = false,
   }) {
     final bannerContent = Column(
@@ -2192,21 +2071,7 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
               _heroChip('Policy', _activeIdentityPolicyFilter),
             if (scopedEventCount > 0)
               _heroChip('Scoped', '$scopedEventCount linked'),
-            _heroChip(
-              'Governance Desk',
-              governanceReady ? 'scope ready' : 'mixed scope',
-            ),
           ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'AI pivots, alarm pivots, Governance Desk, and Sovereign Ledger stay armed below.',
-          style: GoogleFonts.inter(
-            color: const Color(0xFF556B80),
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            height: 1.35,
-          ),
         ),
       ],
     );
@@ -2274,10 +2139,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     required String latestSequence,
     required int scopedEventCount,
     required VoidCallback onResetFilters,
-    required VoidCallback onFocusAiDecisions,
-    required VoidCallback onFocusAlarmTriggers,
-    required VoidCallback onOpenGovernanceScope,
-    required VoidCallback onOpenLedgerFocus,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2326,117 +2187,14 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
           ),
         ),
         const SizedBox(height: 6),
-        _reviewWorkspaceCommandReceipt(selected: selected),
-        const SizedBox(height: 6),
         _outlineAction(
           'RESET FILTERS',
           actionKey: const ValueKey('events-workspace-reset-filters'),
           onTap: onResetFilters,
         ),
-        const SizedBox(height: 5),
-        _outlineAction(
-          'AI DECISIONS',
-          actionKey: const ValueKey('events-workspace-focus-ai-decision'),
-          onTap: onFocusAiDecisions,
-        ),
-        const SizedBox(height: 5),
-        _outlineAction(
-          'ALARM TRIGGERS',
-          actionKey: const ValueKey('events-workspace-focus-alarm-triggered'),
-          onTap: onFocusAlarmTriggers,
-        ),
-        const SizedBox(height: 5),
-        _outlineAction(
-          'OPEN GOVERNANCE DESK',
-          actionKey: const ValueKey('events-workspace-open-governance'),
-          onTap: onOpenGovernanceScope,
-        ),
-        const SizedBox(height: 5),
-        _outlineAction(
-          'OPEN SOVEREIGN LEDGER',
-          actionKey: const ValueKey('events-workspace-open-ledger'),
-          onTap: onOpenLedgerFocus,
-        ),
-        const SizedBox(height: 5),
-        _outlineAction(
-          'COPY EVENT',
-          actionKey: const ValueKey('events-workspace-copy-selected'),
-          onTap: () {
-            if (selected == null) {
-              _showActionMessage('Select an event before exporting data.');
-              return;
-            }
-            _exportEventData(selected);
-          },
-        ),
         const SizedBox(height: 6),
         _filterStrip(identityPolicyOptions),
       ],
-    );
-  }
-
-  Widget _reviewWorkspaceCommandReceipt({required DispatchEvent? selected}) {
-    final hasFeedback = _lastActionFeedback.trim().isNotEmpty;
-    final headline = hasFeedback ? _lastActionFeedback : 'Board ready.';
-    final label = hasFeedback
-        ? 'LATEST COMMAND'
-        : selected == null
-        ? 'Command Board'
-        : 'YOU ARE HERE';
-    final detail = hasFeedback
-        ? 'The last routed move stays pinned while Events Scope and the focus card stay hot.'
-        : selected == null
-        ? 'Pick one event to keep Governance Desk, Sovereign Ledger, and export ready.'
-        : 'Tracking ${selected.eventId} while Governance Desk, Sovereign Ledger, and export stay one tap away.';
-    return Container(
-      key: const ValueKey('events-workspace-command-receipt'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF13131E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: hasFeedback
-              ? const Color(0xFFBFD7EA)
-              : const Color(0xFFD6E1EC),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: hasFeedback
-                  ? const Color(0xFF2F6AA3)
-                  : const Color(0xFF7A8FA4),
-              fontSize: 9.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 5),
-          Text(
-            headline,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            detail,
-            style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
-              fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -2449,62 +2207,24 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
     Widget? workspaceBanner,
   }) {
     final selectedLabel = selected == null ? 'None' : selected.eventId;
-    final openLedgerAction = selected == null || widget.onOpenLedger == null
-        ? null
-        : () => widget.onOpenLedger!(selected.eventId);
-    return OnyxStoryHero(
-      eyebrow: 'Command',
-      title: 'Events Board',
-      subtitle: 'Pick the lane, lock the facts, and move the case fast.',
-      icon: Icons.timeline_rounded,
-      gradientColors: const [Color(0xFF13131E), Color(0xFF1A1A2E)],
-      metrics: [
-        OnyxStoryMetric(
-          value: '$visibleEvents',
-          label: 'visible',
-          foreground: const Color(0xFF8FD1FF),
-          background: const Color(0x1A8FD1FF),
-          border: const Color(0x668FD1FF),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            _heroChip('Visible', '$visibleEvents'),
+            _heroChip('Total', '$totalEvents'),
+            _heroChip('Latest', latestSequence),
+            _heroChip('Selected', selectedLabel),
+          ],
         ),
-        OnyxStoryMetric(
-          value: '$totalEvents',
-          label: 'events',
-          foreground: const Color(0xFF172638),
-          background: const Color(0xFF13131E),
-          border: const Color(0xFFD6E1EC),
-        ),
-        OnyxStoryMetric(
-          value: latestSequence,
-          label: 'latest',
-          foreground: const Color(0xFFF59E0B),
-          background: const Color(0x1AF59E0B),
-          border: const Color(0x66F59E0B),
-        ),
-        OnyxStoryMetric(
-          value: selectedLabel,
-          label: 'selected',
-          foreground: const Color(0xFFA78BFA),
-          background: const Color(0x1AA78BFA),
-          border: const Color(0x66A78BFA),
-        ),
+        if (workspaceBanner != null) ...[
+          const SizedBox(height: 6),
+          workspaceBanner,
+        ],
       ],
-      actions: [
-        _heroActionButton(
-          key: const ValueKey('events-routed-view-governance-button'),
-          icon: Icons.open_in_new,
-          label: 'OPEN GOVERNANCE DESK',
-          accent: const Color(0xFF93C5FD),
-          onPressed: openGovernanceAction,
-        ),
-        _heroActionButton(
-          key: const ValueKey('events-routed-view-ledger-button'),
-          icon: Icons.account_tree_outlined,
-          label: 'OPEN SOVEREIGN LEDGER',
-          accent: const Color(0xFFA78BFA),
-          onPressed: openLedgerAction,
-        ),
-      ],
-      banner: workspaceBanner,
     );
   }
 
@@ -2537,34 +2257,6 @@ class _EventsReviewPageState extends State<EventsReviewPage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _heroActionButton({
-    required Key key,
-    required IconData icon,
-    required String label,
-    required Color accent,
-    required VoidCallback? onPressed,
-  }) {
-    return FilledButton.tonalIcon(
-      key: key,
-      onPressed: onPressed,
-      icon: Icon(icon, size: 15),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: accent.withValues(alpha: 0.12),
-        foregroundColor: accent,
-        disabledBackgroundColor: const Color(0xFFF0F4F8),
-        disabledForegroundColor: const Color(0x667A8CA8),
-        side: BorderSide(color: accent.withValues(alpha: 0.28)),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        textStyle: GoogleFonts.inter(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w700,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
