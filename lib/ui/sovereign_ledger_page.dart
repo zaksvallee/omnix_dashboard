@@ -21,18 +21,18 @@ import '../domain/events/vehicle_visit_review_recorded.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
 
-const _obSurfaceFill = Color(0xFF13131E);
-const _obSurfaceElevated = Color(0xFF1A1A2E);
-const _obSurfaceSoft = Color(0xFF1A1A2E);
-const _obInputFill = Color(0xFF0D0D14);
-const _obBorder = Color(0x269D4BFF);
-const _obBorderStrong = Color(0x4D9D4BFF);
-const _obTextPrimary = Color(0xFFE8E8F0);
-const _obTextSecondary = Color(0x80FFFFFF);
-const _obTextMuted = Color(0x4DFFFFFF);
-const _obBlueAccent = Color(0xFF9D4BFF);
-const _obBlueAccentStrong = Color(0xFF9D4BFF);
-const _obButtonFill = Color(0xFF9D4BFF);
+const _obSurfaceFill = OnyxColorTokens.backgroundSecondary;
+const _obSurfaceElevated = OnyxColorTokens.surfaceElevated;
+const _obSurfaceSoft = OnyxColorTokens.surfaceElevated;
+const _obInputFill = OnyxColorTokens.backgroundPrimary;
+const _obBorder = OnyxColorTokens.borderSubtle;
+const _obBorderStrong = OnyxColorTokens.cyanBorder;
+const _obTextPrimary = OnyxColorTokens.textPrimary;
+const _obTextSecondary = OnyxColorTokens.textSecondary;
+const _obTextMuted = OnyxColorTokens.textMuted;
+const _obBlueAccent = OnyxColorTokens.accentCyan;
+const _obBlueAccentStrong = OnyxColorTokens.accentCyan;
+const _obButtonFill = OnyxColorTokens.brand;
 
 class SovereignLedgerPinnedAuditEntry {
   final String auditId;

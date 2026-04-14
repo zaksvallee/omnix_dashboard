@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 const _vipSurfaceColor = Color(0xFF13131E);
 const _vipSurfaceAltColor = Color(0xFF1A1A2E);
@@ -107,20 +107,65 @@ class VipProtectionPage extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    OnyxPageHeader(
-                      title: 'VIP Protection',
-                      subtitle: 'VIP protection and escort.',
-                      icon: Icons.star_rounded,
-                      iconColor: Theme.of(context).colorScheme.primary,
-                    ),
-                    const SizedBox(height: 10),
-                    OnyxStatusBanner(
-                      message: hasScheduledDetails
-                          ? '${scheduledDetails.length} active VIP movements'
-                          : 'No active VIP details',
-                      severity: hasScheduledDetails
-                          ? OnyxSeverity.info
-                          : OnyxSeverity.success,
+                    Row(
+                      children: [
+                        Text(
+                          'VIP protection',
+                          style: GoogleFonts.inter(
+                            color: OnyxColorTokens.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: hasScheduledDetails
+                                ? OnyxColorTokens.cyanSurface
+                                : OnyxColorTokens.backgroundSecondary,
+                            borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: hasScheduledDetails
+                                  ? OnyxColorTokens.cyanBorder
+                                  : OnyxColorTokens.divider,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 5,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: hasScheduledDetails
+                                      ? OnyxColorTokens.accentCyan
+                                      : OnyxColorTokens.textMuted,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                hasScheduledDetails
+                                    ? '${scheduledDetails.length} active'
+                                    : 'No active details',
+                                style: GoogleFonts.inter(
+                                  color: hasScheduledDetails
+                                      ? OnyxColorTokens.accentCyan
+                                      : OnyxColorTokens.textMuted,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     if (latestAutoAuditReceipt != null) ...[
                       const SizedBox(height: 18),

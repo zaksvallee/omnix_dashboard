@@ -17,9 +17,9 @@ import '../domain/events/execution_completed.dart';
 import '../domain/events/execution_denied.dart';
 import '../domain/events/intelligence_received.dart';
 import '../domain/events/incident_closed.dart';
-import 'components/onyx_status_banner.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
 enum _AiIncidentPriority { p1Critical, p2High, p3Medium }
 
@@ -608,20 +608,74 @@ class _AIQueuePageState extends State<AIQueuePage> {
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              OnyxPageHeader(
-                title: 'CCTV Monitoring',
-                subtitle: 'AI-assisted video surveillance.',
-                icon: Icons.videocam_rounded,
-                iconColor: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 10),
-              OnyxStatusBanner(
-                message: alerts.isNotEmpty
-                    ? '${alerts.length} AI alerts'
-                    : 'No AI alerts',
-                severity: alerts.isNotEmpty
-                    ? OnyxSeverity.warning
-                    : OnyxSeverity.success,
+              Row(
+                children: [
+                  Text(
+                    'AI queue',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: alerts.isNotEmpty
+                          ? OnyxColorTokens.amberSurface
+                          : OnyxColorTokens.backgroundSecondary,
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(
+                        color: alerts.isNotEmpty
+                            ? OnyxColorTokens.amberBorder
+                            : OnyxColorTokens.divider,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: alerts.isNotEmpty
+                                ? OnyxColorTokens.accentAmber
+                                : OnyxColorTokens.accentGreen,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          alerts.isNotEmpty
+                              ? '${alerts.length} alert${alerts.length == 1 ? '' : 's'}'
+                              : 'No alerts',
+                          style: GoogleFonts.inter(
+                            color: alerts.isNotEmpty
+                                ? OnyxColorTokens.accentAmber
+                                : OnyxColorTokens.accentGreen,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'DVR active',
+                    style: GoogleFonts.inter(
+                      color: OnyxColorTokens.textMuted,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
               if (showPinnedCommandReceipt) ...[
                 const SizedBox(height: 18),

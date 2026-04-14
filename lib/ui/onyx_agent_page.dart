@@ -2206,22 +2206,6 @@ class _OnyxAgentPageState extends State<OnyxAgentPage> {
               const SizedBox(height: 10),
             ],
             _sideCard(
-              title: 'SPECIALISTS ON CALL',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _personas
-                        .map((persona) => _coverageChip(persona.label))
-                        .toList(growable: false),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 10),
-            _sideCard(
               title: 'TOOLS',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

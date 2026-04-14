@@ -19,14 +19,15 @@ import '../domain/events/report_generated.dart';
 import '../domain/events/response_arrived.dart';
 import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
+import 'theme/onyx_design_tokens.dart';
 
-const _ledgerPanelColor = Color(0xFF13131E);
-const _ledgerPanelTint = Color(0xFF1A1A2E);
-const _ledgerPanelMuted = Color(0xFF1A1A2E);
-const _ledgerBorderColor = Color(0x269D4BFF);
-const _ledgerTitleColor = Color(0xFFE8E8F0);
-const _ledgerBodyColor = Color(0x80FFFFFF);
-const _ledgerMutedColor = Color(0x4DFFFFFF);
+const _ledgerPanelColor = OnyxColorTokens.backgroundSecondary;
+const _ledgerPanelTint = OnyxColorTokens.surfaceElevated;
+const _ledgerPanelMuted = OnyxColorTokens.surfaceElevated;
+const _ledgerBorderColor = OnyxColorTokens.borderSubtle;
+const _ledgerTitleColor = OnyxColorTokens.textPrimary;
+const _ledgerBodyColor = OnyxColorTokens.textSecondary;
+const _ledgerMutedColor = OnyxColorTokens.textMuted;
 
 class LedgerPage extends StatefulWidget {
   final String clientId;
