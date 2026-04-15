@@ -660,6 +660,9 @@ class _ClientsPageState extends State<ClientsPage> {
                 onEdit: _editQueueItem,
                 onReject: _rejectQueueItem,
                 onOpenAgentForIncident: widget.onOpenAgentForIncident,
+                selectedTone: _selectedPinnedVoice,
+                onToneChanged: (tone) => setState(() => _selectedPinnedVoice = tone),
+                messageHistory: const [],
               ),
             );
           }

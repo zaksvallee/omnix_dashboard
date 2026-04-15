@@ -3,12 +3,16 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'theme/onyx_design_tokens.dart';
 
-const _queuePanelColor = OnyxColorTokens.backgroundSecondary;
-const _queueBorderColor = OnyxColorTokens.borderSubtle;
-const _queueStrongBorderColor = OnyxColorTokens.cyanBorder;
-const _queueTitleColor = OnyxColorTokens.textPrimary;
-const _queueBodyColor = OnyxColorTokens.textMuted;
-const _queueMutedColor = OnyxColorTokens.textSecondary;
+// ── Colour aliases ─────────────────────────────────────────────────────────
+const _bg = OnyxColorTokens.backgroundPrimary;
+const _surface = OnyxColorTokens.backgroundSecondary;
+const _titleColor = OnyxColorTokens.textPrimary;
+const _bodyColor = OnyxColorTokens.textSecondary;
+const _mutedColor = OnyxColorTokens.textMuted;
+const _dividerColor = OnyxColorTokens.divider;
+const _borderColor = OnyxDesignTokens.borderSubtle;
+
+// ── Data models ────────────────────────────────────────────────────────────
 
 enum ClientCommsQueueSeverity { high, medium, low }
 
@@ -50,6 +54,22 @@ class ClientCommsQueueItem {
   }
 }
 
+class ClientCommsHistoryEntry {
+  final String incidentId;
+  final String preview;
+  final String timestamp;
+  final bool delivered;
+
+  const ClientCommsHistoryEntry({
+    required this.incidentId,
+    required this.preview,
+    required this.timestamp,
+    this.delivered = true,
+  });
+}
+
+// ── Board widget ───────────────────────────────────────────────────────────
+
 class ClientCommsQueueBoard extends StatelessWidget {
   final List<ClientCommsQueueItem> items;
   final VoidCallback onToggleDetailedWorkspace;
@@ -67,6 +87,12 @@ class ClientCommsQueueBoard extends StatelessWidget {
   final ValueChanged<ClientCommsQueueItem> onEdit;
   final ValueChanged<ClientCommsQueueItem> onReject;
   final ValueChanged<String>? onOpenAgentForIncident;
+  // Right panel extras
+  final String? learnedStyleLabel;
+  final String? learnedStyleSource;
+  final String selectedTone;
+  final ValueChanged<String>? onToneChanged;
+  final List<ClientCommsHistoryEntry> messageHistory;
 
   const ClientCommsQueueBoard({
     super.key,
@@ -86,85 +112,115 @@ class ClientCommsQueueBoard extends StatelessWidget {
     required this.onEdit,
     required this.onReject,
     this.onOpenAgentForIncident,
+    this.learnedStyleLabel,
+    this.learnedStyleSource,
+    this.selectedTone = 'Auto',
+    this.onToneChanged,
+    this.messageHistory = const [],
   });
+
+  // ── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final urgentCount =
-        items
-            .where((item) => item.severity == ClientCommsQueueSeverity.high)
-            .length +
-        (latestSentFollowUpUrgent ? 1 : 0);
     return Column(
       key: const ValueKey('clients-simple-queue-board'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _pendingStrip(totalCount: items.length, urgentCount: urgentCount),
-        const SizedBox(height: 10),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            children: [
-              Text(
-                'Client comms',
-                style: GoogleFonts.inter(
-                  color: OnyxColorTokens.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.2,
-                ),
+        _pageHeader(),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final twoColumn = constraints.maxWidth >= 860;
+            if (twoColumn) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 7, child: _leftColumn()),
+                  const SizedBox(width: 16),
+                  SizedBox(width: 240, child: _rightColumn()),
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _leftColumn(),
+                const SizedBox(height: 16),
+                _rightColumn(),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // ── Page header ───────────────────────────────────────────────────────────
+
+  Widget _pageHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Client communications',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: _titleColor,
+                letterSpacing: -0.3,
               ),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: items.isNotEmpty
-                      ? OnyxColorTokens.amberSurface
-                      : OnyxColorTokens.backgroundSecondary,
-                  borderRadius: BorderRadius.circular(5),
-                  border: Border.all(
-                    color: items.isNotEmpty
-                        ? OnyxColorTokens.amberBorder
-                        : OnyxColorTokens.divider,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: items.isNotEmpty
-                            ? OnyxColorTokens.accentAmber
-                            : OnyxColorTokens.accentGreen,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      items.isNotEmpty
-                          ? '${items.length} pending'
-                          : 'Queue clear',
-                      style: GoogleFonts.inter(
-                        color: items.isNotEmpty
-                            ? OnyxColorTokens.accentAmber
-                            : OnyxColorTokens.accentGreen,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'AI-generated messages awaiting approval',
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+                color: _bodyColor,
               ),
-            ],
+            ),
+          ],
+        ),
+        const Spacer(),
+        OutlinedButton.icon(
+          key: const ValueKey('clients-toggle-detailed-workspace'),
+          onPressed: onToggleDetailedWorkspace,
+          icon: Icon(
+            showDetailedWorkspace
+                ? Icons.visibility_off_rounded
+                : Icons.open_in_new_rounded,
+            size: 14,
+          ),
+          label: Text(
+            showDetailedWorkspace ? 'Hide Workspace' : 'Full Workspace',
+          ),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: OnyxDesignTokens.cyanInteractive,
+            side: const BorderSide(color: OnyxColorTokens.cyanBorder),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            textStyle: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         ),
-        const SizedBox(height: 14),
+      ],
+    );
+  }
+
+  // ── Left column ───────────────────────────────────────────────────────────
+
+  Widget _leftColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         if ((latestSentFollowUpBody ?? '').trim().isNotEmpty) ...[
           _latestSentFollowUpCard(),
           const SizedBox(height: 12),
@@ -176,155 +232,354 @@ class ClientCommsQueueBoard extends StatelessWidget {
             _queueCard(items[i]),
             if (i != items.length - 1) const SizedBox(height: 12),
           ],
-        const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: OutlinedButton.icon(
-            key: const ValueKey('clients-toggle-detailed-workspace'),
-            onPressed: onToggleDetailedWorkspace,
-            icon: Icon(
-              showDetailedWorkspace
-                  ? Icons.visibility_off_rounded
-                  : Icons.open_in_new_rounded,
-              size: 15,
-            ),
-            label: Text(
-              showDetailedWorkspace
-                  ? 'Hide Detailed Workspace'
-                  : 'Open Detailed Workspace',
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: OnyxColorTokens.accentSky,
-              side: const BorderSide(color: _queueStrongBorderColor),
-              backgroundColor: _queuePanelColor,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              textStyle: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ),
+        if (messageHistory.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          _messageHistorySection(),
+        ],
       ],
     );
   }
 
-  Widget _pendingStrip({required int totalCount, required int urgentCount}) {
-    final headline = totalCount == 1
-        ? '1 PENDING MESSAGE'
-        : '$totalCount PENDING MESSAGES';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: OnyxColorTokens.amberSurface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: OnyxColorTokens.amberBorder),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 5,
-            height: 5,
-            decoration: const BoxDecoration(
-              color: OnyxColorTokens.accentAmber,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              headline,
-              style: GoogleFonts.inter(
-                color: OnyxColorTokens.accentAmber,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-          if (urgentCount > 0)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: OnyxColorTokens.redSurface,
-                borderRadius: BorderRadius.circular(5),
-                border: Border.all(color: OnyxColorTokens.redBorder),
-              ),
-              child: Text(
-                urgentCount == 1 ? '1 Urgent' : '$urgentCount Urgent',
-                style: GoogleFonts.inter(
-                  color: OnyxColorTokens.accentRed,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+  // ── Right column ──────────────────────────────────────────────────────────
+
+  Widget _rightColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _pendingCountCard(),
+        if (learnedStyleLabel != null && learnedStyleLabel!.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _learnedStyleCard(),
         ],
-      ),
+        const SizedBox(height: 12),
+        _toneSelectorCard(),
+      ],
     );
   }
 
-  Widget _emptyQueueState() {
+  // ── Pending count card ────────────────────────────────────────────────────
+
+  Widget _pendingCountCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _queuePanelColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _queueBorderColor),
+        color: _surface,
+        borderRadius: OnyxRadiusTokens.radiusMd,
+        border: Border.all(color: _dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Queue clear',
+            'PENDING AI DRAFTS',
             style: GoogleFonts.inter(
-              color: _queueTitleColor,
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: _mutedColor,
+              letterSpacing: 0.7,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
-            'There are no pending client approvals right now.',
+            '${items.length}',
             style: GoogleFonts.inter(
-              color: _queueMutedColor,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              fontSize: 40,
+              fontWeight: FontWeight.w700,
+              color: OnyxDesignTokens.amberWarning,
+              height: 1.0,
+            ),
+          ),
+          Text(
+            'AWAITING REVIEW',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: _mutedColor,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: items.isEmpty ? null : onToggleDetailedWorkspace,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: OnyxDesignTokens.amberWarning,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    OnyxColorTokens.amberSurface,
+                disabledForegroundColor: _mutedColor,
+                minimumSize: const Size(double.infinity, 36),
+                elevation: 0,
+                textStyle: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: OnyxRadiusTokens.radiusSm,
+                ),
+              ),
+              child: const Text('REVIEW DRAFTS'),
             ),
           ),
         ],
       ),
     );
   }
+
+  // ── Learned style card ────────────────────────────────────────────────────
+
+  Widget _learnedStyleCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: OnyxRadiusTokens.radiusMd,
+        border: Border.all(color: _dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.trending_up_rounded,
+                size: 14,
+                color: OnyxDesignTokens.brand,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'LEARNED STYLE',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: _mutedColor,
+                  letterSpacing: 0.7,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            learnedStyleLabel ?? '',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: _titleColor,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            learnedStyleSource ?? 'AI-detected from approval history',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: _mutedColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Tone selector ─────────────────────────────────────────────────────────
+
+  Widget _toneSelectorCard() {
+    const tones = <String>['Auto', 'Concise', 'Reassuring', 'Formal'];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: OnyxRadiusTokens.radiusMd,
+        border: Border.all(color: _dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'TONE',
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: _mutedColor,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 8),
+          for (final tone in tones) ...[
+            _toneOption(tone),
+            if (tone != tones.last) const SizedBox(height: 6),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _toneOption(String tone) {
+    final selected = selectedTone == tone;
+    return GestureDetector(
+      onTap: () => onToneChanged?.call(tone),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? OnyxDesignTokens.brand.withValues(alpha: 0.1)
+              : _bg,
+          borderRadius: OnyxRadiusTokens.radiusSm,
+          border: Border.all(
+            color: selected
+                ? OnyxDesignTokens.brand.withValues(alpha: 0.3)
+                : _dividerColor,
+          ),
+        ),
+        child: Text(
+          tone,
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? _titleColor : _bodyColor,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Message history ───────────────────────────────────────────────────────
+
+  Widget _messageHistorySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'MESSAGE HISTORY',
+          style: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: _mutedColor,
+            letterSpacing: 0.7,
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final entry in messageHistory) ...[
+          _historyRow(entry),
+          const Divider(height: 1, thickness: 1, color: _dividerColor),
+        ],
+      ],
+    );
+  }
+
+  Widget _historyRow(ClientCommsHistoryEntry entry) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                entry.incidentId,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: _bodyColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              _statusBadge(delivered: entry.delivered),
+              const Spacer(),
+              Text(
+                entry.timestamp,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w400,
+                  color: _mutedColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Text(
+            entry.preview,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              color: _bodyColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusBadge({required bool delivered}) {
+    final label = delivered ? 'DELIVERED' : 'DRAFT';
+    final fg = delivered
+        ? OnyxDesignTokens.greenNominal
+        : OnyxDesignTokens.amberWarning;
+    final bg = delivered
+        ? OnyxColorTokens.greenSurface
+        : OnyxColorTokens.amberSurface;
+    final border = delivered
+        ? OnyxColorTokens.greenBorder
+        : OnyxColorTokens.amberBorder;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: fg,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+
+  // ── Latest sent follow-up card ────────────────────────────────────────────
 
   Widget _latestSentFollowUpCard() {
     final author = (latestSentFollowUpAuthor ?? '').trim();
     final body = (latestSentFollowUpBody ?? '').trim();
     final occurredAtUtc = latestSentFollowUpOccurredAtUtc;
     final urgent = latestSentFollowUpUrgent;
-    final metadata = <String>[
+    final timePart = occurredAtUtc != null
+        ? _formatTime(occurredAtUtc)
+        : '';
+    final meta = <String>[
       if (author.isNotEmpty) author,
-      if (occurredAtUtc != null) _formatOccurredAtLabel(occurredAtUtc),
+      if (timePart.isNotEmpty) timePart,
     ].join('  •  ');
+
+    final accent = urgent
+        ? OnyxDesignTokens.redCritical
+        : OnyxDesignTokens.cyanInteractive;
+    final surfaceColor = urgent
+        ? OnyxColorTokens.redSurface
+        : OnyxColorTokens.cyanSurface;
+    final borderColor = urgent
+        ? OnyxColorTokens.redBorder
+        : OnyxColorTokens.cyanBorder;
+
     return Container(
       key: const ValueKey('clients-latest-sent-follow-up-card'),
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: urgent
-            ? OnyxColorTokens.redSurface
-            : OnyxColorTokens.cyanSurface,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: urgent
-              ? OnyxColorTokens.redBorder
-              : OnyxColorTokens.cyanBorder,
-        ),
+        color: surfaceColor,
+        borderRadius: OnyxRadiusTokens.radiusMd,
+        border: Border.all(color: borderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,12 +590,10 @@ class ClientCommsQueueBoard extends StatelessWidget {
                 child: Text(
                   'LATEST SENT FOLLOW-UP',
                   style: GoogleFonts.inter(
-                    color: urgent
-                        ? OnyxColorTokens.accentRed
-                        : OnyxColorTokens.accentCyan,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.8,
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.7,
                   ),
                 ),
               ),
@@ -348,77 +601,75 @@ class ClientCommsQueueBoard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
-                    vertical: 4,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: OnyxColorTokens.redSurface,
-                    borderRadius: BorderRadius.circular(5),
+                    borderRadius: BorderRadius.circular(999),
                     border: Border.all(color: OnyxColorTokens.redBorder),
                   ),
                   child: Text(
                     'HIGH PRIORITY',
                     style: GoogleFonts.inter(
-                      color: OnyxColorTokens.accentRed,
+                      color: OnyxDesignTokens.redCritical,
                       fontSize: 10,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             body,
             style: GoogleFonts.inter(
-              color: _queueTitleColor,
+              color: _titleColor,
               fontSize: 13,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               height: 1.45,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            metadata.isEmpty
-                ? urgent
-                      ? 'Already sent live to the client. Control reply recommended now.'
-                      : 'Already sent live to the client. Controllers can track the promise here without opening the approval queue.'
-                : urgent
-                ? '$metadata  •  Already sent live to the client. Control reply recommended now.'
-                : '$metadata  •  Already sent live to the client.',
-            style: GoogleFonts.inter(
-              color: _queueBodyColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              height: 1.35,
+          if (meta.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              '$meta  •  Already sent live.',
+              style: GoogleFonts.inter(
+                color: _bodyColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                height: 1.35,
+              ),
             ),
-          ),
+          ],
           if (onPrepareLatestSentFollowUpReply != null) ...[
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: _actionButton(
-                    key: const ValueKey(
-                      'clients-latest-sent-follow-up-prepare-reply',
-                    ),
-                    label: preparingLatestSentFollowUpReply
-                        ? 'PREPARING AI DRAFT...'
-                        : (urgent
-                              ? 'PREPARE URGENT REPLY'
-                              : 'PREPARE REPLY'),
-                    foreground: urgent
-                        ? OnyxColorTokens.accentRed
-                        : OnyxColorTokens.accentCyan,
-                    background: _queuePanelColor,
-                    border: urgent
-                        ? OnyxColorTokens.redBorder
-                        : _queueStrongBorderColor,
-                    onPressed: preparingLatestSentFollowUpReply
-                        ? null
-                        : () => onPrepareLatestSentFollowUpReply!.call(),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                key: const ValueKey(
+                  'clients-latest-sent-follow-up-prepare-reply',
+                ),
+                onPressed: preparingLatestSentFollowUpReply
+                    ? null
+                    : onPrepareLatestSentFollowUpReply,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: accent,
+                  side: BorderSide(color: borderColor),
+                  minimumSize: const Size(0, 36),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: OnyxRadiusTokens.radiusSm,
                   ),
                 ),
-              ],
+                child: Text(
+                  preparingLatestSentFollowUpReply
+                      ? 'PREPARING AI DRAFT…'
+                      : (urgent ? 'PREPARE URGENT REPLY' : 'PREPARE REPLY'),
+                ),
+              ),
             ),
           ],
         ],
@@ -426,32 +677,86 @@ class ClientCommsQueueBoard extends StatelessWidget {
     );
   }
 
+  // ── Empty state ───────────────────────────────────────────────────────────
+
+  Widget _emptyQueueState() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: OnyxRadiusTokens.radiusMd,
+        border: Border.all(color: _dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: OnyxColorTokens.greenSurface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: OnyxColorTokens.greenBorder),
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 20,
+              color: OnyxDesignTokens.greenNominal,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Queue clear',
+            style: GoogleFonts.inter(
+              color: _titleColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'No pending client approvals right now.',
+            style: GoogleFonts.inter(
+              color: _bodyColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Queue card ─────────────────────────────────────────────────────────────
+
   Widget _queueCard(ClientCommsQueueItem item) {
-    final palette = _paletteFor(item.severity);
-    final normalizedIncidentReference = item.incidentReference.trim();
-    final normalizedFocusedItemId = (focusedItemId ?? '').trim();
+    final severityColor = _severityColor(item.severity);
+    final normalizedRef = item.incidentReference.trim();
+    final normalizedFocusId = (focusedItemId ?? '').trim();
     final isFocused =
-        normalizedFocusedItemId.isNotEmpty &&
-        normalizedFocusedItemId == item.id;
-    final canResumeDetailedWorkspace =
+        normalizedFocusId.isNotEmpty && normalizedFocusId == item.id;
+    final canResumeWorkspace =
         isFocused && onResumeDetailedWorkspaceForItem != null;
     final canOpenAgent =
-        onOpenAgentForIncident != null &&
-        normalizedIncidentReference.isNotEmpty;
-    final agentActionKey = ValueKey(
-      'clients-open-agent-${normalizedIncidentReference.isEmpty ? item.id : normalizedIncidentReference}',
-    );
+        onOpenAgentForIncident != null && normalizedRef.isNotEmpty;
+
     return Container(
       key: ValueKey('clients-simple-card-${item.id}'),
-      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 0),
       decoration: BoxDecoration(
-        color: palette.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: palette.border),
+        color: _surface,
+        borderRadius: OnyxRadiusTokens.radiusMd,
+        border: Border(
+          left: BorderSide(color: severityColor, width: 3),
+          top: BorderSide(color: _dividerColor),
+          right: BorderSide(color: _dividerColor),
+          bottom: BorderSide(color: _dividerColor),
+        ),
         boxShadow: isFocused
             ? [
                 BoxShadow(
-                  color: palette.accent.withValues(alpha: 0.18),
+                  color: severityColor.withValues(alpha: 0.14),
                   blurRadius: 18,
                   spreadRadius: 1,
                 ),
@@ -459,240 +764,216 @@ class ClientCommsQueueBoard extends StatelessWidget {
             : null,
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Header ────────────────────────────────────────────────────
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: severityColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  item.clientName,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _titleColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _priorityBadge(item.severity),
+                const Spacer(),
+                Text(
+                  item.incidentLabel,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: _mutedColor,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  'Generated ${item.generatedAtLabel}',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    color: _mutedColor,
+                  ),
+                ),
+              ],
+            ),
+
             if (isFocused) ...[
+              const SizedBox(height: 10),
               Container(
-                key: ValueKey('clients-simple-card-focus-${item.id}'),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 6,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
-                  color: palette.accent.withValues(alpha: 0.14),
+                  color: severityColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                    color: palette.accent.withValues(alpha: 0.42),
+                    color: severityColor.withValues(alpha: 0.35),
                   ),
                 ),
                 child: Text(
                   'FOCUSED DRAFT',
                   style: GoogleFonts.inter(
-                    color: palette.accent,
+                    color: severityColor,
                     fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.6,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
             ],
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: palette.accent,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 10,
-                    runSpacing: 8,
-                    children: [
-                      Text(
-                        item.clientName,
-                        style: GoogleFonts.inter(
-                          color: _queueTitleColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: palette.accent.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: palette.accent.withValues(alpha: 0.45),
-                          ),
-                        ),
-                        child: Text(
-                          _severityLabel(item.severity),
-                          style: GoogleFonts.inter(
-                            color: palette.accent,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        item.siteName,
-                        style: GoogleFonts.inter(
-                          color: _queueBodyColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '•',
-                        style: GoogleFonts.inter(
-                          color: const Color(0x666A7D93),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        item.incidentLabel,
-                        style: GoogleFonts.robotoMono(
-                          color: _queueMutedColor,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Generated',
-                      style: GoogleFonts.inter(
-                        color: _queueBodyColor,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.generatedAtLabel,
-                      style: GoogleFonts.inter(
-                        color: _queueTitleColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _labeledField(label: 'CONTEXT', body: item.context),
+
             const SizedBox(height: 12),
-            _labeledField(
-              label: 'AI-GENERATED MESSAGE',
-              body: item.draftMessage,
+
+            // ── Context box ───────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: _bg,
+                borderRadius: OnyxRadiusTokens.radiusSm,
+                border: Border.all(color: _dividerColor),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(
+                    Icons.info_outline_rounded,
+                    size: 14,
+                    color: _mutedColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'CONTEXT',
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: _mutedColor,
+                      letterSpacing: 0.7,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      item.context,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: _bodyColor,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 18),
+
+            const SizedBox(height: 10),
+
+            // ── AI message label ──────────────────────────────────────────
+            Text(
+              'AI-GENERATED MESSAGE',
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: _mutedColor,
+                letterSpacing: 0.7,
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            // ── Message box ───────────────────────────────────────────────
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _bg,
+                borderRadius: OnyxRadiusTokens.radiusSm,
+                border: Border.all(color: _borderColor),
+              ),
+              child: Text(
+                item.draftMessage,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: _titleColor,
+                  height: 1.5,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            // ── Action row ────────────────────────────────────────────────
             LayoutBuilder(
               builder: (context, constraints) {
-                final stacked = constraints.maxWidth < 860;
-                final sendButton = _actionButton(
-                  key: ValueKey('clients-send-draft-${item.id}'),
-                  label: 'SEND',
-                  foreground: const Color(0xFF215D47),
-                  background: const Color(0xFF53D594),
-                  border: const Color(0xFF6FE0A8),
-                  onPressed: () => onSend(item),
-                );
-                final askAgentButton = !canOpenAgent
-                    ? null
-                    : _actionButton(
-                        key: agentActionKey,
-                        label: 'ASK AGENT',
-                        foreground: const Color(0xFF7C3AED),
-                        background: _queuePanelColor,
-                        border: const Color(0xFFD8C6FB),
-                        onPressed: () => onOpenAgentForIncident!(
-                          normalizedIncidentReference,
-                        ),
-                      );
-                final resumeDetailedWorkspaceButton =
-                    !canResumeDetailedWorkspace
-                    ? null
-                    : _actionButton(
-                        key: ValueKey(
-                          'clients-resume-detailed-workspace-${item.id}',
-                        ),
-                        label: (focusedResumeActionLabel ?? '').trim().isEmpty
-                            ? 'RESUME DETAILED COMMS'
-                            : focusedResumeActionLabel!.trim(),
-                        foreground: const Color(0xFF365E94),
-                        background: _queuePanelColor,
-                        border: _queueStrongBorderColor,
-                        onPressed: () =>
-                            onResumeDetailedWorkspaceForItem!(item),
-                      );
-                final editButton = _actionButton(
-                  key: ValueKey('clients-edit-draft-${item.id}'),
-                  label: 'EDIT',
-                  foreground: const Color(0xFF365E94),
-                  background: _queuePanelColor,
-                  border: _queueStrongBorderColor,
-                  onPressed: () => onEdit(item),
-                );
-                final rejectButton = _actionButton(
-                  key: ValueKey('clients-reject-draft-${item.id}'),
-                  label: 'REJECT',
-                  foreground: const Color(0xFFAF4E57),
-                  background: _queuePanelColor,
-                  border: const Color(0xFFF0CDD1),
-                  onPressed: () => onReject(item),
-                );
+                final stacked = constraints.maxWidth < 520;
+                final sendBtn = _sendButton(item);
+                final editBtn = _editButton(item);
+                final rejectBtn = _rejectButton(item);
+                final resumeBtn = canResumeWorkspace
+                    ? _resumeButton(item)
+                    : null;
+                final agentBtn = canOpenAgent
+                    ? _agentButton(normalizedRef)
+                    : null;
+
                 if (stacked) {
                   return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(width: double.infinity, child: sendButton),
-                      if (resumeDetailedWorkspaceButton != null) ...[
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          child: resumeDetailedWorkspaceButton,
-                        ),
+                      sendBtn,
+                      if (resumeBtn != null) ...[
+                        const SizedBox(height: 8),
+                        resumeBtn,
                       ],
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          if (askAgentButton != null) ...[
-                            Expanded(child: askAgentButton),
-                            const SizedBox(width: 10),
+                          if (agentBtn != null) ...[
+                            Expanded(child: agentBtn),
+                            const SizedBox(width: 8),
                           ],
-                          Expanded(child: editButton),
-                          const SizedBox(width: 10),
-                          Expanded(child: rejectButton),
+                          Expanded(child: editBtn),
+                          const SizedBox(width: 8),
+                          Expanded(child: rejectBtn),
                         ],
                       ),
                     ],
                   );
                 }
+
                 return Row(
                   children: [
-                    Expanded(flex: 5, child: sendButton),
-                    if (resumeDetailedWorkspaceButton != null) ...[
-                      const SizedBox(width: 10),
-                      Expanded(flex: 4, child: resumeDetailedWorkspaceButton),
+                    Expanded(flex: 5, child: sendBtn),
+                    if (resumeBtn != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(flex: 4, child: resumeBtn),
                     ],
-                    if (askAgentButton != null) ...[
-                      const SizedBox(width: 10),
-                      Expanded(child: askAgentButton),
+                    if (agentBtn != null) ...[
+                      const SizedBox(width: 8),
+                      Expanded(child: agentBtn),
                     ],
-                    const SizedBox(width: 10),
-                    Expanded(child: editButton),
-                    const SizedBox(width: 10),
-                    Expanded(child: rejectButton),
+                    const SizedBox(width: 8),
+                    Expanded(child: editBtn),
+                    const SizedBox(width: 8),
+                    Expanded(child: rejectBtn),
                   ],
                 );
               },
@@ -703,112 +984,165 @@ class ClientCommsQueueBoard extends StatelessWidget {
     );
   }
 
-  Widget _labeledField({required String label, required String body}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.inter(
-            color: _queueBodyColor,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
-          ),
+  // ── Action buttons ────────────────────────────────────────────────────────
+
+  Widget _sendButton(ClientCommsQueueItem item) {
+    return ElevatedButton.icon(
+      key: ValueKey('clients-send-draft-${item.id}'),
+      onPressed: () => onSend(item),
+      icon: const Icon(Icons.send_rounded, size: 16),
+      label: const Text('SEND'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: OnyxDesignTokens.statusSuccess,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(0, 40),
+        elevation: 0,
+        textStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
         ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: _queuePanelColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _queueBorderColor),
-          ),
-          child: Text(
-            body,
-            style: GoogleFonts.inter(
-              color: _queueTitleColor,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              height: 1.5,
-            ),
-          ),
+        shape: RoundedRectangleBorder(
+          borderRadius: OnyxRadiusTokens.radiusSm,
         ),
-      ],
+      ),
     );
   }
 
-  Widget _actionButton({
-    required Key key,
-    required String label,
-    required Color foreground,
-    required Color background,
-    required Color border,
-    required VoidCallback? onPressed,
-  }) {
-    return ElevatedButton(
-      key: key,
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        foregroundColor: foreground,
-        backgroundColor: background,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: border),
+  Widget _editButton(ClientCommsQueueItem item) {
+    return OutlinedButton.icon(
+      key: ValueKey('clients-edit-draft-${item.id}'),
+      onPressed: () => onEdit(item),
+      icon: const Icon(Icons.edit_outlined, size: 14),
+      label: const Text('EDIT'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _bodyColor,
+        minimumSize: const Size(0, 40),
+        side: BorderSide(color: _borderColor),
+        textStyle: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
         ),
-        textStyle: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800),
+        shape: RoundedRectangleBorder(
+          borderRadius: OnyxRadiusTokens.radiusSm,
+        ),
+      ),
+    );
+  }
+
+  Widget _rejectButton(ClientCommsQueueItem item) {
+    return OutlinedButton.icon(
+      key: ValueKey('clients-reject-draft-${item.id}'),
+      onPressed: () => onReject(item),
+      icon: const Icon(Icons.close_rounded, size: 14),
+      label: const Text('REJECT'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _mutedColor,
+        minimumSize: const Size(0, 40),
+        side: BorderSide(color: _dividerColor),
+        textStyle: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: OnyxRadiusTokens.radiusSm,
+        ),
+      ),
+    );
+  }
+
+  Widget _resumeButton(ClientCommsQueueItem item) {
+    final label = (focusedResumeActionLabel ?? '').trim().isEmpty
+        ? 'RESUME WORKSPACE'
+        : focusedResumeActionLabel!.trim();
+    return OutlinedButton(
+      key: ValueKey('clients-resume-detailed-workspace-${item.id}'),
+      onPressed: () => onResumeDetailedWorkspaceForItem!(item),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: OnyxDesignTokens.cyanInteractive,
+        minimumSize: const Size(0, 40),
+        side: const BorderSide(color: OnyxColorTokens.cyanBorder),
+        textStyle: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: OnyxRadiusTokens.radiusSm,
+        ),
       ),
       child: Text(label),
     );
   }
 
-  _QueuePalette _paletteFor(ClientCommsQueueSeverity severity) {
-    return switch (severity) {
-      ClientCommsQueueSeverity.high => const _QueuePalette(
-        surface: Color(0xFFFFF2F2),
-        border: Color(0xFFF0CDD1),
-        accent: Color(0xFFCC5B67),
+  Widget _agentButton(String incidentRef) {
+    return OutlinedButton(
+      key: ValueKey('clients-open-agent-$incidentRef'),
+      onPressed: () => onOpenAgentForIncident!(incidentRef),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: OnyxDesignTokens.accentPurple,
+        minimumSize: const Size(0, 40),
+        side: const BorderSide(color: OnyxColorTokens.purpleBorder),
+        textStyle: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: OnyxRadiusTokens.radiusSm,
+        ),
       ),
-      ClientCommsQueueSeverity.medium => const _QueuePalette(
-        surface: Color(0xFFFFF7EA),
-        border: Color(0xFFF1D9A7),
-        accent: Color(0xFF9A6A19),
+      child: const Text('ASK AGENT'),
+    );
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  Widget _priorityBadge(ClientCommsQueueSeverity severity) {
+    final (label, fg, bg, border) = switch (severity) {
+      ClientCommsQueueSeverity.high => (
+        'HIGH',
+        OnyxDesignTokens.redCritical,
+        OnyxColorTokens.redSurface,
+        OnyxColorTokens.redBorder,
       ),
-      ClientCommsQueueSeverity.low => const _QueuePalette(
-        surface: Color(0xFFF3FBF7),
-        border: Color(0xFFCFE6DA),
-        accent: Color(0xFF2D7A5F),
+      ClientCommsQueueSeverity.medium => (
+        'MEDIUM',
+        OnyxDesignTokens.amberWarning,
+        OnyxColorTokens.amberSurface,
+        OnyxColorTokens.amberBorder,
+      ),
+      ClientCommsQueueSeverity.low => (
+        'LOW',
+        OnyxDesignTokens.textMuted,
+        OnyxDesignTokens.surfaceInset,
+        OnyxDesignTokens.borderSubtle,
       ),
     };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: fg,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
   }
 
-  String _severityLabel(ClientCommsQueueSeverity severity) {
-    return switch (severity) {
-      ClientCommsQueueSeverity.high => 'HIGH',
-      ClientCommsQueueSeverity.medium => 'MEDIUM',
-      ClientCommsQueueSeverity.low => 'LOW',
-    };
+  Color _severityColor(ClientCommsQueueSeverity severity) => switch (severity) {
+    ClientCommsQueueSeverity.high => OnyxDesignTokens.redCritical,
+    ClientCommsQueueSeverity.medium => OnyxDesignTokens.amberWarning,
+    ClientCommsQueueSeverity.low => OnyxDesignTokens.textMuted,
+  };
+
+  String _formatTime(DateTime utc) {
+    final local = utc.toLocal();
+    return '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
   }
-
-  String _formatOccurredAtLabel(DateTime occurredAtUtc) {
-    final local = occurredAtUtc.toLocal();
-    final hour = local.hour.toString().padLeft(2, '0');
-    final minute = local.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-}
-
-class _QueuePalette {
-  final Color surface;
-  final Color border;
-  final Color accent;
-
-  const _QueuePalette({
-    required this.surface,
-    required this.border,
-    required this.accent,
-  });
 }
