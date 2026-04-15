@@ -18,7 +18,6 @@ const _appShellTitleColor = OnyxDesignTokens.textPrimary;
 const _appShellBodyColor = OnyxDesignTokens.textSecondary;
 const _appShellMutedColor = OnyxDesignTokens.textMuted;
 const _appShellAccentSky = OnyxDesignTokens.accentSky;
-const _appShellAccentBlue = OnyxDesignTokens.accentBlue;
 
 TextStyle _appShellTextStyle({
   Color? color,
@@ -112,7 +111,7 @@ Future<void> _showAppShellQuickJumpDialog({
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: _appShellAccentBlue),
+                            borderSide: const BorderSide(color: OnyxColorTokens.brand),
                           ),
                         ),
                       ),
@@ -165,7 +164,7 @@ Future<void> _showAppShellQuickJumpDialog({
                                         Text(
                                           'Current',
                                           style: _appShellTextStyle(
-                                            color: _appShellAccentBlue,
+                                            color: OnyxColorTokens.brand,
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -260,8 +259,6 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  bool _sidebarOpen = true;
-
   Widget _wrapShellShortcuts({
     required BuildContext context,
     required Widget child,
@@ -359,7 +356,7 @@ class _AppShellState extends State<AppShell> {
                               child: Icon(
                                 Icons.menu_rounded,
                                 size: 20,
-                                color: _appShellAccentBlue,
+                                color: OnyxColorTokens.brand,
                               ),
                             ),
                           ),
@@ -373,37 +370,27 @@ class _AppShellState extends State<AppShell> {
           );
         }
 
-        const sidebarWidth = 228.0;
         return _wrapShellShortcuts(
           context: context,
           child: Scaffold(
             backgroundColor: _appShellBackgroundColor,
             body: Row(
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
-                  width: _sidebarOpen ? sidebarWidth : 0,
-                  child: ClipRect(
-                    child: _sidebarOpen
-                        ? _Sidebar(
-                            width: sidebarWidth,
-                            currentRoute: widget.currentRoute,
-                            activeIncidentCount: widget.activeIncidentCount,
-                            aiActionCount: widget.aiActionCount,
-                            complianceIssuesCount: widget.complianceIssuesCount,
-                            tacticalSosAlerts: widget.tacticalSosAlerts,
-                            guardsOnlineCount: widget.guardsOnlineCount,
-                            onRouteChanged: widget.onRouteChanged,
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+                _Sidebar(
+                  width: OnyxSpacingTokens.navRailWidth,
+                  iconOnly: true,
+                  currentRoute: widget.currentRoute,
+                  activeIncidentCount: widget.activeIncidentCount,
+                  aiActionCount: widget.aiActionCount,
+                  complianceIssuesCount: widget.complianceIssuesCount,
+                  tacticalSosAlerts: widget.tacticalSosAlerts,
+                  guardsOnlineCount: widget.guardsOnlineCount,
+                  operatorLabel: widget.operatorLabel,
+                  onRouteChanged: widget.onRouteChanged,
                 ),
                 Expanded(
                   child: Container(
-                    decoration: const BoxDecoration(
-                      color: _appShellBackgroundColor,
-                    ),
+                    color: _appShellBackgroundColor,
                     child: Column(
                       children: [
                         _ShellTopBar(
@@ -422,12 +409,10 @@ class _AppShellState extends State<AppShell> {
                           onToggleDemoAutopilotPause:
                               widget.onToggleDemoAutopilotPause,
                           demoAutopilotPaused: widget.demoAutopilotPaused,
-                          sidebarOpen: _sidebarOpen,
-                          onToggleSidebar: () {
-                            setState(() {
-                              _sidebarOpen = !_sidebarOpen;
-                            });
-                          },
+                        ),
+                        _StatusBanner(
+                          activeIncidentCount: widget.activeIncidentCount,
+                          aiActionCount: widget.aiActionCount,
                         ),
                         if (widget.intelTickerItems.isNotEmpty &&
                             widget.currentRoute.showsShellIntelTicker)
@@ -463,8 +448,6 @@ class _ShellTopBar extends StatelessWidget {
   final VoidCallback? onSkipDemoAutopilot;
   final VoidCallback? onToggleDemoAutopilotPause;
   final bool demoAutopilotPaused;
-  final bool sidebarOpen;
-  final VoidCallback onToggleSidebar;
 
   const _ShellTopBar({
     required this.currentRoute,
@@ -480,24 +463,20 @@ class _ShellTopBar extends StatelessWidget {
     this.onSkipDemoAutopilot,
     this.onToggleDemoAutopilotPause,
     this.demoAutopilotPaused = false,
-    required this.sidebarOpen,
-    required this.onToggleSidebar,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 56,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: OnyxSpacingTokens.topBarHeight,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: const BoxDecoration(
-        color: _appShellSurfaceColor,
-        border: Border(bottom: BorderSide(color: _appShellBorderColor)),
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final showAutopilot = demoAutopilotStatusLabel.trim().isNotEmpty;
-          final showOperatorChip =
-              constraints.maxWidth >= (showAutopilot ? 1600 : 1320);
           final showExtendedAutopilotControls = constraints.maxWidth >= 1440;
           final showCompactAutopilotControls =
               showAutopilot && !showExtendedAutopilotControls;
@@ -506,55 +485,104 @@ class _ShellTopBar extends StatelessWidget {
               : constraints.maxWidth >= 1280
               ? 196.0
               : 160.0;
+          final totalAlerts = activeIncidentCount + aiActionCount;
+
+          // Dynamic status chip
+          final Color statusFg;
+          final Color statusBg;
+          final Color statusBorder;
+          final String statusLabel;
+          if (activeIncidentCount > 0) {
+            statusFg = OnyxDesignTokens.redCritical;
+            statusBg = OnyxDesignTokens.redSurface;
+            statusBorder = OnyxDesignTokens.redBorder;
+            statusLabel = 'ALARM';
+          } else if (aiActionCount > 0) {
+            statusFg = OnyxDesignTokens.amberWarning;
+            statusBg = OnyxDesignTokens.amberSurface;
+            statusBorder = OnyxDesignTokens.amberBorder;
+            statusLabel = 'ALERT';
+          } else {
+            statusFg = OnyxDesignTokens.greenNominal;
+            statusBg = OnyxDesignTokens.cardSurface;
+            statusBorder = OnyxDesignTokens.borderSubtle;
+            statusLabel = 'READY';
+          }
 
           return Row(
             children: [
-              IconButton(
-                onPressed: onToggleSidebar,
-                visualDensity: VisualDensity.compact,
-                style: IconButton.styleFrom(
-                  backgroundColor: _appShellAltSurfaceColor,
-                  side: const BorderSide(color: _appShellBorderColor),
+              // Logo mark
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: OnyxColorTokens.brand,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                icon: Icon(
-                  sidebarOpen ? Icons.close_rounded : Icons.menu_rounded,
-                  size: 18,
-                  color: _appShellAccentBlue,
+                child: const Icon(
+                  Icons.shield_rounded,
+                  color: Colors.white,
+                  size: 17,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
+              // Page name
               Text(
                 currentRoute.shellHeaderLabel,
                 style: _appShellTextStyle(
                   color: _appShellTitleColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.2,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  currentRoute.autopilotNarration,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: _appShellTextStyle(
-                    color: _appShellBodyColor,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.1,
+              const Spacer(),
+              // Quick search field
+              GestureDetector(
+                onTap: () => _showQuickJumpDialog(context),
+                child: Container(
+                  width: 300,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: OnyxColorTokens.backgroundPrimary,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: OnyxColorTokens.borderSubtle),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.search_rounded,
+                        size: 13,
+                        color: _appShellMutedColor,
+                      ),
+                      const SizedBox(width: 7),
+                      const Expanded(
+                        child: Text(
+                          'Quick jump',
+                          style: TextStyle(
+                            fontFamily: OnyxDesignTokens.fontFamily,
+                            color: _appShellMutedColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        '⌘K',
+                        style: TextStyle(
+                          fontFamily: OnyxDesignTokens.fontFamily,
+                          color: _appShellMutedColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              _TopBarActionIcon(
-                buttonKey: const ValueKey('app-shell-quick-jump-icon'),
-                onPressed: () => _showQuickJumpDialog(context),
-                icon: Icons.search_rounded,
-                foregroundColor: _appShellAccentSky,
-                borderColor: OnyxDesignTokens.borderStrong,
-              ),
               const Spacer(),
+              // Autopilot controls
               if (showAutopilot) ...[
                 SizedBox(
                   width: autopilotChipWidth,
@@ -643,30 +671,29 @@ class _ShellTopBar extends StatelessWidget {
                     borderColor: OnyxDesignTokens.borderStrong,
                   ),
                 ],
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
               ],
-              if (showOperatorChip && operatorLabel.trim().isNotEmpty) ...[
+              // Operator chip
+              if (operatorLabel.trim().isNotEmpty) ...[
                 _OperatorSessionChip(
                   operatorLabel: operatorLabel,
                   roleLabel: operatorRoleLabel,
                   shiftLabel: operatorShiftLabel,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
               ],
+              // Dynamic status chip
               _TopChip(
-                label: 'READY',
-                foreground: OnyxDesignTokens.greenNominal,
-                background: OnyxDesignTokens.cardSurface,
-                border: OnyxDesignTokens.borderSubtle,
+                label: statusLabel,
+                foreground: statusFg,
+                background: statusBg,
+                border: statusBorder,
               ),
-              const SizedBox(width: 10),
-              _TopBarActionIcon(
-                buttonKey: const ValueKey('app-shell-status-button'),
+              const SizedBox(width: 8),
+              // Notification bell with count badge
+              _NotificationBell(
+                count: totalAlerts,
                 onPressed: () => _showShellStatusSnack(context),
-                icon: Icons.notifications_none_rounded,
-                foregroundColor: OnyxDesignTokens.textPrimary,
-                borderColor: OnyxDesignTokens.borderStrong,
-                showAlertDot: activeIncidentCount > 0 || aiActionCount > 0,
               ),
             ],
           );
@@ -732,22 +759,26 @@ class _NavSection {
 
 class _Sidebar extends StatelessWidget {
   final double width;
+  final bool iconOnly;
   final OnyxRoute currentRoute;
   final int activeIncidentCount;
   final int aiActionCount;
   final int guardsOnlineCount;
   final int complianceIssuesCount;
   final int tacticalSosAlerts;
+  final String operatorLabel;
   final ValueChanged<OnyxRoute> onRouteChanged;
 
   const _Sidebar({
     required this.width,
+    this.iconOnly = false,
     required this.currentRoute,
     required this.activeIncidentCount,
     required this.aiActionCount,
     required this.guardsOnlineCount,
     required this.complianceIssuesCount,
     required this.tacticalSosAlerts,
+    this.operatorLabel = '',
     required this.onRouteChanged,
   });
 
@@ -779,8 +810,155 @@ class _Sidebar extends StatelessWidget {
     );
   }
 
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return 'OP';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (iconOnly) return _buildIconRail(context);
+    return _buildLabelSidebar(context);
+  }
+
+  Widget _buildIconRail(BuildContext context) {
+    final allItems = OnyxRouteSection.values
+        .expand((s) => s.routes.map(_navItemForRoute))
+        .toList(growable: false);
+    final initials = _initials(operatorLabel);
+
+    return Container(
+      width: width,
+      decoration: const BoxDecoration(
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border(right: BorderSide(color: OnyxColorTokens.divider)),
+      ),
+      child: Column(
+        children: [
+          // Logo box
+          Container(
+            width: width,
+            height: OnyxSpacingTokens.topBarHeight,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
+            ),
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: OnyxColorTokens.brand,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.shield_rounded, color: Colors.white, size: 17),
+            ),
+          ),
+          // Nav items
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              children: [
+                for (final item in allItems) _iconNavItem(item),
+              ],
+            ),
+          ),
+          // Operator avatar
+          Container(
+            width: width,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: OnyxColorTokens.divider)),
+            ),
+            child: Tooltip(
+              message: operatorLabel.trim().isEmpty ? 'Operator' : operatorLabel,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  color: OnyxColorTokens.brand,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  initials,
+                  style: const TextStyle(
+                    fontFamily: OnyxDesignTokens.fontFamily,
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _iconNavItem(_NavItemModel item) {
+    final isActive = item.route == currentRoute;
+    return Tooltip(
+      message: item.label,
+      preferBelow: false,
+      child: InkWell(
+        onTap: () => onRouteChanged(item.route),
+        hoverColor: OnyxColorTokens.backgroundPrimary,
+        child: Container(
+          width: width,
+          height: 48,
+          decoration: BoxDecoration(
+            color: isActive ? OnyxColorTokens.cyanSurface : Colors.transparent,
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              if (isActive)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(width: 3, color: OnyxColorTokens.brand),
+                ),
+              Center(
+                child: Icon(
+                  item.icon,
+                  size: 20,
+                  color: isActive ? OnyxColorTokens.brand : _appShellMutedColor,
+                ),
+              ),
+              if (item.badge != null)
+                Positioned(
+                  top: 6,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: item.badgeColor ?? OnyxColorTokens.accentRed,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '${item.badge}',
+                      style: const TextStyle(
+                        fontFamily: OnyxDesignTokens.fontFamily,
+                        color: Colors.white,
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabelSidebar(BuildContext context) {
     final navSections = OnyxRouteSection.values
         .map(
           (section) => _NavSection(
@@ -793,8 +971,8 @@ class _Sidebar extends StatelessWidget {
     return Container(
       width: width,
       decoration: const BoxDecoration(
-        color: _appShellSurfaceColor,
-        border: Border(right: BorderSide(color: _appShellBorderColor)),
+        color: OnyxColorTokens.backgroundSecondary,
+        border: Border(right: BorderSide(color: OnyxColorTokens.divider)),
       ),
       child: Column(
         children: [
@@ -802,7 +980,7 @@ class _Sidebar extends StatelessWidget {
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: _appShellBorderColor)),
+              border: Border(bottom: BorderSide(color: OnyxColorTokens.divider)),
             ),
             child: Row(
               children: [
@@ -811,7 +989,7 @@ class _Sidebar extends StatelessWidget {
                   height: 24,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(7),
-                    color: _appShellAccentBlue,
+                    color: OnyxColorTokens.brand,
                   ),
                   child: const Icon(
                     Icons.shield_rounded,
@@ -858,7 +1036,7 @@ class _Sidebar extends StatelessWidget {
                     ),
                   ),
                   for (final item in section.items)
-                    _navItem(
+                    _labelNavItem(
                       item.label,
                       item.icon,
                       item.route,
@@ -875,7 +1053,7 @@ class _Sidebar extends StatelessWidget {
     );
   }
 
-  Widget _navItem(
+  Widget _labelNavItem(
     String label,
     IconData icon,
     OnyxRoute route, {
@@ -890,7 +1068,7 @@ class _Sidebar extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: isActive
-              ? _appShellAccentBlue.withValues(alpha: 0.10)
+              ? OnyxColorTokens.brand.withValues(alpha: 0.10)
               : Colors.transparent,
         ),
         child: ClipRRect(
@@ -902,7 +1080,7 @@ class _Sidebar extends StatelessWidget {
                   left: 0,
                   top: 0,
                   bottom: 0,
-                  child: Container(width: 3, color: _appShellAccentBlue),
+                  child: Container(width: 3, color: OnyxColorTokens.brand),
                 ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
@@ -911,7 +1089,7 @@ class _Sidebar extends StatelessWidget {
                     Icon(
                       icon,
                       size: 15,
-                      color: isActive ? _appShellAccentBlue : _appShellMutedColor,
+                      color: isActive ? OnyxColorTokens.brand : _appShellMutedColor,
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -933,12 +1111,12 @@ class _Sidebar extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: (badgeColor ?? const Color(0xFF4A678B)).withValues(
+                          color: (badgeColor ?? OnyxColorTokens.brand).withValues(
                             alpha: 0.16,
                           ),
                           borderRadius: BorderRadius.circular(7),
                           border: Border.all(
-                            color: (badgeColor ?? const Color(0xFF4A678B)).withValues(
+                            color: (badgeColor ?? OnyxColorTokens.brand).withValues(
                               alpha: 0.45,
                             ),
                           ),
@@ -958,6 +1136,140 @@ class _Sidebar extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _NotificationBell extends StatelessWidget {
+  final int count;
+  final VoidCallback onPressed;
+
+  const _NotificationBell({required this.count, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        OutlinedButton(
+          key: const ValueKey('app-shell-status-button'),
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(38, 38),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            foregroundColor: OnyxDesignTokens.textPrimary,
+            side: BorderSide(
+              color: OnyxDesignTokens.borderStrong.withValues(alpha: 0.52),
+            ),
+            backgroundColor: OnyxDesignTokens.cardSurface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          child: const Icon(Icons.notifications_none_rounded, size: 16),
+        ),
+        if (count > 0)
+          Positioned(
+            top: -2,
+            right: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: OnyxDesignTokens.redCritical,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontFamily: OnyxDesignTokens.fontFamily,
+                  color: Colors.white,
+                  fontSize: 8,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _StatusBanner extends StatefulWidget {
+  final int activeIncidentCount;
+  final int aiActionCount;
+
+  const _StatusBanner({
+    required this.activeIncidentCount,
+    required this.aiActionCount,
+  });
+
+  @override
+  State<_StatusBanner> createState() => _StatusBannerState();
+}
+
+class _StatusBannerState extends State<_StatusBanner> {
+  Timer? _timer;
+  late DateTime _now;
+
+  @override
+  void initState() {
+    super.initState();
+    _now = DateTime.now();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.activeIncidentCount == 0 && widget.aiActionCount == 0) {
+      return const SizedBox.shrink();
+    }
+    final isRed = widget.activeIncidentCount > 0;
+    final bg = isRed ? OnyxColorTokens.redSurface : OnyxColorTokens.amberSurface;
+    final fg = isRed ? OnyxColorTokens.accentRed : OnyxColorTokens.accentAmber;
+    final label = isRed
+        ? '⚠  ${widget.activeIncidentCount} ACTIVE ALARM${widget.activeIncidentCount == 1 ? '' : 'S'}'
+        : '⚡  ${widget.aiActionCount} AI ACTION${widget.aiActionCount == 1 ? '' : 'S'} PENDING';
+    final hh = _now.hour.toString().padLeft(2, '0');
+    final mm = _now.minute.toString().padLeft(2, '0');
+    final ss = _now.second.toString().padLeft(2, '0');
+
+    return Container(
+      height: 40,
+      color: bg,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontFamily: OnyxDesignTokens.fontFamily,
+              color: fg,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '$hh:$mm:$ss',
+            style: TextStyle(
+              fontFamily: OnyxDesignTokens.fontFamily,
+              color: fg.withValues(alpha: 0.7),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -999,26 +1311,21 @@ class _TopChip extends StatelessWidget {
 }
 
 class _TopBarActionIcon extends StatelessWidget {
-  final Key? buttonKey;
   final VoidCallback onPressed;
   final IconData icon;
   final Color foregroundColor;
   final Color borderColor;
-  final bool showAlertDot;
 
   const _TopBarActionIcon({
-    this.buttonKey,
     required this.onPressed,
     required this.icon,
     required this.foregroundColor,
     required this.borderColor,
-    this.showAlertDot = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
-      key: buttonKey,
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(38, 38),
@@ -1032,18 +1339,6 @@ class _TopBarActionIcon extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Icon(icon, size: 16),
-          if (showAlertDot)
-            const Positioned(
-              top: -2,
-              right: -4,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: OnyxDesignTokens.redCritical,
-                  shape: BoxShape.circle,
-                ),
-                child: SizedBox(width: 8, height: 8),
-              ),
-            ),
         ],
       ),
     );
@@ -1150,7 +1445,7 @@ class _OperatorSessionChipState extends State<_OperatorSessionChip> {
             Text(
               normalizedRole.toUpperCase(),
               style: _appShellTextStyle(
-                color: _appShellAccentBlue,
+                color: OnyxDesignTokens.cyanInteractive,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
@@ -1219,7 +1514,7 @@ class _AutopilotChip extends StatelessWidget {
           const Icon(
             Icons.auto_mode_rounded,
             size: 11,
-            color: _appShellAccentBlue,
+            color: OnyxDesignTokens.cyanInteractive,
           ),
           const SizedBox(width: 5),
           Expanded(
@@ -1228,7 +1523,7 @@ class _AutopilotChip extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: _appShellTextStyle(
-                color: _appShellAccentBlue,
+                color: OnyxDesignTokens.cyanInteractive,
                 fontSize: 9.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -1274,7 +1569,7 @@ class _MobileAutopilotOverlay extends StatelessWidget {
             const Icon(
               Icons.auto_mode_rounded,
               size: 14,
-              color: _appShellAccentBlue,
+              color: OnyxDesignTokens.cyanInteractive,
             ),
             const SizedBox(width: 6),
             Expanded(
@@ -1283,7 +1578,7 @@ class _MobileAutopilotOverlay extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: _appShellTextStyle(
-                color: _appShellAccentBlue,
+                color: OnyxDesignTokens.cyanInteractive,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 ),
@@ -1770,7 +2065,7 @@ class _ShellIntelTickerState extends State<_ShellIntelTicker> {
       return OnyxDesignTokens.redCritical;
     }
     if (source == 'community') {
-      return _appShellAccentBlue;
+      return _appShellAccentSky;
     }
     if (source == 'system') {
       return _appShellAccentSky;

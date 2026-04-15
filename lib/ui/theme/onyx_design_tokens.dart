@@ -81,6 +81,28 @@ abstract final class OnyxColorTokens {
 
   static const Color brand = Color(0xFF9D4BFF);
   static const Color brandDark = Color(0xFF7B2FBE);
+
+  // Shadow tokens
+  static const BoxShadow shadowSm = BoxShadow(
+    color: Color(0x14000000),
+    blurRadius: 8,
+    offset: Offset(0, 2),
+  );
+  static const BoxShadow shadowMd = BoxShadow(
+    color: Color(0x1A000000),
+    blurRadius: 16,
+    offset: Offset(0, 4),
+  );
+  static const BoxShadow shadowLg = BoxShadow(
+    color: Color(0x22000000),
+    blurRadius: 32,
+    offset: Offset(0, 8),
+  );
+  static const BoxShadow shadowPurple = BoxShadow(
+    color: Color(0x269D4BFF),
+    blurRadius: 24,
+    offset: Offset(0, 4),
+  );
 }
 
 abstract final class OnyxTypographyTokens {
@@ -89,7 +111,7 @@ abstract final class OnyxTypographyTokens {
   static const FontWeight regular = FontWeight.w400;
   static const FontWeight medium = FontWeight.w500;
   static const FontWeight semibold = FontWeight.w600;
-  static const FontWeight bold = FontWeight.w600;
+  static const FontWeight bold = FontWeight.w700;
   static const FontWeight extrabold = FontWeight.w700;
 
   static const double displayXl = 40;
@@ -137,8 +159,9 @@ abstract final class OnyxSpacingTokens {
   static const double panelPadding = 24;
   static const double chipGap = 8;
   static const double railGap = 20;
-  static const double topBarHeight = 48;
+  static const double topBarHeight = 56;
   static const double navRailWidth = 56;
+  static const double sidebarWidth = 228.0;
   static const double buttonHeight = 44;
   static const double buttonHeightLarge = 48;
   static const double fieldHeight = 48;
@@ -289,4 +312,14 @@ abstract final class OnyxDesignTokens {
   static const Color brandDark = OnyxColorTokens.brandDark;
 
   static const String fontFamily = OnyxTypographyTokens.sansFamily;
+}
+
+abstract final class OnyxDurationTokens {
+  static const fast = Duration(milliseconds: 150);
+  static const normal = Duration(milliseconds: 250);
+  static const slow = Duration(milliseconds: 420);
+  static const xslow = Duration(milliseconds: 600);
+  static const pageTransition = Duration(milliseconds: 300);
+  static const tickerScroll = Duration(seconds: 4);
+  static const tickerAnimate = Duration(milliseconds: 420);
 }
