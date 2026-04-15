@@ -249,21 +249,6 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
     _openEventsForScopedEventIds(eventIds, selectedEventId: selectedEventId);
   }
 
-  void _openSiteSettingsRoute(String siteId, String siteName) {
-    _openAdminSitesTabForSitesAction(
-      action: 'site_settings_opened',
-      siteName: siteName,
-    );
-  }
-
-  void _openGuardRosterRoute(String siteId, String siteName) {
-    _openGuardRosterForSite(siteName);
-  }
-
-  void _openMapForSiteRoute(String siteId, String siteName) {
-    _openTacticalMapForSite(siteId);
-  }
-
   Widget _buildClientsRoute(List<DispatchEvent> events) {
     return _appMode == OnyxAppMode.controller
         ? ClientsPage(
@@ -309,55 +294,7 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
   }
 
   Widget _buildSitesRoute(List<DispatchEvent> events) {
-    return SitesCommandPage(
-      events: events,
-      onAddSite: _openAddSiteFromSitesRoute,
-      onOpenMapForSite: _openMapForSiteFromSitesRoute,
-      onOpenSiteSettings: _openSiteSettingsFromSitesRoute,
-      onOpenGuardRoster: _openGuardRosterFromSitesRoute,
-      latestAutoAuditReceipt: _latestSitesAutoAuditReceipt,
-      onOpenLatestAudit: _latestSitesAuditLedgerEntry == null
-          ? null
-          : _openLedgerForLatestSitesAudit,
-    );
-  }
-
-  void _openAddSiteFromSitesRoute() {
-    _auditSitesActionFromRoute(
-      'site_builder_opened',
-      'Opened site desk from Sites.',
-    );
-    _openAdminSitesTabForSitesAction();
-  }
-
-  void _openMapForSiteFromSitesRoute(String siteId, String siteName) {
-    _auditSitesActionFromRoute(
-      'site_map_opened',
-      'Opened site map for $siteName from Sites.',
-      siteId: siteId,
-      siteName: siteName,
-    );
-    _openMapForSiteRoute(siteId, siteName);
-  }
-
-  void _openSiteSettingsFromSitesRoute(String siteId, String siteName) {
-    _auditSitesActionFromRoute(
-      'site_settings_opened',
-      'Opened site settings for $siteName from Sites.',
-      siteId: siteId,
-      siteName: siteName,
-    );
-    _openSiteSettingsRoute(siteId, siteName);
-  }
-
-  void _openGuardRosterFromSitesRoute(String siteId, String siteName) {
-    _auditSitesActionFromRoute(
-      'site_guard_roster_opened',
-      'Opened guard roster for $siteName from Sites.',
-      siteId: siteId,
-      siteName: siteName,
-    );
-    _openGuardRosterRoute(siteId, siteName);
+    return SitesPage(events: events);
   }
 
   Widget _buildGuardsRoute(List<DispatchEvent> events) {

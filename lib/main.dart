@@ -209,7 +209,7 @@ import 'ui/onyx_agent_page.dart';
 import 'ui/onyx_route_registry.dart';
 import 'ui/onyx_route_registry_sections.dart';
 import 'ui/risk_intelligence_page.dart';
-import 'ui/sites_command_page.dart';
+import 'ui/sites_page.dart';
 import 'ui/sovereign_ledger_page.dart';
 import 'ui/tactical_page.dart';
 import 'ui/theme/onyx_design_tokens.dart';
@@ -1720,7 +1720,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
   LiveOpsAutoAuditReceipt? _latestLiveOpsAutoAuditReceipt;
   RiskIntelAutoAuditReceipt? _latestRiskIntelAutoAuditReceipt;
   VipAutoAuditReceipt? _latestVipAutoAuditReceipt;
-  SitesAutoAuditReceipt? _latestSitesAutoAuditReceipt;
   SovereignLedgerPinnedAuditEntry? _latestRosterPlannerLedgerEntry;
   SovereignLedgerPinnedAuditEntry? _latestDispatchAuditLedgerEntry;
   SovereignLedgerPinnedAuditEntry? _latestLiveOpsAuditLedgerEntry;
@@ -21754,178 +21753,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
     );
   }
 
-  SovereignLedgerPinnedAuditEntry? _buildSitesAuditLedgerEntry({
-    required String auditId,
-    required String clientId,
-    required String siteId,
-    required String actorLabel,
-    required String action,
-    required String detail,
-    required DateTime occurredAtUtc,
-    required ClientLedgerRow? ledgerRow,
-  }) {
-    if (ledgerRow == null) {
-      return null;
-    }
-    final normalizedAction = action.trim();
-    late final String title;
-    late final Color accent;
-    switch (normalizedAction) {
-      case 'site_builder_opened':
-        title = 'Site builder opened from Sites.';
-        accent = const Color(0xFF9D4BFF);
-        break;
-      case 'site_map_opened':
-        title = 'Site map opened from Sites.';
-        accent = const Color(0xFF54C8FF);
-        break;
-      case 'site_settings_opened':
-        title = 'Site settings opened from Sites.';
-        accent = const Color(0xFFFFC247);
-        break;
-      case 'site_guard_roster_opened':
-        title = 'Guard roster opened from Sites.';
-        accent = const Color(0xFF63E6A1);
-        break;
-      default:
-        title = 'Sites action signed from Sites.';
-        accent = const Color(0xFF63E6A1);
-        break;
-    }
-    final payload =
-        (jsonDecode(ledgerRow.canonicalJson) as Map<Object?, Object?>).map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
-    return SovereignLedgerPinnedAuditEntry(
-      auditId: auditId,
-      clientId: clientId,
-      siteId: siteId,
-      recordCode: 'OB-AUDIT',
-      title: title,
-      description: detail,
-      occurredAt: occurredAtUtc,
-      actorLabel: actorLabel,
-      sourceLabel: 'Sites War Room',
-      hash: ledgerRow.hash,
-      previousHash: ledgerRow.previousHash ?? '',
-      accent: accent,
-      payload: payload,
-    );
-  }
-
-  Future<void> _recordSitesAutoAudit({
-    required String action,
-    required String detail,
-    required String outcome,
-    String? clientId,
-    String? siteId,
-    String? siteName,
-  }) async {
-    final effectiveClientId =
-        (clientId ?? _operationsRouteClientId).trim().isEmpty
-        ? _selectedClient.trim()
-        : (clientId ?? _operationsRouteClientId).trim();
-    if (effectiveClientId.isEmpty) {
-      return;
-    }
-    final effectiveSiteId = (siteId ?? _operationsRouteSiteId).trim().isEmpty
-        ? _selectedSite.trim()
-        : (siteId ?? _operationsRouteSiteId).trim();
-    final normalizedSiteName = (siteName ?? '').trim();
-    final nowUtc = DateTime.now().toUtc();
-    final recordId =
-        'SITES-AUDIT-${action.trim()}-${nowUtc.microsecondsSinceEpoch}';
-
-    try {
-      await _clientLedgerService.sealCanonicalRecord(
-        clientId: effectiveClientId,
-        recordId: recordId,
-        canonicalPayload: <String, Object?>{
-          'type': 'sites_auto_audit',
-          'action': action.trim(),
-          'outcome': outcome.trim(),
-          'recorded_at_utc': nowUtc.toIso8601String(),
-          'actor': service.operator.operatorId,
-          'source_route': OnyxRoute.sites.autopilotKey,
-          'client_id': effectiveClientId,
-          'site_id': effectiveSiteId,
-          'site_name': normalizedSiteName,
-          'detail': detail.trim(),
-        },
-      );
-      final row = await _clientLedgerRepository.fetchLedgerRow(
-        clientId: effectiveClientId,
-        dispatchId: recordId,
-      );
-      if (!mounted) {
-        return;
-      }
-      final hashPreview = row == null
-          ? ''
-          : ' • hash ${row.hash.substring(0, 10)}';
-      const receiptHeadline = 'Sites action signed automatically.';
-      final receiptDetail = '${detail.trim()}$hashPreview';
-      const receiptAccent = Color(0xFF63E6A1);
-      final sitesAuditLedgerEntry = _buildSitesAuditLedgerEntry(
-        auditId: recordId,
-        clientId: effectiveClientId,
-        siteId: effectiveSiteId,
-        actorLabel: service.operator.operatorId,
-        action: action,
-        detail: detail.trim(),
-        occurredAtUtc: nowUtc,
-        ledgerRow: row,
-      );
-      setState(() {
-        _latestSitesAutoAuditReceipt = SitesAutoAuditReceipt(
-          auditId: recordId,
-          label: 'AUTO-AUDIT',
-          headline: receiptHeadline,
-          detail: receiptDetail,
-          accent: receiptAccent,
-        );
-        if (sitesAuditLedgerEntry != null) {
-          _latestSitesAuditLedgerEntry = sitesAuditLedgerEntry;
-        }
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      const receiptHeadline =
-          'Sites action completed without ledger confirmation.';
-      const receiptDetail =
-          'The Sites handoff stayed live, but the signed audit write needs recovery.';
-      const receiptAccent = Color(0xFFF59E0B);
-      setState(() {
-        _latestSitesAutoAuditReceipt = SitesAutoAuditReceipt(
-          auditId: '$recordId-failed',
-          label: 'AUTO-AUDIT',
-          headline: receiptHeadline,
-          detail: receiptDetail,
-          accent: receiptAccent,
-        );
-      });
-    }
-  }
-
-  void _auditSitesActionFromRoute(
-    String action,
-    String detail, {
-    String? siteId,
-    String? siteName,
-  }) {
-    unawaited(
-      _recordSitesAutoAudit(
-        action: action,
-        detail: detail,
-        outcome: 'recorded',
-        siteId: siteId,
-        siteName: siteName,
-      ),
-    );
-  }
-
   SovereignLedgerPinnedAuditEntry? _buildRiskIntelAuditLedgerEntry({
     required String auditId,
     required String clientId,
@@ -35427,14 +35254,6 @@ class _OnyxAppState extends State<OnyxApp> with WidgetsBindingObserver {
 
   void _openLedgerForLatestVipAudit() {
     final auditEntry = _latestVipAuditLedgerEntry;
-    if (auditEntry == null) {
-      return;
-    }
-    _openLedgerForPinnedAudit(auditEntry);
-  }
-
-  void _openLedgerForLatestSitesAudit() {
-    final auditEntry = _latestSitesAuditLedgerEntry;
     if (auditEntry == null) {
       return;
     }
