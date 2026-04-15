@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'theme/onyx_design_tokens.dart';
+
 const _trackShellBackground = Color(0xFF09121B);
 const _trackShellRailBackground = Color(0xFF060D15);
 const _trackPanelBackground = Color(0xFF0F1824);
@@ -10,7 +12,6 @@ const _trackPanelBackgroundAlt = Color(0xFF121F2D);
 const _trackPanelBorder = Color(0xFF223246);
 const _trackMapFrame = Color(0xFF0C1620);
 const _trackTopBarBackground = Color(0xFF0A121B);
-const _trackOverlaySurface = Color(0xF0182230);
 const _trackOverlayBorder = Color(0xFF2B3B4F);
 const _trackTextPrimary = Color(0xFFF4F7FB);
 const _trackTextSecondary = Color(0xFFA5B4C5);
@@ -1860,10 +1861,12 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
       key: key,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: emphasized ? const Color(0xD0182C4A) : _trackOverlaySurface,
-        borderRadius: BorderRadius.circular(15),
+        color: OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.95),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: emphasized ? const Color(0xFF2F5679) : _trackOverlayBorder,
+          color: emphasized
+              ? OnyxColorTokens.brand.withValues(alpha: 0.4)
+              : OnyxColorTokens.divider,
         ),
         boxShadow: const [
           BoxShadow(
@@ -1877,12 +1880,12 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            title.toUpperCase(),
             style: GoogleFonts.inter(
-              color: emphasized ? const Color(0xFFC8DBFF) : _trackTextPrimary,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.55,
+              color: OnyxColorTokens.textMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.7,
             ),
           ),
           if (subtitle != null) ...[
@@ -1890,13 +1893,13 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             Text(
               subtitle,
               style: GoogleFonts.inter(
-                color: Colors.white70,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
+                color: OnyxColorTokens.textSecondary,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           child,
         ],
       ),
@@ -1911,60 +1914,81 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
     required Color tint,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    final match = RegExp(r'^(.*?)\s*\((\d+)\)\s*$').firstMatch(label);
+    final baseLabel = match?.group(1) ?? label;
+    final countLabel = match?.group(2);
+
+    return Container(
       key: key,
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-        decoration: BoxDecoration(
-          color: active
-              ? tint.withValues(alpha: 0.16)
-              : Colors.white.withValues(alpha: 0.028),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: active
-                ? tint.withValues(alpha: 0.72)
-                : Colors.white.withValues(alpha: 0.08),
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: active
+                  ? tint.withValues(alpha: 0.16)
+                  : OnyxColorTokens.backgroundPrimary,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
                 color: active
-                    ? tint.withValues(alpha: 0.16)
-                    : Colors.white.withValues(alpha: 0.03),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                icon,
-                size: 14,
-                color: active ? tint : _trackTextSecondary,
+                    ? tint.withValues(alpha: 0.35)
+                    : OnyxColorTokens.divider,
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
+            child: Icon(
+              icon,
+              size: 14,
+              color: active ? tint : OnyxColorTokens.textMuted,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              baseLabel,
+              style: GoogleFonts.inter(
+                color: active
+                    ? OnyxColorTokens.textPrimary
+                    : OnyxColorTokens.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          if (countLabel != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: tint.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: tint.withValues(alpha: 0.3)),
+              ),
               child: Text(
-                label,
+                countLabel,
                 style: GoogleFonts.inter(
-                  color: active ? _trackTextPrimary : _trackTextSecondary,
-                  fontSize: 11.5,
+                  color: tint,
+                  fontSize: 10,
                   fontWeight: FontWeight.w700,
                 ),
               ),
             ),
-            Icon(
-              active ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-              size: 14,
-              color: active ? tint : _trackTextMuted,
-            ),
+            const SizedBox(width: 8),
           ],
-        ),
+          SizedBox(
+            height: 24,
+            child: Switch(
+              value: active,
+              onChanged: (_) => onTap(),
+              activeThumbColor: Colors.white,
+              activeTrackColor: OnyxColorTokens.brand,
+              inactiveThumbColor: OnyxColorTokens.textMuted,
+              inactiveTrackColor: OnyxColorTokens.backgroundPrimary,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2224,9 +2248,10 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
 
   Widget _buildSiteCard(_TrackSiteSummary site) {
     final isSelected = site.id == _selectedSiteId;
-    final accent = site.status == _TrackSiteStatus.alarm
-        ? _trackRed
-        : _trackBlue;
+    final isAtRisk = site.status == _TrackSiteStatus.alarm;
+    final accent = isAtRisk
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentGreen;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -2235,20 +2260,20 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             _selectedSiteId = site.id;
           });
         },
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
           decoration: BoxDecoration(
             color: isSelected
-                ? accent.withValues(alpha: 0.12)
-                : Colors.white.withValues(alpha: 0.02),
-            borderRadius: BorderRadius.circular(14),
+                ? accent.withValues(alpha: 0.1)
+                : OnyxColorTokens.backgroundSecondary,
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
-                  ? accent.withValues(alpha: 0.55)
-                  : _trackPanelBorder,
+                  ? accent.withValues(alpha: 0.5)
+                  : OnyxColorTokens.divider,
             ),
             boxShadow: isSelected
                 ? [
@@ -2287,18 +2312,18 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                         Text(
                           site.name,
                           style: GoogleFonts.inter(
-                            color: _trackTextPrimary,
-                            fontSize: 12.25,
-                            fontWeight: FontWeight.w800,
+                            color: OnyxColorTokens.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '${site.id} • ${site.clientLabel}',
                           style: GoogleFonts.inter(
-                            color: _trackTextSecondary,
-                            fontSize: 10.25,
-                            fontWeight: FontWeight.w600,
+                            color: OnyxColorTokens.textSecondary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
@@ -2311,17 +2336,16 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.16),
+                      color: accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: accent.withValues(alpha: 0.3)),
                     ),
                     child: Text(
-                      site.status == _TrackSiteStatus.alarm
-                          ? 'ALARM'
-                          : 'SECURE',
+                      isAtRisk ? 'AT-RISK' : 'SECURE',
                       style: GoogleFonts.inter(
                         color: accent,
                         fontSize: 9,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 0.45,
                       ),
                     ),
