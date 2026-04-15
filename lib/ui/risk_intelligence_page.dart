@@ -6,12 +6,12 @@ import 'layout_breakpoints.dart';
 import 'onyx_surface.dart';
 import 'theme/onyx_design_tokens.dart';
 
-const _intelSurfaceColor = Color(0xFF13131E);
-const _intelSurfaceAltColor = Color(0xFF1A1A2E);
-const _intelBorderColor = Color(0x269D4BFF);
-const _intelTitleColor = Color(0xFFE8E8F0);
-const _intelBodyColor = Color(0x80FFFFFF);
-const _intelMutedColor = Color(0x4DFFFFFF);
+const _intelSurfaceColor = OnyxColorTokens.backgroundSecondary;
+const _intelSurfaceAltColor = OnyxColorTokens.surfaceElevated;
+const _intelBorderColor = OnyxColorTokens.borderSubtle;
+const _intelTitleColor = OnyxColorTokens.textPrimary;
+const _intelBodyColor = OnyxColorTokens.textSecondary;
+const _intelMutedColor = OnyxColorTokens.textMuted;
 
 String _intelKeySegment(String value) =>
     value.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
@@ -104,26 +104,26 @@ class RiskIntelligencePage extends StatelessWidget {
     RiskIntelAreaSummary(
       title: 'Sandton',
       level: 'LOW',
-      accent: Color(0xFF5BE2A3),
-      border: Color(0xFF214A3B),
+      accent: OnyxColorTokens.accentGreen,
+      border: OnyxColorTokens.greenBorder,
     ),
     RiskIntelAreaSummary(
       title: 'Hyde Park',
       level: 'LOW',
-      accent: Color(0xFF5BE2A3),
-      border: Color(0xFF214A3B),
+      accent: OnyxColorTokens.accentGreen,
+      border: OnyxColorTokens.greenBorder,
     ),
     RiskIntelAreaSummary(
       title: 'Waterfall',
       level: 'MEDIUM',
-      accent: Color(0xFFFFC533),
-      border: Color(0xFF70511F),
+      accent: OnyxColorTokens.accentAmber,
+      border: OnyxColorTokens.amberBorder,
     ),
     RiskIntelAreaSummary(
       title: 'Rosebank',
       level: 'LOW',
-      accent: Color(0xFF5BE2A3),
-      border: Color(0xFF214A3B),
+      accent: OnyxColorTokens.accentGreen,
+      border: OnyxColorTokens.greenBorder,
     ),
   ];
 
@@ -135,7 +135,7 @@ class RiskIntelligencePage extends StatelessWidget {
       timeLabel: '23:15',
       sourceLabel: 'TWITTER',
       icon: Icons.alternate_email_rounded,
-      iconColor: Color(0xFFFFC533),
+      iconColor: OnyxColorTokens.accentAmber,
       summary: 'Protest planned near Rosebank Metro Station tomorrow at 10:00',
     ),
     RiskIntelFeedItem(
@@ -145,7 +145,7 @@ class RiskIntelligencePage extends StatelessWidget {
       timeLabel: '22:45',
       sourceLabel: 'NEWS24',
       icon: Icons.public_rounded,
-      iconColor: Color(0xFF54C8FF),
+      iconColor: OnyxColorTokens.accentSky,
       summary: 'Load shedding Stage 3 announced - affects all monitored areas',
     ),
     RiskIntelFeedItem(
@@ -155,7 +155,7 @@ class RiskIntelligencePage extends StatelessWidget {
       timeLabel: '21:30',
       sourceLabel: 'POLICE SCANNER',
       icon: Icons.sensors_rounded,
-      iconColor: Color(0xFFFF7C7C),
+      iconColor: OnyxColorTokens.accentRed,
       summary:
           'Armed robbery reported in Midrand - 5km from Waterfall Business Park',
     ),
@@ -169,7 +169,7 @@ class RiskIntelligencePage extends StatelessWidget {
           dialogKey: const ValueKey('intel-add-manual-dialog'),
           title: 'Intel Intake',
           eyebrow: 'INTAKE CHECKLIST',
-          accent: const Color(0xFF54C8FF),
+          accent: OnyxColorTokens.accentSky,
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
