@@ -3173,7 +3173,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         child: GestureDetector(
           onTap: m.onTap != null ? () => m.onTap!() : null,
           child: Container(
-            height: 140,
+            constraints: const BoxConstraints(minHeight: 130),
             margin: margin,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -4167,7 +4167,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            recommendationSummary,
+            _humaniseSiteIdsInText(recommendationSummary),
             style: GoogleFonts.inter(
               color: _commandTitleColor,
               fontSize: 12.2,
@@ -4202,7 +4202,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
           if (!streamlined) ...[
             const SizedBox(height: 6),
             Text(
-              displayedRecommendation?.detail ?? detail,
+              _humaniseSiteIdsInText(displayedRecommendation?.detail ?? detail),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: GoogleFonts.inter(
