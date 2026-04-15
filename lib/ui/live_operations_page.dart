@@ -2805,11 +2805,30 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
   }
 
-  /// Replace all SITE-XX-YY patterns inside a free-text string.
+  /// Replace all SITE-XX-YY and CLIENT-XX-YY patterns inside a free-text string.
   String _humaniseSiteIdsInText(String text) {
     return text.replaceAllMapped(
-      RegExp(r'SITE-[A-Z0-9]+(?:-[A-Z0-9]+)*', caseSensitive: false),
-      (m) => _humaniseSiteId(m.group(0)!),
+      RegExp(
+        r'(?:SITE|CLIENT)-[A-Z0-9]+(?:-[A-Z0-9]+)*',
+        caseSensitive: false,
+      ),
+      (m) {
+        final raw = m.group(0)!;
+        final upper = raw.toUpperCase();
+        final stripped = upper.startsWith('CLIENT-')
+            ? raw.substring(7)
+            : raw.startsWith('SITE-') || raw.startsWith('site-')
+            ? raw.substring(5)
+            : raw;
+        return stripped
+            .split('-')
+            .map(
+              (w) => w.isEmpty
+                  ? ''
+                  : w[0].toUpperCase() + w.substring(1).toLowerCase(),
+            )
+            .join(' ');
+      },
     );
   }
 
@@ -3264,111 +3283,6 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       );
     }
 
-    Widget priorityCard(_CommandDecisionItem item) => Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: OnyxColorTokens.backgroundSecondary,
-            borderRadius: BorderRadius.circular(10),
-            border: Border(
-              left: BorderSide(color: item.accent, width: 3),
-              top: BorderSide(color: OnyxColorTokens.divider),
-              right: BorderSide(color: OnyxColorTokens.divider),
-              bottom: BorderSide(color: OnyxColorTokens.divider),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                item.label.toUpperCase(),
-                style: GoogleFonts.inter(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                  color: item.accent,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                item.title,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _commandTitleColor,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                item.detail,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: _commandBodyColor,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 6,
-                children: item.actions.take(2).indexed.map((rec) {
-                  final (idx, a) = rec;
-                  if (idx == 0) {
-                    return ElevatedButton(
-                      onPressed: a.onPressed != null
-                          ? () => a.onPressed!()
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: item.accent,
-                        foregroundColor: Colors.white,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 5,
-                        ),
-                        textStyle: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(a.label),
-                    );
-                  }
-                  return OutlinedButton(
-                    onPressed: a.onPressed != null
-                        ? () => a.onPressed!()
-                        : null,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _commandBodyColor,
-                      side: BorderSide(color: _commandBorderColor),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 5,
-                      ),
-                      textStyle: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    child: Text(a.label),
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        );
 
     // ── Activity + ledger section ──────────────────────────────────────────
     final activitySection = Column(
@@ -3468,66 +3382,9 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     );
 
     // ── Priority queue section ─────────────────────────────────────────────
-    final queueSection = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              'PRIORITY QUEUE',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: _commandMutedColor,
-                letterSpacing: 0.7,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              '${decisionItems.length}',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: _commandTitleColor,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        if (decisionItems.isEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: OnyxDesignTokens.greenSpec.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: OnyxDesignTokens.greenSpec.withValues(alpha: 0.12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: OnyxDesignTokens.greenSpec,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'All clear — no items need attention',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: OnyxDesignTokens.greenSpec,
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          ...decisionItems.take(4).map(priorityCard),
-      ],
+    final queueSection = _commandDecisionQueuePanel(
+      items: decisionItems,
+      streamlined: true,
     );
 
     return SizedBox(
@@ -4710,9 +4567,11 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         width: double.infinity,
                         height: double.infinity,
                         decoration: BoxDecoration(
-                          color: m.surface,
+                          color: _commandPanelColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: m.border),
+                          border: Border.all(
+                            color: m.accent.withValues(alpha: 0.35),
+                          ),
                         ),
                         padding: EdgeInsets.all(contentPadding),
                         child: Column(
@@ -4961,12 +4820,14 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         decoration: BoxDecoration(
                           color: _commandPanelColor,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: module.border),
+                          border: Border.all(
+                            color: module.accent.withValues(alpha: 0.35),
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: module.accent.withValues(alpha: 0.12),
-                              blurRadius: 16,
-                              offset: const Offset(0, 8),
+                              color: module.accent.withValues(alpha: 0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
                           ],
                         ),
@@ -6861,7 +6722,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     for (final candidate in candidates) {
       final trimmed = (candidate ?? '').trim();
       if (trimmed.isNotEmpty) {
-        return trimmed;
+        return _humaniseSiteIdsInText(trimmed);
       }
     }
     if (critical) {
