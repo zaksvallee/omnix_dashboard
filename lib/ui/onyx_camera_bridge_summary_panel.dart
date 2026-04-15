@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'theme/onyx_design_tokens.dart';
+
 enum OnyxCameraBridgeSummaryPanelVariant { agent, admin }
 
 class OnyxCameraBridgeSummaryPanel extends StatelessWidget {
@@ -24,7 +26,7 @@ class OnyxCameraBridgeSummaryPanel extends StatelessWidget {
         summary,
         key: panelKey,
         style: GoogleFonts.inter(
-          color: const Color(0xFFE7F0FF),
+          color: OnyxColorTokens.textPrimary,
           fontSize: 11.8,
           fontWeight: FontWeight.w700,
           height: 1.35,
@@ -35,16 +37,18 @@ class OnyxCameraBridgeSummaryPanel extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: OnyxColorTokens.backgroundSecondary,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: (accent ?? const Color(0xFF273241)).withValues(alpha: 0.28),
+            color: (accent ?? OnyxColorTokens.borderSubtle).withValues(
+              alpha: 0.28,
+            ),
           ),
         ),
         child: Text(
           summary,
           style: GoogleFonts.inter(
-            color: const Color(0xFF172638),
+            color: OnyxColorTokens.textPrimary,
             fontSize: 11.3,
             fontWeight: FontWeight.w700,
             height: 1.42,

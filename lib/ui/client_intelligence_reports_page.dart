@@ -61,7 +61,7 @@ const _reportsBorderColor = OnyxDesignTokens.borderSubtle;
 const _reportsTitleColor = OnyxDesignTokens.textPrimary;
 const _reportsBodyColor = OnyxDesignTokens.textSecondary;
 const _reportsMutedColor = OnyxDesignTokens.textMuted;
-const _reportsShadowColor = Color(0x0D000000);
+final _reportsShadowColor = OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.05);
 const _reportsAccentSky = OnyxDesignTokens.accentSky;
 
 class ClientIntelligenceReportsPage extends StatefulWidget {
@@ -727,7 +727,7 @@ class _ClientIntelligenceReportsPageState
             color: _reportsPanelColor,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _reportsBorderColor),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
                 color: _reportsShadowColor,
                 blurRadius: 14,
@@ -849,26 +849,26 @@ class _ClientIntelligenceReportsPageState
             _partnerScopeChip(
               label: hasLiveReceipts ? 'Live receipts' : 'Sample receipts',
               color: hasLiveReceipts
-                  ? const Color(0xFF59D79B)
-                  : const Color(0xFF8EA4C2),
+                  ? OnyxColorTokens.accentGreen
+                  : OnyxColorTokens.textSecondary,
             ),
             _partnerScopeChip(
               label: '${reportRows.length} total',
-              color: const Color(0xFF8FD1FF),
+              color: OnyxColorTokens.accentSky,
             ),
             _partnerScopeChip(
               label: '${visibleReceipts.length} visible',
-              color: const Color(0xFF59D79B),
+              color: OnyxColorTokens.accentGreen,
             ),
             if (activeReceipt != null)
               _partnerScopeChip(
                 label: 'Focused ${activeReceipt.event.eventId}',
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
             if (previewTargetReceipt != null)
               _partnerScopeChip(
                 label: 'Preview ${previewTargetReceipt.event.eventId}',
-                color: const Color(0xFF59D79B),
+                color: OnyxColorTokens.accentGreen,
               ),
             _partnerScopeChip(
               label: _receiptFilter.viewingLabel,
@@ -877,7 +877,7 @@ class _ClientIntelligenceReportsPageState
             if (_hasPartnerScopeFocus)
               _partnerScopeChip(
                 label: 'Partner scope active',
-                color: const Color(0xFF59D79B),
+                color: OnyxColorTokens.accentGreen,
               ),
           ],
         ),
@@ -888,7 +888,7 @@ class _ClientIntelligenceReportsPageState
                 ? 'Filter the receipt board, keep the right report in focus, and route it without losing partner scope.'
                 : 'Filter the receipt board, keep the right report in focus, and route it fast.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF9CB2D1),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -905,7 +905,7 @@ class _ClientIntelligenceReportsPageState
                 key: const ValueKey('reports-workspace-banner-filter-all'),
                 label: 'All Receipts',
                 selected: _receiptFilter == ReportReceiptSceneFilter.all,
-                accent: const Color(0xFF8FD1FF),
+                accent: OnyxColorTokens.accentSky,
                 onTap: () =>
                     toggleReportReceiptFilter(ReportReceiptSceneFilter.all),
               ),
@@ -913,7 +913,7 @@ class _ClientIntelligenceReportsPageState
                 key: const ValueKey('reports-workspace-banner-filter-alerts'),
                 label: 'Focus Alerts',
                 selected: _receiptFilter == ReportReceiptSceneFilter.alerts,
-                accent: const Color(0xFF60A5FA),
+                accent: OnyxColorTokens.accentSky,
                 onTap: () =>
                     toggleReportReceiptFilter(ReportReceiptSceneFilter.alerts),
               ),
@@ -923,7 +923,7 @@ class _ClientIntelligenceReportsPageState
                 ),
                 label: 'Scene Pending',
                 selected: _receiptFilter == ReportReceiptSceneFilter.pending,
-                accent: const Color(0xFF59D79B),
+                accent: OnyxColorTokens.accentGreen,
                 onTap: () =>
                     toggleReportReceiptFilter(ReportReceiptSceneFilter.pending),
               ),
@@ -933,7 +933,7 @@ class _ClientIntelligenceReportsPageState
                     ? 'Clear Partner Focus'
                     : 'Focus Top Partner',
                 selected: _hasPartnerScopeFocus,
-                accent: const Color(0xFF67E8F9),
+                accent: OnyxColorTokens.accentCyanTrue,
                 onTap: _hasPartnerScopeFocus
                     ? _clearPartnerScopeFocus
                     : hasPartnerLane
@@ -951,7 +951,7 @@ class _ClientIntelligenceReportsPageState
                 key: const ValueKey('reports-workspace-banner-open-governance'),
                 label: 'Governance Scope',
                 selected: true,
-                accent: const Color(0xFF22D3EE),
+                accent: OnyxColorTokens.accentCyanTrue,
                 onTap: _openGovernanceScopeAction(
                   clientId: widget.selectedClient,
                   siteId: widget.selectedSite,
@@ -965,7 +965,7 @@ class _ClientIntelligenceReportsPageState
                     ? 'Open Active Receipt'
                     : 'Recover Receipt Board',
                 selected: previewTargetReceipt != null || activeReceipt != null,
-                accent: const Color(0xFF59D79B),
+                accent: OnyxColorTokens.accentGreen,
                 onTap: previewTargetReceipt != null
                     ? () =>
                           _previewReceipt(previewTargetReceipt, hasLiveReceipts)
@@ -993,9 +993,9 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F6FB),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD1DCE8)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: bannerContent,
     );
@@ -1003,12 +1003,14 @@ class _ClientIntelligenceReportsPageState
 
   Widget _reportsWorkspaceCommandReceipt({bool shellless = false}) {
     final receipt = _commandReceipt;
-    final titleColor = shellless ? receipt.accent : const Color(0xFF33506E);
-    final labelColor = shellless ? _reportsTitleColor : const Color(0xFF10243A);
+    final titleColor = shellless ? receipt.accent : OnyxColorTokens.textSecondary;
+    final labelColor = shellless
+        ? _reportsTitleColor
+        : OnyxColorTokens.textPrimary;
     final messageColor = shellless
         ? _reportsTitleColor
-        : const Color(0xFF18304A);
-    final detailColor = shellless ? _reportsBodyColor : const Color(0xFF5B7086);
+        : OnyxColorTokens.textPrimary;
+    final detailColor = shellless ? _reportsBodyColor : OnyxColorTokens.textMuted;
     final receiptContent = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1069,7 +1071,7 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F7FC),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: receipt.accent.withValues(alpha: 0.24)),
       ),
@@ -1093,27 +1095,27 @@ class _ClientIntelligenceReportsPageState
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
         decoration: BoxDecoration(
           color: onTap == null
-              ? const Color(0xFFE3EAF2)
+              ? OnyxColorTokens.borderSubtle
               : selected
               ? accent.withValues(alpha: 0.18)
-              : const Color(0xFFE9F1F8),
+              : OnyxColorTokens.surfaceElevated,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: onTap == null
-                ? const Color(0xFFC7D5E3)
+                ? OnyxColorTokens.borderSubtle
                 : selected
                 ? accent.withValues(alpha: 0.52)
-                : const Color(0xFFC7D5E3),
+                : OnyxColorTokens.borderSubtle,
           ),
         ),
         child: Text(
           label,
           style: GoogleFonts.inter(
             color: onTap == null
-                ? const Color(0xFF7A8CA1)
+                ? OnyxColorTokens.textSecondary
                 : selected
                 ? accent
-                : const Color(0xFF18304A),
+                : OnyxColorTokens.textPrimary,
             fontSize: 9,
             fontWeight: FontWeight.w800,
           ),
@@ -1141,7 +1143,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'RECEIPT LANE',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8FD1FF),
+              color: OnyxColorTokens.accentSky,
               fontSize: 9.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -1154,7 +1156,7 @@ class _ClientIntelligenceReportsPageState
             children: [
               _partnerScopeChip(
                 label: '${visibleReceipts.length} of $totalReceipts visible',
-                color: const Color(0xFF59D79B),
+                color: OnyxColorTokens.accentGreen,
               ),
               _partnerScopeChip(
                 label: _receiptFilter.viewingLabel,
@@ -1163,7 +1165,7 @@ class _ClientIntelligenceReportsPageState
               if (activeReceipt != null)
                 _partnerScopeChip(
                   label: 'Focused ${activeReceipt.event.eventId}',
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                 ),
             ],
           ),
@@ -1232,10 +1234,10 @@ class _ClientIntelligenceReportsPageState
     final recoveryFilters = _receiptHistoryRecoveryFilters(reportRows);
     final sceneCount = activeReceipt?.sceneReviewSummary?.totalReviews ?? 0;
     final activeAccent = activeReceipt == null
-        ? const Color(0xFF8FD1FF)
+        ? OnyxColorTokens.accentSky
         : activeReceipt.replayVerified
-        ? const Color(0xFF59D79B)
-        : const Color(0xFFF6C067);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
     final governanceAction = _openGovernanceScopeAction(
       clientId: widget.selectedClient,
       siteId: widget.selectedSite,
@@ -1272,13 +1274,13 @@ class _ClientIntelligenceReportsPageState
                         ? 'Verified'
                         : 'Pending',
                     color: activeReceipt.replayVerified
-                        ? const Color(0xFF59D79B)
-                        : const Color(0xFFF6C067),
+                        ? OnyxColorTokens.accentGreen
+                        : OnyxColorTokens.accentAmber,
                   ),
                   if (previewTargetReceipt != null)
                     _partnerScopeChip(
                       label: 'Preview ${previewTargetReceipt.event.eventId}',
-                      color: const Color(0xFFF6C067),
+                      color: OnyxColorTokens.accentAmber,
                     ),
                   _partnerScopeChip(
                     label: 'Scenes: $sceneCount',
@@ -1286,7 +1288,7 @@ class _ClientIntelligenceReportsPageState
                   ),
                   _partnerScopeChip(
                     label: 'Output: ${_outputMode.label}',
-                    color: const Color(0xFFB9C6D8),
+                    color: OnyxColorTokens.borderSubtle,
                   ),
                 ],
               ),
@@ -1360,8 +1362,8 @@ class _ClientIntelligenceReportsPageState
                           ? 'Verified'
                           : 'Pending',
                       color: activeReceipt.replayVerified
-                          ? const Color(0xFF59D79B)
-                          : const Color(0xFFF6C067),
+                          ? OnyxColorTokens.accentGreen
+                          : OnyxColorTokens.accentAmber,
                     ),
                 ],
               ),
@@ -1390,22 +1392,22 @@ class _ClientIntelligenceReportsPageState
                   if (previewTargetReceipt != null)
                     _partnerScopeChip(
                       label: 'Preview: ${previewTargetReceipt.event.eventId}',
-                      color: const Color(0xFFF6C067),
+                      color: OnyxColorTokens.accentAmber,
                     ),
                   _partnerScopeChip(
                     label: 'Scenes: $sceneCount',
                     color: activeReceipt == null
-                        ? const Color(0xFF59D79B)
+                        ? OnyxColorTokens.accentGreen
                         : activeAccent,
                   ),
                   _partnerScopeChip(
                     label: 'Output: ${_outputMode.label}',
-                    color: const Color(0xFFB9C6D8),
+                    color: OnyxColorTokens.borderSubtle,
                   ),
                   if (activeReceipt == null)
                     _partnerScopeChip(
                       label: '${visibleReceipts.length} board rows',
-                      color: const Color(0xFF8EA4C2),
+                      color: OnyxColorTokens.textSecondary,
                     ),
                 ],
               ),
@@ -1439,8 +1441,8 @@ class _ClientIntelligenceReportsPageState
                       label: activeLabel,
                       selected: false,
                       accent: activeAction != null
-                          ? const Color(0xFF59D79B)
-                          : const Color(0xFF8EA4C2),
+                          ? OnyxColorTokens.accentGreen
+                          : OnyxColorTokens.textSecondary,
                       onTap: activeAction,
                     ),
                     _workspaceStatusAction(
@@ -1450,8 +1452,8 @@ class _ClientIntelligenceReportsPageState
                       label: 'Governance Scope',
                       selected: governanceAction != null,
                       accent: governanceAction != null
-                          ? const Color(0xFF22D3EE)
-                          : const Color(0xFF8EA4C2),
+                          ? OnyxColorTokens.accentCyanTrue
+                          : OnyxColorTokens.textSecondary,
                       onTap: governanceAction,
                     ),
                     _workspaceStatusAction(
@@ -1511,7 +1513,7 @@ class _ClientIntelligenceReportsPageState
         gradient: LinearGradient(
           colors: [
             activeAccent.withValues(alpha: 0.16),
-            const Color(0xFFF2F6FB),
+            OnyxColorTokens.backgroundSecondary,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -1555,7 +1557,7 @@ class _ClientIntelligenceReportsPageState
         Text(
           'HANDOFF SNAPSHOT',
           style: GoogleFonts.inter(
-            color: const Color(0xFF8FD1FF),
+            color: OnyxColorTokens.accentSky,
             fontSize: 9.5,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
@@ -1568,7 +1570,7 @@ class _ClientIntelligenceReportsPageState
           children: [
             _partnerScopeChip(
               label: _previewSurface.label,
-              color: const Color(0xFF59D79B),
+              color: OnyxColorTokens.accentGreen,
             ),
             _partnerScopeChip(
               label:
@@ -1576,12 +1578,12 @@ class _ClientIntelligenceReportsPageState
                       ReportPartnerComparisonWindow.latestShift
                   ? 'Latest shift'
                   : '3-shift baseline',
-              color: const Color(0xFFF6C067),
+              color: OnyxColorTokens.accentAmber,
             ),
             if (_hasPartnerScopeFocus)
               _partnerScopeChip(
                 label: 'Partner scope active',
-                color: const Color(0xFF59D79B),
+                color: OnyxColorTokens.accentGreen,
               ),
           ],
         ),
@@ -1595,7 +1597,7 @@ class _ClientIntelligenceReportsPageState
               ? '${reportRows.length} scoped receipts remain available on this receipt board.'
               : '${reportRows.length} scoped receipts remain outside ${_receiptFilter.label.toLowerCase()}. Reopen the board or pivot into ${recoveryFilters.first.label.toLowerCase()}.',
           style: GoogleFonts.inter(
-            color: const Color(0xFF9CB2D1),
+            color: OnyxColorTokens.textSecondary,
             fontSize: 9,
             fontWeight: FontWeight.w600,
             height: 1.45,
@@ -1639,7 +1641,7 @@ class _ClientIntelligenceReportsPageState
                 ? 'Governance Desk stays pinned in the page header, while the selected receipt and staged target stay anchored to the board and preview surfaces below.'
                 : 'Governance Desk stays pinned in the page header, while selected receipt review stays anchored to the board and preview surfaces below.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -1658,9 +1660,9 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(7),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF4FA),
+        color: OnyxColorTokens.surfaceElevated,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFD1DCE8)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: contextContent,
     );
@@ -1675,15 +1677,15 @@ class _ClientIntelligenceReportsPageState
       key: key,
       onPressed: onTap,
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF28527D),
-        side: const BorderSide(color: Color(0xFF8EC8FF)),
+        backgroundColor: OnyxColorTokens.accentBlue,
+        side: const BorderSide(color: OnyxColorTokens.accentSky),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
-          color: const Color(0xFFEAF3FF),
+          color: OnyxColorTokens.textPrimary,
           fontSize: 9,
           fontWeight: FontWeight.w700,
         ),
@@ -1713,50 +1715,50 @@ class _ClientIntelligenceReportsPageState
         OnyxStoryMetric(
           value: widget.selectedClient,
           label: 'client',
-          foreground: const Color(0xFF8FD1FF),
-          background: const Color(0x1A8FD1FF),
-          border: const Color(0x668FD1FF),
+          foreground: OnyxColorTokens.accentSky,
+          background: OnyxColorTokens.cyanSurface,
+          border: OnyxColorTokens.cyanBorder,
         ),
         OnyxStoryMetric(
           value: widget.selectedSite,
           label: 'site',
-          foreground: const Color(0xFFCCFBF1),
-          background: const Color(0x1A14B8A6),
-          border: const Color(0x6614B8A6),
+          foreground: OnyxColorTokens.accentGreen,
+          background: OnyxColorTokens.greenSurface,
+          border: OnyxColorTokens.greenBorder,
         ),
         OnyxStoryMetric(
           value: '$pendingCount',
           label: 'building',
           foreground: pendingCount > 0
-              ? const Color(0xFF7DD3FC)
-              : const Color(0xFF9AB1CF),
+              ? OnyxColorTokens.accentSky
+              : OnyxColorTokens.textSecondary,
           background: pendingCount > 0
-              ? const Color(0x1438BDF8)
-              : const Color(0x1494A3B8),
+              ? OnyxColorTokens.cyanSurface
+              : OnyxColorTokens.divider,
           border: pendingCount > 0
-              ? const Color(0x6638BDF8)
-              : const Color(0x6694A3B8),
+              ? OnyxColorTokens.cyanBorder
+              : OnyxColorTokens.borderStrong,
         ),
         OnyxStoryMetric(
           value: '$verifiedCount',
           label: 'verified',
-          foreground: const Color(0xFF59D79B),
-          background: const Color(0x1A59D79B),
-          border: const Color(0x6659D79B),
+          foreground: OnyxColorTokens.accentGreen,
+          background: OnyxColorTokens.greenSurface,
+          border: OnyxColorTokens.greenBorder,
         ),
         OnyxStoryMetric(
           value: '${reviewedCount + pendingSceneCount}',
           label: 'review desk',
-          foreground: const Color(0xFF172638),
-          background: const Color(0xFF1A1A2E),
-          border: const Color(0xFFD4DFEA),
+          foreground: OnyxColorTokens.textPrimary,
+          background: OnyxColorTokens.surfaceElevated,
+          border: OnyxColorTokens.borderSubtle,
         ),
         OnyxStoryMetric(
           value: '$totalReceipts',
           label: 'reports',
-          foreground: const Color(0xFF172638),
-          background: const Color(0xFF1A1A2E),
-          border: const Color(0xFFD4DFEA),
+          foreground: OnyxColorTokens.textPrimary,
+          background: OnyxColorTokens.surfaceElevated,
+          border: OnyxColorTokens.borderSubtle,
         ),
       ],
       actions: [
@@ -1764,14 +1766,14 @@ class _ClientIntelligenceReportsPageState
           key: const ValueKey('reports-routed-view-governance-button'),
           icon: Icons.open_in_new,
           label: 'OPEN GOVERNANCE DESK',
-          accent: const Color(0xFF93C5FD),
+          accent: OnyxColorTokens.accentSky,
           onPressed: governanceAction,
         ),
         _heroActionButton(
           key: const ValueKey('reports-routed-generate-button'),
           icon: Icons.picture_as_pdf_rounded,
           label: _isGenerating ? 'Generating...' : 'Generate New Report',
-          accent: const Color(0xFF59D79B),
+          accent: OnyxColorTokens.accentGreen,
           onPressed: _isGenerating ? null : _generateReport,
         ),
       ],
@@ -1794,8 +1796,8 @@ class _ClientIntelligenceReportsPageState
       style: FilledButton.styleFrom(
         backgroundColor: accent.withValues(alpha: 0.12),
         foregroundColor: accent,
-        disabledBackgroundColor: const Color(0xFFF0F5FB),
-        disabledForegroundColor: const Color(0x667A8CA8),
+        disabledBackgroundColor: OnyxColorTokens.surfaceElevated,
+        disabledForegroundColor: OnyxColorTokens.borderStrong,
         side: BorderSide(color: accent.withValues(alpha: 0.28)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         textStyle: GoogleFonts.inter(
@@ -1904,8 +1906,8 @@ class _ClientIntelligenceReportsPageState
             _receiptSceneReviewPill(
               row.replayVerified ? 'Replay Verified' : 'Replay Pending',
               row.replayVerified
-                  ? const Color(0xFF59D79B)
-                  : const Color(0xFFF6C067),
+                  ? OnyxColorTokens.accentGreen
+                  : OnyxColorTokens.accentAmber,
             ),
             _receiptSceneReviewPill(
               _receiptBrandingLabel(row.event),
@@ -2314,7 +2316,7 @@ class _ClientIntelligenceReportsPageState
                 Text(
                   'Client-facing branding',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8FD1FF),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
@@ -2370,7 +2372,7 @@ class _ClientIntelligenceReportsPageState
         Text(
           'SECTION CONFIGURATION',
           style: GoogleFonts.inter(
-            color: const Color(0xFF7F92AE),
+            color: OnyxColorTokens.textSecondary,
             fontSize: 10.5,
             fontWeight: FontWeight.w800,
             letterSpacing: 0.8,
@@ -2410,7 +2412,7 @@ class _ClientIntelligenceReportsPageState
         if (activeReceipt != null && !summaryOnly) ...[
           const SizedBox(height: 10),
           _generationLane(
-            color: const Color(0xFF59D79B),
+            color: OnyxColorTokens.accentGreen,
             icon: Icons.visibility_rounded,
             title: 'Selected Receipt',
             detail: _receiptPolicyHistoryHeadline(activeReceipt.event),
@@ -2426,7 +2428,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Selected receipt preview and copy stay anchored to the focused board, while this rail keeps generation scope, branding, and preview surface controls together.',
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 9,
               fontWeight: FontWeight.w600,
               height: 1.35,
@@ -2466,7 +2468,7 @@ class _ClientIntelligenceReportsPageState
             key: const ValueKey('reports-kpi-all'),
             label: 'TOTAL RECEIPTS',
             value: '$totalReceipts',
-            accent: const Color(0xFF63BDFF),
+            accent: OnyxColorTokens.accentCyanTrue,
             icon: Icons.description_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.all,
             onTap: () =>
@@ -2475,20 +2477,20 @@ class _ClientIntelligenceReportsPageState
           _kpiCard(
             label: 'VERIFIED REPORTS',
             value: '$verifiedCount',
-            accent: const Color(0xFF59D79B),
+            accent: OnyxColorTokens.accentGreen,
             icon: Icons.verified_rounded,
           ),
           _kpiCard(
             label: 'PENDING VERIFICATION',
             value: '$pendingCount',
-            accent: const Color(0xFFF6C067),
+            accent: OnyxColorTokens.accentAmber,
             icon: Icons.pending_actions_rounded,
           ),
           _kpiCard(
             key: const ValueKey('reports-kpi-reviewed'),
             label: 'REVIEWED',
             value: '$reviewedCount',
-            accent: const Color(0xFF59D79B),
+            accent: OnyxColorTokens.accentGreen,
             icon: Icons.visibility_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.reviewed,
             onTap: () =>
@@ -2498,7 +2500,7 @@ class _ClientIntelligenceReportsPageState
             key: const ValueKey('reports-kpi-alerts'),
             label: 'ALERTS',
             value: '$alertReceiptCount',
-            accent: const Color(0xFF63BDFF),
+            accent: OnyxColorTokens.accentCyanTrue,
             icon: Icons.notifications_active_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.alerts,
             onTap: () =>
@@ -2508,7 +2510,7 @@ class _ClientIntelligenceReportsPageState
             key: const ValueKey('reports-kpi-repeat'),
             label: 'REPEAT',
             value: '$repeatReceiptCount',
-            accent: const Color(0xFFF6C067),
+            accent: OnyxColorTokens.accentAmber,
             icon: Icons.repeat_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.repeat,
             onTap: () =>
@@ -2518,7 +2520,7 @@ class _ClientIntelligenceReportsPageState
             key: const ValueKey('reports-kpi-escalation'),
             label: 'ESCALATION',
             value: '$escalationReceiptCount',
-            accent: const Color(0xFFFF7A7A),
+            accent: OnyxColorTokens.accentRed,
             icon: Icons.priority_high_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.escalation,
             onTap: () =>
@@ -2528,7 +2530,7 @@ class _ClientIntelligenceReportsPageState
             key: const ValueKey('reports-kpi-suppressed'),
             label: 'SUPPRESSED',
             value: '$suppressedReceiptCount',
-            accent: const Color(0xFF8EA4C2),
+            accent: OnyxColorTokens.textSecondary,
             icon: Icons.visibility_off_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.suppressed,
             onTap: () =>
@@ -2538,7 +2540,7 @@ class _ClientIntelligenceReportsPageState
             key: const ValueKey('reports-kpi-scene-pending'),
             label: 'SCENE PENDING',
             value: '$pendingSceneCount',
-            accent: const Color(0xFF8EA4C2),
+            accent: OnyxColorTokens.textSecondary,
             icon: Icons.hourglass_bottom_rounded,
             isActive: _receiptFilter == ReportReceiptSceneFilter.pending,
             onTap: () =>
@@ -2548,14 +2550,14 @@ class _ClientIntelligenceReportsPageState
             key: const ValueKey('reports-kpi-investigation-governance'),
             label: 'OVERSIGHT HANDOFFS',
             value: '$governanceInvestigationCount',
-            accent: const Color(0xFF5DC8FF),
+            accent: OnyxColorTokens.accentCyanTrue,
             icon: Icons.manage_search_rounded,
           ),
           _kpiCard(
             key: const ValueKey('reports-kpi-investigation-routine'),
             label: 'ROUTINE REVIEW',
             value: '$routineInvestigationCount',
-            accent: const Color(0xFF8EA4C2),
+            accent: OnyxColorTokens.textSecondary,
             icon: Icons.rule_rounded,
           ),
           _kpiCard(
@@ -2568,7 +2570,7 @@ class _ClientIntelligenceReportsPageState
           _kpiCard(
             label: 'OUTPUT MODE',
             value: _outputMode.label,
-            accent: const Color(0xFFE8F1FF),
+            accent: OnyxColorTokens.textPrimary,
             icon: Icons.download_rounded,
           ),
         ];
@@ -2651,9 +2653,9 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF13131E),
+              color: OnyxColorTokens.backgroundSecondary,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFD6E1EC)),
+              border: Border.all(color: OnyxColorTokens.borderSubtle),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2661,7 +2663,7 @@ class _ClientIntelligenceReportsPageState
                 Text(
                   'PARTNER SCOPE ACTIVE',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF8FD1FF),
+                    color: OnyxColorTokens.accentSky,
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 0.8,
@@ -2671,7 +2673,7 @@ class _ClientIntelligenceReportsPageState
                 Text(
                   '${_partnerScopeClientId!}/${_partnerScopeSiteId!} • ${_partnerScopePartnerLabel!}',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF172638),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),
@@ -2681,7 +2683,7 @@ class _ClientIntelligenceReportsPageState
                   latestPoint?.row.summaryLine ??
                       'Morning partner scorecard sync pending for this scope.',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF556B80),
+                    color: OnyxColorTokens.textSecondary,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -2724,7 +2726,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     trendReason,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF8EA4C2),
+                      color: OnyxColorTokens.textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -2746,22 +2748,22 @@ class _ClientIntelligenceReportsPageState
                       _partnerScopeChip(
                         label:
                             'Current Governance: ${receiptInvestigationComparison.currentGovernanceCount}',
-                        color: const Color(0xFF5DC8FF),
+                        color: OnyxColorTokens.accentCyanTrue,
                       ),
                       _partnerScopeChip(
                         label:
                             'Current Routine: ${receiptInvestigationComparison.currentRoutineCount}',
-                        color: const Color(0xFF8EA4C2),
+                        color: OnyxColorTokens.textSecondary,
                       ),
                       _partnerScopeChip(
                         label:
                             'Baseline Governance: ${receiptInvestigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
-                        color: const Color(0xFF4F87BE),
+                        color: OnyxColorTokens.accentBlue,
                       ),
                       _partnerScopeChip(
                         label:
                             'Baseline Routine: ${receiptInvestigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
-                        color: const Color(0xFF7087A8),
+                        color: OnyxColorTokens.textSecondary,
                       ),
                     ],
                   ),
@@ -2785,33 +2787,33 @@ class _ClientIntelligenceReportsPageState
                     children: [
                       _partnerScopeChip(
                         label: 'Site Activity',
-                        color: const Color(0xFF59D79B),
+                        color: OnyxColorTokens.accentGreen,
                       ),
                       _partnerScopeChip(
                         label: '${siteActivity.totalSignals} signals',
-                        color: const Color(0xFF8FD1FF),
+                        color: OnyxColorTokens.accentSky,
                       ),
                       if (siteActivity.vehicleSignals > 0)
                         _partnerScopeChip(
                           label: '${siteActivity.vehicleSignals} vehicles',
-                          color: const Color(0xFFF6C067),
+                          color: OnyxColorTokens.accentAmber,
                         ),
                       if (siteActivity.personSignals > 0)
                         _partnerScopeChip(
                           label: '${siteActivity.personSignals} people',
-                          color: const Color(0xFF8EA4C2),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                       if (siteActivity.knownIdentitySignals > 0)
                         _partnerScopeChip(
                           label:
                               '${siteActivity.knownIdentitySignals} known IDs',
-                          color: const Color(0xFF5DC8FF),
+                          color: OnyxColorTokens.accentCyanTrue,
                         ),
                       if (siteActivity.flaggedIdentitySignals > 0)
                         _partnerScopeChip(
                           label:
                               '${siteActivity.flaggedIdentitySignals} flagged',
-                          color: const Color(0xFFFF7A7A),
+                          color: OnyxColorTokens.accentRed,
                         ),
                     ],
                   ),
@@ -2819,7 +2821,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     siteActivity.summaryLine,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9CB2D1),
+                      color: OnyxColorTokens.textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -2888,7 +2890,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               'Scorecard history',
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -2904,7 +2906,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               'Current dispatch chains',
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -3075,22 +3077,22 @@ class _ClientIntelligenceReportsPageState
               ),
               _partnerScopeChip(
                 label: '$laneCount lane${laneCount == 1 ? '' : 's'}',
-                color: const Color(0xFF5DC8FF),
+                color: OnyxColorTokens.accentCyanTrue,
               ),
               if (leaderComparison != null)
                 _partnerScopeChip(
                   label: 'Leader: ${leaderComparison.row.partnerLabel}',
-                  color: const Color(0xFF59D79B),
+                  color: OnyxColorTokens.accentGreen,
                 ),
               if (activeLane != null)
                 _partnerScopeChip(
                   label: 'Active: ${activeLane.partnerLabel}',
-                  color: const Color(0xFF59D79B),
+                  color: OnyxColorTokens.accentGreen,
                 )
               else if (pendingCount > 0)
                 _partnerScopeChip(
                   label: '$pendingCount pending',
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                 )
               else if (formingCount > 0)
                 _partnerScopeChip(
@@ -3100,15 +3102,15 @@ class _ClientIntelligenceReportsPageState
               if (receiptCount > 0)
                 _partnerScopeChip(
                   label: '$receiptCount receipts',
-                  color: const Color(0xFF5DC8FF),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
               _partnerScopeChip(
                 label: activitySignals > 0
                     ? '$activitySignals live signals'
                     : 'Activity truth ready',
                 color: activitySignals > 0
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.textSecondary,
               ),
             ],
           ),
@@ -3116,7 +3118,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -3345,22 +3347,22 @@ class _ClientIntelligenceReportsPageState
                 _partnerScopeChip(
                   label:
                       'Current Governance: ${receiptInvestigationComparison.currentGovernanceCount}',
-                  color: const Color(0xFF5DC8FF),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerScopeChip(
                   label:
                       'Current Routine: ${receiptInvestigationComparison.currentRoutineCount}',
-                  color: const Color(0xFF8EA4C2),
+                  color: OnyxColorTokens.textSecondary,
                 ),
                 _partnerScopeChip(
                   label:
                       'Baseline Governance: ${receiptInvestigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
-                  color: const Color(0xFF4F87BE),
+                  color: OnyxColorTokens.accentBlue,
                 ),
                 _partnerScopeChip(
                   label:
                       'Baseline Routine: ${receiptInvestigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
-                  color: const Color(0xFF7087A8),
+                  color: OnyxColorTokens.textSecondary,
                 ),
               ],
             ),
@@ -3384,31 +3386,31 @@ class _ClientIntelligenceReportsPageState
               children: [
                 _partnerScopeChip(
                   label: 'Site Activity',
-                  color: const Color(0xFF59D79B),
+                  color: OnyxColorTokens.accentGreen,
                 ),
                 _partnerScopeChip(
                   label: '${siteActivity.totalSignals} signals',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
                 if (siteActivity.vehicleSignals > 0)
                   _partnerScopeChip(
                     label: '${siteActivity.vehicleSignals} vehicles',
-                    color: const Color(0xFFF6C067),
+                    color: OnyxColorTokens.accentAmber,
                   ),
                 if (siteActivity.personSignals > 0)
                   _partnerScopeChip(
                     label: '${siteActivity.personSignals} people',
-                    color: const Color(0xFF8EA4C2),
+                    color: OnyxColorTokens.textSecondary,
                   ),
                 if (siteActivity.knownIdentitySignals > 0)
                   _partnerScopeChip(
                     label: '${siteActivity.knownIdentitySignals} known IDs',
-                    color: const Color(0xFF5DC8FF),
+                    color: OnyxColorTokens.accentCyanTrue,
                   ),
                 if (siteActivity.flaggedIdentitySignals > 0)
                   _partnerScopeChip(
                     label: '${siteActivity.flaggedIdentitySignals} flagged',
-                    color: const Color(0xFFFF7A7A),
+                    color: OnyxColorTokens.accentRed,
                   ),
               ],
             ),
@@ -3416,7 +3418,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               siteActivity.summaryLine,
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -3506,15 +3508,15 @@ class _ClientIntelligenceReportsPageState
                 ),
                 _partnerScopeChip(
                   label: '$governanceCount oversight',
-                  color: const Color(0xFF5DC8FF),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerScopeChip(
                   label: '$routineCount routine',
-                  color: const Color(0xFF8EA4C2),
+                  color: OnyxColorTokens.textSecondary,
                 ),
                 _partnerScopeChip(
                   label: '${rows.length} receipts',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
               ],
             ),
@@ -3523,7 +3525,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               _receiptPolicyHistoryHeadline(current.event),
               style: GoogleFonts.inter(
-                color: const Color(0xFFE8F1FF),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -3534,7 +3536,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               trendReason,
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -3562,22 +3564,22 @@ class _ClientIntelligenceReportsPageState
                 _partnerScopeChip(
                   label:
                       'Current Governance: ${investigationComparison.currentGovernanceCount}',
-                  color: const Color(0xFF5DC8FF),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
                 _partnerScopeChip(
                   label:
                       'Current Routine: ${investigationComparison.currentRoutineCount}',
-                  color: const Color(0xFF8EA4C2),
+                  color: OnyxColorTokens.textSecondary,
                 ),
                 _partnerScopeChip(
                   label:
                       'Baseline Governance: ${investigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
-                  color: const Color(0xFF4F87BE),
+                  color: OnyxColorTokens.accentBlue,
                 ),
                 _partnerScopeChip(
                   label:
                       'Baseline Routine: ${investigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
-                  color: const Color(0xFF7087A8),
+                  color: OnyxColorTokens.textSecondary,
                 ),
               ],
             ),
@@ -3665,11 +3667,11 @@ class _ClientIntelligenceReportsPageState
                       ),
                       _partnerScopeChip(
                         label: '$governanceCount oversight',
-                        color: const Color(0xFF5DC8FF),
+                        color: OnyxColorTokens.accentCyanTrue,
                       ),
                       _partnerScopeChip(
                         label: '$routineCount routine',
-                        color: const Color(0xFF8EA4C2),
+                        color: OnyxColorTokens.textSecondary,
                       ),
                       _partnerScopeChip(
                         label:
@@ -3680,12 +3682,12 @@ class _ClientIntelligenceReportsPageState
                         color:
                             activeEntryContext ==
                                 ReportEntryContext.governanceBrandingDrift
-                            ? const Color(0xFF5DC8FF)
-                            : const Color(0xFF8EA4C2),
+                            ? OnyxColorTokens.accentCyanTrue
+                            : OnyxColorTokens.textSecondary,
                       ),
                       _partnerScopeChip(
                         label: '${rows.length} receipts',
-                        color: const Color(0xFF8FD1FF),
+                        color: OnyxColorTokens.accentSky,
                       ),
                     ],
                   ),
@@ -3709,27 +3711,27 @@ class _ClientIntelligenceReportsPageState
                         _partnerScopeChip(
                           label:
                               'Current Governance: ${investigationComparison.currentGovernanceCount}',
-                          color: const Color(0xFF5DC8FF),
+                          color: OnyxColorTokens.accentCyanTrue,
                         ),
                         _partnerScopeChip(
                           label:
                               'Current Routine: ${investigationComparison.currentRoutineCount}',
-                          color: const Color(0xFF8EA4C2),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                         _partnerScopeChip(
                           label:
                               'Baseline Governance: ${investigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
-                          color: const Color(0xFF4F87BE),
+                          color: OnyxColorTokens.accentBlue,
                         ),
                         _partnerScopeChip(
                           label:
                               'Baseline Routine: ${investigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
-                          color: const Color(0xFF7087A8),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                         _partnerScopeChip(
                           label:
                               'Baseline Receipts: ${investigationComparison.baselineReceiptCount}',
-                          color: const Color(0xFF8FD1FF),
+                          color: OnyxColorTokens.accentSky,
                         ),
                       ],
                     ),
@@ -3865,40 +3867,40 @@ class _ClientIntelligenceReportsPageState
                           label: currentPoint.current
                               ? 'CURRENT TRUTH'
                               : 'LATEST TRUTH',
-                          color: const Color(0xFF59D79B),
+                          color: OnyxColorTokens.accentGreen,
                         ),
                         _partnerScopeChip(
                           label: currentPoint.reportDate,
-                          color: const Color(0xFF8FD1FF),
+                          color: OnyxColorTokens.accentSky,
                         ),
                         _partnerScopeChip(
                           label:
                               '${currentPoint.snapshot.totalSignals} signals',
-                          color: const Color(0xFF8FD1FF),
+                          color: OnyxColorTokens.accentSky,
                         ),
                         if (currentPoint.snapshot.vehicleSignals > 0)
                           _partnerScopeChip(
                             label:
                                 '${currentPoint.snapshot.vehicleSignals} vehicles',
-                            color: const Color(0xFFF6C067),
+                            color: OnyxColorTokens.accentAmber,
                           ),
                         if (currentPoint.snapshot.personSignals > 0)
                           _partnerScopeChip(
                             label:
                                 '${currentPoint.snapshot.personSignals} people',
-                            color: const Color(0xFF8EA4C2),
+                            color: OnyxColorTokens.textSecondary,
                           ),
                         if (currentPoint.snapshot.knownIdentitySignals > 0)
                           _partnerScopeChip(
                             label:
                                 '${currentPoint.snapshot.knownIdentitySignals} known IDs',
-                            color: const Color(0xFF5DC8FF),
+                            color: OnyxColorTokens.accentCyanTrue,
                           ),
                         if (currentPoint.snapshot.flaggedIdentitySignals > 0)
                           _partnerScopeChip(
                             label:
                                 '${currentPoint.snapshot.flaggedIdentitySignals} flagged',
-                            color: const Color(0xFFFF7A7A),
+                            color: OnyxColorTokens.accentRed,
                           ),
                       ],
                     ),
@@ -4029,7 +4031,7 @@ class _ClientIntelligenceReportsPageState
         color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _reportsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _reportsShadowColor,
             blurRadius: 14,
@@ -4110,7 +4112,7 @@ class _ClientIntelligenceReportsPageState
         color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _reportsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _reportsShadowColor,
             blurRadius: 14,
@@ -4127,28 +4129,28 @@ class _ClientIntelligenceReportsPageState
             children: [
               _partnerScopeChip(
                 label: 'SCORECARD PENDING',
-                color: const Color(0xFFF6C067),
+                color: OnyxColorTokens.accentAmber,
               ),
               _partnerScopeChip(
                 label: hasScopedReceipts
                     ? 'Receipt board live'
                     : 'Receipt board idle',
                 color: hasScopedReceipts
-                    ? const Color(0xFF5DC8FF)
-                    : const Color(0xFF7A8EA8),
+                    ? OnyxColorTokens.accentCyanTrue
+                    : OnyxColorTokens.textSecondary,
               ),
               _partnerScopeChip(
                 label: hasActivitySignals
                     ? '$activitySignals live signals'
                     : 'Activity truth ready',
                 color: hasActivitySignals
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.textSecondary,
               ),
               if (canOpenGovernance)
                 _partnerScopeChip(
                   label: 'Governance bridge ready',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
             ],
           ),
@@ -4231,7 +4233,7 @@ class _ClientIntelligenceReportsPageState
         color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _reportsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _reportsShadowColor,
             blurRadius: 14,
@@ -4257,28 +4259,28 @@ class _ClientIntelligenceReportsPageState
             children: [
               _partnerScopeChip(
                 label: 'DRILL-IN READY',
-                color: const Color(0xFFF6C067),
+                color: OnyxColorTokens.accentAmber,
               ),
               _partnerScopeChip(
                 label: hasScopedReceipts
                     ? 'Receipt board live'
                     : 'Receipt board idle',
                 color: hasScopedReceipts
-                    ? const Color(0xFF5DC8FF)
-                    : const Color(0xFF7A8EA8),
+                    ? OnyxColorTokens.accentCyanTrue
+                    : OnyxColorTokens.textSecondary,
               ),
               _partnerScopeChip(
                 label: hasActivitySignals
                     ? '$activitySignals live signals'
                     : 'Activity truth ready',
                 color: hasActivitySignals
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.textSecondary,
               ),
               if (canOpenGovernance)
                 _partnerScopeChip(
                   label: 'Governance bridge ready',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
             ],
           ),
@@ -4477,22 +4479,22 @@ class _ClientIntelligenceReportsPageState
                         _partnerScopeChip(
                           label:
                               'Current Governance: ${receiptInvestigationComparison.currentGovernanceCount}',
-                          color: const Color(0xFF5DC8FF),
+                          color: OnyxColorTokens.accentCyanTrue,
                         ),
                         _partnerScopeChip(
                           label:
                               'Current Routine: ${receiptInvestigationComparison.currentRoutineCount}',
-                          color: const Color(0xFF8EA4C2),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                         _partnerScopeChip(
                           label:
                               'Baseline Governance: ${receiptInvestigationComparison.baselineGovernanceAverage.toStringAsFixed(1)}',
-                          color: const Color(0xFF4F87BE),
+                          color: OnyxColorTokens.accentBlue,
                         ),
                         _partnerScopeChip(
                           label:
                               'Baseline Routine: ${receiptInvestigationComparison.baselineRoutineAverage.toStringAsFixed(1)}',
-                          color: const Color(0xFF7087A8),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                       ],
                     ),
@@ -4713,8 +4715,8 @@ class _ClientIntelligenceReportsPageState
                             ? 'CURRENT SHIFT'
                             : 'SHIFT SNAPSHOT',
                         color: point.current
-                            ? const Color(0xFF8FD1FF)
-                            : const Color(0xFF8EA4C2),
+                            ? OnyxColorTokens.accentSky
+                            : OnyxColorTokens.textSecondary,
                       ),
                       _partnerScopeChip(
                         label: _partnerScoreboardPrimaryLabel(point.row),
@@ -4725,12 +4727,12 @@ class _ClientIntelligenceReportsPageState
                       _partnerScopeChip(
                         label:
                             '${receiptRows.length} receipt${receiptRows.length == 1 ? '' : 's'}',
-                        color: const Color(0xFF5DC8FF),
+                        color: OnyxColorTokens.accentCyanTrue,
                       ),
                       _partnerScopeChip(
                         label:
                             '${chains.length} chain${chains.length == 1 ? '' : 's'}',
-                        color: const Color(0xFF8EA4C2),
+                        color: OnyxColorTokens.textSecondary,
                       ),
                     ],
                   ),
@@ -4748,7 +4750,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       point.receiptInvestigationSummary!.summaryLine,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8FD1FF),
+                        color: OnyxColorTokens.accentSky,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -4964,7 +4966,7 @@ class _ClientIntelligenceReportsPageState
         color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _reportsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _reportsShadowColor,
             blurRadius: 14,
@@ -5055,7 +5057,7 @@ class _ClientIntelligenceReportsPageState
         color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _reportsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _reportsShadowColor,
             blurRadius: 14,
@@ -5132,8 +5134,8 @@ class _ClientIntelligenceReportsPageState
         ? 'OVERSIGHT HANDOFF'
         : 'ROUTINE REVIEW';
     final activeColor = governanceContext
-        ? const Color(0xFF5DC8FF)
-        : const Color(0xFF8EA4C2);
+        ? OnyxColorTokens.accentCyanTrue
+        : OnyxColorTokens.textSecondary;
     final activeDetail = governanceContext
         ? 'This receipt investigation was opened from Governance branding drift, so operators can compare the current lane against the normal Reports receipt baseline.'
         : 'This receipt investigation was opened directly in Reports without a Governance oversight handoff.';
@@ -5148,7 +5150,7 @@ class _ClientIntelligenceReportsPageState
         color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _reportsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _reportsShadowColor,
             blurRadius: 12,
@@ -5162,7 +5164,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Investigation Lens',
             style: GoogleFonts.inter(
-              color: const Color(0xFF2F6E9C),
+              color: OnyxColorTokens.accentBlue,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -5176,7 +5178,7 @@ class _ClientIntelligenceReportsPageState
               _partnerScopeChip(label: activeLabel, color: activeColor),
               _partnerScopeChip(
                 label: 'ROUTINE BASELINE',
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textSecondary,
               ),
             ],
           ),
@@ -5234,7 +5236,7 @@ class _ClientIntelligenceReportsPageState
         color: _reportsPanelAltColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _reportsBorderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _reportsShadowColor,
             blurRadius: 12,
@@ -5248,7 +5250,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             entryContext.bannerTitle,
             style: GoogleFonts.inter(
-              color: const Color(0xFF2F6E9C),
+              color: OnyxColorTokens.accentBlue,
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8,
@@ -5272,7 +5274,7 @@ class _ClientIntelligenceReportsPageState
                 children: [
                   _partnerScopeChip(
                     label: 'Receipt • $previewReceiptEventId',
-                    color: const Color(0xFF8FD1FF),
+                    color: OnyxColorTokens.accentSky,
                   ),
                 ],
               ),
@@ -5332,7 +5334,7 @@ class _ClientIntelligenceReportsPageState
       padding: const EdgeInsets.all(12),
       decoration: _reportsDrillInCardDecoration(
         highlighted: point.current,
-        accent: const Color(0xFF59D79B),
+        accent: OnyxColorTokens.accentGreen,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -5344,36 +5346,36 @@ class _ClientIntelligenceReportsPageState
               _partnerScopeChip(
                 label: point.current ? 'CURRENT' : 'HISTORY',
                 color: point.current
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.textSecondary,
               ),
               _partnerScopeChip(
                 label: point.reportDate,
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
               _partnerScopeChip(
                 label: '${point.snapshot.totalSignals} signals',
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
               if (point.snapshot.vehicleSignals > 0)
                 _partnerScopeChip(
                   label: '${point.snapshot.vehicleSignals} vehicles',
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                 ),
               if (point.snapshot.personSignals > 0)
                 _partnerScopeChip(
                   label: '${point.snapshot.personSignals} people',
-                  color: const Color(0xFF8EA4C2),
+                  color: OnyxColorTokens.textSecondary,
                 ),
               if (point.snapshot.knownIdentitySignals > 0)
                 _partnerScopeChip(
                   label: '${point.snapshot.knownIdentitySignals} known IDs',
-                  color: const Color(0xFF5DC8FF),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
               if (point.snapshot.flaggedIdentitySignals > 0)
                 _partnerScopeChip(
                   label: '${point.snapshot.flaggedIdentitySignals} flagged',
-                  color: const Color(0xFFFF7A7A),
+                  color: OnyxColorTokens.accentRed,
                 ),
             ],
           ),
@@ -5413,14 +5415,14 @@ class _ClientIntelligenceReportsPageState
     final focused = _receiptPolicyRowMatchesPreviewTarget(row);
     final investigationContext = _storedEntryContextForReceipt(event);
     final backgroundColor = focused
-        ? const Color(0x1A5DC8FF)
+        ? OnyxColorTokens.cyanSurface
         : current
-        ? const Color(0x1A0EA5E9)
+        ? OnyxColorTokens.cyanSurface
         : _reportsPanelAltColor;
     final borderColor = focused
-        ? const Color(0xFF5DC8FF)
+        ? OnyxColorTokens.accentCyanTrue
         : current
-        ? const Color(0x550EA5E9)
+        ? OnyxColorTokens.cyanBorder
         : _reportsBorderColor;
     return Container(
       key: ValueKey<String>('reports-receipt-policy-row-${event.eventId}'),
@@ -5429,7 +5431,7 @@ class _ClientIntelligenceReportsPageState
         color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: borderColor),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: _reportsShadowColor,
             blurRadius: 12,
@@ -5470,7 +5472,7 @@ class _ClientIntelligenceReportsPageState
               if (current)
                 _partnerScopeChip(
                   label: 'CURRENT',
-                  color: const Color(0xFF8FD1FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
               if (focused) ...[
                 if (current) const SizedBox(width: 6),
@@ -5480,7 +5482,7 @@ class _ClientIntelligenceReportsPageState
                           ReportEntryContext.governanceBrandingDrift
                       ? 'GOVERNANCE TARGET'
                       : 'FOCUSED',
-                  color: const Color(0xFF5DC8FF),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
               ],
             ],
@@ -5508,12 +5510,12 @@ class _ClientIntelligenceReportsPageState
                   color:
                       investigationContext ==
                           ReportEntryContext.governanceBrandingDrift
-                      ? const Color(0xFF5DC8FF)
-                      : const Color(0xFF8EA4C2),
+                      ? OnyxColorTokens.accentCyanTrue
+                      : OnyxColorTokens.textSecondary,
                 ),
               _partnerScopeChip(
                 label: '${event.eventCount} events',
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textSecondary,
               ),
             ],
           ),
@@ -5566,12 +5568,12 @@ class _ClientIntelligenceReportsPageState
       decoration: BoxDecoration(
         color: isActive
             ? accent.withValues(alpha: 0.12)
-            : const Color(0xFF13131E),
+            : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isActive
               ? accent.withValues(alpha: 0.85)
-              : const Color(0xFFD6E1EC),
+              : OnyxColorTokens.borderSubtle,
           width: isActive ? 1.4 : 1,
         ),
       ),
@@ -5593,7 +5595,7 @@ class _ClientIntelligenceReportsPageState
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3F8FD),
+                  color: OnyxColorTokens.surfaceElevated,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, color: accent, size: 18),
@@ -5604,7 +5606,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF7A8FA4),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -5680,7 +5682,7 @@ class _ClientIntelligenceReportsPageState
             ? accent.withValues(alpha: 0.3)
             : _reportsBorderColor,
       ),
-      boxShadow: const [
+      boxShadow: [
         BoxShadow(
           color: _reportsShadowColor,
           blurRadius: 12,
@@ -5702,7 +5704,7 @@ class _ClientIntelligenceReportsPageState
       padding: const EdgeInsets.all(10),
       decoration: _reportsDrillInCardDecoration(
         highlighted: point.current,
-        accent: const Color(0xFF0EA5E9),
+        accent: OnyxColorTokens.accentCyanTrue,
         radius: 10,
       ),
       child: Column(
@@ -5730,7 +5732,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               point.receiptInvestigationSummary!.summaryLine,
               style: GoogleFonts.inter(
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -5791,15 +5793,15 @@ class _ClientIntelligenceReportsPageState
         ? 'NO SCORE'
         : _partnerScoreboardPrimaryLabel(latestPoint.row);
     final latestShiftStripColor = comparison.isLeader
-        ? const Color(0x1436C690)
+        ? OnyxColorTokens.greenSurface
         : comparison.trendLabel.trim().toUpperCase() == 'SLIPPING'
-        ? const Color(0x14FF7A7A)
-        : const Color(0xFF102337);
+        ? OnyxColorTokens.redSurface
+        : OnyxColorTokens.backgroundSecondary;
     final latestShiftStripBorderColor = comparison.isLeader
-        ? const Color(0xFF59D79B)
+        ? OnyxColorTokens.accentGreen
         : comparison.trendLabel.trim().toUpperCase() == 'SLIPPING'
-        ? const Color(0xFFFF7A7A)
-        : const Color(0xFF223244);
+        ? OnyxColorTokens.accentRed
+        : OnyxColorTokens.borderSubtle;
     final latestShiftLensLabel = comparison.isLeader
         ? 'BEST CURRENT'
         : comparison.trendLabel.trim().isEmpty
@@ -5834,10 +5836,10 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0x1418D39E) : const Color(0xFF13131E),
+        color: isActive ? OnyxColorTokens.greenSurface : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? const Color(0xFF59D79B) : const Color(0xFFD6E1EC),
+          color: isActive ? OnyxColorTokens.accentGreen : OnyxColorTokens.borderSubtle,
         ),
       ),
       child: Column(
@@ -5853,7 +5855,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       row.partnerLabel,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF172638),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -5862,7 +5864,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       comparison.summaryLine,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF556B80),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -5879,13 +5881,13 @@ class _ClientIntelligenceReportsPageState
                         ? 'LEADER'
                         : comparison.trendLabel,
                     color: comparison.isLeader
-                        ? const Color(0xFF59D79B)
+                        ? OnyxColorTokens.accentGreen
                         : _partnerTrendColor(comparison.trendLabel),
                   ),
                   if (isActive)
                     _partnerScopeChip(
                       label: 'ACTIVE',
-                      color: const Color(0xFF59D79B),
+                      color: OnyxColorTokens.accentGreen,
                     ),
                 ],
               ),
@@ -5902,7 +5904,7 @@ class _ClientIntelligenceReportsPageState
                       ? comparison.trendReason
                       : '${deltaParts.join(' • ')} vs leader'),
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -5912,7 +5914,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               comparison.trendReason,
               style: GoogleFonts.inter(
-                color: const Color(0xFF7A8FA4),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
               ),
@@ -5942,14 +5944,14 @@ class _ClientIntelligenceReportsPageState
                       Text(
                         'Latest shift',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFE8F1FF),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       _partnerScopeChip(
                         label: latestPoint.reportDate,
-                        color: const Color(0xFF8FD1FF),
+                        color: OnyxColorTokens.accentSky,
                       ),
                       _partnerScopeChip(
                         label: latestShiftLensLabel,
@@ -5966,7 +5968,7 @@ class _ClientIntelligenceReportsPageState
                       if (latestShiftGapDriverLabel.isNotEmpty)
                         _partnerScopeChip(
                           label: latestShiftGapDriverLabel,
-                          color: const Color(0xFFF6C067),
+                          color: OnyxColorTokens.accentAmber,
                         ),
                     ],
                   ),
@@ -5974,7 +5976,7 @@ class _ClientIntelligenceReportsPageState
                   Text(
                     latestPoint.row.summaryLine,
                     style: GoogleFonts.inter(
-                      color: const Color(0xFF9CB2D1),
+                      color: OnyxColorTokens.textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -5986,44 +5988,44 @@ class _ClientIntelligenceReportsPageState
                     children: [
                       _partnerScopeChip(
                         label: '${latestPoint.row.dispatchCount} dispatches',
-                        color: const Color(0xFF8FD1FF),
+                        color: OnyxColorTokens.accentSky,
                       ),
                       if (latestPoint.row.averageAcceptedDelayMinutes > 0)
                         _partnerScopeChip(
                           label:
                               'Accept ${latestPoint.row.averageAcceptedDelayMinutes.toStringAsFixed(1)}m',
-                          color: const Color(0xFFF6C067),
+                          color: OnyxColorTokens.accentAmber,
                         ),
                       if (!comparison.isLeader &&
                           comparison.acceptDeltaMinutes != null)
                         _partnerScopeChip(
                           label:
                               'Accept Δ +${comparison.acceptDeltaMinutes!.toStringAsFixed(1)}m',
-                          color: const Color(0xFFFF7A7A),
+                          color: OnyxColorTokens.accentRed,
                         ),
                       if (latestPoint.row.averageOnSiteDelayMinutes > 0)
                         _partnerScopeChip(
                           label:
                               'On site ${latestPoint.row.averageOnSiteDelayMinutes.toStringAsFixed(1)}m',
-                          color: const Color(0xFFFFB86C),
+                          color: OnyxColorTokens.accentAmber,
                         ),
                       if (!comparison.isLeader &&
                           comparison.onSiteDeltaMinutes != null)
                         _partnerScopeChip(
                           label:
                               'On site Δ +${comparison.onSiteDeltaMinutes!.toStringAsFixed(1)}m',
-                          color: const Color(0xFFFF7A7A),
+                          color: OnyxColorTokens.accentRed,
                         ),
                       if (latestPoint.receiptInvestigationSummary != null) ...[
                         _partnerScopeChip(
                           label:
                               'Gov ${latestPoint.receiptInvestigationSummary!.governanceHandoffCount}',
-                          color: const Color(0xFFFF7A7A),
+                          color: OnyxColorTokens.accentRed,
                         ),
                         _partnerScopeChip(
                           label:
                               'Routine ${latestPoint.receiptInvestigationSummary!.routineReviewCount}',
-                          color: const Color(0xFF8EA4C2),
+                          color: OnyxColorTokens.textSecondary,
                         ),
                       ],
                     ],
@@ -6033,7 +6035,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       latestShiftPostureSummary,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
@@ -6044,7 +6046,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       latestShiftGapDriverSummary,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
@@ -6055,7 +6057,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       latestPoint.receiptInvestigationSummary!.summaryLine,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7D93B1),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
@@ -6112,7 +6114,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               'Recent shifts',
               style: GoogleFonts.inter(
-                color: const Color(0xFF172638),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
               ),
@@ -6134,7 +6136,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Investigate',
             style: GoogleFonts.inter(
-              color: const Color(0xFF172638),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -6202,7 +6204,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Export',
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -6282,7 +6284,7 @@ class _ClientIntelligenceReportsPageState
                 label: latestPoint == null
                     ? 'SCORE PENDING'
                     : 'BASELINE FORMING',
-                color: const Color(0xFFF6C067),
+                color: OnyxColorTokens.accentAmber,
               ),
               _partnerScopeChip(
                 label: latestPoint == null
@@ -6295,16 +6297,16 @@ class _ClientIntelligenceReportsPageState
                     ? 'Receipt board live'
                     : 'Receipt board idle',
                 color: hasScopedReceipts
-                    ? const Color(0xFF5DC8FF)
-                    : const Color(0xFF7A8EA8),
+                    ? OnyxColorTokens.accentCyanTrue
+                    : OnyxColorTokens.textSecondary,
               ),
               _partnerScopeChip(
                 label: hasActivitySignals
                     ? '$activitySignals live signals'
                     : 'Activity truth ready',
                 color: hasActivitySignals
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.textSecondary,
               ),
             ],
           ),
@@ -6312,7 +6314,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -6413,28 +6415,28 @@ class _ClientIntelligenceReportsPageState
               if (leaderComparison != null)
                 _partnerScopeChip(
                   label: 'Leader: ${leaderComparison.row.partnerLabel}',
-                  color: const Color(0xFF59D79B),
+                  color: OnyxColorTokens.accentGreen,
                 ),
               _partnerScopeChip(
                 label: pendingLabel,
                 color: pendingCount > 0
-                    ? const Color(0xFFF6C067)
+                    ? OnyxColorTokens.accentAmber
                     : formingCount > 0
                     ? _reportsAccentSky
-                    : const Color(0xFF59D79B),
+                    : OnyxColorTokens.accentGreen,
               ),
               if (receiptCount > 0)
                 _partnerScopeChip(
                   label: '$receiptCount receipts',
-                  color: const Color(0xFF5DC8FF),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
               _partnerScopeChip(
                 label: activitySignals > 0
                     ? '$activitySignals live signals'
                     : 'Activity truth ready',
                 color: activitySignals > 0
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.textSecondary,
               ),
             ],
           ),
@@ -6442,7 +6444,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -6518,21 +6520,21 @@ class _ClientIntelligenceReportsPageState
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: point.current
-            ? const Color(0x1A0EA5E9)
-            : const Color(0xFF102337),
+            ? OnyxColorTokens.cyanSurface
+            : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: point.current
-              ? const Color(0x550EA5E9)
-              : const Color(0xFF223244),
+              ? OnyxColorTokens.cyanBorder
+              : OnyxColorTokens.borderSubtle,
         ),
       ),
       child: Text(
         '${point.reportDate} • $summary',
         style: GoogleFonts.inter(
           color: point.current
-              ? const Color(0xFFE8F1FF)
-              : const Color(0xFF9CB2D1),
+              ? OnyxColorTokens.textPrimary
+              : OnyxColorTokens.textSecondary,
           fontSize: 10,
           fontWeight: FontWeight.w600,
         ),
@@ -6674,10 +6676,10 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isActive ? const Color(0x1418D39E) : const Color(0xFF13131E),
+        color: isActive ? OnyxColorTokens.greenSurface : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive ? const Color(0xFF59D79B) : const Color(0xFFD6E1EC),
+          color: isActive ? OnyxColorTokens.accentGreen : OnyxColorTokens.borderSubtle,
         ),
       ),
       child: Column(
@@ -6693,7 +6695,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       row.partnerLabel,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF172638),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
@@ -6702,7 +6704,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       '${row.clientId}/${row.siteId}',
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF7A8FA4),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
@@ -6713,7 +6715,7 @@ class _ClientIntelligenceReportsPageState
               _partnerScopeChip(
                 label: isActive ? 'ACTIVE' : trendLabel,
                 color: isActive
-                    ? const Color(0xFF59D79B)
+                    ? OnyxColorTokens.accentGreen
                     : _partnerTrendColor(trendLabel),
               ),
             ],
@@ -6722,7 +6724,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             row.summaryLine,
             style: GoogleFonts.inter(
-              color: const Color(0xFF556B80),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -6735,27 +6737,27 @@ class _ClientIntelligenceReportsPageState
               _partnerScopeChip(
                 label:
                     '${historyPoints.length} shift${historyPoints.length == 1 ? '' : 's'}',
-                color: const Color(0xFF8FD1FF),
+                color: OnyxColorTokens.accentSky,
               ),
               if (scopedReceiptRows.isNotEmpty)
                 _partnerScopeChip(
                   label:
                       '${scopedReceiptRows.length} receipt${scopedReceiptRows.length == 1 ? '' : 's'}',
-                  color: const Color(0xFF5DC8FF),
+                  color: OnyxColorTokens.accentCyanTrue,
                 ),
               if (currentChains.isNotEmpty)
                 _partnerScopeChip(
                   label:
                       '${currentChains.length} chain${currentChains.length == 1 ? '' : 's'}',
-                  color: const Color(0xFFF6C067),
+                  color: OnyxColorTokens.accentAmber,
                 ),
               _partnerScopeChip(
                 label: siteActivity.totalSignals > 0
                     ? '${siteActivity.totalSignals} live signals'
                     : 'Activity truth ready',
                 color: siteActivity.totalSignals > 0
-                    ? const Color(0xFF59D79B)
-                    : const Color(0xFF8EA4C2),
+                    ? OnyxColorTokens.accentGreen
+                    : OnyxColorTokens.textSecondary,
               ),
             ],
           ),
@@ -6764,7 +6766,7 @@ class _ClientIntelligenceReportsPageState
             Text(
               laneReason,
               style: GoogleFonts.inter(
-                color: const Color(0xFF556B80),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
               ),
@@ -6778,9 +6780,9 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: OnyxColorTokens.surfaceElevated,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFD6E1EC)),
+              border: Border.all(color: OnyxColorTokens.borderSubtle),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -6792,7 +6794,7 @@ class _ClientIntelligenceReportsPageState
                       Text(
                         'Recommended next move',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF8FD1FF),
+                          color: OnyxColorTokens.accentSky,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.6,
@@ -6802,7 +6804,7 @@ class _ClientIntelligenceReportsPageState
                       Text(
                         primaryActionReason,
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF556B80),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
                           height: 1.35,
@@ -7392,14 +7394,14 @@ class _ClientIntelligenceReportsPageState
 
   Color _receiptPolicyAccent(ReportGenerated event) {
     if (event.brandingUsesOverride) {
-      return const Color(0xFFF6C067);
+      return OnyxColorTokens.accentAmber;
     }
     if (!_hasTrackedReceiptPolicy(event)) {
-      return const Color(0xFF8EA5C6);
+      return OnyxColorTokens.textSecondary;
     }
     return _receiptOmittedSectionLabels(event).isEmpty
-        ? const Color(0xFF59D79B)
-        : const Color(0xFFF6C067);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
   }
 
   String _receiptPolicyStateChipLabel(ReportGenerated event) {
@@ -7642,11 +7644,11 @@ class _ClientIntelligenceReportsPageState
 
   Color _receiptPolicyBrandingAccent(ReportGenerated event) {
     if (!event.brandingConfiguration.isConfigured) {
-      return const Color(0xFF8EA5C6);
+      return OnyxColorTokens.textSecondary;
     }
     return event.brandingUsesOverride
-        ? const Color(0xFFF6C067)
-        : const Color(0xFF63BDFF);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentCyanTrue;
   }
 
   String? _receiptPolicyBrandingHeadline(ReportGenerated event) {
@@ -7681,32 +7683,32 @@ class _ClientIntelligenceReportsPageState
   Color _receiptPolicyTrendColor(String trendLabel) {
     switch (trendLabel) {
       case 'IMPROVING':
-        return const Color(0xFF59D79B);
+        return OnyxColorTokens.accentGreen;
       case 'SLIPPING':
-        return const Color(0xFFF6C067);
+        return OnyxColorTokens.accentAmber;
       case 'STABLE':
         return _reportsAccentSky;
       case 'NEW':
-        return const Color(0xFF8EA5C6);
+        return OnyxColorTokens.textSecondary;
       case 'NO DATA':
       default:
-        return const Color(0xFF8EA4C2);
+        return OnyxColorTokens.textSecondary;
     }
   }
 
   Color _receiptInvestigationTrendColor(String trendLabel) {
     switch (trendLabel) {
       case 'OVERSIGHT RISING':
-        return const Color(0xFFF6C067);
+        return OnyxColorTokens.accentAmber;
       case 'OVERSIGHT EASING':
-        return const Color(0xFF59D79B);
+        return OnyxColorTokens.accentGreen;
       case 'STABLE':
         return _reportsAccentSky;
       case 'NEW':
-        return const Color(0xFF8EA5C6);
+        return OnyxColorTokens.textSecondary;
       case 'NO DATA':
       default:
-        return const Color(0xFF8EA4C2);
+        return OnyxColorTokens.textSecondary;
     }
   }
 
@@ -7955,23 +7957,23 @@ class _ClientIntelligenceReportsPageState
   Color _partnerTrendColor(String label) {
     switch (label.trim().toUpperCase()) {
       case 'STRONG':
-        return const Color(0xFF59D79B);
+        return OnyxColorTokens.accentGreen;
       case 'ON TRACK':
         return _reportsAccentSky;
       case 'WATCH':
-        return const Color(0xFFF6C067);
+        return OnyxColorTokens.accentAmber;
       case 'CRITICAL':
-        return const Color(0xFFFF7A7A);
+        return OnyxColorTokens.accentRed;
       case 'IMPROVING':
-        return const Color(0xFF59D79B);
+        return OnyxColorTokens.accentGreen;
       case 'SLIPPING':
-        return const Color(0xFFFF7A7A);
+        return OnyxColorTokens.accentRed;
       case 'STABLE':
         return _reportsAccentSky;
       case 'NEW':
-        return const Color(0xFFF6C067);
+        return OnyxColorTokens.accentAmber;
       default:
-        return const Color(0xFF8EA4C2);
+        return OnyxColorTokens.textSecondary;
     }
   }
 
@@ -8086,7 +8088,7 @@ class _ClientIntelligenceReportsPageState
             final title = Text(
               hasLiveReceipts ? 'Live Receipts' : 'Sample Receipts',
               style: GoogleFonts.inter(
-                color: const Color(0xFF8EA4C2),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
@@ -8184,7 +8186,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'No receipts fit the current filter right now.',
             style: GoogleFonts.inter(
-              color: const Color(0xFFEAF1FB),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
@@ -8193,7 +8195,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF9DB1CF),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 13,
               fontWeight: FontWeight.w600,
               height: 1.45,
@@ -8299,7 +8301,7 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFF10233A),
+        color: OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.45)),
       ),
@@ -8325,7 +8327,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       title,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFFE8F1FF),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
@@ -8333,7 +8335,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       detail,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF8EA4C2),
+                        color: OnyxColorTokens.textSecondary,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -8380,8 +8382,8 @@ class _ClientIntelligenceReportsPageState
   Widget _receiptCard(_ReceiptRow row, {required bool hasLiveReceipts}) {
     final statusLabel = row.replayVerified ? 'VERIFIED' : 'PENDING';
     final statusColor = row.replayVerified
-        ? const Color(0xFF59D79B)
-        : const Color(0xFFF6C067);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
 
     final clientName = _humanizeClient(row.event.clientId);
     final siteName = _humanizeSite(row.event.siteId);
@@ -8409,11 +8411,11 @@ class _ClientIntelligenceReportsPageState
       width: double.infinity,
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFF7FBFF) : const Color(0xFFF1F6FB),
+        color: isSelected ? OnyxColorTokens.surfaceElevated : OnyxColorTokens.backgroundSecondary,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected
-              ? const Color(0xFF63BDFF)
+              ? OnyxColorTokens.accentCyanTrue
               : sceneReviewSummary?.includedInReceipt == true
               ? sceneAccent.withValues(alpha: 0.5)
               : statusColor.withValues(alpha: 0.45),
@@ -8433,7 +8435,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       clientName,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF10233A),
+                        color: OnyxColorTokens.textPrimary,
                         fontSize: 21,
                         fontWeight: FontWeight.w700,
                       ),
@@ -8442,7 +8444,7 @@ class _ClientIntelligenceReportsPageState
                     Text(
                       siteName,
                       style: GoogleFonts.inter(
-                        color: const Color(0xFF5F7388),
+                        color: OnyxColorTokens.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -8461,9 +8463,9 @@ class _ClientIntelligenceReportsPageState
                 const SizedBox(width: 8),
                 const ReportStatusBadge(
                   label: 'FOCUSED',
-                  textColor: Color(0xFF63BDFF),
-                  backgroundColor: Color(0x1463BDFF),
-                  borderColor: Color(0xFF63BDFF),
+                  textColor: OnyxColorTokens.accentCyanTrue,
+                  backgroundColor: OnyxColorTokens.cyanSurface,
+                  borderColor: OnyxColorTokens.cyanBorder,
                   fontSize: 10,
                 ),
               ],
@@ -8486,7 +8488,7 @@ class _ClientIntelligenceReportsPageState
             width: double.infinity,
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFE3ECF4),
+              color: OnyxColorTokens.borderSubtle,
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: sectionColor.withValues(alpha: 0.38)),
             ),
@@ -8496,7 +8498,7 @@ class _ClientIntelligenceReportsPageState
                 Text(
                   'Report Configuration',
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF10233A),
+                    color: OnyxColorTokens.textPrimary,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -8509,7 +8511,7 @@ class _ClientIntelligenceReportsPageState
                     if (row.event.brandingConfiguration.isConfigured)
                       _receiptSceneReviewPill(
                         row.event.brandingConfiguration.primaryLabel,
-                        const Color(0xFF63BDFF),
+                        OnyxColorTokens.accentCyanTrue,
                       ),
                     if (row.event.brandingConfiguration.isConfigured)
                       _receiptSceneReviewPill(brandingLabel, brandingAccent),
@@ -8525,8 +8527,8 @@ class _ClientIntelligenceReportsPageState
                             ? 'All Sections Included'
                             : '${omittedSections.length} Sections Omitted',
                         omittedSections.isEmpty
-                            ? const Color(0xFF59D79B)
-                            : const Color(0xFFF6C067),
+                            ? OnyxColorTokens.accentGreen
+                            : OnyxColorTokens.accentAmber,
                       ),
                   ],
                 ),
@@ -8536,7 +8538,7 @@ class _ClientIntelligenceReportsPageState
                       ? '${row.event.brandingConfiguration.primaryLabel}${row.event.endorsementLine.trim().isNotEmpty ? ' • ${row.event.endorsementLine.trim()}' : ''}\n$brandingSummary\n$sectionSummary'
                       : sectionSummary,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF52667C),
+                    color: OnyxColorTokens.textMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                   ),
@@ -8552,18 +8554,18 @@ class _ClientIntelligenceReportsPageState
               children: ReportSceneReviewPillBuilder.build(
                 summary: sceneReviewSummary,
                 pillBuilder: _receiptSceneReviewPill,
-                sceneIncludedColor: const Color(0xFF63BDFF),
-                scenePendingColor: const Color(0xFF8EA4C2),
-                postureColor: const Color(0xFF8EA4C2),
+                sceneIncludedColor: OnyxColorTokens.accentCyanTrue,
+                scenePendingColor: OnyxColorTokens.textSecondary,
+                postureColor: OnyxColorTokens.textSecondary,
                 includeModelCount: true,
-                modelColor: const Color(0xFF59D79B),
+                modelColor: OnyxColorTokens.accentGreen,
                 includeActionCounts: true,
-                suppressedColor: const Color(0xFF8EA4C2),
-                incidentAlertColor: const Color(0xFF63BDFF),
-                repeatUpdateColor: const Color(0xFFF6C067),
+                suppressedColor: OnyxColorTokens.textSecondary,
+                incidentAlertColor: OnyxColorTokens.accentCyanTrue,
+                repeatUpdateColor: OnyxColorTokens.accentAmber,
                 includeEscalationCount: true,
-                escalationAlertColor: const Color(0xFFFF7A7A),
-                escalationNeutralColor: const Color(0xFFF6C067),
+                escalationAlertColor: OnyxColorTokens.accentRed,
+                escalationNeutralColor: OnyxColorTokens.accentAmber,
                 includeLatestAction: true,
                 onLatestActionFilterTap: setReportReceiptFilter,
                 onLatestActionActiveTap: () =>
@@ -8585,7 +8587,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             'Generated: $generatedAt',
             style: GoogleFonts.inter(
-              color: const Color(0xFF5F7388),
+              color: OnyxColorTokens.textMuted,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -8657,7 +8659,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF8EA4C2),
+              color: OnyxColorTokens.textSecondary,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -8666,7 +8668,7 @@ class _ClientIntelligenceReportsPageState
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFFD9E7FA),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -8712,7 +8714,7 @@ class _ClientIntelligenceReportsPageState
               _activeFilterShortcutRow(rows)!,
               _receipts.isNotEmpty,
             ),
-      iconEnabledColor: const Color(0xFF8EA4C2),
+      iconEnabledColor: OnyxColorTokens.textSecondary,
       textColor: _reportsTitleColor,
     );
   }
@@ -8906,7 +8908,9 @@ class _ClientIntelligenceReportsPageState
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF7EA9D0)),
+                      borderSide: const BorderSide(
+                        color: OnyxColorTokens.accentSky,
+                      ),
                     ),
                   ),
                 ),
@@ -8941,7 +8945,9 @@ class _ClientIntelligenceReportsPageState
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF7EA9D0)),
+                      borderSide: const BorderSide(
+                        color: OnyxColorTokens.accentSky,
+                      ),
                     ),
                   ),
                 ),
@@ -9210,7 +9216,7 @@ class _ClientIntelligenceReportsPageState
     return ReportPreviewTargetBanner(
       eventId: eventId,
       previewSurface: _previewSurface,
-      surfaceLabelColor: const Color(0xFF8EA4C2),
+      surfaceLabelColor: OnyxColorTokens.textSecondary,
       onOpen: row == null ? null : () => _previewReceipt(row, hasLiveReceipts),
       onCopy: row == null ? null : () => _copyReceipt(row),
       onClear: clearReportPreviewTarget,
@@ -9258,8 +9264,8 @@ class _ClientIntelligenceReportsPageState
         _receiptSceneReviewPill(
           row.replayVerified ? 'Replay Verified' : 'Replay Pending',
           row.replayVerified
-              ? const Color(0xFF59D79B)
-              : const Color(0xFFF6C067),
+              ? OnyxColorTokens.accentGreen
+              : OnyxColorTokens.accentAmber,
         ),
         if (sceneSummary != null)
           _receiptSceneReviewPill(
@@ -9268,7 +9274,7 @@ class _ClientIntelligenceReportsPageState
                 : 'Scene Pending',
             sceneSummary.includedInReceipt
                 ? sceneAccent
-                : const Color(0xFF8EA4C2),
+                : OnyxColorTokens.textSecondary,
           ),
         _receiptSceneReviewPill(
           _receiptSectionConfigurationDockLabel(row.event),
@@ -9305,9 +9311,9 @@ class _ClientIntelligenceReportsPageState
   Color _sceneReviewAccent(ReportReceiptSceneReviewSummary? summary) {
     return ReportReceiptSceneReviewPresenter.accent(
       summary,
-      neutralColor: const Color(0xFF8EA4C2),
-      reviewedColor: const Color(0xFF63BDFF),
-      escalationColor: const Color(0xFFFF7A7A),
+      neutralColor: OnyxColorTokens.textSecondary,
+      reviewedColor: OnyxColorTokens.accentCyanTrue,
+      escalationColor: OnyxColorTokens.accentRed,
     );
   }
 
@@ -9365,11 +9371,11 @@ class _ClientIntelligenceReportsPageState
 
   Color _receiptSectionConfigurationAccent(ReportGenerated event) {
     if (!_hasTrackedSectionConfiguration(event)) {
-      return const Color(0xFF8EA4C2);
+      return OnyxColorTokens.textSecondary;
     }
     return _omittedSectionLabels(event.sectionConfiguration).isEmpty
-        ? const Color(0xFF59D79B)
-        : const Color(0xFFF6C067);
+        ? OnyxColorTokens.accentGreen
+        : OnyxColorTokens.accentAmber;
   }
 
   String _receiptBrandingLabel(ReportGenerated event) {
@@ -9396,18 +9402,18 @@ class _ClientIntelligenceReportsPageState
 
   Color _receiptBrandingAccent(ReportGenerated event) {
     if (!event.brandingConfiguration.isConfigured) {
-      return const Color(0xFF8EA4C2);
+      return OnyxColorTokens.textSecondary;
     }
     return event.brandingUsesOverride
-        ? const Color(0xFFF6C067)
-        : const Color(0xFF59D79B);
+        ? OnyxColorTokens.accentAmber
+        : OnyxColorTokens.accentGreen;
   }
 
   Widget _fieldLabel(String label) {
     return Text(
       label.toUpperCase(),
       style: GoogleFonts.inter(
-        color: const Color(0xFF8EA4C2),
+        color: OnyxColorTokens.textSecondary,
         fontSize: 10,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.5,
@@ -9425,7 +9431,7 @@ class _ClientIntelligenceReportsPageState
       initialValue: value,
       isExpanded: true,
       onChanged: onChanged,
-      iconEnabledColor: const Color(0xFF8EA4C2),
+      iconEnabledColor: OnyxColorTokens.textSecondary,
       dropdownColor: _reportsPanelColor,
       style: GoogleFonts.inter(
         color: _reportsTitleColor,
@@ -9555,16 +9561,16 @@ class _ClientIntelligenceReportsPageState
     switch (label) {
       case 'VERIFIED':
       case 'READY':
-        color = const Color(0xFF59D79B);
+        color = OnyxColorTokens.accentGreen;
         break;
       case 'RUNNING':
-        color = const Color(0xFF63BDFF);
+        color = OnyxColorTokens.accentCyanTrue;
         break;
       case 'PENDING':
-        color = const Color(0xFFF6C067);
+        color = OnyxColorTokens.accentAmber;
         break;
       default:
-        color = const Color(0xFF8EA4C2);
+        color = OnyxColorTokens.textSecondary;
     }
     return ReportStatusBadge(
       label: label,

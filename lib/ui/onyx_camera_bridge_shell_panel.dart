@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../application/onyx_agent_camera_bridge_health_service.dart';
 import '../application/onyx_agent_camera_bridge_server_contract.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'onyx_camera_bridge_lead_status_badge.dart';
 import 'onyx_camera_bridge_shell_body.dart';
 import 'onyx_camera_bridge_shell_surface.dart';
@@ -109,7 +110,7 @@ class OnyxCameraBridgeShellPanel extends StatelessWidget {
                       Text(
                         'LOCAL CAMERA BRIDGE',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFFF5F7FA),
+                          color: OnyxColorTokens.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 0.4,
@@ -119,7 +120,7 @@ class OnyxCameraBridgeShellPanel extends StatelessWidget {
                       Text(
                         'Embedded LAN listener for approved camera packets and health checks.',
                         style: GoogleFonts.inter(
-                          color: const Color(0xFF7F90A4),
+                          color: OnyxColorTokens.textSecondary,
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -172,9 +173,9 @@ class OnyxCameraBridgeShellPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0x337B5EA7),
+        color: OnyxColorTokens.purpleSurface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF7B5EA7)),
+        border: Border.all(color: OnyxColorTokens.purpleBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,7 +183,7 @@ class OnyxCameraBridgeShellPanel extends StatelessWidget {
           Text(
             stagingIndicatorLabel!,
             style: GoogleFonts.inter(
-              color: const Color(0xFFF5F7FA),
+              color: OnyxColorTokens.textPrimary,
               fontSize: 12.5,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.25,
@@ -193,7 +194,7 @@ class OnyxCameraBridgeShellPanel extends StatelessWidget {
             Text(
               stagingIndicatorDetail!,
               style: GoogleFonts.inter(
-                color: const Color(0xFFD7D6F3),
+                color: OnyxColorTokens.textSecondary,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
                 height: 1.4,

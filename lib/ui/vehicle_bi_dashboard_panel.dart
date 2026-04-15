@@ -4,6 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/morning_sovereign_report_service.dart';
+import 'theme/onyx_design_tokens.dart';
+
+const _vehicleBiPanelColor = OnyxColorTokens.backgroundSecondary;
+const _vehicleBiSectionColor = OnyxColorTokens.surfaceElevated;
+const _vehicleBiBorderColor = OnyxColorTokens.borderSubtle;
+const _vehicleBiTitleColor = OnyxColorTokens.textPrimary;
+const _vehicleBiBodyColor = OnyxColorTokens.textSecondary;
+const _vehicleBiMutedColor = OnyxColorTokens.textMuted;
+const _vehicleBiSky = OnyxColorTokens.accentCyanTrue;
+const _vehicleBiSkyAlt = OnyxColorTokens.accentSky;
+const _vehicleBiGreen = OnyxColorTokens.accentGreen;
+const _vehicleBiAmber = OnyxColorTokens.accentAmber;
+const _vehicleBiRed = OnyxColorTokens.accentRed;
 
 class VehicleBiDashboardPanel extends StatelessWidget {
   final SovereignReportVehicleThroughput throughput;
@@ -31,9 +44,9 @@ class VehicleBiDashboardPanel extends StatelessWidget {
     final exceptionVisits = throughput.exceptionVisits;
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
+        color: _vehicleBiPanelColor,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFD7E2EE)),
+        border: Border.all(color: _vehicleBiBorderColor),
       ),
       padding: const EdgeInsets.all(20),
       child: SingleChildScrollView(
@@ -43,7 +56,7 @@ class VehicleBiDashboardPanel extends StatelessWidget {
             Text(
               'Vehicle BI dashboard',
               style: GoogleFonts.inter(
-                color: const Color(0xFF182638),
+                color: _vehicleBiTitleColor,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -52,7 +65,7 @@ class VehicleBiDashboardPanel extends StatelessWidget {
             Text(
               scopeLabel,
               style: GoogleFonts.inter(
-                color: const Color(0xFF66788B),
+                color: _vehicleBiBodyColor,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -67,7 +80,7 @@ class VehicleBiDashboardPanel extends StatelessWidget {
                   label: 'Total vehicles',
                   value: '${throughput.totalVisits}',
                   detail: '${throughput.uniqueVehicles} unique seen',
-                  accent: const Color(0xFF0EA5E9),
+                  accent: _vehicleBiSky,
                 ),
                 _VehicleBiMetricCard(
                   key: const ValueKey('vehicle-bi-average-dwell-card'),
@@ -75,14 +88,14 @@ class VehicleBiDashboardPanel extends StatelessWidget {
                   value:
                       '${throughput.averageCompletedDwellMinutes.toStringAsFixed(1)} min',
                   detail: '${throughput.completedVisits} completed visits',
-                  accent: const Color(0xFF10B981),
+                  accent: _vehicleBiGreen,
                 ),
                 _VehicleBiMetricCard(
                   key: const ValueKey('vehicle-bi-repeat-rate-card'),
                   label: 'Repeat customer rate',
                   value: '${repeatRate.toStringAsFixed(1)}%',
                   detail: '${throughput.repeatVehicles} repeat vehicles',
-                  accent: const Color(0xFFF59E0B),
+                  accent: _vehicleBiAmber,
                 ),
                 _VehicleBiMetricCard(
                   key: const ValueKey('vehicle-bi-exception-visits-card'),
@@ -91,7 +104,7 @@ class VehicleBiDashboardPanel extends StatelessWidget {
                   detail: exceptionVisits.isEmpty
                       ? 'No flagged visits'
                       : '${throughput.loiteringVisitCount} loitering • ${throughput.suspiciousShortVisitCount} short stay',
-                  accent: const Color(0xFFEF4444),
+                  accent: _vehicleBiRed,
                 ),
               ],
             ),
@@ -164,12 +177,12 @@ class _VehicleBiMetricCard extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minWidth: 176, maxWidth: 220),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _vehicleBiSectionColor,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFD7E2EE)),
-        boxShadow: const [
+        border: Border.all(color: _vehicleBiBorderColor),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0F0F2235),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.08),
             blurRadius: 20,
             offset: Offset(0, 8),
           ),
@@ -188,7 +201,7 @@ class _VehicleBiMetricCard extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF51677D),
+              color: _vehicleBiBodyColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -197,7 +210,7 @@ class _VehicleBiMetricCard extends StatelessWidget {
           Text(
             value,
             style: GoogleFonts.inter(
-              color: const Color(0xFF182638),
+              color: _vehicleBiTitleColor,
               fontSize: 24,
               fontWeight: FontWeight.w800,
             ),
@@ -206,7 +219,7 @@ class _VehicleBiMetricCard extends StatelessWidget {
           Text(
             detail,
             style: GoogleFonts.inter(
-              color: const Color(0xFF74879B),
+              color: _vehicleBiMutedColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -228,9 +241,9 @@ class _VehicleBiSectionCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _vehicleBiSectionColor,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFD7E2EE)),
+        border: Border.all(color: _vehicleBiBorderColor),
       ),
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -239,7 +252,7 @@ class _VehicleBiSectionCard extends StatelessWidget {
           Text(
             title,
             style: GoogleFonts.inter(
-              color: const Color(0xFF182638),
+              color: _vehicleBiTitleColor,
               fontSize: 14,
               fontWeight: FontWeight.w800,
             ),
@@ -262,7 +275,7 @@ class _VehicleBiEmptyState extends StatelessWidget {
     return Text(
       message,
       style: GoogleFonts.inter(
-        color: const Color(0xFF74879B),
+        color: _vehicleBiMutedColor,
         fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
@@ -319,16 +332,16 @@ class _VehicleBiHourlyChart extends StatelessWidget {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFDBEAFE),
+                              color: OnyxColorTokens.cyanSurface,
                               borderRadius: BorderRadius.circular(999),
                               border: Border.all(
-                                color: const Color(0xFF60A5FA),
+                                color: OnyxColorTokens.cyanBorder,
                               ),
                             ),
                             child: Text(
                               'Peak',
                               style: GoogleFonts.inter(
-                                color: const Color(0xFF1D4ED8),
+                                color: _vehicleBiSky,
                                 fontSize: 10,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -340,8 +353,8 @@ class _VehicleBiHourlyChart extends StatelessWidget {
                           '${entry.value}',
                           style: GoogleFonts.inter(
                             color: isPeakHour
-                                ? const Color(0xFF1D4ED8)
-                                : const Color(0xFF51677D),
+                                ? _vehicleBiSky
+                                : _vehicleBiBodyColor,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
@@ -354,14 +367,16 @@ class _VehicleBiHourlyChart extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                             border: isPeakHour
                                 ? Border.all(
-                                    color: const Color(0xFF1D4ED8),
+                                    color: _vehicleBiSky,
                                     width: 2,
                                   )
                                 : null,
                             boxShadow: isPeakHour
-                                ? const [
+                                ? [
                                     BoxShadow(
-                                      color: Color(0x261D4ED8),
+                                      color: _vehicleBiSky.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       blurRadius: 12,
                                       offset: Offset(0, 6),
                                     ),
@@ -371,8 +386,8 @@ class _VehicleBiHourlyChart extends StatelessWidget {
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
                               colors: [
-                                Color(0xFF0EA5E9),
-                                Color(0xFF8FD1FF),
+                                _vehicleBiSky,
+                                _vehicleBiSkyAlt,
                               ],
                             ),
                           ),
@@ -382,8 +397,8 @@ class _VehicleBiHourlyChart extends StatelessWidget {
                           '${entry.key.toString().padLeft(2, '0')}:00',
                           style: GoogleFonts.inter(
                             color: isPeakHour
-                                ? const Color(0xFF1D4ED8)
-                                : const Color(0xFF74879B),
+                                ? _vehicleBiSky
+                                : _vehicleBiMutedColor,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -416,19 +431,19 @@ class _VehicleBiPeakHourSummary extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F8FF),
+        color: OnyxColorTokens.cyanSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        border: Border.all(color: OnyxColorTokens.cyanBorder),
       ),
       child: Row(
         children: [
-          const Icon(Icons.insights_rounded, color: Color(0xFF2563EB), size: 18),
+          const Icon(Icons.insights_rounded, color: _vehicleBiSky, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Peak hour: $peakHourLabel • $peakHourVisitCount visit${peakHourVisitCount == 1 ? '' : 's'}',
               style: GoogleFonts.inter(
-                color: const Color(0xFF1E3A8A),
+                color: _vehicleBiSkyAlt,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -477,9 +492,9 @@ class _VehicleBiExceptionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
+        color: _vehicleBiSectionColor,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFD7E2EE)),
+        border: Border.all(color: _vehicleBiBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,7 +505,7 @@ class _VehicleBiExceptionCard extends StatelessWidget {
                 child: Text(
                   exception.vehicleLabel,
                   style: GoogleFonts.inter(
-                    color: const Color(0xFF182638),
+                    color: _vehicleBiTitleColor,
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
@@ -521,7 +536,7 @@ class _VehicleBiExceptionCard extends StatelessWidget {
           Text(
             exception.reasonLabel,
             style: GoogleFonts.inter(
-              color: const Color(0xFF334155),
+              color: _vehicleBiTitleColor,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -530,7 +545,7 @@ class _VehicleBiExceptionCard extends StatelessWidget {
           Text(
             '${exception.dwellMinutes.toStringAsFixed(0)} min dwell • $workflowSummary',
             style: GoogleFonts.inter(
-              color: const Color(0xFF51677D),
+              color: _vehicleBiBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
               height: 1.4,
@@ -548,7 +563,7 @@ class _VehicleBiExceptionCard extends StatelessWidget {
               if (exception.zoneLabels.isNotEmpty)
                 _VehicleBiDetailChip(
                   label: exception.zoneLabels.join(' • '),
-                  accent: const Color(0xFF0EA5E9),
+                  accent: _vehicleBiSky,
                 ),
             ],
           ),
@@ -609,7 +624,7 @@ class _VehicleBiFunnel extends StatelessWidget {
                 label: 'Entry',
                 value: entryCount,
                 ratio: entryCount / peakCount,
-                color: const Color(0xFF0EA5E9),
+                color: _vehicleBiSky,
               ),
             ),
             const SizedBox(width: 10),
@@ -619,7 +634,7 @@ class _VehicleBiFunnel extends StatelessWidget {
                 label: 'Service',
                 value: serviceCount,
                 ratio: serviceCount / peakCount,
-                color: const Color(0xFFF59E0B),
+                color: _vehicleBiAmber,
               ),
             ),
             const SizedBox(width: 10),
@@ -629,7 +644,7 @@ class _VehicleBiFunnel extends StatelessWidget {
                 label: 'Exit',
                 value: exitCount,
                 ratio: exitCount / peakCount,
-                color: const Color(0xFF10B981),
+                color: _vehicleBiGreen,
               ),
             ),
           ],
@@ -656,12 +671,12 @@ Color _vehicleBiExceptionAccent(String statusLabel) {
   switch (statusLabel.trim().toUpperCase()) {
     case 'RESOLVED':
     case 'CLEARED':
-      return const Color(0xFF10B981);
+      return _vehicleBiGreen;
     case 'WATCH':
     case 'PENDING':
-      return const Color(0xFFF59E0B);
+      return _vehicleBiAmber;
     default:
-      return const Color(0xFFEF4444);
+      return _vehicleBiRed;
   }
 }
 
@@ -684,9 +699,9 @@ class _VehicleBiFunnelStage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FBFF),
+        color: _vehicleBiSectionColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFD7E2EE)),
+        border: Border.all(color: _vehicleBiBorderColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -694,7 +709,7 @@ class _VehicleBiFunnelStage extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.inter(
-              color: const Color(0xFF51677D),
+              color: _vehicleBiBodyColor,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -703,7 +718,7 @@ class _VehicleBiFunnelStage extends StatelessWidget {
           Text(
             '$value',
             style: GoogleFonts.inter(
-              color: const Color(0xFF182638),
+              color: _vehicleBiTitleColor,
               fontSize: 20,
               fontWeight: FontWeight.w800,
             ),
@@ -715,7 +730,7 @@ class _VehicleBiFunnelStage extends StatelessWidget {
               height: 10,
               child: Stack(
                 children: [
-                  Container(color: const Color(0xFFE7EEF6)),
+                  Container(color: OnyxColorTokens.divider),
                   FractionallySizedBox(
                     widthFactor: ratio.clamp(0.0, 1.0),
                     child: Container(color: color),

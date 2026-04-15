@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../application/onyx_agent_camera_bridge_health_service.dart';
 import '../application/onyx_agent_camera_bridge_server_contract.dart';
+import 'theme/onyx_design_tokens.dart';
 
 enum OnyxCameraBridgeSurfaceToneVariant { agent, admin }
 
@@ -95,19 +96,19 @@ OnyxCameraBridgeStatusTonePalette _onyxCameraBridgeSurfaceStatusTonePalette(
   return switch (variant) {
     OnyxCameraBridgeSurfaceToneVariant.agent =>
       const OnyxCameraBridgeStatusTonePalette(
-        live: Color(0xFF34D399),
-        failed: Color(0xFFF87171),
-        starting: Color(0xFFFBBF24),
-        disabled: Color(0xFF94A3B8),
-        standby: Color(0xFF67E8F9),
+        live: OnyxColorTokens.accentGreen,
+        failed: OnyxColorTokens.accentRed,
+        starting: OnyxColorTokens.accentAmber,
+        disabled: OnyxColorTokens.textSecondary,
+        standby: OnyxColorTokens.accentCyanTrue,
       ),
     OnyxCameraBridgeSurfaceToneVariant.admin =>
       const OnyxCameraBridgeStatusTonePalette(
-        live: Color(0xFF34D399),
-        failed: Color(0xFFF87171),
-        starting: Color(0xFFF1B872),
-        disabled: Color(0xFF8EA4C2),
-        standby: Color(0xFF67E8F9),
+        live: OnyxColorTokens.accentGreen,
+        failed: OnyxColorTokens.accentRed,
+        starting: OnyxColorTokens.accentAmber,
+        disabled: OnyxColorTokens.textSecondary,
+        standby: OnyxColorTokens.accentCyanTrue,
       ),
   };
 }
@@ -120,16 +121,16 @@ OnyxCameraBridgeHealthTonePalette _onyxCameraBridgeSurfaceHealthTonePalette(
     OnyxCameraBridgeSurfaceToneVariant.agent =>
       OnyxCameraBridgeHealthTonePalette(
         status: statusAccent,
-        error: const Color(0xFFF87171),
-        warning: const Color(0xFFFBBF24),
-        success: const Color(0xFF34D399),
+        error: OnyxColorTokens.accentRed,
+        warning: OnyxColorTokens.accentAmber,
+        success: OnyxColorTokens.accentGreen,
       ),
     OnyxCameraBridgeSurfaceToneVariant.admin =>
       OnyxCameraBridgeHealthTonePalette(
         status: statusAccent,
-        error: const Color(0xFFF87171),
-        warning: const Color(0xFFF1B872),
-        success: const Color(0xFF34D399),
+        error: OnyxColorTokens.accentRed,
+        warning: OnyxColorTokens.accentAmber,
+        success: OnyxColorTokens.accentGreen,
       ),
   };
 }
@@ -141,15 +142,15 @@ _onyxCameraBridgeSurfaceValidationTonePalette(
   return switch (variant) {
     OnyxCameraBridgeSurfaceToneVariant.agent =>
       const OnyxCameraBridgeValidationTonePalette(
-        success: Color(0xFF9FE6B8),
-        warning: Color(0xFFFDE68A),
-        neutral: Color(0xFFCBD5E1),
+        success: OnyxColorTokens.accentGreen,
+        warning: OnyxColorTokens.accentAmber,
+        neutral: OnyxColorTokens.textSecondary,
       ),
     OnyxCameraBridgeSurfaceToneVariant.admin =>
       const OnyxCameraBridgeValidationTonePalette(
-        success: Color(0xFFA7F3D0),
-        warning: Color(0xFFFDE68A),
-        neutral: Color(0xFFCBD5E1),
+        success: OnyxColorTokens.accentGreen,
+        warning: OnyxColorTokens.accentAmber,
+        neutral: OnyxColorTokens.textSecondary,
       ),
   };
 }
@@ -316,11 +317,11 @@ Color resolveOnyxCameraBridgeChipColorForStatusAccent(
     tone,
     palette: OnyxCameraBridgeChipTonePalette(
       status: statusAccent,
-      info: const Color(0xFF67E8F9),
-      success: const Color(0xFF86EFAC),
-      warning: const Color(0xFFFBBF24),
-      neutral: const Color(0xFFCBD5E1),
-      danger: const Color(0xFFFCA5A5),
+      info: OnyxColorTokens.accentCyanTrue,
+      success: OnyxColorTokens.accentGreen,
+      warning: OnyxColorTokens.accentAmber,
+      neutral: OnyxColorTokens.textSecondary,
+      danger: OnyxColorTokens.accentRed,
     ),
   );
 }

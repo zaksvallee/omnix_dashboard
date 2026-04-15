@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../application/onyx_agent_camera_bridge_server_contract.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'onyx_camera_bridge_status_metadata_block.dart';
 
 enum OnyxCameraBridgeStatusMetadataPanelVariant { agent, admin }
@@ -27,14 +28,12 @@ class OnyxCameraBridgeStatusMetadataPanel extends StatelessWidget {
             OnyxAgentCameraBridgeStatusDetailVariant.admin,
         },
       ),
-      labelColor: const Color(0xFF8EA4C2),
+      labelColor: OnyxColorTokens.textSecondary,
       valueColor: switch (variant) {
-        OnyxCameraBridgeStatusMetadataPanelVariant.agent => const Color(
-          0xFFDCE8F7,
-        ),
-        OnyxCameraBridgeStatusMetadataPanelVariant.admin => const Color(
-          0xFFEAF4FF,
-        ),
+        OnyxCameraBridgeStatusMetadataPanelVariant.agent =>
+          OnyxColorTokens.textPrimary,
+        OnyxCameraBridgeStatusMetadataPanelVariant.admin =>
+          OnyxColorTokens.textPrimary,
       },
       fieldBottomPadding: switch (variant) {
         OnyxCameraBridgeStatusMetadataPanelVariant.agent => 6,
@@ -47,12 +46,10 @@ class OnyxCameraBridgeStatusMetadataPanel extends StatelessWidget {
       },
       detailStyle: GoogleFonts.inter(
         color: switch (variant) {
-          OnyxCameraBridgeStatusMetadataPanelVariant.agent => const Color(
-            0xFF7F93AD,
-          ),
-          OnyxCameraBridgeStatusMetadataPanelVariant.admin => const Color(
-            0xFFDDE7F2,
-          ),
+          OnyxCameraBridgeStatusMetadataPanelVariant.agent =>
+            OnyxColorTokens.textMuted,
+          OnyxCameraBridgeStatusMetadataPanelVariant.admin =>
+            OnyxColorTokens.textSecondary,
         },
         fontSize: switch (variant) {
           OnyxCameraBridgeStatusMetadataPanelVariant.agent => 11.1,

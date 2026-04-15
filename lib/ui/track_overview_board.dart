@@ -5,21 +5,21 @@ import 'package:google_fonts/google_fonts.dart';
 
 import 'theme/onyx_design_tokens.dart';
 
-const _trackShellBackground = Color(0xFF09121B);
-const _trackShellRailBackground = Color(0xFF060D15);
-const _trackPanelBackground = Color(0xFF0F1824);
-const _trackPanelBackgroundAlt = Color(0xFF121F2D);
-const _trackPanelBorder = Color(0xFF223246);
-const _trackMapFrame = Color(0xFF0C1620);
-const _trackTopBarBackground = Color(0xFF0A121B);
-const _trackOverlayBorder = Color(0xFF2B3B4F);
-const _trackTextPrimary = Color(0xFFF4F7FB);
-const _trackTextSecondary = Color(0xFFA5B4C5);
-const _trackTextMuted = Color(0xFF6C7D91);
-const _trackBlue = Color(0xFF4F7CFF);
-const _trackGreen = Color(0xFF3AD29F);
-const _trackAmber = Color(0xFFF4B44B);
-const _trackRed = Color(0xFFF87373);
+const _trackShellBackground = OnyxColorTokens.backgroundPrimary;
+const _trackShellRailBackground = OnyxColorTokens.backgroundPrimary;
+const _trackPanelBackground = OnyxColorTokens.backgroundSecondary;
+const _trackPanelBackgroundAlt = OnyxColorTokens.surfaceElevated;
+const _trackPanelBorder = OnyxColorTokens.borderSubtle;
+const _trackMapFrame = OnyxColorTokens.backgroundPrimary;
+const _trackTopBarBackground = OnyxColorTokens.backgroundSecondary;
+const _trackOverlayBorder = OnyxColorTokens.borderStrong;
+const _trackTextPrimary = OnyxColorTokens.textPrimary;
+const _trackTextSecondary = OnyxColorTokens.textSecondary;
+const _trackTextMuted = OnyxColorTokens.textMuted;
+const _trackBlue = OnyxColorTokens.accentCyanTrue;
+const _trackGreen = OnyxColorTokens.accentGreen;
+const _trackAmber = OnyxColorTokens.accentAmber;
+const _trackRed = OnyxColorTokens.accentRed;
 
 class TrackOverviewBoard extends StatefulWidget {
   final VoidCallback onOpenDetailedWorkspace;
@@ -417,9 +417,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             color: _trackShellBackground,
             borderRadius: BorderRadius.circular(26),
             border: Border.all(color: _trackPanelBorder),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x40040B12),
+                color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.25),
                 blurRadius: 36,
                 offset: Offset(0, 20),
               ),
@@ -485,12 +485,12 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
         decoration: BoxDecoration(
           color: active
               ? _trackBlue.withValues(alpha: 0.14)
-              : Colors.white.withValues(alpha: 0.025),
+              : OnyxColorTokens.textPrimary.withValues(alpha: 0.025),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: active
                 ? _trackBlue.withValues(alpha: 0.42)
-                : Colors.white.withValues(alpha: 0.05),
+                : OnyxColorTokens.textPrimary.withValues(alpha: 0.05),
           ),
         ),
         child: Icon(icon, size: 18, color: accent),
@@ -513,9 +513,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
+              color: OnyxColorTokens.textPrimary.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.06)),
             ),
             child: const Icon(
               Icons.shield_moon_outlined,
@@ -527,7 +527,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
           Container(
             width: 20,
             height: 1,
-            color: Colors.white.withValues(alpha: 0.08),
+            color: OnyxColorTokens.textPrimary.withValues(alpha: 0.08),
           ),
           const SizedBox(height: 14),
           railIcon(Icons.bolt_rounded),
@@ -547,14 +547,14 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
           Container(
             width: 20,
             height: 1,
-            color: Colors.white.withValues(alpha: 0.08),
+            color: OnyxColorTokens.textPrimary.withValues(alpha: 0.08),
           ),
           const SizedBox(height: 14),
           Container(
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFF7C5CFF),
+              color: OnyxColorTokens.accentPurple,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Center(
@@ -642,9 +642,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             return Container(
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.028),
+                color: OnyxColorTokens.textPrimary.withValues(alpha: 0.028),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.06)),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 13),
               child: Row(
@@ -652,7 +652,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                   Icon(
                     Icons.search_rounded,
                     size: 18,
-                    color: Colors.white.withValues(alpha: 0.45),
+                    color: OnyxColorTokens.textPrimary.withValues(alpha: 0.45),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -671,7 +671,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                         border: InputBorder.none,
                         hintText: 'Search sites, code, or status',
                         hintStyle: GoogleFonts.inter(
-                          color: Colors.white.withValues(alpha: 0.38),
+                          color: OnyxColorTokens.textPrimary.withValues(alpha: 0.38),
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -691,13 +691,13 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                   _buildTopPill(
                     icon: Icons.person_rounded,
                     label: 'Emily Davis',
-                    accent: const Color(0xFF7C5CFF),
+                    accent: OnyxColorTokens.accentPurple,
                   ),
                   const SizedBox(width: 8),
                   _buildTopPill(
                     icon: Icons.admin_panel_settings_outlined,
                     label: 'ADMIN',
-                    accent: const Color(0xFF9A7BFF),
+                    accent: OnyxColorTokens.accentPurple,
                   ),
                   const SizedBox(width: 8),
                 ],
@@ -731,7 +731,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                     children: [
                       Icon(
                         Icons.notifications_none_rounded,
-                        color: Colors.white.withValues(alpha: 0.72),
+                        color: OnyxColorTokens.textPrimary.withValues(alpha: 0.72),
                         size: 20,
                       ),
                       const Positioned(
@@ -928,20 +928,20 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
   Widget _buildMapErrorFallback() {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0D0D14),
+        color: OnyxColorTokens.backgroundPrimary,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0x269D4BFF)),
+        border: Border.all(color: OnyxColorTokens.borderSubtle),
       ),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.map_outlined, color: Color(0x4DFFFFFF), size: 40),
+            const Icon(Icons.map_outlined, color: OnyxColorTokens.textMuted, size: 40),
             const SizedBox(height: 12),
             const Text(
               'Tactical map unavailable',
               style: TextStyle(
-                color: Color(0xFFE8E8F0),
+                color: OnyxColorTokens.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
@@ -949,14 +949,14 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             const SizedBox(height: 4),
             const Text(
               'Check network connection',
-              style: TextStyle(color: Color(0x4DFFFFFF), fontSize: 12),
+              style: TextStyle(color: OnyxColorTokens.textMuted, fontSize: 12),
             ),
             const SizedBox(height: 16),
             TextButton(
               onPressed: () => setState(() => _mapLoadFailed = false),
               style: TextButton.styleFrom(
-                backgroundColor: const Color(0xFF9D4BFF),
-                foregroundColor: Colors.white,
+                backgroundColor: OnyxColorTokens.accentPurple,
+                foregroundColor: OnyxColorTokens.textPrimary,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 20,
                   vertical: 10,
@@ -1006,8 +1006,8 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF050A12).withValues(alpha: 0.06),
-                      const Color(0xFF050A12).withValues(alpha: 0.18),
+                      OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.06),
+                      OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.18),
                     ],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -1042,7 +1042,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                   fromY: highlightedSite.y,
                   toX: guard.x,
                   toY: guard.y,
-                  color: const Color(0xFF6FA8FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
             if (highlightedSite != null)
               for (final incident in highlightedIncidents)
@@ -1087,14 +1087,14 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                 _TrackMapDot(
                   x: guard.x,
                   y: guard.y,
-                  color: const Color(0xFF6FA8FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
             for (final camera in cameras)
               if (_showCameras)
                 _TrackMapStar(
                   x: camera.x,
                   y: camera.y,
-                  color: const Color(0xFF89B9FF),
+                  color: OnyxColorTokens.accentSky,
                 ),
             for (final incident in incidents)
               if (_showIncidents)
@@ -1163,7 +1163,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                                       icon: Icons.apartment_rounded,
                                       label: 'Sites (${sites.length})',
                                       active: _showSites,
-                                      tint: const Color(0xFF3D74D6),
+                                      tint: OnyxColorTokens.accentBlue,
                                       onTap: () {
                                         setState(() {
                                           _showSites = !_showSites;
@@ -1176,7 +1176,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                                       icon: Icons.shield_outlined,
                                       label: 'Guards (${guards.length})',
                                       active: _showGuards,
-                                      tint: const Color(0xFF2FA56D),
+                                      tint: OnyxColorTokens.accentGreen,
                                       onTap: () {
                                         setState(() {
                                           _showGuards = !_showGuards;
@@ -1191,7 +1191,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                                       icon: Icons.warning_amber_rounded,
                                       label: 'Incidents (${incidents.length})',
                                       active: _showIncidents,
-                                      tint: const Color(0xFFB54C4C),
+                                      tint: OnyxColorTokens.accentRed,
                                       onTap: () {
                                         setState(() {
                                           _showIncidents = !_showIncidents;
@@ -1206,7 +1206,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                                       icon: Icons.videocam_outlined,
                                       label: 'Cameras (${cameras.length})',
                                       active: _showCameras,
-                                      tint: const Color(0xFF46576F),
+                                      tint: OnyxColorTokens.textMuted,
                                       onTap: () {
                                         setState(() {
                                           _showCameras = !_showCameras;
@@ -1271,9 +1271,12 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF17336B), Color(0xFF102244)],
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [
+                  OnyxColorTokens.accentBlue,
+                  OnyxColorTokens.backgroundSecondary,
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -1292,14 +1295,14 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                       width: 34,
                       height: 34,
                       decoration: BoxDecoration(
-                        color: Colors.white24,
+                        color: OnyxColorTokens.textPrimary.withValues(alpha: 0.24),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white30),
+                        border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.30)),
                       ),
                       child: const Icon(
                         Icons.location_on_outlined,
                         size: 18,
-                        color: Colors.white,
+                        color: OnyxColorTokens.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1319,7 +1322,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                           Text(
                             'Real-time asset locations',
                             style: GoogleFonts.inter(
-                              color: Colors.white70,
+                              color: OnyxColorTokens.textPrimary.withValues(alpha: 0.70),
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1365,9 +1368,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _trackTextPrimary,
                       side: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.18),
+                        color: OnyxColorTokens.textPrimary.withValues(alpha: 0.18),
                       ),
-                      backgroundColor: Colors.white.withValues(alpha: 0.07),
+                      backgroundColor: OnyxColorTokens.textPrimary.withValues(alpha: 0.07),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 11,
@@ -1428,7 +1431,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
   }) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.28),
+        color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.28),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: accent.withValues(alpha: 0.28)),
       ),
@@ -1475,7 +1478,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
     if (site == null) {
       return DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.3),
+          color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: _trackOverlayBorder),
         ),
@@ -1487,7 +1490,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
+                  color: OnyxColorTokens.textPrimary.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(11),
                 ),
                 child: const Icon(
@@ -1611,7 +1614,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
 
         return DecoratedBox(
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.3),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: accent.withValues(alpha: 0.28)),
             boxShadow: [
@@ -1706,9 +1709,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
+            color: OnyxColorTokens.textPrimary.withValues(alpha: 0.05),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.08)),
           ),
           child: Text(
             '$count',
@@ -1726,9 +1729,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
   Widget _buildOverviewMetric({required String label, required String value}) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: OnyxColorTokens.textPrimary.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.12)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -1738,7 +1741,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             Text(
               label,
               style: GoogleFonts.inter(
-                color: Colors.white.withValues(alpha: 0.62),
+                color: OnyxColorTokens.textPrimary.withValues(alpha: 0.62),
                 fontSize: 9,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 0.7,
@@ -1762,9 +1765,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
   Widget _buildSpotlightMetric(String label, String value, Color color) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: OnyxColorTokens.textPrimary.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.08)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
@@ -1801,12 +1804,15 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF143448), Color(0xFF102A37)],
+          colors: [
+            OnyxColorTokens.cyanSurface,
+            OnyxColorTokens.backgroundSecondary,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2A536A)),
+        border: Border.all(color: OnyxColorTokens.cyanBorder),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1837,7 +1843,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                 Text(
                   'Full system access and live fleet routing',
                   style: GoogleFonts.inter(
-                    color: Colors.white70,
+                    color: OnyxColorTokens.textPrimary.withValues(alpha: 0.70),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1865,12 +1871,12 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: emphasized
-              ? OnyxColorTokens.brand.withValues(alpha: 0.4)
+              ? OnyxColorTokens.accentPurple.withValues(alpha: 0.4)
               : OnyxColorTokens.divider,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x33040A12),
+            color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.20),
             blurRadius: 22,
             offset: Offset(0, 12),
           ),
@@ -1981,8 +1987,8 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
             child: Switch(
               value: active,
               onChanged: (_) => onTap(),
-              activeThumbColor: Colors.white,
-              activeTrackColor: OnyxColorTokens.brand,
+              activeThumbColor: OnyxColorTokens.textPrimary,
+              activeTrackColor: OnyxColorTokens.accentPurple,
               inactiveThumbColor: OnyxColorTokens.textMuted,
               inactiveTrackColor: OnyxColorTokens.backgroundPrimary,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -2012,9 +2018,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.026),
+        color: OnyxColorTokens.textPrimary.withValues(alpha: 0.026),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.06)),
       ),
       child: Row(
         children: [
@@ -2055,9 +2061,9 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.028),
+            color: OnyxColorTokens.textPrimary.withValues(alpha: 0.028),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(color: OnyxColorTokens.textPrimary.withValues(alpha: 0.08)),
           ),
           child: Row(
             children: [
@@ -2106,12 +2112,12 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                           decoration: BoxDecoration(
                             color: _selectedClient == client
                                 ? _trackBlue.withValues(alpha: 0.16)
-                                : Colors.white.withValues(alpha: 0.026),
+                                : OnyxColorTokens.textPrimary.withValues(alpha: 0.026),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: _selectedClient == client
                                   ? _trackBlue.withValues(alpha: 0.8)
-                                  : Colors.white.withValues(alpha: 0.08),
+                                  : OnyxColorTokens.textPrimary.withValues(alpha: 0.08),
                             ),
                           ),
                           child: Row(
@@ -2122,7 +2128,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
                                 decoration: BoxDecoration(
                                   color: _selectedClient == client
                                       ? _trackBlue
-                                      : Colors.white.withValues(alpha: 0.18),
+                                      : OnyxColorTokens.textPrimary.withValues(alpha: 0.18),
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -2394,7 +2400,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
       'PATROL' => _trackBlue,
       'ONSITE' => _trackGreen,
       'EN ROUTE' => _trackAmber,
-      _ => const Color(0xFF6BD8B3),
+      _ => OnyxColorTokens.accentGreen,
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -2402,7 +2408,7 @@ class _TrackOverviewBoardState extends State<TrackOverviewBoard> {
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.02),
+          color: OnyxColorTokens.textPrimary.withValues(alpha: 0.02),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: _trackPanelBorder),
         ),
@@ -2539,7 +2545,11 @@ class _TrackMapFallback extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF07111A), Color(0xFF0A1520), Color(0xFF091621)],
+          colors: [
+            OnyxColorTokens.backgroundPrimary,
+            OnyxColorTokens.backgroundSecondary,
+            OnyxColorTokens.surfaceElevated,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -2672,7 +2682,7 @@ class _TrackMapPin extends StatelessWidget {
                     width: selected ? 34 : 30,
                     height: selected ? 34 : 30,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0A1220),
+                      color: OnyxColorTokens.backgroundPrimary,
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
                         color: color.withValues(alpha: selected ? 0.92 : 0.62),
@@ -2719,7 +2729,7 @@ class _TrackMapDot extends StatelessWidget {
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF08101B),
+                    color: OnyxColorTokens.backgroundPrimary,
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: color.withValues(alpha: 0.78),
@@ -2773,7 +2783,7 @@ class _TrackMapStar extends StatelessWidget {
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF08101B),
+                    color: OnyxColorTokens.backgroundPrimary,
                     borderRadius: BorderRadius.circular(7),
                     border: Border.all(color: color.withValues(alpha: 0.5)),
                     boxShadow: [
@@ -2802,7 +2812,7 @@ class _TrackMapFallbackPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final gridPaint = Paint()
-      ..color = const Color(0x22385268)
+      ..color = OnyxColorTokens.cyanBorder.withValues(alpha: 0.13)
       ..strokeWidth = 1;
     for (var row = 0; row <= 12; row++) {
       final y = size.height * row / 12;
@@ -2813,7 +2823,8 @@ class _TrackMapFallbackPainter extends CustomPainter {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
     }
 
-    final districtPaint = Paint()..color = const Color(0x18253B52);
+    final districtPaint =
+        Paint()..color = OnyxColorTokens.backgroundSecondary.withValues(alpha: 0.09);
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromLTWH(
@@ -2839,7 +2850,8 @@ class _TrackMapFallbackPainter extends CustomPainter {
       districtPaint,
     );
 
-    final zonePaint = Paint()..color = const Color(0x141B3B31);
+    final zonePaint =
+        Paint()..color = OnyxColorTokens.greenSurface.withValues(alpha: 0.08);
     canvas.drawOval(
       Rect.fromLTWH(
         size.width * 0.54,
@@ -2860,17 +2872,17 @@ class _TrackMapFallbackPainter extends CustomPainter {
     );
 
     final majorRoad = Paint()
-      ..color = const Color(0xFF1C3A63)
+      ..color = OnyxColorTokens.accentBlue
       ..strokeWidth = 10
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
     final minorRoad = Paint()
-      ..color = const Color(0xAA234B7C)
+      ..color = OnyxColorTokens.accentBlue.withValues(alpha: 0.67)
       ..strokeWidth = 5
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
     final tertiaryRoad = Paint()
-      ..color = const Color(0x66365A85)
+      ..color = OnyxColorTokens.cyanBorder.withValues(alpha: 0.40)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;

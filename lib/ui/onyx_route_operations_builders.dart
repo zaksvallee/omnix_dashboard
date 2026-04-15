@@ -178,12 +178,12 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
 
   Color _riskIntelIconColor(IntelligenceReceived event) {
     if (event.riskScore >= 80) {
-      return const Color(0xFFFF7C7C);
+      return OnyxColorTokens.accentRed;
     }
     if (event.riskScore >= 55) {
-      return const Color(0xFFFFC533);
+      return OnyxColorTokens.accentAmber;
     }
-    return const Color(0xFF54C8FF);
+    return OnyxColorTokens.accentSky;
   }
 
   bool _matchesRiskIntelArea(String areaTitle, IntelligenceReceived event) {
@@ -202,12 +202,24 @@ extension _OnyxRouteOperationsBuilders on _OnyxAppState {
 
   (String, Color, Color) _riskIntelAreaTone(int maxRiskScore) {
     if (maxRiskScore >= 80) {
-      return ('HIGH', const Color(0xFFFF7C7C), const Color(0xFF6F2D2D));
+      return (
+        'HIGH',
+        OnyxColorTokens.accentRed,
+        OnyxColorTokens.redBorder,
+      );
     }
     if (maxRiskScore >= 55) {
-      return ('MEDIUM', const Color(0xFFFFC533), const Color(0xFF70511F));
+      return (
+        'MEDIUM',
+        OnyxColorTokens.accentAmber,
+        OnyxColorTokens.amberBorder,
+      );
     }
-    return ('LOW', const Color(0xFF5BE2A3), const Color(0xFF214A3B));
+    return (
+      'LOW',
+      OnyxColorTokens.accentGreen,
+      OnyxColorTokens.greenBorder,
+    );
   }
 
   void _openEventsForRiskIntelItem(RiskIntelFeedItem item) {

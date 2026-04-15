@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../application/onyx_agent_camera_bridge_health_service.dart';
+import 'theme/onyx_design_tokens.dart';
 import 'onyx_camera_bridge_action_stack.dart';
 
 enum OnyxCameraBridgeShellActionsVariant { agent, admin }
@@ -81,8 +82,8 @@ class OnyxCameraBridgeShellActions extends StatelessWidget {
       ),
       primaryColor: accent,
       primaryBackgroundColor: accent.withValues(alpha: 0.14),
-      clearForegroundColor: const Color(0xFFFCA5A5),
-      clearBorderColor: const Color(0xFFFCA5A5).withValues(alpha: 0.35),
+      clearForegroundColor: OnyxColorTokens.accentRed,
+      clearBorderColor: OnyxColorTokens.redBorder,
       copyForegroundColor: accent,
       copyBorderColor: accent.withValues(
         alpha: switch (variant) {

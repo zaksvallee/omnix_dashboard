@@ -32,7 +32,7 @@ const _obTextSecondary = OnyxColorTokens.textSecondary;
 const _obTextMuted = OnyxColorTokens.textMuted;
 const _obBlueAccent = OnyxColorTokens.accentCyan;
 const _obBlueAccentStrong = OnyxColorTokens.accentCyan;
-const _obButtonFill = OnyxColorTokens.brand;
+const _obButtonFill = OnyxColorTokens.accentPurple;
 
 class SovereignLedgerPinnedAuditEntry {
   final String auditId;
@@ -470,8 +470,8 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                       key: const ValueKey('ledger-open-composer'),
                       onPressed: () => _openComposer(guardPresets),
                       style: FilledButton.styleFrom(
-                        backgroundColor: OnyxColorTokens.brand,
-                        foregroundColor: Colors.white,
+                        backgroundColor: OnyxColorTokens.accentPurple,
+                        foregroundColor: OnyxColorTokens.textPrimary,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
@@ -1225,7 +1225,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 onPressed: () => _runIntegrityCheck(entries),
                 style: _primaryButtonStyle(
                   backgroundColor: _obButtonFill,
-                  foregroundColor: Colors.white,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 icon: const Icon(Icons.verified_rounded, size: 18),
                 label: const Text('Check Chain'),
@@ -1235,7 +1235,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 onPressed: () => _exportLedger(entries),
                 style: _primaryButtonStyle(
                   backgroundColor: _obButtonFill,
-                  foregroundColor: Colors.white,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 icon: const Icon(Icons.download_rounded, size: 18),
                 label: const Text('Copy Ledger'),
@@ -1395,7 +1395,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                 onPressed: () => _exportEntryData(selected),
                 style: _primaryButtonStyle(
                   backgroundColor: _obButtonFill,
-                  foregroundColor: Colors.white,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 icon: const Icon(Icons.copy_rounded, size: 18),
                 label: const Text('Copy Entry'),
@@ -1412,7 +1412,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                       ),
                 style: _primaryButtonStyle(
                   backgroundColor: _obButtonFill,
-                  foregroundColor: Colors.white,
+                  foregroundColor: OnyxColorTokens.textPrimary,
                 ),
                 icon: const Icon(Icons.open_in_new_rounded, size: 18),
                 label: const Text('OPEN EVENTS SCOPE'),
@@ -1738,7 +1738,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
                   Text(
                     'SCENE REVIEW',
                     style: GoogleFonts.inter(
-                      color: OnyxColorTokens.brand,
+                      color: OnyxColorTokens.accentPurple,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.1,
@@ -2642,7 +2642,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
       border: Border.all(color: _obBorder),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withValues(alpha: 0.3),
+          color: OnyxColorTokens.backgroundPrimary.withValues(alpha: 0.3),
           blurRadius: 24,
           offset: const Offset(0, 12),
         ),
@@ -2660,7 +2660,7 @@ class _SovereignLedgerPageState extends State<SovereignLedgerPage> {
 
   ButtonStyle _primaryButtonStyle({
     Color backgroundColor = _obButtonFill,
-    Color foregroundColor = Colors.white,
+    Color foregroundColor = OnyxColorTokens.textPrimary,
   }) {
     return FilledButton.styleFrom(
       backgroundColor: backgroundColor,
@@ -2965,7 +2965,7 @@ extension on _ObCategory {
       case _ObCategory.incident:
         return OnyxColorTokens.accentRed;
       case _ObCategory.handover:
-        return OnyxColorTokens.brand;
+        return OnyxColorTokens.accentPurple;
       case _ObCategory.visitor:
         return OnyxColorTokens.accentPurple;
       case _ObCategory.maintenance:

@@ -13,7 +13,7 @@ const _onyxSelectedBorder = OnyxColorTokens.purpleBorder;
 const _onyxTitleColor = OnyxColorTokens.textPrimary;
 const _onyxBodyColor = OnyxColorTokens.textSecondary;
 const _onyxMutedColor = OnyxColorTokens.textMuted;
-const _onyxAccentBlue = OnyxColorTokens.brand;
+const _onyxAccentBlue = OnyxColorTokens.accentPurple;
 
 Color _softenHeroColor(Color color) {
   return Color.lerp(color, OnyxColorTokens.backgroundPrimary, 0.82)!;
@@ -26,6 +26,14 @@ class OnyxPageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryGlowColors = <Color>[
+      OnyxColorTokens.accentPurple.withValues(alpha: 0.13),
+      OnyxColorTokens.backgroundPrimary.withValues(alpha: 0),
+    ];
+    final secondaryGlowColors = <Color>[
+      OnyxColorTokens.accentPurple.withValues(alpha: 0.08),
+      OnyxColorTokens.backgroundPrimary.withValues(alpha: 0),
+    ];
     final surface = DecoratedBox(
       decoration: const BoxDecoration(color: _onyxCanvasColor),
       child: Stack(
@@ -37,10 +45,10 @@ class OnyxPageScaffold extends StatelessWidget {
               child: Container(
                 width: 360,
                 height: 360,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    colors: [Color(0x229D4BFF), Color(0x000D0D14)],
+                    colors: primaryGlowColors,
                   ),
                 ),
               ),
@@ -53,10 +61,10 @@ class OnyxPageScaffold extends StatelessWidget {
               child: Container(
                 width: 280,
                 height: 280,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
-                    colors: [Color(0x149D4BFF), Color(0x000D0D14)],
+                    colors: secondaryGlowColors,
                   ),
                 ),
               ),
@@ -397,7 +405,7 @@ class OnyxStoryHero extends StatelessWidget {
 
   Widget _metricChip(OnyxStoryMetric metric) {
     final labelColor = metric.background.computeLuminance() < 0.55
-        ? Colors.white
+        ? OnyxColorTokens.textPrimary
         : _onyxBodyColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
