@@ -345,6 +345,15 @@ extension _OnyxRouteCommandCenterBuilders on _OnyxAppState {
     );
   }
 
+  Widget _buildAlarmsRoute() {
+    return AlarmsPage(
+      supabaseReady: _routeBuilderSupabaseReady,
+      onOpenDispatches: () => _openCommandCenterRoute(OnyxRoute.dispatches),
+      onOpenAlarmDetail: (incidentRef) =>
+          _openCommandCenterRoute(OnyxRoute.dispatches),
+    );
+  }
+
   Widget _buildDispatchesRoute(List<DispatchEvent> events) {
     final routeClientId = _dispatchRouteClientId.trim();
     final routeSiteId = _dispatchRouteSiteId.trim();

@@ -198,6 +198,7 @@ import 'presentation/reports/report_preview_controller.dart';
 import 'ui/client_app_page.dart';
 import 'ui/clients_page.dart';
 import 'ui/controller_login_page.dart';
+import 'ui/alarms_page.dart';
 import 'ui/dispatch_page.dart';
 import 'ui/events_review_page.dart';
 import 'ui/governance_page.dart';

@@ -141,6 +141,16 @@ enum OnyxRoute {
     'Execute with focused dispatch context.',
     agentScopeSource: OnyxRouteAgentScopeSource.dispatchRoute,
   ),
+  alarms(
+    '/alarms',
+    'Alarms',
+    Icons.warning_amber_rounded,
+    OnyxRouteSection.commandCenter,
+    'ALARMS',
+    'Monitor active alarms and dispatch armed response.',
+    shellBadgeKind: OnyxRouteShellBadgeKind.activeIncidents,
+    shellBadgeColor: Color(0xFFEF4444),
+  ),
   events(
     '/events',
     'Events',

@@ -12,6 +12,7 @@ extension _OnyxRouteBuilders on _OnyxAppState {
       OnyxRoute.aiQueue: () =>
           _buildAiQueueRoute(events, previousTomorrowUrgencySummary),
       OnyxRoute.dispatches: () => _buildDispatchesRoute(events),
+      OnyxRoute.alarms: _buildAlarmsRoute,
       OnyxRoute.tactical: () => _buildTacticalRoute(events),
       OnyxRoute.vip: _buildVipRoute,
       OnyxRoute.intel: () => _buildIntelRoute(events),
