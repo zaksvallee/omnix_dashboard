@@ -961,6 +961,7 @@ class _GuardsPageState extends State<GuardsPage> {
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -976,7 +977,18 @@ class _GuardsPageState extends State<GuardsPage> {
             ),
           ),
           Divider(color: _dividerColor, height: 1),
-          for (final guard in guards) _guardRosterRow(guard, guards),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 640),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final guard in guards) _guardRosterRow(guard, guards),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
