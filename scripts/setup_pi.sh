@@ -301,6 +301,48 @@ ExecStart=/bin/bash -lc 'mkdir -p tmp && exec ./scripts/run_camera_worker.sh --c
 [Install]
 WantedBy=multi-user.target
 EOF
+
+  cat > "${SYSTEMD_DIR}/onyx-telegram-webhook.service" <<EOF
+[Unit]
+Description=ONYX Telegram webhook
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${APP_USER}
+Group=${APP_GROUP}
+WorkingDirectory=${INSTALL_DIR}
+Environment=HOME=${APP_HOME}
+Environment=PATH=/usr/lib/dart/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Restart=always
+RestartSec=5
+ExecStart=/bin/bash -lc 'mkdir -p tmp && exec dart run bin/onyx_telegram_webhook.dart >>tmp/onyx_telegram_webhook.log 2>&1'
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  cat > "${SYSTEMD_DIR}/onyx-telegram-ai-processor.service" <<EOF
+[Unit]
+Description=ONYX Telegram AI processor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${APP_USER}
+Group=${APP_GROUP}
+WorkingDirectory=${INSTALL_DIR}
+Environment=HOME=${APP_HOME}
+Environment=PATH=/usr/lib/dart/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Restart=always
+RestartSec=5
+ExecStart=/bin/bash -lc 'mkdir -p tmp && exec dart run bin/onyx_telegram_ai_processor.dart >>tmp/onyx_telegram_ai_processor.log 2>&1'
+
+[Install]
+WantedBy=multi-user.target
+EOF
 }
 
 enable_services() {
