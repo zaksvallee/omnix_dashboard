@@ -3265,6 +3265,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
     }
 
     Widget priorityCard(_CommandDecisionItem item) => Container(
+          width: double.infinity,
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -3816,7 +3817,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wideDeck = constraints.maxWidth >= 1380;
+        final wideDeck = constraints.maxWidth >= 860;
         final compactPanels = constraints.maxWidth < 1200;
         final focusAndQuickOpen = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4958,7 +4959,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       Container(
                         padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
                         decoration: BoxDecoration(
-                          color: module.surface,
+                          color: _commandPanelColor,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: module.border),
                           boxShadow: [
@@ -6203,7 +6204,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                             ),
                             const SizedBox(height: 7),
                             Text(
-                              entry.description,
+                              _humaniseSiteIdsInText(entry.description),
                               style: GoogleFonts.inter(
                                 color: _commandTitleColor,
                                 fontSize: 11.1,
@@ -16632,7 +16633,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      entry.description,
+                      _humaniseSiteIdsInText(entry.description),
                       style: GoogleFonts.inter(
                         color: _commandTitleColor,
                         fontSize: 10.5,
