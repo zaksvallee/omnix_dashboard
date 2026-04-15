@@ -3154,15 +3154,17 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
       final cardBorder = isAlerting
           ? Border.all(color: m.accent.withValues(alpha: 0.25), width: 1.5)
           : Border.all(color: OnyxColorTokens.divider);
-      // Fixed nav link labels — short, human-readable.
+      // Nav link labels — short, human-readable.
       final footerLabel = switch (m.label) {
         'ALARMS' => 'Alarms',
         'GUARDS' => 'Guards',
         'RISK INTEL' => 'Intel',
         'VIP PROTECTION' => 'VIP',
         'CLIENT COMMS' => 'Comms',
-        _ => 'CCTV', // VIDEO OPS / CCTV variants
+        _ => 'CCTV',
       };
+      // CCTV card shows the metric description, not the module name.
+      final cardBodyLabel = footerLabel == 'CCTV' ? 'AI ALERTS' : m.label;
       // Metric font: 36px for counts, 28px for text values (e.g. "LOW").
       final metricFontSize = isTextVal ? 28.0 : 36.0;
 
@@ -3171,7 +3173,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         child: GestureDetector(
           onTap: m.onTap != null ? () => m.onTap!() : null,
           child: Container(
-            height: 160,
+            height: 140,
             margin: margin,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -3183,42 +3185,42 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Top row: icon box (left) + status dot (right)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: m.accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(m.icon, size: 22, color: m.accent),
-                    ),
-                    const Spacer(),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.only(top: 4),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: m.accent,
-                        boxShadow: [
-                          BoxShadow(
-                            color: m.accent.withValues(alpha: 0.4),
-                            blurRadius: 6,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                // Middle: metric value + label
+                // Top group: icon row + metric value + label
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: m.accent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(m.icon, size: 22, color: m.accent),
+                        ),
+                        const Spacer(),
+                        Container(
+                          width: 8,
+                          height: 8,
+                          margin: const EdgeInsets.only(top: 4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: m.accent,
+                            boxShadow: [
+                              BoxShadow(
+                                color: m.accent.withValues(alpha: 0.4),
+                                blurRadius: 6,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                       displayVal,
                       style: GoogleFonts.inter(
@@ -3226,20 +3228,20 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                         fontWeight: FontWeight.w700,
                         color: valColor,
                         letterSpacing: -0.5,
-                        height: 1,
+                        height: 1.0,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
-                      m.label,
+                      cardBodyLabel,
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _commandMutedColor,
                         letterSpacing: 0.6,
-                        height: 1,
+                        height: 1.0,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -3255,6 +3257,7 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: _commandBodyColor,
+                      height: 1.0,
                     ),
                   ),
                 ),
