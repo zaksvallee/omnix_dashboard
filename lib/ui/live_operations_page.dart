@@ -2812,39 +2812,22 @@ class _LiveOperationsPageState extends State<LiveOperationsPage> {
         r'(?:SITE|CLIENT)-[A-Z0-9]+(?:-[A-Z0-9]+)*',
         caseSensitive: false,
       ),
-      (m) {
-        final raw = m.group(0)!;
-        final upper = raw.toUpperCase();
-        final stripped = upper.startsWith('CLIENT-')
-            ? raw.substring(7)
-            : raw.startsWith('SITE-') || raw.startsWith('site-')
-            ? raw.substring(5)
-            : raw;
-        return stripped
-            .split('-')
-            .map(
-              (w) => w.isEmpty
-                  ? ''
-                  : w[0].toUpperCase() + w.substring(1).toLowerCase(),
-            )
-            .join(' ');
-      },
+      (m) => _humaniseSiteId(m.group(0)!),
     );
   }
 
   String _humaniseSiteId(String raw) {
-    var normalized = raw.trim();
-    if (normalized.toUpperCase().startsWith('SITE-')) {
-      normalized = normalized.substring(5);
-    }
-    return normalized
+    var s = raw.trim();
+    if (s.toUpperCase().startsWith('SITE-')) s = s.substring(5);
+    if (s.toUpperCase().startsWith('CLIENT-')) s = s.substring(7);
+    return s
         .split('-')
         .map(
-          (word) => word.isEmpty
+          (w) => w.isEmpty
               ? ''
-              : (word == word.toUpperCase()
-                    ? word
-                    : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'),
+              : (w == w.toUpperCase() && w.length <= 2 && w.length > 1)
+              ? w
+              : '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}',
         )
         .join(' ')
         .trim();
